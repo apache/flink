@@ -38,8 +38,6 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
 	private final ResourceID resourceManagerResourceId;
 
-	private final long heartbeatInterval;
-
 	private final ClusterInformation clusterInformation;
 
 	/**
@@ -47,17 +45,14 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 	 *
 	 * @param registrationId The ID that the ResourceManager assigned the registration.
 	 * @param resourceManagerResourceId The unique ID that identifies the ResourceManager.
-	 * @param heartbeatInterval The interval in which the ResourceManager will heartbeat the TaskExecutor.
 	 * @param clusterInformation information about the cluster
 	 */
 	public TaskExecutorRegistrationSuccess(
 			InstanceID registrationId,
 			ResourceID resourceManagerResourceId,
-			long heartbeatInterval,
 			ClusterInformation clusterInformation) {
 		this.registrationId = Preconditions.checkNotNull(registrationId);
 		this.resourceManagerResourceId = Preconditions.checkNotNull(resourceManagerResourceId);
-		this.heartbeatInterval = heartbeatInterval;
 		this.clusterInformation = Preconditions.checkNotNull(clusterInformation);
 	}
 
@@ -76,13 +71,6 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 	}
 
 	/**
-	 * Gets the interval in which the ResourceManager will heartbeat the TaskExecutor.
-	 */
-	public long getHeartbeatInterval() {
-		return heartbeatInterval;
-	}
-
-	/**
 	 * Gets the cluster information.
 	 */
 	public ClusterInformation getClusterInformation() {
@@ -91,9 +79,12 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
 	@Override
 	public String toString() {
-		return "TaskExecutorRegistrationSuccess (" + registrationId + " / " + resourceManagerResourceId + " / " + heartbeatInterval + ')';
+		return "TaskExecutorRegistrationSuccess{" +
+			"registrationId=" + registrationId +
+			", resourceManagerResourceId=" + resourceManagerResourceId +
+			", clusterInformation=" + clusterInformation +
+			'}';
 	}
-
 }
 
 

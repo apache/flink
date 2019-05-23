@@ -27,20 +27,20 @@ import org.apache.flink.util.Collector;
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
  *
- * Partial computation can significantly improve the performance of a {@link RichGroupReduceFunction}.
+ * <p>Partial computation can significantly improve the performance of a {@link RichGroupReduceFunction}.
  * This technique is also known as applying a Combiner.
- * Implement the {@link GroupCombineFunction<IN, IN>} interface to enable partial computation, i.e.,
+ * Implement the {@link GroupCombineFunction} interface to enable partial computation, i.e.,
  * a combiner for this {@link RichGroupReduceFunction}.
- * 
+ *
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
 @Public
 public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReduceFunction<IN, OUT> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public abstract void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception;
-	
+
 }

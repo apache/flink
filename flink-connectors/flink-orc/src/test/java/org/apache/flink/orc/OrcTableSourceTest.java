@@ -35,7 +35,7 @@ import org.apache.flink.table.expressions.GetCompositeField;
 import org.apache.flink.table.expressions.GreaterThan;
 import org.apache.flink.table.expressions.ItemAt;
 import org.apache.flink.table.expressions.Literal;
-import org.apache.flink.table.expressions.ResolvedFieldReference;
+import org.apache.flink.table.expressions.PlannerResolvedFieldReference;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
@@ -128,8 +128,8 @@ public class OrcTableSourceTest {
 
 		TableSchema schema = orc.getTableSchema();
 		assertNotNull(schema);
-		assertArrayEquals(getNestedFieldNames(), schema.getColumnNames());
-		assertArrayEquals(getNestedFieldTypes(), schema.getTypes());
+		assertArrayEquals(getNestedFieldNames(), schema.getFieldNames());
+		assertArrayEquals(getNestedFieldTypes(), schema.getFieldTypes());
 	}
 
 	@Test
@@ -179,16 +179,16 @@ public class OrcTableSourceTest {
 
 		// expressions for supported predicates
 		Expression pred1 = new GreaterThan(
-			new ResolvedFieldReference("int1", Types.INT),
+			new PlannerResolvedFieldReference("int1", Types.INT),
 			new Literal(100, Types.INT));
 		Expression pred2 = new EqualTo(
-			new ResolvedFieldReference("string1", Types.STRING),
+			new PlannerResolvedFieldReference("string1", Types.STRING),
 			new Literal("hello", Types.STRING));
 		// unsupported predicate
 		Expression unsupportedPred = new EqualTo(
 			new GetCompositeField(
 				new ItemAt(
-					new ResolvedFieldReference(
+					new PlannerResolvedFieldReference(
 						"list",
 						ObjectArrayTypeInfo.getInfoFor(
 							Types.ROW_NAMED(new String[] {"int1", "string1"}, Types.INT, Types.STRING))),
@@ -198,7 +198,7 @@ public class OrcTableSourceTest {
 			);
 		// invalid predicate
 		Expression invalidPred = new EqualTo(
-			new ResolvedFieldReference("long1", Types.LONG),
+			new PlannerResolvedFieldReference("long1", Types.LONG),
 			// some invalid, non-serializable literal (here an object of this test class)
 			new Literal(new OrcTableSourceTest(), Types.LONG)
 		);

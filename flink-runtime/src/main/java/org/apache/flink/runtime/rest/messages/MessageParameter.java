@@ -42,7 +42,7 @@ public abstract class MessageParameter<X> {
 	private final String key;
 	private X value;
 
-	MessageParameter(String key, MessageParameterRequisiteness requisiteness) {
+	protected MessageParameter(String key, MessageParameterRequisiteness requisiteness) {
 		this.key = Preconditions.checkNotNull(key);
 		this.requisiteness = Preconditions.checkNotNull(requisiteness);
 	}
@@ -137,4 +137,10 @@ public abstract class MessageParameter<X> {
 		MANDATORY,
 		OPTIONAL
 	}
+
+	/**
+	 * Returns a description for REST API HTML documentation.
+ 	 * @return escaped HTML string
+	 */
+	public abstract String getDescription();
 }

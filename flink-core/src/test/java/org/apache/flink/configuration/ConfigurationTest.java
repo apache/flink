@@ -23,9 +23,12 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -302,5 +305,156 @@ public class ConfigurationTest extends TestLogger {
 		assertEquals(12, cfg.getInteger(matchesSecond));
 		assertEquals(13, cfg.getInteger(matchesThird));
 		assertEquals(-1, cfg.getInteger(notContained));
+	}
+
+	@Test
+	public void testFallbackKeys() {
+		Configuration cfg = new Configuration();
+		cfg.setInteger("the-key", 11);
+		cfg.setInteger("old-key", 12);
+		cfg.setInteger("older-key", 13);
+
+		ConfigOption<Integer> matchesFirst = ConfigOptions
+			.key("the-key")
+			.defaultValue(-1)
+			.withFallbackKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesSecond = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesThird = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("foo", "older-key");
+
+		ConfigOption<Integer> notContained = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("not-there", "also-not-there");
+
+		assertEquals(11, cfg.getInteger(matchesFirst));
+		assertEquals(12, cfg.getInteger(matchesSecond));
+		assertEquals(13, cfg.getInteger(matchesThird));
+		assertEquals(-1, cfg.getInteger(notContained));
+	}
+
+	@Test
+	public void testFallbackAndDeprecatedKeys() {
+		final ConfigOption<Integer> fallback = ConfigOptions
+			.key("fallback")
+			.defaultValue(-1);
+
+		final ConfigOption<Integer> deprecated = ConfigOptions
+			.key("deprecated")
+			.defaultValue(-1);
+
+		final ConfigOption<Integer> mainOption = ConfigOptions
+			.key("main")
+			.defaultValue(-1)
+			.withFallbackKeys(fallback.key())
+			.withDeprecatedKeys(deprecated.key());
+
+		final Configuration fallbackCfg = new Configuration();
+		fallbackCfg.setInteger(fallback, 1);
+		assertEquals(1, fallbackCfg.getInteger(mainOption));
+
+		final Configuration deprecatedCfg = new Configuration();
+		deprecatedCfg.setInteger(deprecated, 2);
+		assertEquals(2, deprecatedCfg.getInteger(mainOption));
+
+		// reverse declaration of fallback and deprecated keys, fallback keys should always be used first
+		final ConfigOption<Integer> reversedMainOption = ConfigOptions
+			.key("main")
+			.defaultValue(-1)
+			.withDeprecatedKeys(deprecated.key())
+			.withFallbackKeys(fallback.key());
+
+		final Configuration deprecatedAndFallBackConfig = new Configuration();
+		deprecatedAndFallBackConfig.setInteger(fallback, 1);
+		deprecatedAndFallBackConfig.setInteger(deprecated, 2);
+		assertEquals(1, deprecatedAndFallBackConfig.getInteger(mainOption));
+		assertEquals(1, deprecatedAndFallBackConfig.getInteger(reversedMainOption));
+	}
+
+	@Test
+	public void testRemove(){
+		Configuration cfg = new Configuration();
+		cfg.setInteger("a", 1);
+		cfg.setInteger("b", 2);
+
+		ConfigOption<Integer> validOption = ConfigOptions
+			.key("a")
+			.defaultValue(-1);
+
+		ConfigOption<Integer> deprecatedOption = ConfigOptions
+			.key("c")
+			.defaultValue(-1)
+			.withDeprecatedKeys("d", "b");
+
+		ConfigOption<Integer> unexistedOption = ConfigOptions
+			.key("e")
+			.defaultValue(-1)
+			.withDeprecatedKeys("f", "g", "j");
+
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
+		assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 1);
+		assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
+		assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
+	}
+
+	@Test
+	public void testShouldParseValidStringToEnum() {
+		final ConfigOption<String> configOption = createStringConfigOption();
+
+		final Configuration configuration = new Configuration();
+		configuration.setString(configOption.key(), TestEnum.VALUE1.toString());
+
+		final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
+		assertEquals(TestEnum.VALUE1, parsedEnumValue);
+	}
+
+	@Test
+	public void testShouldParseValidStringToEnumIgnoringCase() {
+		final ConfigOption<String> configOption = createStringConfigOption();
+
+		final Configuration configuration = new Configuration();
+		configuration.setString(configOption.key(), TestEnum.VALUE1.toString().toLowerCase());
+
+		final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
+		assertEquals(TestEnum.VALUE1, parsedEnumValue);
+	}
+
+	@Test
+	public void testThrowsExceptionIfTryingToParseInvalidStringForEnum() {
+		final ConfigOption<String> configOption = createStringConfigOption();
+
+		final Configuration configuration = new Configuration();
+		final String invalidValueForTestEnum = "InvalidValueForTestEnum";
+		configuration.setString(configOption.key(), invalidValueForTestEnum);
+
+		try {
+			configuration.getEnum(TestEnum.class, configOption);
+			fail("Expected exception not thrown");
+		} catch (IllegalArgumentException e) {
+			final String expectedMessage = "Value for config option " +
+				configOption.key() + " must be one of [VALUE1, VALUE2] (was " +
+				invalidValueForTestEnum + ")";
+			assertThat(e.getMessage(), containsString(expectedMessage));
+		}
+	}
+
+	enum TestEnum {
+		VALUE1,
+		VALUE2
+	}
+
+	private static ConfigOption<String> createStringConfigOption() {
+		return ConfigOptions
+			.key("test-string-key")
+			.noDefaultValue();
 	}
 }

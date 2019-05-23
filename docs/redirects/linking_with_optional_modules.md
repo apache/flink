@@ -1,8 +1,8 @@
 ---
 title: "Linking with Optional Modules"
 layout: redirect
-redirect: /start/dependencies.html
-permalink: /dev/linking.html
+redirect: /dev/projectsetup/dependencies.html
+permalink: /dev/projectsetup/dependencies.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

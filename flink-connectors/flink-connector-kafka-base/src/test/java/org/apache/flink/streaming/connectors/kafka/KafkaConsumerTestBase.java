@@ -34,7 +34,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -59,17 +58,16 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
@@ -79,14 +77,9 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import kafka.consumer.Consumer;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.message.MessageAndMetadata;
 import kafka.server.KafkaServer;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
@@ -126,7 +119,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka consumer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaConsumerTestBase extends KafkaTestBase {
+public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 	@Rule
 	public RetryRule retryRule = new RetryRule();
@@ -185,7 +178,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			stream.print();
 			see.execute("No broker test");
 		} catch (JobExecutionException jee) {
-			if (kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10") || kafkaServer.getVersion().equals("0.11")) {
+			if (kafkaServer.getVersion().equals("0.9") ||
+				kafkaServer.getVersion().equals("0.10") ||
+				kafkaServer.getVersion().equals("0.11") ||
+				kafkaServer.getVersion().equals("2.0")) {
 				assertTrue(jee.getCause() instanceof TimeoutException);
 
 				TimeoutException te = (TimeoutException) jee.getCause();
@@ -425,8 +421,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedSerializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-			new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KafkaDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// setup and run the latest-consuming job
@@ -722,7 +718,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 		env.getConfig().disableSysoutLogging();
 
-		TypeInformation<Tuple2<Long, String>> longStringType = TypeInfoParser.parse("Tuple2<Long, String>");
+		TypeInformation<Tuple2<Long, String>> longStringType =
+				TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
 
 		TypeInformationSerializationSchema<Tuple2<Long, String>> sourceSchema =
 				new TypeInformationSerializationSchema<>(longStringType, env.getConfig());
@@ -1233,7 +1230,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		createTestTopic(topic, parallelism, 1);
 
-		final TypeInformation<Tuple2<Long, byte[]>> longBytesInfo = TypeInfoParser.parse("Tuple2<Long, byte[]>");
+		final TypeInformation<Tuple2<Long, byte[]>> longBytesInfo =
+				TypeInformation.of(new TypeHint<Tuple2<Long, byte[]>>(){});
 
 		final TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema =
 				new TypeInformationSerializationSchema<>(longBytesInfo, new ExecutionConfig());
@@ -1419,7 +1417,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 
-		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
+		KafkaDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1581,7 +1579,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env1.getConfig().disableSysoutLogging();
 		env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
-		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
+		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(
+				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}), env1.getConfig());
+
 		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
 		fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 			@Override
@@ -1686,7 +1686,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final int finalCount;
 		int count = 0;
 
-		TypeInformation<Tuple2<Integer, Integer>> ti = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		TypeInformation<Tuple2<Integer, Integer>> ti = TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){});
 		TypeSerializer<Tuple2<Integer, Integer>> ser = ti.createSerializer(new ExecutionConfig());
 
 		public FixedNumberDeserializationSchema(int finalCount) {
@@ -1734,7 +1734,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 		final int finalCount = finalCountTmp;
 
-		final TypeInformation<Tuple2<Integer, Integer>> intIntTupleType = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		final TypeInformation<Tuple2<Integer, Integer>> intIntTupleType =
+				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){});
 
 		final TypeInformationSerializationSchema<Tuple2<Integer, Integer>> deser =
 			new TypeInformationSerializationSchema<>(intIntTupleType, env.getConfig());
@@ -1864,8 +1865,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				new KeyedSerializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-				new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+				new KafkaDeserializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		final int maxNumAttempts = 10;
@@ -1962,8 +1963,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedSerializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-			new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KafkaDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// -------- Write the append sequence --------
@@ -2024,7 +2025,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	private boolean validateSequence(
 			final String topic,
 			final int parallelism,
-			KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
+			KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
 			final int totalNumElements) throws Exception {
 
 		final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -2111,41 +2112,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	//  Debugging utilities
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Read topic to list, only using Kafka code.
-	 */
-	private static List<MessageAndMetadata<byte[], byte[]>> readTopicToList(String topicName, ConsumerConfig config, final int stopAfter) {
-		ConsumerConnector consumerConnector = Consumer.createJavaConsumerConnector(config);
-		// we request only one stream per consumer instance. Kafka will make sure that each consumer group
-		// will see each message only once.
-		Map<String, Integer> topicCountMap = Collections.singletonMap(topicName, 1);
-		Map<String, List<KafkaStream<byte[], byte[]>>> streams = consumerConnector.createMessageStreams(topicCountMap);
-		if (streams.size() != 1) {
-			throw new RuntimeException("Expected only one message stream but got " + streams.size());
-		}
-		List<KafkaStream<byte[], byte[]>> kafkaStreams = streams.get(topicName);
-		if (kafkaStreams == null) {
-			throw new RuntimeException("Requested stream not available. Available streams: " + streams.toString());
-		}
-		if (kafkaStreams.size() != 1) {
-			throw new RuntimeException("Requested 1 stream from Kafka, bot got " + kafkaStreams.size() + " streams");
-		}
-		LOG.info("Opening Consumer instance for topic '{}' on group '{}'", topicName, config.groupId());
-		ConsumerIterator<byte[], byte[]> iteratorToRead = kafkaStreams.get(0).iterator();
-
-		List<MessageAndMetadata<byte[], byte[]>> result = new ArrayList<>();
-		int read = 0;
-		while (iteratorToRead.hasNext()) {
-			read++;
-			result.add(iteratorToRead.next());
-			if (read == stopAfter) {
-				LOG.info("Read " + read + " elements");
-				return result;
-			}
-		}
-		return result;
-	}
-
 	private static class BrokerKillingMapper<T> extends RichMapFunction<T, T>
 			implements ListCheckpointed<Integer>, CheckpointListener {
 
@@ -2228,20 +2194,20 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
+	private static class Tuple2WithTopicSchema implements KafkaDeserializationSchema<Tuple3<Integer, Integer, String>>,
 		KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
 
 		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
 
 		public Tuple2WithTopicSchema(ExecutionConfig ec) {
-			ts = TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>").createSerializer(ec);
+			ts = TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}).createSerializer(ec);
 		}
 
 		@Override
-		public Tuple3<Integer, Integer, String> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+		public Tuple3<Integer, Integer, String> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Tuple2<Integer, Integer> t2 = ts.deserialize(in);
-			return new Tuple3<>(t2.f0, t2.f1, topic);
+			return new Tuple3<>(t2.f0, t2.f1, record.topic());
 		}
 
 		@Override
@@ -2251,7 +2217,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		@Override
 		public TypeInformation<Tuple3<Integer, Integer, String>> getProducedType() {
-			return TypeInfoParser.parse("Tuple3<Integer, Integer, String>");
+			return TypeInformation.of(new TypeHint<Tuple3<Integer, Integer, String>>(){});
 		}
 
 		@Override

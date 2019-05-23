@@ -197,14 +197,14 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 		final CompletableFuture<KvStateLocation> cachedFuture = lookupCache.get(cacheKey);
 
 		if (!forceUpdate && cachedFuture != null && !cachedFuture.isCompletedExceptionally()) {
-			LOG.debug("Retrieving location for state={} of job={} from the cache.", jobId, queryableStateName);
+			LOG.debug("Retrieving location for state={} of job={} from the cache.", queryableStateName, jobId);
 			return cachedFuture;
 		}
 
 		final KvStateLocationOracle kvStateLocationOracle = proxy.getKvStateLocationOracle(jobId);
 
 		if (kvStateLocationOracle != null) {
-			LOG.debug("Retrieving location for state={} of job={} from the key-value state location oracle.", jobId, queryableStateName);
+			LOG.debug("Retrieving location for state={} of job={} from the key-value state location oracle.", queryableStateName, jobId);
 			final CompletableFuture<KvStateLocation> location = new CompletableFuture<>();
 			lookupCache.put(cacheKey, location);
 
@@ -225,7 +225,10 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 
 			return location;
 		} else {
-			return FutureUtils.completedExceptionally(new UnknownLocationException("Could not contact the state location oracle to retrieve the state location."));
+			return FutureUtils.completedExceptionally(
+				new UnknownLocationException(
+						"Could not retrieve location of state=" + queryableStateName + " of job=" + jobId +
+								". Potential reasons are: i) the state is not ready, or ii) the job does not exist."));
 		}
 	}
 

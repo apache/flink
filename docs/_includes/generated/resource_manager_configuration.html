@@ -20,7 +20,7 @@
         <tr>
             <td><h5>local.number-resourcemanager</h5></td>
             <td style="word-wrap: break-word;">1</td>
-            <td></td>
+            <td>The number of resource managers start.</td>
         </tr>
         <tr>
             <td><h5>resourcemanager.job.timeout</h5></td>
@@ -31,6 +31,11 @@
             <td><h5>resourcemanager.rpc.port</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Defines the network port to connect to for communication with the resource manager. By default, the port of the JobManager, because the same ActorSystem is used. Its not possible to use this configuration key to define port ranges.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.taskmanager-timeout</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>The timeout for an idle task manager to be released.</td>
         </tr>
     </tbody>
 </table>

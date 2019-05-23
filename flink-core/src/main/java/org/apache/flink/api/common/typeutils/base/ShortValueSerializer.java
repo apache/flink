@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.ShortValue;
@@ -80,13 +82,20 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ShortValueSerializer;
+	public TypeSerializerSnapshot<ShortValue> snapshotConfiguration() {
+		return new ShortValueSerializerSnapshot();
 	}
 
-	@Override
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return super.isCompatibleSerializationFormatIdentifier(identifier)
-			|| identifier.equals(ShortSerializer.class.getCanonicalName());
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class ShortValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<ShortValue> {
+
+		public ShortValueSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

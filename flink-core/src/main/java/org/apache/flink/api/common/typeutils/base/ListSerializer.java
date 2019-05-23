@@ -19,29 +19,24 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A serializer for {@link List Lists}. The serializer relies on an element serializer
- * for teh serialization of the list's elements.
- * 
+ * for the serialization of the list's elements.
+ *
  * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
  * followed by the serialized representation of each element.
- * 
+ *
  * @param <T> The type of element in the list.
  */
 @Internal
@@ -49,12 +44,12 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
-	/** The serializer for the elements of the list */
+	/** The serializer for the elements of the list. */
 	private final TypeSerializer<T> elementSerializer;
 
 	/**
 	 * Creates a list serializer that uses the given serializer to serialize the list's elements.
-	 * 
+	 *
 	 * @param elementSerializer The serializer for the elements of the list
 	 */
 	public ListSerializer(TypeSerializer<T> elementSerializer) {
@@ -165,44 +160,16 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return true;
-	}
-
-	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer configuration snapshot & compatibility
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public CollectionSerializerConfigSnapshot snapshotConfiguration() {
-		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<List<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
-
-			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousElemSerializerAndConfig.f0,
-					UnloadableDummyTypeSerializer.class,
-					previousElemSerializerAndConfig.f1,
-					elementSerializer);
-
-			if (!compatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			} else if (compatResult.getConvertDeserializer() != null) {
-				return CompatibilityResult.requiresMigration(
-					new ListSerializer<>(new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
+	public TypeSerializerSnapshot<List<T>> snapshotConfiguration() {
+		return new ListSerializerSnapshot<>(this);
 	}
 }

@@ -67,7 +67,7 @@ public interface RpcService {
 		Class<C> clazz);
 
 	/**
-	 * Connect to ta remote fenced rpc server under the provided address. Returns a fenced rpc gateway
+	 * Connect to a remote fenced rpc server under the provided address. Returns a fenced rpc gateway
 	 * which can be used to communicate with the rpc server. If the connection failed, then the
 	 * returned future is failed with a {@link RpcConnectionException}.
 	 *

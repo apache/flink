@@ -23,8 +23,6 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -37,12 +35,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -225,74 +223,38 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Adding fields to a POJO as keyed state should require a state migration.
+	 * Adding fields to a POJO as keyed state should succeed.
 	 */
 	@Test
 	public void testAdditionalFieldWithKeyedState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
 	}
 
 	/**
-	 * Adding fields to a POJO as operator state should require a state migration.
+	 * Adding fields to a POJO as operator state should succeed.
 	 */
 	@Test
 	public void testAdditionalFieldWithOperatorState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, false);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, false);
 	}
 
 	/**
-	 * Removing fields from a POJO as keyed state should require a state migration.
+	 * Removing fields from a POJO as keyed state should succeed.
 	 */
 	@Test
 	public void testMissingFieldWithKeyedState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, true);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, true);
 	}
 
 	/**
-	 * Removing fields from a POJO as operator state should require a state migration.
+	 * Removing fields from a POJO as operator state should succeed.
 	 */
 	@Test
 	public void testMissingFieldWithOperatorState() throws Exception {
-		try {
-			testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, false);
-			fail("Expected a state migration exception.");
-		} catch (Exception e) {
-			if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-				// StateMigrationException expected
-			} else {
-				throw e;
-			}
-		}
+		testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, false);
 	}
 
-	public void testPojoSerializerUpgrade(String classSourceA, String classSourceB, boolean hasBField, boolean isKeyedState) throws Exception {
+	private void testPojoSerializerUpgrade(String classSourceA, String classSourceB, boolean hasBField, boolean isKeyedState) throws Exception {
 		final Configuration taskConfiguration = new Configuration();
 		final ExecutionConfig executionConfig = new ExecutionConfig();
 		final KeySelector<Long, Long> keySelector = new IdentityKeySelector<>();
@@ -351,18 +313,17 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			OperatorSubtaskState operatorSubtaskState,
 			Iterable<Long> input) throws Exception {
 
-		try (final MockEnvironment environment = new MockEnvironment(
-			"test task",
-			32 * 1024,
-			new MockInputSplitProvider(),
-			256,
-			taskConfiguration,
-			executionConfig,
-			new TestTaskStateManager(),
-			16,
-			1,
-			0,
-			classLoader)) {
+		try (final MockEnvironment environment =
+				new MockEnvironmentBuilder()
+					.setTaskName("test task")
+					.setMemorySize(32 * 1024)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(256)
+					.setTaskConfiguration(taskConfiguration)
+					.setExecutionConfig(executionConfig)
+					.setMaxParallelism(16)
+					.setUserCodeClassLoader(classLoader)
+					.build()) {
 
 			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
 			try {
@@ -412,7 +373,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 
 	private static final class StatefulMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction {
@@ -425,7 +386,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 		// keyed states
 		private transient ValueState<Object> keyedValueState;
-		private transient MapState<Object, Object> keyedMapState;
 		private transient ListState<Object> keyedListState;
 		private transient ReducingState<Object> keyedReducingState;
 
@@ -437,7 +397,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 		private transient Field fieldA;
 		private transient Field fieldB;
 
-		public StatefulMapper(boolean keyed, boolean verify, boolean hasBField) {
+		StatefulMapper(boolean keyed, boolean verify, boolean hasBField) {
 			this.keyed = keyed;
 			this.verify = verify;
 			this.hasBField = hasBField;
@@ -456,9 +416,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			if (verify) {
 				if (keyed) {
 					assertEquals(pojo, keyedValueState.value());
-
-					assertTrue(keyedMapState.contains(pojo));
-					assertEquals(pojo, keyedMapState.get(pojo));
 
 					Iterator<Object> listIterator = keyedListState.get().iterator();
 
@@ -489,7 +446,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			} else {
 				if (keyed) {
 					keyedValueState.update(pojo);
-					keyedMapState.put(pojo, pojo);
 					keyedListState.add(pojo);
 					keyedReducingState.add(pojo);
 				} else {
@@ -506,6 +462,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			pojoClass = getRuntimeContext().getUserCodeClassLoader().loadClass(POJO_NAME);
@@ -521,8 +478,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			if (keyed) {
 				keyedValueState = context.getKeyedStateStore().getState(
 					new ValueStateDescriptor<>("keyedValueState", (Class<Object>) pojoClass));
-				keyedMapState = context.getKeyedStateStore().getMapState(
-					new MapStateDescriptor<>("keyedMapState", (Class<Object>) pojoClass, (Class<Object>) pojoClass));
 				keyedListState = context.getKeyedStateStore().getListState(
 					new ListStateDescriptor<>("keyedListState", (Class<Object>) pojoClass));
 

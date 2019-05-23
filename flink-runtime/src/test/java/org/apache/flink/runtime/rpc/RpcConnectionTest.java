@@ -20,19 +20,18 @@ package org.apache.flink.runtime.rpc;
 
 import akka.actor.ActorSystem;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.Terminated;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import scala.Option;
 import scala.Tuple2;
@@ -49,7 +48,6 @@ import static org.junit.Assert.*;
  * This test validates that the RPC service gives a good message when it cannot
  * connect to an RpcEndpoint.
  */
-@Category(New.class)
 public class RpcConnectionTest extends TestLogger {
 
 	@Test
@@ -58,11 +56,13 @@ public class RpcConnectionTest extends TestLogger {
 		RpcService rpcService = null;
 		try {
 			actorSystem = AkkaUtils.createActorSystem(
-					new Configuration(), Option.apply(new Tuple2<String, Object>("localhost", 0)));
+					new Configuration(), Option.<Tuple2<String, Object>>apply(new Tuple2<>("localhost", 0)));
 
 			// we start the RPC service with a very long timeout to ensure that the test
 			// can only pass if the connection problem is not recognized merely via a timeout
-			rpcService = new AkkaRpcService(actorSystem, Time.of(10000000, TimeUnit.SECONDS));
+			Configuration configuration = new Configuration();
+			configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
+			rpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
 
 			CompletableFuture<TaskExecutorGateway> future = rpcService.connect("foo.bar.com.test.invalid", TaskExecutorGateway.class);
 

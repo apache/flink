@@ -133,7 +133,7 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	@Override
 	public CheckpointStreamFactory resolveCheckpointStorageLocation(
 			long checkpointId,
-			CheckpointStorageLocationReference reference) throws IOException {
+			CheckpointStorageLocationReference reference) {
 
 		// no matter where the checkpoint goes, we always return the storage location that stores
 		// state inline with the state handles.
@@ -141,12 +141,12 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	}
 
 	@Override
-	public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
+	public CheckpointStateOutputStream createTaskOwnedStateStream() {
 		return new MemoryCheckpointOutputStream(maxStateSize);
 	}
 
 	@Override
-	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) throws IOException {
+	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) {
 		return new PersistentMetadataCheckpointStorageLocation(fs, location, maxStateSize);
 	}
 

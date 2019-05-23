@@ -19,7 +19,6 @@ package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 
 /**
@@ -39,7 +38,7 @@ object StreamTableExample {
 
     // set up execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val orderA = env.fromCollection(Seq(
       Order(1L, "beer", 3),

@@ -40,15 +40,6 @@ import java.util.Map;
 public class CommonTestUtils {
 
 	/**
-	 * Reads the path to the directory for temporary files from the configuration and returns it.
-	 *
-	 * @return the path to the directory for temporary files
-	 */
-	public static String getTempDir() {
-		return System.getProperty("java.io.tmpdir");
-	}
-
-	/**
 	 * Creates a copy of an object via Java Serialization.
 	 *
 	 * @param original The original object.

@@ -18,48 +18,79 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.9.
  */
-@PublicEvolving
-public abstract class Kafka09TableSource extends KafkaTableSource {
-
-	// The deserialization schema for the Kafka records
-	private final DeserializationSchema<Row> deserializationSchema;
+@Internal
+public class Kafka09TableSource extends KafkaTableSourceBase {
 
 	/**
 	 * Creates a Kafka 0.9 {@link StreamTableSource}.
 	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param typeInfo              Type information describing the result type. The field names are used
-	 *                              to parse the JSON file and so are the types.
+	 * @param schema                      Schema of the produced table.
+	 * @param proctimeAttribute           Field name of the processing time attribute.
+	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
+	 * @param fieldMapping                Mapping for the fields of the table schema to
+	 *                                    fields of the physical returned type.
+	 * @param topic                       Kafka topic to consume.
+	 * @param properties                  Properties for the Kafka consumer.
+	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
+	 * @param startupMode                 Startup mode for the contained consumer.
+	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
+	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
 	 */
 	public Kafka09TableSource(
+			TableSchema schema,
+			Optional<String> proctimeAttribute,
+			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+			Optional<Map<String, String>> fieldMapping,
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
-			TableSchema schema,
-			TypeInformation<Row> typeInfo) {
+			StartupMode startupMode,
+			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		super(topic, properties, schema, typeInfo);
-
-		this.deserializationSchema = deserializationSchema;
+		super(
+			schema,
+			proctimeAttribute,
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			topic,
+			properties,
+			deserializationSchema,
+			startupMode,
+			specificStartupOffsets);
 	}
 
-	@Override
-	public DeserializationSchema<Row> getDeserializationSchema() {
-		return this.deserializationSchema;
+	/**
+	 * Creates a Kafka 0.9 {@link StreamTableSource}.
+	 *
+	 * @param schema                Schema of the produced table.
+	 * @param topic                 Kafka topic to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
+	 */
+	public Kafka09TableSource(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			DeserializationSchema<Row> deserializationSchema) {
+
+		super(schema, topic, properties, deserializationSchema);
 	}
 
 	@Override

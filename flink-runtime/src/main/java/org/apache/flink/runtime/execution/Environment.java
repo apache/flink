@@ -39,6 +39,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 import java.util.Map;
@@ -147,6 +148,8 @@ public interface Environment {
 	BroadcastVariableManager getBroadcastVariableManager();
 
 	TaskStateManager getTaskStateManager();
+
+	GlobalAggregateManager getGlobalAggregateManager();
 
 	/**
 	 * Return the registry for accumulators which are periodically sent to the job manager.

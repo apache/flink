@@ -20,6 +20,8 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
 import java.io.Serializable;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -146,6 +148,7 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
 		return (T) elements[arrayIndex];
 	}
 
+	@Nonnull
 	@Override
 	public Iterator<T> iterator() {
 		return new Iterator<T>() {
@@ -175,51 +178,5 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
 				throw new UnsupportedOperationException("Read-only iterator");
 			}
 		};
-	}
-
-	/**
-	 * Creates a new list that replaces its elements with transformed elements.
-	 * The list retains the same size and position-to-element mapping.
-	 * 
-	 * <p>Note that null values are automatically mapped to null values.
-	 * 
-	 * @param transform The function used to transform each element
-	 * @param <R> The type of the elements in the result list.
-	 * 
-	 * @return The list with the mapped elements
-	 */
-	public <R> EvictingBoundedList<R> map(Function<T, R> transform) {
-		// map the default element
-		final R newDefault = defaultElement == null ? null : transform.apply(defaultElement);
-
-		// copy the list with the new default
-		final EvictingBoundedList<R> result = new EvictingBoundedList<>(elements.length, newDefault);
-		result.count = count;
-		result.idx = idx;
-
-		// map all the entries in the list
-		final int numElements = Math.min(elements.length, count);
-		for (int i = 0; i < numElements; i++) {
-			result.elements[i] = transform.apply(accessInternal(i));
-		}
-
-		return result;
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A simple unary function that can be used to transform elements via the
-	 * {@link EvictingBoundedList#map(Function)} method.
-	 */
-	public interface Function<I, O> {
-
-		/**
-		 * Transforms the value.
-		 * 
-		 * @param value The value to transform
-		 * @return The transformed value
-		 */
-		O apply(I value);
 	}
 }

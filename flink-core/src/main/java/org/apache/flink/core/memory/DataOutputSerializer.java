@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,10 +67,36 @@ public class DataOutputSerializer implements DataOutputView {
 		return this.wrapper;
 	}
 
+	/**
+	 * @deprecated Replaced by {@link #getSharedBuffer()} for a better, safer name.
+	 */
+	@Deprecated
 	public byte[] getByteArray() {
+		return getSharedBuffer();
+	}
+
+	/**
+	 * Gets a reference to the internal byte buffer. This buffer may be larger than the
+	 * actual serialized data. Only the bytes from zero to {@link #length()} are valid.
+	 * The buffer will also be overwritten with the next write calls.
+	 *
+	 * <p>This method is useful when trying to avid byte copies, but should be used carefully.
+	 *
+	 * @return A reference to the internal shared and reused buffer.
+	 */
+	public byte[] getSharedBuffer() {
 		return buffer;
 	}
 
+	/**
+	 * Gets a copy of the buffer that has the right length for the data serialized so far.
+	 * The returned buffer is an exclusive copy and can be safely used without being overwritten
+	 * by future write calls to this serializer.
+	 *
+	 * <p>This method is equivalent to {@code Arrays.copyOf(getSharedBuffer(), length());}
+	 *
+	 * @return A non-shared copy of the serialization buffer.
+	 */
 	public byte[] getCopyOfBuffer() {
 		return Arrays.copyOf(buffer, position);
 	}
@@ -82,6 +110,7 @@ public class DataOutputSerializer implements DataOutputView {
 	}
 
 	public void pruneBuffer() {
+		clear();
 		if (this.buffer.length > PRUNE_BUFFER_THRESHOLD) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Releasing serialization buffer of " + this.buffer.length + " bytes.");
@@ -321,6 +350,11 @@ public class DataOutputSerializer implements DataOutputView {
 
 		source.readFully(this.buffer, this.position, numBytes);
 		this.position += numBytes;
+	}
+
+	public void setPosition(int position) {
+		Preconditions.checkArgument(position >= 0 && position <= this.position, "Position out of bounds.");
+		this.position = position;
 	}
 
 	// ------------------------------------------------------------------------

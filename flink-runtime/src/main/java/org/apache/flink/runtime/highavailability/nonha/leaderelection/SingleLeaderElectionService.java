@@ -26,8 +26,10 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -39,10 +41,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An implementation of the {@link LeaderElectionService} interface that handles a single
  * leader contender. When started, this service immediately grants the contender the leadership.
- * 
+ *
  * <p>The implementation accepts a single static leader session ID and is hence compatible with
  * pre-configured single leader (no leader failover) setups.
- * 
+ *
  * <p>This implementation supports a series of leader listeners that receive notifications about
  * the leader contender.
  */
@@ -52,31 +54,31 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 
 	// ------------------------------------------------------------------------
 
-	/** lock for all operations on this instance */
+	/** lock for all operations on this instance. */
 	private final Object lock = new Object();
 
-	/** The executor service that dispatches notifications */
+	/** The executor service that dispatches notifications. */
 	private final Executor notificationExecutor;
 
-	/** The leader ID assigned to the immediate leader */
+	/** The leader ID assigned to the immediate leader. */
 	private final UUID leaderId;
 
 	@GuardedBy("lock")
 	private final HashSet<EmbeddedLeaderRetrievalService> listeners;
 
-	/** The currently proposed leader */
+	/** The currently proposed leader. */
 	@GuardedBy("lock")
 	private volatile LeaderContender proposedLeader;
 
-	/** The confirmed leader */
+	/** The confirmed leader. */
 	@GuardedBy("lock")
 	private volatile LeaderContender leader;
 
-	/** The address of the confirmed leader */
+	/** The address of the confirmed leader. */
 	@GuardedBy("lock")
 	private volatile String leaderAddress;
 
-	/** Flag marking this service as shutdown, meaning it cannot be started again */
+	/** Flag marking this service as shutdown, meaning it cannot be started again. */
 	@GuardedBy("lock")
 	private volatile boolean shutdown;
 
@@ -85,7 +87,7 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	/**
 	 * Creates a new leader election service. The service assigns the given leader ID
 	 * to the leader contender.
-	 * 
+	 *
 	 * @param leaderId The constant leader ID assigned to the leader.
 	 */
 	public SingleLeaderElectionService(Executor notificationsDispatcher, UUID leaderId) {
@@ -162,16 +164,16 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	}
 
 	@Override
-	public boolean hasLeadership() {
+	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
 		synchronized (lock) {
-			return leader != null;
+			return proposedLeader != null && leaderSessionId.equals(leaderId);
 		}
 	}
 
 	void errorOnGrantLeadership(LeaderContender contender, Throwable error) {
-		LOG.warn("Error notifying leader listener about new leader", error);
+		LOG.warn("Error granting leadership to contender", error);
 		contender.handleError(error instanceof Exception ? (Exception) error : new Exception(error));
-		
+
 		synchronized (lock) {
 			if (proposedLeader == contender) {
 				proposedLeader = null;
@@ -185,7 +187,9 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	// ------------------------------------------------------------------------
 
 	public boolean isShutdown() {
-		return shutdown;
+		synchronized (lock) {
+			return shutdown;
+		}
 	}
 
 	public void shutdown() {
@@ -231,8 +235,10 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	// ------------------------------------------------------------------------
 
 	public LeaderRetrievalService createLeaderRetrievalService() {
-		checkState(!shutdown, "leader election service is shut down");
-		return new EmbeddedLeaderRetrievalService();
+		synchronized (lock) {
+			checkState(!shutdown, "leader election service is shut down");
+			return new EmbeddedLeaderRetrievalService();
+		}
 	}
 
 	void addListener(EmbeddedLeaderRetrievalService service, LeaderRetrievalListener listener) {
@@ -346,7 +352,7 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This runnable informs a leader listener of a new leader
+	 * This runnable informs a leader listener of a new leader.
 	 */
 	private static class NotifyOfLeaderCall implements Runnable {
 
@@ -381,6 +387,4 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 			}
 		}
 	}
-
-
 }

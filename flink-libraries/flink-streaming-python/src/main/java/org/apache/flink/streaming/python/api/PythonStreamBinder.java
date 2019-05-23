@@ -22,10 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.streaming.python.PythonOptions;
 import org.apache.flink.streaming.python.api.environment.PythonEnvironmentFactory;
 import org.apache.flink.streaming.python.util.InterpreterUtils;
+import org.apache.flink.util.FileUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,23 +110,19 @@ public class PythonStreamBinder {
 			targetDir.getFileSystem().mkdirs(targetDir);
 
 			// copy user files to temporary location
-			Path tmpPlanFilesPath = new Path(localTmpPath);
-			copyFile(planPath, tmpPlanFilesPath, planPath.getName());
+			copyFile(planPath, targetDir, planPath.getName());
 			for (String file : filesToCopy) {
 				Path source = new Path(file);
-				copyFile(source, tmpPlanFilesPath, source.getName());
+				copyFile(source, targetDir, source.getName());
 			}
 
 			String planNameWithExtension = planPath.getName();
 			String planName = planNameWithExtension.substring(0, planNameWithExtension.indexOf(".py"));
 
-			InterpreterUtils.initAndExecPythonScript(new PythonEnvironmentFactory(localTmpPath, tmpDistributedDir, planName), Paths.get(localTmpPath), planName, planArgumentsArray);
+			InterpreterUtils.initAndExecPythonScript(new PythonEnvironmentFactory(localTmpPath, planName), Paths.get(localTmpPath), planName, planArgumentsArray);
 		} finally {
 			try {
 				// clean up created files
-				FileSystem distributedFS = tmpDistributedDir.getFileSystem();
-				distributedFS.delete(tmpDistributedDir, true);
-
 				FileSystem local = FileSystem.getLocalFileSystem();
 				local.delete(new Path(localTmpPath), true);
 			} catch (IOException ioe) {
@@ -147,6 +143,7 @@ public class PythonStreamBinder {
 	private static void copyFile(Path source, Path targetDirectory, String name) throws IOException {
 		Path targetFilePath = new Path(targetDirectory, name);
 		deleteIfExists(targetFilePath);
-		FileCache.copy(source, targetFilePath, true);
+		FileUtils.copy(source, targetFilePath, true);
 	}
+
 }

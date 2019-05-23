@@ -18,19 +18,21 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
@@ -38,19 +40,21 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -78,7 +82,9 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Before
 	public void setupReporter() {
-		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRangeProvider.next())));
+		registry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Collections.singletonList(createReporterSetup("test1", portRangeProvider.next())));
 		metricGroup = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
 		reporter = (PrometheusReporter) registry.getReporters().get(0);
 	}
@@ -160,6 +166,27 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@Test
+	public void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
+		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER);
+
+		String metricName = "metric";
+
+		Counter metric1 = new SimpleCounter();
+		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 = new FrontMetricGroup<>(0, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_1"));
+		reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
+
+		Counter metric2 = new SimpleCounter();
+		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 = new FrontMetricGroup<>(0, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_2"));
+		reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
+
+		reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup1);
+
+		String response = pollMetrics(reporter.getPort()).getBody();
+
+		assertThat(response, not(containsString("job_1")));
+	}
+
+	@Test
 	public void invalidCharactersAreReplacedWithUnderscore() {
 		assertThat(PrometheusReporter.replaceInvalidChars(""), equalTo(""));
 		assertThat(PrometheusReporter.replaceInvalidChars("abc"), equalTo("abc"));
@@ -178,7 +205,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void doubleGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Double>() {
+		assertThat(reporter.gaugeFrom(new Gauge<Double>() {
 			@Override
 			public Double getValue() {
 				return 3.14;
@@ -188,7 +215,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void shortGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Short>() {
+		assertThat(reporter.gaugeFrom(new Gauge<Short>() {
 			@Override
 			public Short getValue() {
 				return 13;
@@ -198,7 +225,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void booleanGaugeIsConvertedCorrectly() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<Boolean>() {
+		assertThat(reporter.gaugeFrom(new Gauge<Boolean>() {
 			@Override
 			public Boolean getValue() {
 				return true;
@@ -211,7 +238,7 @@ public class PrometheusReporterTest extends TestLogger {
 	 */
 	@Test
 	public void stringGaugeCannotBeConverted() {
-		assertThat(PrometheusReporter.gaugeFrom(new Gauge<String>() {
+		assertThat(reporter.gaugeFrom(new Gauge<String>() {
 			@Override
 			public String getValue() {
 				return "I am not a number";
@@ -238,29 +265,29 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void cannotStartTwoReportersOnSamePort() throws Exception {
-		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRangeProvider.next())));
-		assertThat(fixedPort1.getReporters(), hasSize(1));
+		ReporterSetup setup1 = createReporterSetup("test1", portRangeProvider.next());
 
-		PrometheusReporter firstReporter = (PrometheusReporter) fixedPort1.getReporters().get(0);
+		int usedPort = ((PrometheusReporter) setup1.getReporter()).getPort();
 
-		final MetricRegistryImpl fixedPort2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", String.valueOf(firstReporter.getPort()))));
-		assertThat(fixedPort2.getReporters(), hasSize(0));
-
-		fixedPort1.shutdown().get();
-		fixedPort2.shutdown().get();
+		try {
+			createReporterSetup("test2", String.valueOf(usedPort));
+			Assert.fail("Should've failed since port is unavailable.");
+		} catch (Exception e)  {
+			// expected
+		} finally {
+			setup1.getReporter().close();
+		}
 	}
 
 	@Test
 	public void canStartTwoReportersWhenUsingPortRange() throws Exception {
 		String portRange = portRangeProvider.next();
-		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", portRange)));
-		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", portRange)));
 
-		assertThat(portRange1.getReporters(), hasSize(1));
-		assertThat(portRange2.getReporters(), hasSize(1));
+		ReporterSetup setup1 = createReporterSetup("test1", portRange);
+		ReporterSetup setup2 = createReporterSetup("test2", portRange);
 
-		portRange1.shutdown().get();
-		portRange2.shutdown().get();
+		setup1.getReporter().close();
+		setup2.getReporter().close();
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
@@ -272,11 +299,11 @@ public class PrometheusReporterTest extends TestLogger {
 		return Unirest.get("http://localhost:" + port + "/metrics").asString();
 	}
 
-	static Configuration createConfigWithOneReporter(String reporterName, String portString) {
-		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + "." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + "." + ARG_PORT, portString);
-		return cfg;
+	static ReporterSetup createReporterSetup(String reporterName, String portString) {
+		MetricConfig metricConfig = new MetricConfig();
+		metricConfig.setProperty(ARG_PORT, portString);
+
+		return ReporterSetup.forReporter(reporterName, metricConfig, new PrometheusReporter());
 	}
 
 	@After

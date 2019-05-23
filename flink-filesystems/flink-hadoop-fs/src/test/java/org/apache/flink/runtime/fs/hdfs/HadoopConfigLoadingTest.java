@@ -41,6 +41,7 @@ import static org.junit.Assert.assertTrue;
  * Tests that validate the loading of the Hadoop configuration, relative to
  * entries in the Flink configuration and the environment variables.
  */
+@SuppressWarnings("deprecation")
 public class HadoopConfigLoadingTest {
 
 	private static final String IN_CP_CONFIG_KEY = "cp_conf_key";

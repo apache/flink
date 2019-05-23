@@ -30,7 +30,7 @@ import java.util.Collections;
  */
 public class JarDeleteMessageParameters extends MessageParameters {
 
-	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+	public JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {

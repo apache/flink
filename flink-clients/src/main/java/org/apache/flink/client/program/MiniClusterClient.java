@@ -21,17 +21,14 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -40,11 +37,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -77,9 +71,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
-				throw new ProgramInvocationException(
-					String.format("Could not run job %s in detached mode.", jobGraph.getJobID()),
-					e);
+				throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
 			}
 		} else {
 			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionResultFuture.thenCompose(
@@ -91,17 +83,15 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
-				throw new ProgramInvocationException(
-					String.format("Could not run job %s.", jobGraph.getJobID()),
-					e);
+				throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
 			}
 
 			try {
 				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobResult.WrappedJobException e) {
-				throw new ProgramInvocationException(e.getCause());
+			} catch (JobExecutionException e) {
+				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			} catch (IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException(e);
+				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}
 		}
 	}
@@ -127,8 +117,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public void stop(JobID jobId) throws Exception {
-		miniCluster.stopJob(jobId).get();
+	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirector) throws Exception {
+		return miniCluster.stopWithSavepoint(jobId, savepointDirector, advanceToEndOfEventTime).get();
 	}
 
 	@Override
@@ -144,11 +134,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	@Override
 	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
 		return miniCluster.listJobs();
-	}
-
-	@Override
-	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID) throws Exception {
-		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
 	}
 
 	@Override
@@ -172,45 +157,13 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 		return MiniClusterId.INSTANCE;
 	}
 
-	@Override
-	public LeaderConnectionInfo getClusterConnectionInfo() throws LeaderRetrievalException {
-		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-			highAvailabilityServices.getDispatcherLeaderRetriever(),
-			timeout);
-	}
-
 	// ======================================
 	// Legacy methods
 	// ======================================
 
 	@Override
-	public void waitForClusterToBeReady() {
-		// no op
-	}
-
-	@Override
 	public String getWebInterfaceURL() {
 		return miniCluster.getRestAddress().toString();
-	}
-
-	@Override
-	public GetClusterStatusResponse getClusterStatus() {
-		return null;
-	}
-
-	@Override
-	public List<String> getNewMessages() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public int getMaxSlots() {
-		return MAX_SLOTS_UNKNOWN;
-	}
-
-	@Override
-	public boolean hasUserJarsInClassPath(List<URL> userJarFiles) {
-		return false;
 	}
 
 	enum MiniClusterId {

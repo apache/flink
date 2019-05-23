@@ -222,7 +222,6 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 			timeout,
 			new FixedDelayRestartStrategy(10, 0L),
 			new UnregisteredMetricsGroup(),
-			1,
 			VoidBlobWriter.getInstance(),
 			timeout,
 			log);

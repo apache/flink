@@ -20,6 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -199,7 +200,8 @@ public class IterateITCase extends AbstractTestBase {
 		assertEquals(2, graph.getIterationSourceSinkPairs().size());
 
 		for (Tuple2<StreamNode, StreamNode> sourceSinkPair: graph.getIterationSourceSinkPairs()) {
-			assertEquals(sourceSinkPair.f0.getOutEdges().get(0).getTargetVertex(), sourceSinkPair.f1.getInEdges().get(0).getSourceVertex());
+			assertEquals(graph.getTargetVertex(sourceSinkPair.f0.getOutEdges().get(0)),
+				graph.getSourceVertex(sourceSinkPair.f1.getInEdges().get(0)));
 		}
 	}
 
@@ -243,9 +245,9 @@ public class IterateITCase extends AbstractTestBase {
 		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 
 		for (StreamEdge edge : itSource.getOutEdges()) {
-			if (edge.getTargetVertex().getOperatorName().equals("IterRebalanceMap")) {
+			if (graph.getTargetVertex(edge).getOperatorName().equals("IterRebalanceMap")) {
 				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-			} else if (edge.getTargetVertex().getOperatorName().equals("IterForwardMap")) {
+			} else if (graph.getTargetVertex(edge).getOperatorName().equals("IterForwardMap")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 			}
 		}
@@ -330,16 +332,16 @@ public class IterateITCase extends AbstractTestBase {
 		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 
 		for (StreamEdge edge : itSource.getOutEdges()) {
-			if (edge.getTargetVertex().getOperatorName().equals("map1")) {
+			if (graph.getTargetVertex(edge).getOperatorName().equals("map1")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
-				assertEquals(4, edge.getTargetVertex().getParallelism());
-			} else if (edge.getTargetVertex().getOperatorName().equals("shuffle")) {
+				assertEquals(4, graph.getTargetVertex(edge).getParallelism());
+			} else if (graph.getTargetVertex(edge).getOperatorName().equals("shuffle")) {
 				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-				assertEquals(2, edge.getTargetVertex().getParallelism());
+				assertEquals(2, graph.getTargetVertex(edge).getParallelism());
 			}
 		}
 		for (StreamEdge edge : itSink.getInEdges()) {
-			String tailName = edge.getSourceVertex().getOperatorName();
+			String tailName = graph.getSourceVertex(edge).getOperatorName();
 			if (tailName.equals("split")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 				assertTrue(edge.getSelectedNames().contains("even"));
@@ -428,7 +430,7 @@ public class IterateITCase extends AbstractTestBase {
 				ConnectedIterativeStreams<Integer, String> coIt = env.fromElements(0, 0)
 						.map(noOpIntMap).name("ParallelizeMap")
 						.iterate(2000 * timeoutScale)
-						.withFeedbackType("String");
+						.withFeedbackType(Types.STRING);
 
 				try {
 					coIt.keyBy(1, 2);

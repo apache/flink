@@ -83,16 +83,16 @@ public class Quantifier {
 
 	public void combinations() {
 		checkPattern(!hasProperty(QuantifierProperty.SINGLE), "Combinations not applicable to " + this + "!");
-		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "You can apply apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "You can apply either combinations or consecutive, not both!");
 		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "Combinations already applied!");
 
 		innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_ANY;
 	}
 
 	public void consecutive() {
-		checkPattern(hasProperty(QuantifierProperty.LOOPING) || hasProperty(QuantifierProperty.TIMES), "Combinations not applicable to " + this + "!");
-		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "You can apply apply either combinations or consecutive, not both!");
-		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "Combinations already applied!");
+		checkPattern(hasProperty(QuantifierProperty.LOOPING) || hasProperty(QuantifierProperty.TIMES), "Consecutive not applicable to " + this + "!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "You can apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "Consecutive already applied!");
 
 		innerConsumingStrategy = ConsumingStrategy.STRICT;
 	}
@@ -124,12 +124,22 @@ public class Quantifier {
 		}
 		Quantifier that = (Quantifier) o;
 		return Objects.equals(properties, that.properties) &&
-				consumingStrategy == that.consumingStrategy;
+				consumingStrategy == that.consumingStrategy &&
+				innerConsumingStrategy == that.innerConsumingStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(properties, consumingStrategy);
+		return Objects.hash(properties, consumingStrategy, innerConsumingStrategy);
+	}
+
+	@Override
+	public String toString() {
+		return "Quantifier{" +
+			"properties=" + properties +
+			", consumingStrategy=" + consumingStrategy +
+			", innerConsumingStrategy=" + innerConsumingStrategy +
+			'}';
 	}
 
 	/**
@@ -183,6 +193,24 @@ public class Quantifier {
 
 		public static Times of(int times) {
 			return new Times(times, times);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			Times times = (Times) o;
+			return from == times.from &&
+				to == times.to;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(from, to);
 		}
 	}
 }

@@ -21,11 +21,12 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_OFF_HEAP;
-import static org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBufferMemory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -51,10 +52,9 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		long cutoff = Math.max((long) (CONTAINER_MEMORY * memoryCutoffRatio), minCutoff);
-		final long networkBufMB =
-			calculateNetworkBufferMemory(
-				(CONTAINER_MEMORY - cutoff) << 20, // megabytes to bytes
-				conf) >> 20; // bytes to megabytes
+		final long networkBufMB = NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(
+			(CONTAINER_MEMORY - cutoff) << 20, // megabytes to bytes
+			conf) >> 20; // bytes to megabytes
 		assertEquals(networkBufMB + cutoff, params.taskManagerDirectMemoryLimitMB());
 	}
 

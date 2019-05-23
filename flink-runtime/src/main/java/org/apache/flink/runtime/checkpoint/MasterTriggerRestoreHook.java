@@ -36,7 +36,11 @@ import java.util.concurrent.Executor;
  * method. The hook's {@link #getIdentifier() identifier} is used to map data to hook in the presence
  * of multiple hooks, and when resuming a savepoint that was potentially created by a different job.
  * The identifier has a similar role as for example the operator UID in the streaming API.
- * 
+ *
+ * <p>It is possible that a job fails (and is subsequently restarted) before any checkpoints were successful.
+ * In that situation, the checkpoint coordination calls {@link #reset()} to give the hook an
+ * opportunity to, for example, reset an external system to initial conditions.
+ *
  * <p>The MasterTriggerRestoreHook is defined when creating the streaming dataflow graph. It is attached
  * to the job graph, which gets sent to the cluster for execution. To avoid having to make the hook
  * itself serializable, these hooks are attached to the job graph via a {@link MasterTriggerRestoreHook.Factory}.
@@ -62,6 +66,25 @@ public interface MasterTriggerRestoreHook<T> {
 	 * @return The identifier of the hook. 
 	 */
 	String getIdentifier();
+
+	/**
+	 * This method is called by the checkpoint coordinator to reset the hook when
+	 * execution is restarted in the absence of any checkpoint state.
+	 *
+	 * @throws Exception Exceptions encountered when calling the hook will cause execution to fail.
+	 */
+	default void reset() throws Exception {
+
+	}
+
+	/**
+	 * Tear-down method for the hook.
+	 *
+	 * @throws Exception Exceptions encountered when calling close will be logged.
+	 */
+	default void close() throws Exception {
+
+	}
 
 	/**
 	 * This method is called by the checkpoint coordinator prior when triggering a checkpoint, prior

@@ -24,9 +24,10 @@ import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongValueComparator;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -215,15 +216,22 @@ extends LongValue {
 			target.writeLong(source.readLong());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof LongValueWithProperHashCodeSerializer;
-		}
+		// -----------------------------------------------------------------------------------
 
 		@Override
-		protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-			return super.isCompatibleSerializationFormatIdentifier(identifier)
-				|| identifier.equals(LongSerializer.class.getCanonicalName());
+		public TypeSerializerSnapshot<LongValueWithProperHashCode> snapshotConfiguration() {
+			return new LongValueWithProperHashCodeSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class LongValueWithProperHashCodeSerializerSnapshot extends SimpleTypeSerializerSnapshot<LongValueWithProperHashCode> {
+
+			public LongValueWithProperHashCodeSerializerSnapshot() {
+				super(LongValueWithProperHashCodeSerializer::new);
+			}
 		}
 	}
 }

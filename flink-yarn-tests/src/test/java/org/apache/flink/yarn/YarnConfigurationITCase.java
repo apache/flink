@@ -25,8 +25,8 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
@@ -87,8 +87,8 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 		// disable heap cutoff min
 		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
-		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, (1L << 20));
-		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, (4L << 20));
+		configuration.setString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(1L << 20));
+		configuration.setString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(4L << 20));
 
 		final YarnConfiguration yarnConfiguration = getYarnConfiguration();
 		final YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
@@ -100,6 +100,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		clusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
 
 		final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
 
@@ -159,10 +160,11 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 					taskManagerInfos = taskManagersInfo.getTaskManagerInfos();
 
-					if (taskManagerInfos.isEmpty()) {
-						Thread.sleep(100L);
-					} else {
+					// wait until the task manager has registered and reported its slots
+					if (hasTaskManagerConnectedAndReportedSlots(taskManagerInfos)) {
 						break;
+					} else {
+						Thread.sleep(100L);
 					}
 				}
 
@@ -178,16 +180,30 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 				final long expectedHeadSize = containeredTaskManagerParameters.taskManagerHeapSizeMB() << 20L;
 
-				assertThat((double) taskManagerInfo.getHardwareDescription().getSizeOfJvmHeap() / (double) expectedHeadSize, is(closeTo(1.0, 0.1)));
+				// We compare here physical memory assigned to a container with the heap memory that we should pass to
+				// jvm as Xmx parameter. Those value might differ significantly due to system page size or jvm
+				// implementation therefore we use 15% threshold here.
+				assertThat(
+					(double) taskManagerInfo.getHardwareDescription().getSizeOfJvmHeap() / (double) expectedHeadSize,
+					is(closeTo(1.0, 0.15)));
 			} finally {
 				restClient.shutdown(TIMEOUT);
 				clusterClient.shutdown();
 			}
 
-			clusterDescriptor.terminateCluster(clusterId);
+			clusterDescriptor.killCluster(clusterId);
 
 		} finally {
 			clusterDescriptor.close();
+		}
+	}
+
+	private boolean hasTaskManagerConnectedAndReportedSlots(Collection<TaskManagerInfo> taskManagerInfos) {
+		if (taskManagerInfos.isEmpty()) {
+			return false;
+		} else {
+			final TaskManagerInfo taskManagerInfo = taskManagerInfos.iterator().next();
+			return taskManagerInfo.getNumberSlots() > 0;
 		}
 	}
 }

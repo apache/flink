@@ -177,9 +177,7 @@ public class LocalStateForwardingTest extends TestLogger {
 			jobVertexID,
 			subtaskIdx);
 
-		LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(
-			LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED,
-			directoryProvider);
+		LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(true, directoryProvider);
 
 		TaskLocalStateStore taskLocalStateStore =
 			new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, subtaskIdx, localRecoveryConfig, executor) {

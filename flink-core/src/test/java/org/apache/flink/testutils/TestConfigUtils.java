@@ -31,12 +31,11 @@ import org.apache.flink.configuration.GlobalConfiguration;
  */
 public final class TestConfigUtils {
 	
-	public static Configuration loadGlobalConf(String[] keys, String[] values) throws IOException {
-		return loadGlobalConf(getConfAsString(keys, values));
+	public static Configuration loadGlobalConf(String[] keys, String[] values, File tempDir) throws IOException {
+		return loadGlobalConf(getConfAsString(keys, values), tempDir);
 	}
 	
-	public static Configuration loadGlobalConf(String contents) throws IOException {
-		final File tempDir = new File(System.getProperty("java.io.tmpdir"));
+	public static Configuration loadGlobalConf(String contents, File tempDir) throws IOException {
 		File confDir;
 		do {
 			confDir = new File(tempDir, TestFileUtils.randomFileName());

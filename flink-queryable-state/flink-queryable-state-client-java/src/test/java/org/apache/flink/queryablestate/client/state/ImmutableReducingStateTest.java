@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
@@ -38,7 +39,7 @@ public class ImmutableReducingStateTest {
 	private final ReducingStateDescriptor<Long> reducingStateDesc =
 			new ReducingStateDescriptor<>("test", new SumReduce(), BasicTypeInfo.LONG_TYPE_INFO);
 
-	private ImmutableReducingState<Long> reduceState;
+	private ReducingState<Long> reduceState;
 
 	@Before
 	public void setUp() throws Exception {
@@ -53,7 +54,7 @@ public class ImmutableReducingStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() {
+	public void testUpdate() throws Exception {
 		long value = reduceState.get();
 		assertEquals(42L, value);
 
@@ -61,7 +62,7 @@ public class ImmutableReducingStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() {
+	public void testClear() throws Exception {
 		long value = reduceState.get();
 		assertEquals(42L, value);
 

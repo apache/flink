@@ -37,7 +37,7 @@ public class OperatorSubtaskDescriptionText {
 
 		this.description = operatorClass +
 				"_" + operatorId +
-				"_(" + subtaskIndex + "/" + numberOfTasks + ")";
+				"_(" + (1 + subtaskIndex) + "/" + numberOfTasks + ")";
 	}
 
 	@Override

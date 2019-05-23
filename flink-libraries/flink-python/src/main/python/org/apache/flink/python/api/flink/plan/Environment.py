@@ -89,7 +89,6 @@ class Environment(object):
 
         #parameters
         self._dop = -1
-        self._local_mode = False
         self._retry = 0
 
         self._container = container
@@ -212,7 +211,6 @@ class Environment(object):
 
         The environment will execute all parts of the program that have resulted in a "sink" operation.
         """
-        self._local_mode = local
         self._optimize_plan()
 
         if self._container.is_planning():
@@ -326,7 +324,6 @@ class Environment(object):
     def _send_parameters(self):
         collect = self._collector.collect
         collect(("dop", self._dop))
-        collect(("mode", self._local_mode))
         collect(("retry", self._retry))
         collect(("id", self._env_id))
 

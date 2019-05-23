@@ -21,10 +21,11 @@ package org.apache.flink.docs.configuration;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
@@ -35,38 +36,57 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /**
  * Class used for generating code based documentation of configuration parameters.
  */
 public class ConfigOptionsDocGenerator {
 
-	private static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
+	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
-		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.io.network.netty"),
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
+		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
+		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state")
 	};
+
+	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
+		"org.apache.flink.configuration.ConfigOptions",
+		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
+
+	static final String DEFAULT_PATH_PREFIX = "src/main/java";
+
+	@VisibleForTesting
+	static final String COMMON_SECTION_FILE_NAME = "common_section.html";
 
 	private static final String CLASS_NAME_GROUP = "className";
 	private static final String CLASS_PREFIX_GROUP = "classPrefix";
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?<" + CLASS_NAME_GROUP + ">(?<" + CLASS_PREFIX_GROUP + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
 
+	private static final Formatter formatter = new HtmlFormatter();
 	/**
 	 * This method generates html tables from set of classes containing {@link ConfigOption ConfigOptions}.
 	 *
 	 * <p>For each class 1 or more html tables will be generated and placed into a separate file, depending on whether
 	 * the class is annotated with {@link ConfigGroups}. The tables contain the key, default value and description for
 	 * every {@link ConfigOption}.
+	 *
+	 * <p>One additional table is generated containing all {@link ConfigOption ConfigOptions} that are annotated with
+	 * {@link org.apache.flink.annotation.docs.Documentation.CommonOption}.
 	 *
 	 * @param args
 	 *  [0] output directory for the generated files
@@ -77,12 +97,42 @@ public class ConfigOptionsDocGenerator {
 		String rootDir = args[1];
 
 		for (OptionsClassLocation location : LOCATIONS) {
-			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory);
+			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory, DEFAULT_PATH_PREFIX);
 		}
+
+		generateCommonSection(rootDir, outputDirectory, LOCATIONS, DEFAULT_PATH_PREFIX);
 	}
 
-	private static void createTable(String rootDir, String module, String packageName, String outputDirectory) throws IOException, ClassNotFoundException {
-		processConfigOptions(rootDir, module, packageName, optionsClass -> {
+	@VisibleForTesting
+	static void generateCommonSection(String rootDir, String outputDirectory, OptionsClassLocation[] locations, String pathPrefix) throws IOException, ClassNotFoundException {
+		List<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
+		for (OptionsClassLocation location : locations) {
+			commonOptions.addAll(findCommonOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
+		}
+		commonOptions.sort((o1, o2) -> {
+			int position1 = o1.field.getAnnotation(Documentation.CommonOption.class).position();
+			int position2 = o2.field.getAnnotation(Documentation.CommonOption.class).position();
+			if (position1 == position2) {
+				return o1.option.key().compareTo(o2.option.key());
+			} else {
+				return Integer.compare(position1, position2);
+			}
+		});
+
+		String commonHtmlTable = toHtmlTable(commonOptions);
+		Files.write(Paths.get(outputDirectory, COMMON_SECTION_FILE_NAME), commonHtmlTable.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static Collection<OptionWithMetaInfo> findCommonOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
+		Collection<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
+		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> extractConfigOptions(optionsClass).stream()
+			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null)
+			.forEachOrdered(commonOptions::add));
+		return commonOptions;
+	}
+
+	private static void createTable(String rootDir, String module, String packageName, String outputDirectory, String pathPrefix) throws IOException, ClassNotFoundException {
+		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> {
 			List<Tuple2<ConfigGroup, String>> tables = generateTablesForClass(optionsClass);
 			for (Tuple2<ConfigGroup, String> group : tables) {
 				String name;
@@ -102,16 +152,20 @@ public class ConfigOptionsDocGenerator {
 		});
 	}
 
-	private static void processConfigOptions(String rootDir, String module, String packageName, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
-		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
+	static void processConfigOptions(String rootDir, String module, String packageName, String pathPrefix, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
+		Path configDir = Paths.get(rootDir, module, pathPrefix, packageName.replaceAll("\\.", "/"));
 
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
 			for (Path entry : stream) {
 				String fileName = entry.getFileName().toString();
 				Matcher matcher = CLASS_NAME_PATTERN.matcher(fileName);
-				if (!fileName.equals("ConfigOptions.java") && matcher.matches()) {
-					Class<?> optionsClass = Class.forName(packageName + '.' + matcher.group(CLASS_NAME_GROUP));
-					classConsumer.accept(optionsClass);
+				if (matcher.matches()) {
+					final String className = packageName + '.' + matcher.group(CLASS_NAME_GROUP);
+
+					if (!EXCLUSIONS.contains(className)) {
+						Class<?> optionsClass = Class.forName(className);
+						classConsumer.accept(optionsClass);
+					}
 				}
 			}
 		}
@@ -120,7 +174,7 @@ public class ConfigOptionsDocGenerator {
 	@VisibleForTesting
 	static List<Tuple2<ConfigGroup, String>> generateTablesForClass(Class<?> optionsClass) {
 		ConfigGroups configGroups = optionsClass.getAnnotation(ConfigGroups.class);
-		List<ConfigOption<?>> allOptions = extractConfigOptions(optionsClass);
+		List<OptionWithMetaInfo> allOptions = extractConfigOptions(optionsClass);
 
 		List<Tuple2<ConfigGroup, String>> tables;
 		if (configGroups != null) {
@@ -128,11 +182,11 @@ public class ConfigOptionsDocGenerator {
 			Tree tree = new Tree(configGroups.groups(), allOptions);
 
 			for (ConfigGroup group : configGroups.groups()) {
-				List<ConfigOption<?>> configOptions = tree.findConfigOptions(group);
+				List<OptionWithMetaInfo> configOptions = tree.findConfigOptions(group);
 				sortOptions(configOptions);
 				tables.add(Tuple2.of(group, toHtmlTable(configOptions)));
 			}
-			List<ConfigOption<?>> configOptions = tree.getDefaultOptions();
+			List<OptionWithMetaInfo> configOptions = tree.getDefaultOptions();
 			sortOptions(configOptions);
 			tables.add(Tuple2.of(null, toHtmlTable(configOptions)));
 		} else {
@@ -142,13 +196,13 @@ public class ConfigOptionsDocGenerator {
 		return tables;
 	}
 
-	private static List<ConfigOption<?>> extractConfigOptions(Class<?> clazz) {
+	static List<OptionWithMetaInfo> extractConfigOptions(Class<?> clazz) {
 		try {
-			List<ConfigOption<?>> configOptions = new ArrayList<>(8);
+			List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
-				if (field.getType().equals(ConfigOption.class) && field.getAnnotation(Deprecated.class) == null) {
-					configOptions.add((ConfigOption<?>) field.get(null));
+				if (isConfigOption(field) && shouldBeDocumented(field)) {
+					configOptions.add(new OptionWithMetaInfo((ConfigOption<?>) field.get(null), field));
 				}
 			}
 
@@ -158,6 +212,15 @@ public class ConfigOptionsDocGenerator {
 		}
 	}
 
+	private static boolean isConfigOption(Field field) {
+		return field.getType().equals(ConfigOption.class);
+	}
+
+	private static boolean shouldBeDocumented(Field field) {
+		return field.getAnnotation(Deprecated.class) == null &&
+			field.getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
+	}
+
 	/**
 	 * Transforms this configuration group into HTML formatted table.
 	 * Options are sorted alphabetically by key.
@@ -165,7 +228,7 @@ public class ConfigOptionsDocGenerator {
 	 * @param options list of options to include in this group
 	 * @return string containing HTML formatted table
 	 */
-	private static String toHtmlTable(final List<ConfigOption<?>> options) {
+	private static String toHtmlTable(final List<OptionWithMetaInfo> options) {
 		StringBuilder htmlTable = new StringBuilder();
 		htmlTable.append("<table class=\"table table-bordered\">\n");
 		htmlTable.append("    <thead>\n");
@@ -177,7 +240,7 @@ public class ConfigOptionsDocGenerator {
 		htmlTable.append("    </thead>\n");
 		htmlTable.append("    <tbody>\n");
 
-		for (ConfigOption<?> option : options) {
+		for (OptionWithMetaInfo option : options) {
 			htmlTable.append(toHtmlString(option));
 		}
 
@@ -190,44 +253,46 @@ public class ConfigOptionsDocGenerator {
 	/**
 	 * Transforms option to table row.
 	 *
-	 * @param option option to transform
+	 * @param optionWithMetaInfo option to transform
 	 * @return row with the option description
 	 */
-	private static String toHtmlString(final ConfigOption<?> option) {
-		Object defaultValue = option.defaultValue();
-		// This is a temporary hack that should be removed once FLINK-6490 is resolved.
-		// These options use System.getProperty("java.io.tmpdir") as the default.
-		// As a result the generated table contains an actual path as the default, which is simply wrong.
-		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir") || option == CoreOptions.TMP_DIRS) {
-			defaultValue = null;
-		}
+	private static String toHtmlString(final OptionWithMetaInfo optionWithMetaInfo) {
+		ConfigOption<?> option = optionWithMetaInfo.option;
+		String defaultValue = stringifyDefault(optionWithMetaInfo);
+
 		return "" +
 			"        <tr>\n" +
 			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
-			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
-			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
+			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(addWordBreakOpportunities(defaultValue)) + "</td>\n" +
+			"            <td>" + formatter.format(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}
 
-	private static String defaultValueToHtml(Object value) {
-		if (value instanceof String) {
-			if (((String) value).isEmpty()) {
-				return "(none)";
+	static String stringifyDefault(OptionWithMetaInfo optionWithMetaInfo) {
+		ConfigOption<?> option = optionWithMetaInfo.option;
+		Documentation.OverrideDefault overrideDocumentedDefault = optionWithMetaInfo.field.getAnnotation(Documentation.OverrideDefault.class);
+		if (overrideDocumentedDefault != null) {
+			return overrideDocumentedDefault.value();
+		} else {
+			Object value = option.defaultValue();
+			if (value instanceof String) {
+				if (((String) value).isEmpty()) {
+					return "(none)";
+				}
+				return "\"" + value + "\"";
 			}
-			return "\"" + value + "\"";
+			return value == null ? "(none)" : value.toString();
 		}
-
-		return value == null ? "(none)" : value.toString();
 	}
 
-	private static String escapeCharacters(String value) {
+	private static String addWordBreakOpportunities(String value) {
 		return value
-			.replaceAll("<", "&#60;")
-			.replaceAll(">", "&#62;");
+			// allow breaking of semicolon separated lists
+			.replace(";", ";<wbr>");
 	}
 
-	private static void sortOptions(List<ConfigOption<?>> configOptions) {
-		configOptions.sort(Comparator.comparing(ConfigOption::key));
+	private static void sortOptions(List<OptionWithMetaInfo> configOptions) {
+		configOptions.sort(Comparator.comparing(option -> option.option.key()));
 	}
 
 	/**
@@ -237,7 +302,7 @@ public class ConfigOptionsDocGenerator {
 	private static class Tree {
 		private final Node root = new Node();
 
-		Tree(ConfigGroup[] groups, Collection<ConfigOption<?>> options) {
+		Tree(ConfigGroup[] groups, Collection<OptionWithMetaInfo> options) {
 			// generate a tree based on all key prefixes
 			for (ConfigGroup group : groups) {
 				String[] keyComponents = group.keyPrefix().split("\\.");
@@ -250,31 +315,40 @@ public class ConfigOptionsDocGenerator {
 
 			// assign options to their corresponding group, i.e. the last group root node encountered when traversing
 			// the tree based on the option key
-			for (ConfigOption<?> option : options) {
-				findGroupRoot(option.key()).assignOption(option);
+			for (OptionWithMetaInfo option : options) {
+				findGroupRoot(option.option.key()).assignOption(option);
 			}
 		}
 
-		List<ConfigOption<?>> findConfigOptions(ConfigGroup configGroup) {
+		List<OptionWithMetaInfo> findConfigOptions(ConfigGroup configGroup) {
 			Node groupRoot = findGroupRoot(configGroup.keyPrefix());
 			return groupRoot.getConfigOptions();
 		}
 
-		List<ConfigOption<?>> getDefaultOptions() {
+		List<OptionWithMetaInfo> getDefaultOptions() {
 			return root.getConfigOptions();
 		}
 
 		private Node findGroupRoot(String key) {
 			String[] keyComponents = key.split("\\.");
+			Node lastRootNode = root;
 			Node currentNode = root;
 			for (String keyComponent : keyComponents) {
-				currentNode = currentNode.findChild(keyComponent);
+				final Node childNode = currentNode.getChild(keyComponent);
+				if (childNode == null) {
+					break;
+				} else {
+					currentNode = childNode;
+					if (currentNode.isGroupRoot()) {
+						lastRootNode = currentNode;
+					}
+				}
 			}
-			return currentNode.isGroupRoot() ? currentNode : root;
+			return lastRootNode;
 		}
 
 		private static class Node {
-			private final List<ConfigOption<?>> configOptions = new ArrayList<>(8);
+			private final List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
 			private final Map<String, Node> children = new HashMap<>(8);
 			private boolean isGroupRoot = false;
 
@@ -287,15 +361,11 @@ public class ConfigOptionsDocGenerator {
 				return child;
 			}
 
-			private Node findChild(String keyComponent) {
-				Node child = children.get(keyComponent);
-				if (child == null) {
-					return this;
-				}
-				return child;
+			private Node getChild(String keyComponent) {
+				return children.get(keyComponent);
 			}
 
-			private void assignOption(ConfigOption<?> option) {
+			private void assignOption(OptionWithMetaInfo option) {
 				configOptions.add(option);
 			}
 
@@ -307,9 +377,19 @@ public class ConfigOptionsDocGenerator {
 				this.isGroupRoot = true;
 			}
 
-			private List<ConfigOption<?>> getConfigOptions() {
+			private List<OptionWithMetaInfo> getConfigOptions() {
 				return configOptions;
 			}
+		}
+	}
+
+	static class OptionWithMetaInfo {
+		final ConfigOption<?> option;
+		final Field field;
+
+		public OptionWithMetaInfo(ConfigOption<?> option, Field field) {
+			this.option = option;
+			this.field = field;
 		}
 	}
 

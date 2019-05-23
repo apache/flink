@@ -139,8 +139,8 @@ public class BlobServerRecoveryTest extends TestLogger {
 			verifyDeleted(cache1, jobId[0], nonHAKey);
 
 			// Remove again
-			server1.cleanupJob(jobId[0]);
-			server1.cleanupJob(jobId[1]);
+			server1.cleanupJob(jobId[0], true);
+			server1.cleanupJob(jobId[1], true);
 
 			// Verify everything is clean
 			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));

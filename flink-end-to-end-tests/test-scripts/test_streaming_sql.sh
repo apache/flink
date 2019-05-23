@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-stream-sql-test/target/StreamSQLTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-stream-sql-test/target/StreamSQLTestProgram.jar
 
 # copy flink-table jar into lib folder
 cp $FLINK_DIR/opt/flink-table*jar $FLINK_DIR/lib
@@ -32,6 +32,10 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR -outputPath file://${TEST_DATA_DIR}/out/result
 
 function sql_cleanup() {
+  # don't call ourselves again for another signal interruption
+  trap "exit -1" INT
+  # don't call ourselves again for normal exit
+  trap "" EXIT
 
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
@@ -39,14 +43,12 @@ function sql_cleanup() {
   # remove flink-table from lib folder
   rm $FLINK_DIR/lib/flink-table*jar
 
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT
 
 # collect results from files
-cat $TEST_DATA_DIR/out/result/part-0-0 $TEST_DATA_DIR/out/result/_part-0-1.pending > $TEST_DATA_DIR/out/result-complete
+cat $TEST_DATA_DIR/out/result/20/.part-* $TEST_DATA_DIR/out/result/20/part-* | sort > $TEST_DATA_DIR/out/result-complete
 
 # check result:
 # 20,1970-01-01 00:00:00.0

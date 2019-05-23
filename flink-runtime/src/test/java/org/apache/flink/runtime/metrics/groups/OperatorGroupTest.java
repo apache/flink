@@ -93,7 +93,7 @@ public class OperatorGroupTest extends TestLogger {
 			OperatorMetricGroup operatorGroup =
 				new TaskManagerMetricGroup(registry, "theHostName", tmID)
 					.addTaskForJob(jid, "myJobName", vertexId, new ExecutionAttemptID(), "aTaskname", 13, 2)
-					.addOperator(operatorID, operatorName);
+					.getOrAddOperator(operatorID, operatorName);
 
 			assertArrayEquals(
 				new String[]{tmID, jid.toString(), vertexId.toString(), operatorName, operatorID.toString()},

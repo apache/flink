@@ -148,7 +148,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Remove blobs again
-			server[1].cleanupJob(jobId);
+			server[1].cleanupJob(jobId, true);
 
 			// Verify everything is clean below recoveryDir/<cluster_id>
 			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);

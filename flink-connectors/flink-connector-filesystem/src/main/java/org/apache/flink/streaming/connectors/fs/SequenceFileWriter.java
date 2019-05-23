@@ -34,7 +34,6 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import java.io.IOException;
-import java.util.Objects;
 
 /**
  * A {@link Writer} that writes the bucket files as Hadoop {@link SequenceFile SequenceFiles}.
@@ -152,32 +151,23 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 	}
 
 	@Override
-	public Writer<Tuple2<K, V>> duplicate() {
+	public SequenceFileWriter<K, V> duplicate() {
 		return new SequenceFileWriter<>(this);
 	}
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), compressionCodecName, compressionType, keyClass, valueClass);
+	String getCompressionCodecName() {
+		return compressionCodecName;
 	}
 
-	@Override
-	public boolean equals(Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (other == null) {
-			return false;
-		}
-		if (getClass() != other.getClass()) {
-			return false;
-		}
-		SequenceFileWriter<K, V> writer = (SequenceFileWriter<K, V>) other;
-		// field comparison
-		return Objects.equals(compressionCodecName, writer.compressionCodecName)
-			&& Objects.equals(compressionType, writer.compressionType)
-			&& Objects.equals(keyClass, writer.keyClass)
-			&& Objects.equals(valueClass, writer.valueClass)
-			&& super.equals(other);
+	SequenceFile.CompressionType getCompressionType() {
+		return compressionType;
+	}
+
+	Class<K> getKeyClass() {
+		return keyClass;
+	}
+
+	Class<V> getValueClass() {
+		return valueClass;
 	}
 }

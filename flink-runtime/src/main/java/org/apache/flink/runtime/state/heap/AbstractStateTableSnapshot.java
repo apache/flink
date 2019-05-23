@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Abstract class to encapsulate the logic to take snapshots of {@link StateTable} implementations and also defines how
- * the snapshot is written during the serialization phase of checkpointing.
+ * Abstract base class for snapshots of a {@link StateTable}. Offers a way to serialize the snapshot (by key-group).
+ * All snapshots should be released after usage.
  */
 @Internal
-abstract class AbstractStateTableSnapshot<K, N, S, T extends StateTable<K, N, S>> implements StateTableSnapshot {
+abstract class AbstractStateTableSnapshot<K, N, S, T extends StateTable<K, N, S>> implements StateSnapshot {
 
 	/**
 	 * The {@link StateTable} from which this snapshot was created.

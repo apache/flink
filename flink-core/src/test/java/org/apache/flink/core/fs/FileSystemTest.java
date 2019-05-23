@@ -19,6 +19,7 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.util.WrappingProxy;
 import org.apache.flink.util.WrappingProxyUtil;
 
 import org.junit.Test;
@@ -38,21 +39,32 @@ public class FileSystemTest {
 	public void testGet() throws URISyntaxException, IOException {
 		String scheme = "file";
 
-		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI(scheme + ":///test/test"))) instanceof LocalFileSystem);
+		assertTrue(getFileSystemWithoutSafetyNet(scheme + ":///test/test") instanceof LocalFileSystem);
 
 		try {
-			FileSystem.get(new URI(scheme + "://test/test"));
+			getFileSystemWithoutSafetyNet(scheme + "://test/test");
 		} catch (IOException ioe) {
 			assertTrue(ioe.getMessage().startsWith("Found local file path with authority '"));
 		}
 
-		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI(scheme + ":/test/test"))) instanceof LocalFileSystem);
+		assertTrue(getFileSystemWithoutSafetyNet(scheme + ":/test/test") instanceof LocalFileSystem);
 
-		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI(scheme + ":test/test"))) instanceof LocalFileSystem);
+		assertTrue(getFileSystemWithoutSafetyNet(scheme + ":test/test") instanceof LocalFileSystem);
 
-		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI("/test/test"))) instanceof LocalFileSystem);
+		assertTrue(getFileSystemWithoutSafetyNet("/test/test") instanceof LocalFileSystem);
 
-		assertTrue(WrappingProxyUtil.stripProxy(FileSystem.get(new URI("test/test"))) instanceof LocalFileSystem);
+		assertTrue(getFileSystemWithoutSafetyNet("test/test") instanceof LocalFileSystem);
+	}
+
+	private static FileSystem getFileSystemWithoutSafetyNet(final String uri) throws URISyntaxException, IOException {
+		final FileSystem fileSystem = FileSystem.get(new URI(uri));
+
+		if (fileSystem instanceof WrappingProxy) {
+			//noinspection unchecked
+			return WrappingProxyUtil.stripProxy((WrappingProxy<FileSystem>) fileSystem);
+		}
+
+		return fileSystem;
 	}
 
 }

@@ -24,6 +24,7 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.Date;
 
 import static org.junit.Assert.assertEquals;
@@ -33,7 +34,7 @@ public class BasicTypeInfoTest extends TestLogger {
 
 	static Class<?>[] classes = {String.class, Integer.class, Boolean.class, Byte.class,
 		Short.class, Long.class, Float.class, Double.class, Character.class, Date.class,
-		Void.class, BigInteger.class, BigDecimal.class};
+		Void.class, BigInteger.class, BigDecimal.class, Instant.class};
 
 	@Test
 	public void testBasicTypeInfoEquality() {

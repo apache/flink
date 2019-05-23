@@ -24,7 +24,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
 /**
@@ -203,4 +205,19 @@ public class MemorySizeTest {
 	public void testParseNumberTimeUnitOverflow() {
 		MemorySize.parseBytes("100000000000000 tb");
 	}
+
+	@Test
+	public void testParseWithDefaultUnit() {
+		assertEquals(7, MemorySize.parse("7", MEGA_BYTES).getMebiBytes());
+		assertNotEquals(7, MemorySize.parse("7340032", MEGA_BYTES));
+		assertEquals(7, MemorySize.parse("7m", MEGA_BYTES).getMebiBytes());
+		assertEquals(7168, MemorySize.parse("7", MEGA_BYTES).getKibiBytes());
+		assertEquals(7168, MemorySize.parse("7m", MEGA_BYTES).getKibiBytes());
+		assertEquals(7, MemorySize.parse("7 m", MEGA_BYTES).getMebiBytes());
+		assertEquals(7, MemorySize.parse("7mb", MEGA_BYTES).getMebiBytes());
+		assertEquals(7, MemorySize.parse("7 mb", MEGA_BYTES).getMebiBytes());
+		assertEquals(7, MemorySize.parse("7mebibytes", MEGA_BYTES).getMebiBytes());
+		assertEquals(7, MemorySize.parse("7 mebibytes", MEGA_BYTES).getMebiBytes());
+	}
+
 }

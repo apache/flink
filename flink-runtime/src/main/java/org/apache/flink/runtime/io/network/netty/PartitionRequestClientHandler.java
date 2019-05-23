@@ -85,9 +85,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
-		if (!inputChannels.containsKey(listener.getInputChannelId())) {
-			inputChannels.put(listener.getInputChannelId(), listener);
-		}
+		inputChannels.putIfAbsent(listener.getInputChannelId(), listener);
 	}
 
 	@Override
@@ -164,7 +162,11 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 								+ "that the remote task manager was lost.", remoteAddr, cause);
 			}
 			else {
-				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
+				SocketAddress localAddr = ctx.channel().localAddress();
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr),
+					localAddr,
+					cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);
@@ -333,8 +335,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
-				buffer.setSize(receivedSize);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false, receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -416,32 +417,18 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 
 		// Called by the recycling thread (not network I/O thread)
 		@Override
-		public boolean notifyBufferAvailable(Buffer buffer) {
-			boolean success = false;
+		public NotificationResult notifyBufferAvailable(Buffer buffer) {
+			if (availableBuffer.compareAndSet(null, buffer)) {
+				ctx.channel().eventLoop().execute(this);
 
-			try {
-				if (availableBuffer.compareAndSet(null, buffer)) {
-					ctx.channel().eventLoop().execute(this);
-
-					success = true;
-				}
-				else {
-					throw new IllegalStateException("Received a buffer notification, " +
-							" but the previous one has not been handled yet.");
-				}
+				return NotificationResult.BUFFER_USED_NO_NEED_MORE;
 			}
-			catch (Throwable t) {
-				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(t));
+			else {
+				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(
+					new IllegalStateException("Received a buffer notification, " +
+						" but the previous one has not been handled yet.")));
+				return NotificationResult.BUFFER_NOT_USED;
 			}
-			finally {
-				if (!success) {
-					if (buffer != null) {
-						buffer.recycleBuffer();
-					}
-				}
-			}
-
-			return false;
 		}
 
 		/**

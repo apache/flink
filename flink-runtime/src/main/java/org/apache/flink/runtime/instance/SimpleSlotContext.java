@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -37,15 +38,27 @@ public class SimpleSlotContext implements SlotContext {
 
 	private final TaskManagerGateway taskManagerGateway;
 
+	private final ResourceProfile resourceProfile;
+
 	public SimpleSlotContext(
 			AllocationID allocationId,
 			TaskManagerLocation taskManagerLocation,
 			int physicalSlotNumber,
 			TaskManagerGateway taskManagerGateway) {
+		this(allocationId, taskManagerLocation, physicalSlotNumber, taskManagerGateway, ResourceProfile.UNKNOWN);
+	}
+
+	public SimpleSlotContext(
+			AllocationID allocationId,
+			TaskManagerLocation taskManagerLocation,
+			int physicalSlotNumber,
+			TaskManagerGateway taskManagerGateway,
+			ResourceProfile resourceProfile) {
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.physicalSlotNumber = physicalSlotNumber;
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
+		this.resourceProfile = resourceProfile;
 	}
 
 	@Override
@@ -66,5 +79,10 @@ public class SimpleSlotContext implements SlotContext {
 	@Override
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
+	}
+
+	@Override
+	public ResourceProfile getResourceProfile() {
+		return resourceProfile;
 	}
 }

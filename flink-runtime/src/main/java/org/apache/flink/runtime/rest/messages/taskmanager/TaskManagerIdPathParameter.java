@@ -41,4 +41,9 @@ public class TaskManagerIdPathParameter extends MessagePathParameter<ResourceID>
 	protected String convertToString(ResourceID value) {
 		return value.getResourceIdString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "32-character hexadecimal string that identifies a task manager.";
+	}
 }

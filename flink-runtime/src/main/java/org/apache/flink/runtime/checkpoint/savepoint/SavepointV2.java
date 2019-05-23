@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The persistent checkpoint metadata, format version 2.
- * his format was introduced with Flink 1.3.0.
+ * This format was introduced with Flink 1.3.0.
  */
 public class SavepointV2 implements Savepoint {
 

@@ -29,7 +29,7 @@ under the License.
 
 Each standalone JobManager, TaskManager, HistoryServer, and ZooKeeper daemon redirects `stdout` and `stderr` to a file
 with a `.out` filename suffix and writes internal logging to a file with a `.log` suffix. Java options configured by the
-user in `env.java.opts`, `env.java.opts.jobmanager`, and `env.java.opts.taskmanager` can likewise define log files with
+user in `env.java.opts`, `env.java.opts.jobmanager`, `env.java.opts.taskmanager` and `env.java.opts.historyserver` can likewise define log files with
 use of the script variable `FLINK_LOG_PREFIX` and by enclosing the options in double quotes for late evaluation. Log files
 using `FLINK_LOG_PREFIX` are rotated along with the default `.out` and `.log` files.
 
@@ -40,17 +40,17 @@ Java Flight Recorder is a profiling and event collection framework built into th
 is an advanced set of tools that enables efficient and detailed analysis of the extensive of data collected by Java
 Flight Recorder. Example configuration:
 
-~~~
+{% highlight yaml %}
 env.java.opts: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX:+FlightRecorder -XX:+DebugNonSafepoints -XX:FlightRecorderOptions=defaultrecording=true,dumponexit=true,dumponexitpath=${FLINK_LOG_PREFIX}.jfr"
-~~~
+{% endhighlight %}
 
 # Profiling with JITWatch
 
 [JITWatch](https://github.com/AdoptOpenJDK/jitwatch/wiki) is a log analyser and visualizer for the Java HotSpot JIT
 compiler used to inspect inlining decisions, hot methods, bytecode, and assembly. Example configuration:
 
-~~~
+{% highlight yaml %}
 env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
-~~~
+{% endhighlight %}
 
 {% top %}

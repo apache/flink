@@ -25,9 +25,10 @@ import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
@@ -54,10 +55,10 @@ public class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestB
 
 	private static TestingServer zkServer;
 
-	private static MiniClusterResource miniClusterResource;
+	private static MiniClusterWithClientResource miniClusterResource;
 
 	@Override
-	protected AbstractStateBackend createStateBackend() throws Exception {
+	protected StateBackend createStateBackend() throws Exception {
 		return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
 	}
 
@@ -67,12 +68,12 @@ public class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestB
 
 		// we have to manage this manually because we have to create the ZooKeeper server
 		// ahead of this
-		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				getConfig(),
-				NUM_TMS,
-				NUM_SLOTS_PER_TM),
-			true);
+		miniClusterResource = new MiniClusterWithClientResource(
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(getConfig())
+				.setNumberTaskManagers(NUM_TMS)
+				.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+				.build());
 
 		miniClusterResource.before();
 
@@ -94,7 +95,8 @@ public class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestB
 	private static Configuration getConfig() throws Exception {
 
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, NUM_JMS);
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);

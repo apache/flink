@@ -20,8 +20,6 @@ package org.apache.flink.python.api;
 
 import org.apache.flink.configuration.ConfigOption;
 
-import java.io.File;
-
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -61,14 +59,6 @@ public class PythonOptions {
 	public static final ConfigOption<String> DATA_TMP_DIR =
 		key("python.mmap.tmp.dir")
 			.noDefaultValue();
-
-	/**
-	 * The config parameter defining where the flink python library and user supplied files will be uploaded to before
-	 * registering them with the Distributed Cache. This directory must be accessible from all worker nodes.
-	 */
-	public static final ConfigOption<String> DC_TMP_DIR =
-		key("python.dc.tmp.dir")
-			.defaultValue(System.getProperty("java.io.tmpdir") + File.separator + "flink_dc");
 
 	private PythonOptions() {
 	}

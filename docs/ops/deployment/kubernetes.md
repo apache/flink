@@ -23,51 +23,77 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Kubernetes](https://kubernetes.io) is a container orchestration system.
+This page describes how to deploy a Flink job and session cluster on [Kubernetes](https://kubernetes.io).
 
 * This will be replaced by the TOC
 {:toc}
 
-## Simple Kubernetes Flink Cluster
+## Setup Kubernetes
 
-A basic Flink cluster deployment in Kubernetes has three components:
+Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in order to deploy a Kubernetes cluster.
+If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
 
-* a Deployment for a single Jobmanager
-* a Deployment for a pool of Taskmanagers
-* a Service exposing the Jobmanager's RPC and UI ports
+<div class="alert alert-info" markdown="span">
+  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. 
+  Otherwise Flink components are not able to self reference themselves through a Kubernetes service. 
+</div>
 
-### Launching the cluster
+## Flink session cluster on Kubernetes
 
-Using the [resource definitions found below](#simple-kubernetes-flink-cluster-
-resources), launch the cluster with the `kubectl` command:
+A Flink session cluster is executed as a long-running Kubernetes Deployment. 
+Note that you can run multiple Flink jobs on a session cluster.
+Each job needs to be submitted to the cluster after the cluster has been deployed.
 
+A basic Flink session cluster deployment in Kubernetes has three components:
+
+* a Deployment/Job which runs the JobManager
+* a Deployment for a pool of TaskManagers
+* a Service exposing the JobManager's REST and UI ports
+
+### Deploy Flink session cluster on Kubernetes
+
+Using the resource definitions for a [session cluster](#session-cluster-resource-definitions), launch the cluster with the `kubectl` command:
+
+    kubectl create -f jobmanager-service.yaml
     kubectl create -f jobmanager-deployment.yaml
     kubectl create -f taskmanager-deployment.yaml
-    kubectl create -f jobmanager-service.yaml
 
 You can then access the Flink UI via `kubectl proxy`:
 
 1. Run `kubectl proxy` in a terminal
-2. Navigate to [http://localhost:8001/api/v1/proxy/namespaces/default/services/flink-jobmanager:8081
-](http://localhost:8001/api/v1/proxy/namespaces/default/services/flink-
-jobmanager:8081) in your browser
+2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy) in your browser
 
-### Deleting the cluster
-
-Again, use `kubectl` to delete the cluster:
+In order to terminate the Flink session cluster, use `kubectl`:
 
     kubectl delete -f jobmanager-deployment.yaml
     kubectl delete -f taskmanager-deployment.yaml
     kubectl delete -f jobmanager-service.yaml
 
+## Flink job cluster on Kubernetes
+
+A Flink job cluster is a dedicated cluster which runs a single job. 
+The job is part of the image and, thus, there is no extra job submission needed. 
+
+### Creating the job-specific image
+
+The Flink job cluster image needs to contain the user code jars of the job for which the cluster is started.
+Therefore, one needs to build a dedicated container image for every job.
+Please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) to build the Docker image.
+    
+### Deploy Flink job cluster on Kubernetes
+
+In order to deploy the a job cluster on Kubernetes please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/kubernetes/README.md#deploy-flink-job-cluster).
+
 ## Advanced Cluster Deployment
 
-An early version of a [Flink Helm chart](https://github.com/docker-flink/
-examples) is available on GitHub.
+An early version of a [Flink Helm chart](https://github.com/docker-flink/examples) is available on GitHub.
 
 ## Appendix
 
-### Simple Kubernetes Flink cluster resources
+### Session cluster resource definitions
+
+The Deployment definitions use the pre-built image `flink:latest` which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
+The image is built from this [Github repository](https://github.com/docker-flink/docker-flink).
 
 `jobmanager-deployment.yaml`
 {% highlight yaml %}

@@ -32,9 +32,7 @@
          <!---->
     <logger name="org.apache.flink.runtime.operators.DataSinkTask" level="OFF"/>
     <logger name="org.apache.flink.runtime.operators.BatchTask" level="OFF"/>
-    <logger name="org.apache.flink.runtime.client.JobClient" level="OFF"/>
     <logger name="org.apache.flink.runtime.taskmanager.Task" level="OFF"/>
-    <logger name="org.apache.flink.runtime.jobmanager.JobManager" level="OFF"/>
     <logger name="org.apache.flink.runtime.testingUtils" level="OFF"/>
     <logger name="org.apache.flink.runtime.executiongraph.ExecutionGraph" level="OFF"/>
     <logger name="org.apache.flink.runtime.jobmanager.EventCollector" level="OFF"/>

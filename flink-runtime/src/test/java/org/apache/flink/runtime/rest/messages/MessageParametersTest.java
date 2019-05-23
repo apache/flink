@@ -19,12 +19,10 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -32,7 +30,6 @@ import java.util.Collections;
 /**
  * Tests for {@link MessageParameters}.
  */
-@Category(New.class)
 public class MessageParametersTest extends TestLogger {
 	@Test
 	public void testResolveUrl() {
@@ -95,6 +92,11 @@ public class MessageParametersTest extends TestLogger {
 		protected String convertToString(JobID value) {
 			return value.toString();
 		}
+
+		@Override
+		public String getDescription() {
+			return "path parameter";
+		}
 	}
 
 	private static class TestQueryParameter extends MessageQueryParameter<JobID> {
@@ -111,6 +113,11 @@ public class MessageParametersTest extends TestLogger {
 		@Override
 		public String convertValueToString(JobID value) {
 			return value.toString();
+		}
+
+		@Override
+		public String getDescription() {
+			return "query parameter";
 		}
 	}
 }

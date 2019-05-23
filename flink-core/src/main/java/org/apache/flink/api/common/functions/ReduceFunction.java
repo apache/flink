@@ -27,24 +27,25 @@ import java.io.Serializable;
  * a single value, by taking always two elements and combining them into one. Reduce functions
  * may be used on entire data sets, or on grouped data sets. In the latter case, each group is reduced
  * individually.
- * <p>
- * For a reduce functions that work on an entire group at the same time (such as the 
+ *
+ * <p>For a reduce functions that work on an entire group at the same time (such as the
  * MapReduce/Hadoop-style reduce), see {@link GroupReduceFunction}. In the general case,
  * ReduceFunctions are considered faster, because they allow the system to use more efficient
  * execution strategies.
- * <p>
- * The basic syntax for using a grouped ReduceFunction is as follows:
+ *
+ * <p>The basic syntax for using a grouped ReduceFunction is as follows:
  * <pre>{@code
  * DataSet<X> input = ...;
- * 
+ *
  * DataSet<X> result = input.groupBy(<key-definition>).reduce(new MyReduceFunction());
  * }</pre>
- * <p>
- * Like all functions, the ReduceFunction needs to be serializable, as defined in {@link java.io.Serializable}.
- * 
+ *
+ * <p>Like all functions, the ReduceFunction needs to be serializable, as defined in {@link java.io.Serializable}.
+ *
  * @param <T> Type of the elements that this function processes.
  */
 @Public
+@FunctionalInterface
 public interface ReduceFunction<T> extends Function, Serializable {
 
 	/**

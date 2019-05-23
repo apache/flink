@@ -26,7 +26,6 @@ import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
@@ -71,21 +70,9 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static final int NUMBER_OF_KAFKA_SERVERS = 3;
 
-	protected static final int NUM_TMS = 1;
-
-	protected static final int TM_SLOTS = 8;
-
 	protected static String brokerConnectionStrings;
 
 	protected static Properties standardProps;
-
-	@ClassRule
-	public static MiniClusterResource flink = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getFlinkConfiguration(),
-			NUM_TMS,
-			TM_SLOTS),
-		true);
 
 	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -101,11 +88,11 @@ public abstract class KafkaTestBase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		prepare(true);
 	}
 
-	public static void prepare(boolean hideKafkaBehindProxy) throws ClassNotFoundException {
+	public static void prepare(boolean hideKafkaBehindProxy) throws Exception {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
@@ -133,30 +120,35 @@ public abstract class KafkaTestBase extends TestLogger {
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "5 s");
 		flinkConfig.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "1 s");
-		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
+		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 		flinkConfig.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		return flinkConfig;
 	}
 
-	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws ClassNotFoundException {
+	protected static void startClusters() throws Exception {
+		startClusters(KafkaTestEnvironment.createConfig().setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS));
+	}
 
-		// dynamically load the implementation for the test
-		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
-		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
-
-		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
-
-		kafkaServer.prepare(kafkaServer.createConfig()
+	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws Exception {
+		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(secureMode)
 			.setHideKafkaBehindProxy(hideKafkaBehindProxy));
+	}
+
+	protected static void startClusters(KafkaTestEnvironment.Config environmentConfig) throws Exception {
+		kafkaServer = constructKafkaTestEnvionment();
+
+		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
+
+		kafkaServer.prepare(environmentConfig);
 
 		standardProps = kafkaServer.getStandardProperties();
 
 		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
 
-		if (secureMode) {
+		if (environmentConfig.isSecureMode()) {
 			if (!kafkaServer.isSecureRunSupported()) {
 				throw new IllegalStateException(
 					"Attempting to test in secure mode but secure mode not supported by the KafkaTestEnvironment.");
@@ -165,12 +157,19 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 	}
 
+	protected static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
+		return (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
+	}
+
 	protected static void shutdownClusters() throws Exception {
 		if (secureProps != null) {
 			secureProps.clear();
 		}
 
-		kafkaServer.shutdown();
+		if (kafkaServer != null) {
+			kafkaServer.shutdown();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -240,6 +239,14 @@ public abstract class KafkaTestBase extends TestLogger {
 		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
 	}
 
+	protected void assertExactlyOnceForTopic(
+		Properties properties,
+		String topic,
+		int partition,
+		List<Integer> expectedElements) {
+		assertExactlyOnceForTopic(properties, topic, partition, expectedElements, 30_000L);
+	}
+
 	/**
 	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
 	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
@@ -249,7 +256,7 @@ public abstract class KafkaTestBase extends TestLogger {
 			String topic,
 			int partition,
 			List<Integer> expectedElements,
-			long timeoutMillis) throws Exception {
+			long timeoutMillis) {
 
 		long startMillis = System.currentTimeMillis();
 		List<Integer> actualElements = new ArrayList<>();
@@ -279,6 +286,15 @@ public abstract class KafkaTestBase extends TestLogger {
 			}
 		}
 
-		fail(String.format("Expected number of elements: <%s>, but was: <%s>", expectedElements.size(), actualElements.size()));
+		fail(String.format("Expected %s, but was: %s", formatElements(expectedElements), formatElements(actualElements)));
+	}
+
+	private String formatElements(List<Integer> elements) {
+		if (elements.size() > 50) {
+			return String.format("number of elements: <%s>", elements.size());
+		}
+		else {
+			return String.format("elements: <%s>", elements);
+		}
 	}
 }

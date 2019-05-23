@@ -288,6 +288,13 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 			}
 			return state;
 		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public KS getCurrentKey() {
+			return (KS) CoBroadcastWithKeyedOperator.this.getCurrentKey();
+		}
+
 	}
 
 	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext {

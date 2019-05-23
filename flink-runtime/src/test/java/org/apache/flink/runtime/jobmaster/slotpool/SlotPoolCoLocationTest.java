@@ -29,26 +29,40 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
- * Test cases for {@link CoLocationConstraint} with the {@link SlotPool}.
+ * Test cases for {@link CoLocationConstraint} with the {@link SlotPoolImpl}.
  */
-public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
+public class SlotPoolCoLocationTest extends TestLogger {
+
+	@ClassRule
+	public static final TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
+
+	@Rule
+	public final SlotPoolResource slotPoolResource =
+		new SlotPoolResource(PreviousAllocationSlotSelectionStrategy.INSTANCE);
 
 	/**
 	 * Tests the scheduling of two tasks with a parallelism of 2 and a co-location constraint.
@@ -57,12 +71,15 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 	public void testSimpleCoLocatedSlotScheduling() throws ExecutionException, InterruptedException {
 		final BlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
 
+		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();
+
 		testingResourceManagerGateway.setRequestSlotConsumer(
 			(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPool();
+		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
 		CoLocationGroup group = new CoLocationGroup();
 		CoLocationConstraint coLocationConstraint1 = group.getLocationConstraint(0);
@@ -73,6 +90,7 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 		JobVertexID jobVertexId1 = new JobVertexID();
 		JobVertexID jobVertexId2 = new JobVertexID();
 
+		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture11 = slotProvider.allocateSlot(
 			new ScheduledUnit(
 				jobVertexId1,
@@ -112,24 +130,24 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 		final AllocationID allocationId1 = allocationIds.take();
 		final AllocationID allocationId2 = allocationIds.take();
 
-		CompletableFuture<Boolean> slotOfferFuture1 = slotPoolGateway.offerSlot(
+		Collection<SlotOffer> slotOfferFuture1 = slotPoolGateway.offerSlots(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
-			new SlotOffer(
+			Collections.singletonList(new SlotOffer(
 				allocationId1,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.UNKNOWN)));
 
-		CompletableFuture<Boolean> slotOfferFuture2 = slotPoolGateway.offerSlot(
+		Collection<SlotOffer> slotOfferFuture2 = slotPoolGateway.offerSlots(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
-			new SlotOffer(
+			Collections.singletonList(new SlotOffer(
 				allocationId2,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.UNKNOWN)));
 
-		assertTrue(slotOfferFuture1.get());
-		assertTrue(slotOfferFuture2.get());
+		assertFalse(slotOfferFuture1.isEmpty());
+		assertFalse(slotOfferFuture2.isEmpty());
 
 		LogicalSlot logicalSlot11 = logicalSlotFuture11.get();
 		LogicalSlot logicalSlot12 = logicalSlotFuture12.get();

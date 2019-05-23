@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -45,7 +45,7 @@ public final class DashboardConfigurationHeaders implements MessageHeaders<Empty
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return DashboardConfigHandler.DASHBOARD_CONFIG_REST_PATH;
+		return "/config";
 	}
 
 	@Override
@@ -65,5 +65,10 @@ public final class DashboardConfigurationHeaders implements MessageHeaders<Empty
 
 	public static DashboardConfigurationHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the configuration of the WebUI.";
 	}
 }

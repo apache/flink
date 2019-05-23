@@ -41,7 +41,7 @@ public class JarListInfo implements ResponseBody {
 	private String address;
 
 	@JsonProperty(JAR_LIST_FIELD_FILES)
-	private List<JarFileInfo> jarFileList;
+	public List<JarFileInfo> jarFileList;
 
 	@JsonCreator
 	public JarListInfo(
@@ -85,10 +85,10 @@ public class JarListInfo implements ResponseBody {
 		public static final String JAR_FILE_FIELD_ENTRY = "entry";
 
 		@JsonProperty(JAR_FILE_FIELD_ID)
-		private String id;
+		public String id;
 
 		@JsonProperty(JAR_FILE_FIELD_NAME)
-		private String name;
+		public String name;
 
 		@JsonProperty(JAR_FILE_FIELD_UPLOADED)
 		private long uploaded;

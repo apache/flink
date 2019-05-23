@@ -44,8 +44,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class DefaultKeyedStateStore implements KeyedStateStore {
 
-	private final KeyedStateBackend<?> keyedStateBackend;
-	private final ExecutionConfig executionConfig;
+	protected final KeyedStateBackend<?> keyedStateBackend;
+	protected final ExecutionConfig executionConfig;
 
 	public DefaultKeyedStateStore(KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
 		this.keyedStateBackend = Preconditions.checkNotNull(keyedStateBackend);
@@ -120,7 +120,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		}
 	}
 
-	private <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
+	protected  <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
 		return keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
 				VoidNamespaceSerializer.INSTANCE,

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
@@ -225,7 +226,7 @@ public class TupleSerializerTest {
 			if(tupleClass == Tuple0.class) {
 				length = 1;
 			}
-			TupleSerializerTestInstance<T> test = new TupleSerializerTestInstance<T>(serializer, tupleClass, length, instances);
+			SerializerTestInstance<T> test = new SerializerTestInstance<>(serializer, tupleClass, length, instances);
 			test.testAll();
 		}
 		catch (Exception e) {

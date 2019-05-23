@@ -18,9 +18,10 @@
 
 package org.apache.flink.queryablestate.client.state;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -38,7 +39,6 @@ import java.util.Set;
  * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
  * providing an {@link MapStateDescriptor}.
  */
-@PublicEvolving
 public final class ImmutableMapState<K, V> extends ImmutableState implements MapState<K, V> {
 
 	private final Map<K, V> state;
@@ -76,8 +76,6 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 	 * Returns all the mappings in the state in a {@link Collections#unmodifiableSet(Set)}.
 	 *
 	 * @return A read-only iterable view of all the key-value pairs in the state.
-	 *
-	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	@Override
 	public Iterable<Map.Entry<K, V>> entries() {
@@ -88,8 +86,6 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 	 * Returns all the keys in the state in a {@link Collections#unmodifiableSet(Set)}.
 	 *
 	 * @return A read-only iterable view of all the keys in the state.
-	 *
-	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	@Override
 	public Iterable<K> keys() {
@@ -100,8 +96,6 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 	 * Returns all the values in the state in a {@link Collections#unmodifiableCollection(Collection)}.
 	 *
 	 * @return A read-only iterable view of all the values in the state.
-	 *
-	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	@Override
 	public Iterable<V> values() {
@@ -112,9 +106,7 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 	 * Iterates over all the mappings in the state. The iterator cannot
 	 * remove elements.
 	 *
-	 * @return A read-only iterator over all the mappings in the state
-	 *
-	 * @throws Exception Thrown if the system cannot access the state.
+	 * @return A read-only iterator over all the mappings in the state.
 	 */
 	@Override
 	public Iterator<Map.Entry<K, V>> iterator() {
@@ -126,14 +118,15 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 
-	public static <K, V> ImmutableMapState<K, V> createState(
-			final MapStateDescriptor<K, V> stateDescriptor,
-			final byte[] serializedState) throws IOException {
-
+	@SuppressWarnings("unchecked")
+	public static <K, V, T, S extends State> S createState(
+		StateDescriptor<S, T> stateDescriptor,
+		byte[] serializedState) throws IOException {
+		MapStateDescriptor<K, V> mapStateDescriptor = (MapStateDescriptor<K, V>) stateDescriptor;
 		final Map<K, V> state = KvStateSerializer.deserializeMap(
-				serializedState,
-				stateDescriptor.getKeySerializer(),
-				stateDescriptor.getValueSerializer());
-		return new ImmutableMapState<>(state);
+			serializedState,
+			mapStateDescriptor.getKeySerializer(),
+			mapStateDescriptor.getValueSerializer());
+		return (S) new ImmutableMapState<>(state);
 	}
 }

@@ -40,7 +40,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
 /**
 * Implementation of AvroKeyValue writer that can be used in Sink.
@@ -60,7 +59,7 @@ Usage:
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS, Boolean.toString(true));
 		properties.put(AvroKeyValueSinkWriter.CONF_COMPRESS_CODEC, DataFileConstants.SNAPPY_CODEC);
 
-		sink.setWriter(new AvroSinkWriter<Long, Long>(properties));
+		sink.setWriter(new AvroKeyValueSinkWriter<Long, Long>(properties));
 		sink.setBatchSize(1024 * 1024 * 64); // this is 64 MB,
 }
 </pre>
@@ -204,7 +203,7 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 	}
 
 	@Override
-	public Writer<Tuple2<K, V>> duplicate() {
+	public AvroKeyValueSinkWriter<K, V> duplicate() {
 		return new AvroKeyValueSinkWriter<>(this);
 	}
 
@@ -335,25 +334,7 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 		}
 	}
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), properties);
-	}
-
-	@Override
-	public boolean equals(Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (other == null) {
-			return false;
-		}
-		if (getClass() != other.getClass()) {
-			return false;
-		}
-		AvroKeyValueSinkWriter<K, V> writer = (AvroKeyValueSinkWriter<K, V>) other;
-		// field comparison
-		return Objects.equals(properties, writer.properties)
-			&& super.equals(other);
+	Map<String, String> getProperties() {
+		return properties;
 	}
 }

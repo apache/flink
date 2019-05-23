@@ -391,7 +391,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			final HashSet<T> openStreams,
 			final boolean output) throws IOException {
 
-		final int outputLimit = output && maxNumOpenInputStreams > 0 ? maxNumOpenOutputStreams : Integer.MAX_VALUE;
+		final int outputLimit = output && maxNumOpenOutputStreams > 0 ? maxNumOpenOutputStreams : Integer.MAX_VALUE;
 		final int inputLimit = !output && maxNumOpenInputStreams > 0 ? maxNumOpenInputStreams : Integer.MAX_VALUE;
 		final int totalLimit = maxNumOpenStreamsTotal > 0 ? maxNumOpenStreamsTotal : Integer.MAX_VALUE;
 		final int outputCredit = output ? 1 : 0;
@@ -717,7 +717,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		private volatile StreamTimeoutException timeoutException;
 
 		/** Flag tracking whether the stream was already closed, for proper inactivity tracking. */
-		private AtomicBoolean closed = new AtomicBoolean();
+		private final AtomicBoolean closed = new AtomicBoolean();
 
 		OutStream(FSDataOutputStream originalStream, LimitedConnectionsFileSystem fs) {
 			this.originalStream = checkNotNull(originalStream);
@@ -843,7 +843,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		private final StreamProgressTracker progressTracker;
 
 		/** Flag tracking whether the stream was already closed, for proper inactivity tracking. */
-		private AtomicBoolean closed = new AtomicBoolean();
+		private final AtomicBoolean closed = new AtomicBoolean();
 
 		InStream(FSDataInputStream originalStream, LimitedConnectionsFileSystem fs) {
 			this.originalStream = checkNotNull(originalStream);

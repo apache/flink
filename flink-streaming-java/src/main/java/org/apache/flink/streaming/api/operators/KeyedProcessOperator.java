@@ -131,6 +131,12 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
 		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public K getCurrentKey() {
+			return (K) KeyedProcessOperator.this.getCurrentKey();
+		}
 	}
 
 	private class OnTimerContextImpl extends KeyedProcessFunction<K, IN, OUT>.OnTimerContext {

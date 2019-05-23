@@ -29,6 +29,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * A variant of the HighAvailabilityServices for testing. Each individual service can be set
@@ -41,6 +42,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	private volatile LeaderRetrievalService dispatcherLeaderRetriever;
 
 	private volatile LeaderRetrievalService webMonitorEndpointLeaderRetriever;
+
+	private volatile Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction = ignored -> null;
+
+	private volatile Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction = ignored -> null;
 
 	private ConcurrentHashMap<JobID, LeaderRetrievalService> jobMasterLeaderRetrievers = new ConcurrentHashMap<>();
 
@@ -56,7 +61,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile SubmittedJobGraphStore submittedJobGraphStore;
 
-	private final RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
+	private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
 	// ------------------------------------------------------------------------
 	//  Setters for mock / testing implementations
@@ -102,6 +107,18 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.submittedJobGraphStore = submittedJobGraphStore;
 	}
 
+	public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
+		this.runningJobsRegistry = runningJobsRegistry;
+	}
+
+	public void setJobMasterLeaderElectionServiceFunction(Function<JobID, LeaderElectionService> jobMasterLeaderElectionServiceFunction) {
+		this.jobMasterLeaderElectionServiceFunction = jobMasterLeaderElectionServiceFunction;
+	}
+
+	public void setJobMasterLeaderRetrieverFunction(Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction) {
+		this.jobMasterLeaderRetrieverFunction = jobMasterLeaderRetrieverFunction;
+	}
+
 	// ------------------------------------------------------------------------
 	//  HA Services Methods
 	// ------------------------------------------------------------------------
@@ -128,7 +145,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-		LeaderRetrievalService service = this.jobMasterLeaderRetrievers.get(jobID);
+		LeaderRetrievalService service = jobMasterLeaderRetrievers.computeIfAbsent(jobID, jobMasterLeaderRetrieverFunction);
 		if (service != null) {
 			return service;
 		} else {
@@ -170,7 +187,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
-		LeaderElectionService service = this.jobManagerLeaderElectionServices.get(jobID);
+		LeaderElectionService service = jobManagerLeaderElectionServices.computeIfAbsent(jobID, jobMasterLeaderElectionServiceFunction);
 
 		if (service != null) {
 			return service;

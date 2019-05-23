@@ -27,7 +27,7 @@ Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 * Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 
-* Compatibility layers for Apache Hadoop MapReduce and Apache Storm
+* Compatibility layers for Apache Hadoop MapReduce
 
 * Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem
 
@@ -67,10 +67,10 @@ counts.writeAsCsv(outputPath)
 
 Prerequisites for building Flink:
 
-* Unix-like environment (We use Linux, Mac OS X, Cygwin)
+* Unix-like environment (we use Linux, Mac OS X, Cygwin)
 * git
-* Maven (we recommend version 3.2.5)
-* Java 8
+* Maven (we recommend version 3.2.5 and require at least 3.1.1)
+* Java 8 (Java 9 and 10 are not yet supported)
 
 ```
 git clone https://github.com/apache/flink.git
@@ -80,7 +80,7 @@ mvn clean package -DskipTests # this will take up to 10 minutes
 
 Flink is now installed in `build-target`
 
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.0.3 creates the libraries properly.
+*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
 To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
 ## Developing Flink
@@ -100,7 +100,7 @@ The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala dev
 * IntelliJ download: [https://www.jetbrains.com/idea/](https://www.jetbrains.com/idea/)
 * IntelliJ Scala Plugin: [http://plugins.jetbrains.com/plugin/?id=1347](http://plugins.jetbrains.com/plugin/?id=1347)
 
-Check out our [Setting up IntelliJ](https://github.com/apache/flink/blob/master/docs/internals/ide_setup.md#intellij-idea) guide for details.
+Check out our [Setting up IntelliJ](https://ci.apache.org/projects/flink/flink-docs-master/flinkDev/ide_setup.html#intellij-idea) guide for details.
 
 ### Eclipse Scala IDE
 

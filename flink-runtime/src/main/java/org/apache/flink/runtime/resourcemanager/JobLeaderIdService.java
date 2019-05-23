@@ -188,7 +188,7 @@ public class JobLeaderIdService {
 
 		JobLeaderIdListener listener = jobLeaderIdListeners.get(jobId);
 
-		return listener.getLeaderIdFuture().thenApply((UUID id) -> id != null ? new JobMasterId(id) : null);
+		return listener.getLeaderIdFuture().thenApply(JobMasterId::fromUuidOrNull);
 	}
 
 	public boolean isValidTimeout(JobID jobId, UUID timeoutId) {

@@ -19,18 +19,21 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -43,14 +46,6 @@ import static org.mockito.Mockito.verify;
  * Tests for {@link ResultPartition}.
  */
 public class ResultPartitionTest {
-
-	/** Asynchronous I/O manager. */
-	private static final IOManager ioManager = new IOManagerAsync();
-
-	@AfterClass
-	public static void shutdown() {
-		ioManager.shutdown();
-	}
 
 	/**
 	 * Tests the schedule or update consumers message sending behaviour depending on the relevant flags.
@@ -156,6 +151,7 @@ public class ResultPartitionTest {
 			partition.release();
 			// partition.add() silently drops the bufferConsumer but recycles it
 			partition.addBufferConsumer(bufferConsumer, 0);
+			assertTrue(partition.isReleased());
 		} finally {
 			if (!bufferConsumer.isRecycled()) {
 				bufferConsumer.close();
@@ -205,23 +201,46 @@ public class ResultPartitionTest {
 		}
 	}
 
-	// ------------------------------------------------------------------------
+	@Test
+	public void testReleaseMemoryOnPipelinedPartition() throws Exception {
+		testReleaseMemory(ResultPartitionType.PIPELINED);
+	}
 
-	private static ResultPartition createPartition(
-		ResultPartitionConsumableNotifier notifier,
-		ResultPartitionType type,
-		boolean sendScheduleOrUpdateConsumersMessage) {
-		return new ResultPartition(
-			"TestTask",
-			mock(TaskActions.class),
-			new JobID(),
-			new ResultPartitionID(),
-			type,
-			1,
-			1,
-			mock(ResultPartitionManager.class),
-			notifier,
-			ioManager,
-			sendScheduleOrUpdateConsumersMessage);
+	/**
+	 * Tests {@link ResultPartition#releaseMemory(int)} on a working partition.
+	 *
+	 * @param resultPartitionType the result partition type to set up
+	 */
+	private void testReleaseMemory(final ResultPartitionType resultPartitionType) throws Exception {
+		final int numAllBuffers = 10;
+		final NetworkEnvironment network = new NetworkEnvironmentBuilder()
+			.setNumNetworkBuffers(numAllBuffers).build();
+		final ResultPartition resultPartition = createPartition(network, resultPartitionType, 1);
+		try {
+			resultPartition.setup();
+
+			// take all buffers (more than the minimum required)
+			for (int i = 0; i < numAllBuffers; ++i) {
+				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking();
+				resultPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
+			}
+			resultPartition.finish();
+
+			assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+
+			// reset the pool size less than the number of requested buffers
+			final int numLocalBuffers = 4;
+			resultPartition.getBufferPool().setNumBuffers(numLocalBuffers);
+
+			// partition with blocking type should release excess buffers
+			if (!resultPartitionType.hasBackPressure()) {
+				assertEquals(numLocalBuffers, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+			} else {
+				assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+			}
+		} finally {
+			resultPartition.release();
+			network.shutdown();
+		}
 	}
 }

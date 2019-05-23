@@ -68,10 +68,10 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 
 You can configure the number of recent checkpoints that are remembered for the history via the following configuration key. The default is `10`.
 
-```sh
+{% highlight yaml %}
 # Number of recent checkpoints that are remembered
-jobmanager.web.checkpoints.history: 15
-```
+web.checkpoints.history: 15
+{% endhighlight %}
 
 ### Summary Tab
 

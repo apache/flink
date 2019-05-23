@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
-import java.util.Objects;
 
 /**
  * Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}.
@@ -102,24 +101,7 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 		}
 	}
 
-	@Override
-	public int hashCode() {
-		return Boolean.hashCode(syncOnFlush);
-	}
-
-	@Override
-	public boolean equals(Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (other == null) {
-			return false;
-		}
-		if (getClass() != other.getClass()) {
-			return false;
-		}
-		StreamWriterBase<T> writer = (StreamWriterBase<T>) other;
-		// field comparison
-		return Objects.equals(syncOnFlush, writer.syncOnFlush);
+	public boolean isSyncOnFlush() {
+		return syncOnFlush;
 	}
 }

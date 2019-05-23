@@ -299,7 +299,7 @@ public class FileInputFormatTest {
 			final long SIZE3 = 10;
 			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
 			
-			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
+			String tempDir = TestFileUtils.createTempFileDir(temporaryFolder.newFolder(), SIZE1, SIZE2, SIZE3);
 			
 			final DummyFileInputFormat format = new DummyFileInputFormat();
 			format.setFilePath(tempDir);
@@ -455,13 +455,13 @@ public class FileInputFormatTest {
 		final long size3 = 10;
 		final long totalSize123 = size1 + size2 + size3;
 		
-		String tempDir = TestFileUtils.createTempFileDir(size1, size2, size3);
+		String tempDir = TestFileUtils.createTempFileDir(temporaryFolder.newFolder(), size1, size2, size3);
 		
 		final long size4 = 2051;
 		final long size5 = 31902;
 		final long size6 = 15;
 		final long totalSize456 = size4 + size5 + size6;
-		String tempDir2 = TestFileUtils.createTempFileDir(size4, size5, size6);
+		String tempDir2 = TestFileUtils.createTempFileDir(temporaryFolder.newFolder(), size4, size5, size6);
 
 		final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
 		format.setFilePaths(tempDir, tempDir2);
@@ -532,7 +532,7 @@ public class FileInputFormatTest {
 	@Test
 	public void testFileInputSplit() {
 		try {
-			String tempFile = TestFileUtils.createTempFileDirExtension(".deflate", "some", "stupid", "meaningless", "files");
+			String tempFile = TestFileUtils.createTempFileDirExtension(temporaryFolder.newFolder(), ".deflate", "some", "stupid", "meaningless", "files");
 			final DummyFileInputFormat format = new DummyFileInputFormat();
 			format.setFilePath(tempFile);
 			format.configure(new Configuration());

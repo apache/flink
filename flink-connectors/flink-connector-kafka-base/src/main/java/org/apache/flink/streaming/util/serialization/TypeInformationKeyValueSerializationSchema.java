@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -27,6 +27,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.io.IOException;
 
@@ -37,8 +40,8 @@ import java.io.IOException;
  * @param <K> The key type to be serialized.
  * @param <V> The value type to be serialized.
  */
-@Internal
-public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDeserializationSchema<Tuple2<K, V>>, KeyedSerializationSchema<Tuple2<K, V>> {
+@PublicEvolving
+public class TypeInformationKeyValueSerializationSchema<K, V> implements KafkaDeserializationSchema<Tuple2<K, V>>, KeyedSerializationSchema<Tuple2<K, V>> {
 
 	private static final long serialVersionUID = -5359448468131559102L;
 
@@ -96,16 +99,16 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+	public Tuple2<K, V> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 		K key = null;
 		V value = null;
 
-		if (messageKey != null) {
-			inputDeserializer.setBuffer(messageKey, 0, messageKey.length);
+		if (record.key() != null) {
+			inputDeserializer.setBuffer(record.key());
 			key = keySerializer.deserialize(inputDeserializer);
 		}
-		if (message != null) {
-			inputDeserializer.setBuffer(message, 0, message.length);
+		if (record.value() != null) {
+			inputDeserializer.setBuffer(record.value());
 			value = valueSerializer.deserialize(inputDeserializer);
 		}
 		return new Tuple2<>(key, value);

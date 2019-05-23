@@ -38,4 +38,9 @@ public class AccumulatorsIncludeSerializedValueQueryParameter extends MessageQue
 	public Boolean convertStringToValue(String value) {
 		return Boolean.valueOf(value);
 	}
+
+	@Override
+	public String getDescription() {
+		return "Boolean value that specifies whether serialized user task accumulators should be included in the response.";
+	}
 }

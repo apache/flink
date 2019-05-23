@@ -28,8 +28,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Random;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -247,6 +250,38 @@ public final class StringUtils {
 	}
 
 	/**
+	 * Creates a random alphanumeric string of given length.
+	 *
+	 * @param rnd The random number generator to use.
+	 * @param length The number of alphanumeric characters to append.
+	 */
+	public static String generateRandomAlphanumericString(Random rnd, int length) {
+		checkNotNull(rnd);
+		checkArgument(length >= 0);
+
+		StringBuilder buffer = new StringBuilder(length);
+		for (int i = 0; i < length; i++) {
+			buffer.append(nextAlphanumericChar(rnd));
+		}
+		return buffer.toString();
+	}
+
+	private static char nextAlphanumericChar(Random rnd) {
+		int which = rnd.nextInt(62);
+		char c;
+		if (which < 10) {
+			c = (char) ('0' + which);
+		}
+		else if (which < 36) {
+			c = (char) ('A' - 10 + which);
+		}
+		else {
+			c = (char) ('a' - 36 + which);
+		}
+		return c;
+	}
+
+	/**
 	 * Writes a String to the given output.
 	 * The written string can be read with {@link #readString(DataInputView)}.
 	 *
@@ -346,6 +381,21 @@ public final class StringUtils {
 		else {
 			return s2;
 		}
+	}
+
+	/**
+	 * Generates a string containing a comma-separated list of values in double-quotes.
+	 * Uses lower-cased values returned from {@link Object#toString()} method for each element in the given array.
+	 * Null values are skipped.
+	 *
+	 * @param values array of elements for the list
+	 *
+	 * @return The string with quoted list of elements
+	 */
+	public static String toQuotedListString(Object[] values) {
+		return Arrays.stream(values).filter(Objects::nonNull)
+			.map(v -> v.toString().toLowerCase())
+			.collect(Collectors.joining(", ", "\"", "\""));
 	}
 
 	// ------------------------------------------------------------------------

@@ -24,6 +24,10 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
+import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,15 +43,21 @@ import java.util.StringJoiner;
 public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
 	private final R requestBody;
+	private final Collection<File> uploadedFiles;
 	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
 	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
 
 	public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
-		this(requestBody, messageParameters, Collections.emptyMap(), Collections.emptyMap());
+		this(requestBody, messageParameters, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList());
 	}
 
 	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters) throws HandlerRequestException {
+		this(requestBody, messageParameters, receivedPathParameters, receivedQueryParameters, Collections.emptyList());
+	}
+
+	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, Collection<File> uploadedFiles) throws HandlerRequestException {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
+		this.uploadedFiles = Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
 		Preconditions.checkNotNull(messageParameters);
 		Preconditions.checkNotNull(receivedQueryParameters);
 		Preconditions.checkNotNull(receivedPathParameters);
@@ -128,5 +138,10 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 		} else {
 			return queryParameter.getValue();
 		}
+	}
+
+	@Nonnull
+	public Collection<File> getUploadedFiles() {
+		return uploadedFiles;
 	}
 }

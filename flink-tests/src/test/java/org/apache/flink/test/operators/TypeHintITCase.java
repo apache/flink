@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -52,7 +53,7 @@ public class TypeHintITCase extends AbstractTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds
 			.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
-			.returns("Tuple3<Integer, Long, String>");
+			.returns(new TypeHint<Tuple3<Integer, Long, String>>(){});
 		List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
 
 		String expectedResult = "(2,2,Hello)\n" +

@@ -35,7 +35,7 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
 	}
 
 	@Override
-	public List<X> convertFromString(String values) {
+	public List<X> convertFromString(String values) throws ConversionException {
 		String[] splitValues = values.split(",");
 		List<X> list = new ArrayList<>();
 		for (String value : splitValues) {
@@ -50,7 +50,7 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
 	 * @param value string representation of parameter value
 	 * @return parameter value
 	 */
-	public abstract X convertStringToValue(String value);
+	public abstract X convertStringToValue(String value) throws ConversionException;
 
 	@Override
 	public String convertToString(List<X> values) {

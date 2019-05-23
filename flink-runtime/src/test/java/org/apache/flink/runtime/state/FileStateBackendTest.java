@@ -24,14 +24,27 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tests for the keyed state backend and operator state backend, as created by the
  * {@link FsStateBackend}.
  */
+@RunWith(Parameterized.class)
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
+
+	@Parameterized.Parameters
+	public static List<Boolean> modes() {
+		return Arrays.asList(true, false);
+	}
+
+	@Parameterized.Parameter
+	public boolean useAsyncMode;
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -39,11 +52,12 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@Override
 	protected FsStateBackend getStateBackend() throws Exception {
 		File checkpointPath = tempFolder.newFolder();
-		return new FsStateBackend(checkpointPath.toURI(), useAsyncMode());
+		return new FsStateBackend(checkpointPath.toURI(), useAsyncMode);
 	}
 
-	protected boolean useAsyncMode() {
-		return false;
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return true;
 	}
 
 	// disable these because the verification does not work for this state backend

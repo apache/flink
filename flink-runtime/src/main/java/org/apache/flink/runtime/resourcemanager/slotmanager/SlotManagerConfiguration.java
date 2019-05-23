@@ -21,9 +21,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.Duration;
 
@@ -32,17 +36,23 @@ import scala.concurrent.duration.Duration;
  */
 public class SlotManagerConfiguration {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(SlotManagerConfiguration.class);
+
 	private final Time taskManagerRequestTimeout;
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
+	private final boolean waitResultConsumedBeforeRelease;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
-			Time taskManagerTimeout) {
+			Time taskManagerTimeout,
+			boolean waitResultConsumedBeforeRelease) {
+
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
+		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -57,6 +67,10 @@ public class SlotManagerConfiguration {
 		return taskManagerTimeout;
 	}
 
+	public boolean isWaitResultConsumedBeforeRelease() {
+		return waitResultConsumedBeforeRelease;
+	}
+
 	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
 		final String strTimeout = configuration.getString(AkkaOptions.ASK_TIMEOUT);
 		final Time rpcTimeout;
@@ -68,11 +82,26 @@ public class SlotManagerConfiguration {
 				"value " + AkkaOptions.ASK_TIMEOUT + '.', e);
 		}
 
-		final Time slotRequestTimeout = Time.milliseconds(
-				configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT));
+		final Time slotRequestTimeout = getSlotRequestTimeout(configuration);
 		final Time taskManagerTimeout = Time.milliseconds(
 				configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
-		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout);
+		boolean waitResultConsumedBeforeRelease =
+			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
+
+		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout, waitResultConsumedBeforeRelease);
+	}
+
+	private static Time getSlotRequestTimeout(final Configuration configuration) {
+		final long slotRequestTimeoutMs;
+		if (configuration.contains(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT)) {
+			LOGGER.warn("Config key {} is deprecated; use {} instead.",
+				ResourceManagerOptions.SLOT_REQUEST_TIMEOUT,
+				JobManagerOptions.SLOT_REQUEST_TIMEOUT);
+			slotRequestTimeoutMs = configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT);
+		} else {
+			slotRequestTimeoutMs = configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
+		}
+		return Time.milliseconds(slotRequestTimeoutMs);
 	}
 }

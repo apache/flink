@@ -27,10 +27,9 @@ import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -145,7 +144,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, new TableConfig());
 		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
 		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
@@ -186,7 +185,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, new TableConfig());
 		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
 		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
@@ -225,7 +224,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, new TableConfig());
 		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		// shuffle order of column registration
 		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
@@ -260,7 +259,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, new TableConfig());
 		// fetch row2 from the table till the end
 		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		hbaseTable.addColumn(FAMILY2, F2COL1, byte[].class);
@@ -363,7 +362,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		public static void setAsContext() {
 			Configuration config = new Configuration();
 			// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
-			config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
+			config.setString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
 			final LocalEnvironment le = new LocalEnvironment(config);
 
 			initializeContextEnvironment(new ExecutionEnvironmentFactory() {

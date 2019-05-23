@@ -47,10 +47,10 @@ import java.util.Map;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
- * of the function will have a context through which it can access static contextual information (such as 
+ * of the function will have a context through which it can access static contextual information (such as
  * the current parallelism) and other constructs like accumulators and broadcast variables.
- * <p>
- * A function can, during runtime, obtain the RuntimeContext via a call to
+ *
+ * <p>A function can, during runtime, obtain the RuntimeContext via a call to
  * {@link AbstractRichFunction#getRuntimeContext()}.
  */
 @Public
@@ -58,14 +58,14 @@ public interface RuntimeContext {
 
 	/**
 	 * Returns the name of the task in which the UDF runs, as assigned during plan construction.
-	 * 
+	 *
 	 * @return The name of the task in which the UDF runs.
 	 */
 	String getTaskName();
 
 	/**
 	 * Returns the metric group for this parallel subtask.
-	 * 
+	 *
 	 * @return The metric group for this parallel subtask.
 	 */
 	@PublicEvolving
@@ -73,7 +73,7 @@ public interface RuntimeContext {
 
 	/**
 	 * Gets the parallelism with which the parallel task runs.
-	 * 
+	 *
 	 * @return The parallelism with which the parallel task runs.
 	 */
 	int getNumberOfParallelSubtasks();
@@ -89,7 +89,7 @@ public interface RuntimeContext {
 	/**
 	 * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
 	 * parallelism-1 (parallelism as returned by {@link #getNumberOfParallelSubtasks()}).
-	 * 
+	 *
 	 * @return The index of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
@@ -115,11 +115,11 @@ public interface RuntimeContext {
 	 * job.
 	 */
 	ExecutionConfig getExecutionConfig();
-	
+
 	/**
 	 * Gets the ClassLoader to load classes that were are not in system's classpath, but are part of the
 	 * jar file of a user job.
-	 * 
+	 *
 	 * @return The ClassLoader for user code classes.
 	 */
 	ClassLoader getUserCodeClassLoader();
@@ -137,7 +137,7 @@ public interface RuntimeContext {
 	/**
 	 * Get an existing accumulator object. The accumulator must have been added
 	 * previously in this local runtime context.
-	 * 
+	 *
 	 * Throws an exception if the accumulator does not exist or if the
 	 * accumulator exists, but with different type.
 	 */
@@ -175,7 +175,7 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	Histogram getHistogram(String name);
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -189,27 +189,27 @@ public interface RuntimeContext {
 	boolean hasBroadcastVariable(String name);
 
 	/**
-	 * Returns the result bound to the broadcast variable identified by the 
+	 * Returns the result bound to the broadcast variable identified by the
 	 * given {@code name}.
 	 * <p>
 	 * IMPORTANT: The broadcast variable data structure is shared between the parallel
 	 *            tasks on one machine. Any access that modifies its internal state needs to
 	 *            be manually synchronized by the caller.
-	 * 
+	 *
 	 * @param name The name under which the broadcast variable is registered;
 	 * @return The broadcast variable, materialized as a list of elements.
 	 */
 	<RT> List<RT> getBroadcastVariable(String name);
-	
+
 	/**
-	 * Returns the result bound to the broadcast variable identified by the 
+	 * Returns the result bound to the broadcast variable identified by the
 	 * given {@code name}. The broadcast variable is returned as a shared data structure
 	 * that is initialized with the given {@link BroadcastVariableInitializer}.
 	 * <p>
 	 * IMPORTANT: The broadcast variable data structure is shared between the parallel
 	 *            tasks on one machine. Any access that modifies its internal state needs to
 	 *            be manually synchronized by the caller.
-	 * 
+	 *
 	 * @param name The name under which the broadcast variable is registered;
 	 * @param initializer The initializer that creates the shared data structure of the broadcast
 	 *                    variable from the sequence of elements.
@@ -220,11 +220,11 @@ public interface RuntimeContext {
 	/**
 	 * Returns the {@link DistributedCache} to get the local temporary file copies of files otherwise not
 	 * locally accessible.
-	 * 
+	 *
 	 * @return The distributed cache of the worker executing this instance.
 	 */
 	DistributedCache getDistributedCache();
-	
+
 	// ------------------------------------------------------------------------
 	//  Methods for accessing state
 	// ------------------------------------------------------------------------
@@ -249,7 +249,7 @@ public interface RuntimeContext {
 	 *
 	 * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
 	 *
-	 *     private ValueState<Long> count;
+	 *     private ValueState<Long> state;
 	 *
 	 *     public void open(Configuration cfg) {
 	 *         state = getRuntimeContext().getState(
@@ -258,7 +258,7 @@ public interface RuntimeContext {
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
 	 *         long count = state.value() + 1;
-	 *         state.update(value);
+	 *         state.update(count);
 	 *         return new Tuple2<>(value, count);
 	 *     }
 	 * });
@@ -280,7 +280,7 @@ public interface RuntimeContext {
 	 * Gets a handle to the system's key/value list state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
 	 * holds lists. One can add elements to the list, or retrieve the list as a whole.
-	 * 
+	 *
 	 * <p>This state is only accessible if the function is executed on a KeyedStream.
 	 *
 	 * <pre>{@code
@@ -345,7 +345,7 @@ public interface RuntimeContext {
 	 *         return new Tuple2<>(value, state.get());
 	 *     }
 	 * });
-	 * 
+	 *
 	 * }</pre>
 	 *
 	 * @param stateProperties The descriptor defining the properties of the stats.
@@ -446,7 +446,7 @@ public interface RuntimeContext {
 	@PublicEvolving
 	@Deprecated
 	<T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties);
-	
+
 	/**
 	 * Gets a handle to the system's key/value map state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that

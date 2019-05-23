@@ -18,22 +18,23 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Base class for {@link State} implementations that store state in a RocksDB database.
@@ -44,13 +45,14 @@ import java.io.IOException;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of values kept internally in state.
- * @param <S> The type of {@link State}.
- * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends StateDescriptor<S, V>> implements InternalKvState<K, N, V>, State {
+public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K, N, V>, State {
 
 	/** Serializer for the namespace. */
 	final TypeSerializer<N> namespaceSerializer;
+
+	/** Serializer for the state values. */
+	final TypeSerializer<V> valueSerializer;
 
 	/** The current namespace, which the next value methods will refer to. */
 	private N currentNamespace;
@@ -61,25 +63,30 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 	/** The column family of this particular instance of state. */
 	protected ColumnFamilyHandle columnFamily;
 
-	/** State descriptor from which to create this state instance. */
-	protected final SD stateDesc;
+	protected final V defaultValue;
 
 	protected final WriteOptions writeOptions;
 
-	protected final ByteArrayOutputStreamWithPos keySerializationStream;
+	protected final DataOutputSerializer dataOutputView;
 
-	protected final DataOutputView keySerializationDataOutputView;
+	protected final DataInputDeserializer dataInputView;
 
-	private final boolean ambiguousKeyPossible;
+	private final RocksDBSerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
 
 	/**
 	 * Creates a new RocksDB backed state.
-	 *  @param namespaceSerializer The serializer for the namespace.
+	 *
+	 * @param columnFamily The RocksDB column family that this state is associated to.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param valueSerializer The serializer for the state.
+	 * @param defaultValue The default value for the state.
+	 * @param backend The backend for which this state is bind to.
 	 */
 	protected AbstractRocksDBState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			SD stateDesc,
+			TypeSerializer<V> valueSerializer,
+			V defaultValue,
 			RocksDBKeyedStateBackend<K> backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
@@ -88,11 +95,12 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 		this.columnFamily = columnFamily;
 
 		this.writeOptions = backend.getWriteOptions();
-		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
+		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "State value serializer");
+		this.defaultValue = defaultValue;
 
-		this.keySerializationStream = new ByteArrayOutputStreamWithPos(128);
-		this.keySerializationDataOutputView = new DataOutputViewStreamWrapper(keySerializationStream);
-		this.ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(backend.getKeySerializer(), namespaceSerializer);
+		this.dataOutputView = new DataOutputSerializer(128);
+		this.dataInputView = new DataInputDeserializer();
+		this.sharedKeyNamespaceSerializer = backend.getSharedRocksKeyBuilder();
 	}
 
 	// ------------------------------------------------------------------------
@@ -100,17 +108,15 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 	@Override
 	public void clear() {
 		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			backend.db.delete(columnFamily, writeOptions, key);
-		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while removing entry from RocksDB", e);
+			backend.db.delete(columnFamily, writeOptions, serializeCurrentKeyWithGroupAndNamespace());
+		} catch (RocksDBException e) {
+			throw new FlinkRuntimeException("Error while removing entry from RocksDB", e);
 		}
 	}
 
 	@Override
 	public void setCurrentNamespace(N namespace) {
-		this.currentNamespace = Preconditions.checkNotNull(namespace, "Namespace");
+		this.currentNamespace = namespace;
 	}
 
 	@Override
@@ -120,74 +126,118 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State, SD extends 
 			final TypeSerializer<N> safeNamespaceSerializer,
 			final TypeSerializer<V> safeValueSerializer) throws Exception {
 
-		Preconditions.checkNotNull(serializedKeyAndNamespace);
-		Preconditions.checkNotNull(safeKeySerializer);
-		Preconditions.checkNotNull(safeNamespaceSerializer);
-		Preconditions.checkNotNull(safeValueSerializer);
-
 		//TODO make KvStateSerializer key-group aware to save this round trip and key-group computation
 		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
 				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
 
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-		// we cannot reuse the keySerializationStream member since this method
-		// is called concurrently to the other ones and it may thus contain garbage
-		ByteArrayOutputStreamWithPos tmpKeySerializationStream = new ByteArrayOutputStreamWithPos(128);
-		DataOutputViewStreamWrapper tmpKeySerializationDateDataOutputView = new DataOutputViewStreamWrapper(tmpKeySerializationStream);
-
-		writeKeyWithGroupAndNamespace(
-				keyGroup,
-				keyAndNamespace.f0,
-				safeKeySerializer,
-				keyAndNamespace.f1,
-				safeNamespaceSerializer,
-				tmpKeySerializationStream,
-				tmpKeySerializationDateDataOutputView);
-
-		return backend.db.get(columnFamily, tmpKeySerializationStream.toByteArray());
+		RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
+						new RocksDBSerializedCompositeKeyBuilder<>(
+							safeKeySerializer,
+							backend.getKeyGroupPrefixBytes(),
+							32
+						);
+		keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
+		byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
+		return backend.db.get(columnFamily, key);
 	}
 
-	protected void writeCurrentKeyWithGroupAndNamespace() throws IOException {
-		writeKeyWithGroupAndNamespace(
-			backend.getCurrentKeyGroupIndex(),
-			backend.getCurrentKey(),
+	<UK> byte[] serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
+		UK userKey,
+		TypeSerializer<UK> userKeySerializer) throws IOException {
+		return sharedKeyNamespaceSerializer.buildCompositeKeyNamesSpaceUserKey(
 			currentNamespace,
-			keySerializationStream,
-			keySerializationDataOutputView);
+			namespaceSerializer,
+			userKey,
+			userKeySerializer
+		);
 	}
 
-	protected void writeKeyWithGroupAndNamespace(
-			int keyGroup, K key, N namespace,
-			ByteArrayOutputStreamWithPos keySerializationStream,
-			DataOutputView keySerializationDataOutputView) throws IOException {
-
-		writeKeyWithGroupAndNamespace(
-				keyGroup,
-				key,
-				backend.getKeySerializer(),
-				namespace,
-				namespaceSerializer,
-				keySerializationStream,
-				keySerializationDataOutputView);
+	private <T> byte[] serializeValueInternal(T value, TypeSerializer<T> serializer) throws IOException {
+		serializer.serialize(value, dataOutputView);
+		return dataOutputView.getCopyOfBuffer();
 	}
 
-	protected void writeKeyWithGroupAndNamespace(
-			final int keyGroup,
-			final K key,
-			final TypeSerializer<K> keySerializer,
-			final N namespace,
-			final TypeSerializer<N> namespaceSerializer,
-			final ByteArrayOutputStreamWithPos keySerializationStream,
-			final DataOutputView keySerializationDataOutputView) throws IOException {
+	byte[] serializeCurrentKeyWithGroupAndNamespace() {
+		return sharedKeyNamespaceSerializer.buildCompositeKeyNamespace(currentNamespace, namespaceSerializer);
+	}
 
-		Preconditions.checkNotNull(key, "No key set. This method should not be called outside of a keyed context.");
-		Preconditions.checkNotNull(keySerializer);
-		Preconditions.checkNotNull(namespaceSerializer);
+	byte[] serializeValue(V value) throws IOException {
+		return serializeValue(value, valueSerializer);
+	}
 
-		keySerializationStream.reset();
-		RocksDBKeySerializationUtils.writeKeyGroup(keyGroup, backend.getKeyGroupPrefixBytes(), keySerializationDataOutputView);
-		RocksDBKeySerializationUtils.writeKey(key, keySerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
-		RocksDBKeySerializationUtils.writeNameSpace(namespace, namespaceSerializer, keySerializationStream, keySerializationDataOutputView, ambiguousKeyPossible);
+	<T> byte[] serializeValueNullSensitive(T value, TypeSerializer<T> serializer) throws IOException {
+		dataOutputView.clear();
+		dataOutputView.writeBoolean(value == null);
+		return serializeValueInternal(value, serializer);
+	}
+
+	<T> byte[] serializeValue(T value, TypeSerializer<T> serializer) throws IOException {
+		dataOutputView.clear();
+		return serializeValueInternal(value, serializer);
+	}
+
+	<T> byte[] serializeValueList(
+		List<T> valueList,
+		TypeSerializer<T> elementSerializer,
+		byte delimiter) throws IOException {
+
+		dataOutputView.clear();
+		boolean first = true;
+
+		for (T value : valueList) {
+			Preconditions.checkNotNull(value, "You cannot add null to a value list.");
+
+			if (first) {
+				first = false;
+			} else {
+				dataOutputView.write(delimiter);
+			}
+			elementSerializer.serialize(value, dataOutputView);
+		}
+
+		return dataOutputView.getCopyOfBuffer();
+	}
+
+	public void migrateSerializedValue(
+			DataInputDeserializer serializedOldValueInput,
+			DataOutputSerializer serializedMigratedValueOutput,
+			TypeSerializer<V> priorSerializer,
+			TypeSerializer<V> newSerializer) throws StateMigrationException {
+
+		try {
+			V value = priorSerializer.deserialize(serializedOldValueInput);
+			newSerializer.serialize(value, serializedMigratedValueOutput);
+		} catch (Exception e) {
+			throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
+		}
+	}
+
+	byte[] getKeyBytes() {
+		return serializeCurrentKeyWithGroupAndNamespace();
+	}
+
+	byte[] getValueBytes(V value) {
+		try {
+			dataOutputView.clear();
+			valueSerializer.serialize(value, dataOutputView);
+			return dataOutputView.getCopyOfBuffer();
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Error while serializing value", e);
+		}
+	}
+
+	protected V getDefaultValue() {
+		if (defaultValue != null) {
+			return valueSerializer.copy(defaultValue);
+		} else {
+			return null;
+		}
+	}
+
+	@Override
+	public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		throw new UnsupportedOperationException("Global state entry iterator is unsupported for RocksDb backend");
 	}
 }

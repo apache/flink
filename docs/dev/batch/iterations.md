@@ -102,7 +102,7 @@ There are multiple options to specify **termination conditions** for an iteratio
 
 You can also think about the iterate operator in pseudo-code:
 
-~~~java
+{% highlight java %}
 IterationState state = getInitialState();
 
 while (!terminationCriterion()) {
@@ -110,7 +110,7 @@ while (!terminationCriterion()) {
 }
 
 setFinalState(state);
-~~~
+{% endhighlight %}
 
 <div class="panel panel-default">
 	<div class="panel-body">
@@ -130,14 +130,14 @@ In the following example, we **iteratively increment a set numbers**:
   3. **Next Partial Solution**: The output of the step function will be the output of the map operator, i.e. records with incremented integers.
   4. **Iteration Result**: After ten iterations, the initial numbers will have been incremented ten times, resulting in integers `11` to `15`.
 
-~~~
+{% highlight plain %}
 // 1st           2nd                       10th
 map(1) -> 2      map(2) -> 3      ...      map(10) -> 11
 map(2) -> 3      map(3) -> 4      ...      map(11) -> 12
 map(3) -> 4      map(4) -> 5      ...      map(12) -> 13
 map(4) -> 5      map(5) -> 6      ...      map(13) -> 14
 map(5) -> 6      map(6) -> 7      ...      map(14) -> 15
-~~~
+{% endhighlight %}
 
 Note that **1**, **2**, and **4** can be arbitrary data flows.
 
@@ -162,7 +162,7 @@ The default **termination condition** for delta iterations is specified by the *
 
 You can also think about the iterate operator in pseudo-code:
 
-~~~java
+{% highlight java %}
 IterationState workset = getInitialState();
 IterationState solution = getInitialSolution();
 
@@ -173,7 +173,7 @@ while (!terminationCriterion()) {
 }
 
 setFinalState(solution);
-~~~
+{% endhighlight %}
 
 <div class="panel panel-default">
 	<div class="panel-body">

@@ -52,7 +52,7 @@ public class SingleJobSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	@Override
 	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
 		if (jobGraph.getJobID().equals(jobId)) {
-			return new SubmittedJobGraph(jobGraph, null);
+			return new SubmittedJobGraph(jobGraph);
 		} else {
 			throw new FlinkException("Could not recover job graph " + jobId + '.');
 		}
@@ -66,12 +66,17 @@ public class SingleJobSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
-	public void removeJobGraph(JobID jobId) throws Exception {
+	public void removeJobGraph(JobID jobId) {
 		// ignore
 	}
 
 	@Override
-	public Collection<JobID> getJobIds() throws Exception {
+	public void releaseJobGraph(JobID jobId) {
+		// ignore
+	}
+
+	@Override
+	public Collection<JobID> getJobIds() {
 		return Collections.singleton(jobGraph.getJobID());
 	}
 }

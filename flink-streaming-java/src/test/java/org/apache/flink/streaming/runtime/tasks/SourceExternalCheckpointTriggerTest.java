@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.BlockingQueue;
@@ -46,8 +47,14 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class SourceExternalCheckpointTriggerTest {
 
-	private static final OneShotLatch ready = new OneShotLatch();
-	private static final MultiShotLatch sync = new MultiShotLatch();
+	private static OneShotLatch ready = new OneShotLatch();
+	private static MultiShotLatch sync = new MultiShotLatch();
+
+	@Before
+	public void resetLatches() {
+		ready = new OneShotLatch();
+		sync = new MultiShotLatch();
+	}
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -78,7 +85,7 @@ public class SourceExternalCheckpointTriggerTest {
 		ready.await();
 
 		// now send an external trigger that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forCheckpointWithDefaultLocation()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forCheckpointWithDefaultLocation(), false));
 
 		// step by step let the source thread emit elements
 		sync.trigger();
@@ -94,7 +101,7 @@ public class SourceExternalCheckpointTriggerTest {
 		verifyNextElement(testHarness.getOutput(), 4L);
 
 		// now send an regular trigger command that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forCheckpointWithDefaultLocation()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forCheckpointWithDefaultLocation(), false));
 
 		sync.trigger();
 		verifyNextElement(testHarness.getOutput(), 5L);

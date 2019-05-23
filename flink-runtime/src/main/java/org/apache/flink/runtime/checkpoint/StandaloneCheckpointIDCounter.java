@@ -49,7 +49,7 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	}
 
 	/**
-	 * Returns the last checkpoint ID (current - 10.
+	 * Returns the last checkpoint ID (current - 1).
 	 *
 	 * @return Last checkpoint ID.
 	 */

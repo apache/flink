@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.OperationKey;
@@ -37,6 +38,8 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.SerializedThrowable;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,12 +54,10 @@ public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHand
 	public class SavepointDisposalTriggerHandler extends TriggerHandler<RestfulGateway, SavepointDisposalRequest, EmptyMessageParameters> {
 
 		public SavepointDisposalTriggerHandler(
-				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders) {
 			super(
-				localRestAddress,
 				leaderRetriever,
 				timeout,
 				responseHeaders,
@@ -64,8 +65,14 @@ public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHand
 		}
 
 		@Override
-		protected CompletableFuture<Acknowledge> triggerOperation(HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request, RestfulGateway gateway) {
+		protected CompletableFuture<Acknowledge> triggerOperation(HandlerRequest<SavepointDisposalRequest, EmptyMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
 			final String savepointPath = request.getRequestBody().getSavepointPath();
+			if (savepointPath == null) {
+				throw new RestHandlerException(
+					String.format("Field %s must not be omitted or be null.",
+						SavepointDisposalRequest.FIELD_NAME_SAVEPOINT_PATH),
+					HttpResponseStatus.BAD_REQUEST);
+			}
 			return gateway.disposeSavepoint(savepointPath, RpcUtils.INF_TIMEOUT);
 		}
 
@@ -81,12 +88,10 @@ public class SavepointDisposalHandlers extends AbstractAsynchronousOperationHand
 	public class SavepointDisposalStatusHandler extends StatusHandler<RestfulGateway, AsynchronousOperationInfo, SavepointDisposalStatusMessageParameters> {
 
 		public SavepointDisposalStatusHandler(
-				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders) {
 			super(
-				localRestAddress,
 				leaderRetriever,
 				timeout,
 				responseHeaders,

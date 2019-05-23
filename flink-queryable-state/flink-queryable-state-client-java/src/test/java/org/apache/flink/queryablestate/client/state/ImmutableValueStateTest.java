@@ -19,12 +19,14 @@
 package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
@@ -37,7 +39,7 @@ public class ImmutableValueStateTest {
 	private final ValueStateDescriptor<Long> valueStateDesc =
 			new ValueStateDescriptor<>("test", BasicTypeInfo.LONG_TYPE_INFO);
 
-	private ImmutableValueState<Long> valueState;
+	private ValueState<Long> valueState;
 
 	@Before
 	public void setUp() throws Exception {
@@ -52,7 +54,7 @@ public class ImmutableValueStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() {
+	public void testUpdate() throws IOException {
 		long value = valueState.value();
 		assertEquals(42L, value);
 
@@ -60,7 +62,7 @@ public class ImmutableValueStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() {
+	public void testClear() throws IOException {
 		long value = valueState.value();
 		assertEquals(42L, value);
 

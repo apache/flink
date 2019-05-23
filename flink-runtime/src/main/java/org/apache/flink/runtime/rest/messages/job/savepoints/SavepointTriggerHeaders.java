@@ -76,4 +76,9 @@ public class SavepointTriggerHeaders
 	public static SavepointTriggerHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	protected String getAsyncOperationDescription() {
+		return "Triggers a savepoint, and optionally cancels the job afterwards.";
+	}
 }

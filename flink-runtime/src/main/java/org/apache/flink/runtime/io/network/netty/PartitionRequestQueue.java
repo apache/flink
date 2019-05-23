@@ -20,8 +20,6 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
-import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
@@ -89,12 +87,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		// TODO This could potentially have a bad performance impact as in the
 		// worst case (network consumes faster than the producer) each buffer
 		// will trigger a separate event loop task being scheduled.
-		ctx.executor().execute(new Runnable() {
-			@Override
-			public void run() {
-				ctx.pipeline().fireUserEventTriggered(reader);
-			}
-		});
+		ctx.executor().execute(() -> ctx.pipeline().fireUserEventTriggered(reader));
 	}
 
 	/**
@@ -139,10 +132,17 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		ctx.pipeline().fireUserEventTriggered(receiverId);
 	}
 
-	public void close() {
+	public void close() throws IOException {
 		if (ctx != null) {
 			ctx.channel().close();
 		}
+
+		for (NetworkSequenceViewReader reader : allReaders.values()) {
+			reader.notifySubpartitionConsumed();
+			reader.releaseAllResources();
+			markAsReleased(reader.getReceiverId());
+		}
+		allReaders.clear();
 	}
 
 	/**
@@ -252,13 +252,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 						reader.getReceiverId(),
 						next.buffersInBacklog());
 
-					if (isEndOfPartitionEvent(next.buffer())) {
-						reader.notifySubpartitionConsumed();
-						reader.releaseAllResources();
-
-						markAsReleased(reader.getReceiverId());
-					}
-
 					// Write and flush and wait until this is done before
 					// trying to continue with the next buffer.
 					channel.writeAndFlush(msg).addListener(writeListener);
@@ -287,10 +280,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			reader.setRegisteredAsAvailable(false);
 		}
 		return reader;
-	}
-
-	private boolean isEndOfPartitionEvent(Buffer buffer) throws IOException {
-		return EventSerializer.isEvent(buffer, EndOfPartitionEvent.class);
 	}
 
 	@Override

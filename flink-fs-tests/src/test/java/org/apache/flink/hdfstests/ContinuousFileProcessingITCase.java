@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringF
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
@@ -41,6 +41,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -58,7 +59,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * IT cases for the {@link ContinuousFileMonitoringFunction} and {@link ContinuousFileReaderOperator}.
  */
-public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
+public class ContinuousFileProcessingITCase extends AbstractTestBase {
 
 	private static final int NO_OF_FILES = 5;
 	private static final int LINES_PER_FILE = 100;
@@ -110,8 +111,8 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 
 	//						END OF PREPARATIONS
 
-	@Override
-	protected void testProgram() throws Exception {
+	@Test
+	public void testProgram() throws Exception {
 
 		/*
 		* This test checks the interplay between the monitor and the reader
@@ -159,11 +160,6 @@ public class ContinuousFileProcessingITCase extends StreamingProgramTestBase {
 					Throwable th = e;
 					for (int depth = 0; depth < 20; depth++) {
 						if (th instanceof SuccessException) {
-							try {
-								postSubmit();
-							} catch (Exception e1) {
-								e1.printStackTrace();
-							}
 							return;
 						} else if (th.getCause() != null) {
 							th = th.getCause();

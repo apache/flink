@@ -83,7 +83,7 @@ public class NonDeployingYarnClusterDescriptor extends AbstractYarnClusterDescri
 	}
 
 	@Override
-	public void terminateCluster(ApplicationId clusterId) {
+	public void killCluster(ApplicationId clusterId) {
 	}
 
 	@Override

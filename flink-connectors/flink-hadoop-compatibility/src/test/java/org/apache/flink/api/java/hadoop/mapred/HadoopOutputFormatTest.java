@@ -38,6 +38,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
@@ -65,7 +66,7 @@ public class HadoopOutputFormatTest {
 
 		verify(jobConf, times(2)).getOutputCommitter();
 		verify(outputCommitter, times(1)).setupJob(any(JobContext.class));
-		verify(dummyOutputFormat, times(1)).getRecordWriter(any(FileSystem.class), any(JobConf.class), anyString(), any(Progressable.class));
+		verify(dummyOutputFormat, times(1)).getRecordWriter(nullable(FileSystem.class), any(JobConf.class), anyString(), any(Progressable.class));
 	}
 
 	@Test
@@ -96,7 +97,7 @@ public class HadoopOutputFormatTest {
 	public void testCloseWithTaskCommit() throws Exception {
 		OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
 		DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
-		when(outputCommitter.needsTaskCommit(any(TaskAttemptContext.class))).thenReturn(true);
+		when(outputCommitter.needsTaskCommit(nullable(TaskAttemptContext.class))).thenReturn(true);
 		DummyRecordWriter recordWriter = mock(DummyRecordWriter.class);
 		JobConf jobConf = mock(JobConf.class);
 
@@ -106,8 +107,8 @@ public class HadoopOutputFormatTest {
 
 		outputFormat.close();
 
-		verify(recordWriter, times(1)).close(any(Reporter.class));
-		verify(outputCommitter, times(1)).commitTask(any(TaskAttemptContext.class));
+		verify(recordWriter, times(1)).close(nullable(Reporter.class));
+		verify(outputCommitter, times(1)).commitTask(nullable(TaskAttemptContext.class));
 	}
 
 	@Test

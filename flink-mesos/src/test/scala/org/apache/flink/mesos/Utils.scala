@@ -29,12 +29,9 @@ import scala.reflect.ClassTag
 
 object Matchers {
   def contentsMatch[T](plan: Seq[T]): java.util.Collection[T] = {
-    org.mockito.Matchers.argThat(new ArgumentMatcher[java.util.Collection[T]] {
-      override def matches(o: scala.Any): Boolean = o match {
-        case actual: java.util.Collection[T] =>
+    org.mockito.ArgumentMatchers.argThat(new ArgumentMatcher[java.util.Collection[T]] {
+      def matches(actual: java.util.Collection[T]): Boolean =
           actual.size() == plan.size && actual.containsAll(plan.asJava)
-        case _ => false
-      }
     })
   }
 }

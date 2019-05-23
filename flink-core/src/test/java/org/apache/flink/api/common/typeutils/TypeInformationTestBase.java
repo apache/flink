@@ -54,7 +54,6 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
 
 			// compare among test data
 			for (T otherTypeInfo : testData) {
-				assertTrue("canEqual() returns inconsistent results.", typeInfo.canEqual(otherTypeInfo));
 				// test equality
 				if (typeInfo == otherTypeInfo) {
 					assertTrue("hashCode() returns inconsistent results.", typeInfo.hashCode() == otherTypeInfo.hashCode());
@@ -92,6 +91,16 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
 			if (typeInfo.hashCode() != deserialized.hashCode() || !typeInfo.equals(deserialized)) {
 				throw new AssertionError("Deserialized type information differs from original one.");
 			}
+		}
+	}
+
+	@Test
+	public void testGetTotalFields() {
+		final T[] testData = getTestData();
+		for (T typeInfo : testData) {
+			assertTrue(
+				"Number of total fields must be at least 1",
+				typeInfo.getTotalFields() > 0);
 		}
 	}
 

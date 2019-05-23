@@ -65,6 +65,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	public RecoverableWriter createRecoverableWriter() throws IOException {
+		return unsafeFileSystem.createRecoverableWriter();
+	}
+
+	@Override
 	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
 		return unsafeFileSystem.getFileBlockLocations(file, start, len);
 	}

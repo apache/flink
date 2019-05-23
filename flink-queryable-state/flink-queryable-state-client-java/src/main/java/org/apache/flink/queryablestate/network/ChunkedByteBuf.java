@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedInput;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
@@ -73,6 +74,15 @@ public class ChunkedByteBuf implements ChunkedInput<ByteBuf> {
 
 	@Override
 	public ByteBuf readChunk(ChannelHandlerContext ctx) throws Exception {
+		return readChunk();
+	}
+
+	@Override
+	public ByteBuf readChunk(ByteBufAllocator byteBufAllocator) throws Exception {
+		return readChunk();
+	}
+
+	private ByteBuf readChunk() {
 		if (isClosed) {
 			return null;
 		} else if (buf.readableBytes() <= chunkSize) {
@@ -86,6 +96,16 @@ public class ChunkedByteBuf implements ChunkedInput<ByteBuf> {
 			// a reference here.
 			return buf.readSlice(chunkSize).retain();
 		}
+	}
+
+	@Override
+	public long length() {
+		return -1;
+	}
+
+	@Override
+	public long progress() {
+		return buf.readerIndex();
 	}
 
 	@Override

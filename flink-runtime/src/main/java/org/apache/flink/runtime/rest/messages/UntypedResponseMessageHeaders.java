@@ -40,4 +40,13 @@ public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends 
 	 * @return new message parameters object
 	 */
 	M getUnresolvedMessageParameters();
+
+	/**
+	 * Returns whether this header allows file uploads.
+	 *
+	 * @return whether this header allows file uploads
+	 */
+	default boolean acceptsFileUploads() {
+		return false;
+	}
 }

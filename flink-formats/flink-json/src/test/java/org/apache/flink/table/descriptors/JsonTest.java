@@ -106,7 +106,7 @@ public class JsonTest extends DescriptorTestBase {
 		final Map<String, String> props3 = new HashMap<>();
 		props3.put("format.type", "json");
 		props3.put("format.property-version", "1");
-		props3.put("format.schema", "ROW(test1 VARCHAR, test2 TIMESTAMP)");
+		props3.put("format.schema", "ROW<test1 VARCHAR, test2 TIMESTAMP>");
 		props3.put("format.fail-on-missing-field", "true");
 
 		final Map<String, String> props4 = new HashMap<>();

@@ -44,6 +44,10 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
+	public void setup() {
+	}
+
+	@Override
 	public BufferProvider getBufferProvider() {
 		return bufferProvider;
 	}
@@ -99,6 +103,10 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	@Override
 	public void flush(int subpartitionIndex) {
 		flushAll();
+	}
+
+	@Override
+	public void close() {
 	}
 
 	protected abstract void deserializeBuffer(Buffer buffer) throws IOException;

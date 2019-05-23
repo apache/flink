@@ -42,10 +42,10 @@ import java.io.IOException;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -151,7 +151,7 @@ public class HadoopInputFormatTest {
 	@Test
 	public void testFetchNext() throws IOException {
 		DummyRecordReader recordReader = mock(DummyRecordReader.class);
-		when(recordReader.next(anyString(), anyLong())).thenReturn(true);
+		when(recordReader.next(nullable(String.class), nullable(Long.class))).thenReturn(true);
 
 		DummyInputFormat inputFormat = mock(DummyInputFormat.class);
 		when(inputFormat.getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class))).thenReturn(recordReader);
@@ -160,7 +160,7 @@ public class HadoopInputFormatTest {
 		hadoopInputFormat.open(getHadoopInputSplit());
 		hadoopInputFormat.fetchNext();
 
-		verify(recordReader, times(1)).next(anyString(), anyLong());
+		verify(recordReader, times(1)).next(nullable(String.class), anyLong());
 		assertThat(hadoopInputFormat.hasNext, is(true));
 		assertThat(hadoopInputFormat.fetched, is(true));
 	}

@@ -27,7 +27,7 @@ import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -255,8 +255,8 @@ public class CheckpointTestUtils {
 	private CheckpointTestUtils() {}
 
 
-	public static IncrementalKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
-		return new IncrementalKeyedStateHandle(
+	public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
+		return new IncrementalRemoteKeyedStateHandle(
 			createRandomUUID(rnd),
 			new KeyGroupRange(1, 1),
 			42L,

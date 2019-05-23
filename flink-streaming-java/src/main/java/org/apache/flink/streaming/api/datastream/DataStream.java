@@ -234,7 +234,9 @@ public class DataStream<T> {
 	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
 	 *            for directing the tuples.
 	 * @return The {@link SplitStream}
+	 * @deprecated Please use side output instead.
 	 */
+	@Deprecated
 	public SplitStream<T> split(OutputSelector<T> outputSelector) {
 		return new SplitStream<>(this, clean(outputSelector));
 	}
@@ -286,7 +288,22 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
+		Preconditions.checkNotNull(key);
 		return new KeyedStream<>(this, clean(key));
+	}
+
+	/**
+	 * It creates a new {@link KeyedStream} that uses the provided key with explicit type information
+	 * for partitioning its operator states.
+	 *
+	 * @param key The KeySelector to be used for extracting the key for partitioning.
+	 * @param keyType The type information describing the key type.
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
+	 */
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key, TypeInformation<K> keyType) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(keyType);
+		return new KeyedStream<>(this, clean(key), keyType);
 	}
 
 	/**
@@ -332,7 +349,7 @@ public class DataStream<T> {
 	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param field The field index on which the DataStream is to partitioned.
+	 * @param field The field index on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
@@ -347,7 +364,7 @@ public class DataStream<T> {
 	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
-	 * @param field The expression for the field on which the DataStream is to partitioned.
+	 * @param field The expression for the field on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
@@ -388,7 +405,7 @@ public class DataStream<T> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output elements
-	 * are broadcast to every parallel instance of the next operation.
+	 * are broadcasted to every parallel instance of the next operation.
 	 *
 	 * @return The DataStream with broadcast partitioning set.
 	 */
@@ -621,7 +638,6 @@ public class DataStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
 			true);
@@ -781,10 +797,10 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Windows this data stream to a {@code KeyedTriggerWindowDataStream}, which evaluates windows
-	 * over a key grouped stream. Elements are put into windows by a
+	 * Windows this data stream to a {@code AllWindowedStream}, which evaluates windows
+	 * over a non key grouped stream. Elements are put into windows by a
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. The grouping of
-	 * elements is done both by key and by window.
+	 * elements is done by window.
 	 *
 	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
 	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}
@@ -932,6 +948,9 @@ public class DataStream<T> {
 	 *
 	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
 	 * @return The closed DataStream.
 	 */
 	@PublicEvolving
@@ -945,11 +964,48 @@ public class DataStream<T> {
 	 *
 	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
 	 * @return The closed DataStream.
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> printToErr() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(true);
+		return addSink(printFunction).name("Print to Std. Err");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stdout).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> print(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, false);
+		return addSink(printFunction).name("Print to Std. Out");
+	}
+
+	/**
+	 * Writes a DataStream to the standard output stream (stderr).
+	 *
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
+	 *
+	 * <p>NOTE: This will print to stderr on the machine where the code is executed, i.e. the Flink
+	 * worker.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The closed DataStream.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> printToErr(String sinkIdentifier) {
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(sinkIdentifier, true);
 		return addSink(printFunction).name("Print to Std. Err");
 	}
 

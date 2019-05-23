@@ -31,28 +31,15 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 
 	private static final long serialVersionUID = 5577641250204140415L;
 
-	private final long heartbeatInterval;
-
 	private final ResourceManagerId resourceManagerId;
 
 	private final ResourceID resourceManagerResourceId;
 
 	public JobMasterRegistrationSuccess(
-			final long heartbeatInterval,
 			final ResourceManagerId resourceManagerId,
 			final ResourceID resourceManagerResourceId) {
-		this.heartbeatInterval = heartbeatInterval;
 		this.resourceManagerId = checkNotNull(resourceManagerId);
 		this.resourceManagerResourceId = checkNotNull(resourceManagerResourceId);
-	}
-
-	/**
-	 * Gets the interval in which the ResourceManager will heartbeat the JobMaster.
-	 *
-	 * @return the interval in which the ResourceManager will heartbeat the JobMaster
-	 */
-	public long getHeartbeatInterval() {
-		return heartbeatInterval;
 	}
 
 	public ResourceManagerId getResourceManagerId() {
@@ -66,8 +53,7 @@ public class JobMasterRegistrationSuccess extends RegistrationResponse.Success {
 	@Override
 	public String toString() {
 		return "JobMasterRegistrationSuccess{" +
-			"heartbeatInterval=" + heartbeatInterval +
-			", resourceManagerLeaderId=" + resourceManagerId +
+			"resourceManagerId=" + resourceManagerId +
 			", resourceManagerResourceId=" + resourceManagerResourceId +
 			'}';
 	}

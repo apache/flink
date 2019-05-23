@@ -72,7 +72,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
 		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
 		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries();
+			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
 		} else {
 			throw new UnsupportedOperationException();
 		}
@@ -82,7 +82,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
 		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
 		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries(namespace);
+			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries(namespace);
 		} else {
 			throw new UnsupportedOperationException();
 		}

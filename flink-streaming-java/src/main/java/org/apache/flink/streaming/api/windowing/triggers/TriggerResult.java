@@ -22,6 +22,10 @@ package org.apache.flink.streaming.api.windowing.triggers;
  * Result type for trigger methods. This determines what happens with the window,
  * for example whether the window function should be called, or the window
  * should be discarded.
+ *
+ * <p>If a {@link Trigger} returns {@link #FIRE} or {@link #FIRE_AND_PURGE} but the window does not
+ * contain any data the window function will not be invoked, i.e. no data will be produced for the
+ * window.
  */
 public enum TriggerResult {
 

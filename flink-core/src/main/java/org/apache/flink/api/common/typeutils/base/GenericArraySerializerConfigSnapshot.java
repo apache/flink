@@ -19,79 +19,120 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Point-in-time configuration of a {@link GenericArraySerializer}.
  *
  * @param <C> The component type.
+ *
+ * @deprecated this is deprecated and no longer used by the {@link GenericArraySerializer}.
+ *             It has been replaced by {@link GenericArraySerializerSnapshot}.
  */
 @Internal
-public final class GenericArraySerializerConfigSnapshot<C> extends CompositeTypeSerializerConfigSnapshot {
+@Deprecated
+public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerializerSnapshot<C[]> {
 
-	private static final int VERSION = 1;
+	private static final int CURRENT_VERSION = 2;
 
+	/** The class of the components of the serializer's array type. */
+	@Nullable
 	private Class<C> componentClass;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
+	/** Snapshot handling for the component serializer snapshot. */
+	@Nullable
+	private NestedSerializersSnapshotDelegate nestedSnapshot;
+
+	/**
+	 * Constructor for read instantiation.
+	 */
+	@SuppressWarnings("unused")
 	public GenericArraySerializerConfigSnapshot() {}
 
-	public GenericArraySerializerConfigSnapshot(
-			Class<C> componentClass,
-			TypeSerializer<C> componentSerializer) {
+	/**
+	 * Constructor to create the snapshot for writing.
+	 */
+	public GenericArraySerializerConfigSnapshot(GenericArraySerializer<C> serializer) {
+		this.componentClass = serializer.getComponentClass();
+		this.nestedSnapshot = new NestedSerializersSnapshotDelegate(serializer.getComponentSerializer());
+	}
 
-		super(componentSerializer);
+	// ------------------------------------------------------------------------
 
-		this.componentClass = Preconditions.checkNotNull(componentClass);
+	@Override
+	public int getCurrentVersion() {
+		return CURRENT_VERSION;
 	}
 
 	@Override
-	public void write(DataOutputView out) throws IOException {
-		super.write(out);
+	public void writeSnapshot(DataOutputView out) throws IOException {
+		checkState(componentClass != null && nestedSnapshot != null);
+		out.writeUTF(componentClass.getName());
+		nestedSnapshot.writeNestedSerializerSnapshots(out);
+	}
 
-		try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(out)) {
-			InstantiationUtil.serializeObject(outViewWrapper, componentClass);
+	@Override
+	public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader) throws IOException {
+		switch (readVersion) {
+			case 1:
+				readV1(in, classLoader);
+				break;
+			case 2:
+				readV2(in, classLoader);
+				break;
+			default:
+				throw new IllegalArgumentException("Unrecognized version: " + readVersion);
 		}
 	}
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		super.read(in);
+	private void readV1(DataInputView in, ClassLoader classLoader) throws IOException {
+		nestedSnapshot = NestedSerializersSnapshotDelegate.legacyReadNestedSerializerSnapshots(in, classLoader);
 
-		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
-			componentClass = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader());
-		} catch (ClassNotFoundException e) {
+		try (DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+			componentClass = InstantiationUtil.deserializeObject(inViewWrapper, classLoader);
+		}
+		catch (ClassNotFoundException e) {
 			throw new IOException("Could not find requested element class in classpath.", e);
 		}
 	}
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
-
-	public Class<C> getComponentClass() {
-		return componentClass;
+	private void readV2(DataInputView in, ClassLoader classLoader) throws IOException {
+		componentClass = InstantiationUtil.resolveClassByName(in, classLoader);
+		nestedSnapshot = NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(in, classLoader);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		return super.equals(obj)
-			&& (obj instanceof GenericArraySerializerConfigSnapshot)
-			&& (componentClass.equals(((GenericArraySerializerConfigSnapshot) obj).getComponentClass()));
+	public GenericArraySerializer<C> restoreSerializer() {
+		checkState(componentClass != null && nestedSnapshot != null);
+		return new GenericArraySerializer<>(componentClass, nestedSnapshot.getRestoredNestedSerializer(0));
 	}
 
 	@Override
-	public int hashCode() {
-		return super.hashCode() * 31 + componentClass.hashCode();
+	public TypeSerializerSchemaCompatibility<C[]> resolveSchemaCompatibility(TypeSerializer<C[]> newSerializer) {
+		checkState(nestedSnapshot != null);
+
+		if (!(newSerializer instanceof GenericArraySerializer)) {
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
+
+		// delegate to the new snapshot class
+		return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+			newSerializer,
+			new GenericArraySerializerSnapshot<>(componentClass),
+			nestedSnapshot.getNestedSerializerSnapshots());
 	}
 }

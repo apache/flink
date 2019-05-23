@@ -21,7 +21,6 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -378,15 +377,10 @@ public class CollectionInputFormatTest {
 			if (obj instanceof TestSerializer) {
 				TestSerializer other = (TestSerializer) obj;
 
-				return other.canEqual(this) && failOnRead == other.failOnRead && failOnWrite == other.failOnWrite;
+				return failOnRead == other.failOnRead && failOnWrite == other.failOnWrite;
 			} else {
 				return false;
 			}
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof TestSerializer;
 		}
 
 		@Override
@@ -395,12 +389,7 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CompatibilityResult<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public TypeSerializerConfigSnapshot<ElementType> snapshotConfiguration() {
 			throw new UnsupportedOperationException();
 		}
 	}

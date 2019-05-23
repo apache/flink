@@ -29,8 +29,11 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -149,6 +152,9 @@ public abstract class StreamTransformation<T> {
 	protected long bufferTimeout = -1;
 
 	private String slotSharingGroup;
+
+	@Nullable
+	private String coLocationGroupKey;
 
 	/**
 	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
@@ -344,6 +350,35 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
+	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
+	 * clear whether this will be supported and stable in the long term.
+	 *
+	 * <p>Sets the key that identifies the co-location group.
+	 * Operators with the same co-location key will have their corresponding subtasks
+	 * placed into the same slot by the scheduler.
+	 *
+	 * <p>Setting this to null means there is no co-location constraint.
+	 */
+	public void setCoLocationGroupKey(@Nullable String coLocationGroupKey) {
+		this.coLocationGroupKey = coLocationGroupKey;
+	}
+
+	/**
+	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
+	 * clear whether this will be supported and stable in the long term.
+	 *
+	 * <p>Gets the key that identifies the co-location group.
+	 * Operators with the same co-location key will have their corresponding subtasks
+	 * placed into the same slot by the scheduler.
+	 *
+	 * <p>If this is null (which is the default), it means there is no co-location constraint.
+	 */
+	@Nullable
+	public String getCoLocationGroupKey() {
+		return coLocationGroupKey;
+	}
+
+	/**
 	 * Tries to fill in the type information. Type information can be filled in
 	 * later when the program uses a type hint. This method checks whether the
 	 * type information has ever been accessed before and does not allow
@@ -394,13 +429,18 @@ public abstract class StreamTransformation<T> {
 	public abstract void setChainingStrategy(ChainingStrategy strategy);
 
 	/**
-	 * Set the buffer timeout of this {@code StreamTransformation}. The timeout is used when
-	 * sending elements over the network. The timeout specifies how long a network buffer
-	 * should be kept waiting before sending. A higher timeout means that more elements will
-	 * be sent in one buffer, this increases throughput. The latency, however, is negatively
-	 * affected by a higher timeout.
+	 * Set the buffer timeout of this {@code StreamTransformation}. The timeout defines how long data
+	 * may linger in a partially full buffer before being sent over the network.
+	 *
+	 * <p>Lower timeouts lead to lower tail latencies, but may affect throughput.
+	 * For Flink 1.5+, timeouts of 1ms are feasible for jobs with high parallelism.
+	 *
+	 * <p>A value of -1 means that the default buffer timeout should be used. A value
+	 * of zero indicates that no buffering should happen, and all records/events should be
+	 * immediately sent through the network, without additional buffering.
 	 */
 	public void setBufferTimeout(long bufferTimeout) {
+		checkArgument(bufferTimeout >= -1);
 		this.bufferTimeout = bufferTimeout;
 	}
 

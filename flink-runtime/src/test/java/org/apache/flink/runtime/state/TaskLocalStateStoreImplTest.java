@@ -64,8 +64,7 @@ public class TaskLocalStateStoreImplTest {
 		LocalRecoveryDirectoryProviderImpl directoryProvider =
 			new LocalRecoveryDirectoryProviderImpl(allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
 
-		LocalRecoveryConfig localRecoveryConfig =
-			new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.DISABLED, directoryProvider);
+		LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(false, directoryProvider);
 
 		this.taskLocalStateStore = new TaskLocalStateStoreImpl(
 			jobID,

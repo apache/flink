@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.util.OptionalFailure;
@@ -64,12 +65,14 @@ public class JobExecutionResultResponseBodyTest
 		return Arrays.asList(new Object[][] {
 			{JobExecutionResultResponseBody.created(new JobResult.Builder()
 				.jobId(TEST_JOB_ID)
+				.applicationStatus(ApplicationStatus.SUCCEEDED)
 				.netRuntime(TEST_NET_RUNTIME)
 				.accumulatorResults(TEST_ACCUMULATORS)
 				.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
 				.build())},
 			{JobExecutionResultResponseBody.created(new JobResult.Builder()
 				.jobId(TEST_JOB_ID)
+				.applicationStatus(ApplicationStatus.FAILED)
 				.netRuntime(TEST_NET_RUNTIME)
 				.accumulatorResults(TEST_ACCUMULATORS)
 				.build())},
@@ -108,6 +111,7 @@ public class JobExecutionResultResponseBodyTest
 			assertNotNull(actualJobExecutionResult);
 
 			assertThat(actualJobExecutionResult.getJobId(), equalTo(expectedJobExecutionResult.getJobId()));
+			assertThat(actualJobExecutionResult.getApplicationStatus(), equalTo(expectedJobExecutionResult.getApplicationStatus()));
 			assertThat(actualJobExecutionResult.getNetRuntime(), equalTo(expectedJobExecutionResult.getNetRuntime()));
 			assertThat(actualJobExecutionResult.getAccumulatorResults(), equalTo(expectedJobExecutionResult.getAccumulatorResults()));
 

@@ -16,20 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 
+import java.io.IOException;
+import java.util.Random;
+
+/**
+ * A large {@link SerializationTestType}.
+ */
 public class LargeObjectType implements SerializationTestType {
 
 	private static final int MIN_LEN = 12 * 1000 * 1000;
-	
+
 	private static final int MAX_LEN = 40 * 1000 * 1000;
 
 	private int len;
@@ -68,13 +70,13 @@ public class LargeObjectType implements SerializationTestType {
 	public void read(DataInputView in) throws IOException {
 		final int len = in.readInt();
 		this.len = len;
-		
+
 		for (int i = 0; i < len / 8; i++) {
 			if (in.readLong() != i) {
 				throw new IOException("corrupt serialization");
 			}
 		}
-		
+
 		for (int i = 0; i < len % 8; i++) {
 			if (in.readByte() != i) {
 				throw new IOException("corrupt serialization");
@@ -91,7 +93,7 @@ public class LargeObjectType implements SerializationTestType {
 	public boolean equals(Object obj) {
 		return (obj instanceof LargeObjectType) && ((LargeObjectType) obj).len == this.len;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "Large Object " + len;

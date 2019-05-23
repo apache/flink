@@ -533,29 +533,33 @@ public class RollingSink<T> extends RichSinkFunction<T>
 			}
 
 			// verify that truncate actually works
-			FSDataOutputStream outputStream;
-			Path testPath = new Path(UUID.randomUUID().toString());
+			Path testPath = new Path(basePath, UUID.randomUUID().toString());
 			try {
-				outputStream = fs.create(testPath);
-				outputStream.writeUTF("hello");
-				outputStream.close();
-			} catch (IOException e) {
-				LOG.error("Could not create file for checking if truncate works.", e);
-				throw new RuntimeException("Could not create file for checking if truncate works.", e);
-			}
+				try (FSDataOutputStream outputStream = fs.create(testPath)) {
+					outputStream.writeUTF("hello");
+				} catch (IOException e) {
+					LOG.error("Could not create file for checking if truncate works.", e);
+					throw new RuntimeException(
+							"Could not create file for checking if truncate works. " +
+									"You can disable support for truncate() completely via " +
+									"BucketingSink.setUseTruncate(false).", e);
+				}
 
-			try {
-				m.invoke(fs, testPath, 2);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				LOG.debug("Truncate is not supported.", e);
-				m = null;
-			}
-
-			try {
-				fs.delete(testPath, false);
-			} catch (IOException e) {
-				LOG.error("Could not delete truncate test file.", e);
-				throw new RuntimeException("Could not delete truncate test file.", e);
+				try {
+					m.invoke(fs, testPath, 2);
+				} catch (IllegalAccessException | InvocationTargetException e) {
+					LOG.debug("Truncate is not supported.", e);
+					m = null;
+				}
+			} finally {
+				try {
+					fs.delete(testPath, false);
+				} catch (IOException e) {
+					LOG.error("Could not delete truncate test file.", e);
+					throw new RuntimeException("Could not delete truncate test file. " +
+							"You can disable support for truncate() completely via " +
+							"BucketingSink.setUseTruncate(false).", e);
+				}
 			}
 		}
 		return m;
@@ -699,12 +703,12 @@ public class RollingSink<T> extends RichSinkFunction<T>
 					}
 
 				} else {
-					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
-						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
-						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
-						lengthFileOut.close();
+						LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
+						try (FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath)) {
+							lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
+						}
 					}
 				}
 

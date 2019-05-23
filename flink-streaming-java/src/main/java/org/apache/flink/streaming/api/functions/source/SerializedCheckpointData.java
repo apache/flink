@@ -162,7 +162,7 @@ class SerializedCheckpointData implements java.io.Serializable {
 				deser = new DataInputDeserializer(serializedData, 0, serializedData.length);
 			}
 			else {
-				deser.setBuffer(serializedData, 0, serializedData.length);
+				deser.setBuffer(serializedData);
 			}
 
 			final Set<T> ids = new HashSet<>(checkpoint.getNumIds());

@@ -18,22 +18,22 @@
 
 package org.apache.flink.runtime.messages.checkpoint;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * This message is sent from the {@link org.apache.flink.runtime.jobmanager.JobManager} to the
- * {@link org.apache.flink.runtime.taskmanager.TaskManager} to tell a certain task to trigger its
+ * This message is sent from the {@link org.apache.flink.runtime.jobmaster.JobMaster} to the
+ * {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} to tell a certain task to trigger its
  * checkpoint.
  */
-public class TriggerCheckpoint extends AbstractCheckpointMessage implements java.io.Serializable {
+public class TriggerCheckpoint extends AbstractCheckpointMessage {
 
 	private static final long serialVersionUID = 2094094662279578953L;
-	
-	/** The timestamp associated with the checkpoint */
+
+	/** The timestamp associated with the checkpoint. */
 	private final long timestamp;
 
 	/** Options for how to perform the checkpoint. */
@@ -52,7 +52,7 @@ public class TriggerCheckpoint extends AbstractCheckpointMessage implements java
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public long getTimestamp() {
 		return timestamp;
 	}
@@ -84,7 +84,11 @@ public class TriggerCheckpoint extends AbstractCheckpointMessage implements java
 
 	@Override
 	public String toString() {
-		return String.format("Trigger Checkpoint %d@%d for (%s/%s)", 
-				getCheckpointId(), getTimestamp(), getJob(), getTaskExecutionId());
+		return String.format(
+			"Trigger Checkpoint %d@%d for (%s/%s)",
+			getCheckpointId(),
+			getTimestamp(),
+			getJob(),
+			getTaskExecutionId());
 	}
 }

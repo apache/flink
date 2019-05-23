@@ -14,8 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM centos:centos7
+FROM fedora:28
 
-RUN yum install -y vim gem ruby-devel make gcc gcc-c++ python-setuptools && \
-    gem install bundler
-
+RUN set -ex; \
+  dnf install -y \
+    vim \
+    gem \
+    ruby-devel \
+    redhat-rpm-config \
+    make \
+    gcc \
+    gcc-c++ \
+    python-setuptools \
+  ; \
+  gem install bundler -v 1.16.1; \
+  dnf clean all

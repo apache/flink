@@ -28,8 +28,14 @@ import java.io.Serializable;
  * data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
  * processed by Flink.
  *
- * <p>Note: In most cases, one should start from {@link AbstractDeserializationSchema}, which
+ * <p>In addition, the DeserializationSchema describes the produced type ({@link #getProducedType()}),
+ * which lets Flink create internal serializers and structures to handle the type.
+ *
+ * <p><b>Note:</b> In most cases, one should start from {@link AbstractDeserializationSchema}, which
  * takes care of producing the return type information automatically.
+ *
+ * <p>A DeserializationSchema must be {@link Serializable} because its instances are often part of
+ * an operator or transformation function.
  *
  * @param <T> The type created by the deserialization schema.
  */

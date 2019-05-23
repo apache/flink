@@ -20,10 +20,18 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-OLD_VERSION=${OLD_VERSION:-1.2-SNAPSHOT}
-NEW_VERSION=${NEW_VERSION:-1.3-SNAPSHOT}
 RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-none}
 MVN=${MVN:-mvn}
+
+if [ -z "${OLD_VERSION}" ]; then
+    echo "OLD_VERSION was not set."
+    exit 1
+fi
+
+if [ -z "${NEW_VERSION}" ]; then
+    echo "NEW_VERSION was not set."
+    exit 1
+fi
 
 # fail immediately
 set -o errexit
@@ -49,7 +57,7 @@ fi
 git checkout -b $target_branch
 
 #change version in all pom files
-find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(.*)</version>#<version>${1}'$NEW_VERSION'${2}</version>#' {} \;
 
 #change version of documentation
 cd docs
@@ -58,7 +66,6 @@ perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
 # The version in the title should not contain the bugfix version (e.g. 1.3)
 VERSION_TITLE=$(echo $NEW_VERSION | sed 's/\.[^.]*$//')
 perl -pi -e "s#^version_title: .*#version_title: ${VERSION_TITLE}#" _config.yml
-perl -pi -e "s#^version_javadocs: .*#version_javadocs: ${VERSION_TITLE}#" _config.yml
 cd ..
 
 git commit -am "Commit for release $NEW_VERSION"

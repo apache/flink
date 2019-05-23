@@ -18,17 +18,18 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -36,15 +37,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	private final Class<T> valueClass;
-	
+
 	private transient T instance;
-	
-	
+
 	public CopyableValueSerializer(Class<T> valueClass) {
 		this.valueClass = checkNotNull(valueClass);
+	}
+
+	private Class<T> getValueClass() {
+		return valueClass;
 	}
 
 	@Override
@@ -61,12 +64,12 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 	public T createInstance() {
 		return InstantiationUtil.instantiate(this.valueClass);
 	}
-	
+
 	@Override
 	public T copy(T from) {
 		return copy(from, createInstance());
 	}
-	
+
 	@Override
 	public T copy(T from, T reuse) {
 		from.copyTo(reuse);
@@ -88,7 +91,7 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 	public T deserialize(DataInputView source) throws IOException {
 		return deserialize(createInstance(), source);
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		reuse.read(source);
@@ -100,36 +103,30 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 		ensureInstanceInstantiated();
 		instance.copy(source, target);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void ensureInstanceInstantiated() {
 		if (instance == null) {
 			instance = createInstance();
 		}
 	}
-	
+
 	@Override
 	public int hashCode() {
 		return this.valueClass.hashCode();
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof CopyableValueSerializer) {
 			@SuppressWarnings("unchecked")
 			CopyableValueSerializer<T> copyableValueSerializer = (CopyableValueSerializer<T>) obj;
 
-			return copyableValueSerializer.canEqual(this) &&
-				valueClass == copyableValueSerializer.valueClass;
+			return valueClass == copyableValueSerializer.valueClass;
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CopyableValueSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -137,27 +134,21 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public CopyableValueSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new CopyableValueSerializerConfigSnapshot<>(valueClass);
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
+		return new CopyableValueSerializerSnapshot<>(valueClass);
 	}
 
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof CopyableValueSerializerConfigSnapshot
-				&& valueClass.equals(((CopyableValueSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
-			return CompatibilityResult.compatible();
-		} else {
-			return CompatibilityResult.requiresMigration();
-		}
-	}
-
+	@Deprecated
 	public static final class CopyableValueSerializerConfigSnapshot<T extends CopyableValue<T>>
-			extends GenericTypeSerializerConfigSnapshot<T> {
+		extends GenericTypeSerializerConfigSnapshot<T> {
 
 		private static final int VERSION = 1;
 
-		/** This empty nullary constructor is required for deserializing the configuration. */
-		public CopyableValueSerializerConfigSnapshot() {}
+		/**
+		 * This empty nullary constructor is required for deserializing the configuration.
+		 */
+		public CopyableValueSerializerConfigSnapshot() {
+		}
 
 		public CopyableValueSerializerConfigSnapshot(Class<T> copyableValueClass) {
 			super(copyableValueClass);
@@ -166,6 +157,47 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			return new CopyableValueSerializerSnapshot<>(getTypeClass())
+				.resolveSchemaCompatibility(newSerializer);
+		}
+	}
+
+	/**
+	 * {@link TypeSerializerSnapshot} for the {@code CopyableValueSerializer}.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class CopyableValueSerializerSnapshot<T extends CopyableValue<T>>
+		extends GenericTypeSerializerSnapshot<T, CopyableValueSerializer> {
+
+		/**
+		 * Used for reflective instantiation.
+		 */
+		@SuppressWarnings("unused")
+		public CopyableValueSerializerSnapshot() {
+		}
+
+		CopyableValueSerializerSnapshot(Class<T> typeClass) {
+			super(typeClass);
+		}
+
+		@Override
+		protected TypeSerializer<T> createSerializer(Class<T> typeClass) {
+			return new CopyableValueSerializer<>(typeClass);
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		protected Class<T> getTypeClass(CopyableValueSerializer serializer) {
+			return serializer.getValueClass();
+		}
+
+		@Override
+		protected Class<?> serializerClass() {
+			return CopyableValueSerializer.class;
 		}
 	}
 }

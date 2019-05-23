@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
@@ -38,27 +37,19 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.akka.FlinkUntypedActor;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.net.URL;
 import java.util.Collections;
-import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -72,11 +63,13 @@ import static org.mockito.Mockito.when;
  */
 public class ClientTest extends TestLogger {
 
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
+		new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
+
 	private PackagedProgram program;
 
 	private Configuration config;
-
-	private ActorSystem jobManagerSystem;
 
 	private static final String ACCUMULATOR_NAME = "test_accumulator";
 
@@ -99,28 +92,6 @@ public class ClientTest extends TestLogger {
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		config.setInteger(JobManagerOptions.PORT, freePort);
 		config.setString(AkkaOptions.ASK_TIMEOUT, AkkaOptions.ASK_TIMEOUT.defaultValue());
-
-		try {
-			scala.Tuple2<String, Object> address = new scala.Tuple2<String, Object>("localhost", freePort);
-			jobManagerSystem = AkkaUtils.createActorSystem(config, new scala.Some<scala.Tuple2<String, Object>>(address));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Setup of test actor system failed.");
-		}
-	}
-
-	@After
-	public void shutDownActorSystem() {
-		if (jobManagerSystem != null) {
-			try {
-				jobManagerSystem.shutdown();
-				jobManagerSystem.awaitTermination();
-			} catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
-			}
-		}
 	}
 
 	/**
@@ -128,15 +99,12 @@ public class ClientTest extends TestLogger {
 	 */
 	@Test
 	public void testDetachedMode() throws Exception{
-		jobManagerSystem.actorOf(
-			Props.create(SuccessReturningActor.class),
-			JobMaster.JOB_MANAGER_NAME);
-		StandaloneClusterClient out = new StandaloneClusterClient(config);
-		out.setDetached(true);
+		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+		clusterClient.setDetached(true);
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -146,7 +114,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestEager.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -156,7 +124,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -166,7 +134,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -176,7 +144,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -186,7 +154,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -200,13 +168,9 @@ public class ClientTest extends TestLogger {
 	 */
 	@Test
 	public void shouldSubmitToJobClient() throws Exception {
-		jobManagerSystem.actorOf(
-			Props.create(SuccessReturningActor.class),
-			JobMaster.JOB_MANAGER_NAME);
-
-		StandaloneClusterClient out = new StandaloneClusterClient(config);
-		out.setDetached(true);
-		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
+		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+		clusterClient.setDetached(true);
+		JobSubmissionResult result = clusterClient.run(program.getPlanWithJars(), 1);
 
 		assertNotNull(result);
 
@@ -214,146 +178,53 @@ public class ClientTest extends TestLogger {
 	}
 
 	/**
-	 * This test verifies correct that the correct exception is thrown when the job submission fails.
-	 */
-	@Test
-	public void shouldSubmitToJobClientFails() throws Exception {
-			jobManagerSystem.actorOf(
-				Props.create(FailureReturningActor.class),
-				JobMaster.JOB_MANAGER_NAME);
-
-		StandaloneClusterClient out = new StandaloneClusterClient(config);
-		out.setDetached(true);
-
-		try {
-			out.run(program.getPlanWithJars(), 1);
-			fail("This should fail with an exception");
-		}
-		catch (ProgramInvocationException e) {
-			// bam!
-		}
-		catch (Exception e) {
-			fail("wrong exception " + e);
-		}
-	}
-
-	/**
 	 * This test verifies that the local execution environment cannot be created when
 	 * the program is submitted through a client.
 	 */
 	@Test
-	public void tryLocalExecution() {
+	public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
+		PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
+		when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				ExecutionEnvironment.createLocalEnvironment();
+				return null;
+			}
+		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
+
 		try {
-			jobManagerSystem.actorOf(
-				Props.create(SuccessReturningActor.class),
-				JobMaster.JOB_MANAGER_NAME);
-
-			PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
-			when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					ExecutionEnvironment.createLocalEnvironment();
-					return null;
-				}
-			}).when(packagedProgramMock).invokeInteractiveModeForExecution();
-
-			try {
-				StandaloneClusterClient client = new StandaloneClusterClient(config);
-				client.setDetached(true);
-				client.run(packagedProgramMock, 1);
-				fail("Creating the local execution environment should not be possible");
-			}
-			catch (InvalidProgramException e) {
-				// that is what we want
-			}
+			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+			client.setDetached(true);
+			client.run(packagedProgramMock, 1);
+			fail("Creating the local execution environment should not be possible");
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		catch (InvalidProgramException e) {
+			// that is what we want
 		}
 	}
 
 	@Test
-	public void testGetExecutionPlan() {
-		try {
-			jobManagerSystem.actorOf(
-				Props.create(FailureReturningActor.class),
-				JobMaster.JOB_MANAGER_NAME);
+	public void testGetExecutionPlan() throws ProgramInvocationException {
+		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
+		assertNotNull(prg.getPreviewPlan());
 
-			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
-			assertNotNull(prg.getPreviewPlan());
+		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+		OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
+		assertNotNull(op);
 
-			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
-			assertNotNull(op);
+		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+		assertNotNull(dumper.getOptimizerPlanAsJSON(op));
 
-			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			assertNotNull(dumper.getOptimizerPlanAsJSON(op));
+		// test HTML escaping
+		PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
+		dumper2.setEncodeForHTML(true);
+		String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
-			// test HTML escaping
-			PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
-			dumper2.setEncodeForHTML(true);
-			String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
-
-			assertEquals(-1, htmlEscaped.indexOf('\\'));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertEquals(-1, htmlEscaped.indexOf('\\'));
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	private static class SuccessReturningActor extends FlinkUntypedActor {
-
-		private UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
-
-		@Override
-		public void handleMessage(Object message) {
-			if (message instanceof JobManagerMessages.SubmitJob) {
-				JobID jid = ((JobManagerMessages.SubmitJob) message).jobGraph().getJobID();
-				getSender().tell(
-						decorateMessage(new JobManagerMessages.JobSubmitSuccess(jid)),
-						getSelf());
-			}
-			else if (message.getClass() == JobManagerMessages.getRequestLeaderSessionID().getClass()) {
-				getSender().tell(
-						decorateMessage(new JobManagerMessages.ResponseLeaderSessionID(leaderSessionID)),
-						getSelf());
-			} else if (message instanceof JobManagerMessages.RequestBlobManagerPort$) {
-				getSender().tell(1337, getSelf());
-			} else {
-				getSender().tell(
-						decorateMessage(new Status.Failure(new Exception("Unknown message " + message))),
-						getSelf());
-			}
-		}
-
-		@Override
-		protected UUID getLeaderSessionID() {
-			return leaderSessionID;
-		}
-	}
-
-	private static class FailureReturningActor extends FlinkUntypedActor {
-
-		private UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
-
-		@Override
-		public void handleMessage(Object message) {
-			getSender().tell(
-					decorateMessage(new JobManagerMessages.JobResultFailure(
-							new SerializedThrowable(new Exception("test")))),
-					getSelf());
-		}
-
-		@Override
-		protected UUID getLeaderSessionID() {
-			return leaderSessionID;
-		}
-	}
 
 	/**
 	 * A test job.

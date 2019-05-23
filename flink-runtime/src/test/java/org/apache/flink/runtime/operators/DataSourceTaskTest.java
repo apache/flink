@@ -29,9 +29,10 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -42,8 +43,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 
 public class DataSourceTaskTest extends TaskTestBase {
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024;
 
@@ -51,36 +56,22 @@ public class DataSourceTaskTest extends TaskTestBase {
 
 	private List<Record> outList;
 	
-	private String tempTestPath = DataSinkTaskTest.constructTestPath(DataSourceTaskTest.class, "dst_test");
-	
-	@After
-	public void cleanUp() {
-		File tempTestFile = new File(this.tempTestPath);
-		if(tempTestFile.exists()) {
-			tempTestFile.delete();
-		}
-	}
-	
 	@Test
-	public void testDataSourceTask() {
+	public void testDataSourceTask() throws IOException {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
 		this.outList = new ArrayList<Record>();
-		
-		try {
-			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
-				this.tempTestPath, true);
-		} catch (IOException e1) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
+			tempTestFile, true);
 		
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
 		
 		DataSourceTask<Record> testTask = new DataSourceTask<>(this.mockEnv);
 
-		super.registerFileInputTask(testTask, MockInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
+		super.registerFileInputTask(testTask, MockInputFormat.class, tempTestFile.toURI().toString(), "\n");
 		
 		try {
 			testTask.invoke();
@@ -128,25 +119,21 @@ public class DataSourceTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testFailingDataSourceTask() {
+	public void testFailingDataSourceTask() throws IOException {
 		int keyCnt = 20;
 		int valCnt = 10;
 		
 		this.outList = new NirvanaOutputList();
-		
-		try {
-			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
-				this.tempTestPath, false);
-		} catch (IOException e1) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
+			tempTestFile, false);
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
 		
 		DataSourceTask<Record> testTask = new DataSourceTask<>(this.mockEnv);
 
-		super.registerFileInputTask(testTask, MockFailingInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
+		super.registerFileInputTask(testTask, MockFailingInputFormat.class, tempTestFile.toURI().toString(), "\n");
 		
 		boolean stubFailed = false;
 
@@ -158,29 +145,24 @@ public class DataSourceTaskTest extends TaskTestBase {
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created
-		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
 	}
 	
 	@Test
-	public void testCancelDataSourceTask() {
+	public void testCancelDataSourceTask() throws IOException {
 		int keyCnt = 20;
 		int valCnt = 4;
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(new NirvanaOutputList());
-		
-		try {
-			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
-				this.tempTestPath, false);
-		} catch (IOException e1) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
+			tempTestFile, false);
 		
 		final DataSourceTask<Record> testTask = new DataSourceTask<>(this.mockEnv);
 
-		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  new File(tempTestPath).toURI().toString(), "\n");
+		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  tempTestFile.toURI().toString(), "\n");
 		
 		Thread taskRunner = new Thread() {
 			@Override
@@ -206,16 +188,15 @@ public class DataSourceTaskTest extends TaskTestBase {
 		}
 		
 		// assert that temp file was created
-		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 	}
 
 	
 	private static class InputFilePreparator {
-		public static void prepareInputFile(MutableObjectIterator<Record> inIt, String inputFilePath, boolean insertInvalidData)
+		public static void prepareInputFile(MutableObjectIterator<Record> inIt, File inputFile, boolean insertInvalidData)
 		throws IOException {
 
-			try (BufferedWriter bw = new BufferedWriter(new FileWriter(inputFilePath))) {
+			try (BufferedWriter bw = new BufferedWriter(new FileWriter(inputFile))) {
 				if (insertInvalidData) {
 					bw.write("####_I_AM_INVALID_########\n");
 				}

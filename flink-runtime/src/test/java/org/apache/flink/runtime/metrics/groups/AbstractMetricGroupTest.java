@@ -21,16 +21,23 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 
 import org.junit.Test;
+
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -84,14 +91,49 @@ public class AbstractMetricGroupTest {
 	public void testScopeCachingForMultipleReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
+
+		MetricConfig metricConfig1 = new MetricConfig();
+		metricConfig1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+
+		MetricConfig metricConfig2 = new MetricConfig();
+		metricConfig2.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
+
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
 
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(config),
+			Arrays.asList(
+				ReporterSetup.forReporter("test1", metricConfig1, new TestReporter1()),
+				ReporterSetup.forReporter("test2", metricConfig2, new TestReporter2())));
 		try {
 			MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id");
+			tmGroup.counter("1");
+			assertEquals("Reporters were not properly instantiated", 2, testRegistry.getReporters().size());
+			for (MetricReporter reporter : testRegistry.getReporters()) {
+				ScopeCheckingTestReporter typedReporter = (ScopeCheckingTestReporter) reporter;
+				if (typedReporter.failureCause != null) {
+					throw typedReporter.failureCause;
+				}
+			}
+		} finally {
+			testRegistry.shutdown().get();
+		}
+	}
+
+	@Test
+	public void testLogicalScopeCachingForMultipleReporters() throws Exception {
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Arrays.asList(
+				ReporterSetup.forReporter("test1", new LogicalScopeReporter1()),
+				ReporterSetup.forReporter("test2", new LogicalScopeReporter2())));
+		try {
+			MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id")
+				.addGroup("B")
+				.addGroup("C");
 			tmGroup.counter("1");
 			assertEquals("Reporters were not properly instantiated", 2, testRegistry.getReporters().size());
 			for (MetricReporter reporter : testRegistry.getReporters()) {
@@ -175,11 +217,44 @@ public class AbstractMetricGroupTest {
 		}
 	}
 
+	/**
+	 * Reporter that verifies the logical-scope caching behavior.
+	 */
+	public static final class LogicalScopeReporter1 extends ScopeCheckingTestReporter {
+		@Override
+		public String filterCharacters(String input) {
+			return FILTER_B.filterCharacters(input);
+		}
+
+		@Override
+		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
+			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this, '-');
+			assertEquals("taskmanager-X-C", logicalScope);
+		}
+	}
+
+	/**
+	 * Reporter that verifies the logical-scope caching behavior.
+	 */
+	public static final class LogicalScopeReporter2 extends ScopeCheckingTestReporter {
+		@Override
+		public String filterCharacters(String input) {
+			return FILTER_C.filterCharacters(input);
+		}
+
+		@Override
+		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
+			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this, ',');
+			assertEquals("taskmanager,B,X", logicalScope);
+		}
+	}
+
 	@Test
 	public void testScopeGenerationWithoutReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(config));
 
 		try {
 			TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
@@ -194,6 +269,85 @@ public class AbstractMetricGroupTest {
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
 		} finally {
 			testRegistry.shutdown().get();
+		}
+	}
+
+	@Test
+	public void testGetAllVariablesDoesNotDeadlock() throws InterruptedException {
+		final TestMetricRegistry registry = new TestMetricRegistry();
+
+		final MetricGroup parent = new GenericMetricGroup(registry, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(), "parent");
+		final MetricGroup child = parent.addGroup("child");
+
+		final Thread parentRegisteringThread = new Thread(() -> parent.counter("parent_counter"));
+		final Thread childRegisteringThread = new Thread(() -> child.counter("child_counter"));
+
+		final BlockerSync parentSync = new BlockerSync();
+		final BlockerSync childSync = new BlockerSync();
+
+		try {
+			// start both threads and have them block in the registry, so they acquire the lock of their respective group
+			registry.setOnRegistrationAction(childSync::blockNonInterruptible);
+			childRegisteringThread.start();
+			childSync.awaitBlocker();
+
+			registry.setOnRegistrationAction(parentSync::blockNonInterruptible);
+			parentRegisteringThread.start();
+			parentSync.awaitBlocker();
+
+			// the parent thread remains blocked to simulate the child thread holding some lock in the registry/reporter
+			// the child thread continues execution and calls getAllVariables()
+			// in the past this would block indefinitely since the method acquires the locks of all parent groups
+			childSync.releaseBlocker();
+			// wait with a timeout to ensure the finally block is executed _at some point_, un-blocking the parent
+			childRegisteringThread.join(1000 * 10);
+
+			parentSync.releaseBlocker();
+			parentRegisteringThread.join();
+		} finally {
+			parentSync.releaseBlocker();
+			childSync.releaseBlocker();
+			parentRegisteringThread.join();
+			childRegisteringThread.join();
+		}
+	}
+
+	private static final class TestMetricRegistry implements MetricRegistry {
+
+		private Runnable onRegistrationAction;
+
+		void setOnRegistrationAction(Runnable onRegistrationAction) {
+			this.onRegistrationAction = onRegistrationAction;
+		}
+
+		@Override
+		public char getDelimiter() {
+			return 0;
+		}
+
+		@Override
+		public char getDelimiter(int index) {
+			return 0;
+		}
+
+		@Override
+		public int getNumberReporters() {
+			return 0;
+		}
+
+		@Override
+		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+			onRegistrationAction.run();
+			group.getAllVariables();
+		}
+
+		@Override
+		public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+		}
+
+		@Override
+		public ScopeFormats getScopeFormats() {
+			return null;
 		}
 	}
 }

@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Not thread safe class for producing {@link Buffer}.
  *
  * <p>It reads data written by {@link BufferBuilder}.
- * Although it is not thread safe and can be used only by one single thread, this thread can be different then the
+ * Although it is not thread safe and can be used only by one single thread, this thread can be different than the
  * thread using/writing to {@link BufferBuilder}. Pattern here is simple: one thread writes data to
  * {@link BufferBuilder} and there can be a different thread reading from it using {@link BufferConsumer}.
  */
@@ -42,7 +42,7 @@ public class BufferConsumer implements Closeable {
 
 	private final CachedPositionMarker writerPosition;
 
-	private int currentReaderPosition = 0;
+	private int currentReaderPosition;
 
 	/**
 	 * Constructs {@link BufferConsumer} instance with content that can be changed by {@link BufferBuilder}.
@@ -61,9 +61,16 @@ public class BufferConsumer implements Closeable {
 	 * Constructs {@link BufferConsumer} instance with static content.
 	 */
 	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
+		this(memorySegment, recycler, memorySegment.size(), isBuffer);
+	}
+
+	/**
+	 * Constructs {@link BufferConsumer} instance with static content of a certain size.
+	 */
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, boolean isBuffer) {
 		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
-			() -> -memorySegment.size(),
-			0);
+				() -> -size,
+				0);
 		checkState(memorySegment.size() > 0);
 		checkState(isFinished(), "BufferConsumer with static size must be finished after construction!");
 	}
@@ -74,6 +81,14 @@ public class BufferConsumer implements Closeable {
 		this.currentReaderPosition = currentReaderPosition;
 	}
 
+	/**
+	 * Checks whether the {@link BufferBuilder} has already been finished.
+	 *
+	 * <p>BEWARE: this method accesses the cached value of the position marker which is only updated
+	 * after calls to {@link #build()}!
+	 *
+	 * @return <tt>true</tt> if the buffer was finished, <tt>false</tt> otherwise
+	 */
 	public boolean isFinished() {
 		return writerPosition.isFinished();
 	}
@@ -84,17 +99,19 @@ public class BufferConsumer implements Closeable {
 	 */
 	public Buffer build() {
 		writerPosition.update();
-		Buffer slice = buffer.readOnlySlice(currentReaderPosition, writerPosition.getCached() - currentReaderPosition);
-		currentReaderPosition = writerPosition.getCached();
+		int cachedWriterPosition = writerPosition.getCached();
+		Buffer slice = buffer.readOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition);
+		currentReaderPosition = cachedWriterPosition;
 		return slice.retainBuffer();
 	}
 
 	/**
-	 * @return a retained copy of self with separate indexes - it allows two read from the same {@link MemorySegment}
-	 * twice.
+	 * Returns a retained copy with separate indexes. This allows to read from the same {@link MemorySegment} twice.
 	 *
-	 * <p>WARNING: newly returned {@link BufferConsumer} will have reader index copied from the original buffer. In
-	 * other words, data already consumed before copying will not be visible to the returned copies.
+	 * <p>WARNING: the newly returned {@link BufferConsumer} will have its reader index copied from the original buffer.
+	 * In other words, data already consumed before copying will not be visible to the returned copies.
+	 *
+	 * @return a retained copy of self with separate indexes
 	 */
 	public BufferConsumer copy() {
 		return new BufferConsumer(buffer.retainBuffer(), writerPosition.positionMarker, currentReaderPosition);
@@ -123,7 +140,7 @@ public class BufferConsumer implements Closeable {
 	 * Cached reading wrapper around {@link PositionMarker}.
 	 *
 	 * <p>Writer ({@link BufferBuilder}) and reader ({@link BufferConsumer}) caches must be implemented independently
-	 * of one another - for example the cached values can not accidentally leak from one to another.
+	 * of one another - so that the cached values can not accidentally leak from one to another.
 	 */
 	private static class CachedPositionMarker {
 		private final PositionMarker positionMarker;
@@ -133,7 +150,7 @@ public class BufferConsumer implements Closeable {
 		 */
 		private int cachedPosition;
 
-		public CachedPositionMarker(PositionMarker positionMarker) {
+		CachedPositionMarker(PositionMarker positionMarker) {
 			this.positionMarker = checkNotNull(positionMarker);
 			update();
 		}

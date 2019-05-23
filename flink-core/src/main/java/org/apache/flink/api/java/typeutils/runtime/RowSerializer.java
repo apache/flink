@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
@@ -33,7 +32,6 @@ import org.apache.flink.types.Row;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoAndCopyNullMask;
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
@@ -94,7 +92,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			if (fromField != null) {
 				Object copy = fieldSerializers[i].copy(fromField);
 				result.setField(i, copy);
-			} else {
+			}
+			else {
 				result.setField(i, null);
 			}
 		}
@@ -122,11 +121,13 @@ public final class RowSerializer extends TypeSerializer<Row> {
 				if (reuseField != null) {
 					Object copy = fieldSerializers[i].copy(fromField, reuseField);
 					reuse.setField(i, copy);
-				} else {
+				}
+				else {
 					Object copy = fieldSerializers[i].copy(fromField);
 					reuse.setField(i, copy);
 				}
-			} else {
+			}
+			else {
 				reuse.setField(i, null);
 			}
 		}
@@ -162,7 +163,6 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		}
 	}
 
-
 	@Override
 	public Row deserialize(DataInputView source) throws IOException {
 		int len = fieldSerializers.length;
@@ -175,7 +175,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		for (int i = 0; i < len; i++) {
 			if (nullMask[i]) {
 				result.setField(i, null);
-			} else {
+			}
+			else {
 				result.setField(i, fieldSerializers[i].deserialize(source));
 			}
 		}
@@ -197,11 +198,13 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		for (int i = 0; i < len; i++) {
 			if (nullMask[i]) {
 				reuse.setField(i, null);
-			} else {
+			}
+			else {
 				Object reuseField = reuse.getField(i);
 				if (reuseField != null) {
 					reuse.setField(i, fieldSerializers[i].deserialize(reuseField, source));
-				} else {
+				}
+				else {
 					reuse.setField(i, fieldSerializers[i].deserialize(source));
 				}
 			}
@@ -226,7 +229,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (canEqual(obj)) {
+		if (obj instanceof RowSerializer) {
 			RowSerializer other = (RowSerializer) obj;
 			if (this.fieldSerializers.length == other.fieldSerializers.length) {
 				for (int i = 0; i < this.fieldSerializers.length; i++) {
@@ -242,11 +245,6 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof RowSerializer;
-	}
-
-	@Override
 	public int hashCode() {
 		return Arrays.hashCode(fieldSerializers);
 	}
@@ -259,65 +257,30 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer configuration snapshoting & compatibility
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public RowSerializerConfigSnapshot snapshotConfiguration() {
-		return new RowSerializerConfigSnapshot(fieldSerializers);
+	public TypeSerializerSnapshot<Row> snapshotConfiguration() {
+		return new RowSerializerSnapshot(this);
 	}
 
-	@Override
-	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
-				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-
-			if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
-				boolean requireMigration = false;
-				TypeSerializer<?>[] convertDeserializers = new TypeSerializer<?>[fieldSerializers.length];
-
-				CompatibilityResult<?> compatResult;
-				int i = 0;
-				for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
-					compatResult = CompatibilityUtil.resolveCompatibilityResult(
-							f.f0,
-							UnloadableDummyTypeSerializer.class,
-							f.f1,
-							fieldSerializers[i]);
-
-					if (compatResult.isRequiresMigration()) {
-						requireMigration = true;
-
-						if (compatResult.getConvertDeserializer() == null) {
-							// one of the field serializers cannot provide a fallback deserializer
-							return CompatibilityResult.requiresMigration();
-						} else {
-							convertDeserializers[i] =
-								new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer());
-						}
-					}
-
-					i++;
-				}
-
-				if (requireMigration) {
-					return CompatibilityResult.requiresMigration(new RowSerializer(convertDeserializers));
-				} else {
-					return CompatibilityResult.compatible();
-				}
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
-	}
-
-	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+	/**
+	 * A snapshot for {@link RowSerializer}.
+	 *
+	 * @deprecated this snapshot class is no longer in use, and is maintained only for backwards compatibility.
+	 *             It is fully replaced by {@link RowSerializerSnapshot}.
+	 */
+	@Deprecated
+	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot<Row> {
 
 		private static final int VERSION = 1;
 
-		/** This empty nullary constructor is required for deserializing the configuration. */
-		public RowSerializerConfigSnapshot() {}
+		/**
+		 * This empty nullary constructor is required for deserializing the configuration.
+		 */
+		public RowSerializerConfigSnapshot() {
+		}
 
 		public RowSerializerConfigSnapshot(TypeSerializer[] fieldSerializers) {
 			super(fieldSerializers);
@@ -326,6 +289,51 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<Row> resolveSchemaCompatibility(TypeSerializer<Row> newSerializer) {
+			TypeSerializerSnapshot<?>[] nestedSnapshots = getNestedSerializersAndConfigs()
+				.stream()
+				.map(t -> t.f1)
+				.toArray(TypeSerializerSnapshot[]::new);
+
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				new RowSerializerSnapshot(),
+				nestedSnapshots);
+		}
+	}
+
+	/**
+	 * A {@link TypeSerializerSnapshot} for RowSerializer.
+	 */
+	public static final class RowSerializerSnapshot extends CompositeTypeSerializerSnapshot<Row, RowSerializer> {
+
+		private static final int VERSION = 2;
+
+		@SuppressWarnings("WeakerAccess")
+		public RowSerializerSnapshot() {
+			super(RowSerializer.class);
+		}
+
+		RowSerializerSnapshot(RowSerializer serializerInstance) {
+			super(serializerInstance);
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return VERSION;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(RowSerializer outerSerializer) {
+			return outerSerializer.fieldSerializers;
+		}
+
+		@Override
+		protected RowSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			return new RowSerializer(nestedSerializers);
 		}
 	}
 }

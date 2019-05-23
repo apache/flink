@@ -59,9 +59,9 @@ env.setNumberOfExecutionRetries(3)
 
 You can also define default values for the number of execution retries and the retry delay in the `flink-conf.yaml`:
 
-~~~
+{% highlight yaml %}
 execution-retries.default: 3
-~~~
+{% endhighlight %}
 
 
 Retry Delays
@@ -91,8 +91,8 @@ env.getConfig.setExecutionRetryDelay(5000) // 5000 milliseconds delay
 
 You can also define the default value for the retry delay in the `flink-conf.yaml`:
 
-~~~
+{% highlight yaml %}
 execution-retries.delay: 10 s
-~~~
+{% endhighlight %}
 
 {% top %}

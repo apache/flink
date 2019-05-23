@@ -25,14 +25,14 @@ import org.apache.flink.annotation.Public;
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
- * 
+ *
  * @param <T> The type of the filtered elements.
  */
 @Public
 public abstract class RichFilterFunction<T> extends AbstractRichFunction implements FilterFunction<T> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	@Override
 	public abstract boolean filter(T value) throws Exception;
 }

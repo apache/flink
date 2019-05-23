@@ -55,7 +55,7 @@ public class VoidNamespaceTypeInfo extends TypeInformation<VoidNamespace> {
 	@Override
 	@PublicEvolving
 	public int getTotalFields() {
-		return 0;
+		return 1;
 	}
 
 	@Override

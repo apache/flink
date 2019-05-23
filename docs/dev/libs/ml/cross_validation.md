@@ -62,7 +62,7 @@ In a *k-fold* strategy, the DataSet is split into *k* equal subsets. Then for ea
 
 For each training set, an algorithm is trained and then is evaluated based on the predictions based on the associated testing set. When an algorithm that has consistent grades (e.g. prediction errors) across held out datasets we can have some confidence that our approach (e.g. choice of algorithm / algorithm parameters / number of iterations) is robust against overfitting.
 
-<a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation">K-Fold Cross Validatation</a>
+<a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation">K-Fold Cross Validation</a>
 
 ### Multi-Random Splits
 

@@ -118,8 +118,11 @@ object WebLogAnalysis {
     }.withForwardedFieldsSecond("*")
 
     val result = joinDocsRanks.coGroup(filteredVisits).where(1).equalTo(0) {
-      (ranks, visits, out: Collector[(Int, String, Int)]) =>
-        if (visits.isEmpty) for (rank <- ranks) out.collect(rank)
+      (
+        ranks: Iterator[(Int, String, Int)],
+        visits: Iterator[(String, String)],
+        out: Collector[(Int, String, Int)]) =>
+          if (visits.isEmpty) for (rank <- ranks) out.collect(rank)
     }.withForwardedFieldsFirst("*")
 
     // emit result

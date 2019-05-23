@@ -31,6 +31,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
+import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
@@ -47,6 +48,9 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.util.Utf8;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,6 +59,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -100,15 +106,15 @@ public class AvroRecordInputFormatTest {
 	private Schema userSchema = new User().getSchema();
 
 	public static void writeTestFile(File testFile) throws IOException {
-		ArrayList<CharSequence> stringArray = new ArrayList<CharSequence>();
+		ArrayList<CharSequence> stringArray = new ArrayList<>();
 		stringArray.add(TEST_ARRAY_STRING_1);
 		stringArray.add(TEST_ARRAY_STRING_2);
 
-		ArrayList<Boolean> booleanArray = new ArrayList<Boolean>();
+		ArrayList<Boolean> booleanArray = new ArrayList<>();
 		booleanArray.add(TEST_ARRAY_BOOLEAN_1);
 		booleanArray.add(TEST_ARRAY_BOOLEAN_2);
 
-		HashMap<CharSequence, Long> longMap = new HashMap<CharSequence, Long>();
+		HashMap<CharSequence, Long> longMap = new HashMap<>();
 		longMap.put(TEST_MAP_KEY1, TEST_MAP_VALUE1);
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
 
@@ -130,6 +136,16 @@ public class AvroRecordInputFormatTest {
 		user1.setTypeEnum(TEST_ENUM_COLOR);
 		user1.setTypeMap(longMap);
 		user1.setTypeNested(addr);
+		user1.setTypeBytes(ByteBuffer.allocate(10));
+		user1.setTypeDate(LocalDate.parse("2014-03-01"));
+		user1.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+		user1.setTypeTimeMicros(123456);
+		user1.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
+		user1.setTypeTimestampMicros(123456L);
+		// 20.00
+		user1.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+		// 20.00
+		user1.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 
 		// Construct via builder
 		User user2 = User.newBuilder()
@@ -140,20 +156,30 @@ public class AvroRecordInputFormatTest {
 				.setTypeDoubleTest(1.337d)
 				.setTypeNullTest(null)
 				.setTypeLongTest(1337L)
-				.setTypeArrayString(new ArrayList<CharSequence>())
-				.setTypeArrayBoolean(new ArrayList<Boolean>())
+				.setTypeArrayString(new ArrayList<>())
+				.setTypeArrayBoolean(new ArrayList<>())
 				.setTypeNullableArray(null)
 				.setTypeEnum(Colors.RED)
-				.setTypeMap(new HashMap<CharSequence, Long>())
+				.setTypeMap(new HashMap<>())
 				.setTypeFixed(null)
 				.setTypeUnion(null)
 				.setTypeNested(
 						Address.newBuilder().setNum(TEST_NUM).setStreet(TEST_STREET)
 								.setCity(TEST_CITY).setState(TEST_STATE).setZip(TEST_ZIP)
 								.build())
+				.setTypeBytes(ByteBuffer.allocate(10))
+				.setTypeDate(LocalDate.parse("2014-03-01"))
+				.setTypeTimeMillis(LocalTime.parse("12:12:12"))
+				.setTypeTimeMicros(123456)
+				.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
+				.setTypeTimestampMicros(123456L)
+				// 20.00
+				.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+				// 20.00
+				.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 				.build();
-		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<User>(User.class);
-		DataFileWriter<User> dataFileWriter = new DataFileWriter<User>(userDatumWriter);
+		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<>(User.class);
+		DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter);
 		dataFileWriter.create(user1.getSchema(), testFile);
 		dataFileWriter.append(user1);
 		dataFileWriter.append(user2);
@@ -167,14 +193,13 @@ public class AvroRecordInputFormatTest {
 	}
 
 	/**
-	 * Test if the AvroInputFormat is able to properly read data from an avro file.
-	 * @throws IOException
+	 * Test if the AvroInputFormat is able to properly read data from an Avro file.
 	 */
 	@Test
-	public void testDeserialisation() throws IOException {
+	public void testDeserialization() throws IOException {
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		AvroInputFormat<User> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(1);
@@ -216,14 +241,13 @@ public class AvroRecordInputFormatTest {
 	}
 
 	/**
-	 * Test if the AvroInputFormat is able to properly read data from an avro file.
-	 * @throws IOException
+	 * Test if the AvroInputFormat is able to properly read data from an Avro file.
 	 */
 	@Test
-	public void testDeserialisationReuseAvroRecordFalse() throws IOException {
+	public void testDeserializationReuseAvroRecordFalse() throws IOException {
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		AvroInputFormat<User> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 		format.setReuseAvroValue(false);
 
 		format.configure(parameters);
@@ -294,7 +318,7 @@ public class AvroRecordInputFormatTest {
 			ExecutionConfig ec = new ExecutionConfig();
 			assertEquals(GenericTypeInfo.class, te.getClass());
 
-			Serializers.recursivelyRegisterType(te.getTypeClass(), ec, new HashSet<Class<?>>());
+			Serializers.recursivelyRegisterType(te.getTypeClass(), ec, new HashSet<>());
 
 			TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
 			assertEquals(1, ec.getDefaultKryoSerializerClasses().size());
@@ -327,7 +351,7 @@ public class AvroRecordInputFormatTest {
 	@Test
 	public void testDeserializeToSpecificType() throws IOException {
 
-		DatumReader<User> datumReader = new SpecificDatumReader<User>(userSchema);
+		DatumReader<User> datumReader = new SpecificDatumReader<>(userSchema);
 
 		try (FileReader<User> dataFileReader = DataFileReader.openReader(testFile, datumReader)) {
 			User rec = dataFileReader.next();
@@ -365,15 +389,12 @@ public class AvroRecordInputFormatTest {
 	/**
 	 * Test if the AvroInputFormat is able to properly read data from an Avro
 	 * file as a GenericRecord.
-	 *
-	 * @throws IOException
 	 */
 	@Test
-	public void testDeserialisationGenericRecord() throws IOException {
+	public void testDeserializationGenericRecord() throws IOException {
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<GenericRecord> format = new AvroInputFormat<GenericRecord>(new Path(testFile.getAbsolutePath()),
-				GenericRecord.class);
+		AvroInputFormat<GenericRecord> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), GenericRecord.class);
 
 		doTestDeserializationGenericRecord(format, parameters);
 	}
@@ -440,17 +461,17 @@ public class AvroRecordInputFormatTest {
 	 * @throws IOException if there is an error
 	 */
 	@Test
-	public void testDeserialisationGenericRecordReuseAvroValueFalse() throws IOException {
+	public void testDeserializationGenericRecordReuseAvroValueFalse() throws IOException {
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<GenericRecord> format = new AvroInputFormat<GenericRecord>(new Path(testFile.getAbsolutePath()),
-				GenericRecord.class);
+		AvroInputFormat<GenericRecord> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), GenericRecord.class);
 		format.configure(parameters);
 		format.setReuseAvroValue(false);
 
 		doTestDeserializationGenericRecord(format, parameters);
 	}
 
+	@SuppressWarnings("ResultOfMethodCallIgnored")
 	@After
 	public void deleteFiles() {
 		testFile.delete();

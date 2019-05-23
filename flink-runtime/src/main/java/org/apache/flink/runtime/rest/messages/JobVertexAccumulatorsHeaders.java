@@ -71,4 +71,9 @@ public class JobVertexAccumulatorsHeaders implements MessageHeaders<EmptyRequest
 	public static JobVertexAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns user-defined accumulators of a task, aggregated across all subtasks.";
+	}
 }

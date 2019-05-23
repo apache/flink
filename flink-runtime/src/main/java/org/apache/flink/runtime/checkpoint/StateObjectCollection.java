@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -176,6 +177,14 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 	@Override
 	public String toString() {
 		return "StateObjectCollection{" + stateObjects + '}';
+	}
+
+	public List<T> asList() {
+		return stateObjects instanceof List ?
+			(List<T>) stateObjects :
+			stateObjects != null ?
+				new ArrayList<>(stateObjects) :
+				Collections.emptyList();
 	}
 
 	// ------------------------------------------------------------------------

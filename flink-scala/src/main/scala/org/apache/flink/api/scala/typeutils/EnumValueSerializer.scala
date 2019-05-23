@@ -20,8 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io.IOException
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
-import org.apache.flink.api.common.typeutils.base.IntSerializer
+import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerConfigSnapshot, TypeSerializerSchemaCompatibility}
 import org.apache.flink.api.java.typeutils.runtime.{DataInputViewStream, DataOutputViewStream}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.util.{InstantiationUtil, Preconditions}
@@ -37,32 +36,32 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 
   type T = E#Value
 
-  val intSerializer = new IntSerializer()
-
   override def duplicate: EnumValueSerializer[E] = this
 
   override def createInstance: T = enum(0)
 
   override def isImmutableType: Boolean = true
 
-  override def getLength: Int = intSerializer.getLength
+  override def getLength: Int = 4
 
   override def copy(from: T): T = enum.apply(from.id)
 
   override def copy(from: T, reuse: T): T = copy(from)
 
-  override def copy(src: DataInputView, tgt: DataOutputView): Unit = intSerializer.copy(src, tgt)
+  override def copy(src: DataInputView, tgt: DataOutputView): Unit = {
+    tgt.writeInt(src.readInt())
+  }
 
-  override def serialize(v: T, tgt: DataOutputView): Unit = intSerializer.serialize(v.id, tgt)
+  override def serialize(v: T, tgt: DataOutputView): Unit = tgt.writeInt(v.id)
 
-  override def deserialize(source: DataInputView): T = enum(intSerializer.deserialize(source))
+  override def deserialize(source: DataInputView): T = enum(source.readInt())
 
   override def deserialize(reuse: T, source: DataInputView): T = deserialize(source)
 
   override def equals(obj: Any): Boolean = {
     obj match {
       case enumValueSerializer: EnumValueSerializer[_] =>
-        enumValueSerializer.canEqual(this) && enum == enumValueSerializer.enum
+        enum == enumValueSerializer.enum
       case _ => false
     }
   }
@@ -71,58 +70,19 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
     enum.hashCode()
   }
 
-  override def canEqual(obj: scala.Any): Boolean = {
-    obj.isInstanceOf[EnumValueSerializer[_]]
-  }
-
   // --------------------------------------------------------------------------------------------
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[E] = {
-    new EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[E](enum)
-  }
-
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[E#Value] = {
-
-    configSnapshot match {
-      case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
-        val enumClass = enum.getClass.asInstanceOf[Class[E]]
-        if (enumClass.equals(enumSerializerConfigSnapshot.getEnumClass)) {
-          val previousEnumConstants: List[(String, Int)] =
-            enumSerializerConfigSnapshot.getEnumConstants
-
-          for ((previousEnumConstant, idx) <- previousEnumConstants) {
-            val enumValue = try {
-              enum(idx)
-            } catch {
-              case _: NoSuchElementException =>
-                // couldn't find an enum value for the given index
-                return CompatibilityResult.requiresMigration()
-            }
-
-            if (!previousEnumConstant.equals(enumValue.toString)) {
-              // compatible only if new enum constants are only appended,
-              // and original constants must be in the exact same order
-              return CompatibilityResult.requiresMigration()
-            }
-          }
-
-          CompatibilityResult.compatible()
-        } else {
-          CompatibilityResult.requiresMigration()
-        }
-
-      case _ => CompatibilityResult.requiresMigration()
-    }
+  override def snapshotConfiguration(): ScalaEnumSerializerSnapshot[E] = {
+    new ScalaEnumSerializerSnapshot[E](enum)
   }
 }
 
 object EnumValueSerializer {
 
   class ScalaEnumSerializerConfigSnapshot[E <: Enumeration]
-      extends TypeSerializerConfigSnapshot {
+      extends TypeSerializerConfigSnapshot[E#Value] {
 
     var enumClass: Class[E] = _
     var enumConstants: List[(String, Int)] = _
@@ -183,6 +143,12 @@ object EnumValueSerializer {
           throw new IOException("The requested enum class cannot be found in classpath.", e)
       }
       finally if (inViewWrapper != null) inViewWrapper.close()
+    }
+
+    override def resolveSchemaCompatibility(
+      newSerializer: TypeSerializer[E#Value]): TypeSerializerSchemaCompatibility[E#Value] = {
+      val serializerSnapshot = new ScalaEnumSerializerSnapshot(enumClass, enumConstants)
+      serializerSnapshot.resolveSchemaCompatibility(newSerializer)
     }
 
     override def getVersion: Int = ScalaEnumSerializerConfigSnapshot.VERSION

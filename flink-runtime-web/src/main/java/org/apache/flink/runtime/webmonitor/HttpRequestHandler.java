@@ -52,6 +52,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Http
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -65,6 +68,8 @@ import java.util.UUID;
  */
 @ChannelHandler.Sharable
 public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(HttpRequestHandler.class);
 
 	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
@@ -134,8 +139,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 
 								File target = new File(tmpDir, UUID.randomUUID() + "_" + name);
 								if (!tmpDir.exists()) {
-									WebRuntimeMonitor.logExternalUploadDirDeletion(tmpDir);
-									WebRuntimeMonitor.checkAndCreateUploadDir(tmpDir);
+									logExternalUploadDirDeletion(tmpDir);
+									checkAndCreateUploadDir(tmpDir);
 								}
 								file.renameTo(target);
 
@@ -146,8 +151,6 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 								currentRequest.setUri(encoder.toString());
 							}
 						}
-
-						data.release();
 					}
 				}
 				catch (EndOfDataDecoderException ignored) {}
@@ -186,6 +189,30 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 
 				ctx.writeAndFlush(response);
 			}
+		}
+	}
+
+	public static void logExternalUploadDirDeletion(File uploadDir) {
+		LOG.warn("Jar storage directory {} has been deleted externally. Previously uploaded jars are no longer available.", uploadDir.getAbsolutePath());
+	}
+
+	/**
+	 * Checks whether the given directory exists and is writable. If it doesn't exist this method will attempt to create
+	 * it.
+	 *
+	 * @param uploadDir directory to check
+	 * @throws IOException if the directory does not exist and cannot be created, or if the directory isn't writable
+	 */
+	public static synchronized void checkAndCreateUploadDir(File uploadDir) throws IOException {
+		if (uploadDir.exists() && uploadDir.canWrite()) {
+			LOG.info("Using directory {} for web frontend JAR file uploads.", uploadDir);
+		} else if (uploadDir.mkdirs() && uploadDir.canWrite()) {
+			LOG.info("Created directory {} for web frontend JAR file uploads.", uploadDir);
+		} else {
+			LOG.warn("Jar upload directory {} cannot be created or is not writable.", uploadDir.getAbsolutePath());
+			throw new IOException(
+				String.format("Jar upload directory %s cannot be created or is not writable.",
+					uploadDir.getAbsolutePath()));
 		}
 	}
 }

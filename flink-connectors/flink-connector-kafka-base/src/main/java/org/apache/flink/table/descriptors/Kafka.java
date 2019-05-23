@@ -20,6 +20,7 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -34,6 +35,11 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
@@ -51,6 +57,8 @@ public class Kafka extends ConnectorDescriptor {
 	private StartupMode startupMode;
 	private Map<Integer, Long> specificOffsets;
 	private Map<String, String> kafkaProperties;
+	private String sinkPartitionerType;
+	private Class<? extends FlinkKafkaPartitioner> sinkPartitionerClass;
 
 	/**
 	 * Connector descriptor for the Apache Kafka message queue.
@@ -176,12 +184,74 @@ public class Kafka extends ConnectorDescriptor {
 	}
 
 	/**
-	 * Internal method for connector properties conversion.
+	 * Configures how to partition records from Flink's partitions into Kafka's partitions.
+	 *
+	 * <p>This strategy ensures that each Flink partition ends up in one Kafka partition.
+	 *
+	 * <p>Note: One Kafka partition can contain multiple Flink partitions. Examples:
+	 *
+	 * <p>More Flink partitions than Kafka partitions. Some (or all) Kafka partitions contain
+	 * the output of more than one flink partition:
+	 * <pre>
+	 *     Flink Sinks            Kafka Partitions
+	 *         1    ----------------&gt;    1
+	 *         2    --------------/
+	 *         3    -------------/
+	 *         4    ------------/
+	 * </pre>
+	 *
+	 *
+	 * <p>Fewer Flink partitions than Kafka partitions:
+	 * <pre>
+	 *     Flink Sinks            Kafka Partitions
+	 *         1    ----------------&gt;    1
+	 *         2    ----------------&gt;    2
+	 *                                      3
+	 *                                      4
+	 *                                      5
+	 * </pre>
+	 *
+	 * @see org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner
 	 */
+	public Kafka sinkPartitionerFixed() {
+		sinkPartitionerType = CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
+		sinkPartitionerClass = null;
+		return this;
+	}
+
+	/**
+	 * Configures how to partition records from Flink's partitions into Kafka's partitions.
+	 *
+	 * <p>This strategy ensures that records will be distributed to Kafka partitions in a
+	 * round-robin fashion.
+	 *
+	 * <p>Note: This strategy is useful to avoid an unbalanced partitioning. However, it will
+	 * cause a lot of network connections between all the Flink instances and all the Kafka brokers.
+	 */
+	public Kafka sinkPartitionerRoundRobin() {
+		sinkPartitionerType = CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
+		sinkPartitionerClass = null;
+		return this;
+	}
+
+	/**
+	 * Configures how to partition records from Flink's partitions into Kafka's partitions.
+	 *
+	 * <p>This strategy allows for a custom partitioner by providing an implementation
+	 * of {@link FlinkKafkaPartitioner}.
+	 */
+	public Kafka sinkPartitionerCustom(Class<? extends FlinkKafkaPartitioner> partitionerClass) {
+		sinkPartitionerType = CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
+		sinkPartitionerClass = Preconditions.checkNotNull(partitionerClass);
+		return this;
+	}
+
 	@Override
-	public void addConnectorProperties(DescriptorProperties properties) {
+	protected Map<String, String> toConnectorProperties() {
+		final DescriptorProperties properties = new DescriptorProperties();
+
 		if (version != null) {
-			properties.putString(CONNECTOR_VERSION(), version);
+			properties.putString(CONNECTOR_VERSION, version);
 		}
 
 		if (topic != null) {
@@ -212,5 +282,14 @@ public class Kafka extends ConnectorDescriptor {
 					.collect(Collectors.toList())
 				);
 		}
+
+		if (sinkPartitionerType != null) {
+			properties.putString(CONNECTOR_SINK_PARTITIONER, sinkPartitionerType);
+			if (sinkPartitionerClass != null) {
+				properties.putClass(CONNECTOR_SINK_PARTITIONER_CLASS, sinkPartitionerClass);
+			}
+		}
+
+		return properties.asMap();
 	}
 }

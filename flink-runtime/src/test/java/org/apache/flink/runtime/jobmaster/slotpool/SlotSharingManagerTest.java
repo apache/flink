@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
@@ -27,16 +28,17 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -52,7 +54,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test cases for the {@link SlotSharingManager}.
  */
-@Category(New.class)
 public class SlotSharingManagerTest extends TestLogger {
 
 	private static final SlotSharingGroupId SLOT_SHARING_GROUP_ID = new SlotSharingGroupId();
@@ -105,7 +106,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		assertTrue(slotSharingManager.contains(slotRequestId));
 
-		assertTrue(rootSlot.release(new FlinkException("Test exception")));
+		rootSlot.release(new FlinkException("Test exception"));
 
 		// check that we return the allocated slot
 		assertEquals(allocatedSlotRequestId, slotReleasedFuture.get());
@@ -194,7 +195,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertFalse(singleTaskSlotFuture.isDone());
 
 		FlinkException testException = new FlinkException("Test exception");
-		assertTrue(singleTaskSlot.release(testException));
+		singleTaskSlot.release(testException);
 
 		// check that we fail the single task slot future
 		assertTrue(singleTaskSlotFuture.isCompletedExceptionally());
@@ -203,7 +204,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		// the root slot has still one child
 		assertTrue(slotSharingManager.contains(rootSlotRequestId));
 
-		assertTrue(multiTaskSlot.release(testException));
+		multiTaskSlot.release(testException);
 
 		assertEquals(allocatedSlotRequestId, releasedSlotFuture.get());
 		assertFalse(slotSharingManager.contains(rootSlotRequestId));
@@ -416,26 +417,29 @@ public class SlotSharingManagerTest extends TestLogger {
 			new SlotRequestId());
 
 		AbstractID groupId = new AbstractID();
-		SlotSharingManager.MultiTaskSlotLocality resolvedRootSlotLocality =
-			slotSharingManager.getResolvedRootSlot(groupId, SlotProfile.noRequirements().matcher());
 
-		assertNotNull(resolvedRootSlotLocality);
-		assertEquals(Locality.UNCONSTRAINED, resolvedRootSlotLocality.getLocality());
-		assertEquals(rootSlot.getSlotRequestId(), resolvedRootSlotLocality.getMultiTaskSlot().getSlotRequestId());
+		Collection<SlotInfo> slotInfos = slotSharingManager.listResolvedRootSlotInfo(groupId);
+		Assert.assertEquals(1, slotInfos.size());
 
-		SlotSharingManager.MultiTaskSlot resolvedRootSlot = resolvedRootSlotLocality.getMultiTaskSlot();
+		SlotInfo slotInfo = slotInfos.iterator().next();
+		SlotSharingManager.MultiTaskSlot resolvedMultiTaskSlot =
+			slotSharingManager.getResolvedRootSlot(slotInfo);
+
+		SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality =
+			LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(slotInfos, SlotProfile.noRequirements()).get();
+
+		assertNotNull(resolvedMultiTaskSlot);
+		assertEquals(Locality.UNCONSTRAINED, slotInfoAndLocality.getLocality());
+		assertEquals(rootSlot.getSlotRequestId(), resolvedMultiTaskSlot.getSlotRequestId());
 
 		// occupy the resolved root slot
-		resolvedRootSlot.allocateSingleTaskSlot(
+		resolvedMultiTaskSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
 			groupId,
-			resolvedRootSlotLocality.getLocality());
+			Locality.UNCONSTRAINED);
 
-		SlotSharingManager.MultiTaskSlotLocality resolvedRootSlot1 = slotSharingManager.getResolvedRootSlot(
-			groupId,
-			SlotProfile.noRequirements().matcher());
-
-		assertNull(resolvedRootSlot1);
+		slotInfos = slotSharingManager.listResolvedRootSlotInfo(groupId);
+		assertTrue(slotInfos.isEmpty());
 	}
 
 	/**
@@ -472,24 +476,30 @@ public class SlotSharingManagerTest extends TestLogger {
 			new SlotRequestId());
 
 		AbstractID groupId = new AbstractID();
-		SlotProfile.LocalityAwareRequirementsToSlotMatcher matcher =
-			new SlotProfile.LocalityAwareRequirementsToSlotMatcher(Collections.singleton(taskManagerLocation));
-		SlotSharingManager.MultiTaskSlotLocality resolvedRootSlot1 = slotSharingManager.getResolvedRootSlot(groupId, matcher);
-		assertNotNull(resolvedRootSlot1);
-		assertEquals(Locality.LOCAL, resolvedRootSlot1.getLocality());
-		assertEquals(rootSlot2.getSlotRequestId(), resolvedRootSlot1.getMultiTaskSlot().getSlotRequestId());
+
+		SlotProfile slotProfile = SlotProfile.preferredLocality(ResourceProfile.UNKNOWN, Collections.singleton(taskManagerLocation));
+
+		Collection<SlotInfo> slotInfos = slotSharingManager.listResolvedRootSlotInfo(groupId);
+		SlotSelectionStrategy.SlotInfoAndLocality slotInfoAndLocality =
+			LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(slotInfos, slotProfile).get();
+		SlotSharingManager.MultiTaskSlot resolvedRootSlot = slotSharingManager.getResolvedRootSlot(slotInfoAndLocality.getSlotInfo());
+
+		assertNotNull(resolvedRootSlot);
+		assertEquals(Locality.LOCAL, slotInfoAndLocality.getLocality());
+		assertEquals(rootSlot2.getSlotRequestId(), resolvedRootSlot.getSlotRequestId());
 
 		// occupy the slot
-		resolvedRootSlot1.getMultiTaskSlot().allocateSingleTaskSlot(
+		resolvedRootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
 			groupId,
-			resolvedRootSlot1.getLocality());
+			slotInfoAndLocality.getLocality());
 
-		SlotSharingManager.MultiTaskSlotLocality resolvedRootSlot2 = slotSharingManager.getResolvedRootSlot(groupId,matcher);
-
-		assertNotNull(resolvedRootSlot2);
-		assertNotSame(Locality.LOCAL, (resolvedRootSlot2.getLocality()));
-		assertEquals(rootSlot1.getSlotRequestId(), resolvedRootSlot2.getMultiTaskSlot().getSlotRequestId());
+		slotInfos = slotSharingManager.listResolvedRootSlotInfo(groupId);
+		slotInfoAndLocality = LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(slotInfos, slotProfile).get();
+		resolvedRootSlot = slotSharingManager.getResolvedRootSlot(slotInfoAndLocality.getSlotInfo());
+		assertNotNull(resolvedRootSlot);
+		assertNotSame(Locality.LOCAL, (slotInfoAndLocality.getLocality()));
+		assertEquals(rootSlot1.getSlotRequestId(), resolvedRootSlot.getSlotRequestId());
 	}
 
 	@Test

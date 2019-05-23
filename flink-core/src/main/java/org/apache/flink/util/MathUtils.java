@@ -197,6 +197,16 @@ public final class MathUtils {
 		return in;
 	}
 
+	/**
+	 * Flips the sign bit (most-significant-bit) of the input.
+	 *
+	 * @param in the input value.
+	 * @return the input with a flipped sign bit (most-significant-bit).
+	 */
+	public static long flipSignBit(long in) {
+		return in ^ Long.MIN_VALUE;
+	}
+
 	// ============================================================================================
 
 	/**

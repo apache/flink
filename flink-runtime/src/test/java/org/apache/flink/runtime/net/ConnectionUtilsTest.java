@@ -22,7 +22,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
@@ -40,29 +39,26 @@ import static org.junit.Assert.assertTrue;
  * Tests for the network utilities.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ConnectionUtils.class)
 public class ConnectionUtilsTest {
 
 	@Test
 	public void testReturnLocalHostAddressUsingHeuristics() throws Exception {
-		try (ServerSocket blocker = new ServerSocket(0, 1, InetAddress.getLocalHost())) {
-			// the "blocker" server socket simply does not accept connections
-			// this address is consequently "unreachable"
-			InetSocketAddress unreachable = new InetSocketAddress("localhost", blocker.getLocalPort());
+		// instead of using a unstable localhost:port as "unreachable" to cause Test fails unstably
+		// using a Absolutely unreachable outside ip:port
+		InetSocketAddress unreachable = new InetSocketAddress("8.8.8.8", 0xFFFF);
 
-			final long start = System.nanoTime();
-			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
+		final long start = System.nanoTime();
+		InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
-			// check that it did not take forever (max 30 seconds)
-			// this check can unfortunately not be too tight, or it will be flaky on some CI infrastructure
-			assertTrue(System.nanoTime() - start < 30_000_000_000L);
+		// check that it did not take forever (max 30 seconds)
+		// this check can unfortunately not be too tight, or it will be flaky on some CI infrastructure
+		assertTrue(System.nanoTime() - start < 30_000_000_000L);
 
-			// we should have found a heuristic address
-			assertNotNull(add);
+		// we should have found a heuristic address
+		assertNotNull(add);
 
-			// make sure that we returned the InetAddress.getLocalHost as a heuristic
-			assertEquals(InetAddress.getLocalHost(), add);
-		}
+		// make sure that we returned the InetAddress.getLocalHost as a heuristic
+		assertEquals(InetAddress.getLocalHost(), add);
 	}
 
 	@Test
@@ -91,7 +87,6 @@ public class ConnectionUtilsTest {
 			final InetAddress address = ConnectionUtils.findConnectingAddress(
 				socketAddress, 2000, 400);
 
-			PowerMockito.verifyStatic();
 			// Make sure we got an address via alternative means
 			assertNotNull(address);
 		}

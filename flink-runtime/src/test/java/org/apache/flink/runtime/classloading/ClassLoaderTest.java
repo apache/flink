@@ -19,20 +19,77 @@
 package org.apache.flink.runtime.classloading;
 
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
+import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 
 import java.net.URL;
 import java.net.URLClassLoader;
 
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.hasItemInArray;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 /**
- * Tests for classloading and class loder utilities.
+ * Tests for classloading and class loader utilities.
  */
 public class ClassLoaderTest extends TestLogger {
+
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
+
+	@Test
+	public void testMessageDecodingWithUnavailableClass() throws Exception {
+		final ClassLoader systemClassLoader = getClass().getClassLoader();
+
+		final String className = "UserClass";
+		final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
+			temporaryFolder.newFolder(),
+			className + ".java",
+			"import java.io.Serializable;\n"
+				+ "public class " + className + " implements Serializable {}");
+
+		RemoteRpcInvocation method = new RemoteRpcInvocation(
+			"test",
+			new Class<?>[] {
+				int.class,
+				Class.forName(className, false, userClassLoader)},
+			new Object[] {
+				1,
+				Class.forName(className, false, userClassLoader).newInstance()});
+
+		SerializedValue<RemoteRpcInvocation> serializedMethod = new SerializedValue<>(method);
+
+		expectedException.expect(ClassNotFoundException.class);
+		expectedException.expect(
+			allOf(
+				isA(ClassNotFoundException.class),
+				hasProperty("suppressed",
+					hasItemInArray(
+						allOf(
+							isA(ClassNotFoundException.class),
+							hasProperty("message",
+								containsString("Could not deserialize 1th parameter type of method test(int, ...).")))))));
+
+		RemoteRpcInvocation deserializedMethod = serializedMethod.deserializeValue(systemClassLoader);
+		deserializedMethod.getMethodName();
+
+		userClassLoader.close();
+	}
 
 	@Test
 	public void testParentFirstClassLoading() throws Exception {

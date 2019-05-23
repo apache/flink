@@ -18,27 +18,26 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 
 /**
  * IT case for the {@link AvroExternalJarProgram}.
  */
-@Category(New.class)
 public class AvroExternalJarProgramITCase extends TestLogger {
 
 	private static final String JAR_FILE = "maven-test-jar.jar";
@@ -66,15 +65,23 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 	@Test
 	public void testExternalProgram() throws Exception {
+
+		String jarFile = JAR_FILE;
+		try {
+			JobWithJars.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
+		} catch (IOException e) {
+			jarFile = "target/".concat(jarFile);
+		}
+
 		TestEnvironment.setAsContext(
 			MINI_CLUSTER,
 			PARALLELISM,
-			Collections.singleton(new Path(JAR_FILE)),
+			Collections.singleton(new Path(jarFile)),
 			Collections.emptyList());
 
 		String testData = getClass().getResource(TEST_DATA_FILE).toString();
 
-		PackagedProgram program = new PackagedProgram(new File(JAR_FILE), new String[]{testData});
+		PackagedProgram program = new PackagedProgram(new File(jarFile), new String[]{testData});
 
 		program.invokeInteractiveModeForExecution();
 	}

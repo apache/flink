@@ -32,9 +32,9 @@ import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
@@ -51,6 +51,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.IN_PROGRESS_SUFFIX;
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PENDING_SUFFIX;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -75,11 +77,8 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 
 	private static String outPath;
 
-	private static final String PENDING_SUFFIX = ".pending";
-	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
-
-	@BeforeClass
-	public static void createHDFS() throws IOException {
+	@Before
+	public void createHDFS() throws IOException {
 		Configuration conf = new Configuration();
 
 		File dataDir = tempFolder.newFolder();
@@ -95,8 +94,8 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 				+ "/string-non-rolling-out";
 	}
 
-	@AfterClass
-	public static void destroyHDFS() {
+	@After
+	public void destroyHDFS() {
 		if (hdfsCluster != null) {
 			hdfsCluster.shutdown();
 		}

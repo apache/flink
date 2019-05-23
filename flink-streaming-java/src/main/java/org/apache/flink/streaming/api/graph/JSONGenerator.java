@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -61,14 +60,16 @@ public class JSONGenerator {
 		List<Integer> operatorIDs = new ArrayList<Integer>(streamGraph.getVertexIDs());
 		Collections.sort(operatorIDs, new Comparator<Integer>() {
 			@Override
-			public int compare(Integer o1, Integer o2) {
+			public int compare(Integer idOne, Integer idTwo) {
+				boolean isIdOneSinkId = streamGraph.getSinkIDs().contains(idOne);
+				boolean isIdTwoSinkId = streamGraph.getSinkIDs().contains(idTwo);
 				// put sinks at the back
-				if (streamGraph.getSinkIDs().contains(o1)) {
+				if (isIdOneSinkId == isIdTwoSinkId) {
+					return idOne.compareTo(idTwo);
+				} else if (isIdOneSinkId) {
 					return 1;
-				} else if (streamGraph.getSinkIDs().contains(o2)) {
-					return -1;
 				} else {
-					return o1 - o2;
+					return -1;
 				}
 			}
 		});
@@ -184,8 +185,6 @@ public class JSONGenerator {
 		} else {
 			node.put(PACT, "Operator");
 		}
-
-		StreamOperator<?> operator = streamGraph.getStreamNode(vertexID).getOperator();
 
 		node.put(CONTENTS, vertex.getOperatorName());
 

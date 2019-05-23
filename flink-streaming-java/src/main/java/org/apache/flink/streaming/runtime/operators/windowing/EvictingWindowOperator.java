@@ -263,16 +263,17 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			evictingWindowState.setCurrentNamespace(triggerContext.window);
 		}
 
-		Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
+		TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
 
-		if (contents != null) {
-			TriggerResult triggerResult = triggerContext.onEventTime(timer.getTimestamp());
-			if (triggerResult.isFire()) {
+		if (triggerResult.isFire()) {
+			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
+			if (contents != null) {
 				emitWindowContents(triggerContext.window, contents, evictingWindowState);
 			}
-			if (triggerResult.isPurge()) {
-				evictingWindowState.clear();
-			}
+		}
+
+		if (triggerResult.isPurge()) {
+			evictingWindowState.clear();
 		}
 
 		if (windowAssigner.isEventTime() && isCleanupTime(triggerContext.window, timer.getTimestamp())) {
@@ -309,16 +310,17 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			evictingWindowState.setCurrentNamespace(triggerContext.window);
 		}
 
-		Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
+		TriggerResult triggerResult = triggerContext.onProcessingTime(timer.getTimestamp());
 
-		if (contents != null) {
-			TriggerResult triggerResult = triggerContext.onProcessingTime(timer.getTimestamp());
-			if (triggerResult.isFire()) {
+		if (triggerResult.isFire()) {
+			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
+			if (contents != null) {
 				emitWindowContents(triggerContext.window, contents, evictingWindowState);
 			}
-			if (triggerResult.isPurge()) {
-				evictingWindowState.clear();
-			}
+		}
+
+		if (triggerResult.isPurge()) {
+			evictingWindowState.clear();
 		}
 
 		if (!windowAssigner.isEventTime() && isCleanupTime(triggerContext.window, timer.getTimestamp())) {

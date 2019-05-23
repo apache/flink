@@ -35,12 +35,10 @@ import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -61,7 +59,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for {@link AbstractMetricsHandler}.
  */
-@Category(New.class)
 public class AbstractMetricsHandlerTest extends TestLogger {
 
 	private static final String TEST_METRIC_NAME = "test_counter";
@@ -91,7 +88,6 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		when(mockMetricFetcher.getMetricStore()).thenReturn(metricStore);
 
 		testMetricsHandler = new TestMetricsHandler(
-			CompletableFuture.completedFuture("localhost:1234"),
 			new GatewayRetriever<DispatcherGateway>() {
 				@Override
 				public CompletableFuture<DispatcherGateway> getFuture() {
@@ -187,7 +183,6 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		private boolean returnComponentMetricStore = true;
 
 		private TestMetricsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
@@ -196,7 +191,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 				TestMessageParameters> messageHeaders,
 			MetricFetcher metricFetcher) {
 
-			super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders, metricFetcher);
+			super(leaderRetriever, timeout, headers, messageHeaders, metricFetcher);
 		}
 
 		@Nullable
@@ -220,6 +215,11 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		@Override
 		public String getTargetRestEndpointURL() {
 			return "/";
+		}
+
+		@Override
+		public String getDescription() {
+			return "";
 		}
 	}
 

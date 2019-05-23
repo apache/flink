@@ -492,8 +492,7 @@ public class BlobServerPutTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// upload the file to the server directly
-			exception.expect(IOException.class);
-			exception.expectMessage("Cannot create directory ");
+			exception.expect(AccessDeniedException.class);
 
 			put(server, jobId, data, blobType);
 
@@ -785,7 +784,7 @@ public class BlobServerPutTest extends TestLogger {
 					// uploading HA BLOBs works on BlobServer only (and, for now, via the BlobClient)
 					Configuration clientConfig = new Configuration();
 					List<Path> jars = Collections.singletonList(new Path(tmpFile.getAbsolutePath()));
-					List<PermanentBlobKey> keys = BlobClient.uploadJarFiles(serverAddress, clientConfig, jobId, jars);
+					List<PermanentBlobKey> keys = BlobClient.uploadFiles(serverAddress, clientConfig, jobId, jars);
 					assertEquals(1, keys.size());
 					return keys.get(0);
 				} finally {

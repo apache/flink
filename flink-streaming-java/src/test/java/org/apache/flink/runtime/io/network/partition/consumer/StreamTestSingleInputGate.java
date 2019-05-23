@@ -21,20 +21,22 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -42,8 +44,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
 
 /**
  * Test {@link InputGate} that allows setting multiple channels. Use
@@ -79,7 +79,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 		inputQueues = new ConcurrentLinkedQueue[numInputChannels];
 
 		setupInputChannels();
-		doReturn(bufferSize).when(inputGate).getPageSize();
+		inputGate.setBufferPool(new NoOpBufferPool(bufferSize));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -94,44 +94,40 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
-			final Answer<Optional<BufferAndAvailability>> answer = new Answer<Optional<BufferAndAvailability>>() {
-				@Override
-				public Optional<BufferAndAvailability> answer(InvocationOnMock invocationOnMock) throws Throwable {
-					ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
-					InputValue<Object> input;
-					boolean moreAvailable;
-					synchronized (inputQueue) {
-						input = inputQueue.poll();
-						moreAvailable = !inputQueue.isEmpty();
-					}
-					if (input != null && input.isStreamEnd()) {
-						when(inputChannels[channelIndex].getInputChannel().isReleased()).thenReturn(
-							true);
-						return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0));
-					} else if (input != null && input.isStreamRecord()) {
-						Object inputElement = input.getStreamRecord();
+			final BufferAndAvailabilityProvider answer = () -> {
+				ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
+				InputValue<Object> input;
+				boolean moreAvailable;
+				synchronized (inputQueue) {
+					input = inputQueue.poll();
+					moreAvailable = !inputQueue.isEmpty();
+				}
+				if (input != null && input.isStreamEnd()) {
+					inputChannels[channelIndex].setReleased();
+					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0));
+				} else if (input != null && input.isStreamRecord()) {
+					Object inputElement = input.getStreamRecord();
 
-						BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
-						recordSerializer.continueWritingWithNextBufferBuilder(bufferBuilder);
-						delegate.setInstance(inputElement);
-						recordSerializer.addRecord(delegate);
-						bufferBuilder.finish();
+					delegate.setInstance(inputElement);
+					recordSerializer.serializeRecord(delegate);
+					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+					recordSerializer.copyToBufferBuilder(bufferBuilder);
+					bufferBuilder.finish();
 
-						// Call getCurrentBuffer to ensure size is set
-						return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
-					} else if (input != null && input.isEvent()) {
-						AbstractEvent event = input.getEvent();
-						return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0));
-					} else {
-						return Optional.empty();
-					}
+					// Call getCurrentBuffer to ensure size is set
+					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
+				} else if (input != null && input.isEvent()) {
+					AbstractEvent event = input.getEvent();
+					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0));
+				} else {
+					return Optional.empty();
 				}
 			};
 
-			when(inputChannels[channelIndex].getInputChannel().getNextBuffer()).thenAnswer(answer);
+			inputChannels[channelIndex].addBufferAndAvailability(answer);
 
 			inputGate.setInputChannel(new IntermediateResultPartitionID(),
-				inputChannels[channelIndex].getInputChannel());
+				inputChannels[channelIndex]);
 		}
 	}
 
@@ -140,7 +136,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channel].add(InputValue.element(element));
 			inputQueues[channel].notifyAll();
 		}
-		inputGate.notifyChannelNonEmpty(inputChannels[channel].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[channel]);
 	}
 
 	public void sendEvent(AbstractEvent event, int channel) {
@@ -148,7 +144,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channel].add(InputValue.event(event));
 			inputQueues[channel].notifyAll();
 		}
-		inputGate.notifyChannelNonEmpty(inputChannels[channel].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[channel]);
 	}
 
 	public void endInput() {
@@ -157,7 +153,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 				inputQueues[i].add(InputValue.streamEnd());
 				inputQueues[i].notifyAll();
 			}
-			inputGate.notifyChannelNonEmpty(inputChannels[i].getInputChannel());
+			inputGate.notifyChannelNonEmpty(inputChannels[i]);
 		}
 	}
 
@@ -224,6 +220,83 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 		public boolean isEvent() {
 			return isEvent;
+		}
+	}
+
+	private static class NoOpBufferPool implements BufferPool {
+		private int bufferSize;
+
+		public NoOpBufferPool(int bufferSize) {
+			this.bufferSize = bufferSize;
+		}
+
+		@Override
+		public void lazyDestroy() {
+		}
+
+		@Override
+		public int getMemorySegmentSize() {
+			return bufferSize;
+		}
+
+		@Override
+		public Buffer requestBuffer() throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Buffer requestBufferBlocking() throws IOException, InterruptedException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean addBufferListener(BufferListener listener) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean isDestroyed() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getNumberOfRequiredMemorySegments() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getMaxNumberOfMemorySegments() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getNumBuffers() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setNumBuffers(int numBuffers) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getNumberOfAvailableMemorySegments() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int bestEffortGetNumOfUsedBuffers() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void recycle(MemorySegment memorySegment) {
+			throw new UnsupportedOperationException();
 		}
 	}
 }

@@ -46,7 +46,9 @@ import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -267,6 +269,79 @@ public class FlinkKinesisProducerTest {
 		testHarness.close();
 	}
 
+	/**
+	 * Test ensuring that the producer blocks if the queue limit is exceeded,
+	 * until the queue length drops below the limit;
+	 * we set a timeout because the test will not finish if the logic is broken.
+	 */
+	@Test(timeout = 10000)
+	public void testBackpressure() throws Throwable {
+		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
+		producer.setQueueLimit(1);
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness =
+				new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
+
+		testHarness.open();
+
+		UserRecordResult result = mock(UserRecordResult.class);
+		when(result.isSuccessful()).thenReturn(true);
+
+		CheckedThread msg1 = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				testHarness.processElement(new StreamRecord<>("msg-1"));
+			}
+		};
+		msg1.start();
+		msg1.trySync(100);
+		assertFalse("Flush triggered before reaching queue limit", msg1.isAlive());
+
+		// consume msg-1 so that queue is empty again
+		producer.getPendingRecordFutures().get(0).set(result);
+
+		CheckedThread msg2 = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				testHarness.processElement(new StreamRecord<>("msg-2"));
+			}
+		};
+		msg2.start();
+		msg2.trySync(100);
+		assertFalse("Flush triggered before reaching queue limit", msg2.isAlive());
+
+		CheckedThread moreElementsThread = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				// this should block until msg-2 is consumed
+				testHarness.processElement(new StreamRecord<>("msg-3"));
+				// this should block until msg-3 is consumed
+				testHarness.processElement(new StreamRecord<>("msg-4"));
+			}
+		};
+		moreElementsThread.start();
+
+		moreElementsThread.trySync(100);
+		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
+
+		// consume msg-2 from the queue, leaving msg-3 in the queue and msg-4 blocked
+		producer.getPendingRecordFutures().get(1).set(result);
+
+		moreElementsThread.trySync(100);
+		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
+
+		// consume msg-3, blocked msg-4 can be inserted into the queue and block is released
+		producer.getPendingRecordFutures().get(2).set(result);
+
+		moreElementsThread.trySync(100);
+
+		assertFalse("Prodcuer still blocks although the queue is flushed", moreElementsThread.isAlive());
+
+		producer.getPendingRecordFutures().get(3).set(result);
+
+		testHarness.close();
+	}
+
 	// ----------------------------------------------------------------------
 	// Utility test classes
 	// ----------------------------------------------------------------------
@@ -346,7 +421,6 @@ public class FlinkKinesisProducerTest {
 		private List<SettableFuture<UserRecordResult>> pendingRecordFutures = new LinkedList<>();
 
 		private transient MultiShotLatch flushLatch;
-		private boolean isFlushed;
 
 		DummyFlinkKinesisProducer(SerializationSchema<T> schema) {
 			super(schema, TestUtils.getStandardProperties());
@@ -358,7 +432,7 @@ public class FlinkKinesisProducerTest {
 			// set up mock producer
 			this.mockProducer = mock(KinesisProducer.class);
 
-			when(mockProducer.addUserRecord(anyString(), anyString(), anyString(), any(ByteBuffer.class))).thenAnswer(new Answer<Object>() {
+			when(mockProducer.addUserRecord(anyString(), anyString(), nullable(String.class), any(ByteBuffer.class))).thenAnswer(new Answer<Object>() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 					SettableFuture<UserRecordResult> future = SettableFuture.create();
@@ -378,13 +452,6 @@ public class FlinkKinesisProducerTest {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 					flushLatch.trigger();
-
-					while (!isAllRecordFuturesCompleted()) {
-						Thread.sleep(50);
-					}
-
-					isFlushed = true;
-
 					return null;
 				}
 			}).when(mockProducer).flush();
@@ -399,12 +466,11 @@ public class FlinkKinesisProducerTest {
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			isFlushed = false;
 
 			super.snapshotState(context);
 
 			// if the snapshot implementation doesn't wait until all pending records are flushed, we should fail the test
-			if (!isFlushed) {
+			if (mockProducer.getOutstandingRecordsCount() > 0) {
 				throw new RuntimeException("Flushing is enabled; snapshots should be blocked until all pending records are flushed");
 			}
 		}
@@ -415,16 +481,6 @@ public class FlinkKinesisProducerTest {
 
 		void waitUntilFlushStarted() throws Exception {
 			flushLatch.await();
-		}
-
-		private boolean isAllRecordFuturesCompleted() {
-			for (SettableFuture<UserRecordResult> future : pendingRecordFutures) {
-				if (!future.isDone()) {
-					return false;
-				}
-			}
-
-			return true;
 		}
 
 		private int getNumPendingRecordFutures() {

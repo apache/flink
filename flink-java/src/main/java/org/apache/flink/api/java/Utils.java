@@ -36,8 +36,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Random;
 
-import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
-
 /**
  * Utility class that contains helper methods to work with Java APIs.
  */
@@ -71,7 +69,6 @@ public final class Utils {
 	 *
 	 * @param <T> Type of elements to count.
 	 */
-	@SkipCodeAnalysis
 	public static class CountHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
@@ -108,7 +105,6 @@ public final class Utils {
 	 *
 	 * @param <T> Type of elements to count.
 	 */
-	@SkipCodeAnalysis
 	public static class CollectHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
@@ -220,7 +216,6 @@ public final class Utils {
 	 * {@link RichOutputFormat} for {@link ChecksumHashCode}.
 	 * @param <T>
 	 */
-	@SkipCodeAnalysis
 	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;

@@ -38,4 +38,9 @@ public class RescalingParallelismQueryParameter extends MessageQueryParameter<In
 	public String convertValueToString(Integer value) {
 		return value.toString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "Positive integer value that specifies the desired parallelism.";
+	}
 }

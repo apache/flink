@@ -68,4 +68,9 @@ public class CheckpointingStatisticsHeaders implements MessageHeaders<EmptyReque
 	public static CheckpointingStatisticsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns checkpointing statistics for a job.";
+	}
 }

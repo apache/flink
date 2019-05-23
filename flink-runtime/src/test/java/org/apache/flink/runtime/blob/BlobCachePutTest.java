@@ -833,7 +833,7 @@ public class BlobCachePutTest extends TestLogger {
 						() -> {
 							try {
 								List<PermanentBlobKey> keys =
-									BlobClient.uploadJarFiles(serverAddress, config, jobId, jars);
+									BlobClient.uploadFiles(serverAddress, config, jobId, jars);
 								assertEquals(1, keys.size());
 								BlobKey uploadedKey = keys.get(0);
 								// check the uploaded file's contents (concurrently)

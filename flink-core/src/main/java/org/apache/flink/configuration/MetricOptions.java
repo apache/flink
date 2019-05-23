@@ -19,8 +19,10 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration options for metrics and metric reporters.
@@ -45,7 +47,10 @@ public class MetricOptions {
 	 */
 	public static final ConfigOption<String> REPORTERS_LIST =
 		key("metrics.reporters")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("An optional list of reporter names. If configured, only reporters whose name matches" +
+				" any of the names in the list will be started. Otherwise, all reporters that could be found in" +
+				" the configuration will be started.");
 
 	public static final ConfigOption<String> REPORTER_CLASS =
 		key("metrics.reporter.<name>.class")
@@ -66,7 +71,8 @@ public class MetricOptions {
 	/** The delimiter used to assemble the metric identifier. */
 	public static final ConfigOption<String> SCOPE_DELIMITER =
 		key("metrics.scope.delimiter")
-			.defaultValue(".");
+			.defaultValue(".")
+			.withDescription("Delimiter used to assemble the metric identifier.");
 
 	/** The scope format string that is applied to all metrics scoped to a JobManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_JM =
@@ -104,11 +110,80 @@ public class MetricOptions {
 			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
 			.withDescription("Defines the scope format string that is applied to all metrics scoped to an operator.");
 
+	public static final ConfigOption<Long> LATENCY_INTERVAL =
+		key("metrics.latency.interval")
+			.defaultValue(0L)
+			.withDescription("Defines the interval at which latency tracking marks are emitted from the sources." +
+				" Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly" +
+				" impact the performance of the cluster.");
+
+	public static final ConfigOption<String> LATENCY_SOURCE_GRANULARITY =
+		key("metrics.latency.granularity")
+			.defaultValue("operator")
+			.withDescription(Description.builder()
+				.text("Defines the granularity of latency metrics. Accepted values are:")
+				.list(
+					text("single - Track latency without differentiating between sources and subtasks."),
+					text("operator - Track latency while differentiating between sources, but not subtasks."),
+					text("subtask - Track latency while differentiating between sources and subtasks."))
+				.build());
+
 	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
 		key("metrics.latency.history-size")
 			.defaultValue(128)
 			.withDescription("Defines the number of measured latencies to maintain at each operator.");
+
+	/**
+	 * Whether Flink should report system resource metrics such as machine's CPU, memory or network usage.
+	 */
+	public static final ConfigOption<Boolean> SYSTEM_RESOURCE_METRICS =
+		key("metrics.system-resource")
+			.defaultValue(false)
+			.withDescription("Flag indicating whether Flink should report system resource metrics such as machine's CPU," +
+				" memory or network usage.");
+	/**
+	 * Interval between probing of system resource metrics specified in milliseconds. Has an effect only when
+	 * {@link #SYSTEM_RESOURCE_METRICS} is enabled.
+	 */
+	public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
+		key("metrics.system-resource-probing-interval")
+			.defaultValue(5000L)
+			.withDescription("Interval between probing of system resource metrics specified in milliseconds. Has an effect" +
+				" only when '" + SYSTEM_RESOURCE_METRICS.key() + "' is enabled.");
+
+	/**
+	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that
+	 * Flink searches for a free port.
+	 */
+	public static final ConfigOption<String> QUERY_SERVICE_PORT =
+		key("metrics.internal.query-service.port")
+		.defaultValue("0")
+		.withDescription("The port range used for Flink's internal metric query service. Accepts a list of ports " +
+			"(“50100,50101”), ranges(“50100-50200”) or a combination of both. It is recommended to set a range of " +
+			"ports to avoid collisions when multiple Flink components are running on the same machine. Per default " +
+			"Flink will pick a random port.");
+
+	/**
+	 * The thread priority for Flink's internal metric query service. The {@code 1} means the min priority and the
+	 * {@code 10} means the max priority.
+	 */
+	public static final ConfigOption<Integer> QUERY_SERVICE_THREAD_PRIORITY =
+		key("metrics.internal.query-service.thread-priority")
+		.defaultValue(1)
+		.withDescription("The thread priority used for Flink's internal metric query service. The thread is created" +
+			" by Akka's thread pool executor. " +
+			"The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). " +
+			"Warning, increasing this value may bring the main Flink components down.");
+	/**
+	 * The config parameter defining the update interval for the metric fetcher used by the web UI in milliseconds.
+	 */
+	public static final ConfigOption<Long> METRIC_FETCHER_UPDATE_INTERVAL =
+		key("metrics.fetcher.update-interval")
+			.defaultValue(10000L)
+			.withDescription("Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for " +
+				"faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 " +
+				"disables the metric fetching completely.");
 
 	private MetricOptions() {
 	}

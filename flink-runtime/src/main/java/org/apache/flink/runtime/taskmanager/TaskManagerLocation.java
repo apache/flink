@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import java.net.InetAddress;
-
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.NetUtils;
 
@@ -27,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
+import java.net.InetAddress;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -82,30 +82,9 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		this.dataPort = dataPort;
 
 		// get FQDN hostname on this TaskManager.
-		String fqdnHostName;
-		try {
-			fqdnHostName = this.inetAddress.getCanonicalHostName();
-		}
-		catch (Throwable t) {
-			LOG.warn("Unable to determine the canonical hostname. Input split assignment (such as " +
-					"for HDFS files) may be non-local when the canonical hostname is missing.");
-			LOG.debug("getCanonicalHostName() Exception:", t);
-			fqdnHostName = this.inetAddress.getHostAddress();
-		}
-		this.fqdnHostName = fqdnHostName;
+		this.fqdnHostName = getFqdnHostName(inetAddress);
 
-		if (this.fqdnHostName.equals(this.inetAddress.getHostAddress())) {
-			// this happens when the name lookup fails, either due to an exception,
-			// or because no hostname can be found for the address
-			// take IP textual representation
-			this.hostName = this.fqdnHostName;
-			LOG.warn("No hostname could be resolved for the IP address {}, using IP address as host name. "
-					+ "Local input split assignment (such as for HDFS files) may be impacted.",
-					this.inetAddress.getHostAddress());
-		}
-		else {
-			this.hostName = NetUtils.getHostnameFromFQDN(this.fqdnHostName);
-		}
+		this.hostName = getHostName(inetAddress);
 
 		this.stringRepresentation = String.format(
 				"%s @ %s (dataPort=%d)", resourceID, fqdnHostName, dataPort);
@@ -182,6 +161,50 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 * @return The hostname of the TaskManager.
 	 */
 	public String getHostname() {
+		return hostName;
+	}
+
+	/**
+	 * Gets the fully qualified hostname of the TaskManager based on the network address.
+	 *
+	 * @param inetAddress the network address that the TaskManager binds its sockets to
+	 * @return fully qualified hostname of the TaskManager
+	 */
+	private static String getFqdnHostName(InetAddress inetAddress) {
+		String fqdnHostName;
+		try {
+			fqdnHostName = inetAddress.getCanonicalHostName();
+		} catch (Throwable t) {
+			LOG.warn("Unable to determine the canonical hostname. Input split assignment (such as " +
+				"for HDFS files) may be non-local when the canonical hostname is missing.");
+			LOG.debug("getCanonicalHostName() Exception:", t);
+			fqdnHostName = inetAddress.getHostAddress();
+		}
+
+		return fqdnHostName;
+	}
+
+	/**
+	 * Gets the hostname of the TaskManager based on the network address.
+	 *
+	 * @param inetAddress the network address that the TaskManager binds its sockets to
+	 * @return hostname of the TaskManager
+	 */
+	public static String getHostName(InetAddress inetAddress) {
+		String hostName;
+		String fqdnHostName = getFqdnHostName(inetAddress);
+
+		if (fqdnHostName.equals(inetAddress.getHostAddress())) {
+			// this happens when the name lookup fails, either due to an exception,
+			// or because no hostname can be found for the address
+			// take IP textual representation
+			hostName = fqdnHostName;
+			LOG.warn("No hostname could be resolved for the IP address {}, using IP address as host name. "
+				+ "Local input split assignment (such as for HDFS files) may be impacted.", inetAddress.getHostAddress());
+		} else {
+			hostName = NetUtils.getHostnameFromFQDN(fqdnHostName);
+		}
+
 		return hostName;
 	}
 

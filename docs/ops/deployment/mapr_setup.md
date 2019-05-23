@@ -41,11 +41,11 @@ In order to run Flink on MapR, Flink needs to be built with MapR's own
 Hadoop and Zookeeper distribution. Simply build Flink using Maven with
 the following command from the project root directory:
 
-```
+{% highlight bash %}
 mvn clean install -DskipTests -Pvendor-repos,mapr \
     -Dhadoop.version=2.7.0-mapr-1607 \
     -Dzookeeper.version=3.4.5-mapr-1604
-```
+{% endhighlight %}
 
 The `vendor-repos` build profile adds MapR's repository to the build so that
 MapR's Hadoop / Zookeeper dependencies can be fetched. The `mapr` build
@@ -67,13 +67,13 @@ The client submitting Flink jobs to MapR also needs to be prepared with the belo
 
 Ensure that MapR's JAAS config file is picked up to avoid login failures:
 
-```
+{% highlight bash %}
 export JVM_ARGS=-Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf
-```
+{% endhighlight %}
 
 Make sure that the `yarn.nodemanager.resource.cpu-vcores` property is set in `yarn-site.xml`:
 
-~~~xml
+{% highlight xml %}
 <!-- in /opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop/yarn-site.xml -->
 
 <configuration>
@@ -86,28 +86,28 @@ Make sure that the `yarn.nodemanager.resource.cpu-vcores` property is set in `ya
 
 ...
 </configuration>
-~~~
+{% endhighlight %}
 
 Also remember to set the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment
 variables to the path where `yarn-site.xml` is located:
 
-```
+{% highlight bash %}
 export YARN_CONF_DIR=/opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop/
 export HADOOP_CONF_DIR=/opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop/
-```
+{% endhighlight %}
 
 Make sure that the MapR native libraries are picked up in the classpath:
 
-```
+{% highlight bash %}
 export FLINK_CLASSPATH=/opt/mapr/lib/*
-```
+{% endhighlight %}
 
 If you'll be starting Flink on YARN sessions with `yarn-session.sh`, the
 below is also required:
 
-```
+{% highlight bash %}
 export CC_CLASSPATH=/opt/mapr/lib/*
-```
+{% endhighlight %}
 
 ## Running Flink with a Secured MapR Cluster
 
@@ -125,10 +125,10 @@ Users simply need to login by using MapR's `maprlogin` authentication
 utility. Users that haven't acquired MapR login credentials would not be
 able to submit Flink jobs, erroring with:
 
-```
+{% highlight plain %}
 java.lang.Exception: unable to establish the security context
 Caused by: o.a.f.r.security.modules.SecurityModule$SecurityInstallException: Unable to set the Hadoop login user
 Caused by: java.io.IOException: failure to login: Unable to obtain MapR credentials
-```
+{% endhighlight %}
 
 {% top %}

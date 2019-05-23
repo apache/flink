@@ -49,8 +49,10 @@ Where to go next?
 -----------------
 
 * [Working with State](state.html): Shows how to use state in a Flink application and explains the different kinds of state.
+* [The Broadcast State Pattern](broadcast_state.html): Explains how to connect a broadcast stream with a non-broadcast stream and use state to exchange information between them. 
 * [Checkpointing](checkpointing.html): Describes how to enable and configure checkpointing for fault tolerance.
 * [Queryable State](queryable_state.html): Explains how to access state from outside of Flink during runtime.
-* [Custom Serialization for Managed State](custom_serialization.html): Discusses custom serialization logic for state and its upgrades.
+* [State Schema Evolution](schema_evolution.html): Shows how schema of state types can be evolved.
+* [Custom Serialization for Managed State](custom_serialization.html): Discusses how to implement custom serializers, especially for schema evolution.
 
 {% top %}
