@@ -28,20 +28,19 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.java.{BatchTableEnvImpl => JavaBatchTableEnvImpl, StreamTableEnvImpl => JavaStreamTableEnvImpl}
-import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.api.scala.{BatchTableEnvImpl => ScalaBatchTableEnvImpl, StreamTableEnvImpl => ScalaStreamTableEnvImpl}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.{BatchTableEnvImpl => ScalaBatchTableEnvImpl, _}
 import org.apache.flink.table.api.{Table, TableConfig, TableImpl, TableSchema}
-import org.apache.flink.table.catalog.{CatalogManager, GenericCatalogDatabase, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.utils.TableTestUtil.{createCatalogManager, extractBuiltinPath}
+import org.apache.flink.table.operations.{CatalogTableOperation, DataSetTableOperation, DataStreamTableOperation}
+import org.apache.flink.table.utils.TableTestUtil.createCatalogManager
 import org.junit.Assert.assertEquals
-import org.junit.{ComparisonFailure, Rule}
 import org.junit.rules.ExpectedException
+import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
-import util.control.Breaks._
+import scala.util.control.Breaks._
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -108,16 +107,8 @@ abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
     // depends on the native machine (Little/Big Endian)
     val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
 
-    // majority of tests did not assume existence of Catalog API.
-    // this enables disabling catalog path verification
-    val actualWithAdjustedPath = if (!verifyCatalogPath) {
-      actualNoCharset.replaceAll("default_catalog, default_database, ", "")
-    } else {
-      actualNoCharset
-    }
-
     val expectedLines = expected.split("\n").map(_.trim)
-    val actualLines = actualWithAdjustedPath.split("\n").map(_.trim)
+    val actualLines = actualNoCharset.split("\n").map(_.trim)
 
     val expectedMessage = expectedLines.mkString("\n")
     val actualMessage = actualLines.mkString("\n")
@@ -210,12 +201,16 @@ object TableTestUtil {
     term("tuples", "[" + listValues.mkString(", ") + "]")
   }
 
-  def batchTableNode(idx: Int): String = {
-    s"DataSetScan(table=[[_DataSetTable_$idx]])"
+  def batchTableNode(table: Table): String = {
+    val dataSetTable = table.getTableOperation.asInstanceOf[DataSetTableOperation[_]]
+    s"DataSetScan(ref=[${System.identityHashCode(dataSetTable.getDataSet)}], " +
+      s"fields=[${dataSetTable.getTableSchema.getFieldNames.mkString(", ")}])"
   }
 
-  def streamTableNode(idx: Int): String = {
-    s"DataStreamScan(table=[[_DataStreamTable_$idx]])"
+  def streamTableNode(table: Table): String = {
+    val dataStreamTable = table.getTableOperation.asInstanceOf[DataStreamTableOperation[_]]
+    s"DataStreamScan(id=[${dataStreamTable.getDataStream.getId}], " +
+      s"fields=[${dataStreamTable.getTableSchema.getFieldNames.mkString(", ")}])"
   }
 }
 

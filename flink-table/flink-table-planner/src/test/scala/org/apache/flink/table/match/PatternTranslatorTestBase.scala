@@ -54,6 +54,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     val jDataStreamMock = mock(classOf[JDataStream[Row]])
     when(dataStreamMock.javaStream).thenReturn(jDataStreamMock)
     when(jDataStreamMock.getType).thenReturn(typeInfo)
+    when(jDataStreamMock.getId).thenReturn(0)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env).asInstanceOf[StreamTableEnvImpl]

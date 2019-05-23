@@ -22,17 +22,15 @@ import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.stream.table.TemporalTableJoinTest._
 import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin._
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
 import org.hamcrest.Matchers.{equalTo, startsWith}
-import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
+import org.junit.Assert.{assertEquals, assertThat}
 import org.junit.Test
 
 class TemporalTableJoinTest extends TableTestBase {
@@ -106,7 +104,47 @@ class TemporalTableJoinTest extends TableTestBase {
       .select('o_amount * 'rate, 'secondary_key).as('rate, 'secondary_key)
       .join(thirdTable, 't3_secondary_key === 'secondary_key)
 
-    util.verifyTable(result, getExpectedComplexJoinPlan())
+    util.verifyTable(result, binaryNode(
+      "DataStreamJoin",
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamTemporalTableJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(orders),
+            term("select", "o_rowtime, o_amount, o_currency, o_secondary_key")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(ratesHistory),
+            term("select", "rowtime, currency, rate, secondary_key"),
+            term("where", ">(rate, 110)")
+          ),
+          term(
+            "where",
+            "AND(" +
+              s"${TEMPORAL_JOIN_CONDITION.getName}(o_rowtime, rowtime, currency), " +
+              "OR(=(currency, o_currency), =(secondary_key, o_secondary_key)))"),
+          term(
+            "join",
+            "o_rowtime",
+            "o_amount",
+            "o_currency",
+            "o_secondary_key",
+            "rowtime",
+            "currency",
+            "rate",
+            "secondary_key"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "*(o_amount, rate) AS rate", "secondary_key")
+      ),
+      streamTableNode(thirdTable),
+      term("where", "=(t3_secondary_key, secondary_key)"),
+      term("join", "rate, secondary_key, t3_comment, t3_secondary_key"),
+      term("joinType", "InnerJoin")
+    ))
   }
 
   @Test
@@ -176,16 +214,14 @@ class TemporalTableJoinTest extends TableTestBase {
       expectedSchema.toRowType,
       rates.getResultType)
   }
-}
 
-object TemporalTableJoinTest {
   def getExpectedSimpleJoinPlan(): String = {
     unaryNode(
       "DataStreamCalc",
       binaryNode(
         "DataStreamTemporalTableJoin",
-        streamTableNode(0),
-        streamTableNode(1),
+        streamTableNode(orders),
+        streamTableNode(ratesHistory),
         term("where",
           "AND(" +
             s"${TEMPORAL_JOIN_CONDITION.getName}(o_rowtime, rowtime, currency), " +
@@ -202,10 +238,10 @@ object TemporalTableJoinTest {
       "DataStreamCalc",
       binaryNode(
         "DataStreamTemporalTableJoin",
-        streamTableNode(2),
+        streamTableNode(proctimeOrders),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(3),
+          streamTableNode(proctimeRatesHistory),
           term("select", "currency, rate")),
         term("where",
           "AND(" +
@@ -218,57 +254,15 @@ object TemporalTableJoinTest {
     )
   }
 
-  def getExpectedComplexJoinPlan(): String = {
-    binaryNode(
-      "DataStreamJoin",
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamTemporalTableJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "o_rowtime, o_amount, o_currency, o_secondary_key")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(2),
-            term("select", "rowtime, currency, rate, secondary_key"),
-            term("where", ">(rate, 110)")
-          ),
-          term("where",
-            "AND(" +
-              s"${TEMPORAL_JOIN_CONDITION.getName}(o_rowtime, rowtime, currency), " +
-              "OR(=(currency, o_currency), =(secondary_key, o_secondary_key)))"),
-          term("join",
-            "o_rowtime",
-            "o_amount",
-            "o_currency",
-            "o_secondary_key",
-            "rowtime",
-            "currency",
-            "rate",
-            "secondary_key"),
-          term("joinType", "InnerJoin")
-        ),
-        term("select", "*(o_amount, rate) AS rate", "secondary_key")
-      ),
-      streamTableNode(0),
-      term("where", "=(t3_secondary_key, secondary_key)"),
-      term("join", "rate, secondary_key, t3_comment, t3_secondary_key"),
-      term("joinType", "InnerJoin")
-    )
-  }
-
   def getExpectedTemporalTableFunctionOnTopOfQueryPlan(): String = {
     unaryNode(
       "DataStreamCalc",
       binaryNode(
         "DataStreamTemporalTableJoin",
-        streamTableNode(0),
+        streamTableNode(orders),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(1),
+          streamTableNode(ratesHistory),
           term("select", "currency", "*(rate, 2) AS rate", "rowtime"),
           term("where", ">(rate, 100)")),
         term("where",
@@ -282,3 +276,4 @@ object TemporalTableJoinTest {
     )
   }
 }
+

@@ -47,7 +47,7 @@ class StreamTableEnvironmentTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a, b, c"),
       term("where", ">(b, 12)"))
 
@@ -60,8 +60,8 @@ class StreamTableEnvironmentTest extends TableTestBase {
 
     val expected2 = binaryNode(
       "DataStreamUnion",
-      streamTableNode(1),
-      streamTableNode(0),
+      streamTableNode(table2),
+      streamTableNode(table),
       term("all", "true"),
       term("union all", "d, e, f"))
 

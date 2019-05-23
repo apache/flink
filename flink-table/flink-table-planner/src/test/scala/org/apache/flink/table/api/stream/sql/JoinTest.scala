@@ -33,8 +33,18 @@ import org.junit.Test
   */
 class JoinTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c.rowtime, 'proctime.proctime)
-  streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
+  private val table = streamUtil.addTable[(Int, String, Long)](
+    "MyTable",
+    'a,
+    'b,
+    'c.rowtime,
+    'proctime.proctime)
+  private val table1 = streamUtil.addTable[(Int, String, Long)](
+    "MyTable2",
+    'a,
+    'b,
+    'c.rowtime,
+    'proctime.proctime)
 
   // Tests for inner join
   @Test
@@ -55,12 +65,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "proctime")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "proctime")
           ),
           term("where",
@@ -93,12 +103,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "c")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where",
@@ -131,12 +141,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "proctime")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "proctime")
           ),
           term("where",
@@ -169,12 +179,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "c")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where",
@@ -203,11 +213,11 @@ class JoinTest extends TableTestBase {
       unaryNode("DataStreamCalc",
         binaryNode("DataStreamWindowJoin",
           unaryNode("DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "proctime")
           ),
           unaryNode("DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "proctime")
           ),
           term("where", "AND(=(a, a0), =(PROCTIME(proctime), PROCTIME(proctime0)))"),
@@ -233,11 +243,11 @@ class JoinTest extends TableTestBase {
       unaryNode("DataStreamCalc",
         binaryNode("DataStreamWindowJoin",
           unaryNode("DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "c")
           ),
           unaryNode("DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where", "AND(=(a, a0), =(CAST(c), CAST(c0)))"),
@@ -254,13 +264,11 @@ class JoinTest extends TableTestBase {
     val streamUtil: StreamTableTestUtil = streamTestUtil()
 
     val t1 = streamUtil.addTable[(Int, Long, String)]("Table1", 'a, 'b, 'c, 'proctime.proctime)
-      .select('a, 'b, 'c, 'proctime, nullOf(Types.LONG) as 'nullField)
-
     val t2 = streamUtil.addTable[(Int, Long, String)]("Table2", 'a, 'b, 'c, 'proctime.proctime)
-      .select('a, 'b, 'c, 'proctime, 12L as 'nullField)
 
-    streamUtil.tableEnv.registerTable("T1", t1)
-    streamUtil.tableEnv.registerTable("T2", t2)
+    streamUtil.tableEnv
+      .registerTable("T1", t1.select('a, 'b, 'c, 'proctime, nullOf(Types.LONG) as 'nullField))
+    streamUtil.tableEnv.registerTable("T2", t2.select('a, 'b, 'c, 'proctime, 12L as 'nullField))
 
     val sqlQuery =
       """
@@ -275,12 +283,12 @@ class JoinTest extends TableTestBase {
       unaryNode("DataStreamCalc",
         binaryNode("DataStreamWindowJoin",
           unaryNode("DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(t1),
             term("select", "a", "c", "proctime", "null AS nullField")
           ),
           unaryNode("DataStreamCalc",
-            streamTableNode(1),
-            term("select", "a", "c", "proctime", "12 AS nullField")
+            streamTableNode(t2),
+            term("select", "a", "c", "proctime", "CAST(12) AS nullField")
           ),
           term("where", "AND(=(a, a0), =(nullField, nullField0), >=(PROCTIME(proctime), " +
             "-(PROCTIME(proctime0), 5000)), <=(PROCTIME(proctime), +(PROCTIME(proctime0), 5000)))"),
@@ -313,12 +321,12 @@ class JoinTest extends TableTestBase {
             "DataStreamWindowJoin",
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(0),
+              streamTableNode(table),
               term("select", "a", "b", "c")
             ),
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(1),
+              streamTableNode(table1),
               term("select", "a", "b", "c")
             ),
             term("where",
@@ -358,12 +366,12 @@ class JoinTest extends TableTestBase {
             "DataStreamWindowJoin",
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(0),
+              streamTableNode(table),
               term("select", "a", "b", "c")
             ),
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(1),
+              streamTableNode(table1),
               term("select", "a", "b", "c")
             ),
             term("where",
@@ -401,12 +409,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "proctime")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "proctime")
           ),
           term("where",
@@ -439,12 +447,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "c")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where",
@@ -478,12 +486,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "proctime")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "proctime")
           ),
           term("where",
@@ -516,12 +524,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "c")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where",
@@ -555,12 +563,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "proctime")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "proctime")
           ),
           term("where",
@@ -593,12 +601,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "c")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where",
@@ -633,12 +641,12 @@ class JoinTest extends TableTestBase {
           "DataStreamWindowJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b", "c")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            streamTableNode(table1),
             term("select", "a", "b", "c")
           ),
           term("where",
@@ -791,8 +799,8 @@ class JoinTest extends TableTestBase {
   @Test
   def testLeftOuterJoinEquiPred(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+    val left = util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    val right = util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z"
     val result = util.tableEnv.sqlQuery(query)
@@ -803,12 +811,12 @@ class JoinTest extends TableTestBase {
         "DataStreamJoin",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(left),
           term("select", "a", "b")
         ),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(1),
+          streamTableNode(right),
           term("select", "y", "z")
         ),
         term("where", "=(a, z)"),
@@ -824,8 +832,8 @@ class JoinTest extends TableTestBase {
   @Test
   def testLeftOuterJoinEquiAndLocalPred(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+    val left = util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    val right = util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < 2"
     val result = util.tableEnv.sqlQuery(query)
@@ -836,12 +844,12 @@ class JoinTest extends TableTestBase {
         "DataStreamJoin",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(left),
           term("select", "a", "b", "<(b, 2) AS $f3")
         ),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(1),
+          streamTableNode(right),
           term("select", "y", "z")
         ),
         term("where", "AND(=(a, z), $f3)"),
@@ -857,8 +865,8 @@ class JoinTest extends TableTestBase {
   @Test
   def testLeftOuterJoinEquiAndNonEquiPred(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+    val left = util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    val right = util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < x"
     val result = util.tableEnv.sqlQuery(query)
@@ -869,10 +877,10 @@ class JoinTest extends TableTestBase {
         "DataStreamJoin",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(left),
           term("select", "a", "b")
         ),
-        streamTableNode(1),
+        streamTableNode(right),
         term("where", "AND(=(a, z), <(b, x))"),
         term("join", "a", "b", "x", "y", "z"),
         term("joinType", "LeftOuterJoin")
@@ -886,8 +894,8 @@ class JoinTest extends TableTestBase {
   @Test
   def testRightOuterJoinEquiPred(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+    val left = util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    val right = util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z"
     val result = util.tableEnv.sqlQuery(query)
@@ -898,12 +906,12 @@ class JoinTest extends TableTestBase {
         "DataStreamJoin",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(left),
           term("select", "a", "b")
         ),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(1),
+          streamTableNode(right),
           term("select", "y", "z")
         ),
         term("where", "=(a, z)"),
@@ -919,8 +927,8 @@ class JoinTest extends TableTestBase {
   @Test
   def testRightOuterJoinEquiAndLocalPred(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+    val left = util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    val right = util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, x FROM t RIGHT OUTER JOIN s ON a = z AND x < 2"
     val result = util.tableEnv.sqlQuery(query)
@@ -931,12 +939,12 @@ class JoinTest extends TableTestBase {
         "DataStreamJoin",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(left),
           term("select", "a", "b")
         ),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(1),
+          streamTableNode(right),
           term("select", "x", "z", "<(x, 2) AS $f3")
         ),
         term("where", "AND(=(a, z), $f3)"),
@@ -952,8 +960,8 @@ class JoinTest extends TableTestBase {
   @Test
   def testRightOuterJoinEquiAndNonEquiPred(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+    val left = util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    val right = util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z AND b < x"
     val result = util.tableEnv.sqlQuery(query)
@@ -964,10 +972,10 @@ class JoinTest extends TableTestBase {
         "DataStreamJoin",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(left),
           term("select", "a", "b")
         ),
-        streamTableNode(1),
+        streamTableNode(right),
         term("where", "AND(=(a, z), <(b, x))"),
         term("join", "a", "b", "x", "y", "z"),
         term("joinType", "RightOuterJoin")

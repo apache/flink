@@ -1,10 +1,10 @@
 == Abstract Syntax Tree ==
 LogicalFilter(condition=[=(MOD($0, 2), 0)])
-  LogicalTableScan(table=[[default_catalog, default_database, _DataSetTable_0]])
+  %logicalSourceNode0%
 
 == Optimized Logical Plan ==
 DataSetCalc(select=[a, b], where=[=(MOD(a, 2), 0)])
-  DataSetScan(table=[[default_catalog, default_database, _DataSetTable_0]])
+  %sourceNode0%
 
 == Physical Execution Plan ==
 Stage 3 : Data Source
