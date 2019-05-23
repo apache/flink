@@ -21,9 +21,10 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.UUID;
 
 /**
  * This is the inner OutputFormat used for specify the BLOCKING_PERSISTENT result partition type of coming edge.
@@ -32,37 +33,29 @@ import java.util.UUID;
 @Internal
 public final class BlockingShuffleOutputFormat<T> implements OutputFormat<T> {
 
-	private final UUID intermediateDataSetId;
+	private final AbstractID intermediateDataSetId;
 
-	private BlockingShuffleOutputFormat(UUID intermediateDataSetId) {
+	private BlockingShuffleOutputFormat(AbstractID intermediateDataSetId) {
 		this.intermediateDataSetId = intermediateDataSetId;
 	}
 
-	public static <T> BlockingShuffleOutputFormat<T> createOutputFormat(UUID intermediateDataSetId) {
-		return new BlockingShuffleOutputFormat<>(intermediateDataSetId);
+	public static <T> BlockingShuffleOutputFormat<T> createOutputFormat(AbstractID intermediateDataSetId) {
+		return new BlockingShuffleOutputFormat<>(Preconditions.checkNotNull(intermediateDataSetId, "intermediateDataSetId is null"));
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
-
-	}
+	public void configure(Configuration parameters) {}
 
 	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-
-	}
+	public void open(int taskNumber, int numTasks) throws IOException {}
 
 	@Override
-	public void writeRecord(T record) throws IOException {
-
-	}
+	public void writeRecord(T record) throws IOException {}
 
 	@Override
-	public void close() throws IOException {
+	public void close() throws IOException {}
 
-	}
-
-	public UUID getIntermediateDataSetId() {
+	public AbstractID getIntermediateDataSetId() {
 		return intermediateDataSetId;
 	}
 }

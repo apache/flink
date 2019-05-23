@@ -39,12 +39,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.util.AbstractID;
+
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,7 +61,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -285,10 +288,10 @@ public class JobGraphGeneratorTest {
 		DataSet ds = input.map((MapFunction<Tuple2<Long, Long>, Object>) value -> new Tuple2<>(value.f0 + 1, value.f1))
 			.setParallelism(3);
 
-		UUID uuid = UUID.randomUUID();
+		AbstractID intermediateDataSetID = new AbstractID();
 
 		// this output branch will be excluded.
-		ds.output(BlockingShuffleOutputFormat.createOutputFormat(uuid))
+		ds.output(BlockingShuffleOutputFormat.createOutputFormat(intermediateDataSetID))
 			.setParallelism(1);
 
 		// this is the normal output branch.
@@ -308,17 +311,22 @@ public class JobGraphGeneratorTest {
 		JobVertex mapVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 		JobVertex outputVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
-		Assert.assertTrue(outputVertex instanceof OutputFormatVertex);
+		Assert.assertThat(inputVertex, Matchers.instanceOf(InputFormatVertex.class));
+		Assert.assertThat(mapVertex, Matchers.instanceOf(JobVertex.class));
+		Assert.assertThat(outputVertex, Matchers.instanceOf(OutputFormatVertex.class));
+
 		TaskConfig cfg = new TaskConfig(outputVertex.getConfiguration());
 		UserCodeWrapper<OutputFormat<?>> wrapper = cfg.getStubWrapper(this.getClass().getClassLoader());
 		OutputFormat<?> outputFormat = wrapper.getUserCodeObject(OutputFormat.class, this.getClass().getClassLoader());
-		Assert.assertTrue(outputFormat instanceof DiscardingOutputFormat);
+
+		// the only OutputFormatVertex is DiscardingOutputFormat
+		Assert.assertThat(outputFormat, Matchers.instanceOf(DiscardingOutputFormat.class));
 
 		// there are 2 output result with one of them is ResultPartitionType.BLOCKING_PERSISTENT
 		Assert.assertEquals(2, mapVertex.getProducedDataSets().size());
 
 		Assert.assertTrue(mapVertex.getProducedDataSets().stream()
-			.anyMatch(dataSet -> dataSet.getId().equals(new IntermediateDataSetID(uuid)) &&
+			.anyMatch(dataSet -> dataSet.getId().equals(new IntermediateDataSetID(intermediateDataSetID)) &&
 				dataSet.getResultType() == ResultPartitionType.BLOCKING_PERSISTENT));
 
 	}

@@ -27,6 +27,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -101,7 +102,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -248,10 +248,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
-			// skip vertex of placeholder
-			if (vertex instanceof OutputFormatVertex && ((OutputFormatVertex) vertex).isBlockingShuffle()) {
-				continue;
-			}
 			vertex.setInputDependencyConstraint(program.getOriginalPlan().getExecutionConfig().getDefaultInputDependencyConstraint());
 			graph.addVertex(vertex);
 		}
@@ -485,6 +481,37 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// solution sets have no input. the initial solution set input is connected when the iteration node is in its postVisit
 			if (node instanceof SourcePlanNode || node instanceof NAryUnionPlanNode || node instanceof SolutionSetPlanNode) {
 				return;
+			}
+
+			// if this is a blocking shuffle vertex, we add one IntermediateDataSetID to its predecessor and return
+			if (node instanceof SinkPlanNode) {
+				Object userCodeObject = node.getProgramOperator().getUserCodeWrapper().getUserCodeObject();
+				if (userCodeObject instanceof BlockingShuffleOutputFormat) {
+					Iterable<Channel> inputIterable = node.getInputs();
+					if (inputIterable == null || inputIterable.iterator() == null ||
+						!inputIterable.iterator().hasNext()) {
+						throw new IllegalStateException("SinkPlanNode must have a input.");
+					}
+					PlanNode precedentNode = inputIterable.iterator().next().getSource();
+					JobVertex precedentVertex;
+					if (vertices.containsKey(precedentNode)) {
+						precedentVertex = vertices.get(precedentNode);
+					} else {
+						precedentVertex = chainedTasks.get(precedentNode).getContainingVertex();
+					}
+					if (precedentVertex == null) {
+						throw new IllegalStateException("Bug: Chained task has not been assigned its containing vertex when connecting.");
+					}
+					precedentVertex.createAndAddResultDataSet(
+						// use specified intermediateDataSetID
+						new IntermediateDataSetID(((BlockingShuffleOutputFormat) userCodeObject).getIntermediateDataSetId()),
+						ResultPartitionType.BLOCKING_PERSISTENT
+					);
+
+					// remove this node so the OutputFormatVertex will not shown in the final JobGraph.
+					vertices.remove(node);
+					return;
+				}
 			}
 			
 			// check if we have an iteration. in that case, translate the step function now
@@ -965,12 +992,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
 		vertex.setResources(node.getMinResources(), node.getPreferredResources());
-
-		// set intermediateDataSetID if necessary
-		UUID intermediateDataSetID = node.getSinkNode().getOperator().getIntermediateDataSetID();
-		if (intermediateDataSetID != null) {
-			vertex.setIntermediateDataSetID(new IntermediateDataSetID(intermediateDataSetID));
-		}
 		vertex.setInvokableClass(DataSinkTask.class);
 		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 		
