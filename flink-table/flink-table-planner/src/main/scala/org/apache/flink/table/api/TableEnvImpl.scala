@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.lang.reflect.Modifier
 import _root_.java.util.Optional
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
@@ -30,7 +29,6 @@ import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools._
@@ -47,7 +45,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
+import org.apache.flink.table.plan.schema.{RowSchema, TableSourceSinkTable}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
@@ -326,12 +324,6 @@ abstract class TableEnvImpl(
     output
   }
 
-  override def fromTableSource(source: TableSource[_]): Table = {
-    val name = createUniqueTableName()
-    registerTableSourceInternal(name, source)
-    scan(name)
-  }
-
   override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
     catalogManager.registerExternalCatalog(name, externalCatalog)
   }
@@ -404,24 +396,6 @@ abstract class TableEnvImpl(
       planningConfigurationBuilder.getTypeFactory)
   }
 
-  override def registerTable(name: String, table: Table): Unit = {
-
-    // check that table belongs to this table environment
-    if (table.asInstanceOf[TableImpl].tableEnv != this) {
-      throw new TableException(
-        "Only tables that belong to this TableEnvironment can be registered.")
-    }
-
-    checkValidTableName(name)
-    val tableTable = new RelTable(table.asInstanceOf[TableImpl].getRelNode)
-    registerTableInternal(name, tableTable)
-  }
-
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    checkValidTableName(name)
-    registerTableSourceInternal(name, tableSource)
-  }
-
   override def registerCatalog(catalogName: String, catalog: Catalog): Unit = {
     catalogManager.registerCatalog(catalogName, catalog)
   }
@@ -446,24 +420,57 @@ abstract class TableEnvImpl(
     catalogManager.setCurrentDatabase(databaseName)
   }
 
-  /**
-    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
-    * name checking. Registered tables can be referenced in SQL queries.
-    *
-    * @param name        The name under which the [[TableSource]] is registered.
-    * @param tableSource The [[TableSource]] to register.
-    */
+  override def registerTable(name: String, table: Table): Unit = {
+
+    // check that table belongs to this table environment
+    if (table.asInstanceOf[TableImpl].tableEnv != this) {
+      throw new TableException(
+        "Only tables that belong to this TableEnvironment can be registered.")
+    }
+
+    checkValidTableName(name)
+
+    val tableTable = new TableOperationCatalogView(table.asInstanceOf[TableImpl].getTableOperation)
+    registerTableInternal(name, tableTable)
+  }
+
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    registerTableSourceInternal(name, tableSource)
+  }
+
+  override def fromTableSource(source: TableSource[_]): Table = {
+    val name = createUniqueTableName()
+    registerTableSourceInternal(name, source)
+    scan(name)
+  }
+
+  protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) =>
+        catalog.createTable(
+          path,
+          table,
+          false)
+      case None => throw new TableException("The default catalog does not exist.")
+    }
+  }
+
   protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit
 
-  /**
-    * Replaces a registered Table with another Table under the same name.
-    * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
-    * with a [[org.apache.calcite.schema.TranslatableTable]].
-    *
-    * @param name Name of the table to replace.
-    * @param table The table that replaces the previous table.
-    */
-  protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
+  protected def registerTableSourceSinkInternal[T1, T2](
+      name: String,
+      table: TableSourceSinkTable[T1, T2])
+    : Unit = {
+    registerTableInternal(
+      name,
+      new CalciteCatalogTable(table, planningConfigurationBuilder.getTypeFactory))
+  }
+
+  protected def replaceRegisteredTableSourceSinkInternal[T1, T2](
+      name: String,
+      table: TableSourceSinkTable[T1, T2])
+    : Unit = {
     val path = new ObjectPath(defaultDatabaseName, name)
     JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
       case Some(catalog) =>
@@ -614,26 +621,6 @@ abstract class TableEnvImpl(
       case Some(_) =>
         throw new TableException(s"The table registered as $sinkTablePath is not a TableSink. " +
           s"You can only emit query results to a registered TableSink.")
-    }
-  }
-
-  /**
-    * Registers a Calcite [[AbstractTable]] in the TableEnvironment's default catalog.
-    *
-    * @param name The name under which the table will be registered.
-    * @param table The table to register in the catalog
-    * @throws TableException if another table is registered under the provided name.
-    */
-  @throws[TableException]
-  protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
-    val path = new ObjectPath(defaultDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
-      case Some(catalog) =>
-        catalog.createTable(
-          path,
-          new CalciteCatalogTable(table, planningConfigurationBuilder.getTypeFactory),
-          false)
-      case None => throw new TableException("The default catalog does not exist.")
     }
   }
 

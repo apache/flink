@@ -21,56 +21,43 @@ package org.apache.flink.table.plan.nodes.logical
 import java.util
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.prepare.RelOptTableImpl
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.{DataSetTable, DataStreamTable}
+import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.flink.api.java.DataSet
 
-class FlinkLogicalNativeTableScan (
+import scala.collection.JavaConverters._
+
+class FlinkLogicalDataSetScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable)
-  extends TableScan(cluster, traitSet, table)
+    val catalog: RelOptSchema,
+    val dataSet: DataSet[_],
+    val fieldIdxs: Array[Int],
+    val schema: RelDataType)
+  extends TableScan(
+    cluster,
+    traitSet,
+    RelOptTableImpl.create(catalog, schema, List[String]().asJava, null))
   with FlinkLogicalRel {
 
+
+  override def estimateRowCount(mq: RelMetadataQuery): Double = 1000L
+
+  override def deriveRowType(): RelDataType = schema
+
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalNativeTableScan(cluster, traitSet, getTable)
+    new FlinkLogicalDataSetScan(cluster, traitSet, catalog, dataSet, fieldIdxs, schema)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
   }
-}
 
-class FlinkLogicalNativeTableScanConverter
-  extends ConverterRule(
-    classOf[LogicalTableScan],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalNativeTableScanConverter") {
-
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val scan = call.rel[TableScan](0)
-    val dataSetTable = scan.getTable.unwrap(classOf[DataSetTable[_]])
-    val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[_]])
-    dataSetTable != null || dataStreamTable != null
-  }
-
-  def convert(rel: RelNode): RelNode = {
-    val scan = rel.asInstanceOf[TableScan]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
-    new FlinkLogicalNativeTableScan(
-      rel.getCluster,
-      traitSet,
-      scan.getTable
-    )
-  }
-}
-
-object FlinkLogicalNativeTableScan {
-  val CONVERTER = new FlinkLogicalNativeTableScanConverter
+  override def explainTerms(pw: RelWriter): RelWriter = pw
+    .item("ref", System.identityHashCode(dataSet))
+    .item("fields", String.join(", ", schema.getFieldNames))
 }

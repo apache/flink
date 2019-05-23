@@ -40,6 +40,8 @@ import org.apache.flink.table.operations.AggregateOperationFactory;
 import org.apache.flink.table.operations.AggregateTableOperation;
 import org.apache.flink.table.operations.CalculatedTableOperation;
 import org.apache.flink.table.operations.CatalogTableOperation;
+import org.apache.flink.table.operations.DataSetTableOperation;
+import org.apache.flink.table.operations.DataStreamTableOperation;
 import org.apache.flink.table.operations.DistinctTableOperation;
 import org.apache.flink.table.operations.FilterTableOperation;
 import org.apache.flink.table.operations.JoinTableOperation;
@@ -57,12 +59,17 @@ import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.plan.logical.TumblingGroupWindow;
+import org.apache.flink.table.plan.nodes.FlinkConventions;
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataSetScan;
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamScan;
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl;
+import org.apache.flink.table.plan.schema.RowSchema;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
@@ -248,9 +255,39 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		public RelNode visitOther(TableOperation other) {
 			if (other instanceof PlannerTableOperation) {
 				return ((PlannerTableOperation) other).getCalciteTree();
+			} else if (other instanceof DataStreamTableOperation) {
+				return convertToDataStreamScan((DataStreamTableOperation<?>) other);
+			} else if (other instanceof DataSetTableOperation) {
+				return convertToDataSetScan((DataSetTableOperation<?>) other);
 			}
 
 			throw new TableException("Unknown table operation: " + other);
+		}
+
+		private RelNode convertToDataStreamScan(DataStreamTableOperation<?> tableOperation) {
+			RelDataType logicalRowType = relBuilder.getTypeFactory()
+				.buildLogicalRowType(tableOperation.getTableSchema());
+			RowSchema rowSchema = new RowSchema(logicalRowType);
+
+			return new FlinkLogicalDataStreamScan(
+				relBuilder.getCluster(),
+				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),
+				relBuilder.getRelOptSchema(),
+				tableOperation.getDataStream(),
+				tableOperation.getFieldIndices(),
+				rowSchema);
+		}
+
+		private RelNode convertToDataSetScan(DataSetTableOperation<?> tableOperation) {
+			RelDataType relDataType = relBuilder.getTypeFactory()
+				.buildLogicalRowType(tableOperation.getTableSchema());
+			return new FlinkLogicalDataSetScan(
+				relBuilder.getCluster(),
+				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),
+				relBuilder.getRelOptSchema(),
+				tableOperation.getDataSet(),
+				tableOperation.getFieldIndices(),
+				relDataType);
 		}
 
 		private RexNode convertToRexNode(Expression expression) {

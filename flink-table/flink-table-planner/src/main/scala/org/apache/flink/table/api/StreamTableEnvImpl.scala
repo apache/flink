@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.operations.DataStreamTableOperation
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -51,6 +52,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldInfo, isReferenceByPosition}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, isReferenceByPosition}
 
@@ -136,7 +138,7 @@ abstract class StreamTableEnvImpl(
               val enrichedTable = new TableSourceSinkTable(
                 Some(new StreamTableSourceTable(streamTableSource)),
                 table.tableSinkTable)
-              replaceRegisteredTable(name, enrichedTable)
+              replaceRegisteredTableSourceSinkInternal(name, enrichedTable)
           }
 
           // no table is registered
@@ -144,7 +146,7 @@ abstract class StreamTableEnvImpl(
             val newTable = new TableSourceSinkTable(
               Some(new StreamTableSourceTable(streamTableSource)),
               None)
-            registerTableInternal(name, newTable)
+            registerTableSourceSinkInternal(name, newTable)
         }
 
       // not a stream table source
@@ -215,7 +217,7 @@ abstract class StreamTableEnvImpl(
               val enrichedTable = new TableSourceSinkTable(
                 table.tableSourceTable,
                 Some(new TableSinkTable(configuredSink)))
-              replaceRegisteredTable(name, enrichedTable)
+              replaceRegisteredTableSourceSinkInternal(name, enrichedTable)
           }
 
           // no table is registered
@@ -223,7 +225,7 @@ abstract class StreamTableEnvImpl(
             val newTable = new TableSourceSinkTable(
               None,
               Some(new TableSinkTable(configuredSink)))
-            registerTableInternal(name, newTable)
+            registerTableSourceSinkInternal(name, newTable)
         }
 
       // not a stream table sink
@@ -432,67 +434,48 @@ abstract class StreamTableEnvImpl(
       }
   }
 
-  /**
-    * Registers a [[DataStream]] as a table under a given name in the [[TableEnvImpl]]'s
-    * catalog.
-    *
-    * @param name The name under which the table is registered in the catalog.
-    * @param dataStream The [[DataStream]] to register as table in the catalog.
-    * @tparam T the type of the [[DataStream]].
-    */
-  protected def registerDataStreamInternal[T](
-    name: String,
-    dataStream: DataStream[T]): Unit = {
-
-    val fieldInfo = getFieldsInfo[T](dataStream.getType)
-    val dataStreamTable = new DataStreamTable[T](
-      dataStream,
-      fieldInfo.getIndices,
-      fieldInfo.getFieldNames
-    )
-    registerTableInternal(name, dataStreamTable)
-  }
-
-  /**
-    * Registers a [[DataStream]] as a table under a given name with field names as specified by
-    * field expressions in the [[TableEnvImpl]]'s catalog.
-    *
-    * @param name The name under which the table is registered in the catalog.
-    * @param dataStream The [[DataStream]] to register as table in the catalog.
-    * @param fields The field expressions to define the field names of the table.
-    * @tparam T The type of the [[DataStream]].
-    */
-  protected def registerDataStreamInternal[T](
-      name: String,
+  protected def asTableOperation[T](
       dataStream: DataStream[T],
-      fields: Array[Expression])
-    : Unit = {
-
+      fields: Option[Array[Expression]])
+    : DataStreamTableOperation[T] = {
     val streamType = dataStream.getType
 
     // get field names and types for all non-replaced fields
-    val fieldsInfo = getFieldsInfo[T](streamType, fields)
+    val (indices, names) = fields match {
+      case Some(f) =>
+        // validate and extract time attributes
+        val fieldsInfo = getFieldInfo[T](streamType, f)
+        val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, f)
 
-    // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+        // check if event-time is enabled
+        if (rowtime.isDefined &&
+          execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
+          throw new TableException(
+            s"A rowtime attribute requires an EventTime time characteristic in stream environment" +
+              s". But is: ${execEnv.getStreamTimeCharacteristic}")
+        }
 
-    // check if event-time is enabled
-    if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
-      throw new TableException(
-        s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
-          s"But is: ${execEnv.getStreamTimeCharacteristic}")
+        // adjust field indexes and field names
+        val indexesWithIndicatorFields = adjustFieldIndexes(
+          fieldsInfo.getIndices,
+          rowtime,
+          proctime)
+        val namesWithIndicatorFields = adjustFieldNames(
+          fieldsInfo.getFieldNames,
+          rowtime,
+          proctime)
+
+        (indexesWithIndicatorFields, namesWithIndicatorFields)
+      case None =>
+        val fieldsInfo = getFieldInfo[T](streamType)
+        (fieldsInfo.getIndices, fieldsInfo.getFieldNames)
     }
 
-    // adjust field indexes and field names
-    val indexesWithIndicatorFields = adjustFieldIndexes(fieldsInfo.getIndices, rowtime, proctime)
-    val namesWithIndicatorFields = adjustFieldNames(fieldsInfo.getFieldNames, rowtime, proctime)
-
-    val dataStreamTable = new DataStreamTable[T](
+    val dataStreamTable = new DataStreamTableOperation(
       dataStream,
-      indexesWithIndicatorFields,
-      namesWithIndicatorFields
-    )
-    registerTableInternal(name, dataStreamTable)
+      indices,
+      calculateTableSchema(streamType, indices, names))
+    dataStreamTable
   }
 
   /**

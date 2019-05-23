@@ -26,7 +26,6 @@ import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialCons
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.plan.schema.InlineTable
 
 /**
   * The class provides statistics for a [[InlineTable]] or [[TableSourceTable]].

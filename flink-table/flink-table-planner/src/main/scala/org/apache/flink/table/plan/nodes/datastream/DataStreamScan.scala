@@ -19,17 +19,19 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.prepare.RelOptTableImpl
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl}
 import org.apache.flink.table.expressions.Cast
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
+import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with DataStreamSource.
@@ -39,12 +41,15 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 class DataStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
+    catalog: RelOptSchema,
+    dataStream: DataStream[_],
+    fieldIdxs: Array[Int],
     schema: RowSchema)
-  extends TableScan(cluster, traitSet, table)
+  extends TableScan(
+    cluster,
+    traitSet,
+    RelOptTableImpl.create(catalog, schema.relDataType, List[String]().asJava, null))
   with StreamScan {
-
-  val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
   override def deriveRowType(): RelDataType = schema.relDataType
 
@@ -52,7 +57,9 @@ class DataStreamScan(
     new DataStreamScan(
       cluster,
       traitSet,
-      getTable,
+      catalog,
+      dataStream,
+      fieldIdxs,
       schema
     )
   }
@@ -62,8 +69,6 @@ class DataStreamScan(
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
-    val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
-    val fieldIdxs = dataStreamTable.fieldIndexes
 
     // get expression to extract timestamp
     val rowtimeExpr: Option[RexNode] =
@@ -79,7 +84,15 @@ class DataStreamScan(
       }
 
     // convert DataStream
-    convertToInternalRow(schema, inputDataStream, fieldIdxs, config, rowtimeExpr)
+    convertToInternalRow(
+      schema,
+      dataStream.asInstanceOf[DataStream[Any]],
+      fieldIdxs,
+      config,
+      rowtimeExpr)
   }
 
+  override def explainTerms(pw: RelWriter): RelWriter =
+    pw.item("id", s"${dataStream.getId}")
+      .item("fields", s"${String.join(", ", schema.relDataType.getFieldNames)}")
 }

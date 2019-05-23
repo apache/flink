@@ -45,10 +45,7 @@ class BatchTableEnvImpl(
   with org.apache.flink.table.api.java.BatchTableEnvironment {
 
   override def fromDataSet[T](dataSet: DataSet[T]): Table = {
-
-    val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet)
-    scan(name)
+    new TableImpl(this, asDataSetTableOperation(dataSet, None))
   }
 
   override def fromDataSet[T](dataSet: DataSet[T], fields: String): Table = {
@@ -56,24 +53,15 @@ class BatchTableEnvImpl(
       .parseExpressionList(fields).asScala
       .toArray
 
-    val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet, exprs)
-    scan(name)
+    new TableImpl(this, asDataSetTableOperation(dataSet, Some(exprs)))
   }
 
   override def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataSetInternal(name, dataSet)
+    registerTable(name, fromDataSet(dataSet))
   }
 
   override def registerDataSet[T](name: String, dataSet: DataSet[T], fields: String): Unit = {
-    val exprs = ExpressionParser
-      .parseExpressionList(fields).asScala
-      .toArray
-
-    checkValidTableName(name)
-    registerDataSetInternal(name, dataSet, exprs)
+    registerTable(name, fromDataSet(dataSet, fields))
   }
 
   override def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {

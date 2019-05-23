@@ -34,7 +34,7 @@ import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory.typeInfoToSqlTypeName
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.typeutils.TypeCheckUtils.isSimple
@@ -176,6 +176,16 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     }
 
     canonize(relType)
+  }
+
+  /**
+    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
+    *
+    * @param tableSchema schema to convert to Calcite's specific one
+    * @return a struct type with the input fieldNames, input fieldTypes, and system fields
+    */
+  def buildLogicalRowType(tableSchema: TableSchema): RelDataType = {
+    buildLogicalRowType(tableSchema.getFieldNames, tableSchema.getFieldTypes)
   }
 
   /**
