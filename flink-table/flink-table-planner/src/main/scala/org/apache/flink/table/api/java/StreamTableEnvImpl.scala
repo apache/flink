@@ -50,10 +50,7 @@ class StreamTableEnvImpl(
   with org.apache.flink.table.api.java.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream)
-    scan(name)
+    new TableImpl(this, asTableOperation(dataStream, None))
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
@@ -61,26 +58,19 @@ class StreamTableEnvImpl(
       .parseExpressionList(fields).asScala
       .toArray
 
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, exprs)
-    scan(name)
+    new TableImpl(this, asTableOperation(dataStream, Some(exprs)))
   }
 
   override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream)
+    registerTable(name, fromDataStream(dataStream))
   }
 
   override def registerDataStream[T](
-    name: String, dataStream: DataStream[T], fields: String): Unit = {
-
-    val exprs = ExpressionParser
-      .parseExpressionList(fields).asScala
-      .toArray
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, exprs)
+      name: String,
+      dataStream: DataStream[T],
+      fields: String)
+    : Unit = {
+    registerTable(name, fromDataStream(dataStream, fields))
   }
 
   override def toAppendStream[T](table: Table, clazz: Class[T]): DataStream[T] = {

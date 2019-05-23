@@ -22,13 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes a relational operation that was created from a lookup to a catalog.
  */
 @Internal
-public class CatalogTableOperation implements TableOperation {
+public class CatalogTableOperation extends TableOperation {
 
 	private final List<String> tablePath;
 	private final TableSchema tableSchema;
@@ -45,6 +47,15 @@ public class CatalogTableOperation implements TableOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return tableSchema;
+	}
+
+	@Override
+	public String asSummaryString() {
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("path", tablePath);
+		args.put("fields", tableSchema.getFieldNames());
+
+		return formatWithChildren("CatalogTable", args);
 	}
 
 	@Override

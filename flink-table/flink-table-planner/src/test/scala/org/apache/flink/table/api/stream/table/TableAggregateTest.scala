@@ -49,7 +49,7 @@ class TableAggregateTest extends TableTestBase {
           "DataStreamGroupTableAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b", "MOD(b, 5) AS bb")
           ),
           term("groupBy", "bb"),
@@ -74,7 +74,7 @@ class TableAggregateTest extends TableTestBase {
           "DataStreamGroupTableAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b")
           ),
           term("select", "EmptyTableAggFunc(a, b) AS (f0, f1)")
@@ -96,7 +96,7 @@ class TableAggregateTest extends TableTestBase {
         "DataStreamGroupTableAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(table),
           term("select", "CAST(d) AS d", "PROCTIME(e) AS e")
         ),
         term("select", "EmptyTableAggFunc(d, e) AS (f0, f1)")
@@ -116,7 +116,7 @@ class TableAggregateTest extends TableTestBase {
         "DataStreamGroupTableAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(table),
           term("select", "b")
         ),
         term("select", "EmptyTableAggFunc(b) AS (f0, f1)")
@@ -138,7 +138,7 @@ class TableAggregateTest extends TableTestBase {
           "DataStreamGroupTableAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "b")
           ),
           term("select", "EmptyTableAggFunc(b) AS (f0, f1)")
@@ -167,7 +167,7 @@ class TableAggregateTest extends TableTestBase {
         "DataStreamGroupTableAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(table),
           term("select", "a", "c")
         ),
         term("groupBy", "c"),

@@ -28,7 +28,9 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SESSION;
@@ -42,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * key and group window. It differs from {@link AggregateTableOperation} by the group window.
  */
 @Internal
-public class WindowAggregateTableOperation implements TableOperation {
+public class WindowAggregateTableOperation extends TableOperation {
 
 	private final List<Expression> groupingExpressions;
 	private final List<Expression> aggregateExpressions;
@@ -69,6 +71,17 @@ public class WindowAggregateTableOperation implements TableOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return tableSchema;
+	}
+
+	@Override
+	public String asSummaryString() {
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("group", groupingExpressions);
+		args.put("agg", aggregateExpressions);
+		args.put("windowProperties", windowPropertiesExpressions);
+		args.put("window", groupWindow.asSummaryString());
+
+		return formatWithChildren("WindowAggregate", args);
 	}
 
 	public List<Expression> getGroupingExpressions() {
@@ -124,7 +137,8 @@ public class WindowAggregateTableOperation implements TableOperation {
 		 */
 		private ResolvedGroupWindow(
 				WindowType type,
-				String alias, FieldReferenceExpression timeAttribute,
+				String alias,
+				FieldReferenceExpression timeAttribute,
 				@Nullable ValueLiteralExpression size,
 				@Nullable ValueLiteralExpression slide,
 				@Nullable ValueLiteralExpression gap) {
@@ -201,6 +215,29 @@ public class WindowAggregateTableOperation implements TableOperation {
 		 */
 		public Optional<ValueLiteralExpression> getGap() {
 			return Optional.of(gap);
+		}
+
+		public String asSummaryString() {
+			switch (type) {
+				case SLIDE:
+					return String.format(
+						"SlideWindow(field: [%s], slide: [%s], size: [%s])",
+						timeAttribute,
+						slide,
+						size);
+				case SESSION:
+					return String.format(
+						"SessionWindow(field: [%s], gap: [%s])",
+						timeAttribute,
+						gap);
+				case TUMBLE:
+					return String.format(
+						"TumbleWindow(field: [%s], size: [%s])",
+						timeAttribute,
+						size);
+				default:
+					throw new IllegalStateException("Unknown window type: " + type);
+			}
 		}
 	}
 }

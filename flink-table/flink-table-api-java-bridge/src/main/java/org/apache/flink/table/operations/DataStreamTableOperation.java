@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,44 +28,58 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Filters out rows of underlying relational operation that do not match given condition.
+ * Describes a relational operation that reads from a {@link DataStream}.
+ *
+ * <p>This operation may expose only part, or change the order of the fields available in a
+ * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
+ * The {@link DataStreamTableOperation#getFieldIndices()} describes the mapping between fields of the
+ * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class FilterTableOperation extends TableOperation {
+public class DataStreamTableOperation<E> extends TableOperation {
 
-	private final Expression condition;
-	private final TableOperation child;
+	private final DataStream<E> dataStream;
+	private final int[] fieldIndices;
+	private final TableSchema tableSchema;
 
-	public FilterTableOperation(Expression condition, TableOperation child) {
-		this.condition = condition;
-		this.child = child;
+	public DataStreamTableOperation(
+			DataStream<E> dataStream,
+			int[] fieldIndices,
+			TableSchema tableSchema) {
+		this.dataStream = dataStream;
+		this.tableSchema = tableSchema;
+		this.fieldIndices = fieldIndices;
 	}
 
-	public Expression getCondition() {
-		return condition;
+	public DataStream<E> getDataStream() {
+		return dataStream;
+	}
+
+	public int[] getFieldIndices() {
+		return fieldIndices;
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return child.getTableSchema();
+		return tableSchema;
 	}
 
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("condition", condition);
+		args.put("id", dataStream.getId());
+		args.put("fields", tableSchema.getFieldNames());
 
-		return formatWithChildren("Filter", args);
+		return formatWithChildren("DataStream", args);
 	}
 
 	@Override
 	public List<TableOperation> getChildren() {
-		return Collections.singletonList(child);
+		return Collections.emptyList();
 	}
 
 	@Override
 	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitFilter(this);
+		return visitor.visitOther(this);
 	}
-
 }

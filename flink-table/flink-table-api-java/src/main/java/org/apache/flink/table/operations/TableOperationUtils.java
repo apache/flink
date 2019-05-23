@@ -16,14 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.operations;
 
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.annotation.Internal;
 
-class DataSetTable[T](
-    val dataSet: DataSet[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.of(new TableStats(1000L)))
-  extends InlineTable[T](dataSet.getType, fieldIndexes, fieldNames, statistic)
+/**
+ * Helper methods for {@link TableOperation}s.
+ */
+@Internal
+public class TableOperationUtils {
+
+	private static final String OPERATION_INDENT = "    ";
+
+	/**
+	 * Increases indentation for description of string of child {@link TableOperation}.
+	 * The input can already contain indentation. This will increase all the indentations
+	 * by one level.
+	 *
+	 * @param item result of {@link TableOperation#asSummaryString()}
+	 * @return string with increased indentation
+	 */
+	static String indent(String item) {
+		return "\n" + OPERATION_INDENT +
+			item.replace("\n" + OPERATION_INDENT, "\n" + OPERATION_INDENT + OPERATION_INDENT);
+	}
+
+	private TableOperationUtils() {
+	}
+}

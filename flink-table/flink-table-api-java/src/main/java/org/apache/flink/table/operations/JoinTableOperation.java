@@ -24,13 +24,15 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Table operation that joins two relational operations based on given condition.
  */
 @Internal
-public class JoinTableOperation implements TableOperation {
+public class JoinTableOperation extends TableOperation {
 	private final TableOperation left;
 	private final TableOperation right;
 	private final JoinType joinType;
@@ -103,6 +105,16 @@ public class JoinTableOperation implements TableOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return tableSchema;
+	}
+
+	@Override
+	public String asSummaryString() {
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("joinType", joinType);
+		args.put("condition", condition);
+		args.put("correlated", correlated);
+
+		return formatWithChildren("Join", args);
 	}
 
 	@Override

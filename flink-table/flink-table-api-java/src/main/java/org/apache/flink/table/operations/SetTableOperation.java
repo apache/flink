@@ -22,14 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A set operation on two relations. It provides a way to union, intersect or subtract underlying
  * data sets/streams. Both relations must have equal schemas.
  */
 @Internal
-public class SetTableOperation implements TableOperation {
+public class SetTableOperation extends TableOperation {
 
 	private final TableOperation leftOperation;
 	private final TableOperation rightOperation;
@@ -65,6 +67,27 @@ public class SetTableOperation implements TableOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return leftOperation.getTableSchema();
+	}
+
+	@Override
+	public String asSummaryString() {
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("all", all);
+
+		return formatWithChildren(typeToString(), args);
+	}
+
+	private String typeToString() {
+		switch (type) {
+			case INTERSECT:
+				return "Intersect";
+			case MINUS:
+				return "Minus";
+			case UNION:
+				return "Union";
+			default:
+				throw new IllegalStateException("Unknown set operation type: " + type);
+		}
 	}
 
 	@Override

@@ -67,6 +67,8 @@ class DatabaseCalciteSchema implements Schema {
 
 			if (table instanceof CalciteCatalogTable) {
 				return ((CalciteCatalogTable) table).getTable();
+			} else if (table instanceof TableOperationCatalogView) {
+				return TableOperationCatalogViewTable.createCalciteTable(((TableOperationCatalogView) table));
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}

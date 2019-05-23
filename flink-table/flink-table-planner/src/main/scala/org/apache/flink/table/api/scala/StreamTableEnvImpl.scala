@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.api.scala
 
-import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableEnvImpl}
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment, asScalaStream}
+import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableImpl}
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.scala.asScalaStream
-import org.apache.flink.table.catalog.CatalogManager
 
 /**
   * The implementation for a Scala [[StreamTableEnvironment]].
@@ -43,30 +42,25 @@ class StreamTableEnvImpl(
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream)
-    scan(name)
+    val tableOperation = asTableOperation(dataStream.javaStream, None)
+    new TableImpl(this, tableOperation)
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
-    scan(name)
+    val tableOperation = asTableOperation(dataStream.javaStream, Some(fields.toArray))
+    new TableImpl(this, tableOperation)
   }
 
   override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream)
+    registerTable(name, fromDataStream(dataStream))
   }
 
   override def registerDataStream[T](
-    name: String, dataStream: DataStream[T], fields: Expression*): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
+      name: String,
+      dataStream: DataStream[T],
+      fields: Expression*)
+    : Unit = {
+    registerTable(name, fromDataStream(dataStream, fields: _*))
   }
 
   override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {

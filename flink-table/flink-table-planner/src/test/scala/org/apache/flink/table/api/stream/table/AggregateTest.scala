@@ -43,7 +43,7 @@ class AggregateTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamGroupAggregate",
-          streamTableNode(0),
+          streamTableNode(table),
           term("groupBy", "b"),
           term("select", "b", "SUM(DISTINCT a) AS TMP_0", "COUNT(DISTINCT c) AS TMP_1")
         ),
@@ -67,7 +67,7 @@ class AggregateTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamGroupAggregate",
-          streamTableNode(0),
+          streamTableNode(table),
           term("groupBy", "c"),
           term(
             "select",
@@ -96,7 +96,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b")
           ),
           term("groupBy", "b"),
@@ -124,7 +124,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "4 AS four", "b")
           ),
           term("groupBy", "a", "four"),
@@ -152,7 +152,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "b", "4 AS four", "a")
           ),
           term("groupBy", "b", "four"),
@@ -180,7 +180,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "MOD(b, 3) AS d", "c")
           ),
           term("groupBy", "d"),
@@ -206,7 +206,7 @@ class AggregateTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(table),
           term("select", "a", "b"),
           term("where", "=(b, 2)")
         ),
@@ -230,7 +230,7 @@ class AggregateTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(table),
           term("select", "b", "CAST(a) AS a0")
         ),
         term("groupBy", "b"),
@@ -254,7 +254,7 @@ class AggregateTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "a", "rowtime")
       ),
       term("window", "TumblingGroupWindow('w, 'rowtime, 900000.millis)"),
@@ -278,7 +278,7 @@ class AggregateTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "a", "rowtime")
       ),
       term("window", "SlidingGroupWindow('w, 'rowtime, 3600000.millis, 900000.millis)"),
@@ -303,7 +303,7 @@ class AggregateTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "a", "c", "rowtime")
       ),
       term("groupBy", "a"),
@@ -333,7 +333,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b")
           ),
           term("groupBy", "b"),
@@ -363,7 +363,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b")
           ),
           term("groupBy", "b"),
@@ -390,7 +390,7 @@ class AggregateTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          streamTableNode(table),
           term("select", "a", "b")
         ),
         term("groupBy", "b"),
@@ -418,7 +418,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "a", "b")
           ),
           term("groupBy", "b"),

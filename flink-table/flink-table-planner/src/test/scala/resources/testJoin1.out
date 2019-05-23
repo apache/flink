@@ -2,14 +2,14 @@
 LogicalProject(a=[$0], c=[$2])
   LogicalFilter(condition=[=($1, $3)])
     LogicalJoin(condition=[true], joinType=[inner])
-      LogicalTableScan(table=[[default_catalog, default_database, _DataSetTable_0]])
-      LogicalTableScan(table=[[default_catalog, default_database, _DataSetTable_1]])
+      %logicalSourceNode0%
+      %logicalSourceNode1%
 
 == Optimized Logical Plan ==
 DataSetCalc(select=[a, c])
   DataSetJoin(where=[=(b, d)], join=[a, b, c, d], joinType=[InnerJoin])
-    DataSetScan(table=[[default_catalog, default_database, _DataSetTable_0]])
-    DataSetScan(table=[[default_catalog, default_database, _DataSetTable_1]])
+    %sourceNode0%
+    %sourceNode1%
 
 == Physical Execution Plan ==
 Stage 4 : Data Source

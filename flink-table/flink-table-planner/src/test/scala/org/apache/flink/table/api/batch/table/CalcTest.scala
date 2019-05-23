@@ -38,7 +38,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "a._1 AS a$_1",
         "a._2 AS a$_2",
@@ -61,7 +61,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "a._1 AS a$_1",
         "a._2 AS a$_2",
@@ -85,7 +85,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "giveMeCaseClass$().my AS _c0",
         "giveMeCaseClass$().clazz AS _c1",
@@ -110,7 +110,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(sourceTable),
       term("select", "a", "b")
     )
 
@@ -124,7 +124,7 @@ class CalcTest extends TableTestBase {
     val resultTable1 = sourceTable.select('*)
     val resultTable2 = sourceTable.select('a, 'b, 'c, 'd)
 
-    val expected = batchTableNode(0)
+    val expected = batchTableNode(sourceTable)
 
     util.verifyTable(resultTable1, expected)
     util.verifyTable(resultTable2, expected)
@@ -140,7 +140,7 @@ class CalcTest extends TableTestBase {
       "DataSetAggregate",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(sourceTable),
         term("select", "a", "b")
       ),
       term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
@@ -160,7 +160,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(sourceTable),
       term("select", "MyHashCode$(c) AS _c0", "b")
     )
 
@@ -179,7 +179,7 @@ class CalcTest extends TableTestBase {
         "DataSetDistinct",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(sourceTable),
           term("select", "a", "c")
         ),
         term("distinct", "a", "c")
@@ -200,7 +200,7 @@ class CalcTest extends TableTestBase {
       "DataSetDistinct",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(sourceTable),
         term("select", "a", "c")
       ),
       term("distinct", "a", "c")
@@ -222,7 +222,7 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(sourceTable),
             term("select", "a", "c")
           ),
           term("groupBy", "c"),
@@ -247,7 +247,7 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(sourceTable),
             // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
             // Calcite planner doesn't promise to retain field names.
             term("select", "a", "UPPER(c) AS k")
@@ -274,7 +274,7 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(sourceTable),
             // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
             // Calcite planner doesn't promise to retain field names.
             term("select", "a", "MyHashCode$(c) AS k")
@@ -301,7 +301,7 @@ class CalcTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetAggregate",
-          batchTableNode(0),
+          batchTableNode(sourceTable),
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS TMP_0")
         ),
@@ -323,7 +323,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(sourceTable),
       term("select", "a", "b"),
       term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
     )

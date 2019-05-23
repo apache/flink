@@ -124,4 +124,14 @@ object FlinkRelBuilder {
     */
   case class NamedWindowProperty(name: String, property: WindowProperty)
 
+  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+    val clusterContext = cluster.getPlanner.getContext
+
+    new FlinkRelBuilder(
+      clusterContext,
+      cluster,
+      relTable.getRelOptSchema,
+      clusterContext.unwrap(classOf[ExpressionBridge[PlannerExpression]]))
+  }
+
 }

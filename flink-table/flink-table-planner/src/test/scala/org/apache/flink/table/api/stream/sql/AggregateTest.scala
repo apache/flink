@@ -35,7 +35,7 @@ import org.junit.Test
 class AggregateTest extends TableTestBase {
 
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addTable[(Int, String, Long)](
+  private val table = streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
@@ -49,7 +49,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "b", "a")
           ),
           term("groupBy", "b"),

@@ -1,12 +1,12 @@
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[default_catalog, default_database, _DataSetTable_0]])
-  LogicalTableScan(table=[[default_catalog, default_database, _DataSetTable_1]])
+  %logicalSourceNode0%
+  %logicalSourceNode1%
 
 == Optimized Logical Plan ==
 DataSetUnion(all=[true], union=[count, word])
-  DataSetScan(table=[[default_catalog, default_database, _DataSetTable_0]])
-  DataSetScan(table=[[default_catalog, default_database, _DataSetTable_1]])
+  %sourceNode0%
+  %sourceNode1%
 
 == Physical Execution Plan ==
 Stage 3 : Data Source
