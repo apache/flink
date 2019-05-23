@@ -23,7 +23,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.util.TestLogger;
 
@@ -31,8 +30,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.function.Supplier;
 
-import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
@@ -45,47 +44,25 @@ import static org.junit.Assert.assertEquals;
  */
 public class DefaultResultPartitionTest extends TestLogger {
 
-	private final DefaultExecutionVertexTest.TestExecutionStateSupplier stateProvider =
-		new DefaultExecutionVertexTest.TestExecutionStateSupplier();
+	private static final TestExecutionStateSupplier stateProvider = new TestExecutionStateSupplier();
 
-	private SchedulingExecutionVertex producerVertex;
-
-	private SchedulingExecutionVertex consumerVertex;
+	private final IntermediateResultPartitionID resultPartitionId = new IntermediateResultPartitionID();
+	private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
 
 	private DefaultResultPartition resultPartition;
 
 	@Before
 	public void setUp() {
 		resultPartition = new DefaultResultPartition(
-			new IntermediateResultPartitionID(),
-			new IntermediateDataSetID(),
+			resultPartitionId,
+			intermediateResultId,
 			BLOCKING);
 
-		producerVertex = new DefaultExecutionVertex(
+		DefaultExecutionVertex producerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(resultPartition),
-			ALL,
 			stateProvider);
 		resultPartition.setProducer(producerVertex);
-		consumerVertex = new DefaultExecutionVertex(
-			new ExecutionVertexID(new JobVertexID(), 0),
-			Collections.emptyList(),
-			ALL,
-			stateProvider);
-		resultPartition.addConsumer(consumerVertex);
-	}
-
-	@Test
-	public void testGetConsumers() {
-		ExecutionVertexID schedulingConsumers = resultPartition.getConsumers()
-			.stream().findAny().map(SchedulingExecutionVertex::getId)
-			.orElseThrow(() -> new IllegalArgumentException("can not find vertex"));
-		assertEquals(schedulingConsumers, consumerVertex.getId());
-	}
-
-	@Test
-	public void testGetProducer() {
-		assertEquals(resultPartition.getProducer().getId(), producerVertex.getId());
 	}
 
 	@Test
@@ -94,21 +71,38 @@ public class DefaultResultPartitionTest extends TestLogger {
 			stateProvider.setExecutionState(state);
 			SchedulingResultPartition.ResultPartitionState partitionState = resultPartition.getState();
 			switch (state) {
-				case FINISHED:
-					assertEquals(DONE, partitionState);
+				case CREATED:
+				case SCHEDULED:
+				case DEPLOYING:
+					assertEquals(EMPTY, partitionState);
 					break;
 				case RUNNING:
 					assertEquals(PRODUCING, partitionState);
 					break;
-				case DEPLOYING:
-				case CREATED:
-				case SCHEDULED:
-					assertEquals(EMPTY, partitionState);
+				case FINISHED:
+					assertEquals(DONE, partitionState);
 					break;
 				default:
 					assertEquals(RELEASED, partitionState);
 					break;
 			}
+		}
+	}
+
+	/**
+	 * A simple implementation of {@link Supplier} for testing.
+	 */
+	private static class TestExecutionStateSupplier implements Supplier<ExecutionState> {
+
+		private ExecutionState executionState;
+
+		void setExecutionState(ExecutionState state) {
+			executionState = state;
+		}
+
+		@Override
+		public ExecutionState get() {
+			return executionState;
 		}
 	}
 }

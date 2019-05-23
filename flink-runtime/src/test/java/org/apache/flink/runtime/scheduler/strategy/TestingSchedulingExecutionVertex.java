@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -31,8 +30,6 @@ import java.util.Collections;
 public class TestingSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
 	private final ExecutionVertexID executionVertexId;
-
-	private final InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
 	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
 		this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
@@ -56,10 +53,5 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 	@Override
 	public Collection<SchedulingResultPartition> getProducedResultPartitions() {
 		return Collections.emptyList();
-	}
-
-	@Override
-	public InputDependencyConstraint getInputDependencyConstraint() {
-		return inputDependencyConstraint;
 	}
 }

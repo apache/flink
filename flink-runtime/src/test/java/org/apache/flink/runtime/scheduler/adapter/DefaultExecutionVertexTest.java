@@ -32,7 +32,6 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.function.Supplier;
 
-import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.junit.Assert.assertEquals;
 
@@ -61,13 +60,11 @@ public class DefaultExecutionVertexTest extends TestLogger {
 		producerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(schedulingResultPartition),
-			ALL,
 			stateSupplier);
 		schedulingResultPartition.setProducer(producerVertex);
 		consumerVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.emptyList(),
-			ALL,
 			stateSupplier);
 		consumerVertex.addConsumedPartition(schedulingResultPartition);
 	}

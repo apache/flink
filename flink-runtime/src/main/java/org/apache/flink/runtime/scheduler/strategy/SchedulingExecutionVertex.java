@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
@@ -56,12 +55,4 @@ public interface SchedulingExecutionVertex {
 	 * @return collection of output edges
 	 */
 	Collection<SchedulingResultPartition> getProducedResultPartitions();
-
-	// TODO will be removed when PR#8309 merged
-	/**
-	 * Get {@link InputDependencyConstraint}.
-	 *
-	 * @return input dependency constraint
-	 */
-	InputDependencyConstraint getInputDependencyConstraint();
 }
