@@ -632,7 +632,9 @@ public class HiveCatalog implements Catalog {
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 		checkNotNull(partition, "Partition cannot be null");
 
-		checkArgument(partition instanceof HiveCatalogPartition, "Currently only supports HiveCatalogPartition");
+		if (!(partition instanceof HiveCatalogPartition)) {
+			throw new CatalogException("Currently only supports HiveCatalogPartition");
+		}
 
 		Table hiveTable = getHiveTable(tablePath);
 
@@ -737,7 +739,9 @@ public class HiveCatalog implements Catalog {
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 		checkNotNull(newPartition, "New partition cannot be null");
 
-		checkArgument(newPartition instanceof HiveCatalogPartition, "Currently only supports HiveCatalogPartition");
+		if (!(newPartition instanceof HiveCatalogPartition)) {
+			throw new CatalogException("Currently only supports HiveCatalogPartition");
+		}
 
 		// Explicitly check if the partition exists or not
 		// because alter_partition() doesn't throw NoSuchObjectException like dropPartition() when the target doesn't exist
@@ -778,7 +782,7 @@ public class HiveCatalog implements Catalog {
 		boolean isGeneric = Boolean.valueOf(hiveTable.getParameters().get(FLINK_PROPERTY_IS_GENERIC));
 		if ((isGeneric && catalogPartition instanceof HiveCatalogPartition) ||
 			(!isGeneric && catalogPartition instanceof GenericCatalogPartition)) {
-			throw new IllegalArgumentException(String.format("Cannot handle %s partition for %s table",
+			throw new CatalogException(String.format("Cannot handle %s partition for %s table",
 				catalogPartition.getClass().getName(), isGeneric ? "generic" : "non-generic"));
 		}
 	}
@@ -856,7 +860,7 @@ public class HiveCatalog implements Catalog {
 	 *                                       or any key in partitionKeys doesn't exist in partitionSpec.
 	 */
 	private List<String> getOrderedFullPartitionValues(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
-		throws PartitionSpecInvalidException {
+			throws PartitionSpecInvalidException {
 		Map<String, String> spec = partitionSpec.getPartitionSpec();
 		if (spec.size() != partitionKeys.size()) {
 			throw new PartitionSpecInvalidException(catalogName, partitionKeys, tablePath, partitionSpec);
