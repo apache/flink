@@ -247,9 +247,7 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 				break;
 			}
 
-			if (!curBufferNode.release()) {
-				sharedBuffer.upsertEntry(curNode, curBufferNode);
-			} else {
+			if (curBufferNode.release()) {
 				// first release the current node
 				sharedBuffer.removeEntry(curNode);
 				releaseEvent(curNode.getEventId());
@@ -260,6 +258,8 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
 						nodesToExamine.push(targetId);
 					}
 				}
+			} else {
+				sharedBuffer.upsertEntry(curNode, curBufferNode);
 			}
 		}
 	}
