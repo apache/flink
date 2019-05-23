@@ -29,14 +29,17 @@ import java.util.Map;
  */
 public class HiveTablePartition implements Serializable {
 
+	private static final long serialVersionUID = 4145470177119940673L;
+
+	/** Partition storage descriptor. */
 	private final StorageDescriptor storageDescriptor;
 
-	// Partition spec for the partition. Should be null if the table is not partitioned.
+	/** The map of partition key names and their values. */
 	private final Map<String, Object> partitionSpec;
 
-	public HiveTablePartition(StorageDescriptor storageDescriptor, Map<String, Object> partitionSpec) {
+	public HiveTablePartition(StorageDescriptor storageDescriptor, Map<String, Object> partitionValues) {
 		this.storageDescriptor = storageDescriptor;
-		this.partitionSpec = partitionSpec;
+		this.partitionSpec = partitionValues;
 	}
 
 	public StorageDescriptor getStorageDescriptor() {

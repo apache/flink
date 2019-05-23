@@ -16,15 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.batch.connectors.hive;
 
 /**
- * Configs for tables in Hive metastore.
+ *
  */
-public class HiveTableConfig {
-
-	// Comment of the Flink table
-	public static final String TABLE_COMMENT = "comment";
-	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
-
+public class HiveTableSourceTest {
 }

@@ -16,15 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.batch.connectors.hive;
+
+import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopInputSplit;
+
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
 
 /**
- * Configs for tables in Hive metastore.
+ * An wrapper class that wraps info needed for a hadoop input split.
+ * Right now, it contains info about the partition of the split.
  */
-public class HiveTableConfig {
+public class HiveTableInputSplit extends HadoopInputSplit {
+	private HiveTablePartition hiveTablePartition;
 
-	// Comment of the Flink table
-	public static final String TABLE_COMMENT = "comment";
-	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
+	public HiveTableInputSplit(
+			int splitNumber,
+			InputSplit hInputSplit,
+			JobConf jobconf,
+			HiveTablePartition hiveTablePartition) {
+		super(splitNumber, hInputSplit, jobconf);
+		this.hiveTablePartition = hiveTablePartition;
+	}
 
+	public HiveTablePartition getHiveTablePartition() {
+		return hiveTablePartition;
+	}
 }
