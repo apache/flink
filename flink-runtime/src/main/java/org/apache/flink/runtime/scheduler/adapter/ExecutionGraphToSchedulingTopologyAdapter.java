@@ -66,9 +66,8 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 
 		for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
 			List<DefaultResultPartition> producedPartitions = generateProducedSchedulingResultPartition(vertex.getProducedPartitions());
-			for (DefaultResultPartition srp : producedPartitions) {
-				tmpResultPartitionsById.put(srp.getId(), srp);
-			}
+
+			producedPartitions.forEach(partition -> tmpResultPartitionsById.put(partition.getId(), partition));
 
 			DefaultExecutionVertex schedulingVertex = generateSchedulingExecutionVertex(vertex, producedPartitions);
 			this.executionVerticesById.put(schedulingVertex.getId(), schedulingVertex);
@@ -99,29 +98,26 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 		Map<IntermediateResultPartitionID, IntermediateResultPartition> producedIntermediatePartitions) {
 		List<DefaultResultPartition> producedSchedulingPartitions = new ArrayList<>(producedIntermediatePartitions.size());
 
-		for (IntermediateResultPartition irp : producedIntermediatePartitions.values()) {
-			producedSchedulingPartitions.add(new DefaultResultPartition(
-				irp.getPartitionId(),
-				irp.getIntermediateResult().getId(),
-				irp.getResultType()));
-		}
+		producedIntermediatePartitions.values().forEach(
+			irp -> producedSchedulingPartitions.add(
+				new DefaultResultPartition(
+					irp.getPartitionId(),
+					irp.getIntermediateResult().getId(),
+					irp.getResultType())));
 
 		return producedSchedulingPartitions;
 	}
 
 	private static DefaultExecutionVertex generateSchedulingExecutionVertex(
 		ExecutionVertex vertex,
-		List<? extends SchedulingResultPartition> producedPartitions) {
+		List<DefaultResultPartition> producedPartitions) {
 
 		DefaultExecutionVertex schedulingVertex = new DefaultExecutionVertex(
 			new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()),
 			producedPartitions,
 			new ExecutionStateSupplier(vertex));
 
-		for (SchedulingResultPartition srp : producedPartitions) {
-			DefaultResultPartition drp = (DefaultResultPartition) srp;
-			drp.setProducer(schedulingVertex);
-		}
+		producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
 
 		return schedulingVertex;
 	}
