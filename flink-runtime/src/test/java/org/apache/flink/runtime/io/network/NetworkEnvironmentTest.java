@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -141,7 +141,7 @@ public class NetworkEnvironmentTest {
 			bufferCount = 20;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+			bufferCount = 10 + 10 * NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 		}
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
@@ -160,7 +160,7 @@ public class NetworkEnvironmentTest {
 			bufferCount = 19;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
+			bufferCount = 10 + 10 * NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 		}
 
 		expectedException.expect(IOException.class);

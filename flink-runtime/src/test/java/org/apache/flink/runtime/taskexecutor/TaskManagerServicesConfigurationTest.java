@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -38,20 +38,20 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 	/**
 	 * Verifies that {@link TaskManagerServicesConfiguration#fromConfiguration(Configuration, long, InetAddress, boolean)}
 	 * returns the correct result for new configurations via
-	 * {@link TaskManagerOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
-	 * {@link TaskManagerOptions#NETWORK_REQUEST_BACKOFF_MAX},
-	 * {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL} and
-	 * {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
+	 * {@link NetworkEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
+	 * {@link NetworkEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX},
+	 * {@link NetworkEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and
+	 * {@link NetworkEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
 	 */
 	@Test
 	public void testNetworkRequestBackoffAndBuffers() throws Exception {
 
 		// set some non-default values
 		final Configuration config = new Configuration();
-		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-		config.setInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
-		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
 		TaskManagerServicesConfiguration tmConfig =
 			TaskManagerServicesConfiguration.fromConfiguration(config, MEM_SIZE_PARAM, InetAddress.getLoopbackAddress(), true);
