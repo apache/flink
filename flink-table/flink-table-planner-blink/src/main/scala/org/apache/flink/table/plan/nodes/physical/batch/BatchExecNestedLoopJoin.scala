@@ -105,9 +105,9 @@ class BatchExecNestedLoopJoin(
     }
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     // Assume NestedLoopJoin always broadcast data from child which smaller.
-    pushDownTraitsIntoBroadcastJoin(requiredTraitSet, leftIsBuild)
+    satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
   }
 
   //~ ExecNode methods -----------------------------------------------------------

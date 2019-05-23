@@ -60,7 +60,7 @@ class BatchExecCalc(
     new BatchExecCalc(cluster, traitSet, child, program, outputRowType)
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     // Does not push broadcast distribution trait down into Calc.
     if (requiredDistribution.getType == RelDistribution.Type.BROADCAST_DISTRIBUTED) {
@@ -88,8 +88,8 @@ class BatchExecCalc(
 
     val mapping = getProjectMapping
     val appliedDistribution = requiredDistribution.apply(mapping)
-    // If both distribution and collation can be pushed down, push them both. If only distribution
-    // can be pushed down, only push down distribution. There is no possibility to only push down
+    // If both distribution and collation can be satisfied, satisfy both. If only distribution
+    // can be satisfied, only satisfy distribution. There is no possibility to only satisfy
     // collation here except for there is no distribution requirement.
     if ((!requiredDistribution.isTop) && (appliedDistribution eq FlinkRelDistribution.ANY)) {
       return null
@@ -99,22 +99,22 @@ class BatchExecCalc(
     val appliedCollation = TraitUtil.apply(requiredCollation, mapping)
     val canCollationPushedDown = !appliedCollation.getFieldCollations.isEmpty
     // If required traits only contains collation requirements, but collation keys are not columns
-    // from input, then no need to push down required traits.
+    // from input, then no need to satisfy required traits.
     if ((appliedDistribution eq FlinkRelDistribution.ANY) && !canCollationPushedDown) {
       return null
     }
 
-    var pushDownTraits = getInput.getTraitSet
+    var inputRequiredTraits = getInput.getTraitSet
     var providedTraits = getTraitSet
     if (!appliedDistribution.isTop) {
-      pushDownTraits = pushDownTraits.replace(appliedDistribution)
+      inputRequiredTraits = inputRequiredTraits.replace(appliedDistribution)
       providedTraits = providedTraits.replace(requiredDistribution)
     }
     if (canCollationPushedDown) {
-      pushDownTraits = pushDownTraits.replace(appliedCollation)
+      inputRequiredTraits = inputRequiredTraits.replace(appliedCollation)
       providedTraits = providedTraits.replace(requiredCollation)
     }
-    val newInput = RelOptRule.convert(getInput, pushDownTraits)
+    val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
     copy(providedTraits, Seq(newInput))
   }
 

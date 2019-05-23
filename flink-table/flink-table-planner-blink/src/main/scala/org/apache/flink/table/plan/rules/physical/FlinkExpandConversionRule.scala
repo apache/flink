@@ -81,7 +81,7 @@ class FlinkExpandConversionRule(flinkConvention: Convention)
       call: RelOptRuleCall): Unit = {
     node match {
       case batchRel: BatchPhysicalRel =>
-        var otherChoice = batchRel.satisfyTraitsByInput(requiredTraits)
+        var otherChoice = batchRel.satisfyTraits(requiredTraits)
         if (otherChoice != null) {
           // It is possible only push down distribution instead of push down both distribution and
           // collation. So it is necessary to check whether collation satisfy requirement.

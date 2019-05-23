@@ -37,6 +37,6 @@ trait FlinkPhysicalRel extends FlinkRelNode {
     * @return A converted node which satisfy required traits by inputs node of current node.
     *         Returns null if required traits cannot be pushed down into inputs.
     */
-  def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = null
+  def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = null
 
 }

@@ -100,38 +100,46 @@ class BatchExecSortAggregate(
         isGlobal = true))
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
-    val pushDownDistribution = requiredDistribution.getType match {
-      case SINGLETON => if (grouping.length == 0) requiredDistribution else null
+    val canSatisfy = requiredDistribution.getType match {
+      case SINGLETON => grouping.length == 0
       case HASH_DISTRIBUTED =>
         val shuffleKeys = requiredDistribution.getKeys
         val groupKeysList = ImmutableIntList.of(grouping.indices.toArray: _*)
         if (requiredDistribution.requireStrict) {
-          if (shuffleKeys == groupKeysList) {
-            FlinkRelDistribution.hash(grouping, requireStrict = true)
-          } else {
-            null
-          }
+          shuffleKeys == groupKeysList
+        } else if (Util.startsWith(shuffleKeys, groupKeysList)) {
+          // If required distribution is not strict, Hash[a] can satisfy Hash[a, b].
+          // so return true if shuffleKeys(Hash[a, b]) start with groupKeys(Hash[a])
+          true
+        } else {
+          // If partialKey is enabled, try to use partial key to satisfy the required distribution
+          val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+          val partialKeyEnabled = tableConfig.getConf.getBoolean(
+            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+          partialKeyEnabled && groupKeysList.containsAll(shuffleKeys)
+        }
+      case _ => false
+    }
+    if (!canSatisfy) {
+      return null
+    }
+
+    val inputRequiredDistribution = requiredDistribution.getType match {
+      case SINGLETON => requiredDistribution
+      case HASH_DISTRIBUTED =>
+        val shuffleKeys = requiredDistribution.getKeys
+        val groupKeysList = ImmutableIntList.of(grouping.indices.toArray: _*)
+        if (requiredDistribution.requireStrict) {
+          FlinkRelDistribution.hash(grouping, requireStrict = true)
         } else if (Util.startsWith(shuffleKeys, groupKeysList)) {
           // Hash [a] can satisfy Hash[a, b]
           FlinkRelDistribution.hash(grouping, requireStrict = false)
         } else {
-          val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-          if (tableConfig.getConf.getBoolean(
-            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED) &&
-            groupKeysList.containsAll(shuffleKeys)) {
-            // If partialKey is enabled, push down partialKey requirement into input.
-            FlinkRelDistribution.hash(
-              shuffleKeys.map(k => grouping(k)).toArray, requireStrict = false)
-          } else {
-            null
-          }
+          // use partial key to satisfy the required distribution
+          FlinkRelDistribution.hash(shuffleKeys.map(grouping(_)).toArray, requireStrict = false)
         }
-      case _ => null
-    }
-    if (pushDownDistribution == null) {
-      return null
     }
 
     val providedCollation = if (grouping.length == 0) {
@@ -146,7 +154,7 @@ class BatchExecSortAggregate(
     } else {
       getTraitSet.replace(requiredDistribution)
     }
-    val newInput = RelOptRule.convert(getInput, pushDownDistribution)
+    val newInput = RelOptRule.convert(getInput, inputRequiredDistribution)
     copy(newProvidedTraitSet, Seq(newInput))
   }
 

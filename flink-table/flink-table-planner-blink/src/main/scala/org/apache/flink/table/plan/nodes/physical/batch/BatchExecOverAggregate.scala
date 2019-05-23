@@ -182,7 +182,7 @@ class BatchExecOverAggregate(
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "windowAgg$" + i)
   }
 
-  private[flink] def splitOutOffsetOrInsensitiveGroup()
+  private def splitOutOffsetOrInsensitiveGroup()
   : Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] = {
 
     def compareTo(o1: Window.RexWinAggCall, o2: Window.RexWinAggCall): Boolean = {
@@ -245,7 +245,7 @@ class BatchExecOverAggregate(
     windowGroupInfo
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
     if (requiredDistribution.getType == ANY && requiredCollation.getFieldCollations.isEmpty) {
@@ -258,9 +258,8 @@ class BatchExecOverAggregate(
       return copy(selfProvidedTraitSet, Seq(getInput))
     }
 
-    val providedCollation = selfProvidedTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
     val inputFieldCnt = getInput.getRowType.getFieldCount
-    val canPushDownDistribution = if (requiredDistribution.getType == ANY) {
+    val canSatisfy = if (requiredDistribution.getType == ANY) {
       true
     } else {
       if (!grouping.isEmpty) {
@@ -277,8 +276,8 @@ class BatchExecOverAggregate(
               requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)
             }
           } else {
-            // If requirement distribution keys are not all comes from input directly, cannot push
-            // down requirement distribution and collations.
+            // If requirement distribution keys are not all comes from input directly,
+            // cannot satisfy requirement distribution and collations.
             false
           }
         }
@@ -289,14 +288,15 @@ class BatchExecOverAggregate(
     // If OverAggregate can provide distribution, but it's traits cannot satisfy required
     // distribution, cannot push down distribution and collation requirement (because later
     // shuffle will destroy previous collation.
-    if (!canPushDownDistribution) {
+    if (!canSatisfy) {
       return null
     }
 
-    var pushDownTraits = getInput.getTraitSet
+    var inputRequiredTraits = getInput.getTraitSet
     var providedTraits = selfProvidedTraitSet
+    val providedCollation = selfProvidedTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
     if (!requiredDistribution.isTop) {
-      pushDownTraits = pushDownTraits.replace(requiredDistribution)
+      inputRequiredTraits = inputRequiredTraits.replace(requiredDistribution)
       providedTraits = providedTraits.replace(requiredDistribution)
     }
 
@@ -310,14 +310,14 @@ class BatchExecOverAggregate(
       val canPushDownCollation = requiredCollation.getFieldCollations
         .forall(_.getFieldIndex < inputFieldCnt)
       if (canPushDownCollation) {
-        pushDownTraits = pushDownTraits.replace(requiredCollation)
+        inputRequiredTraits = inputRequiredTraits.replace(requiredCollation)
         providedTraits = providedTraits.replace(requiredCollation)
       }
     } else {
       // Don't push down the sort into it's input,
       // due to the provided collation will destroy the input's provided collation.
     }
-    val newInput = RelOptRule.convert(getInput, pushDownTraits)
+    val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
     copy(providedTraits, Seq(newInput))
   }
 

@@ -78,26 +78,25 @@ abstract class BatchExecJoinBase(
   }
 
   /**
-    * Try to push down hash distribution into Non-BroadcastJoin (including SortMergeJoin and
+    * Try to satisfy hash distribution on Non-BroadcastJoin (including SortMergeJoin and
     * Non-Broadcast HashJoin).
     *
     * @param requiredDistribution distribution requirement
     * @return a Tuple including 3 element.
-    *         The first element is a flag which indicate whether the requirement can be push down
-    *         into Join.
+    *         The first element is a flag which indicates whether the requirement can be satisfied.
     *         The second element is the distribution requirement of left child if the requirement
     *         can be push down into join.
-    *         The third elememt is the distribution requirement of right child if the requirement
+    *         The third element is the distribution requirement of right child if the requirement
     *         can be push down into join.
     */
-  def pushDownHashDistributionIntoNonBroadcastJoin(
+  def satisfyHashDistributionOnNonBroadcastJoin(
       requiredDistribution: FlinkRelDistribution)
   : (Boolean, FlinkRelDistribution, FlinkRelDistribution) = {
-    // Only HashDistribution can be push down into Non-broadcast HashJoin
+    // Only Non-broadcast HashJoin could provide HashDistribution
     if (requiredDistribution.getType != HASH_DISTRIBUTED) {
       return (false, null, null)
     }
-    // Full outer join cannot provide Hash distribute because it will generate null for left/ right
+    // Full outer join cannot provide Hash distribute because it will generate null for left/right
     // side if there is no match row.
     if (joinType == JoinRelType.FULL) {
       return (false, null, null)
@@ -118,29 +117,33 @@ abstract class BatchExecJoinBase(
             requiredLeftShuffleKeys += key
             requiredRightShuffleKeys += rk
           case None if requiredDistribution.requireStrict =>
-            // Cannot partial push down distribution if required hash distribution is restrict
+            // Cannot satisfy required hash distribution due to required distribution is restrict
+            // however the key is not found in right
             return (false, null, null)
-          case _ =>
+          case _ => // do nothing
         }
       } else if (key >= leftFieldCnt &&
-        (joinType == JoinRelType.RIGHT ||
-          joinType == JoinRelType.INNER)) {
+        (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)) {
         val keysOnRightChild = key - leftFieldCnt
         rightKeysToLeftKeys.get(keysOnRightChild) match {
           case Some(lk) =>
             requiredLeftShuffleKeys += lk
             requiredRightShuffleKeys += keysOnRightChild
           case None if requiredDistribution.requireStrict =>
+            // Cannot satisfy required hash distribution due to required distribution is restrict
+            // however the key is not found in left
             return (false, null, null)
-          case _ =>
+          case _ => // do nothing
         }
       } else {
-        // cannot push down hash distribute if requirement shuffle keys are not come from left side
-        // when Join is LOJ or are not come from right side when Join is ROJ.
+        // cannot satisfy required hash distribution if requirement shuffle keys are not come from
+        // left side when Join is LOJ or are not come from right side when Join is ROJ.
         return (false, null, null)
       }
     }
     if (requiredLeftShuffleKeys.isEmpty) {
+      // the join can not satisfy the required hash distribution
+      // due to the required input shuffle keys are empty
       return (false, null, null)
     }
 
@@ -156,66 +159,67 @@ abstract class BatchExecJoinBase(
   }
 
   /**
-    * Try to push down trait into BroadcastJoin (including Broadcast-HashJoin and
+    * Try to satisfy the given required traits on BroadcastJoin (including Broadcast-HashJoin and
     * NestedLoopJoin).
     *
     * @param requiredTraitSet requirement traitSets
-    * @return Equivalent Join which is push down required traitSet into input, return null if
-    *         requirement cannot push down.
+    * @return Equivalent Join which satisfies required traitSet, return null if
+    *         requirement cannot be satisfied.
     */
-  protected def pushDownTraitsIntoBroadcastJoin(
+  protected def satisfyTraitsOnBroadcastJoin(
       requiredTraitSet: RelTraitSet,
       leftIsBroadcast: Boolean): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
-    requiredDistribution.getType match {
+    val keys = requiredDistribution.getKeys
+    val left = getLeft
+    val right = getRight
+    val leftFieldCnt = left.getRowType.getFieldCount
+    val canSatisfy = requiredDistribution.getType match {
       case HASH_DISTRIBUTED | RANGE_DISTRIBUTED =>
-        // Distribution can be pushed down only if distribution keys all from non-broadcast side of
-        // BroadcastJoin
-        val keys = requiredDistribution.getKeys
-        val leftFieldCnt = getLeft.getRowType.getFieldCount
-        var isKeysAllFromProbe = true
-        val mappingKeys = if (leftIsBroadcast) {
+        // required distribution can be satisfied only if distribution keys all from
+        // non-broadcast side of BroadcastJoin
+        if (leftIsBroadcast) {
           // all distribution keys must come from right child
-          val keysInProbeSide = mutable.ArrayBuffer[Int]()
-          keys.foreach { key =>
-            if (key < leftFieldCnt) {
-              isKeysAllFromProbe = false
-            }
-            keysInProbeSide += key - leftFieldCnt
-          }
-          ImmutableIntList.of(keysInProbeSide: _*)
+          keys.forall(_ >= leftFieldCnt)
         } else {
-          keys.foreach { key =>
-            if (key >= leftFieldCnt) {
-              isKeysAllFromProbe = false
-            }
-          }
-          keys
-        }
-        if (!isKeysAllFromProbe) {
-          null
-        } else {
-          val pushDownDistribution = requiredDistribution.getType match {
-            case HASH_DISTRIBUTED => FlinkRelDistribution.hash(mappingKeys,
-              requiredDistribution.requireStrict)
-            case RANGE_DISTRIBUTED => FlinkRelDistribution.range(mappingKeys)
-          }
-          val providedTraitSet = requiredTraitSet.replace(RelCollations.EMPTY)
-          val (newLeft, newRight) = if (leftIsBroadcast) {
-            // remove collation traits from push down traits and provided traits
-            val pushDownTraitSet = getRight.getTraitSet.replace(pushDownDistribution)
-              .replace(RelCollations.EMPTY)
-            (getLeft, RelOptRule.convert(getRight, pushDownTraitSet))
-          } else {
-            val pushDownTraitSet = getLeft.getTraitSet.replace(pushDownDistribution)
-              .replace(RelCollations.EMPTY)
-            (RelOptRule.convert(getLeft, pushDownTraitSet), getRight)
-          }
-          copy(providedTraitSet, Seq(newLeft, newRight))
+          // all distribution keys must come from left child
+          keys.forall(_ < leftFieldCnt)
         }
       // SINGLETON, BROADCAST_DISTRIBUTED, ANY, RANDOM_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED
       // distribution cannot be pushed down.
-      case _ => null
+      case _ => false
     }
+    if (!canSatisfy) {
+      return null
+    }
+
+    val keysInProbeSide = if (leftIsBroadcast) {
+      ImmutableIntList.of(keys.map(_ - leftFieldCnt): _ *)
+    } else {
+      keys
+    }
+
+    val inputRequiredDistribution = requiredDistribution.getType match {
+      case HASH_DISTRIBUTED =>
+        FlinkRelDistribution.hash(keysInProbeSide, requiredDistribution.requireStrict)
+      case RANGE_DISTRIBUTED =>
+        FlinkRelDistribution.range(keysInProbeSide)
+    }
+    // remove collation traits from input traits and provided traits
+    val (newLeft, newRight) = if (leftIsBroadcast) {
+      val rightRequiredTraitSet = right.getTraitSet
+        .replace(inputRequiredDistribution)
+        .replace(RelCollations.EMPTY)
+      val newRight = RelOptRule.convert(right, rightRequiredTraitSet)
+      (left, newRight)
+    } else {
+      val leftRequiredTraitSet = left.getTraitSet
+        .replace(inputRequiredDistribution)
+        .replace(RelCollations.EMPTY)
+      val newLeft = RelOptRule.convert(left, leftRequiredTraitSet)
+      (newLeft, right)
+    }
+    val providedTraitSet = requiredTraitSet.replace(RelCollations.EMPTY)
+    copy(providedTraitSet, Seq(newLeft, newRight))
   }
 }

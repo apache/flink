@@ -129,19 +129,19 @@ class BatchExecHashJoin(
     }
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     if (!isBroadcast) {
-      pushDownTraitsIntoNonBroadcastHashJoin(requiredTraitSet)
+      satisfyTraitsOnNonBroadcastHashJoin(requiredTraitSet)
     } else {
-      pushDownTraitsIntoBroadcastJoin(requiredTraitSet, leftIsBuild)
+      satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
     }
   }
 
-  private def pushDownTraitsIntoNonBroadcastHashJoin(requiredTraitSet: RelTraitSet): RelNode = {
+  private def satisfyTraitsOnNonBroadcastHashJoin(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
-    val (canPushDown, leftDistribution, rightDistribution) =
-      pushDownHashDistributionIntoNonBroadcastJoin(requiredDistribution)
-    if (!canPushDown) {
+    val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
+      satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
+    if (!canSatisfyDistribution) {
       return null
     }
 
@@ -150,12 +150,13 @@ class BatchExecHashJoin(
         .emptyTraitSet
         .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(distribution)
-    val leftRequiredTrait = toRestrictHashDistributionByKeys(leftDistribution)
-    val rightRequiredTrait = toRestrictHashDistributionByKeys(rightDistribution)
-    val newLeft = RelOptRule.convert(getLeft, leftRequiredTrait)
-    val newRight = RelOptRule.convert(getRight, rightRequiredTrait)
-    // Can not push down collation into HashJoin.
-    copy(getTraitSet.replace(requiredDistribution), Seq(newLeft, newRight))
+    val leftRequiredTraits = toRestrictHashDistributionByKeys(leftRequiredDistribution)
+    val rightRequiredTraits = toRestrictHashDistributionByKeys(rightRequiredDistribution)
+    val newLeft = RelOptRule.convert(getLeft, leftRequiredTraits)
+    val newRight = RelOptRule.convert(getRight, rightRequiredTraits)
+    val providedTraits = getTraitSet.replace(requiredDistribution)
+    // HashJoin can not satisfy collation.
+    copy(providedTraits, Seq(newLeft, newRight))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

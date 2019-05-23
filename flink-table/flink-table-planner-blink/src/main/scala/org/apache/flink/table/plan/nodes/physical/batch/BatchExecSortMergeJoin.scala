@@ -143,50 +143,50 @@ class BatchExecSortMergeJoin(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
-    val (canDistributionPushDown, leftDistribution, rightDistribution) =
-      pushDownHashDistributionIntoNonBroadcastJoin(requiredDistribution)
-    if (!canDistributionPushDown) {
+    val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
+      satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
+    if (!canSatisfyDistribution) {
       return null
     }
 
     val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
     val requiredFieldCollations = requiredCollation.getFieldCollations
-    val shuffleKeysSize = leftDistribution.getKeys.size
+    val shuffleKeysSize = leftRequiredDistribution.getKeys.size
 
-    val newLeft = RelOptRule.convert(getLeft, leftDistribution)
-    val newRight = RelOptRule.convert(getRight, rightDistribution)
+    val newLeft = RelOptRule.convert(getLeft, leftRequiredDistribution)
+    val newRight = RelOptRule.convert(getRight, rightRequiredDistribution)
 
     // SortMergeJoin can provide collation trait, check whether provided collation can satisfy
     // required collations
-    val canCollationPushDown = if (requiredCollation.getFieldCollations.isEmpty) {
+    val canProvideCollation = if (requiredCollation.getFieldCollations.isEmpty) {
       false
     } else if (requiredFieldCollations.size > shuffleKeysSize) {
       // Sort by [a, b] can satisfy [a], but cannot satisfy [a, b, c]
       false
     } else {
-      val leftKeys = leftDistribution.getKeys
+      val leftKeys = leftRequiredDistribution.getKeys
       val leftFieldCnt = getLeft.getRowType.getFieldCount
-      val rightKeys = rightDistribution.getKeys.map(_ + leftFieldCnt)
-      requiredFieldCollations.zipWithIndex.forall { case (fc, index) =>
-        val cfi = fc.getFieldIndex
-        if (cfi < leftFieldCnt && joinType != JoinRelType.RIGHT) {
+      val rightKeys = rightRequiredDistribution.getKeys.map(_ + leftFieldCnt)
+      requiredFieldCollations.zipWithIndex.forall { case (collation, index) =>
+        val idxOfCollation = collation.getFieldIndex
+        // Full outer join is handled before, so does not need care about it
+        if (idxOfCollation < leftFieldCnt && joinType != JoinRelType.RIGHT) {
           val fieldCollationOnLeftSortKey = FlinkRelOptUtil.ofRelFieldCollation(leftKeys.get(index))
-          fc == fieldCollationOnLeftSortKey
-        } else if (cfi >= leftFieldCnt &&
-          (joinType == JoinRelType.RIGHT ||
-            joinType == JoinRelType.INNER)) {
+          collation == fieldCollationOnLeftSortKey
+        } else if (idxOfCollation >= leftFieldCnt &&
+          (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)) {
           val fieldCollationOnRightSortKey =
             FlinkRelOptUtil.ofRelFieldCollation(rightKeys.get(index))
-          fc == fieldCollationOnRightSortKey
+          collation == fieldCollationOnRightSortKey
         } else {
           false
         }
       }
     }
     var newProvidedTraitSet = getTraitSet.replace(requiredDistribution)
-    if (canCollationPushDown) {
+    if (canProvideCollation) {
       newProvidedTraitSet = newProvidedTraitSet.replace(requiredCollation)
     }
     copy(newProvidedTraitSet, Seq(newLeft, newRight))

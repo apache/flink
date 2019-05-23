@@ -115,48 +115,56 @@ class BatchExecRank(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
-  override def satisfyTraitsByInput(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
     if (isGlobal) {
-      satisfyTraitsByInputForGlobal(requiredTraitSet)
+      satisfyTraitsOnGlobalRank(requiredTraitSet)
     } else {
-      satisfyTraitsByInputForLocal(requiredTraitSet)
+      satisfyTraitsOnLocalRank(requiredTraitSet)
     }
   }
 
-  private def satisfyTraitsByInputForGlobal(requiredTraitSet: RelTraitSet): RelNode = {
+  private def satisfyTraitsOnGlobalRank(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
-    val pushDownDistribution = requiredDistribution.getType match {
-      case SINGLETON => if (partitionKey.cardinality() == 0) requiredDistribution else null
+    val canSatisfy = requiredDistribution.getType match {
+      case SINGLETON => partitionKey.cardinality() == 0
       case HASH_DISTRIBUTED =>
         val shuffleKeys = requiredDistribution.getKeys
         val partitionKeyList = ImmutableIntList.of(partitionKey.toArray: _*)
         if (requiredDistribution.requireStrict) {
-          if (shuffleKeys == partitionKeyList) {
-            FlinkRelDistribution.hash(partitionKeyList)
-          } else {
-            null
-          }
+          shuffleKeys == partitionKeyList
         } else if (Util.startsWith(shuffleKeys, partitionKeyList)) {
           // If required distribution is not strict, Hash[a] can satisfy Hash[a, b].
-          // If partitionKeys satisfies shuffleKeys (the shuffle between this node and
-          // its output is not necessary), just push down partitionKeys into input.
-          FlinkRelDistribution.hash(partitionKeyList, requireStrict = false)
+          // so return true if shuffleKeys(Hash[a, b]) start with partitionKeyList(Hash[a])
+          true
         } else {
+          // If partialKey is enabled, try to use partial key to satisfy the required distribution
           val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-          if (tableConfig.getConf.getBoolean(
-            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED) &&
-            partitionKeyList.containsAll(shuffleKeys)) {
-            // If partialKey is enabled, push down partialKey requirement into input.
-            FlinkRelDistribution.hash(shuffleKeys.map(partitionKeyList(_)), requireStrict = false)
-          } else {
-            null
-          }
+          val partialKeyEnabled = tableConfig.getConf.getBoolean(
+            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+          partialKeyEnabled && partitionKeyList.containsAll(shuffleKeys)
         }
-      case _ => null
+      case _ => false
     }
-    if (pushDownDistribution == null) {
+    if (!canSatisfy) {
       return null
     }
+
+    val inputRequiredDistribution = requiredDistribution.getType match {
+      case SINGLETON => requiredDistribution
+      case HASH_DISTRIBUTED =>
+        val shuffleKeys = requiredDistribution.getKeys
+        val partitionKeyList = ImmutableIntList.of(partitionKey.toArray: _*)
+        if (requiredDistribution.requireStrict) {
+          FlinkRelDistribution.hash(partitionKeyList)
+        } else if (Util.startsWith(shuffleKeys, partitionKeyList)) {
+          // Hash[a] can satisfy Hash[a, b]
+          FlinkRelDistribution.hash(partitionKeyList, requireStrict = false)
+        } else {
+          // use partial key to satisfy the required distribution
+          FlinkRelDistribution.hash(shuffleKeys.map(partitionKeyList(_)), requireStrict = false)
+        }
+    }
+
     // sort by partition keys + orderby keys
     val providedFieldCollations = partitionKey.toArray.map {
       k => FlinkRelOptUtil.ofRelFieldCollation(k)
@@ -168,15 +176,15 @@ class BatchExecRank(
     } else {
       getTraitSet.replace(requiredDistribution)
     }
-    val newInput = RelOptRule.convert(getInput, pushDownDistribution)
+    val newInput = RelOptRule.convert(getInput, inputRequiredDistribution)
     copy(newProvidedTraitSet, Seq(newInput))
   }
 
-  private def satisfyTraitsByInputForLocal(requiredTraitSet: RelTraitSet): RelNode = {
+  private def satisfyTraitsOnLocalRank(requiredTraitSet: RelTraitSet): RelNode = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     requiredDistribution.getType match {
       case Type.SINGLETON =>
-        val pushDownDistribution = requiredDistribution
+        val inputRequiredDistribution = requiredDistribution
         // sort by orderby keys
         val providedCollation = orderKey
         val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
@@ -186,8 +194,8 @@ class BatchExecRank(
           getTraitSet.replace(requiredDistribution)
         }
 
-        val pushDownRelTraits = getInput.getTraitSet.replace(pushDownDistribution)
-        val newInput = RelOptRule.convert(getInput, pushDownRelTraits)
+        val inputRequiredTraits = getInput.getTraitSet.replace(inputRequiredDistribution)
+        val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
         copy(newProvidedTraitSet, Seq(newInput))
       case Type.HASH_DISTRIBUTED =>
         val shuffleKeys = requiredDistribution.getKeys
@@ -195,14 +203,14 @@ class BatchExecRank(
           // rank function column is the last one
           val rankColumnIndex = getRowType.getFieldCount - 1
           if (!shuffleKeys.contains(rankColumnIndex)) {
-            // Cannot push down distribution if some keys are not from input
+            // Cannot satisfy required distribution if some keys are not from input
             return null
           }
         }
 
-        val pushDownDistributionKeys = shuffleKeys
-        val pushDownDistribution = FlinkRelDistribution.hash(
-          pushDownDistributionKeys, requiredDistribution.requireStrict)
+        val inputRequiredDistributionKeys = shuffleKeys
+        val inputRequiredDistribution = FlinkRelDistribution.hash(
+          inputRequiredDistributionKeys, requiredDistribution.requireStrict)
 
         // sort by partition keys + orderby keys
         val providedFieldCollations = partitionKey.toArray.map {
@@ -216,8 +224,8 @@ class BatchExecRank(
           getTraitSet.replace(requiredDistribution)
         }
 
-        val pushDownRelTraits = getInput.getTraitSet.replace(pushDownDistribution)
-        val newInput = RelOptRule.convert(getInput, pushDownRelTraits)
+        val inputRequiredTraits = getInput.getTraitSet.replace(inputRequiredDistribution)
+        val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
         copy(newProvidedTraitSet, Seq(newInput))
       case _ => null
     }
