@@ -310,7 +310,7 @@ public class SharedBufferTest extends TestLogger {
 			NodeId lastNode = nodeIds[numberEvents - 1];
 			sharedBufferAccessor.releaseNode(lastNode);
 
-			for (int i = 0; i <numberEvents; i++) {
+			for (int i = 0; i < numberEvents; i++) {
 				sharedBufferAccessor.releaseEvent(eventIds[i]);
 			}
 		}
