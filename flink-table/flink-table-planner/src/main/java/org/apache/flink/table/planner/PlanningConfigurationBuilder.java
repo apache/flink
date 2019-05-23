@@ -31,7 +31,6 @@ import org.apache.flink.table.catalog.CatalogReader;
 import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.plan.TableOperationConverter;
 import org.apache.flink.table.plan.cost.DataSetCostFactory;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
 import org.apache.flink.table.validate.FunctionCatalog;
@@ -84,10 +83,9 @@ public class PlanningConfigurationBuilder {
 		this.tableConfig = tableConfig;
 		this.functionCatalog = functionCatalog;
 
-		// create context instances with Flink type factory
-		this.context = Contexts.of(
-			new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
-		);
+		// the converter is needed when calling temporal table functions from SQL, because
+		// they reference a history table represented with a tree of table operations
+		this.context = Contexts.of(expressionBridge);
 
 		this.planner = new VolcanoPlanner(costFactory, context);
 		planner.setExecutor(new ExpressionReducer(tableConfig));
@@ -193,9 +191,6 @@ public class PlanningConfigurationBuilder {
 				getSqlToRelConverterConfig(
 					calciteConfig(tableConfig),
 					expressionBridge))
-			// the converter is needed when calling temporal table functions from SQL, because
-			// they reference a history table represented with a tree of table operations
-			.context(context)
 			// set the executor to evaluate constant expressions
 			.executor(new ExpressionReducer(tableConfig))
 			.build();
