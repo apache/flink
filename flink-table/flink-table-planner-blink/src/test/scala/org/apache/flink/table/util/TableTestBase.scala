@@ -144,16 +144,14 @@ abstract class TableTestUtil(test: TableTestBase) {
     * @param name table name
     * @param types field types
     * @param names field names
-    * @param tableStats table stats
-    * @param uniqueKeys unique keys
+    * @param statistic statistic of current table
     * @return returns the registered [[Table]].
     */
   def addTableSource(
       name: String,
       types: Array[TypeInformation[_]],
       names: Array[String],
-      tableStats: Option[TableStats] = None,
-      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table
 
   /**
     * Create a [[DataStream]] with the given schema,
@@ -478,15 +476,10 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
       name: String,
       types: Array[TypeInformation[_]],
       names: Array[String],
-      tableStats: Option[TableStats] = None,
-      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table = {
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
     val tableEnv = getTableEnv
     val schema = new TableSchema(names, types)
     val tableSource = new TestTableSource(schema)
-    val statistic = FlinkStatistic.builder()
-      .tableStats(tableStats.orNull)
-      .uniqueKeys(uniqueKeys.orNull)
-      .build()
     val table = new StreamTableSourceTable[BaseRow](tableSource, statistic)
     tableEnv.registerTableInternal(name, table)
     tableEnv.scan(name)
@@ -596,15 +589,10 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
       name: String,
       types: Array[TypeInformation[_]],
       names: Array[String],
-      tableStats: Option[TableStats] = None,
-      uniqueKeys: Option[JSet[_ <: JSet[String]]] = None): Table = {
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
     val tableEnv = getTableEnv
     val schema = new TableSchema(names, types)
     val tableSource = new TestTableSource(schema)
-    val statistic = FlinkStatistic.builder()
-      .tableStats(tableStats.orNull)
-      .uniqueKeys(uniqueKeys.orNull)
-      .build()
     val table = new BatchTableSourceTable[BaseRow](tableSource, statistic)
     tableEnv.registerTableInternal(name, table)
     tableEnv.scan(name)

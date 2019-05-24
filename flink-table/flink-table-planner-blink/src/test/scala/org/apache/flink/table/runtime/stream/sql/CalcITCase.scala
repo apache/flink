@@ -25,7 +25,7 @@ import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingTestBase, TestSinkUtil, TestingAppendBaseRowSink, TestingAppendSink, TestingAppendTableSink}
+import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestData, TestSinkUtil, TestingAppendBaseRowSink, TestingAppendSink, TestingAppendTableSink}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
 
@@ -166,7 +166,7 @@ class CalcITCase extends StreamingTestBase {
   def testPrimitiveMapType(): Unit = {
     val sqlQuery = "SELECT MAP[b, 30, 10, a] FROM MyTableRow"
 
-    val t = env.fromCollection(StreamTestData.getSmall3TupleData)
+    val t = env.fromCollection(TestData.smallTupleData3)
             .toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTableRow", t)
 
@@ -186,7 +186,7 @@ class CalcITCase extends StreamingTestBase {
   def testNonPrimitiveMapType(): Unit = {
     val sqlQuery = "SELECT MAP[a, c] FROM MyTableRow"
 
-    val t = env.fromCollection(StreamTestData.getSmall3TupleData)
+    val t = env.fromCollection(TestData.smallTupleData3)
             .toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTableRow", t)
 
@@ -228,7 +228,7 @@ class CalcITCase extends StreamingTestBase {
   def testIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b in (1,3,4,5,6)"
 
-    val t = env.fromCollection(StreamTestData.get3TupleData)
+    val t = env.fromCollection(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTable", t)
 
@@ -250,7 +250,7 @@ class CalcITCase extends StreamingTestBase {
   def testNotIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b not in (1,3,4,5,6)"
 
-    val t = env.fromCollection(StreamTestData.get3TupleData)
+    val t = env.fromCollection(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTable", t)
 

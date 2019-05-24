@@ -27,7 +27,7 @@ import org.junit.{Before, Ignore, Test}
 
 // @RunWith(classOf[Parameterized]) TODO
 @Ignore // TODO support JoinConditionTypeCoerce
-class JoinConditionTypeCoerceRuleITCase extends BatchTestBase {
+class JoinConditionTypeCoerceITCase extends BatchTestBase {
   @Before
   def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
@@ -35,14 +35,14 @@ class JoinConditionTypeCoerceRuleITCase extends BatchTestBase {
       "t1",
       numericData,
       numericType,
-      nullablesOfNumericData,
-      "a, b, c, d, e")
+      "a, b, c, d, e",
+      nullablesOfNumericData)
     registerCollection(
       "t2",
       numericData,
       numericType,
-      nullablesOfNumericData,
-      "a, b, c, d, e")
+      "a, b, c, d, e",
+      nullablesOfNumericData)
     // Disable NestedLoopJoin.
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, JoinType.SortMergeJoin)
   }

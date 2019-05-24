@@ -72,9 +72,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, e), =(c, f))], select=[a, b, c
 :- TableSourceScan(table=[[l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[f, e])
-      +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f, Final_MAX(max$0) AS EXPR$0])
+      +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f])
          +- Exchange(distribution=[hash[d, e, f]])
-            +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f, Partial_MAX(e) AS max$0])
+            +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f])
                +- Calc(select=[d, e, f], where=[<(d, 100)])
                   +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>

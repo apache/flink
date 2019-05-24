@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.rules.logical
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{PlannerConfigOptions, Types}
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
+import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
 import org.apache.flink.table.util.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -55,19 +55,19 @@ class JoinDeriveNullFilterRuleTest extends TableTestBase {
     util.addTableSource("MyTable1",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING, Types.INT, Types.LONG),
       Array("a1", "b1", "c1", "d1", "e1"),
-      Some(new TableStats(1000000000, Map(
+      FlinkStatistic.builder().tableStats(new TableStats(1000000000, Map(
         "a1" -> new ColumnStats(null, 10000000L, 4.0, 4, null, null),
         "c1" -> new ColumnStats(null, 5000000L, 10.2, 16, null, null),
         "e1" -> new ColumnStats(null, 500000L, 8.0, 8, null, null)
-      ))))
+      ))).build())
     util.addTableSource("MyTable2",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING, Types.INT, Types.LONG),
       Array("a2", "b2", "c2", "d2", "e2"),
-      Some(new TableStats(2000000000, Map(
+      FlinkStatistic.builder().tableStats(new TableStats(2000000000, Map(
         "b2" -> new ColumnStats(null, 10000000L, 8.0, 8, null, null),
         "c2" -> new ColumnStats(null, 3000000L, 18.6, 32, null, null),
         "e2" -> new ColumnStats(null, 1500000L, 8.0, 8, null, null)
-      ))))
+      ))).build())
   }
 
   @Test

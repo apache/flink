@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
-import org.apache.flink.table.runtime.utils._
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -36,7 +36,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @Test
   def testFirstRowOnProctime(): Unit = {
-    val t = failingDataSource(StreamTestData.get3TupleData)
+    val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime)
     tEnv.registerTable("T", t)
 
@@ -62,7 +62,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @Test
   def testLastRowOnProctime(): Unit = {
-    val t = failingDataSource(StreamTestData.get3TupleData)
+    val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime)
     tEnv.registerTable("T", t)
 

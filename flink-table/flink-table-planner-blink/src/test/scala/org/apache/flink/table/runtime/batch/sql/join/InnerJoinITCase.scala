@@ -78,10 +78,10 @@ class InnerJoinITCase extends BatchTestBase {
   @Before
   def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
-    registerCollection("myUpperCaseData", myUpperCaseData, INT_STRING, Array(true, false), "N, L")
-    registerCollection("myLowerCaseData", myLowerCaseData, INT_STRING, Array(true, false), "n, l")
-    registerCollection("myTestData1", myTestData1, INT_INT, Array(false, false), "a, b")
-    registerCollection("myTestData2", myTestData2, INT_INT, Array(false, false), "a, b")
+    registerCollection("myUpperCaseData", myUpperCaseData, INT_STRING, "N, L", Array(true, false))
+    registerCollection("myLowerCaseData", myLowerCaseData, INT_STRING, "n, l", Array(true, false))
+    registerCollection("myTestData1", myTestData1, INT_INT, "a, b", Array(false, false))
+    registerCollection("myTestData2", myTestData2, INT_INT, "a, b", Array(false, false))
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
