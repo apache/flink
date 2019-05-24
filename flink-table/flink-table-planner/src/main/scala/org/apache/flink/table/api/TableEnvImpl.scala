@@ -83,9 +83,6 @@ abstract class TableEnvImpl(
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
-  // registered external catalog names -> catalog
-  private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
-
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
   private val planningConfigurationBuilder: PlanningConfigurationBuilder =
@@ -329,7 +326,7 @@ abstract class TableEnvImpl(
   }
 
   override def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
-    this.externalCatalogs.get(name) match {
+    JavaScalaConversionUtil.toScala(catalogManager.getExternalCatalog(name)) match {
       case Some(catalog) => catalog
       case None => throw new ExternalCatalogNotExistException(name)
     }
