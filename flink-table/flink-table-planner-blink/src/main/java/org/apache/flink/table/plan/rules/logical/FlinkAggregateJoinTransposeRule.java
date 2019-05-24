@@ -56,9 +56,6 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mapping;
 import org.apache.calcite.util.mapping.Mappings;
-import scala.Tuple2;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -67,6 +64,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import scala.Tuple2;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 /**
  * This rule is copied from Calcite's {@link org.apache.calcite.rel.rules.AggregateJoinTransposeRule}.
