@@ -273,7 +273,7 @@ Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-
    +- Exchange(distribution=[hash[deptno, deptno0, gender, $e]])
       +- Expand(projects=[{deptno=[$0], deptno0=[$1], gender=[$2], ename=[$3], $e=[0]}, {deptno=[$0], deptno0=[$1], gender=[null], ename=[$3], $e=[1]}, {deptno=[$0], deptno0=[null], gender=[$2], ename=[$3], $e=[2]}, {deptno=[$0], deptno0=[null], gender=[null], ename=[$3], $e=[3]}, {deptno=[null], deptno0=[$1], gender=[$2], ename=[$3], $e=[4]}, {deptno=[null], deptno0=[$1], gender=[null], ename=[$3], $e=[5]}, {deptno=[null], deptno0=[null], gender=[$2], ename=[$3], $e=[6]}, {deptno=[null], deptno0=[null], gender=[null], ename=[$3], $e=[7]}])
          +- Calc(select=[deptno, deptno0, gender, ename])
-            +- Join(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0, dname])
+            +- Join(joinType=[InnerJoin], where=[=(deptno, deptno0)], select=[ename, deptno, gender, deptno0, dname], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :- Exchange(distribution=[hash[deptno]])
                :  +- TableSourceScan(table=[[emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
                +- Exchange(distribution=[hash[deptno]])

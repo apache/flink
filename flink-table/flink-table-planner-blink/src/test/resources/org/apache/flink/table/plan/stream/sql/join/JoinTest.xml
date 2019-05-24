@@ -30,7 +30,7 @@ LogicalProject(a1=[$0], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
 :  +- Calc(select=[a1], updateAsRetraction=[true], accMode=[Acc])
 :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
@@ -55,7 +55,7 @@ LogicalProject(a1=[$0], b1=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
    :  +- Calc(select=[a1, a2], updateAsRetraction=[true], accMode=[Acc])
    :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
@@ -85,7 +85,7 @@ LogicalProject(a1=[$1], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -120,7 +120,7 @@ LogicalProject(a1=[$1], b1=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -153,7 +153,7 @@ LogicalProject(a1=[$1], b1=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -183,7 +183,7 @@ LogicalProject(a1=[$1], b1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -216,7 +216,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[FullOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -253,7 +253,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[FullOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -283,7 +283,7 @@ LogicalProject(a1=[$0], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1])
+Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a1]])
 :  +- Calc(select=[a1])
 :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
@@ -313,7 +313,7 @@ LogicalProject(a1=[$1], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[Acc])
+Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[Acc])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -324,30 +324,6 @@ Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetractio
       +- Exchange(distribution=[hash[b1]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[b1, b2], updateAsRetraction=[true], accMode=[Acc])
             +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testInnerJoinWithMiniBatch">
-    <Resource name="sql">
-      <![CDATA[SELECT a1, b1 FROM A JOIN B ON a1 = b1]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$3])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalTableScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[Acc])
-:- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
-:  +- Calc(select=[a1], updateAsRetraction=[true], accMode=[Acc])
-:     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
-+- Exchange(distribution=[hash[b1]], updateAsRetraction=[true], accMode=[Acc])
-   +- Calc(select=[b1], updateAsRetraction=[true], accMode=[Acc])
-      +- TableSourceScan(table=[[B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -371,7 +347,7 @@ LogicalProject(a1=[$1], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -406,7 +382,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -442,7 +418,7 @@ LogicalProject(i=[$0], j=[$1], t=[$2], i0=[$3], k=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[FullOuterJoin], where=[AND(=(i, i0), =(i, k))], select=[i, j, t, i0, k])
+Join(joinType=[FullOuterJoin], where=[AND(=(i, i0), =(i, k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[i, i]])
 :  +- TableSourceScan(table=[[MyTable3, source: [TestTableSource(i, j, t)]]], fields=[i, j, t])
 +- Exchange(distribution=[hash[i, k]])
@@ -464,7 +440,7 @@ LogicalProject(a1=[$0], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
 :  +- Calc(select=[a1], updateAsRetraction=[true], accMode=[Acc])
 :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
@@ -489,7 +465,7 @@ LogicalProject(a1=[$0], b1=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
    :  +- Calc(select=[a1, a2], updateAsRetraction=[true], accMode=[Acc])
    :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
@@ -520,7 +496,7 @@ LogicalProject(a1=[$1], b1=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -557,7 +533,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[LeftOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -594,7 +570,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -627,7 +603,7 @@ LogicalProject(a1=[$1], b1=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -657,7 +633,7 @@ LogicalProject(a1=[$1], b1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -685,7 +661,7 @@ LogicalProject(b=[$1], y=[$5])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, $f3, y, z])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, $f3, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b, <(b, 2) AS $f3])
    :     +- TableSourceScan(table=[[t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -710,7 +686,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -734,7 +710,7 @@ LogicalProject(a1=[$0], b1=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
    :  +- Calc(select=[a1, a2], updateAsRetraction=[true], accMode=[Acc])
    :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
@@ -759,7 +735,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z])
++- Join(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -784,7 +760,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z])
++- Join(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -808,7 +784,7 @@ LogicalProject(a1=[$0], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
 :  +- Calc(select=[a1], updateAsRetraction=[true], accMode=[Acc])
 :     +- TableSourceScan(table=[[A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
@@ -838,7 +814,7 @@ LogicalProject(a1=[$1], b1=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -873,7 +849,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[RightOuterJoin], where=[=(a2, b2)], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -910,7 +886,7 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, a2, b1, b2], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a2, b2), >(a1, b1))], select=[a2, a1, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a2]], updateAsRetraction=[true], accMode=[AccRetract])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[true], accMode=[AccRetract])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[true], accMode=[AccRetract])
@@ -943,7 +919,7 @@ LogicalProject(a1=[$1], b1=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
 :  +- GroupAggregate(groupBy=[a1], select=[a1], updateAsRetraction=[false], accMode=[Acc])
 :     +- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
@@ -973,7 +949,7 @@ LogicalProject(a1=[$1], b1=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b1, b2, b3], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -1006,7 +982,7 @@ LogicalProject(a1=[$1], b1=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a1, b1], updateAsRetraction=[false], accMode=[AccRetract])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], updateAsRetraction=[false], accMode=[AccRetract])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a2, a1, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
    :- Exchange(distribution=[hash[a1]], updateAsRetraction=[false], accMode=[Acc])
    :  +- Calc(select=[a2, a1], updateAsRetraction=[false], accMode=[Acc])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], updateAsRetraction=[false], accMode=[Acc])
@@ -1038,7 +1014,7 @@ LogicalProject(b=[$1], x=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, x])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, x, z, $f3])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), $f3)], select=[a, b, x, z, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1063,7 +1039,7 @@ LogicalProject(b=[$1], y=[$4])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[b, y])
-+- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z])
++- Join(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
    :     +- TableSourceScan(table=[[t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1096,7 +1072,7 @@ LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], updateAsRetraction=[false], accMode=[AccRetract])
+Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[AccRetract])
 :- Exchange(distribution=[hash[key]], updateAsRetraction=[true], accMode=[Acc])
 :  +- Calc(select=[CAST(0:BIGINT) AS key, v], where=[=(key, 0:BIGINT)], updateAsRetraction=[true], accMode=[Acc])
 :     +- TableSourceScan(table=[[src, source: [TestTableSource(key, v)]]], fields=[key, v], updateAsRetraction=[true], accMode=[Acc])

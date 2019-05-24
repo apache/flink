@@ -59,9 +59,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extended)
   }
 
-  @Test(expected = classOf[TableException])
-  // TODO remove expected TableException after translateToPlanInternal method is implemented
-  //  in StreamExecJoin
+  @Test
   def testExplainWithJoin(): Unit = {
     util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extended)
   }

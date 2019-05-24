@@ -38,13 +38,6 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testInnerJoinWithMiniBatch(): Unit = {
-    util.tableEnv.getConfig.getConf
-      .setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-    util.verifyPlanWithTrait( "SELECT a1, b1 FROM A JOIN B ON a1 = b1")
-  }
-
-  @Test
   def testInnerJoinWithEqualPk(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"

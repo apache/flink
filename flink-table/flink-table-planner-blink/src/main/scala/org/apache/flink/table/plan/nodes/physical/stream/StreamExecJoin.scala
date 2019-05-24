@@ -18,19 +18,23 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.calcite.plan._
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.rel.core.{Join, JoinRelType}
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.streaming.api.transformations.{StreamTransformation, TwoInputTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.{JoinUtil, KeySelectorUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.join.FlinkJoinType
-
-import org.apache.calcite.plan._
-import org.apache.calcite.plan.hep.HepRelVertex
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Join, JoinRelType}
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.runtime.join.stream.StreamingJoinOperator
+import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import java.util
 
@@ -104,6 +108,13 @@ class StreamExecJoin(
     new StreamExecJoin(cluster, traitSet, left, right, conditionExpr, joinType)
   }
 
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super
+      .explainTerms(pw)
+      .item("leftInputSpec", analyzeJoinInput(left))
+      .item("rightInputSpec", analyzeJoinInput(right))
+  }
+
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val elementRate = 100.0d * 2 // two input stream
     planner.getCostFactory.makeCost(elementRate, elementRate, 0)
@@ -123,7 +134,116 @@ class StreamExecJoin(
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
-    throw new TableException("Implements this")
+
+    val tableConfig = tableEnv.getConfig
+    val returnType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+
+    val leftTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+      .asInstanceOf[StreamTransformation[BaseRow]]
+    val rightTransform = getInputNodes.get(1).translateToPlan(tableEnv)
+      .asInstanceOf[StreamTransformation[BaseRow]]
+
+    val leftType = leftTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+    val rightType = rightTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+
+    val (leftJoinKey, rightJoinKey) =
+      JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
+
+    val leftSelect = KeySelectorUtil.getBaseRowSelector(leftJoinKey, leftType)
+    val rightSelect = KeySelectorUtil.getBaseRowSelector(rightJoinKey, rightType)
+
+    val leftInputSpec = analyzeJoinInput(left)
+    val rightInputSpec = analyzeJoinInput(right)
+
+    val generatedCondition = JoinUtil.generateConditionFunction(
+      tableConfig,
+      cluster.getRexBuilder,
+      getJoinInfo,
+      leftType.toRowType,
+      rightType.toRowType)
+
+    if (joinType == JoinRelType.ANTI || joinType == JoinRelType.SEMI) {
+      throw new TableException("SEMI/ANTI Join is not supported yet.")
+    }
+
+    val leftIsOuter = joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL
+    val rightIsOuter = joinType == JoinRelType.RIGHT || joinType == JoinRelType.FULL
+    val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
+
+    val operator = new StreamingJoinOperator(
+      leftType,
+      rightType,
+      generatedCondition,
+      leftInputSpec,
+      rightInputSpec,
+      leftIsOuter,
+      rightIsOuter,
+      filterNulls,
+      minRetentionTime)
+
+    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+      leftTransform,
+      rightTransform,
+      getJoinOperatorName(),
+      operator,
+      returnType,
+      leftTransform.getParallelism)
+
+    if (leftJoinKey.isEmpty) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
+    }
+
+    // set KeyType and Selector for state
+    ret.setStateKeySelectors(leftSelect, rightSelect)
+    ret.setStateKeyType(leftSelect.getProducedType)
+    ret
   }
 
+  private def analyzeJoinInput(input: RelNode): JoinInputSideSpec = {
+    val uniqueKeys = cluster.getMetadataQuery.getUniqueKeys(input)
+    if (uniqueKeys == null || uniqueKeys.isEmpty) {
+      JoinInputSideSpec.withoutUniqueKey()
+    } else {
+      val inRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(input.getRowType))
+      val joinKeys = if (input == left) {
+        keyPairs.map(_.source).toArray
+      } else {
+        keyPairs.map(_.target).toArray
+      }
+      val uniqueKeysContainedByJoinKey = uniqueKeys
+        .filter(uk => uk.toArray.forall(joinKeys.contains(_)))
+        .map(_.toArray)
+        .toArray
+      if (uniqueKeysContainedByJoinKey.nonEmpty) {
+        // join key contains unique key
+        val smallestUniqueKey = getSmallestKey(uniqueKeysContainedByJoinKey)
+        val uniqueKeySelector = KeySelectorUtil.getBaseRowSelector(smallestUniqueKey, inRowType)
+        val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
+        JoinInputSideSpec.withUniqueKeyContainedByJoinKey(uniqueKeyTypeInfo, uniqueKeySelector)
+      } else {
+        val smallestUniqueKey = getSmallestKey(uniqueKeys.map(_.toArray).toArray)
+        val uniqueKeySelector = KeySelectorUtil.getBaseRowSelector(smallestUniqueKey, inRowType)
+        val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
+        JoinInputSideSpec.withUniqueKey(uniqueKeyTypeInfo, uniqueKeySelector)
+      }
+    }
+  }
+
+  private def getSmallestKey(keys: Array[Array[Int]]): Array[Int] = {
+    var smallest = keys.head
+    for (key <- keys) {
+      if (key.length < smallest.length) {
+        smallest = key
+      }
+    }
+    smallest
+  }
+
+  private def getJoinOperatorName(): String = {
+    val where = RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString)
+    val select = getRowType.getFieldNames.mkString(", ")
+    s"${flinkJoinType.toString}(where: ($where), select: ($select), " +
+      s"leftInputSpec: ${analyzeJoinInput(left)}, rightInputSpec: ${analyzeJoinInput(right)})"
+  }
 }

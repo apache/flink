@@ -216,6 +216,124 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], updateAsRetraction=[false], accM
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExplainWithJoin[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[MyTable2]])
+
+== Optimized Logical Plan ==
+Calc(select=[a, b, c, e, f])
++- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[d, e, f])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:Buffer(_DataStreamTable_1), fields:(d, e, f))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : InnerJoin(where: (=(a, d)), select: (a, b, c, d, e, f), leftInputSpec: NoUniqueKey, rightInputSpec: NoUniqueKey)
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(select: (a, b, c, e, f))
+					ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithUnion[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:  +- LogicalTableScan(table=[[MyTable1]])
++- LogicalProject(d=[$0], e=[$1], f=[$2])
+   +- LogicalTableScan(table=[[MyTable2]])
+
+== Optimized Logical Plan ==
+Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[_DataStreamTable_1]], fields=[d, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:Buffer(_DataStreamTable_1), fields:(d, e, f))
+			ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithJoin[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[MyTable2]])
+
+== Optimized Logical Plan ==
+Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   :- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   :  +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[d]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:Buffer(_DataStreamTable_1), fields:(d, e, f))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : InnerJoin(where: (=(a, d)), select: (a, b, c, d, e, f), leftInputSpec: NoUniqueKey, rightInputSpec: NoUniqueKey)
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(select: (a, b, c, e, f))
+					ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExplainWithMultiSinks[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -416,6 +534,60 @@ Sink(fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExplainWithSort[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SortLimit(orderBy: [a ASC], offset: 0, fetch: 5)
+			ship_strategy : GLOBAL
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithSort[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SortLimit(orderBy: [a ASC], offset: 0, fetch: 5)
+			ship_strategy : GLOBAL
+
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExplainWithSingleSink[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -448,92 +620,6 @@ Sink(fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , 
 				 : Data Sink
 					content : Sink: TestingAppendTableSink
 					ship_strategy : FORWARD
-
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testExplainWithSort[extended=false]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[MyTable1]])
-
-== Optimized Logical Plan ==
-SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
-+- Exchange(distribution=[single])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
-
-== Physical Execution Plan ==
- : Data Source
-	content : collect elements with CollectionInputFormat
-
-	 : Operator
-		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SortLimit(orderBy: [a ASC], offset: 0, fetch: 5)
-			ship_strategy : GLOBAL
-
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testExplainWithUnion[extended=true]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1], c=[$2])
-:  +- LogicalTableScan(table=[[MyTable1]])
-+- LogicalProject(d=[$0], e=[$1], f=[$2])
-   +- LogicalTableScan(table=[[MyTable2]])
-
-== Optimized Logical Plan ==
-Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-:- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- DataStreamScan(table=[[_DataStreamTable_1]], fields=[d, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-
-== Physical Execution Plan ==
- : Data Source
-	content : collect elements with CollectionInputFormat
-
- : Data Source
-	content : collect elements with CollectionInputFormat
-
-	 : Operator
-		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table:Buffer(_DataStreamTable_1), fields:(d, e, f))
-			ship_strategy : FORWARD
-
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testExplainWithSort[extended=true]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[MyTable1]])
-
-== Optimized Logical Plan ==
-SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-
-== Physical Execution Plan ==
- : Data Source
-	content : collect elements with CollectionInputFormat
-
-	 : Operator
-		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SortLimit(orderBy: [a ASC], offset: 0, fetch: 5)
-			ship_strategy : GLOBAL
 
 ]]>
     </Resource>

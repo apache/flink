@@ -226,7 +226,12 @@ class BatchExecSortMergeJoin(
 
     val keyType = RowType.of(leftAllKey.map(leftType.getChildren.get(_)): _*)
 
-    val condFunc = generateCondition(config, leftType, rightType)
+    val condFunc = JoinUtil.generateConditionFunction(
+      config,
+      cluster.getRexBuilder,
+      getJoinInfo,
+      leftType,
+      rightType)
 
     val externalBufferMemory = config.getConf.getInteger(
       TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
