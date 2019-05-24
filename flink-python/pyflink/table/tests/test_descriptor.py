@@ -17,7 +17,8 @@
 ################################################################################
 import os
 
-from pyflink.table.table_descriptor import (FileSystem, OldCsv, Rowtime, Schema)
+from pyflink.table.table_descriptor import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
+                                            Elasticsearch)
 from pyflink.table.table_sink import CsvTableSink
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
@@ -29,7 +30,7 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
     def test_path(self):
         file_system = FileSystem()
 
-        file_system.path("/test.csv")
+        file_system = file_system.path("/test.csv")
 
         properties = file_system.to_properties()
         expected = {'connector.property-version': '1',
@@ -38,12 +39,392 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
         assert properties == expected
 
 
+class KafkaDescriptorTests(PyFlinkTestCase):
+
+    def test_version(self):
+        kafka = Kafka()
+
+        kafka = kafka.version("0.11")
+
+        properties = kafka.to_properties()
+        expected = {'connector.version': '0.11',
+                    'connector.type': 'kafka',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_topic(self):
+        kafka = Kafka()
+
+        kafka = kafka.topic("topic1")
+
+        properties = kafka.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.topic': 'topic1',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_properties(self):
+        kafka = Kafka()
+
+        kafka = kafka.properties({"zookeeper.connect": "localhost:2181",
+                                  "bootstrap.servers": "localhost:9092"})
+
+        properties = kafka.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.properties.0.key': 'zookeeper.connect',
+                    'connector.properties.0.value': 'localhost:2181',
+                    'connector.properties.1.key': 'bootstrap.servers',
+                    'connector.properties.1.value': 'localhost:9092',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_property(self):
+        kafka = Kafka()
+
+        kafka = kafka.property("group.id", "testGroup")
+
+        properties = kafka.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.properties.0.key': 'group.id',
+                    'connector.properties.0.value': 'testGroup',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_start_from_earliest(self):
+        kafka = Kafka()
+
+        kafka = kafka.start_from_earliest()
+
+        properties = kafka.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'earliest-offset',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_start_from_latest(self):
+        kafka = Kafka()
+
+        kafka = kafka.start_from_latest()
+
+        properties = kafka.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'latest-offset',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_start_from_group_offsets(self):
+        kafka = Kafka()
+
+        kafka = kafka.start_from_group_offsets()
+
+        properties = kafka.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_start_from_specific_offsets(self):
+        kafka = Kafka()
+
+        kafka = kafka.start_from_specific_offsets({1: 220, 3: 400})
+
+        properties = kafka.to_properties()
+        expected = {'connector.startup-mode': 'specific-offsets',
+                    'connector.specific-offsets.0.partition': '1',
+                    'connector.specific-offsets.0.offset': '220',
+                    'connector.specific-offsets.1.partition': '3',
+                    'connector.specific-offsets.1.offset': '400',
+                    'connector.type': 'kafka',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_start_from_specific_offset(self):
+        kafka = Kafka()
+
+        kafka = kafka.start_from_specific_offset(3, 300)
+
+        properties = kafka.to_properties()
+        expected = {'connector.startup-mode': 'specific-offsets',
+                    'connector.specific-offsets.0.partition': '3',
+                    'connector.specific-offsets.0.offset': '300',
+                    'connector.type': 'kafka',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_sink_partitioner_fixed(self):
+        kafka = Kafka()
+
+        kafka = kafka.sink_partitioner_fixed()
+
+        properties = kafka.to_properties()
+        expected = {'connector.sink-partitioner': 'fixed',
+                    'connector.type': 'kafka',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_sink_partitioner_custom(self):
+        kafka = Kafka()
+
+        kafka = kafka.sink_partitioner_custom(
+            "org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner")
+
+        properties = kafka.to_properties()
+        expected = {'connector.sink-partitioner': 'custom',
+                    'connector.sink-partitioner-class':
+                        'org.apache.flink.streaming.connectors.kafka.partitioner.'
+                        'FlinkFixedPartitioner',
+                    'connector.type': 'kafka',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_sink_partitioner_round_robin(self):
+        kafka = Kafka()
+
+        kafka = kafka.sink_partitioner_round_robin()
+
+        properties = kafka.to_properties()
+        expected = {'connector.sink-partitioner': 'round-robin',
+                    'connector.type': 'kafka',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+
+class ElasticsearchDescriptorTest(PyFlinkTestCase):
+
+    def test_version(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.version("6")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.type': 'elasticsearch',
+                    'connector.version': '6',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_host(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.host("localhost", 9200, "http")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.hosts.0.hostname': 'localhost',
+                    'connector.hosts.0.port': '9200',
+                    'connector.hosts.0.protocol': 'http',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_index(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.index("MyUsers")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.index': 'MyUsers',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_document_type(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.document_type("user")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.document-type': 'user',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_key_delimiter(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.key_delimiter("$")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.key-delimiter': '$',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_key_null_literal(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.key_null_literal("n/a")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.key-null-literal': 'n/a',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_failure_handler_fail(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.failure_handler_fail()
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.failure-handler': 'fail',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_failure_handler_ignore(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.failure_handler_ignore()
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.failure-handler': 'ignore',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_failure_handler_retry_rejected(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.failure_handler_retry_rejected()
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.failure-handler': 'retry-rejected',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_failure_handler_custom(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.failure_handler_custom(
+            "org.apache.flink.streaming.connectors.elasticsearch.util.IgnoringFailureHandler")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.failure-handler': 'custom',
+                    'connector.failure-handler-class':
+                        'org.apache.flink.streaming.connectors.elasticsearch.util.'
+                        'IgnoringFailureHandler',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_disable_flush_on_checkpoint(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.disable_flush_on_checkpoint()
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.flush-on-checkpoint': 'false',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_bulk_flush_max_actions(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_max_actions(42)
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.max-actions': '42',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_bulk_flush_max_size(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_max_size("42 mb")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.max-size': '44040192 bytes',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+
+        assert properties == expected
+
+    def test_bulk_flush_interval(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_interval(2000)
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.interval': '2000',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_bulk_flush_backoff_exponential(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_backoff_exponential()
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.backoff.type': 'exponential',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_bulk_flush_backoff_constant(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_backoff_constant()
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.backoff.type': 'constant',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_bulk_flush_backoff_max_retries(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_backoff_max_retries(3)
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.backoff.max-retries': '3',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_bulk_flush_backoff_delay(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.bulk_flush_backoff_delay(30000)
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.bulk-flush.backoff.delay': '30000',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_connection_max_retry_timeout(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.connection_max_retry_timeout(3000)
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.connection-max-retry-timeout': '3000',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+    def test_connection_path_prefix(self):
+        elasticsearch = Elasticsearch()
+
+        elasticsearch = elasticsearch.connection_path_prefix("/v1")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.connection-path-prefix': '/v1',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        assert properties == expected
+
+
 class OldCsvDescriptorTests(PyFlinkTestCase):
 
     def test_field_delimiter(self):
         csv = OldCsv()
 
-        csv.field_delimiter("|")
+        csv = csv.field_delimiter("|")
 
         properties = csv.to_properties()
         expected = {'format.field-delimiter': '|',
@@ -54,7 +435,7 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
     def test_line_delimiter(self):
         csv = OldCsv()
 
-        csv.line_delimiter(";")
+        csv = csv.line_delimiter(";")
 
         expected = {'format.type': 'csv',
                     'format.property-version': '1',
@@ -66,7 +447,7 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
     def test_ignore_parse_errors(self):
         csv = OldCsv()
 
-        csv.ignore_parse_errors()
+        csv = csv.ignore_parse_errors()
 
         properties = csv.to_properties()
         expected = {'format.ignore-parse-errors': 'true',
@@ -77,7 +458,7 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
     def test_quote_character(self):
         csv = OldCsv()
 
-        csv.quote_character("*")
+        csv = csv.quote_character("*")
 
         properties = csv.to_properties()
         expected = {'format.quote-character': '*',
@@ -88,7 +469,7 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
     def test_comment_prefix(self):
         csv = OldCsv()
 
-        csv.comment_prefix("#")
+        csv = csv.comment_prefix("#")
 
         properties = csv.to_properties()
         expected = {'format.comment-prefix': '#',
@@ -99,7 +480,7 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
     def test_ignore_first_line(self):
         csv = OldCsv()
 
-        csv.ignore_first_line()
+        csv = csv.ignore_first_line()
 
         properties = csv.to_properties()
         expected = {'format.ignore-first-line': 'true',
@@ -363,7 +744,7 @@ class AbstractTableDescriptorTests(object):
     def test_with_format(self):
         descriptor = self.t_env.connect(FileSystem())
 
-        descriptor.with_format(OldCsv().field("a", "INT"))
+        descriptor = descriptor.with_format(OldCsv().field("a", "INT"))
 
         properties = descriptor.to_properties()
 
@@ -378,7 +759,7 @@ class AbstractTableDescriptorTests(object):
     def test_with_schema(self):
         descriptor = self.t_env.connect(FileSystem())
 
-        descriptor.with_format(OldCsv()).with_schema(Schema().field("a", "INT"))
+        descriptor = descriptor.with_format(OldCsv()).with_schema(Schema().field("a", "INT"))
 
         properties = descriptor.to_properties()
         expected = {'schema.0.name': 'a',
@@ -505,7 +886,7 @@ class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescri
     def test_in_append_mode(self):
         descriptor = self.t_env.connect(FileSystem())
 
-        descriptor\
+        descriptor = descriptor\
             .with_format(OldCsv())\
             .in_append_mode()
 
@@ -520,7 +901,7 @@ class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescri
     def test_in_retract_mode(self):
         descriptor = self.t_env.connect(FileSystem())
 
-        descriptor \
+        descriptor = descriptor \
             .with_format(OldCsv()) \
             .in_retract_mode()
 
@@ -535,7 +916,7 @@ class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescri
     def test_in_upsert_mode(self):
         descriptor = self.t_env.connect(FileSystem())
 
-        descriptor \
+        descriptor = descriptor \
             .with_format(OldCsv()) \
             .in_upsert_mode()
 

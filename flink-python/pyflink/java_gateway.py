@@ -98,6 +98,7 @@ def launch_gateway():
         gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True))
 
     # Import the classes used by PyFlink
+    java_import(gateway.jvm, "java.util.Properties")
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")

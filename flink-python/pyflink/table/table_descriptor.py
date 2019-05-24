@@ -30,7 +30,9 @@ __all__ = [
     'Rowtime',
     'Schema',
     'OldCsv',
-    'FileSystem'
+    'FileSystem',
+    'Kafka',
+    'Elasticsearch'
 ]
 
 
@@ -256,7 +258,7 @@ class OldCsv(FormatDescriptor):
         format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use
         the old one for stream/batch filesystem operations for now.
 
-    .. note::
+    ..note::
         Deprecated: use the RFC-compliant `Csv` format instead when writing to Kafka.
     """
 
@@ -370,6 +372,485 @@ class FileSystem(ConnectorDescriptor):
         :return: This :class:`FileSystem` object.
         """
         self._j_file_system = self._j_file_system.path(path_str)
+        return self
+
+
+class Kafka(ConnectorDescriptor):
+    """
+    Connector descriptor for the Apache Kafka message queue.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_kafka = gateway.jvm.Kafka()
+        super(ConnectorDescriptor, self).__init__(self._j_kafka)
+
+    def version(self, version):
+        """
+        Sets the Kafka version to be used.
+
+        :param version: Kafka version. E.g., "0.8", "0.11", etc.
+        :return: This object.
+        """
+        if not isinstance(version, (str, unicode)):
+            version = str(version)
+        self._j_kafka = self._j_kafka.version(version)
+        return self
+
+    def topic(self, topic):
+        """
+        Sets the topic from which the table is read.
+
+        :param topic: The topic from which the table is read.
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.topic(topic)
+        return self
+
+    def properties(self, property_dict):
+        """
+        Sets the configuration properties for the Kafka consumer. Resets previously set properties.
+
+        :param property_dict: The dict object contains configuration properties for the Kafka
+                              consumer. Both the keys and values should be strings.
+        :return: This object.
+        """
+        gateway = get_gateway()
+        properties = gateway.jvm.Properties()
+        for key in property_dict:
+            properties.setProperty(key, property_dict[key])
+        self._j_kafka = self._j_kafka.properties(properties)
+        return self
+
+    def property(self, key, value):
+        """
+        Adds a configuration properties for the Kafka consumer.
+
+        :param key: Property key string for the Kafka consumer.
+        :param value: Property value string for the Kafka consumer.
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.property(key, value)
+        return self
+
+    def start_from_earliest(self):
+        """
+        Specifies the consumer to start reading from the earliest offset for all partitions.
+        This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+
+        This method does not affect where partitions are read from when the consumer is restored
+        from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+        savepoint, only the offsets in the restored state will be used.
+
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.startFromEarliest()
+        return self
+
+    def start_from_latest(self):
+        """
+        Specifies the consumer to start reading from the latest offset for all partitions.
+        This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+
+        This method does not affect where partitions are read from when the consumer is restored
+        from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+        savepoint, only the offsets in the restored state will be used.
+
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.startFromLatest()
+        return self
+
+    def start_from_group_offsets(self):
+        """
+        Specifies the consumer to start reading from any committed group offsets found
+        in Zookeeper / Kafka brokers. The "group.id" property must be set in the configuration
+        properties. If no offset can be found for a partition, the behaviour in "auto.offset.reset"
+        set in the configuration properties will be used for the partition.
+
+        This method does not affect where partitions are read from when the consumer is restored
+        from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+        savepoint, only the offsets in the restored state will be used.
+
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.startFromGroupOffsets()
+        return self
+
+    def start_from_specific_offsets(self, specific_offsets_dict):
+        """
+        Specifies the consumer to start reading partitions from specific offsets, set independently
+        for each partition. The specified offset should be the offset of the next record that will
+        be read from partitions. This lets the consumer ignore any committed group offsets in
+        Zookeeper / Kafka brokers.
+
+        If the provided map of offsets contains entries whose partition is not subscribed by the
+        consumer, the entry will be ignored. If the consumer subscribes to a partition that does
+        not exist in the provided map of offsets, the consumer will fallback to the default group
+        offset behaviour(see :func:`pyflink.table.table_descriptor.Kafka.start_from_group_offsets`)
+        for that particular partition.
+
+        If the specified offset for a partition is invalid, or the behaviour for that partition is
+        defaulted to group offsets but still no group offset could be found for it, then the
+        "auto.offset.reset" behaviour set in the configuration properties will be used for the
+        partition.
+
+        This method does not affect where partitions are read from when the consumer is restored
+        from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+        savepoint, only the offsets in the restored state will be used.
+
+        :param specific_offsets_dict: Dict of specific_offsets that the key is int-type partition
+                                      id and value is int-type offset value.
+        :return: This object.
+        """
+        for key in specific_offsets_dict:
+            self.start_from_specific_offset(key, specific_offsets_dict[key])
+        return self
+
+    def start_from_specific_offset(self, partition, specific_offset):
+        """
+        Configures to start reading partitions from specific offsets and specifies the given offset
+        for the given partition.
+
+        see :func:`pyflink.table.table_descriptor.Kafka.start_from_specific_offsets`
+
+        :param partition:
+        :param specific_offset:
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.startFromSpecificOffset(int(partition), int(specific_offset))
+        return self
+
+    def sink_partitioner_fixed(self):
+        """
+        Configures how to partition records from Flink's partitions into Kafka's partitions.
+
+        This strategy ensures that each Flink partition ends up in one Kafka partition.
+
+        ..note::
+            One Kafka partition can contain multiple Flink partitions. Examples:
+
+            More Flink partitions than Kafka partitions. Some (or all) Kafka partitions contain
+            the output of more than one flink partition:
+
+            |    Flink Sinks --------- Kafka Partitions
+            |        1    ---------------->    1
+            |        2    --------------/
+            |        3    -------------/
+            |        4    ------------/
+
+            Fewer Flink partitions than Kafka partitions:
+
+            |    Flink Sinks --------- Kafka Partitions
+            |        1    ---------------->    1
+            |        2    ---------------->    2
+            |                                  3
+            |                                  4
+            |                                  5
+
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.sinkPartitionerFixed()
+        return self
+
+    def sink_partitioner_round_robin(self):
+        """
+        Configures how to partition records from Flink's partitions into Kafka's partitions.
+
+        This strategy ensures that records will be distributed to Kafka partitions in a
+        round-robin fashion.
+
+        ..note::
+            This strategy is useful to avoid an unbalanced partitioning. However, it will cause a
+            lot of network connections between all the Flink instances and all the Kafka brokers.
+
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.sinkPartitionerRoundRobin()
+        return self
+
+    def sink_partitioner_custom(self, partitioner_class_name):
+        """
+        Configures how to partition records from Flink's partitions into Kafka's partitions.
+
+        This strategy allows for a custom partitioner by providing an implementation
+        of ``FlinkKafkaPartitioner``.
+
+        :param partitioner_class_name: The java canonical class name of the FlinkKafkaPartitioner.
+                                       The FlinkKafkaPartitioner must have a public no-argument
+                                       constructor and can be founded by in current Java
+                                       classloader.
+        :return: This object.
+        """
+        gateway = get_gateway()
+        self._j_kafka = self._j_kafka.sinkPartitionerCustom(
+            gateway.jvm.Thread.currentThread().getContextClassLoader()
+                   .loadClass(partitioner_class_name))
+        return self
+
+
+class Elasticsearch(ConnectorDescriptor):
+    """
+    Connector descriptor for the Elasticsearch search engine.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_elasticsearch = gateway.jvm.Elasticsearch()
+        super(Elasticsearch, self).__init__(self._j_elasticsearch)
+
+    def version(self, version):
+        """
+        Sets the Elasticsearch version to be used. Required.
+
+        :param version: Elasticsearch version. E.g., "6".
+        :return: This object.
+        """
+        if not isinstance(version, (str, unicode)):
+            version = str(version)
+        self._j_elasticsearch = self._j_elasticsearch.version(version)
+        return self
+
+    def host(self, hostname, port, protocol):
+        """
+        Adds an Elasticsearch host to connect to. Required.
+
+        Multiple hosts can be declared by calling this method multiple times.
+
+        :param hostname: Connection hostname.
+        :param port: Connection port.
+        :param protocol: Connection protocol; e.g. "http".
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.host(hostname, int(port), protocol)
+        return self
+
+    def index(self, index):
+        """
+        Declares the Elasticsearch index for every record. Required.
+
+        :param index: Elasticsearch index.
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.index(index)
+        return self
+
+    def document_type(self, document_type):
+        """
+        Declares the Elasticsearch document type for every record. Required.
+
+        :param document_type: Elasticsearch document type.
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.documentType(document_type)
+        return self
+
+    def key_delimiter(self, key_delimiter):
+        """
+        Sets a custom key delimiter in case the Elasticsearch ID needs to be constructed from
+        multiple fields. Optional.
+
+        :param key_delimiter: Key delimiter; e.g., "$" would result in IDs "KEY1$KEY2$KEY3".
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.keyDelimiter(key_delimiter)
+        return self
+
+    def key_null_literal(self, key_null_literal):
+        """
+        Sets a custom representation for null fields in keys. Optional.
+
+        :param key_null_literal: key null literal string; e.g. "N/A" would result in IDs
+                                 "KEY1_N/A_KEY3".
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.keyNullLiteral(key_null_literal)
+        return self
+
+    def failure_handler_fail(self):
+        """
+        Configures a failure handling strategy in case a request to Elasticsearch fails.
+
+        This strategy throws an exception if a request fails and thus causes a job failure.
+
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.failureHandlerFail()
+        return self
+
+    def failure_handler_ignore(self):
+        """
+        Configures a failure handling strategy in case a request to Elasticsearch fails.
+
+        This strategy ignores failures and drops the request.
+
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.failureHandlerIgnore()
+        return self
+
+    def failure_handler_retry_rejected(self):
+        """
+        Configures a failure handling strategy in case a request to Elasticsearch fails.
+
+        This strategy re-adds requests that have failed due to queue capacity saturation.
+
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.failureHandlerRetryRejected()
+        return self
+
+    def failure_handler_custom(self, failure_handler_class_name):
+        """
+        Configures a failure handling strategy in case a request to Elasticsearch fails.
+
+        This strategy allows for custom failure handling using a ``ActionRequestFailureHandler``.
+
+        :param failure_handler_class_name:
+        :return: This object.
+        """
+        gateway = get_gateway()
+        self._j_elasticsearch = self._j_elasticsearch.failureHandlerCustom(
+            gateway.jvm.Thread.currentThread().getContextClassLoader()
+                   .loadClass(failure_handler_class_name))
+        return self
+
+    def disable_flush_on_checkpoint(self):
+        """
+        Disables flushing on checkpoint. When disabled, a sink will not wait for all pending action
+        requests to be acknowledged by Elasticsearch on checkpoints.
+
+        ..note::
+            If flushing on checkpoint is disabled, a Elasticsearch sink does NOT
+            provide any strong guarantees for at-least-once delivery of action requests.
+
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.disableFlushOnCheckpoint()
+        return self
+
+    def bulk_flush_max_actions(self, max_actions_num):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets the maximum number of actions to buffer for each bulk request.
+
+        :param max_actions_num: the maximum number of actions to buffer per bulk request.
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushMaxActions(int(max_actions_num))
+        return self
+
+    def bulk_flush_max_size(self, max_size):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets the maximum size of buffered actions per bulk request (using the syntax of
+        MemorySize).
+
+        :param max_size: The maximum size. E.g. "42 mb". only MB granularity is supported.
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushMaxSize(max_size)
+        return self
+
+    def bulk_flush_interval(self, interval):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets the bulk flush interval (in milliseconds).
+
+        :param interval: Bulk flush interval (in milliseconds).
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushInterval(int(interval))
+        return self
+
+    def bulk_flush_backoff_constant(self):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets a constant backoff type to use when flushing bulk requests.
+
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffConstant()
+        return self
+
+    def bulk_flush_backoff_exponential(self):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets an exponential backoff type to use when flushing bulk requests.
+
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffExponential()
+        return self
+
+    def bulk_flush_backoff_max_retries(self, max_retries):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets the maximum number of retries for a backoff attempt when flushing bulk requests.
+
+        Make sure to enable backoff by selecting a strategy (
+        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_constant` or
+        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_exponential`).
+
+        :param max_retries: The maximum number of retries.
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffMaxRetries(int(max_retries))
+        return self
+
+    def bulk_flush_backoff_delay(self, delay):
+        """
+        Configures how to buffer elements before sending them in bulk to the cluster for
+        efficiency.
+
+        Sets the amount of delay between each backoff attempt when flushing bulk requests
+        (in milliseconds).
+
+        Make sure to enable backoff by selecting a strategy (
+        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_constant` or
+        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_exponential`).
+
+        :param delay: Delay between each backoff attempt (in milliseconds).
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffDelay(int(delay))
+        return self
+
+    def connection_max_retry_timeout(self, max_retry_timeout):
+        """
+        Sets connection properties to be used during REST communication to Elasticsearch.
+
+        Sets the maximum timeout (in milliseconds) in case of multiple retries of the same request.
+
+        :param max_retry_timeout: Maximum timeout (in milliseconds).
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.connectionMaxRetryTimeout(
+            int(max_retry_timeout))
+        return self
+
+    def connection_path_prefix(self, path_prefix):
+        """
+        Sets connection properties to be used during REST communication to Elasticsearch.
+
+        Adds a path prefix to every REST communication.
+
+        :param path_prefix: Prefix string to be added to every REST communication.
+        :return: This object.
+        """
+        self._j_elasticsearch = self._j_elasticsearch.connectionPathPrefix(path_prefix)
         return self
 
 

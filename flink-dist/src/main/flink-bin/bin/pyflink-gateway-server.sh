@@ -63,7 +63,7 @@ if [[ -n "$FLINK_TESTING" ]]; then
     else
       FLINK_TEST_CLASSPATH="$FLINK_TEST_CLASSPATH":"$testJarFile"
     fi
-  done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d -name 'flink-*-tests.jar' -print0 | sort -z)
+  done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d \( -name 'flink-*-tests.jar' -o -path '*flink-connector-*-base/target/flink*.jar' \) -print0 | sort -z)
 fi
 
 exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${FLINK_TEST_CLASSPATH} ${DRIVER} ${ARGS[@]}
