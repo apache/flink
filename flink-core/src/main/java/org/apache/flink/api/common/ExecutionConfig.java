@@ -220,6 +220,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public ExecutionConfig setAutoWatermarkInterval(long interval) {
+		Preconditions.checkArgument(interval >= 0, "Auto watermark interval must not be negative.");
 		this.autoWatermarkInterval = interval;
 		return this;
 	}
