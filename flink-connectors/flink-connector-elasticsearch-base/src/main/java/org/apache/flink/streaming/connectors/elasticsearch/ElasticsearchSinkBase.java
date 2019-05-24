@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -91,6 +93,14 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	public enum FlushBackoffType {
 		CONSTANT,
 		EXPONENTIAL
+	}
+
+	/**
+	 * Used to differentiate between BulkIndex errors vs other individual item errors.
+	 */
+	private enum ErrorType {
+		BULK,
+		ITEM
 	}
 
 	/**
@@ -297,7 +307,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
-		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
+		bulkProcessor = buildBulkProcessor(new BulkProcessorListener(getRuntimeContext().getMetricGroup()));
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 		failureRequestIndexer = new BufferingNoOpRequestIndexer();
 	}
@@ -388,11 +398,27 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	}
 
 	private class BulkProcessorListener implements BulkProcessor.Listener {
+		/** The metric group that all metrics should be registered to. */
+		private final MetricGroup metricGroup;
+		private final Counter itemRequestSucceeded;
+		private Long bulkRequestLatency;
+
+		private final Map<String, Counter> bulkRequestErrorMetrics = new HashMap<>();
+		private final Map<String, Counter> itemRequestErrorMetrics = new HashMap<>();
+
+		public BulkProcessorListener(MetricGroup metricGroup) {
+			this.metricGroup = metricGroup;
+			this.itemRequestSucceeded = metricGroup.counter("itemRequestSucceeded");
+			metricGroup.gauge("bulkRequestServerLatency", () -> {
+				return bulkRequestLatency; });
+		}
+
 		@Override
 		public void beforeBulk(long executionId, BulkRequest request) { }
 
 		@Override
 		public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+			bulkRequestLatency = response.getTook().getMillis();
 			if (response.hasFailures()) {
 				BulkItemResponse itemResponse;
 				Throwable failure;
@@ -404,6 +430,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 						failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
 						if (failure != null) {
 							LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
+							getErrorMetric(ErrorType.ITEM, failure).inc();
 
 							restStatus = itemResponse.getFailure().getStatus();
 							if (restStatus == null) {
@@ -411,6 +438,8 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 							} else {
 								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), failureRequestIndexer);
 							}
+						} else {
+							itemRequestSucceeded.inc();
 						}
 					}
 				} catch (Throwable t) {
@@ -418,6 +447,8 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 					// if the failure handler decides to throw an exception
 					failureThrowable.compareAndSet(null, t);
 				}
+			} else {
+				itemRequestSucceeded.inc(response.getItems().length);
 			}
 
 			if (flushOnCheckpoint) {
@@ -428,6 +459,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		@Override
 		public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
 			LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
+			getErrorMetric(ErrorType.BULK, failure).inc();
 
 			try {
 				for (ActionRequest action : request.requests()) {
@@ -442,6 +474,30 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 			if (flushOnCheckpoint) {
 				numPendingRequests.getAndAdd(-request.numberOfActions());
 			}
+		}
+
+		private synchronized Counter getErrorMetric(ErrorType errorType, Throwable throwable) {
+			Counter result = null;
+			String exceptionClass = throwable.getClass().getSimpleName();
+			switch (errorType) {
+				case BULK:
+					if (!bulkRequestErrorMetrics.containsKey(exceptionClass)) {
+						LOG.info("Creating new metricGroup for bulkRequest error: {}", exceptionClass);
+						MetricGroup metricGroup = this.metricGroup.addGroup("exception_class", exceptionClass);
+						bulkRequestErrorMetrics.put(exceptionClass, metricGroup.counter("bulkRequestFailed"));
+					}
+					result = bulkRequestErrorMetrics.get(exceptionClass);
+					break;
+				case ITEM:
+					if (!itemRequestErrorMetrics.containsKey(exceptionClass)) {
+						LOG.info("Creating new metricGroup for itemRequest error: {}", exceptionClass);
+						MetricGroup metricGroup = this.metricGroup.addGroup("exception_class", exceptionClass);
+						itemRequestErrorMetrics.put(exceptionClass, metricGroup.counter("indexRequestFailed"));
+					}
+					result = itemRequestErrorMetrics.get(exceptionClass);
+					break;
+			}
+			return result;
 		}
 	}
 
