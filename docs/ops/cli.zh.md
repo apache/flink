@@ -109,7 +109,7 @@ available.
 
 -   提交一个有多个依赖的Python Table的作业，Python作业的主入口通过pym选项指定:
 
-        ./bin/flink run -pym batch.word_count.py -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
+        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
 
 -   提交一个指定并发度为16的Python Table的作业:
 

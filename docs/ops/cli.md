@@ -109,7 +109,7 @@ These examples about how to submit a job in CLI.
 
 -   Run Python Table program with pyFiles and pyModule:
 
-        ./bin/flink run -pym batch.word_count.py -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
+        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
 
 -   Run Python Table program with parallelism 16:
 
