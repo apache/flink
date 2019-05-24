@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.file.Files;
 
 /**
  * The Py4j Gateway Server provides RPC service for user's python process.
@@ -56,15 +57,17 @@ public class PythonGatewayServer {
 		// Tells python side the port of our java rpc server
 		String handshakeFilePath = System.getenv("_PYFLINK_CONN_INFO_PATH");
 		File handshakeFile = new File(handshakeFilePath);
-		if (handshakeFile.createNewFile()) {
-			FileOutputStream fileOutputStream = new FileOutputStream(handshakeFile);
-			DataOutputStream stream = new DataOutputStream(fileOutputStream);
-			stream.writeInt(boundPort);
-			stream.close();
-			fileOutputStream.close();
-		} else {
-			System.out.println("Can't create handshake file: " + handshakeFilePath + ", now exit...");
-			return;
+		File tmpPath = Files.createTempFile(handshakeFile.getParentFile().toPath(),
+			"connection", ".info").toFile();
+		FileOutputStream fileOutputStream = new FileOutputStream(tmpPath);
+		DataOutputStream stream = new DataOutputStream(fileOutputStream);
+		stream.writeInt(boundPort);
+		stream.close();
+		fileOutputStream.close();
+
+		if (!tmpPath.renameTo(handshakeFile)) {
+			System.out.println("Unable to write connection information to handshake file: " + handshakeFilePath + ", now exit...");
+			System.exit(1);
 		}
 
 		// Exit on EOF or broken pipe.  This ensures that the server dies
