@@ -225,6 +225,7 @@ jobs:
       name: Documentation links check
     # E2E profiles - Hadoop 2.8
     - if: type = cron
+      stage: test
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_misc.sh
       name: misc - hadoop 2.8
