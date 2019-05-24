@@ -97,6 +97,10 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL = "restart-strategy.max-failures-per-interval";
 
+	private static final String EXECUTION_CURRNET_CATALOG = "current-catalog";
+
+	private static final String EXECUTION_CURRNET_DATABASE = "current-database";
+
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
 	}
@@ -133,6 +137,8 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateLong(EXECUTION_RESTART_STRATEGY_DELAY, true, 0);
 		properties.validateLong(EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL, true, 1);
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
+		properties.validateString(EXECUTION_CURRNET_CATALOG, true, 1);
+		properties.validateString(EXECUTION_CURRNET_DATABASE, true, 1);
 	}
 
 	public boolean isStreamingExecution() {
@@ -228,6 +234,14 @@ public class ExecutionEntry extends ConfigEntry {
 					EXECUTION_RESTART_STRATEGY_TYPE,
 					RestartStrategies.fallBackRestart(),
 					EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK));
+	}
+
+	public Optional<String> getCurrentCatalog() {
+		return properties.getOptionalString(EXECUTION_CURRNET_CATALOG);
+	}
+
+	public Optional<String> getCurrentDatabase() {
+		return properties.getOptionalString(EXECUTION_CURRNET_DATABASE);
 	}
 
 	public boolean isChangelogMode() {
