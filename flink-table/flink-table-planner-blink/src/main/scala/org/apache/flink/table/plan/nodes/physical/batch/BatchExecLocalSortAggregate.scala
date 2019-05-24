@@ -96,10 +96,10 @@ class BatchExecLocalSortAggregate(
         isGlobal = false))
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     // Does not to try to satisfy requirement by localAgg's input if enforce to use two-stage agg.
     if (isEnforceTwoStageAgg) {
-      return null
+      return None
     }
     val groupCount = grouping.length
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
@@ -110,7 +110,7 @@ class BatchExecLocalSortAggregate(
       case _ => false
     }
     if (!canSatisfy) {
-      return null
+      return None
     }
 
     val keys = requiredDistribution.getKeys.map(grouping(_))
@@ -131,7 +131,7 @@ class BatchExecLocalSortAggregate(
     }
     val inputRequiredTraits = getInput.getTraitSet.replace(inputRequiredDistribution)
     val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
-    copy(newProvidedTraits, Seq(newInput))
+    Some(copy(newProvidedTraits, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

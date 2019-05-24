@@ -96,11 +96,11 @@ class BatchExecCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     // Correlate could not provide broadcast distribution
     if (requiredDistribution.getType == RelDistribution.Type.BROADCAST_DISTRIBUTED) {
-      return null
+      return None
     }
 
     def getOutputInputMapping: Mapping = {
@@ -137,7 +137,7 @@ class BatchExecCorrelate(
     // can be satisfied, only satisfy distribution. There is no possibility to only satisfy
     // collation here except for there is no distribution requirement.
     if ((!requiredDistribution.isTop) && (appliedDistribution eq FlinkRelDistribution.ANY)) {
-      return null
+      return None
     }
 
     val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
@@ -152,7 +152,7 @@ class BatchExecCorrelate(
     // If required traits only contains collation requirements, but collation keys are not columns
     // from input, then no need to satisfy required traits.
     if ((appliedDistribution eq FlinkRelDistribution.ANY) && !canSatisfyCollation) {
-      return null
+      return None
     }
 
     var inputRequiredTraits = getInput.getTraitSet
@@ -166,7 +166,7 @@ class BatchExecCorrelate(
       providedTraits = providedTraits.replace(requiredCollation)
     }
     val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
-    copy(providedTraits, Seq(newInput))
+    Some(copy(providedTraits, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

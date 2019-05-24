@@ -90,8 +90,8 @@ abstract class BatchExecJoinBase(
     *         can be push down into join.
     */
   def satisfyHashDistributionOnNonBroadcastJoin(
-      requiredDistribution: FlinkRelDistribution)
-  : (Boolean, FlinkRelDistribution, FlinkRelDistribution) = {
+      requiredDistribution: FlinkRelDistribution
+  ): (Boolean, FlinkRelDistribution, FlinkRelDistribution) = {
     // Only Non-broadcast HashJoin could provide HashDistribution
     if (requiredDistribution.getType != HASH_DISTRIBUTED) {
       return (false, null, null)
@@ -148,7 +148,7 @@ abstract class BatchExecJoinBase(
     }
 
     val (leftShuffleKeys, rightShuffleKeys) = if (joinType == JoinRelType.INNER &&
-      !requiredDistribution.requireStrict) {
+        !requiredDistribution.requireStrict) {
       (requiredLeftShuffleKeys.distinct, requiredRightShuffleKeys.distinct)
     } else {
       (requiredLeftShuffleKeys, requiredRightShuffleKeys)
@@ -168,7 +168,7 @@ abstract class BatchExecJoinBase(
     */
   protected def satisfyTraitsOnBroadcastJoin(
       requiredTraitSet: RelTraitSet,
-      leftIsBroadcast: Boolean): RelNode = {
+      leftIsBroadcast: Boolean): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val keys = requiredDistribution.getKeys
     val left = getLeft
@@ -190,7 +190,7 @@ abstract class BatchExecJoinBase(
       case _ => false
     }
     if (!canSatisfy) {
-      return null
+      return None
     }
 
     val keysInProbeSide = if (leftIsBroadcast) {
@@ -220,6 +220,6 @@ abstract class BatchExecJoinBase(
       (newLeft, right)
     }
     val providedTraitSet = requiredTraitSet.replace(RelCollations.EMPTY)
-    copy(providedTraitSet, Seq(newLeft, newRight))
+    Some(copy(providedTraitSet, Seq(newLeft, newRight)))
   }
 }

@@ -60,7 +60,7 @@ class BatchExecUnion(
       .item("union", getRowType.getFieldNames.mkString(", "))
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     // union will destroy collation trait. So does not handle collation requirement.
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val canSatisfy = requiredDistribution.getType match {
@@ -79,7 +79,7 @@ class BatchExecUnion(
       case ANY => false
     }
     if (!canSatisfy) {
-      return null
+      return None
     }
 
     val inputRequiredDistribution = requiredDistribution.getType match {
@@ -92,7 +92,7 @@ class BatchExecUnion(
     }
     val newInputs = getInputs.map(RelOptRule.convert(_, inputRequiredDistribution))
     val providedTraitSet = getTraitSet.replace(inputRequiredDistribution)
-    copy(providedTraitSet, newInputs)
+    Some(copy(providedTraitSet, newInputs))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

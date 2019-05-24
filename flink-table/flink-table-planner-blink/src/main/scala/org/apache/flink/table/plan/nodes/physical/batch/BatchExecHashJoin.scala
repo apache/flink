@@ -129,7 +129,7 @@ class BatchExecHashJoin(
     }
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     if (!isBroadcast) {
       satisfyTraitsOnNonBroadcastHashJoin(requiredTraitSet)
     } else {
@@ -137,12 +137,13 @@ class BatchExecHashJoin(
     }
   }
 
-  private def satisfyTraitsOnNonBroadcastHashJoin(requiredTraitSet: RelTraitSet): RelNode = {
+  private def satisfyTraitsOnNonBroadcastHashJoin(
+      requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
       satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
     if (!canSatisfyDistribution) {
-      return null
+      return None
     }
 
     val toRestrictHashDistributionByKeys = (distribution: FlinkRelDistribution) =>
@@ -156,7 +157,7 @@ class BatchExecHashJoin(
     val newRight = RelOptRule.convert(getRight, rightRequiredTraits)
     val providedTraits = getTraitSet.replace(requiredDistribution)
     // HashJoin can not satisfy collation.
-    copy(providedTraits, Seq(newLeft, newRight))
+    Some(copy(providedTraits, Seq(newLeft, newRight)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

@@ -99,7 +99,7 @@ class BatchExecHashAggregate(
         isGlobal = true))
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val canSatisfy = requiredDistribution.getType match {
       case SINGLETON => grouping.length == 0
@@ -122,7 +122,7 @@ class BatchExecHashAggregate(
       case _ => false
     }
     if (!canSatisfy) {
-      return null
+      return None
     }
 
     val inputRequiredDistribution = requiredDistribution.getType match {
@@ -143,7 +143,7 @@ class BatchExecHashAggregate(
 
     val newInput = RelOptRule.convert(getInput, inputRequiredDistribution)
     val newProvidedTraitSet = getTraitSet.replace(requiredDistribution)
-    copy(newProvidedTraitSet, Seq(newInput))
+    Some(copy(newProvidedTraitSet, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

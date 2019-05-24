@@ -115,7 +115,7 @@ class BatchExecRank(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost)
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     if (isGlobal) {
       satisfyTraitsOnGlobalRank(requiredTraitSet)
     } else {
@@ -123,7 +123,7 @@ class BatchExecRank(
     }
   }
 
-  private def satisfyTraitsOnGlobalRank(requiredTraitSet: RelTraitSet): RelNode = {
+  private def satisfyTraitsOnGlobalRank(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val canSatisfy = requiredDistribution.getType match {
       case SINGLETON => partitionKey.cardinality() == 0
@@ -146,7 +146,7 @@ class BatchExecRank(
       case _ => false
     }
     if (!canSatisfy) {
-      return null
+      return None
     }
 
     val inputRequiredDistribution = requiredDistribution.getType match {
@@ -177,10 +177,10 @@ class BatchExecRank(
       getTraitSet.replace(requiredDistribution)
     }
     val newInput = RelOptRule.convert(getInput, inputRequiredDistribution)
-    copy(newProvidedTraitSet, Seq(newInput))
+    Some(copy(newProvidedTraitSet, Seq(newInput)))
   }
 
-  private def satisfyTraitsOnLocalRank(requiredTraitSet: RelTraitSet): RelNode = {
+  private def satisfyTraitsOnLocalRank(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     requiredDistribution.getType match {
       case Type.SINGLETON =>
@@ -196,7 +196,7 @@ class BatchExecRank(
 
         val inputRequiredTraits = getInput.getTraitSet.replace(inputRequiredDistribution)
         val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
-        copy(newProvidedTraitSet, Seq(newInput))
+        Some(copy(newProvidedTraitSet, Seq(newInput)))
       case Type.HASH_DISTRIBUTED =>
         val shuffleKeys = requiredDistribution.getKeys
         if (outputRankNumber) {
@@ -204,7 +204,7 @@ class BatchExecRank(
           val rankColumnIndex = getRowType.getFieldCount - 1
           if (!shuffleKeys.contains(rankColumnIndex)) {
             // Cannot satisfy required distribution if some keys are not from input
-            return null
+            return None
           }
         }
 
@@ -226,8 +226,8 @@ class BatchExecRank(
 
         val inputRequiredTraits = getInput.getTraitSet.replace(inputRequiredDistribution)
         val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
-        copy(newProvidedTraitSet, Seq(newInput))
-      case _ => null
+        Some(copy(newProvidedTraitSet, Seq(newInput)))
+      case _ => None
     }
   }
 

@@ -245,17 +245,17 @@ class BatchExecOverAggregate(
     windowGroupInfo
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
     if (requiredDistribution.getType == ANY && requiredCollation.getFieldCollations.isEmpty) {
-      return null
+      return None
     }
 
     val selfProvidedTraitSet = inferProvidedTraitSet()
     if (selfProvidedTraitSet.satisfies(requiredTraitSet)) {
       // Current node can satisfy the requiredTraitSet,return the current node with ProvidedTraitSet
-      return copy(selfProvidedTraitSet, Seq(getInput))
+      return Some(copy(selfProvidedTraitSet, Seq(getInput)))
     }
 
     val inputFieldCnt = getInput.getRowType.getFieldCount
@@ -289,7 +289,7 @@ class BatchExecOverAggregate(
     // distribution, cannot push down distribution and collation requirement (because later
     // shuffle will destroy previous collation.
     if (!canSatisfy) {
-      return null
+      return None
     }
 
     var inputRequiredTraits = getInput.getTraitSet
@@ -308,7 +308,7 @@ class BatchExecOverAggregate(
       // If OverAgg cannot provide collation itself, try to push down collation requirements into
       // it's input if collation fields all come from input node.
       val canPushDownCollation = requiredCollation.getFieldCollations
-        .forall(_.getFieldIndex < inputFieldCnt)
+          .forall(_.getFieldIndex < inputFieldCnt)
       if (canPushDownCollation) {
         inputRequiredTraits = inputRequiredTraits.replace(requiredCollation)
         providedTraits = providedTraits.replace(requiredCollation)
@@ -318,7 +318,7 @@ class BatchExecOverAggregate(
       // due to the provided collation will destroy the input's provided collation.
     }
     val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
-    copy(providedTraits, Seq(newInput))
+    Some(copy(providedTraits, Seq(newInput)))
   }
 
   private def inferProvidedTraitSet(): RelTraitSet = {

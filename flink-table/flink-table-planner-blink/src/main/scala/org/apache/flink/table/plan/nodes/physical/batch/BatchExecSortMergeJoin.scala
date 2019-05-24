@@ -143,12 +143,12 @@ class BatchExecSortMergeJoin(
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
       satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
     if (!canSatisfyDistribution) {
-      return null
+      return None
     }
 
     val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
@@ -189,7 +189,7 @@ class BatchExecSortMergeJoin(
     if (canProvideCollation) {
       newProvidedTraitSet = newProvidedTraitSet.replace(requiredCollation)
     }
-    copy(newProvidedTraitSet, Seq(newLeft, newRight))
+    Some(copy(newProvidedTraitSet, Seq(newLeft, newRight)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

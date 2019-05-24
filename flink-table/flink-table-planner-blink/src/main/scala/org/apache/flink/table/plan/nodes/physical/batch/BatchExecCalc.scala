@@ -60,11 +60,11 @@ class BatchExecCalc(
     new BatchExecCalc(cluster, traitSet, child, program, outputRowType)
   }
 
-  override def satisfyTraits(requiredTraitSet: RelTraitSet): RelNode = {
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
     val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
     // Does not push broadcast distribution trait down into Calc.
     if (requiredDistribution.getType == RelDistribution.Type.BROADCAST_DISTRIBUTED) {
-      return null
+      return None
     }
     val projects = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
 
@@ -92,7 +92,7 @@ class BatchExecCalc(
     // can be satisfied, only satisfy distribution. There is no possibility to only satisfy
     // collation here except for there is no distribution requirement.
     if ((!requiredDistribution.isTop) && (appliedDistribution eq FlinkRelDistribution.ANY)) {
-      return null
+      return None
     }
 
     val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
@@ -101,7 +101,7 @@ class BatchExecCalc(
     // If required traits only contains collation requirements, but collation keys are not columns
     // from input, then no need to satisfy required traits.
     if ((appliedDistribution eq FlinkRelDistribution.ANY) && !canCollationPushedDown) {
-      return null
+      return None
     }
 
     var inputRequiredTraits = getInput.getTraitSet
@@ -115,7 +115,7 @@ class BatchExecCalc(
       providedTraits = providedTraits.replace(requiredCollation)
     }
     val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
-    copy(providedTraits, Seq(newInput))
+    Some(copy(providedTraits, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------
