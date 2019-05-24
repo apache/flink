@@ -24,19 +24,6 @@ under the License.
 		<format>jar</format>
 	</formats>
 	<includeBaseDirectory>false</includeBaseDirectory>
-	<fileSets>
-		<fileSet>
-			<directory>${project.build.testOutputDirectory}</directory>
-			<outputDirectory>/</outputDirectory>
-			<!-- modify/add include to match your package(s) -->
-			<includes>
-				<include>org/apache/flink/table/client/gateway/utils/TestTableSourceFactory.class</include>
-				<include>org/apache/flink/table/client/gateway/utils/TestTableSourceFactory$*.class</include>
-				<include>org/apache/flink/table/client/gateway/utils/TestTableSinkFactory.class</include>
-				<include>org/apache/flink/table/client/gateway/utils/TestTableSinkFactory$*.class</include>
-			</includes>
-		</fileSet>
-	</fileSets>
 	<files>
 		<!-- Create META-INF/services -->
 		<file>
