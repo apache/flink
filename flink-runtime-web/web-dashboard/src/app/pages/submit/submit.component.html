@@ -16,11 +16,11 @@
   ~ limitations under the License.
   -->
 
-<nz-card [nzBordered]="false" [nzTitle]="'Uploaded Jars'" [nzLoading]="isLoading" [nzExtra]="extraTemplate">
+<nz-card [nzBordered]="false" [nzTitle]="'Uploaded Artifacts'" [nzLoading]="isLoading" [nzExtra]="extraTemplate">
   <ng-container *ngIf="!isYarn">
     <nz-table
       [nzSize]="'small'"
-      [nzData]="listOfJar"
+      [nzData]="listOfArtifact"
       [nzFrontPagination]="false"
       [nzShowPagination]="false"
       class="no-border">
@@ -33,23 +33,23 @@
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let jar of listOfJar; trackBy:trackJarBy;">
-          <tr (click)="expandJar(jar)" class="clickable">
-            <td>{{jar.name}}</td>
-            <td>{{jar.uploaded | date:'yyyy-MM-dd, HH:mm:ss'}}</td>
+        <ng-container *ngFor="let artifact of listOfArtifact; trackBy:trackArtifactBy;">
+          <tr (click)="expandArtifact(artifact)" class="clickable">
+            <td>{{artifact.name}}</td>
+            <td>{{artifact.uploaded | date:'yyyy-MM-dd, HH:mm:ss'}}</td>
             <td>
-              <div *ngFor="let entries of jar.entry">
+              <div *ngFor="let entries of artifact.entry">
                 {{entries.name}}
               </div>
-              <div *ngIf="jar.entry.length===0">
+              <div *ngIf="artifact.entry.length===0">
                 -
               </div>
             </td>
-            <td class="delete-jar">
-              <a nz-popconfirm (click)="$event.stopPropagation();" (nzOnConfirm)="deleteJar(jar)" nzTitle="Are you sure delete this jar?">Delete</a>
+            <td class="delete-artifact">
+              <a nz-popconfirm (click)="$event.stopPropagation();" (nzOnConfirm)="deleteArtifact(artifact)" nzTitle="Are you sure delete this artifact?">Delete</a>
             </td>
           </tr>
-          <tr [nzExpand]="expandedMap.get(jar.id)">
+          <tr [nzExpand]="expandedMap.get(artifact.id)">
             <td colspan="4">
               <form nz-form [nzLayout]="'inline'" [formGroup]="validateForm">
                 <nz-form-item>
@@ -91,8 +91,8 @@
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-control>
-                    <button nz-button (click)="showPlan(jar)">Show Plan</button>
-                    <button nz-button nzType="primary" (click)="submitJob(jar)">Submit</button>
+                    <button nz-button (click)="showPlan(artifact)">Show Plan</button>
+                    <button nz-button nzType="primary" (click)="submitJob(artifact)">Submit</button>
                   </nz-form-control>
                 </nz-form-item>
               </form>
@@ -110,7 +110,7 @@
 <ng-template #extraTemplate>
   <div class="extra" *ngIf="!noAccess && !isYarn">
     <ng-container *ngIf="!isUploading">
-      <input flinkFileRead type="file" class="input-file" id="upload-file" (fileRead)="uploadJar($event)">
+      <input flinkFileRead type="file" class="input-file" id="upload-file" (fileRead)="uploadArtifact($event)">
       <label for="upload-file" class="upload ant-btn-primary ant-btn ant-btn-sm">
         <span><i nz-icon type="plus"></i>Add New</span>
       </label>

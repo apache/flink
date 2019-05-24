@@ -20,10 +20,10 @@ import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
-import { JarFilesItemInterface } from 'interfaces';
+import { ArtifactFilesItemInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JarService, StatusService } from 'services';
+import { ArtifactService, StatusService } from 'services';
 import { DagreComponent } from 'share/common/dagre/dagre.component';
 
 @Component({
@@ -37,7 +37,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   expandedMap = new Map();
   isLoading = true;
   destroy$ = new Subject();
-  listOfJar: JarFilesItemInterface[] = [];
+  listOfArtifact: ArtifactFilesItemInterface[] = [];
   address: string;
   isYarn = false;
   noAccess = false;
@@ -47,11 +47,11 @@ export class SubmitComponent implements OnInit, OnDestroy {
   planVisible = false;
 
   /**
-   * Upload jar
+   * Upload artifact
    * @param file
    */
-  uploadJar(file: File) {
-    this.jarService.uploadJar(file).subscribe(
+  uploadArtifact(file: File) {
+    this.artifactService.uploadArtifact(file).subscribe(
       event => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
           this.isUploading = true;
@@ -69,32 +69,32 @@ export class SubmitComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Delete jar
-   * @param jar
+   * Delete artifact
+   * @param artifact
    */
-  deleteJar(jar: JarFilesItemInterface) {
-    this.jarService.deleteJar(jar.id).subscribe(() => {
+  deleteArtifact(artifact: ArtifactFilesItemInterface) {
+    this.artifactService.deleteArtifact(artifact.id).subscribe(() => {
       this.statusService.forceRefresh();
-      this.expandedMap.set(jar.id, false);
+      this.expandedMap.set(artifact.id, false);
     });
   }
 
   /**
-   * Click to expand jar details
-   * @param jar
+   * Click to expand artifact details
+   * @param artifact
    */
-  expandJar(jar: JarFilesItemInterface) {
-    if (this.expandedMap.get(jar.id)) {
-      this.expandedMap.set(jar.id, false);
+  expandArtifact(artifact: ArtifactFilesItemInterface) {
+    if (this.expandedMap.get(artifact.id)) {
+      this.expandedMap.set(artifact.id, false);
     } else {
       this.expandedMap.forEach((_, key) => {
         this.expandedMap.set(key, false);
         this.validateForm.reset();
       });
-      this.expandedMap.set(jar.id, true);
+      this.expandedMap.set(artifact.id, true);
     }
-    if (jar.entry && jar.entry[0] && jar.entry[0].name) {
-      this.validateForm.get('entryClass')!.setValue(jar.entry[0].name);
+    if (artifact.entry && artifact.entry[0] && artifact.entry[0].name) {
+      this.validateForm.get('entryClass')!.setValue(artifact.entry[0].name);
     } else {
       this.validateForm.get('entryClass')!.setValue(null);
     }
@@ -102,12 +102,12 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * Show Plan Visualization
-   * @param jar
+   * @param artifact
    */
-  showPlan(jar: JarFilesItemInterface) {
-    this.jarService
+  showPlan(artifact: ArtifactFilesItemInterface) {
+    this.artifactService
       .getPlan(
-        jar.id,
+        artifact.id,
         this.validateForm.get('entryClass')!.value,
         this.validateForm.get('parallelism')!.value,
         this.validateForm.get('programArgs')!.value
@@ -127,12 +127,12 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * Submit job
-   * @param jar
+   * @param artifact
    */
-  submitJob(jar: JarFilesItemInterface) {
-    this.jarService
+  submitJob(artifact: ArtifactFilesItemInterface) {
+    this.artifactService
       .runJob(
-        jar.id,
+        artifact.id,
         this.validateForm.get('entryClass')!.value,
         this.validateForm.get('parallelism')!.value,
         this.validateForm.get('programArgs')!.value,
@@ -149,12 +149,12 @@ export class SubmitComponent implements OnInit, OnDestroy {
    * @param _
    * @param node
    */
-  trackJarBy(_: number, node: JarFilesItemInterface) {
+  trackArtifactBy(_: number, node: ArtifactFilesItemInterface) {
     return node.id;
   }
 
   constructor(
-    private jarService: JarService,
+    private artifactService: ArtifactService,
     private statusService: StatusService,
     private fb: FormBuilder,
     private router: Router,
@@ -173,12 +173,12 @@ export class SubmitComponent implements OnInit, OnDestroy {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(() => this.jarService.loadJarList())
+        flatMap(() => this.artifactService.loadArtifactList())
       )
       .subscribe(
         data => {
           this.isLoading = false;
-          this.listOfJar = data.files;
+          this.listOfArtifact = data.files;
           this.address = data.address;
           this.cdr.markForCheck();
           this.noAccess = Boolean(data.error);

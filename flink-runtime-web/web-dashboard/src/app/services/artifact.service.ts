@@ -19,19 +19,19 @@
 import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BASE_URL } from 'config';
-import { JarListInterface, NodesItemCorrectInterface, PlanInterface, VerticesLinkInterface } from 'interfaces';
+import { ArtifactListInterface, NodesItemCorrectInterface, PlanInterface, VerticesLinkInterface } from 'interfaces';
 import { of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
 })
-export class JarService {
+export class ArtifactService {
   /**
-   * Get uploaded jar list
+   * Get uploaded artifact list
    */
-  loadJarList() {
-    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(
+  loadArtifactList() {
+    return this.httpClient.get<ArtifactListInterface>(`${BASE_URL}/artifacts`).pipe(
       catchError(() => {
         return of({
           address: '',
@@ -43,29 +43,29 @@ export class JarService {
   }
 
   /**
-   * Upload jar
+   * Upload artifact
    * @param fd
    */
-  uploadJar(fd: File) {
+  uploadArtifact(fd: File) {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
-    const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
+    const req = new HttpRequest('POST', `${BASE_URL}/artifacts/upload`, formData, {
       reportProgress: true
     });
     return this.httpClient.request(req);
   }
 
   /**
-   * Delete jar
-   * @param jarId
+   * Delete artifact
+   * @param artifactId
    */
-  deleteJar(jarId: string) {
-    return this.httpClient.delete(`${BASE_URL}/jars/${jarId}`);
+  deleteArtifact(artifactId: string) {
+    return this.httpClient.delete(`${BASE_URL}/artifacts/${artifactId}`);
   }
 
   /**
    * Run job
-   * @param jarId
+   * @param artifact
    * @param entryClass
    * @param parallelism
    * @param programArgs
@@ -73,7 +73,7 @@ export class JarService {
    * @param allowNonRestoredState
    */
   runJob(
-    jarId: string,
+    artifactId: string,
     entryClass: string,
     parallelism: string,
     programArgs: string,
@@ -97,17 +97,17 @@ export class JarService {
     if (allowNonRestoredState) {
       params = params.append('allowNonRestoredState', allowNonRestoredState);
     }
-    return this.httpClient.post<{ jobid: string }>(`${BASE_URL}/jars/${jarId}/run`, requestParam, { params });
+    return this.httpClient.post<{ jobid: string }>(`${BASE_URL}/artifacts/${artifactId}/run`, requestParam, { params });
   }
 
   /**
-   * Get plan json from jar
-   * @param jarId
+   * Get plan json from artifact
+   * @param artifactId
    * @param entryClass
    * @param parallelism
    * @param programArgs
    */
-  getPlan(jarId: string, entryClass: string, parallelism: string, programArgs: string) {
+  getPlan(artifactId: string, entryClass: string, parallelism: string, programArgs: string) {
     let params = new HttpParams();
     if (entryClass) {
       params = params.append('entry-class', entryClass);
@@ -118,7 +118,7 @@ export class JarService {
     if (programArgs) {
       params = params.append('program-args', programArgs);
     }
-    return this.httpClient.get<PlanInterface>(`${BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
+    return this.httpClient.get<PlanInterface>(`${BASE_URL}/artifacts/${artifactId}/plan`, { params }).pipe(
       map(data => {
         const links: VerticesLinkInterface[] = [];
         let nodes: NodesItemCorrectInterface[] = [];
