@@ -246,7 +246,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 *
 	 * <p><b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
 	 */
-	@Test(timeout = 100_000)
+	@Test
 	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
 		checkForProhibitedLogContents = false;
 		final Runner yarnSessionClusterRunner = startWithArgs(new String[]{
