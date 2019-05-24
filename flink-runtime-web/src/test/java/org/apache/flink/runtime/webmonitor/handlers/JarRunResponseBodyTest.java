@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link JarRunResponseBody}.
  */
+@Deprecated
 public class JarRunResponseBodyTest extends RestResponseMarshallingTestBase<JarRunResponseBody> {
 
 	@Override

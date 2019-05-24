@@ -22,7 +22,7 @@ import java.io.File;
 
 /**
  * Query parameter specifying the arguments for the program.
- * @deprecated please, use {@link JarRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
+ * @deprecated please, use {@link ArtifactRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
  * @see org.apache.flink.client.program.PackagedProgram#PackagedProgram(File, String, String...)
  */
 @Deprecated

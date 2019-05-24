@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 /**
  * Tests for the parameter handling of the {@link JarPlanHandler}.
  */
+@Deprecated
 public class JarPlanHandlerParameterTest extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
 	private static JarPlanHandler handler;
 

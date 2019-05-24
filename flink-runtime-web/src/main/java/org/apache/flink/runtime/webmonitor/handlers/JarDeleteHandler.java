@@ -45,6 +45,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Handles requests for deletion of jars.
  */
+@Deprecated
 public class JarDeleteHandler
 		extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
 

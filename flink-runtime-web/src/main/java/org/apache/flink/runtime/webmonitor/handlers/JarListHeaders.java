@@ -28,6 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link JarListHandler}.
  */
+@Deprecated
 public class JarListHeaders implements MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
 
 	public static final String URL = "/jars";

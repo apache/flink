@@ -54,6 +54,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Unit tests for {@link JarDeleteHandler}.
  */
+@Deprecated
 public class JarDeleteHandlerTest extends TestLogger {
 
 	private static final String TEST_JAR_NAME = "test.jar";

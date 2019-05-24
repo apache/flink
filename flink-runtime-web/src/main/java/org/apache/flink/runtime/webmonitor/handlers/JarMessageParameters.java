@@ -29,6 +29,7 @@ import java.util.Collections;
 /**
  * Base class of {@link MessageParameters} for {@link JarRunHandler} and {@link JarPlanHandler}.
  */
+@Deprecated
 abstract class JarMessageParameters extends MessageParameters {
 
 	final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();

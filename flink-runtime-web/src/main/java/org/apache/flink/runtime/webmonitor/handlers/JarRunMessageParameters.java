@@ -29,6 +29,7 @@ import java.util.Collections;
 /**
  * {@link MessageParameters} for {@link JarRunHandler}.
  */
+@Deprecated
 public class JarRunMessageParameters extends JarMessageParameters {
 
 	final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter = new AllowNonRestoredStateQueryParameter();

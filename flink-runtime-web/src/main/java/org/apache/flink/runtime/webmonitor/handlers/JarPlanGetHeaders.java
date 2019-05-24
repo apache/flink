@@ -23,6 +23,7 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 /**
  * Message headers for {@link JarPlanHandler}.
  */
+@Deprecated
 public class JarPlanGetHeaders extends AbstractJarPlanHeaders {
 
 	private static final JarPlanGetHeaders INSTANCE = new JarPlanGetHeaders();

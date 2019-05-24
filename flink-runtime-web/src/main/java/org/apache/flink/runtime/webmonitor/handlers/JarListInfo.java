@@ -33,6 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Response type of the {@link JarListHandler}.
  */
+@Deprecated
 public class JarListInfo implements ResponseBody {
 	public static final String JAR_LIST_FIELD_ADDRESS = "address";
 	public static final String JAR_LIST_FIELD_FILES = "files";

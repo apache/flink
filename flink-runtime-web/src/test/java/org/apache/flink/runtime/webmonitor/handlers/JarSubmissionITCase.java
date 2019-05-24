@@ -54,6 +54,7 @@ import static org.hamcrest.Matchers.containsString;
 /**
  * Tests the entire lifecycle of a jar submission.
  */
+@Deprecated
 public class JarSubmissionITCase extends TestLogger {
 
 	@Rule

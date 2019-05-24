@@ -48,6 +48,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Handles .jar file uploads.
  */
+@Deprecated
 public class JarUploadHandler extends
 		AbstractRestHandler<RestfulGateway, EmptyRequestBody, JarUploadResponseBody, EmptyMessageParameters> {
 

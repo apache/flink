@@ -26,6 +26,7 @@ import java.util.List;
 /**
  * Tests that the {@link JarListInfo} can be marshalled and unmarshalled.
  */
+@Deprecated
 public class JarListInfoTest extends RestResponseMarshallingTestBase<JarListInfo> {
 	@Override
 	protected Class<JarListInfo> getTestResponseClass() {

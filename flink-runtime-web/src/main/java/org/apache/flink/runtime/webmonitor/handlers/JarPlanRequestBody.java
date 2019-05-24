@@ -32,6 +32,7 @@ import java.util.List;
 /**
  * {@link RequestBody} for querying the plan from a jar.
  */
+@Deprecated
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JarPlanRequestBody extends JarRequestBody {
 	JarPlanRequestBody() {

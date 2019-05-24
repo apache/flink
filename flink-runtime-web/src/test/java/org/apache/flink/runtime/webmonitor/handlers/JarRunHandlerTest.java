@@ -46,6 +46,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link JarRunHandler}.
  */
+@Deprecated
 public class JarRunHandlerTest extends TestLogger {
 
 	@ClassRule

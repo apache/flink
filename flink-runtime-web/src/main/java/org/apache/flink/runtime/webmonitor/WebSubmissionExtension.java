@@ -23,6 +23,17 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactDeleteHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactDeleteHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactListHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactListHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactPlanGetHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactPlanPostHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactRunHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactRunHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactUploadHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactUploadHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
@@ -57,18 +68,18 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Map<String, String> responseHeaders,
 			CompletableFuture<String> localAddressFuture,
-			Path jarDir,
+			Path artifactDir,
 			Executor executor,
 			Time timeout) throws Exception {
 
-		webSubmissionHandlers = new ArrayList<>(5);
+		webSubmissionHandlers = new ArrayList<>(12);
 
 		final JarUploadHandler jarUploadHandler = new JarUploadHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JarUploadHeaders.getInstance(),
-			jarDir,
+			artifactDir,
 			executor);
 
 		final JarListHandler jarListHandler = new JarListHandler(
@@ -77,7 +88,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			responseHeaders,
 			JarListHeaders.getInstance(),
 			localAddressFuture,
-			jarDir.toFile(),
+			artifactDir.toFile(),
 			executor);
 
 		final JarRunHandler jarRunHandler = new JarRunHandler(
@@ -85,7 +96,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			timeout,
 			responseHeaders,
 			JarRunHeaders.getInstance(),
-			jarDir,
+			artifactDir,
 			configuration,
 			executor);
 
@@ -94,7 +105,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			timeout,
 			responseHeaders,
 			JarDeleteHeaders.getInstance(),
-			jarDir,
+			artifactDir,
 			executor);
 
 		final JarPlanHandler jarPlanHandler = new JarPlanHandler(
@@ -102,7 +113,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			timeout,
 			responseHeaders,
 			JarPlanGetHeaders.getInstance(),
-			jarDir,
+			artifactDir,
 			configuration,
 			executor
 		);
@@ -112,7 +123,61 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 			timeout,
 			responseHeaders,
 			JarPlanPostHeaders.getInstance(),
-			jarDir,
+			artifactDir,
+			configuration,
+			executor
+		);
+
+		final ArtifactUploadHandler artifactUploadHandler = new ArtifactUploadHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ArtifactUploadHeaders.getInstance(),
+			artifactDir,
+			executor);
+
+		final ArtifactListHandler artifactListHandler = new ArtifactListHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ArtifactListHeaders.getInstance(),
+			localAddressFuture,
+			artifactDir.toFile(),
+			executor);
+
+		final ArtifactRunHandler artifactRunHandler = new ArtifactRunHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ArtifactRunHeaders.getInstance(),
+			artifactDir,
+			configuration,
+			executor);
+
+		final ArtifactDeleteHandler artifactDeleteHandler = new ArtifactDeleteHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ArtifactDeleteHeaders.getInstance(),
+			artifactDir,
+			executor);
+
+		final ArtifactPlanHandler artifactPlanHandler = new ArtifactPlanHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ArtifactPlanGetHeaders.getInstance(),
+			artifactDir,
+			configuration,
+			executor
+		);
+
+		final ArtifactPlanHandler postArtifactPlanHandler = new ArtifactPlanHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			ArtifactPlanPostHeaders.getInstance(),
+			artifactDir,
 			configuration,
 			executor
 		);
@@ -123,6 +188,13 @@ public class WebSubmissionExtension implements WebMonitorExtension {
 		webSubmissionHandlers.add(Tuple2.of(JarDeleteHeaders.getInstance(), jarDeleteHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), jarPlanHandler));
 		webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), postJarPlanHandler));
+
+		webSubmissionHandlers.add(Tuple2.of(ArtifactUploadHeaders.getInstance(), artifactUploadHandler));
+		webSubmissionHandlers.add(Tuple2.of(ArtifactListHeaders.getInstance(), artifactListHandler));
+		webSubmissionHandlers.add(Tuple2.of(ArtifactRunHeaders.getInstance(), artifactRunHandler));
+		webSubmissionHandlers.add(Tuple2.of(ArtifactDeleteHeaders.getInstance(), artifactDeleteHandler));
+		webSubmissionHandlers.add(Tuple2.of(ArtifactPlanGetHeaders.getInstance(), artifactPlanHandler));
+		webSubmissionHandlers.add(Tuple2.of(ArtifactPlanGetHeaders.getInstance(), postArtifactPlanHandler));
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * {@link MessageHeaders} for {@link JarRunHandler}.
  */
+@Deprecated
 public class JarRunHeaders implements MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
 	private static final JarRunHeaders INSTANCE = new JarRunHeaders();

@@ -22,7 +22,7 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
  * Query parameter specifying the parallelism of the job.
- * @see JarRunHandler
+ * @see ArtifactRunHandler
  */
 public class ParallelismQueryParameter extends MessageQueryParameter<Integer> {
 

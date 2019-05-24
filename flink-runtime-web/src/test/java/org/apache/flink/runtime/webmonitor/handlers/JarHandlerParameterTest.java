@@ -63,6 +63,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Base test class for jar request handlers. */
+@Deprecated
 public abstract class JarHandlerParameterTest
 	<REQB extends JarRequestBody, M extends JarMessageParameters> extends TestLogger {
 	enum ProgramArgsParType {

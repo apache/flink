@@ -37,6 +37,7 @@ import java.util.List;
 /**
  * Base class for {@link RequestBody} for running a jar or querying the plan.
  */
+@Deprecated
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public abstract class JarRequestBody implements RequestBody {
 

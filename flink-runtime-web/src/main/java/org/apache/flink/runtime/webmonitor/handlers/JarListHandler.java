@@ -51,6 +51,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Handle request for listing uploaded jars.
  */
+@Deprecated
 public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
 
 	private static final File[] EMPTY_FILES_ARRAY = new File[0];

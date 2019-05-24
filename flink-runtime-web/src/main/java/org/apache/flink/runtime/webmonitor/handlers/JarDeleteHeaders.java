@@ -28,6 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for {@link JarDeleteHandler}.
  */
+@Deprecated
 public class JarDeleteHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
 
 	private static final JarDeleteHeaders INSTANCE = new JarDeleteHeaders();

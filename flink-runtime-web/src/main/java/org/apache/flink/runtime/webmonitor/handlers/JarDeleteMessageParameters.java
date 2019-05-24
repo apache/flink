@@ -28,6 +28,7 @@ import java.util.Collections;
 /**
  * Message parameters for {@link JarDeleteHandler}.
  */
+@Deprecated
 public class JarDeleteMessageParameters extends MessageParameters {
 
 	public JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();

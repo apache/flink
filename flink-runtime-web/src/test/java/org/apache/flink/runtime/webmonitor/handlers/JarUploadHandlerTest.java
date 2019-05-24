@@ -54,6 +54,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JarUploadHandler}.
  */
+@Deprecated
 public class JarUploadHandlerTest extends TestLogger {
 
 	@Rule

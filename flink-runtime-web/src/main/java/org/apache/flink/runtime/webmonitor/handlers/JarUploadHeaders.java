@@ -28,6 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * {@link MessageHeaders} for uploading jars.
  */
+@Deprecated
 public final class JarUploadHeaders implements MessageHeaders<EmptyRequestBody, JarUploadResponseBody, EmptyMessageParameters> {
 
 	public static final String URL = "/jars/upload";

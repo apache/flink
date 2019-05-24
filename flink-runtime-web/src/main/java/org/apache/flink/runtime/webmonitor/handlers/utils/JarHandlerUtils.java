@@ -62,6 +62,7 @@ import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emp
  * @see org.apache.flink.runtime.webmonitor.handlers.JarRunHandler
  * @see org.apache.flink.runtime.webmonitor.handlers.JarPlanHandler
  */
+@Deprecated
 public class JarHandlerUtils {
 
 	/** Standard jar handler parameters parsed from request. */

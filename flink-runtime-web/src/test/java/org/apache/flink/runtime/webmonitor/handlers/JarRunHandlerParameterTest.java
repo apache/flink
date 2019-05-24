@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 /**
  * Tests for the parameter handling of the {@link JarRunHandler}.
  */
+@Deprecated
 public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRequestBody, JarRunMessageParameters> {
 	private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
 	private static final String RESTORE_PATH = "/foo/bar";

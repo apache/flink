@@ -28,6 +28,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * {@link ResponseBody} for {@link JarUploadHandler}.
  */
+@Deprecated
 public class JarUploadResponseBody implements ResponseBody {
 
 	private static final String FIELD_NAME_FILENAME = "filename";

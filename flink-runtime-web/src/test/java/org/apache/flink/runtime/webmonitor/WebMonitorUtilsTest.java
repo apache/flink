@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ArtifactUploadHandler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -42,7 +42,7 @@ import static org.junit.Assert.assertThat;
 public class WebMonitorUtilsTest extends TestLogger {
 
 	/**
-	 * Tests dynamically loading of handlers such as {@link JarUploadHandler}.
+	 * Tests dynamically loading of handlers such as {@link ArtifactUploadHandler}.
 	 */
 	@Test
 	public void testLoadWebSubmissionExtension() throws Exception {

@@ -33,6 +33,7 @@ import java.util.List;
 /**
  * {@link RequestBody} for running a jar.
  */
+@Deprecated
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JarRunRequestBody extends JarRequestBody {
 	private static final String FIELD_NAME_ALLOW_NON_RESTORED_STATE = "allowNonRestoredState";

@@ -23,5 +23,6 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 /**
  * {@link MessageParameters} for {@link JarPlanHandler}.
  */
+@Deprecated
 class JarPlanMessageParameters extends JarMessageParameters {
 }

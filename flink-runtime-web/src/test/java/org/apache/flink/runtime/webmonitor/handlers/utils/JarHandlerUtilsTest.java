@@ -30,6 +30,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link JarHandlerUtils}.
  */
+@Deprecated
 public class JarHandlerUtilsTest extends TestLogger {
 
 	@Test

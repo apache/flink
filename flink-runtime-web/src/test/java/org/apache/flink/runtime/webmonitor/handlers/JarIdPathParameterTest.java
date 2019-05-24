@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link JarIdPathParameter}.
  */
+@Deprecated
 public class JarIdPathParameterTest extends TestLogger {
 
 	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();

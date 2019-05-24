@@ -44,6 +44,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * This handler handles requests to fetch the plan for a jar.
  */
+@Deprecated
 public class JarPlanHandler
 		extends AbstractRestHandler<RestfulGateway, JarPlanRequestBody, JobPlanInfo, JarPlanMessageParameters> {
 

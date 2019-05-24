@@ -33,6 +33,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Response for {@link JarRunHandler}.
  */
+@Deprecated
 public class JarRunResponseBody implements ResponseBody {
 
 	@JsonProperty("jobid")

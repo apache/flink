@@ -29,6 +29,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link JarDeleteHeaders}.
  */
+@Deprecated
 public class JarDeleteHeadersTest extends TestLogger {
 
 	@Test

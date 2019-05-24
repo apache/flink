@@ -27,6 +27,7 @@ import java.nio.file.Paths;
 /**
  * Path parameter to identify uploaded jar files.
  */
+@Deprecated
 public class JarIdPathParameter extends MessagePathParameter<String> {
 
 	public static final String KEY = "jarid";
