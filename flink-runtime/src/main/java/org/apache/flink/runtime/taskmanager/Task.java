@@ -593,7 +593,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 			LOG.info("Registering task at network: {}.", this);
 
-			setupPartionsAndGates(consumableNotifyingPartitionWriters, inputGates);
+			setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
 			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
 				taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
@@ -823,7 +823,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	}
 
 	@VisibleForTesting
-	public static void setupPartionsAndGates(
+	public static void setupPartitionsAndGates(
 		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
 
 		for (ResultPartitionWriter partition : producedPartitions) {

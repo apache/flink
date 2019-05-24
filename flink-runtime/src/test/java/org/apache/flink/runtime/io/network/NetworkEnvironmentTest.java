@@ -64,7 +64,7 @@ public class NetworkEnvironmentTest {
 	public ExpectedException expectedException = ExpectedException.none();
 
 	/**
-	 * Verifies that {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
+	 * Verifies that {@link Task#setupPartitionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
 	 * instances for various types of input and output channels.
 	 */
 	@Test
@@ -87,7 +87,7 @@ public class NetworkEnvironmentTest {
 		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 8);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		Task.setupPartionsAndGates(resultPartitions, inputGates);
+		Task.setupPartitionsAndGates(resultPartitions, inputGates);
 
 		// verify buffer pools for the result partitions
 		assertEquals(rp1.getNumberOfSubpartitions(), rp1.getBufferPool().getNumberOfRequiredMemorySegments());
@@ -128,7 +128,7 @@ public class NetworkEnvironmentTest {
 	}
 
 	/**
-	 * Verifies that {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
+	 * Verifies that {@link Task#setupPartitionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
 	 * instances for various types of input and output channels working with the bare minimum of
 	 * required buffers.
 	 */
@@ -148,7 +148,7 @@ public class NetworkEnvironmentTest {
 	}
 
 	/**
-	 * Verifies that {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}} fails if the bare minimum of
+	 * Verifies that {@link Task#setupPartitionsAndGates(ResultPartitionWriter[], InputGate[])}} fails if the bare minimum of
 	 * required buffers is not available (we are one buffer short).
 	 */
 	@Test
@@ -208,7 +208,7 @@ public class NetworkEnvironmentTest {
 			createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
 		}
 
-		Task.setupPartionsAndGates(resultPartitions, inputGates);
+		Task.setupPartitionsAndGates(resultPartitions, inputGates);
 
 		// verify buffer pools for the result partitions
 		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
@@ -250,16 +250,16 @@ public class NetworkEnvironmentTest {
 
 	/**
 	 * Helper to create spy of a {@link SingleInputGate} for use by a {@link Task} inside
-	 * {@link Task#setupPartionsAndGates(ResultPartitionWriter[], InputGate[])}}.
+	 * {@link Task#setupPartitionsAndGates(ResultPartitionWriter[], InputGate[])}}.
 	 *
 	 * @param network
-	 * 	    network enviroment to create buffer pool factory for {@link SingleInputGate}
+	 * 	    network environment to create buffer pool factory for {@link SingleInputGate}
 	 * @param partitionType
 	 * 		the consumed partition type
 	 * @param numberOfChannels
 	 * 		the number of input channels
 	 *
-	 * @return input gate with some fake settiFngs
+	 * @return input gate with some fake settings
 	 */
 	private SingleInputGate createSingleInputGate(
 		NetworkEnvironment network, ResultPartitionType partitionType, int numberOfChannels) {
