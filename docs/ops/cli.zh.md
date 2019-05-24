@@ -47,10 +47,10 @@ available.
 {:toc}
 
 ## Examples
-### 提交作业的例子
+### 作业提交示例
 -----------------------------
 
-这些例子是关于如何通过脚本提交一个作业
+这些示例是关于如何通过脚本提交一个作业
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
@@ -137,7 +137,7 @@ available.
                                  
 </div>
 
-### 管理作业的例子
+### 作业管理示例
 -----------------------------
 
 -   Display the optimized execution plan for the WordCount example program as JSON:

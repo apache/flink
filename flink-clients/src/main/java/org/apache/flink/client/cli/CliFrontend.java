@@ -186,10 +186,11 @@ public class CliFrontend {
 			return;
 		}
 
-		// the job is not specified a jar file or a Python job.
-		if (!(runOptions.getJarFilePath() != null || runOptions.isPython())) {
-			throw new CliArgsException("The program should be specified a JAR file " +
-				"or a python file(or module)");
+		if (!runOptions.isPython()) {
+			// Java program should be specified a JAR file
+			if (runOptions.getJarFilePath() == null) {
+				throw new CliArgsException("Java program should be specified a JAR file.");
+			}
 		}
 
 		final PackagedProgram program;

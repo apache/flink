@@ -24,8 +24,8 @@ from pyflink.table.table_source import CsvTableSource
 from pyflink.table.types import DataTypes
 
 
-# TODO: the word_count.py is just a test example for CLI. After pyflink have aligned Java Table API Connectors,
-#  this example will be improved.
+# TODO: the word_count.py is just a test example for CLI.
+#  After pyflink have aligned Java Table API Connectors, this example will be improved.
 def word_count():
     tmp_dir = tempfile.gettempdir()
     source_path = tmp_dir + '/streaming.csv'
