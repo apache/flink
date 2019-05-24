@@ -74,6 +74,9 @@ public class CatalogDescriptorTest extends DescriptorTestBase {
 		return new TestCatalogDescriptorValidator();
 	}
 
+	/**
+	 * CatalogDescriptor for test.
+	 */
 	private class TestCatalogDescriptor extends CatalogDescriptor {
 		private String foo;
 
@@ -92,6 +95,9 @@ public class CatalogDescriptorTest extends DescriptorTestBase {
 		}
 	}
 
+	/**
+	 * CatalogDescriptorValidator for test.
+	 */
 	private class TestCatalogDescriptorValidator extends CatalogDescriptorValidator {
 		@Override
 		public void validate(DescriptorProperties properties) {

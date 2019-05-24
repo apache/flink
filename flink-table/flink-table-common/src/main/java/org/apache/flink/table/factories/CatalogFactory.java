@@ -28,7 +28,7 @@ import java.util.Map;
  * also {@link TableFactory} for more information.
  */
 @PublicEvolving
-public interface CatalogFactory<T extends Catalog> extends TableFactory {
+public interface CatalogFactory extends TableFactory {
 
 	/**
 	 * Creates and configures an {@link Catalog} using the given properties.

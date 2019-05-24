@@ -71,6 +71,14 @@ public class ExecutionContextTest {
 	}
 
 	@Test
+	public void testCatalogs() throws Exception {
+		final ExecutionContext<?> context = createDefaultExecutionContext();
+		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+
+		assertTrue(tableEnv.getCatalog("Catalog1").isPresent());
+	}
+
+	@Test
 	public void testFunctions() throws Exception {
 		final ExecutionContext<?> context = createDefaultExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();

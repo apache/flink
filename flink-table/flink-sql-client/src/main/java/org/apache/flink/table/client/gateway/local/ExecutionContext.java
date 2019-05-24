@@ -46,6 +46,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
@@ -58,6 +59,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -92,6 +94,7 @@ public class ExecutionContext<T> {
 	private final Environment mergedEnv;
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
+	private final Map<String, Catalog> catalogs;
 	private final Map<String, TableSource<?>> tableSources;
 	private final Map<String, TableSink<?>> tableSinks;
 	private final Map<String, UserDefinedFunction> functions;
@@ -113,6 +116,12 @@ public class ExecutionContext<T> {
 		classLoader = FlinkUserCodeClassLoaders.parentFirst(
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
+
+		// create external catalogs
+		catalogs = new LinkedHashMap<>();
+		mergedEnv.getCatalogs().forEach((name, entry) ->
+			catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
+		);
 
 		// create table sources & sinks.
 		tableSources = new LinkedHashMap<>();
@@ -174,6 +183,10 @@ public class ExecutionContext<T> {
 		}
 	}
 
+	public Map<String, Catalog> getCatalogs() {
+		return catalogs;
+	}
+
 	public Map<String, TableSource<?>> getTableSources() {
 		return tableSources;
 	}
@@ -225,6 +238,12 @@ public class ExecutionContext<T> {
 		} catch (FlinkException e) {
 			throw new SqlExecutionException("Could not create cluster specification for the given deployment.", e);
 		}
+	}
+
+	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
+		final CatalogFactory factory =
+			TableFactoryService.find(CatalogFactory.class, catalogProperties, classLoader);
+		return factory.createCatalog(name, catalogProperties);
 	}
 
 	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
@@ -283,6 +302,9 @@ public class ExecutionContext<T> {
 
 			// create query config
 			queryConfig = createQueryConfig();
+
+			// register catalogs
+			catalogs.forEach(tableEnv::registerCatalog);
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);

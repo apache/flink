@@ -51,4 +51,6 @@ execution:
 deployment:
   response-timeout: 5000
 
-
+catalogs:
+  - name: Catalog2
+    type: DependencyTest

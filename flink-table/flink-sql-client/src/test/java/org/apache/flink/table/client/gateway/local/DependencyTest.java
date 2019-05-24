@@ -22,20 +22,28 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.CatalogFactory;
 
 import org.junit.Test;
 
 import java.net.URL;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -45,6 +53,8 @@ public class DependencyTest {
 
 	public static final String CONNECTOR_TYPE_VALUE = "test-connector";
 	public static final String TEST_PROPERTY = "test-property";
+
+	public static final String CATALOG_TYPE_TEST = "DependencyTest";
 
 	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
 	private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
@@ -97,6 +107,68 @@ public class DependencyTest {
 
 		public TestTableSinkFactory() {
 			super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+		}
+	}
+
+	/**
+	 * External catalog that can be discovered if classloading is correct.
+	 */
+	public static class TestCatalogFactory implements CatalogFactory {
+
+		@Override
+		public Map<String, String> requiredContext() {
+			final Map<String, String> context = new HashMap<>();
+			context.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
+			return context;
+		}
+
+		@Override
+		public List<String> supportedProperties() {
+			final List<String> properties = new ArrayList<>();
+			properties.add(TEST_PROPERTY);
+			return properties;
+		}
+
+		@Override
+		public Catalog createCatalog(String name, Map<String, String> properties) {
+			final DescriptorProperties params = new DescriptorProperties(true);
+			params.putProperties(properties);
+			return new TestCatalog(name, params);
+		}
+	}
+
+
+	/**
+	 * Test catalog.
+	 */
+	public static class TestCatalog extends GenericInMemoryCatalog {
+		private final DescriptorProperties params;
+
+		public TestCatalog(String name, DescriptorProperties params) {
+			super("test");
+			this.params = params;
+
+//				ExternalCatalogTable table1 = ExternalCatalogTable.builder(new TestConnectorDescriptor())
+//					.withSchema(Schema.apply())
+//					.inAppendMode()
+//					.asTableSourceAndSink();
+//
+//				createTable("TableNumber1", table1, false);
+		}
+	}
+
+	/**
+	 * Test connector descriptor for {@link TestCatalogFactory}.
+	 */
+	public static class TestConnectorDescriptor extends ConnectorDescriptor {
+		public TestConnectorDescriptor() {
+			super(CONNECTOR_TYPE_VALUE, 1, false);
+		}
+
+		@Override
+		protected Map<String, String> toConnectorProperties() {
+			final DescriptorProperties properties = new DescriptorProperties();
+			return properties.asMap();
 		}
 	}
 }

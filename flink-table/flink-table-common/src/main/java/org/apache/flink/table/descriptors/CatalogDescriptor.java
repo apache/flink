@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.ExternalCatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.ExternalCatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
+import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
 /**
  * Describes a catalog of tables, views, and functions.
@@ -56,8 +56,7 @@ public abstract class CatalogDescriptor extends DescriptorBase {
 	}
 
 	/**
-	 * Converts this descriptor into a set of catalog properties. Usually prefixed with
-	 * {@link CatalogDescriptorValidator#CATALOG}.
+	 * Converts this descriptor into a set of catalog properties.
 	 */
 	protected abstract Map<String, String> toCatalogProperties();
 }

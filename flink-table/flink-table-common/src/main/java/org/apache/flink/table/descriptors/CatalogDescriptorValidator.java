@@ -27,20 +27,15 @@ import org.apache.flink.annotation.Internal;
 public abstract class CatalogDescriptorValidator implements DescriptorValidator {
 
 	/**
-	 * Prefix for catalog-related properties.
-	 */
-	public static final String CATALOG = "catalog";
-
-	/**
 	 * Key for describing the type of the catalog. Usually used for factory discovery.
 	 */
-	public static final String CATALOG_TYPE = "catalog.type";
+	public static final String CATALOG_TYPE = "type";
 
 	/**
 	 * Key for describing the property version. This property can be used for backwards
 	 * compatibility in case the property format changes.
 	 */
-	public static final String CATALOG_PROPERTY_VERSION = "catalog.property-version";
+	public static final String CATALOG_PROPERTY_VERSION = "property-version";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
