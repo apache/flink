@@ -138,13 +138,7 @@ public class UnionInputGate extends InputGate {
 
 	@Override
 	public boolean isFinished() {
-		for (InputGate inputGate : inputGates) {
-			if (!inputGate.isFinished()) {
-				return false;
-			}
-		}
-
-		return true;
+		return inputGatesWithRemainingData.isEmpty();
 	}
 
 	@Override
