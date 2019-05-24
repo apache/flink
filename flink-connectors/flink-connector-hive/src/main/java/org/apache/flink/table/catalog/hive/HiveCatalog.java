@@ -615,6 +615,7 @@ public class HiveCatalog implements Catalog {
 			throws CatalogException {
 		checkNotNull(tablePath, "Table path cannot be null");
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+
 		try {
 			return getHivePartition(tablePath, partitionSpec) != null;
 		} catch (NoSuchObjectException | TableNotExistException | PartitionSpecInvalidException e) {
@@ -659,6 +660,7 @@ public class HiveCatalog implements Catalog {
 			throws PartitionNotExistException, CatalogException {
 		checkNotNull(tablePath, "Table path cannot be null");
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
+
 		try {
 			Table hiveTable = getHiveTable(tablePath);
 			client.dropPartition(tablePath.getDatabaseName(), tablePath.getObjectName(),
@@ -778,7 +780,7 @@ public class HiveCatalog implements Catalog {
 	}
 
 	// make sure both table and partition are generic, or neither is
-	private void ensureTableAndPartitionMatch(Table hiveTable, CatalogPartition catalogPartition) {
+	private static void ensureTableAndPartitionMatch(Table hiveTable, CatalogPartition catalogPartition) {
 		boolean isGeneric = Boolean.valueOf(hiveTable.getParameters().get(FLINK_PROPERTY_IS_GENERIC));
 		if ((isGeneric && catalogPartition instanceof HiveCatalogPartition) ||
 			(!isGeneric && catalogPartition instanceof GenericCatalogPartition)) {
