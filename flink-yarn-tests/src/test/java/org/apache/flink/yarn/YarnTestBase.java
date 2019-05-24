@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.io.FileUtils;
@@ -42,7 +43,6 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
@@ -200,7 +200,7 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	@Before
-	public void checkClusterEmpty() {
+	public void setupYarnClient() {
 		if (yarnClient == null) {
 			yarnClient = YarnClient.createYarnClient();
 			yarnClient.init(getYarnConfiguration());
@@ -214,29 +214,43 @@ public abstract class YarnTestBase extends TestLogger {
 	 * Sleep a bit between the tests (we are re-using the YARN cluster for the tests).
 	 */
 	@After
-	public void sleep() throws IOException, YarnException {
-		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(10));
+	public void shutdownYarnClient() {
+		yarnClient.stop();
+	}
 
-		boolean isAnyJobRunning = yarnClient.getApplications().stream()
-			.anyMatch(YarnTestBase::isApplicationRunning);
-
-		while (deadline.hasTimeLeft() && isAnyJobRunning) {
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				Assert.fail("Should not happen");
-			}
-			isAnyJobRunning = yarnClient.getApplications().stream()
-				.anyMatch(YarnTestBase::isApplicationRunning);
+	protected void runTest(RunnableWithException test) throws Exception {
+		// wrapping the cleanup logic in an AutoClosable automatically suppresses additional exceptions
+		try (final CleanupYarnApplication ignored = new CleanupYarnApplication()) {
+			test.run();
 		}
+	}
 
-		if (isAnyJobRunning) {
-			final List<String> runningApps = yarnClient.getApplications().stream()
-				.filter(YarnTestBase::isApplicationRunning)
-				.map(app -> "App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState() + '.')
-				.collect(Collectors.toList());
-			if (!runningApps.isEmpty()) {
-				Assert.fail("There is at least one application on the cluster that is not finished." + runningApps);
+	private class CleanupYarnApplication implements AutoCloseable {
+		@Override
+		public void close() throws Exception {
+			Deadline deadline = Deadline.now().plus(Duration.ofSeconds(10));
+
+			boolean isAnyJobRunning = yarnClient.getApplications().stream()
+				.anyMatch(YarnTestBase::isApplicationRunning);
+
+			while (deadline.hasTimeLeft() && isAnyJobRunning) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					Assert.fail("Should not happen");
+				}
+				isAnyJobRunning = yarnClient.getApplications().stream()
+					.anyMatch(YarnTestBase::isApplicationRunning);
+			}
+
+			if (isAnyJobRunning) {
+				final List<String> runningApps = yarnClient.getApplications().stream()
+					.filter(YarnTestBase::isApplicationRunning)
+					.map(app -> "App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState() + '.')
+					.collect(Collectors.toList());
+				if (!runningApps.isEmpty()) {
+					Assert.fail("There is at least one application on the cluster that is not finished." + runningApps);
+				}
 			}
 		}
 	}
