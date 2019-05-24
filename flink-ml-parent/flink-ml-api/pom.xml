@@ -24,16 +24,22 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-ml-parent</artifactId>
 		<version>1.9-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-ml-parent</artifactId>
+	<artifactId>flink-ml-api</artifactId>
 
-	<packaging>pom</packaging>
-
-	<modules>
-		<module>flink-ml-api</module>
-	</modules>
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+			<version>${jackson.version}-${flink.shaded.version}</version>
+		</dependency>
+	</dependencies>
 </project>
