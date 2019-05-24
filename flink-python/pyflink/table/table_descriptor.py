@@ -383,7 +383,7 @@ class Kafka(ConnectorDescriptor):
     def __init__(self):
         gateway = get_gateway()
         self._j_kafka = gateway.jvm.Kafka()
-        super(ConnectorDescriptor, self).__init__(self._j_kafka)
+        super(Kafka, self).__init__(self._j_kafka)
 
     def version(self, version):
         """
@@ -416,7 +416,7 @@ class Kafka(ConnectorDescriptor):
         :return: This object.
         """
         gateway = get_gateway()
-        properties = gateway.jvm.Properties()
+        properties = gateway.jvm.java.util.Properties()
         for key in property_dict:
             properties.setProperty(key, property_dict[key])
         self._j_kafka = self._j_kafka.properties(properties)
