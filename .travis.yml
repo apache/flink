@@ -218,7 +218,7 @@ jobs:
       name: cleanup - jdk 9
     # Documentation 404 check
     - if: type = cron
-      stage: compile
+      stage: test
       script: ./tools/travis/docs.sh
       language: ruby
       rvm: 2.4.0
