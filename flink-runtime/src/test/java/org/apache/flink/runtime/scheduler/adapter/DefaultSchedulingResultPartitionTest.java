@@ -36,29 +36,28 @@ import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.RELEASED;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit tests for {@link DefaultResultPartition}.
+ * Unit tests for {@link DefaultSchedulingResultPartition}.
  */
-public class DefaultResultPartitionTest extends TestLogger {
+public class DefaultSchedulingResultPartitionTest extends TestLogger {
 
 	private static final TestExecutionStateSupplier stateProvider = new TestExecutionStateSupplier();
 
 	private final IntermediateResultPartitionID resultPartitionId = new IntermediateResultPartitionID();
 	private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
 
-	private DefaultResultPartition resultPartition;
+	private DefaultSchedulingResultPartition resultPartition;
 
 	@Before
 	public void setUp() {
-		resultPartition = new DefaultResultPartition(
+		resultPartition = new DefaultSchedulingResultPartition(
 			resultPartitionId,
 			intermediateResultId,
 			BLOCKING);
 
-		DefaultExecutionVertex producerVertex = new DefaultExecutionVertex(
+		DefaultSchedulingExecutionVertex producerVertex = new DefaultSchedulingExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(resultPartition),
 			stateProvider);
@@ -71,11 +70,6 @@ public class DefaultResultPartitionTest extends TestLogger {
 			stateProvider.setExecutionState(state);
 			SchedulingResultPartition.ResultPartitionState partitionState = resultPartition.getState();
 			switch (state) {
-				case CREATED:
-				case SCHEDULED:
-				case DEPLOYING:
-					assertEquals(EMPTY, partitionState);
-					break;
 				case RUNNING:
 					assertEquals(PRODUCING, partitionState);
 					break;
@@ -83,7 +77,7 @@ public class DefaultResultPartitionTest extends TestLogger {
 					assertEquals(DONE, partitionState);
 					break;
 				default:
-					assertEquals(RELEASED, partitionState);
+					assertEquals(EMPTY, partitionState);
 					break;
 			}
 		}

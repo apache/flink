@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -44,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopology {
 
-	private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById;
+	private final Map<ExecutionVertexID, DefaultSchedulingExecutionVertex> executionVerticesById;
 
 	private final List<SchedulingExecutionVertex> executionVerticesList;
 
@@ -53,23 +52,17 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 	public ExecutionGraphToSchedulingTopologyAdapter(ExecutionGraph graph) {
 		checkNotNull(graph, "execution graph can not be null");
 
-		final int totalVertexCnt = graph.getTotalNumberOfVertices();
-		int totalPartitionCnt = 0;
-		for (ExecutionJobVertex jobVertex : graph.getAllVertices().values()) {
-			totalPartitionCnt += jobVertex.getProducedDataSets().length * jobVertex.getParallelism();
-		}
-
-		this.executionVerticesById = new HashMap<>(totalVertexCnt);
-		this.executionVerticesList = new ArrayList<>(totalVertexCnt);
-		Map<IntermediateResultPartitionID, DefaultResultPartition> tmpResultPartitionsById = new HashMap<>(totalPartitionCnt);
-		Map<ExecutionVertex, DefaultExecutionVertex> executionVertexMap = new HashMap<>(totalVertexCnt);
+		this.executionVerticesById = new HashMap<>();
+		this.executionVerticesList = new ArrayList<>(graph.getTotalNumberOfVertices());
+		Map<IntermediateResultPartitionID, DefaultSchedulingResultPartition> tmpResultPartitionsById = new HashMap<>();
+		Map<ExecutionVertex, DefaultSchedulingExecutionVertex> executionVertexMap = new HashMap<>();
 
 		for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
-			List<DefaultResultPartition> producedPartitions = generateProducedSchedulingResultPartition(vertex.getProducedPartitions());
+			List<DefaultSchedulingResultPartition> producedPartitions = generateProducedSchedulingResultPartition(vertex.getProducedPartitions());
 
 			producedPartitions.forEach(partition -> tmpResultPartitionsById.put(partition.getId(), partition));
 
-			DefaultExecutionVertex schedulingVertex = generateSchedulingExecutionVertex(vertex, producedPartitions);
+			DefaultSchedulingExecutionVertex schedulingVertex = generateSchedulingExecutionVertex(vertex, producedPartitions);
 			this.executionVerticesById.put(schedulingVertex.getId(), schedulingVertex);
 			this.executionVerticesList.add(schedulingVertex);
 			executionVertexMap.put(vertex, schedulingVertex);
@@ -94,13 +87,14 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 		return Optional.ofNullable(resultPartitionsById.get(intermediateResultPartitionId));
 	}
 
-	private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
+	private static List<DefaultSchedulingResultPartition> generateProducedSchedulingResultPartition(
 		Map<IntermediateResultPartitionID, IntermediateResultPartition> producedIntermediatePartitions) {
-		List<DefaultResultPartition> producedSchedulingPartitions = new ArrayList<>(producedIntermediatePartitions.size());
+
+		List<DefaultSchedulingResultPartition> producedSchedulingPartitions = new ArrayList<>(producedIntermediatePartitions.size());
 
 		producedIntermediatePartitions.values().forEach(
 			irp -> producedSchedulingPartitions.add(
-				new DefaultResultPartition(
+				new DefaultSchedulingResultPartition(
 					irp.getPartitionId(),
 					irp.getIntermediateResult().getId(),
 					irp.getResultType())));
@@ -108,11 +102,11 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 		return producedSchedulingPartitions;
 	}
 
-	private static DefaultExecutionVertex generateSchedulingExecutionVertex(
+	private static DefaultSchedulingExecutionVertex generateSchedulingExecutionVertex(
 		ExecutionVertex vertex,
-		List<DefaultResultPartition> producedPartitions) {
+		List<DefaultSchedulingResultPartition> producedPartitions) {
 
-		DefaultExecutionVertex schedulingVertex = new DefaultExecutionVertex(
+		DefaultSchedulingExecutionVertex schedulingVertex = new DefaultSchedulingExecutionVertex(
 			new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()),
 			producedPartitions,
 			new ExecutionStateSupplier(vertex));
@@ -123,16 +117,16 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 	}
 
 	private static void connectVerticesToConsumedPartitions(
-		Map<ExecutionVertex, DefaultExecutionVertex> executionVertexMap,
-		Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitions) {
+		Map<ExecutionVertex, DefaultSchedulingExecutionVertex> executionVertexMap,
+		Map<IntermediateResultPartitionID, DefaultSchedulingResultPartition> resultPartitions) {
 
-		for (Map.Entry<ExecutionVertex, DefaultExecutionVertex> mapEntry : executionVertexMap.entrySet()) {
-			final DefaultExecutionVertex schedulingVertex = mapEntry.getValue();
+		for (Map.Entry<ExecutionVertex, DefaultSchedulingExecutionVertex> mapEntry : executionVertexMap.entrySet()) {
+			final DefaultSchedulingExecutionVertex schedulingVertex = mapEntry.getValue();
 			final ExecutionVertex executionVertex = mapEntry.getKey();
 
 			for (int index = 0; index < executionVertex.getNumberOfInputs(); index++) {
 				for (ExecutionEdge edge : executionVertex.getInputEdges(index)) {
-					DefaultResultPartition partition = resultPartitions.get(edge.getSource().getPartitionId());
+					DefaultSchedulingResultPartition partition = resultPartitions.get(edge.getSource().getPartitionId());
 					schedulingVertex.addConsumedPartition(partition);
 					partition.addConsumer(schedulingVertex);
 				}

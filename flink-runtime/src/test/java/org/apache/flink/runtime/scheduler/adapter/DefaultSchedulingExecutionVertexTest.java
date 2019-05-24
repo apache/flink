@@ -36,15 +36,15 @@ import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit tests for {@link DefaultExecutionVertex}.
+ * Unit tests for {@link DefaultSchedulingExecutionVertex}.
  */
-public class DefaultExecutionVertexTest extends TestLogger {
+public class DefaultSchedulingExecutionVertexTest extends TestLogger {
 
 	private final TestExecutionStateSupplier stateSupplier = new TestExecutionStateSupplier();
 
-	private DefaultExecutionVertex producerVertex;
+	private DefaultSchedulingExecutionVertex producerVertex;
 
-	private DefaultExecutionVertex consumerVertex;
+	private DefaultSchedulingExecutionVertex consumerVertex;
 
 	private IntermediateResultPartitionID intermediateResultPartitionId;
 
@@ -53,16 +53,16 @@ public class DefaultExecutionVertexTest extends TestLogger {
 
 		intermediateResultPartitionId = new IntermediateResultPartitionID();
 
-		DefaultResultPartition schedulingResultPartition = new DefaultResultPartition(
+		DefaultSchedulingResultPartition schedulingResultPartition = new DefaultSchedulingResultPartition(
 			intermediateResultPartitionId,
 			new IntermediateDataSetID(),
 			BLOCKING);
-		producerVertex = new DefaultExecutionVertex(
+		producerVertex = new DefaultSchedulingExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.singletonList(schedulingResultPartition),
 			stateSupplier);
 		schedulingResultPartition.setProducer(producerVertex);
-		consumerVertex = new DefaultExecutionVertex(
+		consumerVertex = new DefaultSchedulingExecutionVertex(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			Collections.emptyList(),
 			stateSupplier);

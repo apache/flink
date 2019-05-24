@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Default implementation of {@link SchedulingExecutionVertex}.
  */
-public class DefaultExecutionVertex implements SchedulingExecutionVertex {
+class DefaultSchedulingExecutionVertex implements SchedulingExecutionVertex {
 
 	private final ExecutionVertexID executionVertexId;
 
@@ -44,7 +44,7 @@ public class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
 	private final Supplier<ExecutionState> stateSupplier;
 
-	public DefaultExecutionVertex(
+	DefaultSchedulingExecutionVertex(
 			ExecutionVertexID executionVertexId,
 			List<? extends SchedulingResultPartition> producedPartitions,
 			Supplier<ExecutionState> stateSupplier) {

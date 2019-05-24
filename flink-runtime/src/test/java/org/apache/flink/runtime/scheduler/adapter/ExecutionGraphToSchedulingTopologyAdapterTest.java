@@ -52,7 +52,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertFalse;
 
 /**
  * Unit tests for {@link ExecutionGraphToSchedulingTopologyAdapter}.
@@ -130,9 +130,8 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 
 			assertPartitionsEquals(originalProducedPartitions, adaptedProducedPartitions);
 		}
-		if (adaptedVertices.hasNext()) {
-			fail("Number of adapted vertices exceeds number of original vertices.");
-		}
+
+		assertFalse("Number of adapted vertices exceeds number of original vertices.", adaptedVertices.hasNext());
 	}
 
 	private static void assertPartitionsEquals(

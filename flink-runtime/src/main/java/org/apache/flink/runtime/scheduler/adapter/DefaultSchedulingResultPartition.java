@@ -32,13 +32,12 @@ import java.util.List;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.DONE;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.EMPTY;
 import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.PRODUCING;
-import static org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition.ResultPartitionState.RELEASED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Default implementation of {@link SchedulingResultPartition}.
  */
-public class DefaultResultPartition implements SchedulingResultPartition {
+class DefaultSchedulingResultPartition implements SchedulingResultPartition {
 
 	private final IntermediateResultPartitionID resultPartitionId;
 
@@ -50,7 +49,7 @@ public class DefaultResultPartition implements SchedulingResultPartition {
 
 	private final List<SchedulingExecutionVertex> consumers;
 
-	DefaultResultPartition(
+	DefaultSchedulingResultPartition(
 			IntermediateResultPartitionID partitionId,
 			IntermediateDataSetID intermediateDataSetId,
 			ResultPartitionType partitionType) {
@@ -78,16 +77,12 @@ public class DefaultResultPartition implements SchedulingResultPartition {
 	@Override
 	public ResultPartitionState getState() {
 		switch (producer.getState()) {
-			case CREATED:
-			case SCHEDULED:
-			case DEPLOYING:
-				return EMPTY;
 			case RUNNING:
 				return PRODUCING;
 			case FINISHED:
 				return DONE;
 			default:
-				return RELEASED;
+				return EMPTY;
 		}
 	}
 
