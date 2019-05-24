@@ -50,6 +50,14 @@ public class YarnConfigOptions {
 			.withDescription("The port where the application master RPC system is listening.");
 
 	/**
+	 * The vcores used by YARN application master.
+	 */
+	public static final ConfigOption<Integer> APP_MASTER_VCORES =
+		key("yarn.appmaster.vcores")
+		.defaultValue(1)
+		.withDescription("The number of virtual cores (vcores) used by YARN application master.");
+
+	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
 	 * in the path. They can be positioned at the beginning ("FIRST"), at the end ("LAST"), or be positioned based on
 	 * their name ("ORDER").
