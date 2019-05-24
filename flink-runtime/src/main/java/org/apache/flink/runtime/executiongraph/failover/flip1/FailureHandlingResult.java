@@ -19,6 +19,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
+import java.util.Collections;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -32,13 +33,13 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class FailureHandlingResult {
 
 	/** Task vertices to restart to recover from the failure. */
-	private Set<ExecutionVertexID> verticesToRestart;
+	private final Set<ExecutionVertexID> verticesToRestart;
 
 	/** Delay before the restarting can be conducted. */
-	private long restartDelayMS;
+	private final long restartDelayMS;
 
 	/** Reason why the failure is not recoverable. */
-	private Throwable error;
+	private final Throwable error;
 
 	/**
 	 * Creates a result of a set of tasks to restart to recover from the failure.
@@ -46,11 +47,12 @@ public class FailureHandlingResult {
 	 * @param verticesToRestart containing task vertices to restart to recover from the failure
 	 * @param restartDelayMS indicate a delay before conducting the restart
 	 */
-	public FailureHandlingResult(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
+	private FailureHandlingResult(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
 		checkState(restartDelayMS >= 0);
 
 		this.verticesToRestart = checkNotNull(verticesToRestart);
 		this.restartDelayMS = restartDelayMS;
+		this.error = null;
 	}
 
 	/**
@@ -58,7 +60,9 @@ public class FailureHandlingResult {
 	 *
 	 * @param error reason why the failure is not recoverable
 	 */
-	public FailureHandlingResult(Throwable error) {
+	private FailureHandlingResult(Throwable error) {
+		this.verticesToRestart = null;
+		this.restartDelayMS = -1;
 		this.error = checkNotNull(error);
 	}
 
@@ -69,7 +73,7 @@ public class FailureHandlingResult {
 	 */
 	public Set<ExecutionVertexID> getVerticesToRestart() {
 		if (canRestart()) {
-			return verticesToRestart;
+			return Collections.unmodifiableSet(verticesToRestart);
 		} else {
 			throw new IllegalStateException("Cannot get vertices to restart when the restarting is suppressed.");
 		}
@@ -104,5 +108,26 @@ public class FailureHandlingResult {
 	 */
 	public Throwable getError() {
 		return error;
+	}
+
+	/**
+	 * Creates a result of a set of tasks to restart to recover from the failure.
+	 *
+	 * @param verticesToRestart containing task vertices to restart to recover from the failure
+	 * @param restartDelayMS indicate a delay before conducting the restart
+	 * @return result of a set of tasks to restart to recover from the failure
+	 */
+	public static FailureHandlingResult restartable(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
+		return new FailureHandlingResult(verticesToRestart, restartDelayMS);
+	}
+
+	/**
+	 * Creates a result that the failure is not recoverable and no restarting should be conducted.
+	 *
+	 * @param error reason why the failure is not recoverable
+	 * @return result indicating the failure is not recoverable
+	 */
+	public static FailureHandlingResult unrecoverable(Throwable error) {
+		return new FailureHandlingResult(error);
 	}
 }

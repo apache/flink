@@ -40,11 +40,11 @@ public class FailureHandlingResultTest extends TestLogger {
 	 * Tests normal FailureHandlingResult.
 	 */
 	@Test
-	public void testNormalFailureHandlingResult() throws Exception {
+	public void testNormalFailureHandlingResult() {
 		// create a normal FailureHandlingResult
 		Set<ExecutionVertexID> tasks = new HashSet<>();
 		long delay = 1234;
-		FailureHandlingResult result = new FailureHandlingResult(tasks, delay);
+		FailureHandlingResult result = FailureHandlingResult.restartable(tasks, delay);
 
 		assertTrue(result.canRestart());
 		assertEquals(delay, result.getRestartDelayMS());
@@ -56,10 +56,10 @@ public class FailureHandlingResultTest extends TestLogger {
 	 * Tests FailureHandlingResult which suppresses restarts.
 	 */
 	@Test
-	public void testRestartingSuppressedFailureHandlingResult() throws Exception {
+	public void testRestartingSuppressedFailureHandlingResult() {
 		// create a FailureHandlingResult with error
 		Throwable error = new Exception("test error");
-		FailureHandlingResult result = new FailureHandlingResult(error);
+		FailureHandlingResult result = FailureHandlingResult.unrecoverable(error);
 
 		assertFalse(result.canRestart());
 		assertEquals(error, result.getError());

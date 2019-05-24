@@ -27,15 +27,13 @@ import org.junit.Test;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link ExecutionFailureHandler}.
@@ -46,21 +44,19 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	 * Tests the case that task restarting is accepted.
 	 */
 	@Test
-	public void testNormalFailureHandling() throws Exception {
-		ExecutionFailureHandler executionFailureHandler = createExecutionFailureHandler();
-		FailoverStrategy failoverStrategy = executionFailureHandler.getFailoverStrategy();
-		RestartBackoffTimeStrategy restartStrategy = executionFailureHandler.getRestartBackoffTimeStrategy();
+	public void testNormalFailureHandling() {
+		// failover strategy which always suggests restarting the given tasks
+		Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
+		tasksToRestart.add(new ExecutionVertexID(new JobVertexID(), 0));
+		FailoverStrategy failoverStrategy = new TestFailoverStrategy(tasksToRestart);
 
-		Set<ExecutionVertexID> tasksToBeRestarted = new HashSet<>();
-		when(failoverStrategy.getTasksNeedingRestart(any(ExecutionVertexID.class), any(Throwable.class))).thenReturn(
-			tasksToBeRestarted);
-
+		// restart strategy which accepts restarting
+		boolean canRestart = true;
 		long restartDelayMs = 1234;
-		when(restartStrategy.getBackoffTime()).thenReturn(restartDelayMs);
+		RestartBackoffTimeStrategy restartStrategy = new TestRestartBackoffTimeStrategy(canRestart, restartDelayMs);
+		ExecutionFailureHandler executionFailureHandler = new ExecutionFailureHandler(failoverStrategy, restartStrategy);
 
-		// accept restarts
-		when(restartStrategy.canRestart()).thenReturn(true);
-
+		// trigger a task failure
 		FailureHandlingResult result = executionFailureHandler.getFailureHandlingResult(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			new Exception("test failure"));
@@ -68,7 +64,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		// verify results
 		assertTrue(result.canRestart());
 		assertEquals(restartDelayMs, result.getRestartDelayMS());
-		assertEquals(tasksToBeRestarted, result.getVerticesToRestart());
+		assertEquals(tasksToRestart, result.getVerticesToRestart());
 		assertNull(result.getError());
 	}
 
@@ -76,21 +72,19 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	 * Tests the case that task restarting is suppressed.
 	 */
 	@Test
-	public void testRestartingSuppressedFailureHandlingResult() throws Exception {
-		ExecutionFailureHandler executionFailureHandler = createExecutionFailureHandler();
-		FailoverStrategy failoverStrategy = executionFailureHandler.getFailoverStrategy();
-		RestartBackoffTimeStrategy restartStrategy = executionFailureHandler.getRestartBackoffTimeStrategy();
+	public void testRestartingSuppressedFailureHandlingResult() {
+		// failover strategy which always suggests restarting the given tasks
+		Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
+		tasksToRestart.add(new ExecutionVertexID(new JobVertexID(), 0));
+		FailoverStrategy failoverStrategy = new TestFailoverStrategy(tasksToRestart);
 
-		Set<ExecutionVertexID> tasksToBeRestarted = new HashSet<>();
-		when(failoverStrategy.getTasksNeedingRestart(any(ExecutionVertexID.class), any(Throwable.class))).thenReturn(
-			tasksToBeRestarted);
-
+		// restart strategy which suppresses restarting
+		boolean canRestart = false;
 		long restartDelayMs = 1234;
-		when(restartStrategy.getBackoffTime()).thenReturn(restartDelayMs);
+		RestartBackoffTimeStrategy restartStrategy = new TestRestartBackoffTimeStrategy(canRestart, restartDelayMs);
+		ExecutionFailureHandler executionFailureHandler = new ExecutionFailureHandler(failoverStrategy, restartStrategy);
 
-		// suppress restarts
-		when(restartStrategy.canRestart()).thenReturn(false);
-
+		// trigger a task failure
 		FailureHandlingResult result = executionFailureHandler.getFailureHandlingResult(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			new Exception("test failure"));
@@ -116,21 +110,19 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	 * Tests the case that the failure is non-recoverable type.
 	 */
 	@Test
-	public void testNonRecoverableFailureHandlingResult() throws Exception {
-		ExecutionFailureHandler executionFailureHandler = createExecutionFailureHandler();
-		FailoverStrategy failoverStrategy = executionFailureHandler.getFailoverStrategy();
-		RestartBackoffTimeStrategy restartStrategy = executionFailureHandler.getRestartBackoffTimeStrategy();
+	public void testNonRecoverableFailureHandlingResult() {
+		// failover strategy which always suggests restarting the given tasks
+		Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
+		tasksToRestart.add(new ExecutionVertexID(new JobVertexID(), 0));
+		FailoverStrategy failoverStrategy = new TestFailoverStrategy(tasksToRestart);
 
-		Set<ExecutionVertexID> tasksToBeRestarted = new HashSet<>();
-		when(failoverStrategy.getTasksNeedingRestart(any(ExecutionVertexID.class), any(Throwable.class))).thenReturn(
-			tasksToBeRestarted);
-
+		// restart strategy which accepts restarting
+		boolean canRestart = true;
 		long restartDelayMs = 1234;
-		when(restartStrategy.getBackoffTime()).thenReturn(restartDelayMs);
+		RestartBackoffTimeStrategy restartStrategy = new TestRestartBackoffTimeStrategy(canRestart, restartDelayMs);
+		ExecutionFailureHandler executionFailureHandler = new ExecutionFailureHandler(failoverStrategy, restartStrategy);
 
-		// accept restarts
-		when(restartStrategy.canRestart()).thenReturn(true);
-
+		// trigger an unrecoverable task failure
 		FailureHandlingResult result = executionFailureHandler.getFailureHandlingResult(
 			new ExecutionVertexID(new JobVertexID(), 0),
 			new SuppressRestartsException(new Exception("test failure")));
@@ -156,15 +148,50 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private ExecutionFailureHandler createExecutionFailureHandler() {
-		FailoverTopology topology = new TestFailoverTopology.Builder().build();
+	/**
+	 * A FailoverStrategy implementation for tests. It always suggest restarting the given task set on construction.
+	 */
+	private class TestFailoverStrategy implements FailoverStrategy {
 
-		FailoverStrategy.Factory failoverStrategyFactory = mock(FailoverStrategy.Factory.class);
-		when(failoverStrategyFactory.create(any(FailoverTopology.class))).thenReturn(mock(FailoverStrategy.class));
+		private final Set<ExecutionVertexID> tasksToRestart;
 
-		RestartBackoffTimeStrategy.Factory restartStrategyFactory = mock(RestartBackoffTimeStrategy.Factory.class);
-		when(restartStrategyFactory.create()).thenReturn(mock(RestartBackoffTimeStrategy.class));
+		public TestFailoverStrategy(Set<ExecutionVertexID> tasksToRestart) {
+			this.tasksToRestart = checkNotNull(tasksToRestart);
+		}
 
-		return new ExecutionFailureHandler(topology, failoverStrategyFactory, restartStrategyFactory);
+		@Override
+		public Set<ExecutionVertexID> getTasksNeedingRestart(ExecutionVertexID executionVertexId, Throwable cause) {
+			return tasksToRestart;
+		}
+	}
+
+	/**
+	 * A RestartBackoffTimeStrategy implementation for tests.
+	 */
+	private class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
+
+		private final boolean canRestart;
+
+		private final long backoffTime;
+
+		public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
+			this.canRestart = canRestart;
+			this.backoffTime = backoffTime;
+		}
+
+		@Override
+		public boolean canRestart() {
+			return canRestart;
+		}
+
+		@Override
+		public long getBackoffTime() {
+			return backoffTime;
+		}
+
+		@Override
+		public void notifyFailure(Throwable cause) {
+			// ignore
+		}
 	}
 }

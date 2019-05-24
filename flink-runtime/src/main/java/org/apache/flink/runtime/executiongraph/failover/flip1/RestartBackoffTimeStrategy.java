@@ -48,7 +48,7 @@ public interface RestartBackoffTimeStrategy {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The factory to Instantiate {@link RestartBackoffTimeStrategy}.
+	 * The factory to instantiate {@link RestartBackoffTimeStrategy}.
 	 */
 	interface Factory {
 

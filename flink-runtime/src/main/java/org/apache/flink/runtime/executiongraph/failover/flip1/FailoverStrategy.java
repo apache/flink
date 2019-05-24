@@ -40,7 +40,7 @@ public interface FailoverStrategy {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The factory to Instantiate {@link FailoverStrategy}.
+	 * The factory to instantiate {@link FailoverStrategy}.
 	 */
 	interface Factory {
 

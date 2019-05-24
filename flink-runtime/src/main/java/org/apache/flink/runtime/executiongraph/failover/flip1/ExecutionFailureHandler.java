@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
@@ -32,25 +31,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ExecutionFailureHandler {
 
 	/** Strategy to judge which tasks should be restarted. */
-	private FailoverStrategy failoverStrategy;
+	private final FailoverStrategy failoverStrategy;
 
 	/** Strategy to judge whether and when a restarting should be done. */
-	private RestartBackoffTimeStrategy restartBackoffTimeStrategy;
+	private final RestartBackoffTimeStrategy restartBackoffTimeStrategy;
 
 	/**
 	 * Creates the handler to deal with task failures.
 	 *
-	 * @param topology of tasks of current job
-	 * @param failoverStrategyFactory is the factory to create the failover strategy
-	 * @param restartStrategyFactory is the factory to create the restart strategy
+	 * @param failoverStrategy helps to decide tasks to restart on task failures
+	 * @param restartBackoffTimeStrategy helps to decide whether to restart failed tasks and the restarting delay
 	 */
 	public ExecutionFailureHandler(
-		FailoverTopology topology,
-		FailoverStrategy.Factory failoverStrategyFactory,
-		RestartBackoffTimeStrategy.Factory restartStrategyFactory) {
+		FailoverStrategy failoverStrategy,
+		RestartBackoffTimeStrategy restartBackoffTimeStrategy) {
 
-		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(topology));
-		this.restartBackoffTimeStrategy = checkNotNull(restartStrategyFactory.create());
+		this.failoverStrategy = checkNotNull(failoverStrategy);
+		this.restartBackoffTimeStrategy = checkNotNull(restartBackoffTimeStrategy);
 	}
 
 	/**
@@ -63,27 +60,17 @@ public class ExecutionFailureHandler {
 	 */
 	public FailureHandlingResult getFailureHandlingResult(ExecutionVertexID failedTask, Throwable cause) {
 		if (ThrowableClassifier.getThrowableType(cause) == ThrowableType.NonRecoverableError) {
-			return new FailureHandlingResult(new JobException("The failure is not recoverable", cause));
+			return FailureHandlingResult.unrecoverable(new JobException("The failure is not recoverable", cause));
 		}
 
 		restartBackoffTimeStrategy.notifyFailure(cause);
 		if (restartBackoffTimeStrategy.canRestart()) {
-			return new FailureHandlingResult(
+			return FailureHandlingResult.restartable(
 				failoverStrategy.getTasksNeedingRestart(failedTask, cause),
 				restartBackoffTimeStrategy.getBackoffTime());
 		} else {
-			return new FailureHandlingResult(
+			return FailureHandlingResult.unrecoverable(
 				new JobException("Failed task restarting is suppressed by " + restartBackoffTimeStrategy, cause));
 		}
-	}
-
-	@VisibleForTesting
-	FailoverStrategy getFailoverStrategy() {
-		return failoverStrategy;
-	}
-
-	@VisibleForTesting
-	RestartBackoffTimeStrategy getRestartBackoffTimeStrategy() {
-		return restartBackoffTimeStrategy;
 	}
 }
