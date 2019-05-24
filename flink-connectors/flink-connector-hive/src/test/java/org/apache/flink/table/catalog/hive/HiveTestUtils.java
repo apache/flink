@@ -40,7 +40,11 @@ public class HiveTestUtils {
 		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, getHiveConf());
 	}
 
-	private static HiveConf getHiveConf() throws IOException {
+	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
+		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, hiveConf);
+	}
+
+	public static HiveConf getHiveConf() throws IOException {
 		ClassLoader classLoader = new HiveTestUtils().getClass().getClassLoader();
 		HiveConf.setHiveSiteLocation(classLoader.getResource(HIVE_SITE_XML));
 

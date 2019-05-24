@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 
 /**
  * Utils to convert data types between Flink and Hive.
@@ -49,27 +50,27 @@ public class HiveTypeUtil {
 	 * @return the corresponding Hive data type
 	 */
 	public static String toHiveType(TypeInformation type) {
-		if (type == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+		if (type.equals(BasicTypeInfo.BOOLEAN_TYPE_INFO)) {
 			return serdeConstants.BOOLEAN_TYPE_NAME;
-		} else if (type == BasicTypeInfo.BYTE_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.BYTE_TYPE_INFO)) {
 			return serdeConstants.TINYINT_TYPE_NAME;
-		} else if (type == BasicTypeInfo.SHORT_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.SHORT_TYPE_INFO)) {
 			return serdeConstants.SMALLINT_TYPE_NAME;
-		} else if (type == BasicTypeInfo.INT_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.INT_TYPE_INFO)) {
 			return serdeConstants.INT_TYPE_NAME;
-		} else if (type == BasicTypeInfo.LONG_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.LONG_TYPE_INFO)) {
 			return serdeConstants.BIGINT_TYPE_NAME;
-		} else if (type == BasicTypeInfo.FLOAT_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.FLOAT_TYPE_INFO)) {
 			return serdeConstants.FLOAT_TYPE_NAME;
-		} else if (type == BasicTypeInfo.DOUBLE_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.DOUBLE_TYPE_INFO)) {
 			return serdeConstants.DOUBLE_TYPE_NAME;
-		} else if (type == BasicTypeInfo.STRING_TYPE_INFO) {
+		} else if (type.equals(BasicTypeInfo.STRING_TYPE_INFO)) {
 			return serdeConstants.STRING_TYPE_NAME;
-		} else if (type == SqlTimeTypeInfo.DATE) {
+		} else if (type.equals(SqlTimeTypeInfo.DATE)) {
 			return serdeConstants.DATE_TYPE_NAME;
-		} else if (type == PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO) {
+		} else if (type.equals(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)) {
 			return serdeConstants.BINARY_TYPE_NAME;
-		} else if (type == SqlTimeTypeInfo.TIMESTAMP) {
+		} else if (type.equals(SqlTimeTypeInfo.TIMESTAMP)) {
 			return serdeConstants.TIMESTAMP_TYPE_NAME;
 		} else {
 			throw new UnsupportedOperationException(
@@ -131,5 +132,13 @@ public class HiveTypeUtil {
 				throw new UnsupportedOperationException(
 					String.format("Flink doesn't support Hive primitive type %s yet", hiveType));
 		}
+	}
+
+	/**
+	 * Converts a Flink {@link TypeInformation} to corresponding Hive {@link TypeInfo}.
+	 */
+	public static TypeInfo toHiveTypeInfo(TypeInformation flinkType) {
+		// TODO: support complex data types
+		return TypeInfoFactory.getPrimitiveTypeInfo(toHiveType(flinkType));
 	}
 }

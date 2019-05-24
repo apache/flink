@@ -454,7 +454,7 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@VisibleForTesting
-	Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
+	public Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
 		try {
 			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
 		} catch (NoSuchObjectException e) {
