@@ -73,7 +73,7 @@ class BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      newTableSource.asInstanceOf[BatchTableSource[_]],
+      tableSource,
       selectedFields
     )
   }

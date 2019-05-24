@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -42,7 +40,7 @@ import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{BatchTableSource, TableSource}
+import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, validateInputTypeInfo}
 import org.apache.flink.types.Row
 
@@ -58,160 +56,31 @@ abstract class BatchTableEnvImpl(
     catalogManager: CatalogManager)
   extends TableEnvImpl(config, catalogManager) {
 
-  // a counter for unique table names.
-  private val nameCntr: AtomicInteger = new AtomicInteger(0)
-
-  // the naming pattern for internally registered tables.
-  private val internalNamePattern = "^_DataSetTable_[0-9]+$".r
-
   override def queryConfig: BatchQueryConfig = new BatchQueryConfig
-
-  /**
-    * Checks if the chosen table name is valid.
-    *
-    * @param name The table name to check.
-    */
-  override protected def checkValidTableName(name: String): Unit = {
-    val m = internalNamePattern.findFirstIn(name)
-    m match {
-      case Some(_) =>
-        throw new TableException(s"Illegal Table name. " +
-          s"Please choose a name that does not contain the pattern $internalNamePattern")
-      case None =>
-    }
-  }
-
-  /** Returns a unique table name according to the internal naming pattern. */
-  override protected def createUniqueTableName(): String =
-    "_DataSetTable_" + nameCntr.getAndIncrement()
 
   /**
     * Registers an internal [[BatchTableSource]] in this [[TableEnvImpl]]'s catalog without
     * name checking. Registered tables can be referenced in SQL queries.
     *
-    * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
     */
-  override protected def registerTableSourceInternal(
-      name: String,
-      tableSource: TableSource[_])
-    : Unit = {
+  override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
+    TableSourceUtil.validateTableSource(tableSource)
 
-    tableSource match {
+    if (!tableSource.isInstanceOf[BatchTableSource[_]]) {
+      throw new TableException("Only BatchTableSource can be registered in " +
+        "BatchTableEnvironment.")
+    }
+  }
 
-      // check for proper batch table source
-      case batchTableSource: BatchTableSource[_] =>
-        // check if a table (source or sink) is registered
-        getTable(defaultCatalogName, defaultDatabaseName, name) match {
-
-          // table source and/or sink is registered
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
-
-            // wrapper contains source
-            case Some(_: TableSourceTable[_]) =>
-              throw new TableException(s"Table '$name' already exists. " +
-                s"Please choose a different name.")
-
-            // wrapper contains only sink (not source)
-            case _ =>
-              val enrichedTable = new TableSourceSinkTable(
-                Some(new BatchTableSourceTable(batchTableSource)),
-                table.tableSinkTable)
-              replaceRegisteredTableSourceSinkInternal(name, enrichedTable)
-          }
-
-          // no table is registered
-          case _ =>
-            val newTable = new TableSourceSinkTable(
-              Some(new BatchTableSourceTable(batchTableSource)),
-              None)
-            registerTableSourceSinkInternal(name, newTable)
-        }
-
-      // not a batch table source
-      case _ =>
-        throw new TableException("Only BatchTableSource can be registered in " +
-            "BatchTableEnvironment.")
+  override protected  def validateTableSink(configuredSink: TableSink[_]): Unit = {
+    if (!configuredSink.isInstanceOf[BatchTableSink[_]]) {
+      throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
     }
   }
 
   def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor = {
     new BatchTableDescriptor(this, connectorDescriptor)
-  }
-
-  def registerTableSink(
-      name: String,
-      fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit = {
-    // validate
-    checkValidTableName(name)
-    if (fieldNames == null) throw new TableException("fieldNames must not be null.")
-    if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
-    if (fieldNames.length == 0) throw new TableException("fieldNames must not be empty.")
-    if (fieldNames.length != fieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
-    }
-
-    // configure and register
-    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
-    // validate
-    checkValidTableName(name)
-    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
-      throw new TableException("Table sink is not configured.")
-    }
-    if (configuredSink.getFieldNames.length == 0) {
-      throw new TableException("Field names must not be empty.")
-    }
-    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
-    }
-
-    // register
-    configuredSink match {
-
-      // check for proper batch table sink
-      case _: BatchTableSink[_] =>
-
-        // check if a table (source or sink) is registered
-        getTable(name) match {
-
-          // table source and/or sink is registered
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
-
-            // wrapper contains sink
-            case Some(_: TableSinkTable[_]) =>
-              throw new TableException(s"Table '$name' already exists. " +
-                s"Please choose a different name.")
-
-            // wrapper contains only source (not sink)
-            case _ =>
-              val enrichedTable = new TableSourceSinkTable(
-                table.tableSourceTable,
-                Some(new TableSinkTable(configuredSink)))
-              replaceRegisteredTableSourceSinkInternal(name, enrichedTable)
-          }
-
-          // no table is registered
-          case _ =>
-            val newTable = new TableSourceSinkTable(
-              None,
-              Some(new TableSinkTable(configuredSink)))
-            registerTableSourceSinkInternal(name, newTable)
-        }
-
-      // not a batch table sink
-      case _ =>
-        throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
-    }
   }
 
   /**
