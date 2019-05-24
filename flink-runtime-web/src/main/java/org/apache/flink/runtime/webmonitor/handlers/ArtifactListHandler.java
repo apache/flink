@@ -100,42 +100,47 @@ public class ArtifactListHandler extends AbstractRestHandler<RestfulGateway, Emp
 						continue;
 					}
 					String name = id.substring(startIndex + 1);
-					if (name.length() < 5 || !name.endsWith(".jar")) {
+					if (!((name.length() >= 5 && name.endsWith(".jar")) ||
+						(name.length() >= 4 && name.endsWith(".py")) ||
+						(name.length() >= 5 && name.endsWith(".zip")) ||
+						(name.length() >= 5 && name.endsWith(".egg")))) {
 						continue;
 					}
 
 					List<ArtifactListInfo.ArtifactEntryInfo> artifactEntryList = new ArrayList<>();
-					String[] classes = new String[0];
-					try (JarFile jar = new JarFile(f)) {
-						Manifest manifest = jar.getManifest();
-						String assemblerClass = null;
+					if (name.endsWith(".jar")) {
+						String[] classes = new String[0];
+						try (JarFile jar = new JarFile(f)) {
+							Manifest manifest = jar.getManifest();
+							String assemblerClass = null;
 
-						if (manifest != null) {
-							assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
-							if (assemblerClass == null) {
-								assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+							if (manifest != null) {
+								assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
+								if (assemblerClass == null) {
+									assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+								}
 							}
+							if (assemblerClass != null) {
+								classes = assemblerClass.split(",");
+							}
+						} catch (IOException ignored) {
+							// we simply show no entries here
 						}
-						if (assemblerClass != null) {
-							classes = assemblerClass.split(",");
-						}
-					} catch (IOException ignored) {
-						// we simply show no entries here
-					}
 
-					// show every entry class that can be loaded later on.
-					for (String clazz : classes) {
-						clazz = clazz.trim();
+						// show every entry class that can be loaded later on.
+						for (String clazz : classes) {
+							clazz = clazz.trim();
 
-						PackagedProgram program = null;
-						try {
-							program = new PackagedProgram(f, clazz, new String[0]);
-						} catch (Exception ignored) {
-							// ignore jar files which throw an error upon creating a PackagedProgram
-						}
-						if (program != null) {
-							ArtifactListInfo.ArtifactEntryInfo artifactEntryInfo = new ArtifactListInfo.ArtifactEntryInfo(clazz, program.getDescription());
-							artifactEntryList.add(artifactEntryInfo);
+							PackagedProgram program = null;
+							try {
+								program = new PackagedProgram(f, clazz, new String[0]);
+							} catch (Exception ignored) {
+								// ignore jar files which throw an error upon creating a PackagedProgram
+							}
+							if (program != null) {
+								ArtifactListInfo.ArtifactEntryInfo artifactEntryInfo = new ArtifactListInfo.ArtifactEntryInfo(clazz, program.getDescription());
+								artifactEntryList.add(artifactEntryInfo);
+							}
 						}
 					}
 
@@ -150,7 +155,9 @@ public class ArtifactListHandler extends AbstractRestHandler<RestfulGateway, Emp
 	}
 
 	private File[] getArtifactFiles() {
-		final File[] list = artifactDir.listFiles((dir, name) -> name.endsWith(".jar"));
+		final File[] list = artifactDir.listFiles(
+			(dir, name) ->
+				name.endsWith(".jar") || name.endsWith(".py") || name.endsWith(".zip") || name.endsWith(".egg"));
 		if (list == null) {
 			log.warn("Artifact upload dir {} does not exist, or had been deleted externally. " +
 				"Previously uploaded artifacts are no longer available.", artifactDir);

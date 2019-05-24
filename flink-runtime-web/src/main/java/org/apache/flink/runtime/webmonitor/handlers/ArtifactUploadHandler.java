@@ -46,7 +46,7 @@ import java.util.concurrent.Executor;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Handles artifact file uploads.
+ * Handles artifact file uploads, such as .jar, .py, .zip, .egg, etc.
  */
 public class ArtifactUploadHandler extends
 		AbstractRestHandler<RestfulGateway, EmptyRequestBody, ArtifactUploadResponseBody, EmptyMessageParameters> {
@@ -76,10 +76,14 @@ public class ArtifactUploadHandler extends
 			throw new RestHandlerException("Exactly 1 file must be sent, received " + uploadedFiles.size() + '.', HttpResponseStatus.BAD_REQUEST);
 		}
 		final Path fileUpload = uploadedFiles.iterator().next().toPath();
+		final String fileUploadFileName = fileUpload.getFileName().toString();
 		return CompletableFuture.supplyAsync(() -> {
-			if (!fileUpload.getFileName().toString().endsWith(".jar")) {
+			if (!fileUploadFileName.endsWith(".jar") &&
+				!fileUploadFileName.endsWith(".py") &&
+				!fileUploadFileName.endsWith(".zip") &&
+				!fileUploadFileName.endsWith(".egg")) {
 				throw new CompletionException(new RestHandlerException(
-					"Only Jar files are allowed.",
+					"Only .jar, .py, .zip, .egg files are allowed.",
 					HttpResponseStatus.BAD_REQUEST));
 			} else {
 				final Path destination = artifactDir.resolve(UUID.randomUUID() + "_" + fileUpload.getFileName());
