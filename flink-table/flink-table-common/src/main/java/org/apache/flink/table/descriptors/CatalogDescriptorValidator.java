@@ -27,7 +27,7 @@ import org.apache.flink.annotation.Internal;
 public abstract class CatalogDescriptorValidator implements DescriptorValidator {
 
 	/**
-	 * Key for describing the type of the catalog. Usually used for factory discovery.
+	 * Key for describing the type of the catalog. Usually used for factory discovery.ca
 	 */
 	public static final String CATALOG_TYPE = "type";
 

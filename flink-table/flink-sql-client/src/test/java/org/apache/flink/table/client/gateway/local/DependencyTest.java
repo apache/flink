@@ -29,7 +29,6 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
 
@@ -133,42 +132,17 @@ public class DependencyTest {
 		public Catalog createCatalog(String name, Map<String, String> properties) {
 			final DescriptorProperties params = new DescriptorProperties(true);
 			params.putProperties(properties);
-			return new TestCatalog(name, params);
+			return new TestCatalog(name);
 		}
 	}
-
 
 	/**
 	 * Test catalog.
 	 */
 	public static class TestCatalog extends GenericInMemoryCatalog {
-		private final DescriptorProperties params;
 
-		public TestCatalog(String name, DescriptorProperties params) {
-			super("test");
-			this.params = params;
-
-//				ExternalCatalogTable table1 = ExternalCatalogTable.builder(new TestConnectorDescriptor())
-//					.withSchema(Schema.apply())
-//					.inAppendMode()
-//					.asTableSourceAndSink();
-//
-//				createTable("TableNumber1", table1, false);
-		}
-	}
-
-	/**
-	 * Test connector descriptor for {@link TestCatalogFactory}.
-	 */
-	public static class TestConnectorDescriptor extends ConnectorDescriptor {
-		public TestConnectorDescriptor() {
-			super(CONNECTOR_TYPE_VALUE, 1, false);
-		}
-
-		@Override
-		protected Map<String, String> toConnectorProperties() {
-			final DescriptorProperties properties = new DescriptorProperties();
-			return properties.asMap();
+		public TestCatalog(String name) {
+			super(name);
 		}
 	}
 }

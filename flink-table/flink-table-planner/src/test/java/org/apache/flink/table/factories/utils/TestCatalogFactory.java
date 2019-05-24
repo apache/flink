@@ -19,7 +19,7 @@
 package org.apache.flink.table.factories.utils;
 
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.factories.CatalogFactory;
 
 import java.util.Collections;
@@ -38,11 +38,8 @@ public class TestCatalogFactory implements CatalogFactory {
 	public static final String CATALOG_TYPE_TEST = "test";
 
 	@Override
-	public Catalog createCatalog(String name, Map properties) {
-		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(properties);
-
-		return new TestCatalog(name, descriptorProperties.asMap());
+	public Catalog createCatalog(String name, Map<String, String> properties) {
+		return new GenericInMemoryCatalog(name);
 	}
 
 	@Override

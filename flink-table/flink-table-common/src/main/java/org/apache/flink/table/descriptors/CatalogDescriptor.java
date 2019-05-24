@@ -33,24 +33,24 @@ public abstract class CatalogDescriptor extends DescriptorBase {
 
 	private final String type;
 
-	private final int version;
+	private final int propertyVersion;
 
 	/**
 	 * Constructs a {@link CatalogDescriptor}.
 	 *
 	 * @param type string that identifies this catalog
-	 * @param version property version for backwards compatibility
+	 * @param propertyVersion property version for backwards compatibility
 	 */
-	public CatalogDescriptor(String type, int version) {
+	public CatalogDescriptor(String type, int propertyVersion) {
 		this.type = type;
-		this.version = version;
+		this.propertyVersion = propertyVersion;
 	}
 
 	@Override
 	public final Map<String, String> toProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 		properties.putString(CATALOG_TYPE, type);
-		properties.putLong(CATALOG_PROPERTY_VERSION, version);
+		properties.putLong(CATALOG_PROPERTY_VERSION, propertyVersion);
 		properties.putProperties(toCatalogProperties());
 		return properties.asMap();
 	}
