@@ -29,7 +29,7 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.factories.utils.TestCatalogFactory.CATALOG_TYPE_TEST;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for testing external catalog discovery using {@link TableFactoryService}.
@@ -40,7 +40,9 @@ public class CatalogFactoryServiceTest {
 	public void testValidProperties() {
 		Map<String, String> props = properties();
 
-		assertTrue(TableFactoryService.find(CatalogFactory.class, props) instanceof TestCatalogFactory);
+		assertEquals(
+			TableFactoryService.find(CatalogFactory.class, props).getClass(),
+			TestCatalogFactory.class);
 	}
 
 	@Test(expected = NoMatchingTableFactoryException.class)
@@ -54,8 +56,11 @@ public class CatalogFactoryServiceTest {
 	public void testDifferentContextVersion() {
 		Map<String, String> props = properties();
 		props.put(CATALOG_PROPERTY_VERSION, "2");
+
 		// the catalog should still be found
-		assertTrue(TableFactoryService.find(CatalogFactory.class, props) instanceof TestCatalogFactory);
+		assertEquals(
+			TableFactoryService.find(CatalogFactory.class, props).getClass(),
+			TestCatalogFactory.class);
 	}
 
 	@Test(expected = NoMatchingTableFactoryException.class)
