@@ -202,7 +202,7 @@ public class PathResolutionTest {
 		testSpec.getDefaultCatalog().ifPresent(catalogManager::setCurrentCatalog);
 		testSpec.getDefaultDatabase().ifPresent(catalogManager::setCurrentDatabase);
 
-		CatalogTableOperation tab = catalogManager.resolveTable(lookupPath.toArray(new String[0])).get();
+		CatalogManager.ResolvedTable tab = catalogManager.resolveTable(lookupPath.toArray(new String[0])).get();
 		assertThat(tab.getTablePath(), CoreMatchers.equalTo(testSpec.getExpectedPath()));
 	}
 

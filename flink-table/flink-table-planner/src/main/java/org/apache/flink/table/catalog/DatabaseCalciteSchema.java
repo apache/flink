@@ -22,6 +22,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.plan.schema.TableSourceTable;
+import org.apache.flink.table.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -65,10 +67,16 @@ class DatabaseCalciteSchema implements Schema {
 
 			CatalogBaseTable table = catalog.getTable(tablePath);
 
-			if (table instanceof CalciteCatalogTable) {
-				return ((CalciteCatalogTable) table).getTable();
-			} else if (table instanceof TableOperationCatalogView) {
+			if (table instanceof TableOperationCatalogView) {
 				return TableOperationCatalogViewTable.createCalciteTable(((TableOperationCatalogView) table));
+			} else if (table instanceof ConnectorCatalogTable) {
+				ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
+				return connectorTable.getTableSource()
+					.map(tableSource -> new TableSourceTable<>(
+						tableSource,
+						!connectorTable.isBatch(),
+						FlinkStatistic.UNKNOWN()))
+					.orElseThrow(() -> new TableException("Querying sink only table unsupported."));
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}

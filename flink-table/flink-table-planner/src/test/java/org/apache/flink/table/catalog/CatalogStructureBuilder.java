@@ -22,19 +22,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.calcite.FlinkTypeFactory;
-import org.apache.flink.table.calcite.FlinkTypeSystem;
-import org.apache.flink.table.plan.schema.StreamTableSourceTable;
-import org.apache.flink.table.plan.schema.TableSourceSinkTable;
-import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.StreamTableSource;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
-import scala.Option;
-import scala.Some;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 
@@ -272,33 +264,28 @@ public class CatalogStructureBuilder {
 		}
 	}
 
-	private static class TestTable extends CalciteCatalogTable {
-
+	private static class TestTable extends ConnectorCatalogTable<Object, Object> {
 		private final String fullyQualifiedPath;
 
-		private static final StreamTableSourceTable<Object> tableSourceTable = new StreamTableSourceTable<>(
-			new StreamTableSource<Object>() {
-				@Override
-				public DataStream<Object> getDataStream(StreamExecutionEnvironment execEnv) {
-					return null;
-				}
+		private static final StreamTableSource<Object> tableSource = new StreamTableSource<Object>() {
+			@Override
+			public DataStream<Object> getDataStream(StreamExecutionEnvironment execEnv) {
+				return null;
+			}
 
-				@Override
-				public TypeInformation<Object> getReturnType() {
-					return null;
-				}
+			@Override
+			public TypeInformation<Object> getReturnType() {
+				return null;
+			}
 
-				@Override
-				public TableSchema getTableSchema() {
-					return new TableSchema(new String[] {}, new TypeInformation[] {});
-				}
-			}, FlinkStatistic.UNKNOWN());
+			@Override
+			public TableSchema getTableSchema() {
+				return TableSchema.builder().build();
+			}
+		};
 
 		private TestTable(String fullyQualifiedPath) {
-			super(new TableSourceSinkTable<>(
-				new Some<>(tableSourceTable),
-				Option.empty()
-			), new FlinkTypeFactory(new FlinkTypeSystem()));
+			super(tableSource, null, tableSource.getTableSchema(), false);
 			this.fullyQualifiedPath = fullyQualifiedPath;
 		}
 

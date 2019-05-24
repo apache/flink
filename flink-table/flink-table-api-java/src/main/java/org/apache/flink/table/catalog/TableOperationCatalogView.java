@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Optional;
 
 /**
- * A view created from {@link TableOperation} via operations on {@link org.apache.flink.table.api.Table}.
+ * A view created from a {@link TableOperation} via operations on {@link org.apache.flink.table.api.Table}.
  */
 @Internal
 public class TableOperationCatalogView extends AbstractCatalogView {

@@ -157,17 +157,6 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 	}
 
 	@Test(expected = TableException.class)
-	public void testIllegalName() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
-
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		Table t = tableEnv.fromDataSet(ds);
-		// Must fail. Table name matches internal name pattern.
-		tableEnv.registerTable("_DataSetTable_42", t);
-	}
-
-	@Test(expected = TableException.class)
 	public void testRegisterTableFromOtherEnv() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv1 = BatchTableEnvironment.create(env, config());
