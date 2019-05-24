@@ -49,7 +49,7 @@ import static java.lang.String.format;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES;
 
 /**
- * Utility classes for extracting names and indices of fields from different {@link TypeInformation}s.
+ * Utility methods for extracting names and indices of fields from different {@link TypeInformation}s.
  */
 public class FieldInfoUtils {
 
@@ -234,8 +234,19 @@ public class FieldInfoUtils {
 		return fieldTypes;
 	}
 
-	public static <T> TableSchema calculateTableSchema(
-		TypeInformation<T> typeInfo,
+	/**
+	 * Derives {@link TableSchema} out of a {@link TypeInformation}. It is complementary to other
+	 * methods in this class. This also performs translation from time indicator markers such as
+	 * {@link TimeIndicatorTypeInfo#ROWTIME_STREAM_MARKER} etc. to a corresponding
+	 * {@link TimeIndicatorTypeInfo}.
+	 *
+	 * @param typeInfo input type info to calculate fields type infos from
+	 * @param fieldIndexes indices within the typeInfo of the resulting Table schema
+	 * @param fieldNames names of the fields of the resulting schema
+	 * @return calculates resulting schema
+	 */
+	public static TableSchema calculateTableSchema(
+		TypeInformation<?> typeInfo,
 		int[] fieldIndexes,
 		String[] fieldNames) {
 
@@ -292,6 +303,8 @@ public class FieldInfoUtils {
 		return new TableSchema(fieldNames, types);
 	}
 
+	/* Utility methods */
+
 	private static Optional<TypeInformation<?>> extractTimeMarkerType(int idx) {
 		switch (idx) {
 			case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER:
@@ -305,10 +318,6 @@ public class FieldInfoUtils {
 				return Optional.empty();
 		}
 	}
-
-
-
-	/* Utility methods */
 
 	private static Set<FieldInfo> extractFieldInfoFromAtomicType(Expression[] exprs) {
 		boolean referenced = false;

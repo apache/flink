@@ -16,28 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.sources;
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableSchema;
 
-class BatchTableSourceTable[T](
-    tableSource: BatchTableSource[T],
-    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](
-    tableSource,
-    statistic) {
+import java.util.List;
 
-  TableSourceUtil.validateTableSource(tableSource)
+/**
+ * Extends a {@link TableSource} to specify rowtime attributes via a
+ * {@link RowtimeAttributeDescriptor}.
+ */
+@PublicEvolving
+public interface DefinedRowtimeAttributes {
 
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      None,
-      streaming = false,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
-  }
+	/**
+	 * Returns a list of {@link RowtimeAttributeDescriptor} for all rowtime
+	 * attributes of the table.
+	 *
+	 * <p>All referenced attributes must be present in the {@link TableSchema}
+	 * of the {@link TableSource} and of type {@link Types#SQL_TIMESTAMP}.
+	 *
+	 * @return A list of {@link RowtimeAttributeDescriptor}.
+	 */
+	List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors();
 }
-
