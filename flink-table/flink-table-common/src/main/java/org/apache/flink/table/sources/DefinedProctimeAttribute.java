@@ -16,27 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.sources;
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableSchema;
 
-class StreamTableSourceTable[T](
-    tableSource: StreamTableSource[T],
-    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](
-    tableSource,
-    statistic) {
+import javax.annotation.Nullable;
 
-  TableSourceUtil.validateTableSource(tableSource)
+/**
+ * Extends a {@link TableSource} to specify a processing time attribute.
+ */
+@PublicEvolving
+public interface DefinedProctimeAttribute {
 
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      None,
-      streaming = true,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
-  }
+		/**
+		 * Returns the name of a processing time attribute or null if no processing time attribute is
+		 * present.
+		 *
+		 * <p>The referenced attribute must be present in the {@link TableSchema} of the {@link TableSource} and of
+		 * type {@link Types#SQL_TIMESTAMP}.
+		 */
+		@Nullable
+		String getProctimeAttribute();
 }
