@@ -18,14 +18,16 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.TableException
-
+import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.generated.GeneratedJoinCondition
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo}
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.IntPair
+import org.apache.flink.table.types.logical.LogicalType
 
 import java.util
 
@@ -104,5 +106,35 @@ object JoinUtil {
       // TODO create NonEquiJoinInfo directly
       JoinInfo.of(left, right, condition)
     }
+  }
+
+  def generateConditionFunction(
+      config: TableConfig,
+      rexBuilder: RexBuilder,
+      joinInfo: JoinInfo,
+      leftType: LogicalType,
+      rightType: LogicalType): GeneratedJoinCondition = {
+    val ctx = CodeGeneratorContext(config)
+    // should consider null fields
+    val exprGenerator = new ExprCodeGenerator(ctx, false)
+      .bindInput(leftType)
+      .bindSecondInput(rightType)
+
+    val body = if (joinInfo.isEqui) {
+      // only equality condition
+      "return true;"
+    } else {
+      val nonEquiPredicates = joinInfo.getRemaining(rexBuilder)
+      val condition = exprGenerator.generateExpression(nonEquiPredicates)
+      s"""
+         |${condition.code}
+         |return ${condition.resultTerm};
+         |""".stripMargin
+    }
+
+    FunctionCodeGenerator.generateJoinCondition(
+      ctx,
+      "ConditionFunction",
+      body)
   }
 }

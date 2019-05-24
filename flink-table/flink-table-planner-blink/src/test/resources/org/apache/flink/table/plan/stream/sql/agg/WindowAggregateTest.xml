@@ -253,7 +253,7 @@ LogicalProject(hs1=[$0], he1=[$1], c1=[$2], s1=[$3], hs2=[$4], he2=[$5], c2=[$6]
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(he1, he2)], select=[hs1, he1, c1, s1, hs2, he2, c2, s2])
+Join(joinType=[InnerJoin], where=[=(he1, he2)], select=[hs1, he1, c1, s1, hs2, he2, c2, s2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[he1]])
 :  +- Calc(select=[CAST(w$start) AS hs1, CAST(w$end) AS he1, c1, s1], where=[IS NOT NULL(s1)])
 :     +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 3600000, 60000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS c1, SUM(c) AS s1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
