@@ -34,6 +34,11 @@
             <span>Task Managers</span>
             <span>{{ statistic['taskmanagers'] | number:'1.0-0' }}</span>
           </div>
+          <nz-divider nzType="vertical"></nz-divider>
+          <div class="field">
+            <span>CPU Cores</span>
+            <span>{{ taskManagerCPUs | number:'1.0-0' }}</span>
+          </div>
         </div>
       </ng-container>
     </nz-card>
