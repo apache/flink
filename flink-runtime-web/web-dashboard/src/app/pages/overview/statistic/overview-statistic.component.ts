@@ -65,7 +65,6 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
           this.listOfTaskManager = data;
           this.taskManagerCPUs = 0;
           this.listOfTaskManager.map(tm => (this.taskManagerCPUs += tm.hardware.cpuCores));
-          console.log(this.listOfTaskManager);
           this.cdr.markForCheck();
         },
         () => {
