@@ -120,7 +120,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 			miniCluster.start();
 			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
-			return miniCluster.executeJobBlocking(jobGraph);
+			return miniCluster.executeJob(jobGraph);
 		}
 		finally {
 			transformations.clear();

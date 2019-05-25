@@ -100,7 +100,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		MINI_CLUSTER_RESOURCE.getMiniCluster().executeJobBlocking(jobGraph);
+		MINI_CLUSTER_RESOURCE.getMiniCluster().executeJob(jobGraph);
 	}
 
 	// ---------------------------------------------------------------------------------------------

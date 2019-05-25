@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -35,7 +37,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
@@ -64,10 +65,10 @@ public class LocalExecutor extends PlanExecutor {
 	private final Configuration baseConfiguration;
 
 	/** Service for executing Flink jobs. */
-	private JobExecutorService jobExecutorService;
+	private ClusterClient clusterClient;
 
 	/** Current job executor service configuration. */
-	private Configuration jobExecutorServiceConfiguration;
+	private Configuration configuration;
 
 	/** Config value for how many slots to provide in the local cluster. */
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
@@ -110,19 +111,19 @@ public class LocalExecutor extends PlanExecutor {
 	@Override
 	public void start() throws Exception {
 		synchronized (lock) {
-			if (jobExecutorService == null) {
+			if (clusterClient == null) {
 				// create the embedded runtime
-				jobExecutorServiceConfiguration = createConfiguration();
+				configuration = createConfiguration();
 
 				// start it up
-				jobExecutorService = createJobExecutorService(jobExecutorServiceConfiguration);
+				clusterClient = createClusterClient(configuration);
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}
 		}
 	}
 
-	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
+	private ClusterClient createClusterClient(Configuration configuration) throws Exception {
 		if (!configuration.contains(RestOptions.BIND_PORT)) {
 			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
@@ -144,15 +145,16 @@ public class LocalExecutor extends PlanExecutor {
 
 		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
-		return miniCluster;
+		return new MiniClusterClient(configuration, miniCluster);
 	}
 
 	@Override
 	public void stop() throws Exception {
 		synchronized (lock) {
-			if (jobExecutorService != null) {
-				jobExecutorService.close();
-				jobExecutorService = null;
+			if (clusterClient != null) {
+				clusterClient.shutDownCluster();
+				clusterClient.shutdown();
+				clusterClient = null;
 			}
 		}
 	}
@@ -160,7 +162,7 @@ public class LocalExecutor extends PlanExecutor {
 	@Override
 	public boolean isRunning() {
 		synchronized (lock) {
-			return jobExecutorService != null;
+			return clusterClient != null;
 		}
 	}
 
@@ -188,7 +190,7 @@ public class LocalExecutor extends PlanExecutor {
 			// check if we start a session dedicated for this execution
 			final boolean shutDownAtEnd;
 
-			if (jobExecutorService == null) {
+			if (clusterClient == null) {
 				shutDownAtEnd = true;
 
 				// configure the number of local slots equal to the parallelism of the local plan
@@ -209,17 +211,16 @@ public class LocalExecutor extends PlanExecutor {
 
 			try {
 				// TODO: Set job's default parallelism to max number of slots
-				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
-				final int numTaskManagers = jobExecutorServiceConfiguration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+				final int slotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
+				final int numTaskManagers = configuration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 				plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 
-				Optimizer pc = new Optimizer(new DataStatistics(), jobExecutorServiceConfiguration);
+				Optimizer pc = new Optimizer(new DataStatistics(), configuration);
 				OptimizedPlan op = pc.compile(plan);
 
-				JobGraphGenerator jgg = new JobGraphGenerator(jobExecutorServiceConfiguration);
+				JobGraphGenerator jgg = new JobGraphGenerator(configuration);
 				JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
-
-				return jobExecutorService.executeJobBlocking(jobGraph);
+				return ((MiniClusterClient) clusterClient).getMiniCluster().executeJob(jobGraph);
 			}
 			finally {
 				if (shutDownAtEnd) {
