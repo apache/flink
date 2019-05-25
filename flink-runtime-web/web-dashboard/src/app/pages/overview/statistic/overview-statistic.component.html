@@ -20,7 +20,10 @@
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="12" [nzLg]="12" [nzXl]="12" class="col">
     <nz-card [nzBordered]="false" nzTitle="Available Task Slots" [nzLoading]="!statistic">
       <ng-container *ngIf="statistic">
-        <div class="total">{{ statistic['slots-available'] | number:'1.0-0' }}</div>
+        <div class="taskslots">
+          <div class="total">{{ statistic['slots-available'] | number:'1.0-0' }}</div>
+          <div class="task-slot-percentage-bar"><nz-progress [nzPercent]=taskSlotPercentage></nz-progress></div>
+        </div>
         <div class="footer">
           <div class="field">
             <span>Total Task Slots</span>

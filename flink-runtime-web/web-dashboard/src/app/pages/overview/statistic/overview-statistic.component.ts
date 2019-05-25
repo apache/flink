@@ -30,6 +30,7 @@ import { OverviewService, StatusService } from 'services';
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
   statistic: OverviewInterface | null;
+  taskSlotPercentage: number;
   destroy$ = new Subject();
 
   constructor(
@@ -46,6 +47,9 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
       )
       .subscribe(data => {
         this.statistic = data;
+        this.taskSlotPercentage = Math.round(
+          ((data['slots-total'] - data['slots-available']) / data['slots-total']) * 100
+        );
         this.cdr.markForCheck();
       });
   }
