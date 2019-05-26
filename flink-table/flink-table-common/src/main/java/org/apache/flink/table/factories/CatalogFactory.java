@@ -31,7 +31,7 @@ import java.util.Map;
 public interface CatalogFactory extends TableFactory {
 
 	/**
-	 * Creates and configures an {@link Catalog} using the given properties.
+	 * Creates and configures a {@link Catalog} using the given properties.
 	 *
 	 * @param properties normalized properties describing an external catalog.
 	 * @return the configured  catalog.

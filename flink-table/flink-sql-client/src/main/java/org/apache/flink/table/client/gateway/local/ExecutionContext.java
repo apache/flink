@@ -79,6 +79,7 @@ import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -117,7 +118,7 @@ public class ExecutionContext<T> {
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
 
-		// create external catalogs
+		// create catalogs
 		catalogs = new LinkedHashMap<>();
 		mergedEnv.getCatalogs().forEach((name, entry) ->
 			catalogs.put(name, createCatalog(name, entry.asMap(), classLoader))
@@ -300,11 +301,21 @@ public class ExecutionContext<T> {
 				throw new SqlExecutionException("Unsupported execution type specified.");
 			}
 
-			// create query config
-			queryConfig = createQueryConfig();
-
 			// register catalogs
 			catalogs.forEach(tableEnv::registerCatalog);
+
+			Optional<String> potentialCurrentCatalog = mergedEnv.getExecution().getCurrentCatalog();
+			if (potentialCurrentCatalog.isPresent()) {
+				tableEnv.useCatalog(potentialCurrentCatalog.get());
+			}
+
+			Optional<String> potentialCurrentDatabase = mergedEnv.getExecution().getCurrentDatabase();
+			if (potentialCurrentDatabase.isPresent()) {
+				tableEnv.useDatabase(potentialCurrentDatabase.get());
+			}
+
+			// create query config
+			queryConfig = createQueryConfig();
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);

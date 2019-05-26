@@ -52,6 +52,7 @@ import static org.junit.Assert.assertTrue;
 public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
 
 	@Test
@@ -72,10 +73,12 @@ public class ExecutionContextTest {
 
 	@Test
 	public void testCatalogs() throws Exception {
-		final ExecutionContext<?> context = createDefaultExecutionContext();
+		final String catalogName = "catalog1";
+		final ExecutionContext<?> context = createCatalogExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 
-		assertTrue(tableEnv.getCatalog("Catalog1").isPresent());
+		assertEquals(tableEnv.getCurrentCatalog(), catalogName);
+		assertEquals(tableEnv.getCurrentDatabase(), "mydatabase");
 	}
 
 	@Test
@@ -179,6 +182,15 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
 		return createExecutionContext(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+	}
+
+	private <T> ExecutionContext<T> createCatalogExecutionContext() throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "changelog");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		return createExecutionContext(CATALOGS_ENVIRONMENT_FILE, replaceVars);
 	}
 
 	private <T> ExecutionContext<T> createStreamingExecutionContext() throws Exception {

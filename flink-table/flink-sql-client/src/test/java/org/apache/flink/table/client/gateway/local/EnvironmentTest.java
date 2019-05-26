@@ -83,12 +83,12 @@ public class EnvironmentTest {
 	@Test
 	public void testDuplicateCatalog() {
 		exception.expect(SqlClientException.class);
-		exception.expectMessage("Cannot create catalog 'Catalog2' because a catalog with this name is already registered.");
+		exception.expectMessage("Cannot create catalog 'catalog2' because a catalog with this name is already registered.");
 		Environment env = new Environment();
 		env.setCatalogs(Arrays.asList(
-			getCatalog("Catalog1", "test"),
-			getCatalog("Catalog2", "test"),
-			getCatalog("Catalog2", "test")));
+			getCatalog("catalog1", "test"),
+			getCatalog("catalog2", "test"),
+			getCatalog("catalog2", "test")));
 	}
 
 	private static Map<String, Object> getCatalog(String name, String type) {

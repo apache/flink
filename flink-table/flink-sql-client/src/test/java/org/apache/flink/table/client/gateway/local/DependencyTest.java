@@ -141,8 +141,10 @@ public class DependencyTest {
 	 */
 	public static class TestCatalog extends GenericInMemoryCatalog {
 
+		private static final String TEST_DATABASE_NAME = "mydatabase";
+
 		public TestCatalog(String name) {
-			super(name);
+			super(name, TEST_DATABASE_NAME);
 		}
 	}
 }
