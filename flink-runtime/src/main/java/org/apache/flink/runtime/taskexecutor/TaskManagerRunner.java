@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -360,9 +361,12 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				remoteAddress,
 				localCommunicationOnly);
 
+		boolean useFullHostName = configuration.getBoolean(
+			MetricOptions.METRIC_FULL_HOST_NAME,
+			MetricOptions.METRIC_FULL_HOST_NAME.defaultValue());
 		Tuple2<TaskManagerMetricGroup, MetricGroup> taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
-			TaskManagerLocation.getHostName(remoteAddress),
+			TaskManagerLocation.getHostName(remoteAddress, useFullHostName),
 			resourceID,
 			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 

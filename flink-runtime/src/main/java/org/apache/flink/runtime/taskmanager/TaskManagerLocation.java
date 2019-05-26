@@ -191,6 +191,18 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 * @return hostname of the TaskManager
 	 */
 	public static String getHostName(InetAddress inetAddress) {
+		return getHostName(inetAddress, false);
+	}
+
+	/**
+	 * Gets the hostname of the TaskManager based on the network address. If {@code useFullHostName} is set as true,
+	 * it would return the fully qualified domain name if possible otherwise not.
+	 *
+	 * @param inetAddress the network address that the TaskManager binds its sockets to
+	 * @param useFullHostName whether to return the fully qualified domain name or take the first part.
+	 * @return hostname of the TaskManager
+	 */
+	public static String getHostName(InetAddress inetAddress, boolean useFullHostName) {
 		String hostName;
 		String fqdnHostName = getFqdnHostName(inetAddress);
 
@@ -202,7 +214,11 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 			LOG.warn("No hostname could be resolved for the IP address {}, using IP address as host name. "
 				+ "Local input split assignment (such as for HDFS files) may be impacted.", inetAddress.getHostAddress());
 		} else {
-			hostName = NetUtils.getHostnameFromFQDN(fqdnHostName);
+			if (useFullHostName) {
+				hostName = fqdnHostName;
+			} else {
+				hostName = NetUtils.getHostnameFromFQDN(fqdnHostName);
+			}
 		}
 
 		return hostName;

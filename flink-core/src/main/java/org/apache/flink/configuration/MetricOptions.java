@@ -185,6 +185,14 @@ public class MetricOptions {
 				"faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 " +
 				"disables the metric fetching completely.");
 
+	/**
+	 * Whether the host name in task manager metrics should be fully qualified domain name.
+	 */
+	public static final ConfigOption<Boolean> METRIC_FULL_HOST_NAME =
+		key("metrics.tm.full-hostname")
+			.defaultValue(false)
+			.withDescription("Flag indicating whether Flink should use fully qualified host name in task manager metrics.");
+
 	private MetricOptions() {
 	}
 }

@@ -198,4 +198,25 @@ public class TaskManagerLocationTest {
 			fail(e.getMessage());
 		}
 	}
+
+	@Test
+	public void testGetMetricHostName() {
+		try {
+			InetAddress address = mock(InetAddress.class);
+			String fqdn = "worker2.cluster.mycompany.com";
+			when(address.getCanonicalHostName()).thenReturn(fqdn);
+			when(address.getHostName()).thenReturn(fqdn);
+			when(address.getHostAddress()).thenReturn("127.0.0.1");
+
+			String hostName = TaskManagerLocation.getHostName(address, false);
+			assertEquals("worker2", hostName);
+
+			hostName = TaskManagerLocation.getHostName(address, true);
+			assertEquals(fqdn, hostName);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 }
