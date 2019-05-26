@@ -69,15 +69,21 @@ public class CheckpointFailureManager {
 			case JOB_FAILOVER_REGION:
 			//for compatibility purposes with user job behavior
 			case CHECKPOINT_DECLINED_TASK_NOT_READY:
-				//ignore
-				break;
+			case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
+			case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
+			case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
+			case CHECKPOINT_DECLINED_SUBSUMED:
+			case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
 			case EXCEPTION:
 			case CHECKPOINT_EXPIRED:
-			case CHECKPOINT_DECLINED:
 			case TASK_CHECKPOINT_FAILURE:
 			case TRIGGER_CHECKPOINT_FAILURE:
 			case FINALIZE_CHECKPOINT_FAILURE:
+				//ignore
+				break;
+
+			case CHECKPOINT_DECLINED:
 				continuousFailureCounter.incrementAndGet();
 				break;
 

@@ -22,10 +22,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the checkpoint failure manager.
@@ -37,7 +33,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 		TestFailJobCallback callback = new TestFailJobCallback();
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
 
-		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.EXCEPTION), -1);
+		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
 		failureManager.handleCheckpointException(
 			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
 
@@ -46,7 +42,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), -1);
 
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED), -1);
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
 		assertEquals(1, callback.getInvokeCounter());
 	}
 
@@ -79,7 +75,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 			failureManager.handleCheckpointException(new CheckpointException(reason), -1);
 		}
 
-		assertEquals(6, callback.getInvokeCounter());
+		assertEquals(1, callback.getInvokeCounter());
 	}
 
 	/**

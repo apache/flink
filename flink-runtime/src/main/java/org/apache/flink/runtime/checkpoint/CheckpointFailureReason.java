@@ -44,6 +44,16 @@ public enum CheckpointFailureReason {
 
 	CHECKPOINT_DECLINED_TASK_NOT_READY("Checkpoint was declined(task not ready)."),
 
+	CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING("Task does not support checkpointing"),
+
+	CHECKPOINT_DECLINED_SUBSUMED("Checkpoint was canceled because a barrier from newer checkpoint was received."),
+
+	CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER("Task received cancellation from one of its inputs"),
+
+	CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED("The checkpoint alignment phase needed to buffer more than the configured maximum bytes"),
+
+	CHECKPOINT_DECLINED_INPUT_END_OF_STREAM("Checkpoint was declined because one input stream is finished"),
+
 	CHECKPOINT_COORDINATOR_SHUTDOWN("CheckpointCoordinator shutdown."),
 
 	CHECKPOINT_COORDINATOR_SUSPEND("Checkpoint Coordinator is suspending."),
