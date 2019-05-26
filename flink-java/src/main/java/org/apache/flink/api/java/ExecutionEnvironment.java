@@ -104,6 +104,9 @@ public abstract class ExecutionEnvironment {
 	/** The environment of the context (local by default, cluster if invoked through command line). */
 	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
 
+	/** The ThreadLocal used to store {@link ExecutionEnvironmentFactory}. */
+	private static ThreadLocal<ExecutionEnvironmentFactory> contextEnvironmentFactoryThreadLocal = new ThreadLocal<>();
+
 	/** The default parallelism used by local environments. */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 
@@ -1061,8 +1064,11 @@ public abstract class ExecutionEnvironment {
 	 * @return The execution environment of the context in which the program is executed.
 	 */
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironmentFactory == null ?
-				createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment();
+
+		return contextEnvironmentFactoryThreadLocal.get() == null ?
+				(contextEnvironmentFactory == null ?
+					createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment()) :
+				contextEnvironmentFactoryThreadLocal.get().createExecutionEnvironment();
 	}
 
 	/**
@@ -1253,6 +1259,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
+		contextEnvironmentFactoryThreadLocal.set(contextEnvironmentFactory);
 	}
 
 	/**
@@ -1262,6 +1269,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+		contextEnvironmentFactoryThreadLocal.remove();
 	}
 
 	/**
@@ -1273,6 +1281,6 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
-		return contextEnvironmentFactory == null;
+		return contextEnvironmentFactory == null && contextEnvironmentFactoryThreadLocal.get() == null;
 	}
 }
