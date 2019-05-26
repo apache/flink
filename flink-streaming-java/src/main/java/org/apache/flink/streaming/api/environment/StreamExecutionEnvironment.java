@@ -117,6 +117,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
 
+	/** The ThreadLocal used to store {@link StreamExecutionEnvironmentFactory}. */
+	private static ThreadLocal<StreamExecutionEnvironmentFactory> contextEnvironmentFactoryThreadLocal = new ThreadLocal<>();
+
 	/** The default parallelism used when creating a local environment. */
 	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 
@@ -1568,6 +1571,9 @@ public abstract class StreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
+		if (contextEnvironmentFactoryThreadLocal.get() != null) {
+			return contextEnvironmentFactoryThreadLocal.get().createExecutionEnvironment();
+		}
 		if (contextEnvironmentFactory != null) {
 			return contextEnvironmentFactory.createExecutionEnvironment();
 		}
@@ -1766,10 +1772,12 @@ public abstract class StreamExecutionEnvironment {
 
 	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = ctx;
+		contextEnvironmentFactoryThreadLocal.set(contextEnvironmentFactory);
 	}
 
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+		contextEnvironmentFactoryThreadLocal.remove();
 	}
 
 	/**
