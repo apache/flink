@@ -97,7 +97,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
-public class SingleInputGate extends InputGate {
+public class SingleInputGate extends FutureBasedDataAvailability implements InputGate {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGate.class);
 
@@ -525,9 +525,9 @@ public class SingleInputGate extends InputGate {
 
 		InputWithData<InputChannel, BufferAndAvailability> inputWithData = next.get();
 		return Optional.of(transformToBufferOrEvent(
-			inputWithData.data.buffer(),
-			inputWithData.moreAvailable,
-			inputWithData.input));
+			inputWithData.data().buffer(),
+			inputWithData.moreAvailable(),
+			inputWithData.input()));
 	}
 
 	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)

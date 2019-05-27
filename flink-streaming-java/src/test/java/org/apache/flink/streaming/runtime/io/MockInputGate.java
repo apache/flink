@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.FutureBasedDataAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.util.ArrayDeque;
@@ -31,7 +32,7 @@ import java.util.Queue;
 /**
  * Mock {@link InputGate}.
  */
-public class MockInputGate extends InputGate {
+public class MockInputGate extends FutureBasedDataAvailability implements InputGate {
 
 	private final int pageSize;
 

@@ -64,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <strong>It is NOT possible to recursively union union input gates.</strong>
  */
-public class UnionInputGate extends InputGate {
+public class UnionInputGate extends FutureBasedDataAvailability implements InputGate {
 
 	/** The input gates to union. */
 	private final InputGate[] inputGates;
@@ -189,11 +189,11 @@ public class UnionInputGate extends InputGate {
 
 		InputWithData<InputGate, BufferOrEvent> inputWithData = next.get();
 
-		handleEndOfPartitionEvent(inputWithData.data, inputWithData.input);
+		handleEndOfPartitionEvent(inputWithData.data(), inputWithData.input());
 		return Optional.of(adjustForUnionInputGate(
-			inputWithData.data,
-			inputWithData.input,
-			inputWithData.moreAvailable));
+			inputWithData.data(),
+			inputWithData.input(),
+			inputWithData.moreAvailable()));
 	}
 
 	private Optional<InputWithData<InputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)

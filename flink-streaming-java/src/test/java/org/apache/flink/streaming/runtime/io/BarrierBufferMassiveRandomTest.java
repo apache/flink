@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.FutureBasedDataAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import org.junit.Test;
@@ -129,7 +130,7 @@ public class BarrierBufferMassiveRandomTest {
 		}
 	}
 
-	private static class RandomGeneratingInputGate extends InputGate {
+	private static class RandomGeneratingInputGate extends FutureBasedDataAvailability implements InputGate {
 
 		private final int numberOfChannels;
 		private final BufferPool[] bufferPools;
