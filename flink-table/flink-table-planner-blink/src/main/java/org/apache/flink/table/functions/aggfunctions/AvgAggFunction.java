@@ -20,6 +20,7 @@ package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.type.DecimalType;
@@ -170,7 +171,12 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
 		@Override
 		public Expression[] initialValuesExpressions() {
-			return new Expression[] {literal(new BigDecimal(0), getSumType()), literal(0L)};
+			return new Expression[] {
+				literal(
+					Decimal.fromBigDecimal(BigDecimal.ZERO, type.precision(), type.scale()),
+					getSumType()),
+				literal(0L)
+			};
 		}
 	}
 }

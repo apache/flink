@@ -23,7 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.apache.commons.math3.util.ArithmeticUtils
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.JLong
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.api.Types
@@ -34,11 +34,12 @@ import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_ROW, boxedTypeTermFor
 import org.apache.flink.table.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genInitFlatAggregateBuffer}
 import org.apache.flink.table.codegen.agg.batch.WindowCodeGenerator.{asLong, isTimeIntervalLiteral}
-import org.apache.flink.table.codegen._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
 import org.apache.flink.table.expressions.ExpressionBuilder._
+import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, RexNodeConverter, ValueLiteralExpression}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
@@ -47,7 +48,8 @@ import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, T
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil}
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.runtime.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
 abstract class WindowCodeGenerator(
     relBuilder: RelBuilder,
@@ -749,17 +751,11 @@ object WindowCodeGenerator {
     (windowSize, slideSize)
   }
 
-  def asLong(expr: Expression): Long = expr match {
-    case literal: ValueLiteralExpression
-      if literal.getType == TimeIntervalTypeInfo.INTERVAL_MILLIS ||
-          literal.getType == BasicTypeInfo.LONG_TYPE_INFO =>
-      literal.getValue.asInstanceOf[java.lang.Long]
-    case _ => throw new IllegalArgumentException()
-  }
+  def asLong(expr: Expression): Long = extractValue(expr, classOf[JLong]).get()
 
   def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
-    case literal: ValueLiteralExpression
-      if literal.getType == TimeIntervalTypeInfo.INTERVAL_MILLIS => true
+    case literal: ValueLiteralExpression if
+      hasRoot(literal.getDataType.getLogicalType, INTERVAL_DAY_TIME) => true
     case _ => false
   }
 }

@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.RexAggLocalVariable;
 import org.apache.flink.table.calcite.RexDistinctKeyVariable;
+import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -43,11 +48,20 @@ import java.math.BigDecimal;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType;
 import static org.apache.flink.table.type.TypeConverters.createInternalTypeFromTypeInfo;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasLength;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasScale;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isString;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTemporal;
@@ -172,11 +186,10 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitValueLiteral(ValueLiteralExpression expr) {
-		InternalType type = createInternalTypeFromTypeInfo(expr.getType());
-		Object value = expr.getValue();
+		InternalType type = createInternalTypeFromTypeInfo(getLiteralTypeInfo(expr));
 		RexBuilder rexBuilder = relBuilder.getRexBuilder();
 		FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
-		if (value == null) {
+		if (expr.isNull()) {
 			return relBuilder.getRexBuilder()
 					.makeCast(
 							typeFactory.createTypeFromInternalType(type, true),
@@ -185,46 +198,106 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 		if (type instanceof DecimalType) {
 			DecimalType dt = (DecimalType) type;
-			BigDecimal bigDecValue = (BigDecimal) value;
+			BigDecimal bigDecimal = extractValue(expr, BigDecimal.class);
 			RelDataType decType = relBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
 					dt.precision(), dt.scale());
-			return relBuilder.getRexBuilder().makeExactLiteral(bigDecValue, decType);
+			return relBuilder.getRexBuilder().makeExactLiteral(bigDecimal, decType);
 		} else if (InternalTypes.LONG.equals(type)) {
 			// create BIGINT literals for long type
-			BigDecimal bigint = value instanceof BigDecimal ? (BigDecimal) value : BigDecimal.valueOf((long) value);
+			BigDecimal bigint = extractValue(expr, BigDecimal.class);
 			return relBuilder.getRexBuilder().makeBigintLiteral(bigint);
 		} else if (InternalTypes.FLOAT.equals(type)) {
 			//Float/Double type should be liked as java type here.
 			return relBuilder.getRexBuilder().makeApproxLiteral(
-					BigDecimal.valueOf(((Number) value).floatValue()),
+					extractValue(expr, BigDecimal.class),
 					relBuilder.getTypeFactory().createSqlType(SqlTypeName.FLOAT));
 		} else if (InternalTypes.DOUBLE.equals(type)) {
 			//Float/Double type should be liked as java type here.
 			return rexBuilder.makeApproxLiteral(
-					BigDecimal.valueOf(((Number) value).doubleValue()),
+					extractValue(expr, BigDecimal.class),
 					relBuilder.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
 		} else if (InternalTypes.DATE.equals(type)) {
 			return relBuilder.getRexBuilder().makeDateLiteral(
-					DateString.fromCalendarFields(valueAsCalendar(value)));
+					DateString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Date.class))));
 		} else if (InternalTypes.TIME.equals(type)) {
 			return relBuilder.getRexBuilder().makeTimeLiteral(
-					TimeString.fromCalendarFields(valueAsCalendar(value)), 0);
+					TimeString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Time.class))), 0);
 		} else if (InternalTypes.TIMESTAMP.equals(type)) {
 			return relBuilder.getRexBuilder().makeTimestampLiteral(
-					TimestampString.fromCalendarFields(valueAsCalendar(value)), 3);
+					TimestampString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Timestamp.class))), 3);
 		} else if (InternalTypes.INTERVAL_MONTHS.equals(type)) {
-			BigDecimal interval = BigDecimal.valueOf((int) value);
+			BigDecimal interval = BigDecimal.valueOf(extractValue(expr, Integer.class));
 			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
 					TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO);
 			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
 		} else if (InternalTypes.TIMESTAMP.equals(type)) {
-			BigDecimal interval = BigDecimal.valueOf((long) value);
+			BigDecimal interval = BigDecimal.valueOf(extractValue(expr, Long.class));
 			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
 					TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO);
 			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
 		} else {
-			return relBuilder.literal(value);
+			return relBuilder.literal(extractValue(expr, Object.class));
 		}
+	}
+
+	/**
+	 * This method makes the planner more lenient for new data types defined for literals.
+	 */
+	private static TypeInformation<?> getLiteralTypeInfo(ValueLiteralExpression literal) {
+		final LogicalType logicalType = literal.getDataType().getLogicalType();
+
+		if (hasRoot(logicalType, DECIMAL)) {
+			if (literal.isNull()) {
+				return Types.BIG_DEC;
+			}
+			final BigDecimal value = extractValue(literal, BigDecimal.class);
+			if (hasPrecision(logicalType, value.precision()) && hasScale(logicalType, value.scale())) {
+				return Types.BIG_DEC;
+			}
+		}
+
+		else if (hasRoot(logicalType, CHAR)) {
+			if (literal.isNull()) {
+				return Types.STRING;
+			}
+			final String value = extractValue(literal, String.class);
+			if (hasLength(logicalType, value.length())) {
+				return Types.STRING;
+			}
+		}
+
+		else if (hasRoot(logicalType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
+			if (getPrecision(logicalType) <= 3) {
+				return Types.SQL_TIMESTAMP;
+			}
+		}
+
+		return fromDataTypeToLegacyInfo(literal.getDataType());
+	}
+
+	/**
+	 * Extracts a value from a literal. Including planner-specific instances such as {@link Decimal}.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <T> T extractValue(ValueLiteralExpression literal, Class<T> clazz) {
+		final Optional<Object> possibleObject = literal.getValueAs(Object.class);
+		if (!possibleObject.isPresent()) {
+			throw new TableException("Invalid literal.");
+		}
+		final Object object = possibleObject.get();
+
+		if (clazz.equals(BigDecimal.class)) {
+			final Optional<BigDecimal> possibleDecimal = literal.getValueAs(BigDecimal.class);
+			if (possibleDecimal.isPresent()) {
+				return (T) possibleDecimal.get();
+			}
+			if (object instanceof Decimal) {
+				return (T) ((Decimal) object).toBigDecimal();
+			}
+		}
+
+		return literal.getValueAs(clazz)
+			.orElseThrow(() -> new TableException("Unsupported literal class: " + clazz));
 	}
 
 	/**

@@ -20,8 +20,9 @@ package org.apache.flink.table.api.scala
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
+import java.time.{LocalDate, LocalDateTime}
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
@@ -29,6 +30,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import _root_.scala.language.implicitConversions
@@ -1148,8 +1150,8 @@ trait ImplicitExpressionConversions {
     unresolvedRef(sym.name)
 
   implicit def scalaRange2RangeExpression(range: Range.Inclusive): Expression = {
-    val startExpression = new ValueLiteralExpression(range.start, BasicTypeInfo.INT_TYPE_INFO)
-    val endExpression = new ValueLiteralExpression(range.end, BasicTypeInfo.INT_TYPE_INFO)
+    val startExpression = valueLiteral(range.start)
+    val endExpression = valueLiteral(range.end)
     startExpression to endExpression
   }
 
@@ -1180,6 +1182,13 @@ trait ImplicitExpressionConversions {
 
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     valueLiteral(sqlTimestamp)
+
+  implicit def localDate2Literal(localDate: LocalDate): Expression = valueLiteral(localDate)
+
+  implicit def localTime2Literal(localTime: LocalTime): Expression = valueLiteral(localTime)
+
+  implicit def localDateTime2Literal(localDateTime: LocalDateTime): Expression =
+    valueLiteral(localDateTime)
 
   implicit def array2ArrayConstructor(array: Array[_]): Expression = {
 
@@ -1212,6 +1221,9 @@ trait ImplicitExpressionConversions {
       case _: Array[Date] => createArray(array)
       case _: Array[Time] => createArray(array)
       case _: Array[Timestamp] => createArray(array)
+      case _: Array[LocalDate] => createArray(array)
+      case _: Array[LocalTime] => createArray(array)
+      case _: Array[LocalDateTime] => createArray(array)
       case bda: Array[BigDecimal] => createArray(bda.map(_.bigDecimal))
 
       case _ =>
@@ -1560,19 +1572,30 @@ object uuid {
 }
 
 /**
-  * Returns a null literal value of a given type.
+  * Returns a null literal value of a given data type.
   *
-  * e.g. nullOf(Types.INT)
+  * e.g. nullOf(DataTypes.INT())
   */
 object nullOf {
 
   /**
-    * Returns a null literal value of a given type.
+    * Returns a null literal value of a given data type.
     *
-    * e.g. nullOf(Types.INT)
+    * e.g. nullOf(DataTypes.INT())
+    */
+  def apply(dataType: DataType): Expression = {
+    valueLiteral(null, dataType)
+  }
+
+  /**
+    * @deprecated This method will be removed in future versions as it uses the old type system. It
+    *             is recommended to use [[apply(DataType)]] instead which uses the new type system
+    *             based on [[DataTypes]]. Please make sure to use either the old or the new type
+    *             system consistently to avoid unintended behavior. See the website documentation
+    *             for more information.
     */
   def apply(typeInfo: TypeInformation[_]): Expression = {
-    valueLiteral(null, typeInfo)
+    apply(TypeConversions.fromLegacyInfoToDataType(typeInfo))
   }
 }
 

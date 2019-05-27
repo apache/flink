@@ -76,8 +76,8 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidTumblingSizeType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Tumbling window expects size literal of type Interval of " +
-      "Milliseconds or Interval of Rows.")
+    expectedException.expectMessage(
+      "Tumbling window expects a size literal of a day-time interval or BIGINT type.")
 
     table
       // row interval is not valid for session windows
@@ -129,8 +129,8 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidSlidingSizeType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A sliding window expects size literal of type Interval of " +
-      "Milliseconds or Interval of Rows.")
+    expectedException.expectMessage(
+      "A sliding window expects a size literal of a day-time interval or BIGINT type.")
 
     table
       // row and time intervals may not be mixed
@@ -156,8 +156,8 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidSessionGap(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A session window expects gap literal of type " +
-      "Interval of Milliseconds.")
+    expectedException.expectMessage(
+      "A session window expects a gap literal of a day-time interval type.")
 
     table
       // row interval is not valid for session windows
@@ -170,8 +170,8 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidSessionGapType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A session window expects gap literal of type " +
-      "Interval of Milliseconds.")
+    expectedException.expectMessage(
+      "A session window expects a gap literal of a day-time interval type.")
 
     table
       // row interval is not valid for session windows

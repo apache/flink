@@ -20,7 +20,6 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -35,6 +34,7 @@ import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -50,6 +50,8 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GET;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractNames;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utility class for creating valid {@link ProjectTableOperation} operation.
@@ -212,11 +214,16 @@ public final class ProjectionOperationFactory {
 		private Optional<String> extractNameFromGet(CallExpression call) {
 			Expression child = call.getChildren().get(0);
 			ValueLiteralExpression key = (ValueLiteralExpression) call.getChildren().get(1);
+
+			final LogicalType keyType = key.getDataType().getLogicalType();
+
 			final String keySuffix;
-			if (key.getType().equals(Types.INT)) {
-				keySuffix = "$_" + key.getValue();
+			if (hasRoot(keyType, INTEGER)) {
+				keySuffix = "$_" + key.getValueAs(Integer.class)
+					.orElseThrow(() -> new TableException("Integer constant excepted."));
 			} else {
-				keySuffix = "$" + key.getValue();
+				keySuffix = "$" + key.getValueAs(String.class)
+					.orElseThrow(() -> new TableException("Integer constant excepted."));
 			}
 			return child.accept(this).map(p -> p + keySuffix);
 		}
