@@ -88,7 +88,7 @@ public class HiveTableSinkTest {
 		HiveCatalogTable catalogTable = new HiveCatalogTable(tableSchema, new HashMap<>(), "");
 		hiveCatalog.createTable(tablePath, catalogTable, false);
 		BatchTableEnvironment tableEnv = createTableEnv(1);
-		Table table = getSmall5TupleDataSet(tableEnv);
+		Table table = smallTuple5DataSet(tableEnv);
 		HiveTableSink hiveTableSink = new HiveTableSink(new JobConf(hiveConf),
 			new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames()), dbName, tblName, Collections.emptyList());
 		tableEnv.writeToSink(table, hiveTableSink, null);
@@ -103,7 +103,7 @@ public class HiveTableSinkTest {
 		return BatchTableEnvironment.create(env);
 	}
 
-	private Table getSmall5TupleDataSet(BatchTableEnvironment env) {
+	private Table smallTuple5DataSet(BatchTableEnvironment env) {
 		List<Tuple5<Integer, Integer, String, Long, Double>> data = new ArrayList();
 		data.add(new Tuple5<>(1, 10, "Hi", 11L, 1.11));
 		data.add(new Tuple5<>(2, 20, "Hello", 22L, 2.22));

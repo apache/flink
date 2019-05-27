@@ -33,8 +33,6 @@ import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -135,7 +133,9 @@ public class HiveTableSink implements BatchTableSink<BaseRow> {
 		res += ".staging_" + System.currentTimeMillis();
 		Path path = new Path(res);
 		FileSystem fs = path.getFileSystem(conf);
-		Preconditions.checkState(fs.exists(path) || fs.mkdirs(path), "Failed to create staging dir " + path);
+		if (!fs.exists(path) && !fs.mkdirs(path)) {
+			throw new IOException("Failed to create staging dir " + path);
+		}
 		fs.deleteOnExit(path);
 		return res;
 	}

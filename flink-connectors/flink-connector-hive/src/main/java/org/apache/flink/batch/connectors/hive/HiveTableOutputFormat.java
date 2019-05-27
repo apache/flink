@@ -20,6 +20,7 @@ package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.InitializeOnMaster;
+import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -28,9 +29,8 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HMSClientFactory;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
-import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -82,7 +82,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase.getCredentialsFromUGI;
 import static org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.OUTDIR;
 
 /**
@@ -93,7 +92,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableOutputFormat.class);
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 5167529504848109023L;
 
 	private transient JobConf jobConf;
 	private transient String dbName;
@@ -122,6 +121,13 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 								RowTypeInfo rowTypeInfo, HiveTablePartition hiveTablePartition,
 								Properties tblProperties, boolean overwrite) {
 		super(jobConf.getCredentials());
+
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(dbName), "DB name is empty");
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(tableName), "Table name is empty");
+		Preconditions.checkNotNull(rowTypeInfo, "RowTypeInfo cannot be null");
+		Preconditions.checkNotNull(hiveTablePartition, "HiveTablePartition cannot be null");
+		Preconditions.checkNotNull(tblProperties, "Table properties cannot be null");
+
 		HadoopUtils.mergeHadoopConf(jobConf);
 		this.jobConf = jobConf;
 		this.dbName = dbName;
@@ -159,7 +165,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 		}
 		jobConf.readFields(in);
 		jobConf.getCredentials().addAll(this.credentials);
-		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+		Credentials currentUserCreds = HadoopInputFormatCommonBase.getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
 		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
 		}
@@ -217,6 +223,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 			StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
 			serializer = (AbstractSerDe) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
 			ReflectionUtils.setConf(serializer, jobConf);
+			// Pass null as partition properties, assuming they're same as table properties
 			SerDeUtils.initializeSerDe(serializer, jobConf, tblProperties, null);
 			outputClass = serializer.getSerializedClass();
 		} catch (IllegalAccessException | SerDeException | InstantiationException | ClassNotFoundException e) {

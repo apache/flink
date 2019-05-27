@@ -54,7 +54,6 @@ public class HiveTestUtils {
 		HiveConf hiveConf = new HiveConf();
 		hiveConf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
 		hiveConf.setVar(HiveConf.ConfVars.METASTORECONNECTURLKEY, warehouseUri);
-		hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, "");
 
 		return hiveConf;
 	}
