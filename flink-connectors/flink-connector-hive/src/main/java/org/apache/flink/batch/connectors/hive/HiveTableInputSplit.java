@@ -28,6 +28,7 @@ import org.apache.hadoop.mapred.JobConf;
  * Right now, it contains info about the partition of the split.
  */
 public class HiveTableInputSplit extends HadoopInputSplit {
+	//todo: make this variable final, check other class variable
 	private HiveTablePartition hiveTablePartition;
 
 	public HiveTableInputSplit(

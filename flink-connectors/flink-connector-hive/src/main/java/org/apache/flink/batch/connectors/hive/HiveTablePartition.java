@@ -37,6 +37,7 @@ public class HiveTablePartition implements Serializable {
 	/** The map of partition key names and their values. */
 	private final Map<String, Object> partitionSpec;
 
+	//todo: add check null for
 	public HiveTablePartition(StorageDescriptor storageDescriptor, Map<String, Object> partitionValues) {
 		this.storageDescriptor = storageDescriptor;
 		this.partitionSpec = partitionValues;

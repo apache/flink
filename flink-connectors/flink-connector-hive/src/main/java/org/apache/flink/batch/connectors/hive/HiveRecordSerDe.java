@@ -18,9 +18,7 @@
 
 package org.apache.flink.batch.connectors.hive;
 
-import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.type.DecimalType;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
@@ -28,8 +26,6 @@ import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.StructField;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.DateObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveCharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector;
@@ -39,7 +35,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.util.List;
 
 /**
  * Class used to serialize to and from raw hdfs file type.
@@ -56,8 +51,6 @@ public class HiveRecordSerDe {
 		Object res;
 		if (fieldObjectInspector.getCategory() == ObjectInspector.Category.PRIMITIVE) {
 			res = serializePrimitiveField(field, (PrimitiveObjectInspector) fieldObjectInspector);
-		} else if (fieldObjectInspector.getCategory() == ObjectInspector.Category.STRUCT) {
-			res = serializeStruct(field, (StructObjectInspector) fieldObjectInspector);
 		} else {
 			throw new SerDeException(HiveRecordSerDe.class.toString()
 									+ " does not know what to do with fields of unknown category: "
@@ -102,68 +95,4 @@ public class HiveRecordSerDe {
 				return primitiveObjectInspector.getPrimitiveJavaObject(field);
 		}
 	}
-
-	/**
-	 * Return serialized HCatRecord from an underlying
-	 * object-representation, and readable by an ObjectInspector.
-	 * @param obj : Underlying object-representation
-	 * @param soi : StructObjectInspector
-	 * @return HCatRecord
-	 */
-	private static BaseRow serializeStruct(Object obj, StructObjectInspector soi)
-		throws SerDeException {
-		List<? extends StructField> fields = soi.getAllStructFieldRefs();
-		List<Object> list = soi.getStructFieldsDataAsList(obj);
-
-		if (list == null) {
-			return null;
-		}
-
-		Object[] values = new Object[list.size()];
-
-		for (int i = 0; i < fields.size(); i++) {
-			// Get the field objectInspector and the field object.
-			ObjectInspector foi = fields.get(i).getFieldObjectInspector();
-			Object f = list.get(i);
-			values[i] = serializeField(f, foi);
-		}
-		return GenericRow.of(values);
-	}
-
-	// Given a Hive object inspector, get the corresponding internal type class for Flink
-	private static Class<?> fromObjectInspector(ObjectInspector inspector) {
-		switch (inspector.getCategory()) {
-			case PRIMITIVE: {
-				PrimitiveObjectInspector primitiveOI = (PrimitiveObjectInspector) inspector;
-				switch (primitiveOI.getPrimitiveCategory()) {
-					// TODO: add more types
-					case STRING:
-					case CHAR:
-					case VARCHAR:
-						return String.class;
-					case INT:
-						return Integer.class;
-					case LONG:
-						return Long.class;
-					case BYTE:
-						return Byte.class;
-					case FLOAT:
-						return Float.class;
-					case DOUBLE:
-						return Double.class;
-					case BOOLEAN:
-						return Boolean.class;
-					default:
-						throw new IllegalArgumentException(
-							"Unsupported primitive type " + primitiveOI.getPrimitiveCategory().name());
-
-				}
-			}
-			case STRUCT:
-				return BaseRow.class;
-			default:
-				throw new IllegalArgumentException("Unsupported type " + inspector.getCategory().name());
-		}
-	}
-
 }

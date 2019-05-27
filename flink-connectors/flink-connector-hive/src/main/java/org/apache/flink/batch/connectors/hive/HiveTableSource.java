@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.type.InternalType;
@@ -44,21 +45,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getActualObjectFromString;
-
 /**
  * A TableSource to read Hive tables.
  */
 public class HiveTableSource implements BatchTableSource<BaseRow> {
 	private static Logger logger = LoggerFactory.getLogger(HiveTableSource.class);
 
-	private TableSchema tableSchema;
-	private String hiveRowTypeString;
-	private JobConf jobConf;
-	private String dbName;
-	private String tableName;
-	private Boolean isPartitionTable;
-	private String[] partitionColNames;
+	//todo: make variable finally
+	private final TableSchema tableSchema;
+	private final String hiveRowTypeString;
+	private final JobConf jobConf;
+	private final String dbName;
+	private final String tableName;
+	private final Boolean isPartitionTable;
+	private final String[] partitionColNames;
 	private List<HiveTablePartition> allPartitions;
 
 	public HiveTableSource(TableSchema tableSchema,
@@ -79,9 +79,8 @@ public class HiveTableSource implements BatchTableSource<BaseRow> {
 	@Override
 	public DataStream getBoundedStream(StreamExecutionEnvironment streamEnv) {
 		initAllPartitions();
-		return streamEnv.createInput(
-				new HiveTableInputFormat.Builder((BaseRowTypeInfo) getReturnType(), jobConf, dbName, tableName,
-												isPartitionTable, partitionColNames, allPartitions).build());
+		return streamEnv.createInput(new HiveTableInputFormat(jobConf, isPartitionTable, partitionColNames,
+									allPartitions, (BaseRowTypeInfo) getReturnType()));
 	}
 
 	@Override
@@ -113,7 +112,7 @@ public class HiveTableSource implements BatchTableSource<BaseRow> {
 					for (int i = 0; i < partitionColNames.length; i++) {
 						String partitionValue = partition.getValues().get(i);
 						Class clazz = tableSchema.getFieldType(partitionColNames[i]).get().getTypeClass();
-						Object partitionObject = getActualObjectFromString(partitionValue, clazz);
+						Object partitionObject = HiveTableUtil.getActualObjectFromString(partitionValue, clazz);
 						partitionColValues.put(partitionColNames[i], partitionObject);
 					}
 					allPartitions.add(new HiveTablePartition(sd, partitionColValues));
@@ -123,23 +122,21 @@ public class HiveTableSource implements BatchTableSource<BaseRow> {
 			}
 		} catch (Exception e) {
 			logger.error("Failed to collect all partitions from hive metaStore", e);
-			throw new RuntimeException("Failed to collect all partitions from hive metaStore", e);
+			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
 	}
 
 	private static IMetaStoreClient getMetastoreClient(JobConf jobConf) {
 		try {
-			HiveConf hiveConf = new HiveConf();
-			hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, jobConf.get(HiveConf.ConfVars.METASTOREURIS.varname));
 			return RetryingMetaStoreClient.getProxy(
-					hiveConf,
+					new HiveConf(jobConf, HiveConf.class),
 					null,
 					null,
 					HiveMetaStoreClient.class.getName(),
 					true);
 		} catch (MetaException e) {
 			logger.error("Failed to collect all partitions from hive metaStore", e);
-			throw new RuntimeException("Failed to collect all partitions from hive metaStore", e);
+			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
 	}
 }

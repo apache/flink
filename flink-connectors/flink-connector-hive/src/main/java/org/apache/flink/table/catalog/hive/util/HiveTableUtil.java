@@ -98,31 +98,32 @@ public class HiveTableUtil {
 	 * @param clazz
 	 * @return
 	 */
+	//todo: check whether hive partition field can be decimal or not .
 	public static Object getActualObjectFromString(String partitionValue, Class clazz) {
 		Object partitionObject = null;
-		if (String.class.equals(clazz)) {
+		if (String.class == clazz) {
 			partitionObject = partitionValue;
-		} else if (Short.class.equals(clazz)) {
+		} else if (Short.class == clazz) {
 			partitionObject = Short.parseShort(partitionValue);
-		} else if (Integer.class.equals(clazz)) {
+		} else if (Integer.class == clazz) {
 			partitionObject = Integer.parseInt(partitionValue);
-		} else if (Long.class.equals(clazz)) {
+		} else if (Long.class == clazz) {
 			partitionObject = Long.parseLong(partitionValue);
-		} else if (Float.class.equals(clazz)) {
+		} else if (Float.class == clazz) {
 			partitionObject = Float.parseFloat(partitionValue);
-		} else if (Double.class.equals(clazz)) {
+		} else if (Double.class == clazz) {
 			partitionObject = Double.parseDouble(partitionValue);
-		} else if (Boolean.class.equals(clazz)) {
+		} else if (Boolean.class == clazz) {
 			partitionObject = Boolean.parseBoolean(partitionValue);
-		} else if (Timestamp.class.equals(clazz)) {
+		} else if (Timestamp.class == clazz) {
 			partitionObject = Timestamp.parse(partitionValue);
-		} else if (Date.class.equals(clazz)) {
+		} else if (Date.class == clazz) {
 			partitionObject = Date.parse(partitionValue);
-		} else if (Time.class.equals(clazz)) {
+		} else if (Time.class == clazz) {
 			partitionObject = Time.parse(partitionValue);
-		} else if (BigDecimal.class.equals(clazz)) {
+		} else if (BigDecimal.class == clazz) {
 			partitionObject = new BigDecimal(partitionValue);
-		} else if (BigInteger.class.equals(clazz)) {
+		} else if (BigInteger.class == clazz) {
 			partitionObject = new BigInteger(partitionValue);
 		}
 		return partitionObject;
@@ -153,53 +154,6 @@ public class HiveTableUtil {
 		properties.setProperty(serdeConstants.SERIALIZATION_NULL_FORMAT, "NULL");
 		properties.putAll(parameters);
 		return properties;
-	}
-
-	public static FileInputFormat.FileBaseStatistics getFileStats(
-			FileInputFormat.FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths,
-			ArrayList<FileStatus> files) throws IOException {
-
-		long latestModTime = 0L;
-
-		// get the file info and check whether the cached statistics are still valid.
-		for (org.apache.hadoop.fs.Path hadoopPath : hadoopFilePaths) {
-
-			final Path filePath = new Path(hadoopPath.toUri());
-			final FileSystem fs = FileSystem.get(filePath.toUri());
-
-			final FileStatus file = fs.getFileStatus(filePath);
-			latestModTime = Math.max(latestModTime, file.getModificationTime());
-
-			// enumerate all files and check their modification time stamp.
-			if (file.isDir()) {
-				FileStatus[] fss = fs.listStatus(filePath);
-				files.ensureCapacity(files.size() + fss.length);
-
-				for (FileStatus s : fss) {
-					if (!s.isDir()) {
-						files.add(s);
-						latestModTime = Math.max(s.getModificationTime(), latestModTime);
-					}
-				}
-			} else {
-				files.add(file);
-			}
-		}
-
-		// check whether the cached statistics are still valid, if we have any
-		if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
-			return cachedStats;
-		}
-		// calculate the whole length
-		long len = 0;
-		for (FileStatus s : files) {
-			len += s.getLen();
-		}
-		// sanity check
-		if (len <= 0) {
-			len = BaseStatistics.SIZE_UNKNOWN;
-		}
-		return new FileInputFormat.FileBaseStatistics(latestModTime, len, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 	}
 
 }
