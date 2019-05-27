@@ -19,12 +19,7 @@
 package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
-import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.SerializedThrowable;
 
@@ -48,15 +43,24 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, Throwable reason) {
 		super(job, taskExecutionId, checkpointId);
 
-		if (reason == null ||
-			reason.getClass() == AlignmentLimitExceededException.class ||
-			reason.getClass() == CheckpointDeclineOnCancellationBarrierException.class ||
-			reason.getClass() == CheckpointDeclineSubsumedException.class ||
-			reason.getClass() == CheckpointDeclineTaskNotCheckpointingException.class ||
-			reason.getClass() == CheckpointDeclineTaskNotReadyException.class ||
-			reason.getClass() == InputEndOfStreamException.class) {
-			// null or known common exceptions that cannot reference any dynamically loaded code
+		if (reason == null) {
 			this.reason = reason;
+		} else if (reason.getClass() == CheckpointException.class) {
+			CheckpointException exception = (CheckpointException) reason;
+			switch (exception.getCheckpointFailureReason()) {
+				case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
+				case CHECKPOINT_DECLINED_TASK_NOT_READY:
+				case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
+				case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
+				case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
+				case CHECKPOINT_DECLINED_SUBSUMED:
+					this.reason = reason;
+					break;
+
+				default:
+					this.reason = new SerializedThrowable(reason);
+
+			}
 		} else {
 			// some other exception. replace with a serialized throwable, to be on the safe side
 			this.reason = new SerializedThrowable(reason);

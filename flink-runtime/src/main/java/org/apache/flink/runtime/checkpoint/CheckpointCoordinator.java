@@ -21,13 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
-import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -1338,25 +1331,32 @@ public class CheckpointCoordinator {
 
 		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
-		if (cause == null || cause instanceof CheckpointDeclineException) {
-			if (cause != null) {
-				if (cause instanceof CheckpointDeclineTaskNotReadyException) {
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY, cause);
-				} else if (cause instanceof CheckpointDeclineOnCancellationBarrierException) {
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER);
-				} else if (cause instanceof CheckpointDeclineSubsumedException) {
+		if (cause == null) {
+			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED);
+		} else if (cause instanceof CheckpointException) {
+			CheckpointException exception = (CheckpointException) cause;
+			switch (exception.getCheckpointFailureReason()) {
+				case CHECKPOINT_DECLINED_SUBSUMED:
 					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED);
-				} else if (cause instanceof CheckpointDeclineTaskNotCheckpointingException) {
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING);
-				} else if (cause instanceof AlignmentLimitExceededException) {
+					break;
+				case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
 					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED);
-				} else if (cause instanceof InputEndOfStreamException) {
+					break;
+				case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
+					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER);
+					break;
+				case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
+					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING);
+					break;
+				case CHECKPOINT_DECLINED_TASK_NOT_READY:
+					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY, cause);
+					break;
+				case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM);
-				} else {
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED);
-				}
-			} else {
-				failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED, cause);
+					break;
+
+				default:
+					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED, cause);
 			}
 		} else {
 			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.JOB_FAILURE, cause);

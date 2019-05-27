@@ -25,6 +25,8 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -76,7 +78,6 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
-import org.apache.flink.runtime.taskexecutor.exceptions.CheckpointException;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
@@ -693,7 +694,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final String message = "TaskManager received a checkpoint request for unknown task " + executionAttemptID + '.';
 
 			log.debug(message);
-			return FutureUtils.completedExceptionally(new CheckpointException(message));
+			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.TASK_CHECKPOINT_FAILURE));
 		}
 	}
 
@@ -714,7 +715,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final String message = "TaskManager received a checkpoint confirmation for unknown task " + executionAttemptID + '.';
 
 			log.debug(message);
-			return FutureUtils.completedExceptionally(new CheckpointException(message));
+			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.TASK_CHECKPOINT_FAILURE));
 		}
 	}
 
