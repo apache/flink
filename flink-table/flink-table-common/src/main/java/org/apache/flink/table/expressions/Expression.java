@@ -30,7 +30,7 @@ import java.util.List;
  * consists of zero, one, or more sub-expressions. Expressions might be literal values, function calls,
  * or field references.
  *
- * <p>Expressions are part of the API. Thus, values and return types are expressed as instances of
+ * <p>Expressions are part of the API. Thus, value types and return types are expressed as instances of
  * {@link DataType}.
  */
 @PublicEvolving

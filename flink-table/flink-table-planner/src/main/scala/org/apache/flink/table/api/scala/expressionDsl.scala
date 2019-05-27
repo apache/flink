@@ -22,7 +22,7 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{Over, Table, ValidationException}
+import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
@@ -274,7 +274,11 @@ trait ImplicitExpressionOperations {
     call(CAST, expr, typeLiteral(toType))
 
   /**
-    * @deprecated Use [[cast(DataType)]] instead.
+    * @deprecated This method will be removed in future versions as it uses the old type system. It
+    *             is recommended to use [[cast(DataType)]] instead which uses the new type system
+    *             based on [[DataTypes]]. Please make sure to use either the old or the new type
+    *             system consistently to avoid unintended behavior. See the website documentation
+    *             for more information.
     */
   @deprecated
   def cast(toType: TypeInformation[_]): Expression =
