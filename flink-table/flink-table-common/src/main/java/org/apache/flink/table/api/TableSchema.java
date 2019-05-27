@@ -118,7 +118,11 @@ public class TableSchema {
 	}
 
 	/**
-	 * @deprecated Use {@link #getFieldDataTypes()} instead.
+	 * @deprecated This method will be removed in future versions as it uses the old type system. It
+	 *             is recommended to use {@link #getFieldDataTypes()} instead which uses the new type
+	 *             system based on {@link DataTypes}. Please make sure to use either the old or the new
+	 *             type system consistently to avoid unintended behavior. See the website documentation
+	 *             for more information.
 	 */
 	@Deprecated
 	public TypeInformation<?>[] getFieldTypes() {
@@ -138,7 +142,11 @@ public class TableSchema {
 	}
 
 	/**
-	 * @deprecated Use {@link #getFieldDataType(int)}} instead.
+	 * @deprecated This method will be removed in future versions as it uses the old type system. It
+	 *             is recommended to use {@link #getFieldDataType(int)} instead which uses the new type
+	 *             system based on {@link DataTypes}. Please make sure to use either the old or the new
+	 *             type system consistently to avoid unintended behavior. See the website documentation
+	 *             for more information.
 	 */
 	@Deprecated
 	public Optional<TypeInformation<?>> getFieldType(int fieldIndex) {
@@ -159,7 +167,11 @@ public class TableSchema {
 	}
 
 	/**
-	 * @deprecated Use {@link #getFieldDataType(String)} instead.
+	 * @deprecated This method will be removed in future versions as it uses the old type system. It
+	 *             is recommended to use {@link #getFieldDataType(String)} instead which uses the new type
+	 *             system based on {@link DataTypes}. Please make sure to use either the old or the new
+	 *             type system consistently to avoid unintended behavior. See the website documentation
+	 *             for more information.
 	 */
 	@Deprecated
 	public Optional<TypeInformation<?>> getFieldType(String fieldName) {
@@ -306,7 +318,11 @@ public class TableSchema {
 		}
 
 		/**
-		 * @deprecated Use {@link #field(String, DataType)} instead.
+		 * @deprecated This method will be removed in future versions as it uses the old type system. It
+		 *             is recommended to use {@link #field(String, DataType)} instead which uses the new type
+		 *             system based on {@link DataTypes}. Please make sure to use either the old or the new
+		 *             type system consistently to avoid unintended behavior. See the website documentation
+		 *             for more information.
 		 */
 		@Deprecated
 		public Builder field(String name, TypeInformation<?> typeInfo) {

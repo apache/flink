@@ -28,6 +28,10 @@ import java.util.Objects;
 
 /**
  * Expression that wraps {@link DataType} as a literal.
+ *
+ * <p>Expressing a type is primarily needed for casting operations. This expression simplifies the
+ * {@link Expression} design as it makes {@link CallExpression} the only expression that takes
+ * subexpressions.
  */
 @PublicEvolving
 public final class TypeLiteralExpression implements Expression {
