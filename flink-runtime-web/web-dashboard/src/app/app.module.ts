@@ -63,7 +63,8 @@ import {
   ReloadOutline,
   DownloadOutline,
   ShrinkOutline,
-  PicCenterOutline
+  PicCenterOutline,
+  DatabaseFill
 } from '@ant-design/icons-angular/icons';
 
 import { StatusService } from 'services';
@@ -130,7 +131,8 @@ export function AppInitServiceFactory(
         FullscreenOutline,
         ArrowsAltOutline,
         ShrinkOutline,
-        PicCenterOutline
+        PicCenterOutline,
+        DatabaseFill
       ]
     },
     {

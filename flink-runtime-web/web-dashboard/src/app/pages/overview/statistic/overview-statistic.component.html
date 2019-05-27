@@ -69,10 +69,15 @@
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24" class="col">
     <nz-card [nzBordered]="false" nzTitle="Task Manager Overview" [nzLoading]="!listOfTaskManager">
       <ng-container *ngFor="let manager of listOfTaskManager;">
-        <nz-avatar class="task-manager-avatar" [nzShape]="'square'" [nzSize]="64" [nzIcon]="'bars'" nz-tooltip [nzTitle]="managerTooltip"></nz-avatar>
+        <i class="task-manager-avatar" nz-icon nzType="database" nzTheme="fill" nz-tooltip [nzTitle]="managerTooltip"></i>
         <ng-template #managerTooltip>
-          <i nz-icon type="file " style="margin-right: 8px"></i> <span>{{manager.id}}</span><br />
-          <i nz-icon type="file" style="margin-right: 8px"></i> <span>{{manager.hardware.cpuCores}}</span>
+          <span>ID: {{manager.id}}</span><br />
+          <span>Free Slots:{{manager.freeSlots}}</span><br />
+          <span>Total Slots: {{manager.slotsNumber}}</span><br />
+          <span>CPU's:{{manager.hardware.cpuCores}}</span><br />
+          <span>Physical Mem: {{manager.hardware.physicalMemory | humanizeBytes}}</span><br />
+          <span>Free Mem: {{manager.hardware.freeMemory | humanizeBytes}}</span><br />
+          <span>Managed Mem: {{manager.hardware.managedMemory | humanizeBytes}}</span>
         </ng-template>
       </ng-container>
     </nz-card>
