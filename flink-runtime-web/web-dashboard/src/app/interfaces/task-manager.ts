@@ -36,6 +36,7 @@ export interface TaskmanagersItemInterface {
   path: string;
   dataPort: number;
   timeSinceLastHeartbeat: number;
+  secondsSinceLastHeartBeat: number;
   slotsNumber: number;
   freeSlots: number;
   hardware: Hardware;

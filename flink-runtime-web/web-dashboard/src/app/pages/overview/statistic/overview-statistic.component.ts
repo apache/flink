@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { OverviewInterface, TaskmanagersItemInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { OverviewService, StatusService, TaskManagerService } from 'services';
+import { JobManagerService, OverviewService, StatusService, TaskManagerService } from 'services';
 
 @Component({
   selector: 'flink-overview-statistic',
@@ -33,13 +33,17 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
   listOfTaskManager: TaskmanagersItemInterface[] = [];
   taskSlotPercentage: number;
   taskManagerCPUs: number;
+  secondsSinceLastHeartBeat: number;
   destroy$ = new Subject();
+  listOfConfig: Array<{ key: string; value: string }> = [];
+  timeoutThresholdSeconds: number;
 
   constructor(
     private statusService: StatusService,
     private overviewService: OverviewService,
     private taskManagerService: TaskManagerService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private jobManagerService: JobManagerService
   ) {}
 
   ngOnInit() {
@@ -64,13 +68,40 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
         data => {
           this.listOfTaskManager = data;
           this.taskManagerCPUs = 0;
-          this.listOfTaskManager.map(tm => (this.taskManagerCPUs += tm.hardware.cpuCores));
+          this.listOfTaskManager.map(tm => {
+            this.taskManagerCPUs += tm.hardware.cpuCores;
+            tm.secondsSinceLastHeartBeat = new Date().getTime() - tm.timeSinceLastHeartbeat;
+          });
           this.cdr.markForCheck();
         },
         () => {
           this.cdr.markForCheck();
         }
       );
+    this.jobManagerService.loadConfig().subscribe(data => {
+      this.listOfConfig = data;
+      this.cdr.markForCheck();
+    });
+
+    let timeoutThreshold = '';
+    this.listOfConfig.map(config => {
+      if (config.key === 'akka.lookup.timeout') {
+        timeoutThreshold = config.value;
+      }
+    });
+    if (!timeoutThreshold) {
+      this.timeoutThresholdSeconds = 20;
+    } else {
+      if (timeoutThreshold.substr(-1, 1) === 's') {
+        this.timeoutThresholdSeconds = parseInt(timeoutThreshold.substr(0, -1), 10);
+      } else if (timeoutThreshold.substr(-1, 1) === 'm') {
+        this.timeoutThresholdSeconds = parseInt(timeoutThreshold.substr(0, -1), 10) * 60;
+      } else if (timeoutThreshold.substr(-1, 1) === 'h') {
+        this.timeoutThresholdSeconds = parseInt(timeoutThreshold.substr(0, -1), 10) * 60 * 60;
+      } else {
+        this.timeoutThresholdSeconds = 20;
+      }
+    }
   }
 
   ngOnDestroy() {

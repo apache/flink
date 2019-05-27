@@ -69,15 +69,23 @@
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24" class="col">
     <nz-card [nzBordered]="false" nzTitle="Task Manager Overview" [nzLoading]="!listOfTaskManager">
       <ng-container *ngFor="let manager of listOfTaskManager;">
-        <i class="task-manager-avatar" nz-icon nzType="database" nzTheme="fill" nz-tooltip [nzTitle]="managerTooltip"></i>
+        <i [ngClass]="{
+          'task-manager-avatar-big' : listOfTaskManager.length < 20,
+          'task-manager-avatar-small' : listOfTaskManager.length >= 20,
+          'task-manager-avatar-green' : manager.secondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds / 2,
+          'task-manager-avatar-yellow' : manager.secondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds / 2 && manager.secondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds,
+          'task-manager-avatar-red' : manager.secondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds
+          }"
+           nz-icon nz-tooltip nzTheme="fill" nzType="database" [nzTitle]="managerTooltip"></i>
         <ng-template #managerTooltip>
           <span>ID: {{manager.id}}</span><br />
-          <span>Free Slots:{{manager.freeSlots}}</span><br />
+          <span>Free Slots: {{manager.freeSlots}}</span><br />
           <span>Total Slots: {{manager.slotsNumber}}</span><br />
-          <span>CPU's:{{manager.hardware.cpuCores}}</span><br />
+          <span>CPU's :{{manager.hardware.cpuCores}}</span><br />
           <span>Physical Mem: {{manager.hardware.physicalMemory | humanizeBytes}}</span><br />
           <span>Free Mem: {{manager.hardware.freeMemory | humanizeBytes}}</span><br />
-          <span>Managed Mem: {{manager.hardware.managedMemory | humanizeBytes}}</span>
+          <span>Managed Mem: {{manager.hardware.managedMemory | humanizeBytes}}</span><br />
+          <span>Last Heartbeat: {{manager.secondsSinceLastHeartBeat / 1000}} seconds ago</span>
         </ng-template>
       </ng-container>
     </nz-card>
