@@ -32,9 +32,14 @@ import java.util.Set;
  * <p>The serialized string representation is {@code BINARY(n)} where {@code n} is the number of
  * bytes. {@code n} must have a value between 1 and {@link Integer#MAX_VALUE} (both inclusive). If
  * no length is specified, {@code n} is equal to 1.
+ *
+ * <p>For expressing a zero-length binary string literal, this type does also support {@code n} to
+ * be 0. However, this is not exposed through the API.
  */
 @PublicEvolving
 public final class BinaryType extends LogicalType {
+
+	public static final int EMPTY_LITERAL_LENGTH = 0;
 
 	public static final int MIN_LENGTH = 1;
 
@@ -72,13 +77,32 @@ public final class BinaryType extends LogicalType {
 		this(DEFAULT_LENGTH);
 	}
 
+	/**
+	 * Helper constructor for {@link #ofEmptyLiteral()} and {@link #copy(boolean)}.
+	 */
+	private BinaryType(int length, boolean isNullable) {
+		super(isNullable, LogicalTypeRoot.BINARY);
+		this.length = length;
+	}
+
+	/**
+	 * The SQL standard defines that character string literals are allowed to be zero-length strings
+	 * (i.e., to contain no characters) even though it is not permitted to declare a type that is zero.
+	 * For consistent behavior, the same logic applies to binary strings.
+	 *
+	 * <p>This method enables this special kind of binary string.
+	 */
+	public static BinaryType ofEmptyLiteral() {
+		return new BinaryType(EMPTY_LITERAL_LENGTH, false);
+	}
+
 	public int getLength() {
 		return length;
 	}
 
 	@Override
 	public LogicalType copy(boolean isNullable) {
-		return new BinaryType(isNullable, length);
+		return new BinaryType(length, isNullable);
 	}
 
 	@Override
