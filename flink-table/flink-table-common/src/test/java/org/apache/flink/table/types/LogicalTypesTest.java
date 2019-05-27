@@ -86,7 +86,7 @@ public class LogicalTypesTest {
 			new Class[]{String.class, byte[].class},
 			new Class[]{String.class, byte[].class},
 			new LogicalType[]{},
-			new CharType(12)
+			new CharType(Integer.MAX_VALUE)
 		);
 	}
 
