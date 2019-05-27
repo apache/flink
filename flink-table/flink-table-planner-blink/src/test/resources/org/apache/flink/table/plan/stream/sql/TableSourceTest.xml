@@ -108,7 +108,7 @@ LogicalProject(name=[$0], EXPR$1=[TUMBLE_END($1)], EXPR$2=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[name, CAST(w$end) AS EXPR$1, EXPR$2])
+Calc(select=[name, w$end AS EXPR$1, EXPR$2])
 +- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[name, AVG(val) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[name]])
       +- Calc(select=[name, rowtime, val], where=[>(val, 100)])

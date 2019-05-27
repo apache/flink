@@ -56,11 +56,22 @@ class LookupJoinTest extends TableTestBase {
     )
 
     // only support left or inner join
+    // Calcite does not allow FOR SYSTEM_TIME AS OF non-nullable left table field to Right Join.
+    // There is a exception:
+    // java.lang.AssertionError
+    //    at SqlToRelConverter.getCorrelationUse(SqlToRelConverter.java:2517)
+    //    at SqlToRelConverter.createJoin(SqlToRelConverter.java:2426)
+    //    at SqlToRelConverter.convertFrom(SqlToRelConverter.java:2071)
+    //    at SqlToRelConverter.convertSelectImpl(SqlToRelConverter.java:646)
+    //    at SqlToRelConverter.convertSelect(SqlToRelConverter.java:627)
+    //    at SqlToRelConverter.convertQueryRecursive(SqlToRelConverter.java:3100)
+    //    at SqlToRelConverter.convertQuery(SqlToRelConverter.java:563)
+    //    at org.apache.flink.table.calcite.FlinkPlannerImpl.rel(FlinkPlannerImpl.scala:125)
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
-      "Unsupported join type for semi-join RIGHT",
-      classOf[IllegalArgumentException]
+      null,
+      classOf[AssertionError]
     )
 
     // only support join on raw key of right table

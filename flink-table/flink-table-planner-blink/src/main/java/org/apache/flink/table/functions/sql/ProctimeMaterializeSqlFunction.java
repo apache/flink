@@ -28,6 +28,7 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 
 /**
@@ -40,7 +41,9 @@ public class ProctimeMaterializeSqlFunction extends SqlFunction {
 		super(
 			"PROCTIME_MATERIALIZE",
 			SqlKind.OTHER_FUNCTION,
-			ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
+			ReturnTypes.cascade(
+					ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
+					SqlTypeTransforms.TO_NULLABLE),
 			InferTypes.RETURN_TYPE,
 			OperandTypes.family(SqlTypeFamily.TIMESTAMP),
 			SqlFunctionCategory.SYSTEM);

@@ -20,9 +20,6 @@ package org.apache.flink.table.functions.sql;
 
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
@@ -37,16 +34,15 @@ public class ProctimeSqlFunction extends SqlFunction {
 		super(
 				"PROCTIME",
 				SqlKind.OTHER_FUNCTION,
-				ReturnTypes.explicit(new ProctimeRelProtoDataType()),
+				ReturnTypes.explicit(factory ->
+						((FlinkTypeFactory) factory).createProctimeIndicatorType(false)),
 				null,
 				OperandTypes.NILADIC,
 				SqlFunctionCategory.TIMEDATE);
 	}
 
-	private static class ProctimeRelProtoDataType implements RelProtoDataType {
-		@Override
-		public RelDataType apply(RelDataTypeFactory factory) {
-			return ((FlinkTypeFactory) factory).createProctimeIndicatorType();
-		}
+	@Override
+	public boolean isDeterministic() {
+		return false;
 	}
 }

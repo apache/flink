@@ -128,8 +128,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
         val timestampType = t.asInstanceOf[TimestampType]
         timestampType.getKind match {
-          case TimestampKind.PROCTIME => createProctimeIndicatorType()
-          case TimestampKind.ROWTIME => createRowtimeIndicatorType()
+          case TimestampKind.PROCTIME => createProctimeIndicatorType(true)
+          case TimestampKind.ROWTIME => createRowtimeIndicatorType(true)
           case TimestampKind.REGULAR => createSqlType(TIMESTAMP)
         }
       case _ =>
@@ -148,27 +148,25 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   /**
     * Creates a indicator type for processing-time, but with similar properties as SQL timestamp.
     */
-  def createProctimeIndicatorType(): RelDataType = {
-    val originalType = createFieldTypeFromLogicalType(new TimestampType(3))
-    canonize(
-      new TimeIndicatorRelDataType(
-        getTypeSystem,
-        originalType.asInstanceOf[BasicSqlType],
-        isEventTime = false)
-    )
+  def createProctimeIndicatorType(isNullable: Boolean): RelDataType = {
+    val originalType = createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
+    canonize(new TimeIndicatorRelDataType(
+      getTypeSystem,
+      originalType.asInstanceOf[BasicSqlType],
+      isNullable,
+      isEventTime = false))
   }
 
   /**
     * Creates a indicator type for event-time, but with similar properties as SQL timestamp.
     */
-  def createRowtimeIndicatorType(): RelDataType = {
-    val originalType = createFieldTypeFromLogicalType(new TimestampType(3))
-    canonize(
-      new TimeIndicatorRelDataType(
-        getTypeSystem,
-        originalType.asInstanceOf[BasicSqlType],
-        isEventTime = true)
-    )
+  def createRowtimeIndicatorType(isNullable: Boolean): RelDataType = {
+    val originalType = createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
+    canonize(new TimeIndicatorRelDataType(
+      getTypeSystem,
+      originalType.asInstanceOf[BasicSqlType],
+      isNullable,
+      isEventTime = true))
   }
 
   /**
@@ -276,8 +274,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
 
-      case timeIndicator: TimeIndicatorRelDataType =>
-        timeIndicator
+      case it: TimeIndicatorRelDataType =>
+        new TimeIndicatorRelDataType(it.typeSystem, it.originalType, isNullable, it.isEventTime)
 
       case _ =>
         super.createTypeWithNullability(relDataType, isNullable)
