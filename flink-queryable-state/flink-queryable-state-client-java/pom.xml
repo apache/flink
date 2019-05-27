@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-queryable-state-client-java_${scala.binary.version}</artifactId>
+	<artifactId>flink-queryable-state-client-java</artifactId>
 	<name>flink-queryable-state-client-java</name>
 	<packaging>jar</packaging>
 

@@ -33,7 +33,7 @@ under the License.
 	We need the YARN fat jar build by flink-dist for the tests.
 	-->
 	
-	<artifactId>flink-yarn-tests_${scala.binary.version}</artifactId>
+	<artifactId>flink-yarn-tests</artifactId>
 	<name>flink-yarn-tests</name>
 	<packaging>jar</packaging>
 

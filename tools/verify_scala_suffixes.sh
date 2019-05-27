@@ -141,7 +141,7 @@ echo
 echo "Checking Scala-free modules:"
 
 for module in $clean; do
-    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\d\+\.\d\+</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\\${scala.binary.version}</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else

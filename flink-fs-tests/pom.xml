@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-fs-tests_${scala.binary.version}</artifactId>
+	<artifactId>flink-fs-tests</artifactId>
 	<name>flink-fs-tests</name>
 
 	<packaging>jar</packaging>
