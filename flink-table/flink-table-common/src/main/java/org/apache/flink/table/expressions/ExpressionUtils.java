@@ -19,7 +19,6 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.util.Optional;
 
@@ -30,20 +29,18 @@ import java.util.Optional;
 public final class ExpressionUtils {
 
 	/**
-	 * Extracts value of given type from expression assuming it is a {@link ValueLiteralExpression}.
+	 * Extracts the value (excluding null) of a given class from an expression assuming it is a
+	 * {@link ValueLiteralExpression}.
 	 *
 	 * @param expr literal to extract the value from
-	 * @param type expected type to extract from the literal
+	 * @param targetClass expected class to extract from the literal
 	 * @param <V> type of extracted value
 	 * @return extracted value or empty if could not extract value of given type
 	 */
-	@SuppressWarnings("unchecked")
-	public static <V> Optional<V> extractValue(Expression expr, TypeInformation<V> type) {
+	public static <V> Optional<V> extractValue(Expression expr, Class<V> targetClass) {
 		if (expr instanceof ValueLiteralExpression) {
 			final ValueLiteralExpression valueLiteral = (ValueLiteralExpression) expr;
-			if (valueLiteral.getType().equals(type)) {
-				return Optional.of((V) valueLiteral.getValue());
-			}
+			return valueLiteral.getValueAs(targetClass);
 		}
 		return Optional.empty();
 	}

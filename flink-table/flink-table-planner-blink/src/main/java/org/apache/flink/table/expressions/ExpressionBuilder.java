@@ -57,7 +57,7 @@ public class ExpressionBuilder {
 	}
 
 	public static Expression literal(Object value, TypeInformation<?> type) {
-		return new ValueLiteralExpression(value, type);
+		return new ValueLiteralExpression(value, fromLegacyInfoToDataType(type));
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, Expression... args) {

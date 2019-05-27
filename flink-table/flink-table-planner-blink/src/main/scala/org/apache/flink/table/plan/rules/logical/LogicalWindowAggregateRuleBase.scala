@@ -17,14 +17,7 @@
  */
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.expressions.{FieldReferenceExpression, ValueLiteralExpression, WindowReference}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
-import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS
+import _root_.java.math.BigDecimal
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -35,8 +28,14 @@ import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 import org.apache.calcite.util.ImmutableBitSet
-
-import _root_.java.math.BigDecimal
+import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
+import org.apache.flink.table.api._
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.expressions.{FieldReferenceExpression, WindowReference}
+import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
+import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 
 import _root_.scala.collection.JavaConversions._
 
@@ -183,22 +182,22 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
         TumblingGroupWindow(
           windowRef,
           timeField,
-          new ValueLiteralExpression(interval, INTERVAL_MILLIS))
+          intervalOfMillis(interval))
 
       case FlinkSqlOperatorTable.HOP =>
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         SlidingGroupWindow(
           windowRef,
           timeField,
-          new ValueLiteralExpression(size, INTERVAL_MILLIS),
-          new ValueLiteralExpression(slide, INTERVAL_MILLIS))
+          intervalOfMillis(size),
+          intervalOfMillis(slide))
 
       case FlinkSqlOperatorTable.SESSION =>
         val gap = getOperandAsLong(windowExpr, 1)
         SessionGroupWindow(
           windowRef,
           timeField,
-          new ValueLiteralExpression(gap, INTERVAL_MILLIS))
+          intervalOfMillis(gap))
     }
   }
 

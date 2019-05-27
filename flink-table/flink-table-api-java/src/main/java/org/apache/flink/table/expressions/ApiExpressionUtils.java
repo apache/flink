@@ -19,15 +19,12 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 /**
  * Utilities for API-specific {@link Expression}s.
@@ -55,8 +52,8 @@ public final class ApiExpressionUtils {
 		return new ValueLiteralExpression(value);
 	}
 
-	public static ValueLiteralExpression valueLiteral(Object value, TypeInformation<?> type) {
-		return new ValueLiteralExpression(value, type);
+	public static ValueLiteralExpression valueLiteral(Object value, DataType dataType) {
+		return new ValueLiteralExpression(value, dataType);
 	}
 
 	public static TypeLiteralExpression typeLiteral(DataType dataType) {
@@ -80,39 +77,32 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {
-		// check for constant
-		return ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
-			.map((v) -> (Expression) valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MONTHS))
-			.orElseThrow(() -> new ValidationException("Only constant intervals are supported: " + e));
+		return ExpressionUtils.extractValue(e, Integer.class)
+			.map((v) -> intervalOfMonths(v * multiplier))
+			.orElseThrow(() -> new ValidationException("Invalid constant for year-month interval: " + e));
+	}
+
+	public static ValueLiteralExpression intervalOfMillis(long millis) {
+		return valueLiteral(
+			millis,
+			DataTypes.INTERVAL(DataTypes.SECOND(3)).notNull().bridgedTo(Long.class));
 	}
 
 	public static Expression toMilliInterval(Expression e, long multiplier) {
-		final Optional<Expression> intInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
-			.map((v) -> valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS));
+		return ExpressionUtils.extractValue(e, Long.class)
+			.map((v) -> intervalOfMillis(v * multiplier))
+			.orElseThrow(() -> new ValidationException("Invalid constant for day-time interval: " + e));
+	}
 
-		final Optional<Expression> longInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
-			.map((v) -> valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS));
-
-		if (intInterval.isPresent()) {
-			return intInterval.get();
-		} else if (longInterval.isPresent()) {
-			return longInterval.get();
-		}
-		throw new ValidationException("Only constant intervals are supported:" + e);
+	public static ValueLiteralExpression intervalOfMonths(int months) {
+		return valueLiteral(
+			months,
+			DataTypes.INTERVAL(DataTypes.MONTH()).notNull().bridgedTo(Integer.class));
 	}
 
 	public static Expression toRowInterval(Expression e) {
-		final Optional<Expression> intInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
-			.map((v) -> valueLiteral((long) v, BasicTypeInfo.LONG_TYPE_INFO));
-
-		final Optional<Expression> longInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
-			.map((v) -> valueLiteral(v, BasicTypeInfo.LONG_TYPE_INFO));
-
-		if (intInterval.isPresent()) {
-			return intInterval.get();
-		} else if (longInterval.isPresent()) {
-			return longInterval.get();
-		}
-		throw new ValidationException("Invalid value for row interval literal: " + e);
+		return ExpressionUtils.extractValue(e, Long.class)
+			.map(ApiExpressionUtils::valueLiteral)
+			.orElseThrow(() -> new ValidationException("Invalid constant for row interval: " + e));
 	}
 }

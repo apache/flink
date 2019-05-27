@@ -20,7 +20,6 @@ package org.apache.flink.table.plan;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
@@ -412,8 +411,8 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		@Override
 		public AggCall visitCall(CallExpression call) {
 			if (call.getFunctionDefinition() == AS) {
-				String aggregateName = extractValue(call.getChildren().get(1), Types.STRING)
-					.orElseThrow(() -> new TableException("Unexpected name"));
+				String aggregateName = extractValue(call.getChildren().get(1), String.class)
+					.orElseThrow(() -> new TableException("Unexpected name."));
 
 				Expression aggregate = call.getChildren().get(0);
 				if (isFunctionOfType(aggregate, AGGREGATE_FUNCTION)) {

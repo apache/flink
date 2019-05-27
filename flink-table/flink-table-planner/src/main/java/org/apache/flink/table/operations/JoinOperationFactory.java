@@ -81,7 +81,7 @@ public class JoinOperationFactory {
 	}
 
 	private void validateCondition(TableOperation right, JoinType joinType, Expression condition, boolean correlated) {
-		boolean alwaysTrue = ExpressionUtils.extractValue(condition, Types.BOOLEAN).orElse(false);
+		boolean alwaysTrue = ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
 
 		if (alwaysTrue) {
 			return;

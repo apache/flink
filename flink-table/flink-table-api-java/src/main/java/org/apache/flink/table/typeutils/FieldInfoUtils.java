@@ -402,7 +402,7 @@ public class FieldInfoUtils {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
 				List<Expression> children = call.getChildren();
 				Expression origExpr = children.get(0);
-				String newName = ExpressionUtils.extractValue(children.get(1), Types.STRING)
+				String newName = ExpressionUtils.extractValue(children.get(1), String.class)
 					.orElseThrow(() ->
 						new TableException("Alias expects string literal as new name. Got: " + children.get(1)));
 
@@ -444,7 +444,7 @@ public class FieldInfoUtils {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
 				List<Expression> children = call.getChildren();
 				Expression origExpr = children.get(0);
-				String newName = ExpressionUtils.extractValue(children.get(1), Types.STRING)
+				String newName = ExpressionUtils.extractValue(children.get(1), String.class)
 					.orElseThrow(() ->
 						new TableException("Alias expects string literal as new name. Got: " + children.get(1)));
 

@@ -76,9 +76,7 @@ final class ExistingField(val field: String) extends TimestampExtractor {
         val innerDiv = new CallExpression(
           BuiltInFunctionDefinitions.DIVIDE,
           List(fieldReferenceExpr,
-            new ValueLiteralExpression(new java.math.BigDecimal(1000),
-              DecimalTypeInfo.of(DecimalType.MAX_PRECISION, DecimalType.MAX_COMPACT_PRECISION)))
-        )
+            new ValueLiteralExpression(new java.math.BigDecimal(1000))))
         new CallExpression(
           BuiltInFunctionDefinitions.CAST,
           List(

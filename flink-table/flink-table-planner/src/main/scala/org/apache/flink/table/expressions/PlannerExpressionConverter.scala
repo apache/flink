@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import _root_.scala.collection.JavaConverters._
@@ -704,11 +707,50 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
-    if (literal.getValue == null) {
-      Null(literal.getType)
+    val typeInfo = getLiteralTypeInfo(literal)
+
+    if (literal.isNull) {
+      Null(typeInfo)
     } else {
-      Literal(literal.getValue, literal.getType)
+      Literal(
+        literal.getValueAs(typeInfo.getTypeClass).get(),
+        typeInfo)
     }
+  }
+
+  /**
+    * This method makes the planner more lenient for new data types defined for literals.
+    */
+  private def getLiteralTypeInfo(literal: ValueLiteralExpression): TypeInformation[_] = {
+    val logicalType = literal.getDataType.getLogicalType
+
+    if (hasRoot(logicalType, DECIMAL)) {
+      if (literal.isNull) {
+        return Types.BIG_DEC
+      }
+      val value = literal.getValueAs(classOf[java.math.BigDecimal]).get()
+      if (hasPrecision(logicalType, value.precision()) && hasScale(logicalType, value.scale())) {
+        return Types.BIG_DEC
+      }
+    }
+
+    else if (hasRoot(logicalType, CHAR)) {
+      if (literal.isNull) {
+        return Types.STRING
+      }
+      val value = literal.getValueAs(classOf[java.lang.String]).get()
+      if (hasLength(logicalType, value.length)) {
+        return Types.STRING
+      }
+    }
+
+    else if (hasRoot(logicalType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
+      if (getPrecision(logicalType) <= 3) {
+        return Types.SQL_TIMESTAMP
+      }
+    }
+
+    fromDataTypeToLegacyInfo(literal.getDataType)
   }
 
   override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {

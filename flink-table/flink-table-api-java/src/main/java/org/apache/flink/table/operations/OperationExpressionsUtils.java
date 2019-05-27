@@ -19,7 +19,6 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -224,7 +223,7 @@ public class OperationExpressionsUtils {
 		@Override
 		public Optional<String> visitCall(CallExpression call) {
 			if (call.getFunctionDefinition().equals(AS)) {
-				return extractValue(call.getChildren().get(1), Types.STRING);
+				return extractValue(call.getChildren().get(1), String.class);
 			} else {
 				return Optional.empty();
 			}

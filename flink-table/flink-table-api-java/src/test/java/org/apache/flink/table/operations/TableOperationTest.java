@@ -21,17 +21,16 @@ package org.apache.flink.table.operations;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -72,9 +71,7 @@ public class TableOperationTest {
 			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM,
 				Collections.singletonList(field))),
 			Collections.emptyList(),
-			WindowAggregateTableOperation.ResolvedGroupWindow.sessionWindow("w", field, ApiExpressionUtils.valueLiteral(
-				10,
-				TimeIntervalTypeInfo.INTERVAL_MILLIS)),
+			WindowAggregateTableOperation.ResolvedGroupWindow.sessionWindow("w", field, intervalOfMillis(10)),
 			new CatalogTableOperation(
 				Arrays.asList("cat1", "db1", "tab1"),
 				schema),
@@ -86,7 +83,7 @@ public class TableOperationTest {
 		assertEquals(
 			"Distinct:\n" +
 			"    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
-				" window: [SessionWindow(field: [a], gap: [10.millis])])\n" +
+				" window: [SessionWindow(field: [a], gap: [10])])\n" +
 				"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
 			distinctTableOperation.asSummaryString());
 	}

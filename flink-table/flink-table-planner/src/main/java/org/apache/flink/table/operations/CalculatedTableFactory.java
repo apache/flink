@@ -20,7 +20,6 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
@@ -78,7 +77,7 @@ public class CalculatedTableFactory {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
-				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
+				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 

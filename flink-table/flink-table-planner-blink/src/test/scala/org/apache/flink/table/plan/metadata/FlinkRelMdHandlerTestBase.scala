@@ -18,11 +18,32 @@
 
 package org.apache.flink.table.plan.metadata
 
+import java.math.BigDecimal
+import java.util
+
+import com.google.common.collect.{ImmutableList, Lists}
+import org.apache.calcite.plan._
+import org.apache.calcite.rel._
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
+import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.logical._
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rex._
+import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.sql.SqlWindow
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.tools.FrameworkConfig
+import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RowtimeAttribute, ValueLiteralExpression, WindowReference, WindowStart}
+import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
 import org.apache.flink.table.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
@@ -36,32 +57,10 @@ import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
-import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, FlinkRelOptUtil, SortUtil, WindowEmitStrategy}
+import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS
 import org.apache.flink.table.util.CountAggFunction
-
-import com.google.common.collect.{ImmutableList, Lists}
-import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinRelType, Project, Window}
-import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
-import org.apache.calcite.rel.{RelCollationImpl, RelCollationTraitDef, RelCollations, RelFieldCollation, RelNode, SingleRel}
-import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode, RexProgram, RexUtil, RexWindowBound}
-import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.SqlWindow
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, PLUS}
-import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.tools.FrameworkConfig
-import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
-
-import java.math.BigDecimal
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -955,7 +954,7 @@ class FlinkRelMdHandlerTestBase {
         TypeConverters.createExternalTypeInfoFromInternalType(InternalTypes.ROWTIME_INDICATOR),
         0,
         4),
-      new ValueLiteralExpression(900000, INTERVAL_MILLIS)
+      intervalOfMillis(900000)
     )
 
   protected lazy val namedPropertiesOfWindowAgg: Seq[NamedWindowProperty] =

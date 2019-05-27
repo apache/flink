@@ -20,7 +20,6 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
@@ -80,7 +79,7 @@ public final class AliasOperationUtils {
 
 		@Override
 		public ValueLiteralExpression visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
-			String name = ExpressionUtils.extractValue(valueLiteralExpression, Types.STRING())
+			String name = ExpressionUtils.extractValue(valueLiteralExpression, String.class)
 				.orElseThrow(() -> new ValidationException(
 					"Alias accepts only names that are not '*' reference."));
 

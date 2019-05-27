@@ -21,7 +21,7 @@ package org.apache.flink.table.operations
 import java.util.{Collections, Optional, List => JList}
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType
 import org.apache.flink.table.expressions.FunctionDefinition.Type.{SCALAR_FUNCTION, TABLE_FUNCTION}
@@ -209,7 +209,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
         if c.getFunctionDefinition.getName == BuiltInFunctionDefinitions.AS.getName =>
         alias = c.getChildren
           .drop(1)
-          .map(e => e.asInstanceOf[ValueLiteralExpression].getValue.asInstanceOf[String])
+          .map(e => ExpressionUtils.extractValue(e, classOf[String]).get())
         c.getChildren.get(0)
       case c: CallExpression
         if c.getFunctionDefinition.isInstanceOf[AggregateFunctionDefinition] =>
@@ -225,9 +225,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     while (childNames.contains("TMP_" + cnt)) {
       cnt += 1
     }
-    val aggWithNamedAlias = new CallExpression(
+    val aggWithNamedAlias = call(
       BuiltInFunctionDefinitions.AS,
-      Seq(aggWithoutAlias, new ValueLiteralExpression("TMP_" + cnt, Types.STRING)))
+      aggWithoutAlias,
+      valueLiteral("TMP_" + cnt))
 
     // get agg table
     val aggTableOperation = this.aggregate(groupingExpressions, Seq(aggWithNamedAlias), child)
@@ -506,7 +507,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       resultName
     })
 
-    val renamedTableFunction = ApiExpressionUtils.call(
+    val renamedTableFunction = call(
       BuiltInFunctionDefinitions.AS,
       resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
     val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())

@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.plan.util.AggregateUtil
-import org.apache.flink.table.plan.util.AggregateUtil.isTimeIntervalType
+import org.apache.flink.table.plan.util.AggregateUtil.hasTimeIntervalType
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -104,8 +104,8 @@ class BatchExecWindowAggregateRule
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
 
     window match {
-      case TumblingGroupWindow(_, _, size) if isTimeIntervalType(size.getType) =>
-        val sizeInLong = size.getValue.asInstanceOf[java.lang.Long]
+      case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
+        val sizeInLong = size.getValueAs(classOf[java.lang.Long]).get()
         transformTimeSlidingWindow(
           call,
           input,
@@ -118,10 +118,10 @@ class BatchExecWindowAggregateRule
           enableAssignPane = false,
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
 
-      case SlidingGroupWindow(_, _, size, slide) if isTimeIntervalType(size.getType) =>
+      case SlidingGroupWindow(_, _, size, slide) if hasTimeIntervalType(size) =>
         val (sizeInLong, slideInLong) = (
-          size.getValue.asInstanceOf[java.lang.Long],
-          slide.getValue.asInstanceOf[java.lang.Long])
+          size.getValueAs(classOf[java.lang.Long]).get(),
+          slide.getValueAs(classOf[java.lang.Long]).get())
         transformTimeSlidingWindow(
           call,
           input,

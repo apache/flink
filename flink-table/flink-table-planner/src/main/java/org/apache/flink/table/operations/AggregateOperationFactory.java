@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
@@ -49,6 +48,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
@@ -68,7 +68,9 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGA
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
-import static org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utility class for creating a valid {@link AggregateTableOperation} or {@link WindowAggregateTableOperation}.
@@ -289,13 +291,14 @@ public class AggregateOperationFactory {
 		ValueLiteralExpression windowSize = getAsValueLiteral(window.getSize(),
 			"A tumble window expects a size value literal.");
 
-		TypeInformation<?> sizeType = windowSize.getType();
-		if (sizeType != LONG_TYPE_INFO && sizeType != INTERVAL_MILLIS) {
+		final LogicalType windowSizeType = windowSize.getDataType().getLogicalType();
+
+		if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
 			throw new ValidationException(
-				"Tumbling window expects size literal of type Interval of Milliseconds or Interval of Rows.");
+				"Tumbling window expects a size literal of a day-time interval or BIGINT type.");
 		}
 
-		validateWindowIntervalType(timeField, sizeType);
+		validateWindowIntervalType(timeField, windowSizeType);
 
 		return ResolvedGroupWindow.tumblingWindow(
 			windowName,
@@ -312,14 +315,15 @@ public class AggregateOperationFactory {
 		ValueLiteralExpression windowSlide = getAsValueLiteral(window.getSlide(),
 			"A sliding window expects a slide value literal.");
 
-		TypeInformation<?> windowSizeType = windowSize.getType();
+		final LogicalType windowSizeType = windowSize.getDataType().getLogicalType();
+		final LogicalType windowSlideType = windowSlide.getDataType().getLogicalType();
 
-		if (windowSizeType != LONG_TYPE_INFO && windowSizeType != INTERVAL_MILLIS) {
+		if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
 			throw new ValidationException(
-				"A sliding window expects size literal of type Interval of Milliseconds or Interval of Rows.");
+				"A sliding window expects a size literal of a day-time interval or BIGINT type.");
 		}
 
-		if (windowSizeType != windowSlide.getType()) {
+		if (!windowSizeType.equals(windowSlideType)) {
 			throw new ValidationException("A sliding window expects the same type of size and slide.");
 		}
 
@@ -340,8 +344,10 @@ public class AggregateOperationFactory {
 			window.getGap(),
 			"A session window expects a gap value literal.");
 
-		if (windowGap.getType() != INTERVAL_MILLIS) {
-			throw new ValidationException("A session window expects gap literal of type Interval of Milliseconds.");
+		final LogicalType windowGapType = windowGap.getDataType().getLogicalType();
+
+		if (!hasRoot(windowGapType, INTERVAL_DAY_TIME)) {
+			throw new ValidationException("A session window expects a gap literal of a day-time interval type.");
 		}
 
 		return ResolvedGroupWindow.sessionWindow(
@@ -350,8 +356,8 @@ public class AggregateOperationFactory {
 			windowGap);
 	}
 
-	private void validateWindowIntervalType(FieldReferenceExpression timeField, TypeInformation<?> intervalType) {
-		if (isRowTimeIndicator(timeField) && intervalType == LONG_TYPE_INFO) {
+	private void validateWindowIntervalType(FieldReferenceExpression timeField, LogicalType intervalType) {
+		if (isRowTimeIndicator(timeField) && hasRoot(intervalType, BIGINT)) {
 			// unsupported row intervals on event-time
 			throw new ValidationException(
 				"Event-time grouping windows on row intervals in a stream environment " +
@@ -536,7 +542,7 @@ public class AggregateOperationFactory {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
-				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
+				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 
