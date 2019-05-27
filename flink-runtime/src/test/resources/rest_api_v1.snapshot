@@ -1269,6 +1269,40 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/stop-with-savepoint",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:stop:StopWithSavepointRequestBody",
+      "properties" : {
+        "targetDirectory" : {
+          "type" : "string"
+        },
+        "endOfEventTime" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+      "properties" : {
+        "request-id" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid",
     "method" : "GET",
     "status-code" : "200 OK",
