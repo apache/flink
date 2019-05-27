@@ -24,13 +24,17 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -49,6 +53,21 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	// =====================
 
 	public void testCreateTable_Streaming() throws Exception {
+	}
+
+	@Test
+	// verifies that input/output formats and SerDe are set for Hive tables
+	public void testCreateTable_StorageFormatSet() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createTable(), false);
+
+		Table hiveTable = ((HiveCatalog) catalog).getHiveTable(path1);
+		String inputFormat = hiveTable.getSd().getInputFormat();
+		String outputFormat = hiveTable.getSd().getOutputFormat();
+		String serde = hiveTable.getSd().getSerdeInfo().getSerializationLib();
+		assertFalse(StringUtils.isNullOrWhitespaceOnly(inputFormat));
+		assertFalse(StringUtils.isNullOrWhitespaceOnly(outputFormat));
+		assertFalse(StringUtils.isNullOrWhitespaceOnly(serde));
 	}
 
 	// ------ utils ------
