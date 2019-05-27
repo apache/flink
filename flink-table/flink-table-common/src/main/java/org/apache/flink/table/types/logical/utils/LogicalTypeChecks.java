@@ -19,21 +19,41 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 /**
- * Utilities for checking {@link LogicalType}.
+ * Utilities for checking {@link LogicalType} and avoiding a lot of type casting and repetitive work.
  */
 @Internal
 public final class LogicalTypeChecks {
 
-	private static final TimeAttributeChecker TIME_ATTRIBUTE_CHECKER = new TimeAttributeChecker();
+	private static final TimestampKindExtractor TIMESTAMP_KIND_EXTRACTOR = new TimestampKindExtractor();
+
+	private static final LengthExtractor LENGTH_EXTRACTOR = new LengthExtractor();
+
+	private static final PrecisionExtractor PRECISION_EXTRACTOR = new PrecisionExtractor();
+
+	private static final ScaleExtractor SCALE_EXTRACTOR = new ScaleExtractor();
+
+	private static final YearPrecisionExtractor YEAR_PRECISION_EXTRACTOR = new YearPrecisionExtractor();
+
+	private static final DayPrecisionExtractor DAY_PRECISION_EXTRACTOR = new DayPrecisionExtractor();
+
+	private static final FractionalPrecisionExtractor FRACTIONAL_PRECISION_EXTRACTOR = new FractionalPrecisionExtractor();
 
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
@@ -44,15 +64,63 @@ public final class LogicalTypeChecks {
 	}
 
 	public static boolean isTimeAttribute(LogicalType logicalType) {
-		return logicalType.accept(TIME_ATTRIBUTE_CHECKER) != TimestampKind.REGULAR;
+		return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) != TimestampKind.REGULAR;
 	}
 
 	public static boolean isRowtimeAttribute(LogicalType logicalType) {
-		return logicalType.accept(TIME_ATTRIBUTE_CHECKER) == TimestampKind.ROWTIME;
+		return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.ROWTIME;
 	}
 
 	public static boolean isProctimeAttribute(LogicalType logicalType) {
-		return logicalType.accept(TIME_ATTRIBUTE_CHECKER) == TimestampKind.PROCTIME;
+		return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+	}
+
+	public static int getLength(LogicalType logicalType) {
+		return logicalType.accept(LENGTH_EXTRACTOR);
+	}
+
+	public static boolean hasLength(LogicalType logicalType, int length) {
+		return getLength(logicalType) == length;
+	}
+
+	public static int getPrecision(LogicalType logicalType) {
+		return logicalType.accept(PRECISION_EXTRACTOR);
+	}
+
+	public static boolean hasPrecision(LogicalType logicalType, int precision) {
+		return getPrecision(logicalType) == precision;
+	}
+
+	public static int getScale(LogicalType logicalType) {
+		return logicalType.accept(SCALE_EXTRACTOR);
+	}
+
+	public static boolean hasScale(LogicalType logicalType, int scale) {
+		return getScale(logicalType) == scale;
+	}
+
+	public static int getYearPrecision(LogicalType logicalType) {
+		return logicalType.accept(YEAR_PRECISION_EXTRACTOR);
+	}
+
+	public static boolean hasYearPrecision(LogicalType logicalType, int yearPrecision) {
+		return getYearPrecision(logicalType) == yearPrecision;
+	}
+
+	public static int getDayPrecision(LogicalType logicalType) {
+		return logicalType.accept(DAY_PRECISION_EXTRACTOR);
+	}
+
+	public static boolean hasDayPrecision(LogicalType logicalType, int yearPrecision) {
+		return getDayPrecision(logicalType) == yearPrecision;
+	}
+
+	public static int getFractionalPrecision(LogicalType logicalType) {
+		return logicalType.accept(FRACTIONAL_PRECISION_EXTRACTOR);
+	}
+
+	public static boolean hasFractionalPrecision(LogicalType logicalType, int fractionalPrecision) {
+		return getFractionalPrecision(logicalType) == fractionalPrecision;
 	}
 
 	private LogicalTypeChecks() {
@@ -61,7 +129,104 @@ public final class LogicalTypeChecks {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static class TimeAttributeChecker extends LogicalTypeDefaultVisitor<TimestampKind> {
+	/**
+	 * Extracts an attribute of logical types that define that attribute.
+	 */
+	private static class Extractor<T> extends LogicalTypeDefaultVisitor<T> {
+		@Override
+		protected T defaultMethod(LogicalType logicalType) {
+			throw new IllegalArgumentException(
+				String.format(
+					"Invalid use of extractor %s. Called on logical type: %s",
+					this.getClass().getName(),
+					logicalType));
+		}
+	}
+
+	private static class LengthExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(CharType charType) {
+			return charType.getLength();
+		}
+
+		@Override
+		public Integer visit(VarCharType varCharType) {
+			return varCharType.getLength();
+		}
+
+		@Override
+		public Integer visit(BinaryType binaryType) {
+			return binaryType.getLength();
+		}
+
+		@Override
+		public Integer visit(VarBinaryType varBinaryType) {
+			return varBinaryType.getLength();
+		}
+	}
+
+	private static class PrecisionExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(DecimalType decimalType) {
+			return decimalType.getPrecision();
+		}
+
+		@Override
+		public Integer visit(TimeType timeType) {
+			return timeType.getPrecision();
+		}
+
+		@Override
+		public Integer visit(TimestampType timestampType) {
+			return timestampType.getPrecision();
+		}
+
+		@Override
+		public Integer visit(ZonedTimestampType zonedTimestampType) {
+			return zonedTimestampType.getPrecision();
+		}
+
+		@Override
+		public Integer visit(LocalZonedTimestampType localZonedTimestampType) {
+			return localZonedTimestampType.getPrecision();
+		}
+	}
+
+	private static class ScaleExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(DecimalType decimalType) {
+			return decimalType.getScale();
+		}
+	}
+
+	private static class YearPrecisionExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(YearMonthIntervalType yearMonthIntervalType) {
+			return yearMonthIntervalType.getYearPrecision();
+		}
+	}
+
+	private static class DayPrecisionExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(DayTimeIntervalType dayTimeIntervalType) {
+			return dayTimeIntervalType.getDayPrecision();
+		}
+	}
+
+	private static class FractionalPrecisionExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(DayTimeIntervalType dayTimeIntervalType) {
+			return dayTimeIntervalType.getFractionalPrecision();
+		}
+	}
+
+	private static class TimestampKindExtractor extends Extractor<TimestampKind>  {
 
 		@Override
 		public TimestampKind visit(TimestampType timestampType) {
@@ -76,12 +241,6 @@ public final class LogicalTypeChecks {
 		@Override
 		public TimestampKind visit(LocalZonedTimestampType localZonedTimestampType) {
 			return localZonedTimestampType.getKind();
-		}
-
-		@Override
-		protected TimestampKind defaultMethod(LogicalType logicalType) {
-			// we don't verify that type is actually a timestamp
-			return TimestampKind.REGULAR;
 		}
 	}
 }
