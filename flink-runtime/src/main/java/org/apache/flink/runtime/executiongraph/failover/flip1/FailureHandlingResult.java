@@ -50,7 +50,7 @@ public class FailureHandlingResult {
 	private FailureHandlingResult(Set<ExecutionVertexID> verticesToRestart, long restartDelayMS) {
 		checkState(restartDelayMS >= 0);
 
-		this.verticesToRestart = checkNotNull(verticesToRestart);
+		this.verticesToRestart = Collections.unmodifiableSet(checkNotNull(verticesToRestart));
 		this.restartDelayMS = restartDelayMS;
 		this.error = null;
 	}
@@ -73,7 +73,7 @@ public class FailureHandlingResult {
 	 */
 	public Set<ExecutionVertexID> getVerticesToRestart() {
 		if (canRestart()) {
-			return Collections.unmodifiableSet(verticesToRestart);
+			return verticesToRestart;
 		} else {
 			throw new IllegalStateException("Cannot get vertices to restart when the restarting is suppressed.");
 		}
