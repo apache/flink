@@ -59,8 +59,8 @@ class LookupJoinTest extends TableTestBase {
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
-      "Unsupported join type for semi-join RIGHT",
-      classOf[IllegalArgumentException]
+      null,
+      classOf[AssertionError]
     )
 
     // only support join on raw key of right table
