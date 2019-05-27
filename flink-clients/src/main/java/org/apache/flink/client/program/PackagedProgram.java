@@ -820,7 +820,7 @@ public class PackagedProgram {
 			JobWithJars.checkJarFile(jarfile);
 		}
 		catch (IOException e) {
-			throw new ProgramInvocationException(e.getMessage());
+			throw new ProgramInvocationException(e.getMessage(), e);
 		}
 		catch (Throwable t) {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);
