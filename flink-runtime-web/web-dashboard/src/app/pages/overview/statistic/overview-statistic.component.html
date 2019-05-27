@@ -72,9 +72,9 @@
         <i [ngClass]="{
           'task-manager-avatar-big' : listOfTaskManager.length < 20,
           'task-manager-avatar-small' : listOfTaskManager.length >= 20,
-          'task-manager-avatar-green' : manager.secondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds / 2,
-          'task-manager-avatar-yellow' : manager.secondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds / 2 && manager.secondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds,
-          'task-manager-avatar-red' : manager.secondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds
+          'task-manager-avatar-green' : manager.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds / 2,
+          'task-manager-avatar-yellow' : manager.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds / 2 && manager.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds,
+          'task-manager-avatar-red' : manager.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds
           }"
            nz-icon nz-tooltip nzTheme="fill" nzType="database" [nzTitle]="managerTooltip"></i>
         <ng-template #managerTooltip>
@@ -85,7 +85,7 @@
           <span>Physical Mem: {{manager.hardware.physicalMemory | humanizeBytes}}</span><br />
           <span>Free Mem: {{manager.hardware.freeMemory | humanizeBytes}}</span><br />
           <span>Managed Mem: {{manager.hardware.managedMemory | humanizeBytes}}</span><br />
-          <span>Last Heartbeat: {{manager.secondsSinceLastHeartBeat / 1000}} seconds ago</span>
+          <span>Last Heartbeat: {{manager.milliSecondsSinceLastHeartBeat / 1000}} seconds ago</span>
         </ng-template>
       </ng-container>
     </nz-card>

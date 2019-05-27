@@ -33,7 +33,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
   listOfTaskManager: TaskmanagersItemInterface[] = [];
   taskSlotPercentage: number;
   taskManagerCPUs: number;
-  secondsSinceLastHeartBeat: number;
+  milliSecondsSinceLastHeartBeat: number;
   destroy$ = new Subject();
   listOfConfig: Array<{ key: string; value: string }> = [];
   timeoutThresholdSeconds: number;
@@ -70,7 +70,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
           this.taskManagerCPUs = 0;
           this.listOfTaskManager.map(tm => {
             this.taskManagerCPUs += tm.hardware.cpuCores;
-            tm.secondsSinceLastHeartBeat = new Date().getTime() - tm.timeSinceLastHeartbeat;
+            tm.milliSecondsSinceLastHeartBeat = new Date().getTime() - tm.timeSinceLastHeartbeat;
           });
           this.cdr.markForCheck();
         },
