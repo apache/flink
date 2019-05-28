@@ -40,21 +40,38 @@ nz-card {
   flex: 1
 }
 
+.task-manager-avatar {
+  overflow: hidden;
+  display: inline-block;
+}
+
+.task-manager-avatar-small {
+  min-width: 30px;
+}
+
+.task-manager-avatar-big {
+  min-width: 60px;
+}
+
 .task-slot-percentage-bar {
   float: right;
   flex: 4;
   margin-top: 16px;
 }
 
-.task-manager-percentage-bar .ant-progress {
+.task-manager-percentage-bar ::ng-deep .ant-progress {
   transform: rotate(270deg);
 }
 
-.task-manager-percentage-bar-small .ant-progress {
+.task-manager-percentage-bar-small ::ng-deep .ant-progress {
+  margin-left: -12px;
+  top: -8px;
   width: 30px;
 }
 
-.task-manager-percentage-bar-big .ant-progress {
+.task-manager-percentage-bar-big ::ng-deep .ant-progress {
+  margin-left: -27px;
+  top: -19px;
   width: 60px;
 }
 
