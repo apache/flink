@@ -537,7 +537,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(chkConfig.getTolerableCheckpointFailureNumber(), () ->
-			failGlobal(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold.")));
+			getJobMasterMainThreadExecutor().execute(() ->
+				failGlobal(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."))
+			));
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(

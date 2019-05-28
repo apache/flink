@@ -42,7 +42,7 @@ public enum CheckpointFailureReason {
 
 	CHECKPOINT_DECLINED("Checkpoint was declined."),
 
-	CHECKPOINT_DECLINED_TASK_NOT_READY("Checkpoint was declined(task not ready)."),
+	CHECKPOINT_DECLINED_TASK_NOT_READY("Checkpoint was declined (tasks not ready)"),
 
 	CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING("Task does not support checkpointing"),
 

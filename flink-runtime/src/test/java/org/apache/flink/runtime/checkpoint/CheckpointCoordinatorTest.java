@@ -117,11 +117,9 @@ import static org.mockito.Mockito.when;
  */
 public class CheckpointCoordinatorTest extends TestLogger {
 
-<<<<<<< HEAD
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
-=======
+
 	private CheckpointFailureManager failureManager;
->>>>>>> [FLINK-12364] Introduce a CheckpointFailureManager to centralized manage checkpoint failure
 
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -360,12 +358,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().get(checkpointId);
 
 			// acknowledge from one of the tasks
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId), TASK_MANAGER_LOCATION_INFO);
 			assertFalse(checkpoint.isDiscarded());
 			assertFalse(checkpoint.isFullyAcknowledged());
 
 			// decline checkpoint from the other task
-			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId));
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId), TASK_MANAGER_LOCATION_INFO);
 
 			fail("Test failed.");
 		}
