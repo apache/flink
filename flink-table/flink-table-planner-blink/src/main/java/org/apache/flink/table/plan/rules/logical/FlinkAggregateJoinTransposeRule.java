@@ -72,7 +72,7 @@ import scala.collection.Seq;
 /**
  * This rule is copied from Calcite's {@link org.apache.calcite.rel.rules.AggregateJoinTransposeRule}.
  * Modification:
- * - Do not match TemporalTableScan since it means that it is a dimension table scan currently.
+ * - Do not match temporal join since lookup table source doesn't support aggregate.
  * - Support Left/Right Outer Join
  * - Fix type mismatch error
  * - Support aggregate with AUXILIARY_GROUP
