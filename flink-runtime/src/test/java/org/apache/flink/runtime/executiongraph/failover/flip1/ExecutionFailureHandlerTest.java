@@ -31,7 +31,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -65,7 +64,12 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		assertTrue(result.canRestart());
 		assertEquals(restartDelayMs, result.getRestartDelayMS());
 		assertEquals(tasksToRestart, result.getVerticesToRestart());
-		assertNull(result.getError());
+		try {
+			result.getError();
+			fail("Cannot get error when the restarting is accepted");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
 	}
 
 	/**
@@ -92,6 +96,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		// verify results
 		assertFalse(result.canRestart());
 		assertNotNull(result.getError());
+		assertFalse(ExecutionFailureHandler.isUnrecoverableError(result.getError()));
 		try {
 			result.getVerticesToRestart();
 			fail("get tasks to restart is not allowed when restarting is suppressed");
@@ -125,11 +130,12 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		// trigger an unrecoverable task failure
 		FailureHandlingResult result = executionFailureHandler.getFailureHandlingResult(
 			new ExecutionVertexID(new JobVertexID(), 0),
-			new SuppressRestartsException(new Exception("test failure")));
+			new Exception(new SuppressRestartsException(new Exception("test failure"))));
 
 		// verify results
 		assertFalse(result.canRestart());
 		assertNotNull(result.getError());
+		assertTrue(ExecutionFailureHandler.isUnrecoverableError(result.getError()));
 		try {
 			result.getVerticesToRestart();
 			fail("get tasks to restart is not allowed when restarting is suppressed");
@@ -142,6 +148,22 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		} catch (IllegalStateException ex) {
 			// expected
 		}
+	}
+
+	/**
+	 * Tests the check for unrecoverable error.
+	 */
+	@Test
+	public void testUnrecoverableErrorCheck() {
+		// normal error
+		assertFalse(ExecutionFailureHandler.isUnrecoverableError(new Exception()));
+
+		// direct unrecoverable error
+		assertTrue(ExecutionFailureHandler.isUnrecoverableError(new SuppressRestartsException(new Exception())));
+
+		// nested unrecoverable error
+		assertTrue(ExecutionFailureHandler.isUnrecoverableError(
+			new Exception(new SuppressRestartsException(new Exception()))));
 	}
 
 	// ------------------------------------------------------------------------

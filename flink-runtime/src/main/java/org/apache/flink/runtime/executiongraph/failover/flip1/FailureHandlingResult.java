@@ -93,21 +93,25 @@ public class FailureHandlingResult {
 	}
 
 	/**
+	 * Returns reason why the restarting cannot be conducted.
+	 *
+	 * @return reason why the restarting cannot be conducted
+	 */
+	public Throwable getError() {
+		if (canRestart()) {
+			throw new IllegalStateException("Cannot get error when the restarting is accepted.");
+		} else {
+			return error;
+		}
+	}
+
+	/**
 	 * Returns whether the restarting can be conducted.
 	 *
 	 * @return whether the restarting can be conducted
 	 */
 	public boolean canRestart() {
 		return error == null;
-	}
-
-	/**
-	 * Returns reason why the restarting cannot be conducted.
-	 *
-	 * @return reason why the restarting cannot be conducted
-	 */
-	public Throwable getError() {
-		return error;
 	}
 
 	/**

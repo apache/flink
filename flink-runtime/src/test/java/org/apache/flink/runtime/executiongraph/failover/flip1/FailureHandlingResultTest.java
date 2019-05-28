@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -27,7 +28,6 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -43,13 +43,19 @@ public class FailureHandlingResultTest extends TestLogger {
 	public void testNormalFailureHandlingResult() {
 		// create a normal FailureHandlingResult
 		Set<ExecutionVertexID> tasks = new HashSet<>();
+		tasks.add(new ExecutionVertexID(new JobVertexID(), 0));
 		long delay = 1234;
 		FailureHandlingResult result = FailureHandlingResult.restartable(tasks, delay);
 
 		assertTrue(result.canRestart());
 		assertEquals(delay, result.getRestartDelayMS());
 		assertEquals(tasks, result.getVerticesToRestart());
-		assertNull(result.getError());
+		try {
+			result.getError();
+			fail("Cannot get error when the restarting is accepted");
+		} catch (IllegalStateException ex) {
+			// expected
+		}
 	}
 
 	/**

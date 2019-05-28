@@ -17,10 +17,13 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -59,7 +62,7 @@ public class ExecutionFailureHandler {
 	 * @return result of the failure handling
 	 */
 	public FailureHandlingResult getFailureHandlingResult(ExecutionVertexID failedTask, Throwable cause) {
-		if (ThrowableClassifier.getThrowableType(cause) == ThrowableType.NonRecoverableError) {
+		if (isUnrecoverableError(cause)) {
 			return FailureHandlingResult.unrecoverable(new JobException("The failure is not recoverable", cause));
 		}
 
@@ -72,5 +75,12 @@ public class ExecutionFailureHandler {
 			return FailureHandlingResult.unrecoverable(
 				new JobException("Failed task restarting is suppressed by " + restartBackoffTimeStrategy, cause));
 		}
+	}
+
+	@VisibleForTesting
+	static boolean isUnrecoverableError(Throwable cause) {
+		Optional<Throwable> unrecoverableError = ThrowableClassifier.findThrowableOfThrowableType(
+			cause, ThrowableType.NonRecoverableError);
+		return unrecoverableError.isPresent();
 	}
 }
