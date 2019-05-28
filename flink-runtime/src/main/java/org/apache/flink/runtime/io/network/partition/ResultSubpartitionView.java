@@ -60,4 +60,8 @@ public interface ResultSubpartitionView {
 	boolean nextBufferIsEvent();
 
 	boolean isAvailable();
+
+	default int unsafeGetSizeOfQueuedBuffer() {
+		return 0;
+	}
 }

@@ -280,6 +280,8 @@ public class SingleInputGate extends InputGate {
 				for (InputChannel channel : inputChannels.values()) {
 					if (channel instanceof RemoteInputChannel) {
 						totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
+					} else if (channel instanceof LocalInputChannel) {
+						totalBuffers += ((LocalInputChannel) channel).unSafeGetSizeOfQueuedBuffer();
 					}
 				}
 

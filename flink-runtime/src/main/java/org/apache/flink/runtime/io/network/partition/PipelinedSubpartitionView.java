@@ -91,6 +91,11 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
+	public int unsafeGetSizeOfQueuedBuffer() {
+		return parent.unsynchronizedGetNumberOfQueuedBuffers();
+	}
+
+	@Override
 	public String toString() {
 		return String.format("PipelinedSubpartitionView(index: %d) of ResultPartition %s",
 				parent.index,

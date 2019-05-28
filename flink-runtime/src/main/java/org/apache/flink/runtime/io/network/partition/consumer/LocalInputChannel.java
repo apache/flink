@@ -260,6 +260,18 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 	}
 
+	int unSafeGetSizeOfQueuedBuffer() {
+		if (subpartitionView != null) {
+			try {
+				return subpartitionView.unsafeGetSizeOfQueuedBuffer();
+			} catch (Exception ignore) {
+
+			}
+		}
+
+		return 0;
+	}
+
 	@Override
 	public String toString() {
 		return "LocalInputChannel [" + partitionId + "]";
