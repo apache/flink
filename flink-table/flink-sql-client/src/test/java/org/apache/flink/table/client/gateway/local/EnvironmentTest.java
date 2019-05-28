@@ -86,12 +86,12 @@ public class EnvironmentTest {
 		exception.expectMessage("Cannot create catalog 'catalog2' because a catalog with this name is already registered.");
 		Environment env = new Environment();
 		env.setCatalogs(Arrays.asList(
-			getCatalog("catalog1", "test"),
-			getCatalog("catalog2", "test"),
-			getCatalog("catalog2", "test")));
+			createCatalog("catalog1", "test"),
+			createCatalog("catalog2", "test"),
+			createCatalog("catalog2", "test")));
 	}
 
-	private static Map<String, Object> getCatalog(String name, String type) {
+	private static Map<String, Object> createCatalog(String name, String type) {
 		Map<String, Object> prop = new HashMap<>();
 
 		prop.put(CATALOG_NAME, name);
