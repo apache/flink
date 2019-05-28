@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -54,6 +58,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -64,6 +69,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -294,6 +300,82 @@ public class ExecutionTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that the partitions are released in case of an execution cancellation after the execution is already finished.
+	 */
+	@Test
+	public void testPartitionReleaseOnCancelingAfterBeingFinished() throws Exception {
+		testPartitionReleaseAfterFinished(Execution::cancel);
+	}
+
+	/**
+	 * Tests that the partitions are released in case of an execution suspension after the execution is already finished.
+	 */
+	@Test
+	public void testPartitionReleaseOnSuspendingAfterBeingFinished() throws Exception {
+		testPartitionReleaseAfterFinished(Execution::suspend);
+	}
+
+	private void testPartitionReleaseAfterFinished(Consumer<Execution> postFinishedExecutionAction) throws Exception {
+		final Tuple2<JobID, Collection<ResultPartitionID>> releasedPartitions = Tuple2.of(null, null);
+		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+		taskManagerGateway.setReleasePartitionsConsumer(releasedPartitions::setFields);
+
+		final JobVertex producerVertex = createNoOpJobVertex();
+		final JobVertex consumerVertex = createNoOpJobVertex();
+		consumerVertex.connectNewDataSetAsInput(producerVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+		final SimpleSlot slot = new SimpleSlot(
+			new SingleSlotTestingSlotOwner(),
+			new LocalTaskManagerLocation(),
+			0,
+			taskManagerGateway);
+
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
+		slotProvider.addSlot(producerVertex.getID(), 0, CompletableFuture.completedFuture(slot));
+
+		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
+			new JobID(),
+			slotProvider,
+			new NoRestartStrategy(),
+			producerVertex,
+			consumerVertex);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(producerVertex.getID());
+		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
+
+		final Execution execution = executionVertex.getCurrentExecutionAttempt();
+
+		execution.allocateResourcesForExecution(
+			slotProvider,
+			false,
+			LocationPreferenceConstraint.ALL,
+			Collections.emptySet(),
+			TestingUtils.infiniteTime());
+
+		execution.deploy();
+		execution.switchToRunning();
+
+		// simulate a case where a cancel/suspend call is too slow and the task is already finished
+		// in this case we have to explicitly release the finished partition
+		// if the task were canceled properly the TM would release the partition automatically
+		execution.markFinished();
+		postFinishedExecutionAction.accept(execution);
+
+		assertEquals(executionGraph.getJobID(), releasedPartitions.f0);
+		assertEquals(executionVertex.getProducedPartitions().size(), releasedPartitions.f1.size());
+		for (ResultPartitionID partitionId : releasedPartitions.f1) {
+			// ensure all IDs of released partitions are actually valid
+			IntermediateResultPartition intermediateResultPartition = executionVertex
+				.getProducedPartitions()
+				.get(partitionId.getPartitionId());
+			assertNotNull(intermediateResultPartition);
+			assertEquals(execution.getAttemptId(), partitionId.getProducerId());
+		}
+	}
+
+	/**
 	 * Tests that all preferred locations are calculated.
 	 */
 	@Test
@@ -417,7 +499,7 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
-		
+
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];

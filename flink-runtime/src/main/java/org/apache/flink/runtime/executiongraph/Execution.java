@@ -1329,7 +1329,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (!partitionIds.isEmpty()) {
 				// TODO For some tests this could be a problem when querying too early if all resources were released
-				taskManagerGateway.releasePartitions(partitionIds);
+				taskManagerGateway.releasePartitions(getVertex().getJobId(), partitionIds);
 			}
 		}
 	}
