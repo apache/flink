@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A TableSource to read Hive tables.
@@ -51,9 +52,7 @@ import java.util.Map;
 public class HiveTableSource implements BatchTableSource<BaseRow> {
 	private static Logger logger = LoggerFactory.getLogger(HiveTableSource.class);
 
-	//todo: make variable finally
 	private final TableSchema tableSchema;
-	private final String hiveRowTypeString;
 	private final JobConf jobConf;
 	private final String dbName;
 	private final String tableName;
@@ -62,13 +61,11 @@ public class HiveTableSource implements BatchTableSource<BaseRow> {
 	private List<HiveTablePartition> allPartitions;
 
 	public HiveTableSource(TableSchema tableSchema,
-						String hiveRowTypeString, // the string representations of original Hive types
 						JobConf jobConf,
 						String dbName,
 						String tableName,
 						String[] partitionColNames) {
 		this.tableSchema = tableSchema;
-		this.hiveRowTypeString = hiveRowTypeString;
 		this.jobConf = jobConf;
 		this.dbName = dbName;
 		this.tableName = tableName;
@@ -85,9 +82,9 @@ public class HiveTableSource implements BatchTableSource<BaseRow> {
 
 	@Override
 	public TypeInformation getReturnType() {
-		InternalType[] internalTypes = (InternalType[]) Arrays.asList(tableSchema.getFieldTypes()).stream()
+		InternalType[] internalTypes = Arrays.asList(tableSchema.getFieldTypes()).stream()
 											.map(t -> TypeConverters.createInternalTypeFromTypeInfo(t))
-											.toArray();
+											.collect(Collectors.toList()).toArray(new InternalType[0]);
 		return new BaseRowTypeInfo(internalTypes, tableSchema.getFieldNames());
 	}
 

@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
@@ -226,7 +227,12 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			int index = 0;
 			for (; index < fieldRefs.size(); index++) {
 				StructField fref = fieldRefs.get(index);
-				values[index] = HiveRecordSerDe.serializeField(oi.getStructFieldData(o, fref), fref.getFieldObjectInspector());
+				Object object = HiveRecordSerDe.serializeField(oi.getStructFieldData(o, fref), fref.getFieldObjectInspector());
+				if (object instanceof String) {
+					values[index] = BinaryString.fromString((String) object);
+				} else {
+					values[index] = object;
+				}
 			}
 			if (isPartitioned) {
 				for (String partition : partitionColNames){

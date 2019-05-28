@@ -289,7 +289,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param sink The [[TableSink]] to write the [[Table]] to.
     * @tparam T The data type that the [[TableSink]] expects.
     */
-  private[table] def writeToSink[T](
+  def writeToSink[T](
       table: Table,
       sink: TableSink[T],
       sinkName: String = null): Unit = {
