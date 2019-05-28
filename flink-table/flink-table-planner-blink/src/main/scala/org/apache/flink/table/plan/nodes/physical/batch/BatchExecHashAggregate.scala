@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig, TableConfigOptions}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
@@ -156,6 +156,10 @@ class BatchExecHashAggregate(
   }
 
   override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int = {
-    if (isFinal && grouping.length == 0) 1 else input.getParallelism
+    if (isFinal && grouping.length == 0) {
+      1
+    } else {
+      conf.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM)
+    }
   }
 }

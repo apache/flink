@@ -147,6 +147,6 @@ abstract class BatchExecHashWindowAggregateBase(
       getOperatorName,
       operator,
       outputType.toTypeInfo,
-      input.getParallelism)
+      tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 }

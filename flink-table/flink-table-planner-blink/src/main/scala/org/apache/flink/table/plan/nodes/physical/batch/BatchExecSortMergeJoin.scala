@@ -271,7 +271,7 @@ class BatchExecSortMergeJoin(
       getOperatorName,
       operator,
       FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo,
-      leftInput.getParallelism)
+      tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {
