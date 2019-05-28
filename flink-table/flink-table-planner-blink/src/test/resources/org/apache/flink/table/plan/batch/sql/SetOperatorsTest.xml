@@ -31,16 +31,14 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashAggregate(isMerge=[true], groupBy=[c], select=[c])
-+- Exchange(distribution=[hash[c]])
-   +- LocalHashAggregate(groupBy=[c], select=[c])
-      +- HashJoin(joinType=[LeftSemiJoin], where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], select=[c], build=[left])
-         :- Exchange(distribution=[hash[c]])
-         :  +- Calc(select=[c])
-         :     +- TableSourceScan(table=[[T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- Exchange(distribution=[hash[f]])
-            +- Calc(select=[f])
-               +- TableSourceScan(table=[[T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+HashAggregate(isMerge=[false], groupBy=[c], select=[c])
++- HashJoin(joinType=[LeftSemiJoin], where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], select=[c], build=[left])
+   :- Exchange(distribution=[hash[c]])
+   :  +- Calc(select=[c])
+   :     +- TableSourceScan(table=[[T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[f]])
+      +- Calc(select=[f])
+         +- TableSourceScan(table=[[T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -99,16 +97,14 @@ LogicalMinus(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashAggregate(isMerge=[true], groupBy=[c], select=[c])
-+- Exchange(distribution=[hash[c]])
-   +- LocalHashAggregate(groupBy=[c], select=[c])
-      +- HashJoin(joinType=[LeftAntiJoin], where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], select=[c], build=[left])
-         :- Exchange(distribution=[hash[c]])
-         :  +- Calc(select=[c])
-         :     +- TableSourceScan(table=[[T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- Exchange(distribution=[hash[f]])
-            +- Calc(select=[f])
-               +- TableSourceScan(table=[[T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+HashAggregate(isMerge=[false], groupBy=[c], select=[c])
++- HashJoin(joinType=[LeftAntiJoin], where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], select=[c], build=[left])
+   :- Exchange(distribution=[hash[c]])
+   :  +- Calc(select=[c])
+   :     +- TableSourceScan(table=[[T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[f]])
+      +- Calc(select=[f])
+         +- TableSourceScan(table=[[T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -171,13 +167,11 @@ LogicalMinus(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c])
-+- Exchange(distribution=[hash[a, b, c]])
-   +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
-      +- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, a0), AND(IS NULL(a), IS NULL(a0))), OR(=(b, b0), AND(IS NULL(b), IS NULL(b0))), OR(=(c, c0), AND(IS NULL(c), IS NULL(c0))))], select=[a, b, c], build=[left])
-         :- Exchange(distribution=[hash[a, b, c]], exchange_mode=[BATCH], reuse_id=[1])
-         :  +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- Reused(reference_id=[1])
+HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
++- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(=(a, a0), AND(IS NULL(a), IS NULL(a0))), OR(=(b, b0), AND(IS NULL(b), IS NULL(b0))), OR(=(c, c0), AND(IS NULL(c), IS NULL(c0))))], select=[a, b, c], build=[left])
+   :- Exchange(distribution=[hash[a, b, c]], exchange_mode=[BATCH], reuse_id=[1])
+   :  +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
