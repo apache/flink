@@ -112,8 +112,8 @@ execution:
     max-failures-per-interval: 10
     failure-rate-interval: 99000
     delay: 1000
-  current-catalog: catalog1
-  current-database: mydatabase
+  current-catalog: catalog2
+  current-database: test-default-database
 
 deployment:
   response-timeout: 5000
@@ -121,3 +121,6 @@ deployment:
 catalogs:
   - name: catalog1
     type: DependencyTest
+  - name: catalog2
+    type: DependencyTest
+    default-database: test-default-database

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 
@@ -35,6 +36,8 @@ public abstract class CatalogDescriptor extends DescriptorBase {
 
 	private final int propertyVersion;
 
+	private final String defaultDatabase;
+
 	/**
 	 * Constructs a {@link CatalogDescriptor}.
 	 *
@@ -42,8 +45,20 @@ public abstract class CatalogDescriptor extends DescriptorBase {
 	 * @param propertyVersion property version for backwards compatibility
 	 */
 	public CatalogDescriptor(String type, int propertyVersion) {
+		this(type, propertyVersion, null);
+	}
+
+	/**
+	 * Constructs a {@link CatalogDescriptor}.
+	 *
+	 * @param type string that identifies this catalog
+	 * @param propertyVersion property version for backwards compatibility
+	 * @param defaultDatabase default database of the catalog
+	 */
+	public CatalogDescriptor(String type, int propertyVersion, String defaultDatabase) {
 		this.type = type;
 		this.propertyVersion = propertyVersion;
+		this.defaultDatabase = defaultDatabase;
 	}
 
 	@Override
@@ -51,8 +66,17 @@ public abstract class CatalogDescriptor extends DescriptorBase {
 		final DescriptorProperties properties = new DescriptorProperties();
 		properties.putString(CATALOG_TYPE, type);
 		properties.putLong(CATALOG_PROPERTY_VERSION, propertyVersion);
+
+		if (defaultDatabase != null) {
+			properties.putString(CATALOG_DEFAULT_DATABASE, defaultDatabase);
+		}
+
 		properties.putProperties(toCatalogProperties());
 		return properties.asMap();
+	}
+
+	public String getDefaultDatabase() {
+		return defaultDatabase;
 	}
 
 	/**
