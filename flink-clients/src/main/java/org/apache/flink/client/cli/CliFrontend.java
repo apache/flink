@@ -786,7 +786,7 @@ public class CliFrontend {
 			entryPointClass = PythonDriver.class.getCanonicalName();
 		} else {
 			if (jarFilePath == null) {
-				throw new IllegalArgumentException("The program JAR file was not specified.");
+				throw new IllegalArgumentException("Java program should be specified a JAR file.");
 			}
 			jarFile = getJarFile(jarFilePath);
 			// Get assembler class

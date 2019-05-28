@@ -374,7 +374,7 @@ class TableEnvironment(object):
                 j_execution_env, table_config._j_table_config)
             t_env = BatchTableEnvironment(j_tenv)
 
-        if table_config.parallelism is not None:
+        if table_config.parallelism() is not None:
             t_env._j_tenv.execEnv().setParallelism(table_config.parallelism())
 
         return t_env

@@ -121,7 +121,7 @@ These examples about how to submit a job in CLI.
 
 -   Run Python Table program in detached mode:
 
-        ./bin/flink run -d examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+        ./bin/flink run -d -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
 
 -   Run Python Table program on a specific JobManager:
 

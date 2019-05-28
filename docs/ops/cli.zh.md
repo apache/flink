@@ -121,7 +121,7 @@ available.
 
 -   提交一个运行在detached模式下的Python Table的作业:
 
-        ./bin/flink run -d examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+        ./bin/flink run -d -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
 
 -   提交一个运行在指定JobManager上的Python Table的作业:
 

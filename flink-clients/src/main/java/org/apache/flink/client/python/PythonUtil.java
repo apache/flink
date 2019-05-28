@@ -96,7 +96,7 @@ public final class PythonUtil {
 
 		// 1. setup temporary local directory for the user files
 		String tmpDir = System.getProperty("java.io.tmpdir") +
-			File.separator + "pyflink" + UUID.randomUUID();
+			File.separator + "pyflink" + File.separator + UUID.randomUUID();
 
 		Path tmpDirPath = new Path(tmpDir);
 		try {
