@@ -34,8 +34,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.ssl.KeyStoreTestUtil;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
@@ -129,6 +132,7 @@ public abstract class YarnTestBase extends TestLogger {
 		// workaround for annoying InterruptedException logging:
 		// https://issues.apache.org/jira/browse/YARN-1022
 		"java.lang.InterruptedException",
+		"java.net.ConnectException: Connection refused",
 		// very specific on purpose
 		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
 		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
@@ -214,18 +218,33 @@ public abstract class YarnTestBase extends TestLogger {
 		conf.set("hadoop.security.auth_to_local", "RULE:[1:$1] RULE:[2:$1]");
 	}
 
-	public static void populateHDFSSecureConfigurations(Configuration conf, String principal, String keytab) {
+	public static void populateHDFSSecureConfigurations(Configuration conf, String principal, String keytab)
+		throws Exception {
 		if (principal != null && keytab != null) {
 			conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-			conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-			conf.set("dfs.namenode.kerberos.principal", principal);
-			conf.set("dfs.namenode.keytab.file", keytab);
-			conf.set("kerberos.principal", principal);
-			conf.set("kerberos.keytab", keytab);
+			conf.setBoolean(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, true);
+			conf.setBoolean(DFSConfigKeys.DFS_BLOCK_ACCESS_TOKEN_ENABLE_KEY, true);
 
-			conf.set("dfs.web.authentication.kerberos.principal", principal);
-			conf.set("dfs.web.authentication.kerberos.keytab", keytab);
-			conf.set("hadoop.security.auth_to_local", "RULE:[1:$1] RULE:[2:$1]");
+			conf.set(DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY, principal);
+			conf.set(DFSConfigKeys.DFS_NAMENODE_INTERNAL_SPNEGO_USER_NAME_KEY, principal);
+			conf.set(DFSConfigKeys.DFS_NAMENODE_KEYTAB_FILE_KEY, keytab);
+			conf.set(DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY, principal);
+			conf.set(DFSConfigKeys.DFS_DATANODE_KEYTAB_FILE_KEY, keytab);
+
+			conf.set(DFSConfigKeys.DFS_DATANODE_ADDRESS_KEY, "127.0.0.1:0");
+			conf.set(DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_KEY, "127.0.0.1:0");
+			conf.set(DFSConfigKeys.DFS_DATANODE_DATA_DIR_KEY, "700");
+
+			conf.set("dfs.data.transfer.protection", "authentication");
+			conf.set(DFSConfigKeys.DFS_HTTP_POLICY_KEY, HttpConfig.Policy.HTTPS_ONLY.name());
+			conf.set(DFSConfigKeys.DFS_ENCRYPT_DATA_TRANSFER_KEY, "true");
+
+			conf.set(DFSConfigKeys.DFS_WEB_AUTHENTICATION_KERBEROS_PRINCIPAL_KEY, principal);
+			conf.set(DFSConfigKeys.DFS_WEB_AUTHENTICATION_KERBEROS_KEYTAB_KEY, keytab);
+
+			String keyStoreDir = tmp.newFolder("keystore").getAbsolutePath();
+			String sslConfDir = KeyStoreTestUtil.getClasspathDir(YarnTestBase.class);
+			KeyStoreTestUtil.setupSSLConfig(keyStoreDir, sslConfDir, conf, false);
 		}
 	}
 
