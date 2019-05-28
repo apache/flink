@@ -52,6 +52,8 @@ public class ClassDataTypeConverterTest {
 
 				{Long.class, DataTypes.BIGINT().nullable().bridgedTo(Long.class)},
 
+				{java.sql.Time.class, DataTypes.TIME(0).nullable().bridgedTo(java.sql.Time.class)},
+
 				{BigDecimal.class, null},
 
 				{
