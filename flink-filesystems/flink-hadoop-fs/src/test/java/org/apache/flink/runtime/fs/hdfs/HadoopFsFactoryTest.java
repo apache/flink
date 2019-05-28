@@ -58,7 +58,7 @@ public class HadoopFsFactoryTest extends TestLogger {
 			fail("should have failed with an exception");
 		}
 		catch (IOException e) {
-			assertTrue(e.getMessage().contains("authority"));
+			assertTrue(e.getMessage().contains("Incomplete HDFS URI"));
 		}
 	}
 }
