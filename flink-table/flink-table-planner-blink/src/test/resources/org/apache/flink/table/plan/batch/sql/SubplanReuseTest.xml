@@ -1069,4 +1069,43 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, e, f, 
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuseWithDynamicFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalIntersect(all=[false])
+:  :- LogicalProject(random=[$0])
+:  :  +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:  :     +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:  :        +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+:  +- LogicalProject(random=[$0])
+:     +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:        +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:           +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(random=[$0])
+   +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+      +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random], build=[right])
+:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])
+:  +- Sort(orderBy=[random ASC])
+:     +- Exchange(distribution=[hash[random]])
+:        +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random], build=[right])
+:           :- Exchange(distribution=[any], exchange_mode=[BATCH])
+:           :  +- Calc(select=[random], reuse_id=[1])
+:           :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[true])
+:           :        +- Exchange(distribution=[single])
+:           :           +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[false])
+:           :              +- Calc(select=[a AS random, RAND() AS EXPR$1])
+:           :                 +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:           +- Exchange(distribution=[broadcast], reuse_id=[2])
+:              +- Reused(reference_id=[1])
++- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

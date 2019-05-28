@@ -29,7 +29,6 @@ class SortLimitTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
   util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
-  // TODO optimize `limit 0`
 
   @Test
   def testNonRangeSortWithoutOffset(): Unit = {

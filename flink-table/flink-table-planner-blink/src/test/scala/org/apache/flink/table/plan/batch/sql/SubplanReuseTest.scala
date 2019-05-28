@@ -368,8 +368,7 @@ class SubplanReuseTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[TableException])
-  // INTERSECT is not supported now
+  @Test
   def testSubplanReuseWithDynamicFunction(): Unit = {
     val sqlQuery = util.tableEnv.sqlQuery(
       """
