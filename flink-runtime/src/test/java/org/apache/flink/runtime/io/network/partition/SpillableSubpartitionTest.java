@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -30,7 +31,12 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
+import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -43,7 +49,9 @@ import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,10 +60,14 @@ import java.util.concurrent.Future;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.fillBufferBuilder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -159,6 +171,72 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// false test successes.
 		doneLatch.countDown();
 		blockingFinish.get();
+	}
+
+	/**
+	 * Tests a fix for FLINK-12544.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-12544">FLINK-12544</a>
+	 */
+	@Test
+	public void testConcurrentRequestAndReleaseMemory() throws Exception {
+		final ExecutorService executor = Executors.newSingleThreadExecutor();
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+		try {
+			final CountDownLatch blockLatch = new CountDownLatch(1);
+			final CountDownLatch doneLatch = new CountDownLatch(1);
+
+			final IOManager ioManager = new IOManagerAsyncWithCountDownLatch(blockLatch, doneLatch);
+			final ResultPartitionWithCountDownLatch partition = new ResultPartitionWithCountDownLatch(
+				"Test",
+				new NoOpTaskActions(),
+				new JobID(),
+				new ResultPartitionID(),
+				ResultPartitionType.BLOCKING,
+				1,
+				1,
+				new ResultPartitionManager(),
+				new NoOpResultPartitionConsumableNotifier(),
+				ioManager,
+				true,
+				doneLatch,
+				blockLatch);
+			final BufferPool bufferPool = networkBufferPool.createBufferPool(1, 1, Optional.of(partition));
+			partition.registerBufferPool(bufferPool);
+
+			final BufferBuilder firstBuffer = bufferPool.requestBufferBuilderBlocking();
+			partition.addBufferConsumer(firstBuffer.createBufferConsumer(), 0);
+			// Finishes the buffer consumer which could be recycled during SpillableSubpartition#releaseMemory
+			firstBuffer.finish();
+
+			Future<Void> future = executor.submit(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					//Occupies the lock in SpillableSubpartition#releaseMemory, trying to get the lock in LocalBufferPool#recycle
+					partition.releaseMemory(1);
+					return null;
+				}
+			});
+
+			final CompletableFuture<?> firstCallFuture = partition.getFirstCallFuture();
+			firstCallFuture.thenRun(() -> {
+				try {
+					// There are no available buffers in pool, so trigger release memory in SpillableSubpartition.
+					// Occupies the lock in LocalBufferPool, and trying to get the lock in SpillableSubpartition.
+					BufferBuilder secondBuffer = bufferPool.requestBufferBuilderBlocking();
+
+					assertThat(firstBuffer, is(equalTo(secondBuffer)));
+				} catch (IOException | InterruptedException ex) {
+					fail("Should not throw any exceptions!");
+				}
+			});
+
+			future.get();
+		} finally {
+			networkBufferPool.destroyAllBufferPools();
+			networkBufferPool.destroy();
+			executor.shutdown();
+		}
 	}
 
 	/**
@@ -797,4 +875,99 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		}
 	}
 
+	/**
+	 * An {@link IOManagerAsync} that releases the block lock and waits for the done lock from another thread
+	 * before calling {@link #createBufferFileWriter(FileIOChannel.ID)} method.
+	 */
+	private static class IOManagerAsyncWithCountDownLatch extends IOManagerAsync {
+
+		private final CountDownLatch blockLatch;
+		private final CountDownLatch doneLatch;
+
+		IOManagerAsyncWithCountDownLatch(CountDownLatch blockLatch, CountDownLatch doneLatch) {
+			this.blockLatch = Preconditions.checkNotNull(blockLatch);
+			this.doneLatch = Preconditions.checkNotNull(doneLatch);
+		}
+
+		@Override
+		public BufferFileWriter createBufferFileWriter(FileIOChannel.ID channelID) throws IOException {
+			blockLatch.countDown();
+			try {
+				doneLatch.await();
+			} catch (InterruptedException e) {
+				throw new IOException("Blocking operation was interrupted.", e);
+			}
+
+			return super.createBufferFileWriter(channelID);
+		}
+	}
+
+	/**
+	 * An {@link ResultPartition} that is involved in the lock control with another thread
+	 * before calling {@link ResultSubpartition#releaseMemory()} method.
+	 */
+	private static class ResultPartitionWithCountDownLatch extends ResultPartition {
+
+		private final CountDownLatch blockLatch;
+		private final CountDownLatch doneLatch;
+
+		private final CountDownLatch firstCallLatch = new CountDownLatch(1);
+		private final CompletableFuture<?> firstCallFuture = new CompletableFuture<>();
+
+		ResultPartitionWithCountDownLatch(
+				String owningTaskName,
+				TaskActions taskActions,
+				JobID jobId,
+				ResultPartitionID partitionId,
+				ResultPartitionType partitionType,
+				int numberOfSubpartitions,
+				int numTargetKeyGroups,
+				ResultPartitionManager partitionManager,
+				ResultPartitionConsumableNotifier partitionConsumableNotifier,
+				IOManager ioManager,
+				boolean sendScheduleOrUpdateConsumersMessage,
+				CountDownLatch blockLatch,
+				CountDownLatch doneLatch) {
+			super(
+				owningTaskName,
+				taskActions,
+				jobId,
+				partitionId,
+				partitionType,
+				numberOfSubpartitions,
+				numTargetKeyGroups,
+				partitionManager,
+				partitionConsumableNotifier,
+				ioManager,
+				sendScheduleOrUpdateConsumersMessage);
+			this.blockLatch = Preconditions.checkNotNull(blockLatch);
+			this.doneLatch = Preconditions.checkNotNull(doneLatch);
+		}
+
+		/**
+		 * This method would be triggered by both {@link SpillableSubpartition#releaseMemory()} and
+		 * {@link BufferProvider#requestBufferBuilderBlocking()}. We should make the request happen
+		 * after the release via checking firstCallFuture.
+		 */
+		@Override
+		public void releaseMemory(int toRelease) throws IOException {
+			if (firstCallLatch.getCount() > 0) {
+				firstCallLatch.countDown();
+				firstCallFuture.complete(null);
+			} else {
+				blockLatch.countDown();
+				try {
+					doneLatch.await();
+				} catch (InterruptedException e) {
+					throw new IOException("Blocking operation was interrupted.", e);
+				}
+			}
+
+			super.releaseMemory(toRelease);
+		}
+
+		private CompletableFuture<?> getFirstCallFuture() {
+			return firstCallFuture;
+		}
+	}
 }

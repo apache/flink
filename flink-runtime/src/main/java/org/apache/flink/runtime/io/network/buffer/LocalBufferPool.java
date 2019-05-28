@@ -233,30 +233,20 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	private MemorySegment requestMemorySegment(boolean isBlocking) throws InterruptedException, IOException {
-		synchronized (availableMemorySegments) {
-			returnExcessMemorySegments();
+		returnExcessMemorySegments();
 
-			boolean askToRecycle = owner.isPresent();
+		// fill availableMemorySegments with at least one element, wait if required
+		while (true) {
+			Optional<MemorySegment> segment = internalRequestMemorySegment();
+			if (segment.isPresent()) {
+				return segment.get();
+			}
 
-			// fill availableMemorySegments with at least one element, wait if required
-			while (availableMemorySegments.isEmpty()) {
-				if (isDestroyed) {
-					throw new IllegalStateException("Buffer pool is destroyed.");
-				}
+			if (owner.isPresent()) {
+				owner.get().releaseMemory(1);
+			}
 
-				if (numberOfRequestedMemorySegments < currentPoolSize) {
-					final MemorySegment segment = networkBufferPool.requestMemorySegment();
-
-					if (segment != null) {
-						numberOfRequestedMemorySegments++;
-						return segment;
-					}
-				}
-
-				if (askToRecycle) {
-					owner.get().releaseMemory(1);
-				}
-
+			synchronized (availableMemorySegments) {
 				if (isBlocking) {
 					availableMemorySegments.wait(2000);
 				}
@@ -264,8 +254,28 @@ class LocalBufferPool implements BufferPool {
 					return null;
 				}
 			}
+		}
+	}
 
-			return availableMemorySegments.poll();
+	private Optional<MemorySegment> internalRequestMemorySegment() {
+		synchronized (availableMemorySegments) {
+			if (availableMemorySegments.isEmpty()) {
+				if (isDestroyed) {
+					throw new IllegalStateException("Buffer pool is destroyed.");
+				}
+
+				if (numberOfRequestedMemorySegments < currentPoolSize) {
+					final MemorySegment segment = networkBufferPool.requestMemorySegment();
+					if (segment != null) {
+						numberOfRequestedMemorySegments++;
+						return Optional.of(segment);
+					}
+				}
+			} else {
+				return Optional.of(availableMemorySegments.poll());
+			}
+
+			return Optional.empty();
 		}
 	}
 
@@ -396,15 +406,15 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	private void returnExcessMemorySegments() {
-		assert Thread.holdsLock(availableMemorySegments);
+		synchronized (availableMemorySegments) {
+			while (numberOfRequestedMemorySegments > currentPoolSize) {
+				MemorySegment segment = availableMemorySegments.poll();
+				if (segment == null) {
+					return;
+				}
 
-		while (numberOfRequestedMemorySegments > currentPoolSize) {
-			MemorySegment segment = availableMemorySegments.poll();
-			if (segment == null) {
-				return;
+				returnMemorySegment(segment);
 			}
-
-			returnMemorySegment(segment);
 		}
 	}
 }
