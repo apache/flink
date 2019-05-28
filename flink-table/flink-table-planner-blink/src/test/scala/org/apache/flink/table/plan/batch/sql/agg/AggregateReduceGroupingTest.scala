@@ -19,12 +19,6 @@ package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.table.plan.common.AggregateReduceGroupingTestBase
 
-import org.junit.Before
-
 class AggregateReduceGroupingTest extends AggregateReduceGroupingTestBase {
 
-  @Before
-  override def setup(): Unit = {
-    super.setup()
-  }
 }
