@@ -103,9 +103,10 @@ public interface TaskExecutorGateway extends RpcGateway {
 	/**
 	 * Batch release intermediate result partitions.
 	 *
+	 * @param jobId id of the job that the partitions belong to
 	 * @param partitionIds partition ids to release
 	 */
-	void releasePartitions(Collection<ResultPartitionID> partitionIds);
+	void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID
