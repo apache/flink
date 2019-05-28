@@ -41,7 +41,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.junit.Assert.assertEquals;
 
@@ -125,6 +127,7 @@ public class DependencyTest {
 		public List<String> supportedProperties() {
 			final List<String> properties = new ArrayList<>();
 			properties.add(TEST_PROPERTY);
+			properties.add(CATALOG_DEFAULT_DATABASE);
 			return properties;
 		}
 
@@ -132,7 +135,14 @@ public class DependencyTest {
 		public Catalog createCatalog(String name, Map<String, String> properties) {
 			final DescriptorProperties params = new DescriptorProperties(true);
 			params.putProperties(properties);
-			return new TestCatalog(name);
+
+			final Optional<String> defaultDatabase = params.getOptionalString(CATALOG_DEFAULT_DATABASE);
+
+			if (defaultDatabase.isPresent()) {
+				return new TestCatalog(name, defaultDatabase.get());
+			} else {
+				return new TestCatalog(name);
+			}
 		}
 	}
 
@@ -141,10 +151,12 @@ public class DependencyTest {
 	 */
 	public static class TestCatalog extends GenericInMemoryCatalog {
 
-		private static final String TEST_DATABASE_NAME = "mydatabase";
-
 		public TestCatalog(String name) {
-			super(name, TEST_DATABASE_NAME);
+			super(name);
+		}
+
+		public TestCatalog(String name, String defaultDatabase) {
+			super(name, defaultDatabase);
 		}
 	}
 }
