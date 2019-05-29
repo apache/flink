@@ -188,6 +188,14 @@ object FlinkStreamProgram {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkStreamRuleSets.RETRACTION_RULES)
             .build(), "retraction rules")
+        .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,
+          "Initialization for mini-batch interval inference")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+            .add(FlinkStreamRuleSets.MINI_BATCH_RULES)
+            .build(), "mini-batch interval rules")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)

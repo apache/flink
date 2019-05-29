@@ -62,7 +62,6 @@ class AggregateTest extends TableTestBase {
   def testAggWithMiniBatch(): Unit = {
     util.tableEnv.getConfig.getConf.setLong(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-    // TODO supports MiniBatch
     util.verifyPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
   }
 
@@ -70,7 +69,6 @@ class AggregateTest extends TableTestBase {
   def testAggAfterUnionWithMiniBatch(): Unit = {
     util.tableEnv.getConfig.getConf.setLong(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-    // TODO supports MiniBatch
     val query =
       """
         |SELECT a, sum(b), count(distinct c)

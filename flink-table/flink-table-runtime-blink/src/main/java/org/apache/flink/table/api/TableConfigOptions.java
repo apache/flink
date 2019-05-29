@@ -38,6 +38,14 @@ public class TableConfigOptions {
 					.withDescription("Whether support values source input. The reason for disabling this " +
 									"feature is that checkpoint will not work properly when source finished.");
 
+	public static final ConfigOption<Long> SQL_EXEC_SOURCE_IDLE_TIMEOUT =
+			key("sql.exec.source.idle.timeout.ms")
+					.defaultValue(-1L)
+					.withDescription("When a source do not receive any elements for the timeout time, " +
+							"it will be marked as temporarily idle. This allows downstream " +
+							"tasks to advance their watermarks without the need to wait for " +
+							"watermarks from this source while it is idle.");
+
 	// ------------------------------------------------------------------------
 	//  Sort Options
 	// ------------------------------------------------------------------------

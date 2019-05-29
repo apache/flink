@@ -341,6 +341,7 @@ object FlinkStreamRuleSets {
     StreamExecDataStreamScanRule.INSTANCE,
     StreamExecTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
+    StreamExecWatermarkAssignerRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
     // calc
     StreamExecCalcRule.INSTANCE,
@@ -382,6 +383,14 @@ object FlinkStreamRuleSets {
     StreamExecRetractionRules.DEFAULT_RETRACTION_INSTANCE,
     StreamExecRetractionRules.UPDATES_AS_RETRACTION_INSTANCE,
     StreamExecRetractionRules.ACCMODE_INSTANCE
+  )
+
+  /**
+    * RuleSet related to watermark assignment.
+    */
+  val MINI_BATCH_RULES: RuleSet = RuleSets.ofList(
+    // watermark interval infer rule
+    MiniBatchIntervalInferRule.INSTANCE
   )
 
   /**

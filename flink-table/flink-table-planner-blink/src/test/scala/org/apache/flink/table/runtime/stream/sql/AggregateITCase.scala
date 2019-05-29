@@ -558,6 +558,35 @@ class AggregateITCase(
   }
 
   @Test
+  def testWindowWithUnboundedAgg(): Unit = {
+    val t = failingDataSource(TestData.tupleData5).assignAscendingTimestamps(x => x._2)
+        .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'rowtime)
+    tEnv.registerTable("MyTable", t)
+
+    val innerSql =
+      """
+        |SELECT a,
+        |   SUM(DISTINCT e) b,
+        |   MIN(DISTINCT e) c,
+        |   COUNT(DISTINCT e) d
+        |FROM MyTable
+        |GROUP BY a, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+      """.stripMargin
+
+    val sqlQuery = "SELECT c, MAX(a), COUNT(DISTINCT d) FROM (" + innerSql + ") GROUP BY c"
+
+    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink
+    results.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,5,3",
+      "2,5,2")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testConcatAggWithNullData(): Unit = {
     val dataWithNull = List(
       (1, 1, null),

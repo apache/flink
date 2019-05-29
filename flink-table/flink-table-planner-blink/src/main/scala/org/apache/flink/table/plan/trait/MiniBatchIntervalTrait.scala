@@ -56,8 +56,8 @@ class MiniBatchIntervalTrait(miniBatchInterval: MiniBatchInterval) extends RelTr
 }
 
 /**
-  * @param interval interval of minibatch
-  * @param mode type of minibatch: rowtime/proctime
+  * @param interval interval of mini-batch
+  * @param mode type of mini-batch: rowtime/proctime
   */
 case class MiniBatchInterval(interval: Long, mode: MiniBatchMode)
 

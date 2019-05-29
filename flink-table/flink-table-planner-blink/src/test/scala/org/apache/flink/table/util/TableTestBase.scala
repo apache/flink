@@ -32,7 +32,8 @@ import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.RichTableSourceQueryOperation
+import org.apache.flink.table.operations.{PlannerQueryOperation, RichTableSourceQueryOperation}
+import org.apache.flink.table.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -529,6 +530,36 @@ case class StreamTableTestUtil(
     val table = env.fromElements[T]().toTable(tableEnv, fields: _*)
     tableEnv.registerTable(name, table)
     tableEnv.scan(name)
+  }
+
+  /**
+    * Register a table with specific row time field and offset.
+    *
+    * @param tableName table name
+    * @param sourceTable table to register
+    * @param rowtimeField row time field
+    * @param offset offset to the row time field value
+    */
+  def addTableWithWatermark(
+      tableName: String,
+      sourceTable: Table,
+      rowtimeField: String,
+      offset: Long): Unit = {
+    val sourceRel = TableTestUtil.toRelNode(sourceTable)
+    val rowtimeFieldIndex = if (sourceTable.getSchema.getFieldNames.contains(rowtimeField)) {
+      Some(sourceTable.getSchema.getFieldNames.indexOf(rowtimeField))
+    } else {
+      None
+    }
+    val watermarkAssigner = new LogicalWatermarkAssigner(
+      sourceRel.getCluster,
+      sourceRel.getTraitSet,
+      sourceRel,
+      rowtimeFieldIndex,
+      Option(offset)
+    )
+    val queryOperation = new PlannerQueryOperation(watermarkAssigner)
+    tableEnv.registerTable(tableName, new TableImpl(tableEnv, queryOperation))
   }
 
   def verifyPlanWithTrait(): Unit = {
