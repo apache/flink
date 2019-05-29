@@ -18,22 +18,15 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
@@ -50,16 +43,17 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link DefaultExecutionSlotAllocator}.
@@ -70,7 +64,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 	private TestingSlotProvider slotProvider;
 
-	private ExecutionGraph executionGraph;
+	private TestingInputsLocationsRetriever testingInputsLocationsRetriever;
 
 	private List<ExecutionVertexSchedulingRequirements> schedulingRequirements;
 
@@ -86,9 +80,9 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		executionGraph = createSimpleProducerConsumerGraph();
+		testingInputsLocationsRetriever = createSimpleInputsLocationsRetriever();
 
-		executionVerticesNum = executionGraph.getTotalNumberOfVertices();
+		executionVerticesNum = testingInputsLocationsRetriever.getTotalNumberOfVertices();
 		receivedSlotRequestIds = new ArrayList<>(executionVerticesNum);
 		cancelledSlotRequestIds = new ArrayList<>(executionVerticesNum);
 		slotFutures = new ArrayDeque<>(executionVerticesNum);
@@ -99,14 +93,16 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		});
 		slotProvider.setSlotCanceller(slotRequestId -> cancelledSlotRequestIds.add(slotRequestId));
 
-		executionSlotAllocator = new DefaultExecutionSlotAllocator(slotProvider, executionGraph);
+		executionSlotAllocator = new DefaultExecutionSlotAllocator(
+				slotProvider,
+				testingInputsLocationsRetriever,
+				Time.seconds(10),
+				true);
 
 		schedulingRequirements = new ArrayList<>(executionVerticesNum);
 		executionVertexIds = new ArrayList<>(executionVerticesNum);
 
-		for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
-			ExecutionVertexID executionVertexId =
-					new ExecutionVertexID(executionVertex.getJobvertexId(), executionVertex.getParallelSubtaskIndex());
+		for (ExecutionVertexID executionVertexId : testingInputsLocationsRetriever.getAllExecutionVertices()) {
 			schedulingRequirements.add(new ExecutionVertexSchedulingRequirements(
 					executionVertexId,
 					null,
@@ -234,79 +230,100 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 */
 	@Test
 	public void testGetPreferredLocationsBasedOnInputs() throws Exception {
-		TestingSlotProvider testingSlotProvider = new TestingSlotProvider((slotRequestId) -> new CompletableFuture<>());
-
 		JobVertex producer1 = new JobVertex("producer1");
 		producer1.setInvokableClass(NoOpInvokable.class);
 		producer1.setParallelism(10);
 
 		JobVertex producer2 = new JobVertex("producer2");
 		producer2.setInvokableClass(NoOpInvokable.class);
-		producer2.setParallelism(5);
+		producer2.setParallelism(10);
 
 		JobVertex producer3 = new JobVertex("producer3");
 		producer3.setInvokableClass(NoOpInvokable.class);
-		producer3.setParallelism(3);
+		producer3.setParallelism(10);
 
-		JobVertex consumer = new JobVertex("consumer");
-		consumer.setInvokableClass(NoOpInvokable.class);
-		consumer.setParallelism(1);
+		JobVertex producer4 = new JobVertex("producer4");
+		producer4.setInvokableClass(NoOpInvokable.class);
+		producer4.setParallelism(5);
 
-		consumer.connectNewDataSetAsInput(producer1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-		consumer.connectNewDataSetAsInput(producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-		consumer.connectNewDataSetAsInput(producer3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-		ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), producer1, producer2, producer3, consumer);
+		JobVertex producer5 = new JobVertex("producer5");
+		producer5.setInvokableClass(NoOpInvokable.class);
+		producer5.setParallelism(3);
 
-		Set<ExecutionVertexID> executionVertexIds = new HashSet<>(eg.getTotalNumberOfVertices());
-		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
-			executionVertexIds.add(new ExecutionVertexID(ev.getJobvertexId(), ev.getParallelSubtaskIndex()));
-		}
-		Execution execution = eg.getJobVertex(consumer.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
+		JobVertex consumer1 = new JobVertex("consumer1");
+		consumer1.setInvokableClass(NoOpInvokable.class);
+		consumer1.setParallelism(1);
 
-		// all producers have not been started.
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations1 =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(execution, Collections.emptySet());
-		assertThat(preferredLocations1, hasSize(0));
+		JobVertex consumer2 = new JobVertex("consumer2");
+		consumer2.setInvokableClass(NoOpInvokable.class);
+		consumer2.setParallelism(5);
 
-		// all producers scheduled together, will use the locations of the inputs whose parallelism is smallest.
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations2 =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(execution, executionVertexIds);
-		assertThat(preferredLocations2, hasSize(3));
+		consumer1.connectNewDataSetAsInput(producer1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		consumer1.connectNewDataSetAsInput(producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		consumer1.connectNewDataSetAsInput(producer3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		consumer1.connectNewDataSetAsInput(producer4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		consumer1.connectNewDataSetAsInput(producer5, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		consumer2.connectNewDataSetAsInput(producer1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		for (ExecutionVertex ev : eg.getJobVertex(producer1.getID()).getTaskVertices()) {
-			ev.scheduleForExecution(testingSlotProvider, true, LocationPreferenceConstraint.ALL, Collections.EMPTY_SET);
-		}
+		TestingInputsLocationsRetriever locationsRetriever = new TestingInputsLocationsRetriever(
+				producer1, producer2, producer3, producer4, producer5, consumer1, consumer2);
 
-		// if source have too many different locations, it will be ignored
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations3 =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(execution, Collections.EMPTY_SET);
-		assertThat(preferredLocations3, hasSize(0));
-
-		List<TaskManagerLocation> locationsForProducer2 = new ArrayList<>(producer2.getParallelism());
-		for (ExecutionVertex ev : eg.getJobVertex(producer2.getID()).getTaskVertices()) {
-			ev.scheduleForExecution(testingSlotProvider, true, LocationPreferenceConstraint.ALL, Collections.EMPTY_SET);
+		// The first upstream has more than 10 different locations
+		List<TaskManagerLocation> locationsOfProducer1 = new ArrayList<>(producer1.getParallelism());
+		for (int i = 0 ; i < producer1.getParallelism(); i++) {
 			TaskManagerLocation location = new LocalTaskManagerLocation();
-			ev.getCurrentTaskManagerLocationFuture().complete(location);
-			locationsForProducer2.add(location);
+			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer1.getID(), i))
+					.ifPresent((locationFuture -> locationFuture.complete(location)));
+			locationsOfProducer1.add(location);
 		}
 
-		// use the locations of input that have been stated
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations4 =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(execution, Collections.EMPTY_SET);
-		assertThat(FutureUtils.combineAll(preferredLocations4).getNow(null), containsInAnyOrder(locationsForProducer2.toArray()));
-
-		List<TaskManagerLocation> locationsForProducer3 = new ArrayList<>(producer3.getParallelism());
-		for (ExecutionVertex ev : eg.getJobVertex(producer3.getID()).getTaskVertices()) {
-			ev.scheduleForExecution(testingSlotProvider, true, LocationPreferenceConstraint.ALL, Collections.EMPTY_SET);
-			TaskManagerLocation location = new LocalTaskManagerLocation();
-			ev.getCurrentTaskManagerLocationFuture().complete(location);
-			locationsForProducer3.add(location);
+		// The second upstream has 1 different locations with 7 uncompleted
+		TaskManagerLocation location = new LocalTaskManagerLocation();
+		for (int i = 0 ; i < 3; i++) {
+			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer2.getID(), i))
+					.ifPresent((locationFuture -> locationFuture.complete(location)));
 		}
 
-		// use the locations of input whose parallelism is smaller
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations5 =
-				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(execution, Collections.EMPTY_SET);
-		assertThat(FutureUtils.combineAll(preferredLocations5).getNow(null), containsInAnyOrder(locationsForProducer3.toArray()));
+		// The third upstream has 1 location with 9 uncompleted
+		locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer3.getID(), 0))
+					.ifPresent((locationFuture -> locationFuture.complete(new LocalTaskManagerLocation())));
+
+		// The fourth upstream has 3 different locations
+		for (int i = 0 ; i < producer4.getParallelism(); i++) {
+			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer4.getID(), i))
+					.ifPresent((locationFuture -> locationFuture.complete(new LocalTaskManagerLocation())));
+		}
+
+		// Locations of producer2 and producer5 have not been all fulfilled.
+		ExecutionVertexID idOfConsumer1 = new ExecutionVertexID(consumer1.getID(), 0);
+		CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsOfConsumer1 =
+				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(idOfConsumer1, locationsRetriever);
+		assertFalse(preferredLocationsOfConsumer1.isDone());
+
+		// Locations of producer5 have not been all fulfilled.
+		for (int i = 3; i < producer2.getParallelism(); i++) {
+			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer2.getID(), i))
+					.ifPresent((locationFuture -> locationFuture.complete(location)));
+		}
+		assertFalse(preferredLocationsOfConsumer1.isDone());
+
+		for (int i = 0 ; i < producer5.getParallelism(); i++) {
+			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer5.getID(), i))
+					.ifPresent((locationFuture -> locationFuture.complete(new LocalTaskManagerLocation())));
+		}
+		// All locations of producers are fulfilled.
+		assertTrue(preferredLocationsOfConsumer1.isDone());
+		assertThat(preferredLocationsOfConsumer1.get(), contains(location));
+
+		for (int i = 0; i < consumer2.getParallelism(); i++) {
+			ExecutionVertexID idOfConsumer2 = new ExecutionVertexID(consumer2.getID(), i);
+			CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsOfConsumer2 =
+					DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(idOfConsumer2, locationsRetriever);
+
+			assertTrue(preferredLocationsOfConsumer2.isDone());
+			assertThat(preferredLocationsOfConsumer2.get(),
+					containsInAnyOrder(locationsOfProducer1.subList(2 * i, 2 * i + 2).toArray()));
+		}
 	}
 
 	private void completeProducerSlotRequest(List<CompletableFuture<LogicalSlot>> totalSlotFutures) {
@@ -314,13 +331,18 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		for (int i = 0; i < executionVerticesNum / 2; i++) {
 			LogicalSlot slot = new TestingLogicalSlot();
 			totalSlotFutures.get(i).complete(slot);
-			ExecutionJobVertex ejv = executionGraph.getJobVertex(executionVertexIds.get(i).getJobVertexId());
-			Execution execution = ejv.getTaskVertices()[executionVertexIds.get(i).getSubtaskIndex()].getCurrentExecutionAttempt();
-			execution.getTaskManagerLocationFuture().complete(slot.getTaskManagerLocation());
+
+		}
+		for (ExecutionVertexID executionVertexId : testingInputsLocationsRetriever.getAllExecutionVertices()) {
+			if (testingInputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId).isEmpty()) {
+				testingInputsLocationsRetriever.getTaskManagerLocation(executionVertexId).ifPresent(
+						(taskManagerLocationFuture) -> taskManagerLocationFuture.complete(new LocalTaskManagerLocation()));
+
+			}
 		}
 	}
 
-	static ExecutionGraph createSimpleProducerConsumerGraph() throws Exception {
+	static TestingInputsLocationsRetriever createSimpleInputsLocationsRetriever() {
 		int parallelism = 3;
 
 		JobVertex producer = new JobVertex("producer");
@@ -333,6 +355,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 		consumer.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		return ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), producer, consumer);
+		return new TestingInputsLocationsRetriever(producer, consumer);
 	}
 }

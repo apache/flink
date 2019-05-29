@@ -19,15 +19,10 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -48,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -69,11 +65,21 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 	private final SlotProvider slotProvider;
 
-	private final ExecutionGraph executionGraph;
+	private final InputsLocationsRetriever inputsLocationsRetriever;
 
-	public DefaultExecutionSlotAllocator(SlotProvider slotProvider, ExecutionGraph executionGraph) {
+	private final Time allocationTimeout;
+
+	private final Boolean isQueuedSchedulingAllowed;
+
+	public DefaultExecutionSlotAllocator(
+			SlotProvider slotProvider,
+			InputsLocationsRetriever inputsLocationsRetriever,
+			Time allocationTimeout,
+			boolean isQueuedSchedulingAllowed) {
 		this.slotProvider = checkNotNull(slotProvider);
-		this.executionGraph = checkNotNull(executionGraph);
+		this.inputsLocationsRetriever = checkNotNull(inputsLocationsRetriever);
+		this.allocationTimeout = checkNotNull(allocationTimeout);
+		this.isQueuedSchedulingAllowed = isQueuedSchedulingAllowed;
 
 		pendingSlotAssignments = new HashMap<>();
 	}
@@ -88,46 +94,36 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 		Set<AllocationID> allPreviousAllocationIds =
 				computeAllPriorAllocationIdsIfRequiredByScheduling(executionVertexSchedulingRequirements);
 
-		Set<ExecutionVertexID> verticesScheduledTogether = getAllExecutionVerticesId(executionVertexSchedulingRequirements);
-
 		for (ExecutionVertexSchedulingRequirements schedulingRequirements : executionVertexSchedulingRequirements) {
 			final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
 			final SlotRequestId slotRequestId = new SlotRequestId();
 			final SlotSharingGroupId slotSharingGroupId = schedulingRequirements.getSlotSharingGroupId();
 
-			Execution execution = null;
-			ExecutionJobVertex ejv = executionGraph.getJobVertex(executionVertexId.getJobVertexId());
-			if (ejv != null && ejv.getParallelism() > executionVertexId.getSubtaskIndex()) {
-				execution = ejv.getTaskVertices()[executionVertexId.getSubtaskIndex()].getCurrentExecutionAttempt();
-
-			}
-			if (execution == null) {
-				throw new IllegalArgumentException("Fail to get execution for vertex id " + executionVertexId);
-			}
-
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
 			}
 
-			// TODO: the calculation of preferred location should be refined so we can use the preferredLocations
+			// TODO: the calculation of preferred location should be refined.
 			// in ExecutionVertexSchedulingRequirements instead of calculating it here
-			CompletableFuture<LogicalSlot> slotFuture =
-					calculatePreferredLocations(execution, verticesScheduledTogether).thenCompose(
+			CompletableFuture<LogicalSlot> slotFuture = calculatePreferredLocations(
+					executionVertexId,
+					schedulingRequirements.getPreferredLocations(),
+					inputsLocationsRetriever).thenCompose(
 							(Collection<TaskManagerLocation> preferredLocations) ->
-								slotProvider.allocateSlot(
-									slotRequestId,
-									new ScheduledUnit(
-											null,
-											executionVertexId.getJobVertexId(),
-											slotSharingGroupId,
-											schedulingRequirements.getCoLocationConstraint()),
-									new SlotProfile(
-											schedulingRequirements.getResourceProfile(),
-											preferredLocations,
-											Arrays.asList(schedulingRequirements.getPreviousAllocationId()),
-											allPreviousAllocationIds),
-									executionGraph.isQueuedSchedulingAllowed(),
-									executionGraph.getAllocationTimeout()));
+									slotProvider.allocateSlot(
+											slotRequestId,
+											new ScheduledUnit(
+													null,
+													executionVertexId.getJobVertexId(),
+													slotSharingGroupId,
+													schedulingRequirements.getCoLocationConstraint()),
+											new SlotProfile(
+													schedulingRequirements.getResourceProfile(),
+													preferredLocations,
+													Arrays.asList(schedulingRequirements.getPreviousAllocationId()),
+													allPreviousAllocationIds),
+											isQueuedSchedulingAllowed,
+											allocationTimeout));
 
 			SlotExecutionVertexAssignment slotExecutionVertexAssignment =
 					new SlotExecutionVertexAssignment(executionVertexId, slotFuture);
@@ -164,31 +160,21 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 		return CompletableFuture.completedFuture(null);
 	}
 
-	private static Set<ExecutionVertexID> getAllExecutionVerticesId(
-			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
-		Set<ExecutionVertexID> executionVertexIds = new HashSet<>(executionVertexSchedulingRequirements.size());
-		for (ExecutionVertexSchedulingRequirements schedulingRequirements : executionVertexSchedulingRequirements) {
-			executionVertexIds.add(schedulingRequirements.getExecutionVertexId());
-		}
-		return executionVertexIds;
-	}
-
 	/**
 	 * Calculates the preferred locations for an execution.
 	 * It will first try to use preferred locations based on state,
 	 * if null, will use the preferred locations based on inputs.
 	 */
 	private static CompletableFuture<Collection<TaskManagerLocation>> calculatePreferredLocations(
-			Execution execution,
-			Collection<ExecutionVertexID> verticesScheduledTogether) {
+			ExecutionVertexID executionVertexId,
+			Collection<TaskManagerLocation> preferredLocationsBasedOnState,
+			InputsLocationsRetriever inputsLocationsRetriever) {
 
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations =
-				execution.getVertex().getPreferredLocationsBasedOnState();
-
-		if (preferredLocations == null) {
-			preferredLocations = getPreferredLocationsBasedOnInputs(execution, verticesScheduledTogether);
+		if (preferredLocationsBasedOnState != null && !preferredLocationsBasedOnState.isEmpty()) {
+			return CompletableFuture.completedFuture(preferredLocationsBasedOnState);
 		}
-		return FutureUtils.combineAll(preferredLocations);
+
+		return getPreferredLocationsBasedOnInputs(executionVertexId, inputsLocationsRetriever);
 	}
 
 	/**
@@ -202,35 +188,74 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	 *         if there is no input-based preference.
 	 */
 	@VisibleForTesting
-	static Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnInputs(
-			Execution execution,
-			Collection<ExecutionVertexID> verticesScheduledTogether) {
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocations = new HashSet<>();
+	static CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocationsBasedOnInputs(
+			ExecutionVertexID executionVertexId,
+			InputsLocationsRetriever inputsLocationsRetriever) {
+		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations = null;
 
-		Set<CompletableFuture<TaskManagerLocation>> inputLocations = new HashSet<>();
-		for (int i = 0; i < execution.getVertex().getNumberOfInputs(); i++) {
-			ExecutionEdge[] inputEdges = execution.getVertex().getInputEdges(i);
-			if (inputEdges.length <= MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-				for (ExecutionEdge inputEdge : inputEdges) {
-					ExecutionVertex producer = inputEdge.getSource().getProducer();
-					if (verticesScheduledTogether.contains(
-							new ExecutionVertexID(producer.getJobvertexId(), producer.getParallelSubtaskIndex()))
-							|| producer.getExecutionState() != ExecutionState.CREATED) {
-						inputLocations.add(producer.getCurrentTaskManagerLocationFuture());
-					} else {
-						inputLocations.clear();
-						break;
-					}
+		Collection<CompletableFuture<TaskManagerLocation>> locationsFutures = new ArrayList<>();
+
+		Collection<Collection<ExecutionVertexID>> allProducers =
+				inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
+		for (Collection<ExecutionVertexID> producers : allProducers) {
+			Set<TaskManagerLocation> inputLocations = new HashSet<>();
+			List<CompletableFuture<TaskManagerLocation>> inputLocationsFutures = new ArrayList<>();
+
+			for (ExecutionVertexID producer : producers) {
+				Optional<CompletableFuture<TaskManagerLocation>> optionalLocationFuture =
+						inputsLocationsRetriever.getTaskManagerLocation(producer);
+				optionalLocationFuture.ifPresent(
+						(locationFuture) -> {
+							locationsFutures.add(locationFuture);
+							TaskManagerLocation taskManagerLocation = locationFuture.getNow(null);
+							if (taskManagerLocation != null) {
+								inputLocations.add(taskManagerLocation);
+							} else {
+								inputLocationsFutures.add(locationFuture);
+							}
+						}
+				);
+				// If the parallelism is large, wait for all futures coming back may cost a long time,
+				// so using the unfulfilled future number here to speed up it.
+				System.out.println(inputLocations.size() + " while " + inputLocationsFutures.size());
+				if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER ||
+						inputLocationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+					locationsFutures.clear();
+					break;
 				}
-				if (preferredLocations.isEmpty() ||
-						(!inputLocations.isEmpty() && inputLocations.size() < preferredLocations.size())) {
-					preferredLocations.clear();
-					preferredLocations.addAll(inputLocations);
+			}
+			System.out.println(executionVertexId + " should wait for " + locationsFutures);
+
+			if (!locationsFutures.isEmpty()) {
+				CompletableFuture<Collection<TaskManagerLocation>> uniqueLocationsFuture =
+						FutureUtils.combineAll(locationsFutures).thenApply(
+								(locations) -> {
+									System.out.println("I am completed with size " + locations.size());
+									Set<TaskManagerLocation> uniqueLocations = new HashSet<>(locations);
+									if (uniqueLocations.size() <= MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+										return uniqueLocations;
+									} else {
+										return Collections.emptySet();
+									}
+								});
+				if (preferredLocations == null) {
+					preferredLocations = uniqueLocationsFuture;
+				} else {
+					preferredLocations = preferredLocations.thenCombine(
+							uniqueLocationsFuture,
+							(locationsOnOneEdge, locationsOnAnotherEdge) -> {
+								if ((!locationsOnOneEdge.isEmpty() && locationsOnAnotherEdge.size() > locationsOnOneEdge.size())
+										|| locationsOnAnotherEdge.isEmpty()) {
+									return locationsOnOneEdge;
+								} else {
+									return locationsOnAnotherEdge;
+								}
+							});
 				}
-				inputLocations.clear();
+				locationsFutures.clear();
 			}
 		}
-		return preferredLocations;
+		return preferredLocations == null ? CompletableFuture.completedFuture(Collections.emptyList()) : preferredLocations;
 	}
 
 	/**
