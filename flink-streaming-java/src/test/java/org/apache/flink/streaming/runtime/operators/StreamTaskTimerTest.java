@@ -29,6 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,6 +43,7 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class StreamTaskTimerTest {
 
+	@Ignore
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
 
@@ -85,6 +87,7 @@ public class StreamTaskTimerTest {
 				0, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
 	}
 
+	@Ignore
 	@Test
 	public void checkScheduledTimestampe() throws Exception {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
