@@ -179,6 +179,10 @@ class Schema(Descriptor):
         self._j_schema = gateway.jvm.Schema()
         super(Schema, self).__init__(self._j_schema)
 
+    def schema(self, table_schema):
+        self._j_schema = self._j_schema.schema(table_schema._j_table_schema)
+        return self
+
     def field(self, field_name, field_type):
         """
         Adds a field with the field name and the data type or type string. Required.
@@ -285,6 +289,10 @@ class OldCsv(FormatDescriptor):
         :return: This :class:`OldCsv` object.
         """
         self._j_csv = self._j_csv.lineDelimiter(delimiter)
+        return self
+
+    def schema(self, schema):
+        self._j_csv = self._j_csv.schema(schema._j_table_schema)
         return self
 
     def field(self, field_name, field_type):

@@ -150,4 +150,8 @@ public final class TimeType extends LogicalType {
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), precision);
 	}
+
+	public int getPrecision() {
+		return this.precision;
+	}
 }
