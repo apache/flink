@@ -73,12 +73,12 @@ public class ExecutionContextTest {
 
 	@Test
 	public void testCatalogs() throws Exception {
-		final String catalogName = "catalog2";
+		final String catalogName = "inmemorycatalog";
 		final ExecutionContext<?> context = createCatalogExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 
 		assertEquals(tableEnv.getCurrentCatalog(), catalogName);
-		assertEquals(tableEnv.getCurrentDatabase(), "test-default-database");
+		assertEquals(tableEnv.getCurrentDatabase(), "mydatabase");
 	}
 
 	@Test

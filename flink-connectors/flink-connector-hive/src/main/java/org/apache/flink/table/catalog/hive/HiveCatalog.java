@@ -155,7 +155,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		if (!databaseExists(getDefaultDatabase())) {
 			throw new CatalogException(String.format("Configured default database %s doesn't exist in catalog %s.",
-				getDefaultDatabase(), getCatalogName()));
+				getDefaultDatabase(), getName()));
 		}
 	}
 
@@ -192,7 +192,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.createDatabase(hiveDatabase);
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new DatabaseAlreadyExistException(getCatalogName(), hiveDatabase.getName());
+				throw new DatabaseAlreadyExistException(getName(), hiveDatabase.getName());
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create database %s", hiveDatabase.getName()), e);
@@ -259,7 +259,7 @@ public class HiveCatalog extends AbstractCatalog {
 			return client.getAllDatabases();
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to list all databases in %s", getCatalogName()), e);
+				String.format("Failed to list all databases in %s", getName()), e);
 		}
 	}
 
@@ -282,10 +282,10 @@ public class HiveCatalog extends AbstractCatalog {
 			client.dropDatabase(name, true, ignoreIfNotExists);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new DatabaseNotExistException(getCatalogName(), name);
+				throw new DatabaseNotExistException(getName(), name);
 			}
 		} catch (InvalidOperationException e) {
-			throw new DatabaseNotEmptyException(getCatalogName(), name);
+			throw new DatabaseNotEmptyException(getName(), name);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to drop database %s", name), e);
 		}
@@ -295,10 +295,10 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			return client.getDatabase(databaseName);
 		} catch (NoSuchObjectException e) {
-			throw new DatabaseNotExistException(getCatalogName(), databaseName);
+			throw new DatabaseNotExistException(getName(), databaseName);
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to get database %s from %s", databaseName, getCatalogName()), e);
+				String.format("Failed to get database %s from %s", databaseName, getName()), e);
 		}
 	}
 
@@ -319,7 +319,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(table, "table cannot be null");
 
 		if (!databaseExists(tablePath.getDatabaseName())) {
-			throw new DatabaseNotExistException(getCatalogName(), tablePath.getDatabaseName());
+			throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
 		}
 
 		Table hiveTable = instantiateHiveTable(tablePath, table);
@@ -328,7 +328,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.createTable(hiveTable);
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new TableAlreadyExistException(getCatalogName(), tablePath);
+				throw new TableAlreadyExistException(getName(), tablePath);
 			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create table %s", tablePath.getFullName()), e);
@@ -349,14 +349,14 @@ public class HiveCatalog extends AbstractCatalog {
 				// alter_table() doesn't throw a clear exception when new table already exists.
 				// Thus, check the table existence explicitly
 				if (tableExists(newPath)) {
-					throw new TableAlreadyExistException(getCatalogName(), newPath);
+					throw new TableAlreadyExistException(getName(), newPath);
 				} else {
 					Table table = getHiveTable(tablePath);
 					table.setTableName(newTableName);
 					client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), table);
 				}
 			} else if (!ignoreIfNotExists) {
-				throw new TableNotExistException(getCatalogName(), tablePath);
+				throw new TableNotExistException(getName(), tablePath);
 			}
 		} catch (TException e) {
 			throw new CatalogException(
@@ -417,7 +417,7 @@ public class HiveCatalog extends AbstractCatalog {
 				ignoreIfNotExists);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new TableNotExistException(getCatalogName(), tablePath);
+				throw new TableNotExistException(getName(), tablePath);
 			}
 		} catch (TException e) {
 			throw new CatalogException(
@@ -432,7 +432,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			return client.getAllTables(databaseName);
 		} catch (UnknownDBException e) {
-			throw new DatabaseNotExistException(getCatalogName(), databaseName);
+			throw new DatabaseNotExistException(getName(), databaseName);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list tables in database %s", databaseName), e);
@@ -449,7 +449,7 @@ public class HiveCatalog extends AbstractCatalog {
 				null, // table pattern
 				TableType.VIRTUAL_VIEW);
 		} catch (UnknownDBException e) {
-			throw new DatabaseNotExistException(getCatalogName(), databaseName);
+			throw new DatabaseNotExistException(getName(), databaseName);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list views in database %s", databaseName), e);
@@ -475,7 +475,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
 		} catch (NoSuchObjectException e) {
-			throw new TableNotExistException(getCatalogName(), tablePath);
+			throw new TableNotExistException(getName(), tablePath);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to get table %s from Hive metastore", tablePath.getFullName()), e);
@@ -652,7 +652,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.add_partition(instantiateHivePartition(hiveTable, partitionSpec, partition));
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new PartitionAlreadyExistsException(getCatalogName(), tablePath, partitionSpec);
+				throw new PartitionAlreadyExistsException(getName(), tablePath, partitionSpec);
 			}
 		} catch (TException e) {
 			throw new CatalogException(
@@ -672,10 +672,10 @@ public class HiveCatalog extends AbstractCatalog {
 				getOrderedFullPartitionValues(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath), true);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new PartitionNotExistException(getCatalogName(), tablePath, partitionSpec, e);
+				throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 			}
 		} catch (MetaException | TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(getCatalogName(), tablePath, partitionSpec, e);
+			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to drop partition %s of table %s", partitionSpec, tablePath));
@@ -732,7 +732,7 @@ public class HiveCatalog extends AbstractCatalog {
 			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			return instantiateCatalogPartition(hivePartition);
 		} catch (NoSuchObjectException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(getCatalogName(), tablePath, partitionSpec, e);
+			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to get partition %s of table %s", partitionSpec, tablePath), e);
@@ -760,7 +760,7 @@ public class HiveCatalog extends AbstractCatalog {
 				if (ignoreIfNotExists) {
 					return;
 				}
-				throw new PartitionNotExistException(getCatalogName(), tablePath, partitionSpec);
+				throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
 			}
 			Partition newHivePartition = instantiateHivePartition(hiveTable, partitionSpec, newPartition);
 			if (newHivePartition.getSd().getLocation() == null) {
@@ -773,10 +773,10 @@ public class HiveCatalog extends AbstractCatalog {
 			);
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new PartitionNotExistException(getCatalogName(), tablePath, partitionSpec, e);
+				throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 			}
 		} catch (InvalidOperationException | MetaException | TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(getCatalogName(), tablePath, partitionSpec, e);
+			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to alter existing partition with new partition %s of table %s",
@@ -803,7 +803,7 @@ public class HiveCatalog extends AbstractCatalog {
 		// validate partition values
 		for (int i = 0; i < partCols.size(); i++) {
 			if (StringUtils.isNullOrWhitespaceOnly(partValues.get(i))) {
-				throw new PartitionSpecInvalidException(getCatalogName(), partCols,
+				throw new PartitionSpecInvalidException(getName(), partCols,
 					new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()), partitionSpec);
 			}
 		}
@@ -827,7 +827,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private void ensurePartitionedTable(ObjectPath tablePath, Table hiveTable) throws TableNotPartitionedException {
 		if (hiveTable.getPartitionKeysSize() == 0) {
-			throw new TableNotPartitionedException(getCatalogName(), tablePath);
+			throw new TableNotPartitionedException(getName(), tablePath);
 		}
 	}
 
@@ -870,13 +870,13 @@ public class HiveCatalog extends AbstractCatalog {
 			throws PartitionSpecInvalidException {
 		Map<String, String> spec = partitionSpec.getPartitionSpec();
 		if (spec.size() != partitionKeys.size()) {
-			throw new PartitionSpecInvalidException(getCatalogName(), partitionKeys, tablePath, partitionSpec);
+			throw new PartitionSpecInvalidException(getName(), partitionKeys, tablePath, partitionSpec);
 		}
 
 		List<String> values = new ArrayList<>(spec.size());
 		for (String key : partitionKeys) {
 			if (!spec.containsKey(key)) {
-				throw new PartitionSpecInvalidException(getCatalogName(), partitionKeys, tablePath, partitionSpec);
+				throw new PartitionSpecInvalidException(getName(), partitionKeys, tablePath, partitionSpec);
 			} else {
 				values.add(spec.get(key));
 			}
@@ -918,10 +918,10 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			client.createFunction(hiveFunction);
 		} catch (NoSuchObjectException e) {
-			throw new DatabaseNotExistException(getCatalogName(), functionPath.getDatabaseName(), e);
+			throw new DatabaseNotExistException(getName(), functionPath.getDatabaseName(), e);
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
-				throw new FunctionAlreadyExistException(getCatalogName(), functionPath, e);
+				throw new FunctionAlreadyExistException(getName(), functionPath, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(
@@ -977,7 +977,7 @@ public class HiveCatalog extends AbstractCatalog {
 			client.dropFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
 		} catch (NoSuchObjectException e) {
 			if (!ignoreIfNotExists) {
-				throw new FunctionNotExistException(getCatalogName(), functionPath, e);
+				throw new FunctionNotExistException(getName(), functionPath, e);
 			}
 		} catch (TException e) {
 			throw new CatalogException(
@@ -992,7 +992,7 @@ public class HiveCatalog extends AbstractCatalog {
 		// client.getFunctions() returns empty list when the database doesn't exist
 		// thus we need to explicitly check whether the database exists or not
 		if (!databaseExists(databaseName)) {
-			throw new DatabaseNotExistException(getCatalogName(), databaseName);
+			throw new DatabaseNotExistException(getName(), databaseName);
 		}
 
 		try {
@@ -1024,7 +1024,7 @@ public class HiveCatalog extends AbstractCatalog {
 				return new HiveCatalogFunction(function.getClassName());
 			}
 		} catch (NoSuchObjectException e) {
-			throw new FunctionNotExistException(getCatalogName(), functionPath, e);
+			throw new FunctionNotExistException(getName(), functionPath, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to get function %s", functionPath.getFullName()), e);

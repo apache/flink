@@ -16,35 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
+package org.apache.flink.table.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.StringUtils;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.table.descriptors.GenericInMemoryCatalogValidator.CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY;
 
 /**
- * Abstract class for catalogs.
+ * Catalog descriptor for the generic in memory catalog.
  */
-@PublicEvolving
-public abstract class AbstractCatalog implements Catalog {
-	private final String catalogName;
-	private final String defaultDatabase;
+public class GenericInMemoryCatalogDescriptor extends CatalogDescriptor {
 
-	public AbstractCatalog(String name, String defaultDatabase) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase), "defaultDatabase cannot be null or empty");
-
-		this.catalogName = name;
-		this.defaultDatabase = defaultDatabase;
+	public GenericInMemoryCatalogDescriptor() {
+		super(CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY, 1);
 	}
 
-	public String getName() {
-		return catalogName;
+	public GenericInMemoryCatalogDescriptor(String defaultDatabase) {
+		super(CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY, 1, defaultDatabase);
 	}
 
 	@Override
-	public String getDefaultDatabase() {
-		return defaultDatabase;
+	protected Map<String, String> toCatalogProperties() {
+		return Collections.unmodifiableMap(new HashMap<>());
 	}
 }

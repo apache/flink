@@ -19,12 +19,14 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Describes a catalog of tables, views, and functions.
@@ -56,6 +58,8 @@ public abstract class CatalogDescriptor extends DescriptorBase {
 	 * @param defaultDatabase default database of the catalog
 	 */
 	public CatalogDescriptor(String type, int propertyVersion, String defaultDatabase) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(type), "type cannot be null or empty");
+
 		this.type = type;
 		this.propertyVersion = propertyVersion;
 		this.defaultDatabase = defaultDatabase;
