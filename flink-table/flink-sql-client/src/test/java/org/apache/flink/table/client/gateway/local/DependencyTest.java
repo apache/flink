@@ -138,11 +138,7 @@ public class DependencyTest {
 
 			final Optional<String> defaultDatabase = params.getOptionalString(CATALOG_DEFAULT_DATABASE);
 
-			if (defaultDatabase.isPresent()) {
-				return new TestCatalog(name, defaultDatabase.get());
-			} else {
-				return new TestCatalog(name);
-			}
+			return new TestCatalog(name, defaultDatabase.orElse(GenericInMemoryCatalog.DEFAULT_DB));
 		}
 	}
 
@@ -150,11 +146,6 @@ public class DependencyTest {
 	 * Test catalog.
 	 */
 	public static class TestCatalog extends GenericInMemoryCatalog {
-
-		public TestCatalog(String name) {
-			super(name);
-		}
-
 		public TestCatalog(String name, String defaultDatabase) {
 			super(name, defaultDatabase);
 		}

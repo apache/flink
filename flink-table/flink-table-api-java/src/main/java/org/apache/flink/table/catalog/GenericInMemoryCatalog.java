@@ -51,7 +51,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 	public static final String FLINK_IS_GENERIC_KEY = "is_generic";
 	public static final String FLINK_IS_GENERIC_VALUE = "true";
 
-	private static final String DEFAULT_DB = "default";
+	public static final String DEFAULT_DB = "default";
 
 	private final Map<String, CatalogDatabase> databases;
 	private final Map<ObjectPath, CatalogBaseTable> tables;
