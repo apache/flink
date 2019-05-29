@@ -26,7 +26,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -77,7 +76,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	protected final JobID jobId = new JobID();
 	protected final IntermediateDataSetID dataSetID = new IntermediateDataSetID();
-	protected final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 
 	protected NetworkEnvironment senderEnv;
 	protected NetworkEnvironment receiverEnv;
@@ -90,6 +88,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected ResultPartitionID[] partitionIds;
 
 	private int dataPort;
+
+	private SingleInputGateFactory gateFactory;
 
 	public void setUp(
 			int writers,
@@ -152,6 +152,13 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			receiverEnv.start();
 		}
 
+		gateFactory = new SingleInputGateFactory(
+			receiverEnv.getConfiguration(),
+			receiverEnv.getConnectionManager(),
+			receiverEnv.getResultPartitionManager(),
+			new TaskEventDispatcher(),
+			receiverEnv.getNetworkBufferPool());
+
 		generatePartitionIds();
 	}
 
@@ -167,12 +174,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			LOCAL_ADDRESS,
 			dataPort);
 
-		InputGate receiverGate = createInputGate(
-			dataSetID,
-			executionAttemptID,
-			senderLocation,
-			receiverEnv,
-			channels);
+		InputGate receiverGate = createInputGate(senderLocation);
 
 		SerializingLongReceiver receiver = new SerializingLongReceiver(receiverGate, channels * partitionIds.length);
 
@@ -228,40 +230,19 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		return resultPartition;
 	}
 
-	private InputGate createInputGate(
-			IntermediateDataSetID dataSetID,
-			ExecutionAttemptID executionAttemptID,
-			final TaskManagerLocation senderLocation,
-			NetworkEnvironment environment,
-			final int channels) throws IOException {
-
+	private InputGate createInputGate(TaskManagerLocation senderLocation) throws IOException {
 		InputGate[] gates = new InputGate[channels];
 		for (int channel = 0; channel < channels; ++channel) {
-			int finalChannel = channel;
-			InputChannelDeploymentDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
-				.map(partitionId -> new InputChannelDeploymentDescriptor(
-					partitionId,
-					localMode ? ResultPartitionLocation.createLocal() : ResultPartitionLocation.createRemote(new ConnectionID(senderLocation, finalChannel))))
-				.toArray(InputChannelDeploymentDescriptor[]::new);
+			final InputGateDeploymentDescriptor gateDescriptor = createInputGateDeploymentDescriptor(
+				senderLocation,
+				channel);
 
-			final InputGateDeploymentDescriptor gateDescriptor = new InputGateDeploymentDescriptor(
-				dataSetID,
-				ResultPartitionType.PIPELINED_BOUNDED,
-				channel,
-				channelDescriptors);
-
-			SingleInputGate gate = new SingleInputGateFactory(
-				environment.getConfiguration(),
-				environment.getConnectionManager(),
-				environment.getResultPartitionManager(),
-				new TaskEventDispatcher(),
-				environment.getNetworkBufferPool())
-				.create(
-					"receiving task[" + channel + "]",
-					gateDescriptor,
-					SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-					InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
-					new SimpleCounter());
+			final SingleInputGate gate = gateFactory.create(
+				"receiving task[" + channel + "]",
+				gateDescriptor,
+				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
+				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
+				new SimpleCounter());
 
 			gate.setup();
 			gates[channel] = gate;
@@ -272,5 +253,23 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		} else {
 			return gates[0];
 		}
+	}
+
+	private InputGateDeploymentDescriptor createInputGateDeploymentDescriptor(
+			TaskManagerLocation senderLocation,
+			int consumedSubpartitionIndex) {
+
+		final InputChannelDeploymentDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
+			.map(partitionId -> new InputChannelDeploymentDescriptor(
+				partitionId,
+				localMode ? ResultPartitionLocation.createLocal() : ResultPartitionLocation.createRemote(
+					new ConnectionID(senderLocation, consumedSubpartitionIndex))))
+			.toArray(InputChannelDeploymentDescriptor[]::new);
+
+		return new InputGateDeploymentDescriptor(
+			dataSetID,
+			ResultPartitionType.PIPELINED_BOUNDED,
+			consumedSubpartitionIndex,
+			channelDescriptors);
 	}
 }
