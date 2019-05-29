@@ -53,10 +53,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
-import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -108,7 +105,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	protected final HiveConf hiveConf;
 
-	protected IMetaStoreClient client;
+	protected HiveMetastoreClientWrapper client;
 
 	public HiveCatalog(String catalogName, String hivemetastoreURI) {
 		this(catalogName, DEFAULT_DB, getHiveConf(hivemetastoreURI));
@@ -133,23 +130,10 @@ public class HiveCatalog extends AbstractCatalog {
 		return hiveConf;
 	}
 
-	private static IMetaStoreClient getMetastoreClient(HiveConf hiveConf) {
-		try {
-			return RetryingMetaStoreClient.getProxy(
-				hiveConf,
-				null,
-				null,
-				HiveMetaStoreClient.class.getName(),
-				true);
-		} catch (MetaException e) {
-			throw new CatalogException("Failed to create Hive metastore client", e);
-		}
-	}
-
 	@Override
 	public void open() throws CatalogException {
 		if (client == null) {
-			client = getMetastoreClient(hiveConf);
+			client = HiveMetastoreClientFactory.create(hiveConf);
 			LOG.info("Connected to Hive metastore");
 		}
 
@@ -444,10 +428,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
 		try {
-			return client.getTables(
-				databaseName,
-				null, // table pattern
-				TableType.VIRTUAL_VIEW);
+			return client.getViews(databaseName);
 		} catch (UnknownDBException e) {
 			throw new DatabaseNotExistException(getName(), databaseName);
 		} catch (TException e) {
@@ -996,7 +977,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 
 		try {
-			return client.getFunctions(databaseName, null);
+			// hive-1.x requires the pattern not being null, so pass a pattern that matches any name
+			return client.getFunctions(databaseName, ".*");
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list functions in database %s", databaseName), e);

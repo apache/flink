@@ -83,6 +83,7 @@ under the License.
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-metastore</artifactId>
 			<version>${hive.version}</version>
+			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
@@ -385,7 +386,6 @@ under the License.
 									<include>commons-beanutils:commons-beanutils</include>
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>com.jolbox:bonecp</include>
-									<include>org.apache.hive:*</include>
 									<include>org.apache.thrift:libthrift</include>
 									<include>org.datanucleus:*</include>
 									<include>org.antlr:antlr-runtime</include>
@@ -423,4 +423,23 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Activate this profile with -Phive-1.2.1 to build and test against hive-1.2.1 -->
+		<profile>
+			<id>hive-1.2.1</id>
+			<properties>
+				<hive.version>1.2.1</hive.version>
+				<hivemetastore.hadoop.version>2.6.0</hivemetastore.hadoop.version>
+			</properties>
+			<dependencies>
+				<dependency>
+					<groupId>javax.jdo</groupId>
+					<artifactId>jdo-api</artifactId>
+					<version>3.0.1</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>
