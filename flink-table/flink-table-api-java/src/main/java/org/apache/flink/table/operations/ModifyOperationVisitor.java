@@ -18,23 +18,17 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Covers all sort of Table operations such as queries(DQL), modifications(DML), definitions(DDL),
- * or control actions(DCL). This is the output of
- * {@link org.apache.flink.table.planner.Planner#parse(String)}.
- *
- * @see QueryOperation
- * @see ModifyOperation
+ * Class that implements visitor pattern. It allows type safe logic on top of tree
+ * of {@link ModifyOperation}s.
  */
-@PublicEvolving
-public interface Operation {
-	/**
-	 * Returns a string that summarizes this operation for printing to a console. An implementation might
-	 * skip very specific properties.
-	 *
-	 * @return summary string of this operation for debugging purposes
-	 */
-	String asSummaryString();
+@Internal
+public interface ModifyOperationVisitor<T> {
+	T visit(CatalogSinkModifyOperation catalogSink);
+
+	T visit(OutputConversionModifyOperation outputConversion);
+
+	<U> T visit(UnregisteredSinkModifyOperation<U> unregisteredSink);
 }

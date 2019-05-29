@@ -18,23 +18,24 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+
+import java.util.List;
 
 /**
- * Covers all sort of Table operations such as queries(DQL), modifications(DML), definitions(DDL),
- * or control actions(DCL). This is the output of
- * {@link org.apache.flink.table.planner.Planner#parse(String)}.
+ * A {@link Operation} that describes the DML queries such as e.g. INSERT or conversion to a
+ * DataStream.
+ *
+ * <p>A tree of {@link QueryOperation} with a {@link ModifyOperation} on top
+ * represents a runnable query that can be transformed into a graph of
+ * {@link org.apache.flink.streaming.api.transformations.StreamTransformation}
+ * via {@link org.apache.flink.table.planner.Planner#translate(List)}
  *
  * @see QueryOperation
- * @see ModifyOperation
  */
-@PublicEvolving
-public interface Operation {
-	/**
-	 * Returns a string that summarizes this operation for printing to a console. An implementation might
-	 * skip very specific properties.
-	 *
-	 * @return summary string of this operation for debugging purposes
-	 */
-	String asSummaryString();
+@Internal
+public interface ModifyOperation extends Operation {
+	QueryOperation getChild();
+
+	<T> T accept(ModifyOperationVisitor<T> visitor);
 }
