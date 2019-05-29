@@ -1140,7 +1140,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 
 			// build a local closure
-			final String taskName = taskNameWithSubtask;
 			final SafetyNetCloseableRegistry safetyNetCloseableRegistry =
 				FileSystemSafetyNet.getSafetyNetCloseableRegistryForThread();
 
@@ -1152,12 +1151,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 					FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
 					try {
-						boolean success = invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
-						if (!success) {
-							checkpointResponder.declineCheckpoint(
-									getJobID(), getExecutionId(), checkpointID,
-									new CheckpointException("Task Name" + taskName, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
-						}
+						invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 					}
 					catch (Throwable t) {
 						if (getExecutionState() == ExecutionState.RUNNING) {
