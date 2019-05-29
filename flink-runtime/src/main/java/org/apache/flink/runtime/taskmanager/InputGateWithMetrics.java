@@ -56,11 +56,6 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public String getOwningTaskName() {
-		return inputGate.getOwningTaskName();
-	}
-
-	@Override
 	public boolean isFinished() {
 		return inputGate.isFinished();
 	}

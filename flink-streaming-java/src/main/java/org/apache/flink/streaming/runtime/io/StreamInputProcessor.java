@@ -121,12 +121,18 @@ public class StreamInputProcessor<IN> {
 			StreamStatusMaintainer streamStatusMaintainer,
 			OneInputStreamOperator<IN, ?> streamOperator,
 			TaskIOMetricGroup metrics,
-			WatermarkGauge watermarkGauge) throws IOException {
+			WatermarkGauge watermarkGauge,
+			String taskName) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
 		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
-			checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
+			checkpointedTask,
+			checkpointMode,
+			ioManager,
+			inputGate,
+			taskManagerConfig,
+			taskName);
 
 		this.lock = checkNotNull(lock);
 

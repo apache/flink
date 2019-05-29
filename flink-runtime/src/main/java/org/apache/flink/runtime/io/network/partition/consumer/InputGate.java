@@ -76,8 +76,6 @@ public abstract class InputGate implements AutoCloseable {
 
 	public abstract int getNumberOfInputChannels();
 
-	public abstract String getOwningTaskName();
-
 	public abstract boolean isFinished();
 
 	public abstract void requestPartitions() throws IOException, InterruptedException;
