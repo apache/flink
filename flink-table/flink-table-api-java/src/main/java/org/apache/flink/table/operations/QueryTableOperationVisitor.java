@@ -47,5 +47,11 @@ public interface QueryTableOperationVisitor<T> {
 
 	T visitCatalogTable(CatalogQueryTableOperation catalogTable);
 
+	T visitCatalogSink(CatalogSinkTableOperation catalogSink);
+
+	<U> T visitInlineSink(InlineSinkTableOperation<U> inlineSink);
+
+	<U> T visitOutputConversion(OutputConversionTableOperation<U> outputConversion);
+
 	T visitOther(QueryTableOperation other);
 }

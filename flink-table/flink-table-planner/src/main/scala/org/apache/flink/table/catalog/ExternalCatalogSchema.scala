@@ -79,6 +79,7 @@ class ExternalCatalogSchema(
   override def getTable(name: String): Table = try {
     val externalCatalogTable = catalog.getTable(name)
     ExternalTableUtil.fromExternalCatalogTable(isBatch, externalCatalogTable)
+
   } catch {
     case _: TableNotExistException => {
       LOG.warn(s"Table $name does not exist in externalCatalog $catalogIdentifier")

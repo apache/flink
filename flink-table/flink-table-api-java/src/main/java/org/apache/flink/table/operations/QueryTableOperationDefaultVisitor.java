@@ -79,6 +79,21 @@ public abstract class QueryTableOperationDefaultVisitor<T> implements QueryTable
 	}
 
 	@Override
+	public T visitCatalogSink(CatalogSinkTableOperation catalogSink) {
+		return defaultMethod(catalogSink);
+	}
+
+	@Override
+	public <U> T visitInlineSink(InlineSinkTableOperation<U> inlineSink) {
+		return defaultMethod(inlineSink);
+	}
+
+	@Override
+	public <U> T visitOutputConversion(OutputConversionTableOperation<U> outputConversion) {
+		return defaultMethod(outputConversion);
+	}
+
+	@Override
 	public T visitOther(QueryTableOperation other) {
 		return defaultMethod(other);
 	}
