@@ -30,7 +30,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _array_type_mappings, _merge_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
-                                 _to_java_type, _to_python_type, TimestampKind)
+                                 _to_java_type, _from_java_type, TimestampKind)
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -761,7 +761,7 @@ class DataTypeConvertTests(unittest.TestCase):
 
         java_types = [_to_java_type(item) for item in test_types]
 
-        converted_python_types = [_to_python_type(item) for item in java_types]
+        converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
 
@@ -776,7 +776,7 @@ class DataTypeConvertTests(unittest.TestCase):
                       JDataTypes.CHAR(50).notNull(),
                       JDataTypes.DECIMAL(20, 10).notNull()]
 
-        converted_python_types = [_to_python_type(item) for item in java_types]
+        converted_python_types = [_from_java_type(item) for item in java_types]
 
         expected = [DataTypes.TIME(3, False).bridged_to("java.time.LocalTime"),
                     DataTypes.TIMESTAMP(TimestampKind.REGULAR, 5, False)
@@ -798,7 +798,7 @@ class DataTypeConvertTests(unittest.TestCase):
 
         java_types = [_to_java_type(item) for item in test_types]
 
-        converted_python_types = [_to_python_type(item) for item in java_types]
+        converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
 
@@ -810,7 +810,7 @@ class DataTypeConvertTests(unittest.TestCase):
 
         java_types = [_to_java_type(item) for item in test_types]
 
-        converted_python_types = [_to_python_type(item) for item in java_types]
+        converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
 
@@ -824,7 +824,7 @@ class DataTypeConvertTests(unittest.TestCase):
 
         java_types = [_to_java_type(item) for item in test_types]
 
-        converted_python_types = [_to_python_type(item) for item in java_types]
+        converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
 
@@ -837,7 +837,7 @@ class DataTypeConvertTests(unittest.TestCase):
 
         java_types = [_to_java_type(item) for item in test_types]
 
-        converted_python_types = [_to_python_type(item) for item in java_types]
+        converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
 

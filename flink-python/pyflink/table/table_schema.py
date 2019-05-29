@@ -18,7 +18,7 @@
 import sys
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type, _to_python_type
+from pyflink.table.types import _to_java_type, _from_java_type
 from pyflink.util.utils import to_jarray
 
 if sys.version >= '3':
@@ -30,15 +30,15 @@ class TableSchema(object):
     A table schema that represents a table's structure with field names and data types.
     """
 
-    def __init__(self, field_names=None, data_types=None, java_object=None):
-        if java_object is None:
+    def __init__(self, field_names=None, data_types=None, j_table_schema=None):
+        if j_table_schema is None:
             gateway = get_gateway()
             j_field_names = to_jarray(gateway.jvm.String, field_names)
             j_data_types = to_jarray(gateway.jvm.TypeInformation,
                                      [_to_java_type(item) for item in data_types])
             self._j_table_schema = gateway.jvm.TableSchema(j_field_names, j_data_types)
         else:
-            self._j_table_schema = java_object
+            self._j_table_schema = j_table_schema
 
     def copy(self):
         """
@@ -46,60 +46,28 @@ class TableSchema(object):
 
         :return: A deep copy of the table schema.
         """
-        return TableSchema(java_object=self._j_table_schema.copy())
-
-    def get_field_types(self):
-        """
-        Returns all field data types as an array.
-
-        .. note::
-            Deprecated.
-            Use :func:`pyflink.table.table_schema.TableSchema.get_field_data_types` instead.
-
-
-        :return: A list of all field data types.
-        """
-        return [_to_python_type(item) for item in self._j_table_schema.getFieldTypes()]
+        return TableSchema(j_table_schema=self._j_table_schema.copy())
 
     def get_field_data_types(self):
         """
-        Returns all field data types as an array.
+        Returns all field data types as a list.
 
         :return: A list of all field data types.
         """
-        return [_to_python_type(item) for item in self._j_table_schema.getFieldDataTypes()]
+        return [_from_java_type(item) for item in self._j_table_schema.getFieldDataTypes()]
 
     def get_field_data_type(self, field):
         """
         Returns the specified data type for the given field index or field name.
 
         :param field: The index of the field or the name of the field.
-        :return: The specified data type.
+        :return: The data type of the specified field.
         """
         if not isinstance(field, (int, str, unicode)):
-            raise TypeError("not supported data type: %s" % type(field))
+            raise TypeError("Expected field index or field name, got %s" % type(field))
         optional_result = self._j_table_schema.getFieldDataType(field)
         if optional_result.isPresent():
-            return _to_python_type(optional_result.get())
-        else:
-            return None
-
-    def get_field_type(self, field):
-        """
-        Returns the specified data type for the given field index or field name.
-
-        .. note::
-            Deprecated.
-            Use :func:`pyflink.table.table_schema.TableSchema.get_field_data_type` instead.
-
-        :param field: The index of the field or the name of the field.
-        :return: The specified data type.
-        """
-        if not isinstance(field, (int, str, unicode)):
-            raise TypeError("not supported data type: %s" % type(field))
-        optional_result = self._j_table_schema.getFieldType(field)
-        if optional_result.isPresent():
-            return _to_python_type(optional_result.get())
+            return _from_java_type(optional_result.get())
         else:
             return None
 
@@ -139,63 +107,19 @@ class TableSchema(object):
 
         :return: The row data type.
         """
-        return _to_python_type(self._j_table_schema.toRowDataType())
-
-    def to_row_type(self):
-        """
-        Converts a table schema into a (nested) data type describing a
-        :func:`pyflink.table.types.DataTypes.ROW`.
-
-        .. note::
-            Deprecated.
-            Use :func:`pyflink.table.table_schema.TableSchema.to_row_data_type` instead.
-
-        :return: The row data type.
-        """
-        return _to_python_type(self._j_table_schema.toRowType())
+        return _from_java_type(self._j_table_schema.toRowDataType())
 
     def __repr__(self):
-        if self._j_table_schema is not None:
-            return self._j_table_schema.toString()
-        else:
-            return super(TableSchema, self).__repr__()
-
-    def __str__(self):
-        if self._j_table_schema is not None:
-            return self._j_table_schema.toString()
-        else:
-            return super(TableSchema, self).__str__()
+        return self._j_table_schema.toString()
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self._j_table_schema == other._j_table_schema
 
     def __hash__(self):
-        if self._j_table_schema is not None:
-            return self._j_table_schema.hashCode()
-        else:
-            return super(TableSchema, self).__hash__()
+        return self._j_table_schema.hashCode()
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-    @classmethod
-    def from_type_info(cls, data_type):
-        """
-        Creates a table schema from a :class:`DataType` instance. If the type information is
-        a composite type, the field names and types for the composite type are used to
-        construct the :class:`TableSchema` instance. Otherwise, a table schema with a single field
-        is created. The field name is "f0" and the field type the provided type.
-
-        ..note::
-            Deprecated.
-            This method will be removed soon. Use :class:`DataTypes` to declare types.
-
-        :param data_type: The data type from which the table schema is generated.
-        :return: The table schema that was generated from the given :class:`DataType`.
-        """
-        gateway = get_gateway()
-        return TableSchema(
-            java_object=gateway.jvm.TableSchema.fromTypeInfo(_to_java_type(data_type)))
 
     @classmethod
     def builder(cls):
@@ -204,7 +128,6 @@ class TableSchema(object):
     class Builder(object):
         """
         Builder for creating a :class:`TableSchema`.
-
         """
 
         def __init__(self):
