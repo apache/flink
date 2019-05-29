@@ -191,6 +191,8 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 		Collection<Collection<ExecutionVertexID>> allProducers =
 				inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
 		for (Collection<ExecutionVertexID> producers : allProducers) {
+			Set<TaskManagerLocation> inputLocations = new HashSet<>();
+			List<CompletableFuture<TaskManagerLocation>> inputLocationsFutures = new ArrayList<>();
 
 			for (ExecutionVertexID producer : producers) {
 				Optional<CompletableFuture<TaskManagerLocation>> optionalLocationFuture =
