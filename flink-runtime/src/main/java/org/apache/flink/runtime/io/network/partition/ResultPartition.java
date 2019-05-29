@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
@@ -188,7 +190,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return subpartitions.length;
 	}
 
-	@Override
+	@VisibleForTesting
 	public BufferProvider getBufferProvider() {
 		return bufferPool;
 	}
@@ -217,6 +219,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	// ------------------------------------------------------------------------
+
+	@Override
+	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+		checkInProduceState();
+
+		return bufferPool.requestBufferBuilderBlocking();
+	}
 
 	@Override
 	public void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {

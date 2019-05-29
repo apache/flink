@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import javax.annotation.Nullable;
@@ -36,13 +36,16 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	 */
 	void setup() throws IOException;
 
-	BufferProvider getBufferProvider();
-
 	ResultPartitionID getPartitionId();
 
 	int getNumberOfSubpartitions();
 
 	int getNumTargetKeyGroups();
+
+	/**
+	 * Requests a {@link BufferBuilder} from this partition for writing data.
+	 */
+	BufferBuilder getBufferBuilder() throws IOException, InterruptedException;
 
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.
