@@ -95,14 +95,14 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			int argIndex;
 			if (line.hasOption(PYFILES_OPTION.getOpt())) {
 				newArgs = new String[args.length + 4];
-				newArgs[2] = PYFILES_OPTION.getOpt();
+				newArgs[2] = "-" + PYFILES_OPTION.getOpt();
 				newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
 				argIndex = 4;
 			} else {
 				newArgs = new String[args.length + 2];
 				argIndex = 2;
 			}
-			newArgs[0] = PY_OPTION.getOpt();
+			newArgs[0] = "-" + PY_OPTION.getOpt();
 			newArgs[1] = line.getOptionValue(PY_OPTION.getOpt());
 			System.arraycopy(args, 0, newArgs, argIndex, args.length);
 			args = newArgs;
@@ -119,9 +119,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			// PythonDriver args: pym ${py-module} pyfs ${py-files} [optional] ${other args}.
 			// e.g. -pym AAA.fun -pyfs AAA.zip(CLI cmd) ----> pym AAA.fun -pyfs AAA.zip(PythonDriver args)
 			String[] newArgs = new String[args.length + 4];
-			newArgs[0] = PYMODULE_OPTION.getOpt();
+			newArgs[0] = "-" + PYMODULE_OPTION.getOpt();
 			newArgs[1] = line.getOptionValue(PYMODULE_OPTION.getOpt());
-			newArgs[2] = PYFILES_OPTION.getOpt();
+			newArgs[2] = "-" + PYFILES_OPTION.getOpt();
 			newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
 			System.arraycopy(args, 0, newArgs, 4, args.length);
 			args = newArgs;
