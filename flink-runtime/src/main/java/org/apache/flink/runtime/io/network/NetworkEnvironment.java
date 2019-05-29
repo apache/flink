@@ -94,8 +94,6 @@ public class NetworkEnvironment {
 
 	private final Map<InputGateID, SingleInputGate> inputGatesById;
 
-	private final TaskEventPublisher taskEventPublisher;
-
 	private final ResultPartitionFactory resultPartitionFactory;
 
 	private final SingleInputGateFactory singleInputGateFactory;
@@ -107,7 +105,6 @@ public class NetworkEnvironment {
 			NetworkBufferPool networkBufferPool,
 			ConnectionManager connectionManager,
 			ResultPartitionManager resultPartitionManager,
-			TaskEventPublisher taskEventPublisher,
 			ResultPartitionFactory resultPartitionFactory,
 			SingleInputGateFactory singleInputGateFactory) {
 		this.config = config;
@@ -115,7 +112,6 @@ public class NetworkEnvironment {
 		this.connectionManager = connectionManager;
 		this.resultPartitionManager = resultPartitionManager;
 		this.inputGatesById = new ConcurrentHashMap<>();
-		this.taskEventPublisher = taskEventPublisher;
 		this.resultPartitionFactory = resultPartitionFactory;
 		this.singleInputGateFactory = singleInputGateFactory;
 		this.isShutdown = false;
@@ -164,7 +160,6 @@ public class NetworkEnvironment {
 			networkBufferPool,
 			connectionManager,
 			resultPartitionManager,
-			taskEventPublisher,
 			resultPartitionFactory,
 			singleInputGateFactory);
 	}
