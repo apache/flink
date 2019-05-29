@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -86,11 +86,11 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
+		<!-- TODO This could be dropped if we move the Table thrift IT Case -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -99,6 +99,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- TODO This could be dropped if we move the Table thrift IT Case -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -198,12 +199,34 @@ under the License.
 			</plugin>
 
 			<!-- Generate Test class from thrift schema -->
+
+			<plugin>
+				<groupId>org.apache.thrift.tools</groupId>
+				<artifactId>maven-thrift-plugin</artifactId>
+				<version>0.1.11</version>
+				<configuration>
+					<thriftExecutable>/usr/local/bin/thrift</thriftExecutable>
+					<thriftTestSourceRoot>src/test/resources/thrift</thriftTestSourceRoot>
+					<outputDirectory>${project.build.directory}/generated-test-sources/thrift</outputDirectory>
+					<generator>java</generator>
+				</configuration>
+				<executions>
+					<execution>
+						<id>thrift-test-sources</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>com.twitter</groupId>
 				<artifactId>scrooge-maven-plugin</artifactId>
 				<version>${scrooge.version}</version>
 				<configuration>
-					<thriftSourceRoot>src/test/resources/thrift</thriftSourceRoot>
+					<thriftSourceRoot>src/test/resources/scrooge</thriftSourceRoot>
 					<language>java</language>
 					<thriftOpts>
 						<thriftOpt>--finagle</thriftOpt>

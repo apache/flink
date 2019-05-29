@@ -20,6 +20,10 @@ package org.apache.flink.formats.thrift.typeutils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
+import org.apache.flink.formats.thrift.ThriftCodeGenerator;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
@@ -36,6 +40,8 @@ import org.apache.thrift.meta_data.MapMetaData;
 import org.apache.thrift.meta_data.SetMetaData;
 import org.apache.thrift.meta_data.StructMetaData;
 import org.apache.thrift.protocol.TType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -44,15 +50,21 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+
 /**
  * Thrift related utility functions.
  */
 public class ThriftUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ThriftUtils.class);
 
 	public static final String FIELD_METADATA_MAP = "metaDataMap";
 	public static final String FIELD_BINARY_FIELD_VALUE_METADATAS = "binaryFieldValueMetaDatas";
@@ -76,8 +88,123 @@ public class ThriftUtils {
 				(Map<TFieldIdEnum, FieldMetaData>) metaDataMapField.get(thriftClass);
 			return fieldMetaDataMap;
 		} catch (NoSuchFieldException | IllegalAccessException e) {
+			LOG.debug("Failed to get metaDataMap field for {}", thriftClass, e);
 			throw new IOException(e);
 		}
+	}
+
+	public static TFieldIdEnum getFieldIdEnum(@Nonnull Class<? extends TBase> thriftClass, String fieldName)
+		throws IOException {
+		try {
+			Class<?>[] classes = thriftClass.getDeclaredClasses();
+			Class<?> fieldsClazz = null;
+
+			for (Class<?> clazz : classes) {
+				if (clazz.getSimpleName().equals("_Fields")) {
+					fieldsClazz = clazz;
+					break;
+				}
+			}
+			Method findByNameMethod = fieldsClazz.getMethod("findByName", String.class);
+			TFieldIdEnum result = (TFieldIdEnum) findByNameMethod.invoke(fieldsClazz, fieldName);
+			return result;
+		} catch (Exception e) {
+			throw new IOException(e);
+		}
+	}
+
+	public static TypeInformation getParameterizedTypeInfo(Field field, ThriftCodeGenerator codeGenerator)
+		throws ClassNotFoundException {
+		ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
+		Type elementType = parameterizedType.getActualTypeArguments()[0];
+		Class<?> elementClass = Class.forName(elementType.getTypeName());
+		TypeInformation typeInfo = TBase.class.isAssignableFrom(elementClass) ?
+			new ThriftTypeInfo(elementClass, codeGenerator) : TypeInformation.of(elementClass);
+		return typeInfo;
+	}
+
+	public static boolean isBinaryField(Class<? extends TBase> typeClass,
+		FieldMetaData fieldMetaData, ThriftCodeGenerator codeGenerator) {
+		boolean isBinaryField = false;
+		if (codeGenerator.equals(ThriftCodeGenerator.THRIFT)) {
+			isBinaryField = fieldMetaData.valueMetaData.isBinary();
+		} else if (codeGenerator.equals(ThriftCodeGenerator.SCROOGE)) {
+			Class<?> fieldClass = ThriftUtils.getFieldType(typeClass, fieldMetaData.fieldName);
+			isBinaryField = fieldClass.equals(ByteBuffer.class);
+		}
+		return isBinaryField;
+	}
+
+	public static TypeInformation<?> getFieldTypeInformation(@Nonnull Class<? extends TBase> thriftClass,
+		String fieldName, ThriftCodeGenerator codeGenerator)
+		throws IOException, NoSuchFieldException, ClassNotFoundException {
+		Map<TFieldIdEnum, FieldMetaData> metaDataMap = getMetaDataMapField(thriftClass);
+		TFieldIdEnum fieldIdEnum = getFieldIdEnum(thriftClass, fieldName);
+		FieldMetaData fieldMetaData = metaDataMap.get(fieldIdEnum);
+		Class<?> fieldClass = ThriftUtils.ttypeToClass(fieldMetaData.valueMetaData.type);
+		boolean isBinary = isBinaryField(thriftClass, fieldMetaData, codeGenerator);
+		TypeInformation<?> typeinfo = null;
+		Field field = thriftClass.getField(fieldName);
+
+		switch (fieldMetaData.valueMetaData.type) {
+			case TType.BOOL:
+			case TType.BYTE:
+			case TType.DOUBLE:
+			case TType.I16:
+			case TType.I32:
+			case TType.I64: {
+				typeinfo = TypeInformation.of(fieldClass);
+				break;
+			}
+			case TType.STRING: {
+				typeinfo = isBinary ? TypeInformation.of(ByteBuffer.class) : TypeInformation.of(fieldClass);
+				break;
+			}
+
+			case TType.ENUM: {
+				typeinfo = TypeInformation.of(TEnum.class);
+				break;
+			}
+
+			case TType.LIST: {
+				TypeInformation typeInfo = ThriftUtils.getParameterizedTypeInfo(field, codeGenerator);
+				typeinfo = new ListTypeInfo<>(typeInfo);
+				break;
+			}
+
+			case TType.MAP: {
+				ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
+				Type keyType = parameterizedType.getActualTypeArguments()[0];
+				Type valueType = parameterizedType.getActualTypeArguments()[1];
+				Class<?> keyClass = Class.forName(keyType.getTypeName());
+				Class<?> valueClass = Class.forName(valueType.getTypeName());
+				TypeInformation keyTypeInfo = TBase.class.isAssignableFrom(keyClass) ?
+					new ThriftTypeInfo(keyClass, codeGenerator) : TypeInformation.of(keyClass);
+				TypeInformation valueTypeInfo = TBase.class.isAssignableFrom(valueClass) ?
+					new ThriftTypeInfo(valueClass, codeGenerator) : TypeInformation.of(valueClass);
+				typeinfo = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
+				break;
+			}
+
+			case TType.SET: {
+				TypeInformation fieldTypeInfo = ThriftUtils.getParameterizedTypeInfo(field, codeGenerator);
+				typeinfo = new MultisetTypeInfo<>(fieldTypeInfo);
+				break;
+			}
+
+			case TType.STRUCT: {
+				StructMetaData structMetaData = (StructMetaData) fieldMetaData.valueMetaData;
+				typeinfo = new ThriftTypeInfo(structMetaData.structClass, codeGenerator);
+				break;
+			}
+
+			case TType.STOP:
+			case TType.VOID:
+			default: {
+				break;
+			}
+		}
+		return typeinfo;
 	}
 
 	public static Set<FieldValueMetaData> getBinaryFieldValueMetaDatas(@Nonnull Class<?> thriftClass)
@@ -297,14 +424,14 @@ public class ThriftUtils {
 	}
 
 	private static TypeInformation<?> getArrayTypeInformation(FieldValueMetaData fieldValueMetaData) {
-		if (isPrimitieThriftType(fieldValueMetaData.type)) {
+		if (isPrimitiveThriftType(fieldValueMetaData.type)) {
 			return Types.PRIMITIVE_ARRAY(getTypeInformation(fieldValueMetaData));
 		} else {
 			return Types.OBJECT_ARRAY(getTypeInformation(fieldValueMetaData));
 		}
 	}
 
-	private static boolean isPrimitieThriftType(byte tType) {
+	private static boolean isPrimitiveThriftType(byte tType) {
 		return primitiveThriftTypes.contains(tType);
 	}
 }
