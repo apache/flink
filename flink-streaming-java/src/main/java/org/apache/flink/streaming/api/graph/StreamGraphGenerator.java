@@ -80,7 +80,6 @@ public class StreamGraphGenerator {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphGenerator.class);
 
 	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
-	public static final int UPPER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 	// The StreamGraph that is being built, this is initialized at the beginning.
 	private final StreamGraph streamGraph;
