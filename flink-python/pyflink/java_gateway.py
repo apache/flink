@@ -115,6 +115,8 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
     java_import(gateway.jvm, "org.apache.flink.table.python.*")
+    java_import(gateway.jvm, "org.apache.flink.table.types.*")
+    java_import(gateway.jvm, "org.apache.flink.table.types.logical.*")
     java_import(gateway.jvm, "org.apache.flink.python.bridge.*")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.TypeInformation")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.Types")

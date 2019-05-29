@@ -23,12 +23,14 @@ import pickle
 import sys
 import unittest
 
+from pyflink.java_gateway import get_gateway
 from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _array_signed_int_typecode_ctype_mappings,
                                  _array_unsigned_int_typecode_ctype_mappings,
                                  _array_type_mappings, _merge_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
-                                 RowType, ArrayType, BigIntType, VarCharType, MapType)
+                                 RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
+                                 _to_java_type, _from_java_type, TimestampKind)
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -531,6 +533,20 @@ class TypesTests(unittest.TestCase):
         row_class = Row("c1", "c2")
         self.assertRaises(ValueError, lambda: row_class(1, 2, 3))
 
+    def test_nullable(self):
+        t = DataType(nullable=False)
+
+        self.assertEqual(t._nullable, False)
+        t_nullable = t.nullable()
+        self.assertEqual(t_nullable._nullable, True)
+
+    def test_not_null(self):
+        t = DataType(nullable=True)
+
+        self.assertEqual(t._nullable, True)
+        t_notnull = t.not_null()
+        self.assertEqual(t_notnull._nullable, False)
+
 
 class DataTypeVerificationTests(unittest.TestCase):
 
@@ -725,6 +741,104 @@ class DataTypeVerificationTests(unittest.TestCase):
             msg = "verify_type(%s, %s, nullable=False) == %s" % (obj, data_type, exp)
             with self.assertRaises(exp, msg=msg):
                 _create_type_verifier(data_type.not_null())(obj)
+
+
+class DataTypeConvertTests(unittest.TestCase):
+
+    def test_basic_type(self):
+        test_types = [DataTypes.STRING(),
+                      DataTypes.BOOLEAN(),
+                      DataTypes.BYTES(),
+                      DataTypes.TINYINT(),
+                      DataTypes.SMALLINT(),
+                      DataTypes.INT(),
+                      DataTypes.BIGINT(),
+                      DataTypes.FLOAT(),
+                      DataTypes.DOUBLE(),
+                      DataTypes.DATE(),
+                      DataTypes.TIME(),
+                      DataTypes.TIMESTAMP()]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
+    def test_atomic_type_with_data_type_with_parameters(self):
+        gateway = get_gateway()
+        JDataTypes = gateway.jvm.DataTypes
+        java_types = [JDataTypes.TIME(3).notNull(),
+                      JDataTypes.TIMESTAMP().notNull(),
+                      JDataTypes.VARBINARY(100).notNull(),
+                      JDataTypes.BINARY(2).notNull(),
+                      JDataTypes.VARCHAR(30).notNull(),
+                      JDataTypes.CHAR(50).notNull(),
+                      JDataTypes.DECIMAL(20, 10).notNull()]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        expected = [DataTypes.TIME(3, False),
+                    DataTypes.TIMESTAMP(TimestampKind.REGULAR).not_null(),
+                    DataTypes.VARBINARY(100, False),
+                    DataTypes.BINARY(2, False),
+                    DataTypes.VARCHAR(30, False),
+                    DataTypes.CHAR(50, False),
+                    DataTypes.DECIMAL(20, 10, False)]
+        self.assertEqual(converted_python_types, expected)
+
+    def test_array_type(self):
+        test_types = [DataTypes.ARRAY(DataTypes.BIGINT()),
+                      # array type with not null basic data type means primitive array
+                      DataTypes.ARRAY(DataTypes.BIGINT().not_null()),
+                      DataTypes.ARRAY(DataTypes.STRING()),
+                      DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT())),
+                      DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
+    def test_multiset_type(self):
+        test_types = [DataTypes.MULTISET(DataTypes.BIGINT()),
+                      DataTypes.MULTISET(DataTypes.STRING()),
+                      DataTypes.MULTISET(DataTypes.MULTISET(DataTypes.BIGINT())),
+                      DataTypes.MULTISET(DataTypes.MULTISET(DataTypes.STRING()))]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
+    def test_map_type(self):
+        test_types = [DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BIGINT()),
+                      DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
+                      DataTypes.MAP(DataTypes.STRING(),
+                                    DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT())),
+                      DataTypes.MAP(DataTypes.STRING(),
+                                    DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
+    def test_row_type(self):
+        test_types = [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+                                     DataTypes.FIELD("b",
+                                                     DataTypes.ROW(
+                                                         [DataTypes.FIELD("c",
+                                                                          DataTypes.STRING())]))])]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
 
 
 if __name__ == "__main__":

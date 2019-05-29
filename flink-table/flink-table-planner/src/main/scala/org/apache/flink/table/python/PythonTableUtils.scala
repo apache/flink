@@ -158,12 +158,15 @@ object PythonTableUtils {
     case _: PrimitiveArrayTypeInfo[_] |
          _: BasicArrayTypeInfo[_, _] |
          _: ObjectArrayTypeInfo[_, _] =>
+      var boxed = false
       val elementType = dataType match {
         case p: PrimitiveArrayTypeInfo[_] =>
           p.getComponentType
         case b: BasicArrayTypeInfo[_, _] =>
+          boxed = true
           b.getComponentInfo
         case o: ObjectArrayTypeInfo[_, _] =>
+          boxed = true
           o.getComponentInfo
       }
       val elementFromJava = convertTo(elementType)
@@ -172,11 +175,13 @@ object PythonTableUtils {
         case c: java.util.List[_] =>
           createArray(elementType,
                       c.size(),
-                      i => elementFromJava(c.get(i)))
+                      i => elementFromJava(c.get(i)),
+                      boxed)
         case c if c.getClass.isArray =>
           createArray(elementType,
                       c.asInstanceOf[Array[_]].length,
-                      i => elementFromJava(c.asInstanceOf[Array[_]](i)))
+                      i => elementFromJava(c.asInstanceOf[Array[_]](i)),
+                      boxed)
       }
 
     case m: MapTypeInfo[_, _] =>
@@ -233,56 +238,141 @@ object PythonTableUtils {
   private def createArray(
       elementType: TypeInformation[_],
       length: Int,
-      getElement: Int => Any): Array[_] = {
+      getElement: Int => Any,
+      boxed: Boolean = false): Array[_] = {
     elementType match {
       case BasicTypeInfo.BOOLEAN_TYPE_INFO =>
-        val array = new Array[Boolean](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Boolean]
+        if (!boxed) {
+          val array = new Array[Boolean](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Boolean]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Boolean](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Boolean.valueOf(getElement(i).asInstanceOf[Boolean])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.BYTE_TYPE_INFO =>
-        val array = new Array[Byte](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Byte]
+        if (!boxed) {
+          val array = new Array[Byte](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Byte]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Byte](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Byte.valueOf(getElement(i).asInstanceOf[Byte])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.SHORT_TYPE_INFO =>
-        val array = new Array[Short](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Short]
+        if (!boxed) {
+          val array = new Array[Short](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Short]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Short](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Short.valueOf(getElement(i).asInstanceOf[Short])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.INT_TYPE_INFO =>
-        val array = new Array[Int](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Int]
+        if (!boxed) {
+          val array = new Array[Int](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Int]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Integer](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Integer.valueOf(getElement(i).asInstanceOf[Int])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.LONG_TYPE_INFO =>
-        val array = new Array[Long](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Long]
+        if (!boxed) {
+          val array = new Array[Long](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Long]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Long](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Long.valueOf(getElement(i).asInstanceOf[Long])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.FLOAT_TYPE_INFO =>
-        val array = new Array[Float](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Float]
+        if (!boxed) {
+          val array = new Array[Float](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Float]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Float](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Float.valueOf(getElement(i).asInstanceOf[Float])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.DOUBLE_TYPE_INFO =>
-        val array = new Array[Double](length)
-        for (i <- 0 until length) {
-          array(i) = getElement(i).asInstanceOf[Double]
+        if (!boxed) {
+          val array = new Array[Double](length)
+          for (i <- 0 until length) {
+            array(i) = getElement(i).asInstanceOf[Double]
+          }
+          array
+        } else {
+          val array = new Array[java.lang.Double](length)
+          for (i <- 0 until length) {
+            if (getElement(i) != null) {
+              array(i) = java.lang.Double.valueOf(getElement(i).asInstanceOf[Double])
+            } else {
+              array(i) = null
+            }
+          }
+          array
         }
-        array
 
       case BasicTypeInfo.STRING_TYPE_INFO =>
         val array = new Array[java.lang.String](length)

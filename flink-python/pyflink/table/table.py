@@ -19,6 +19,7 @@ import sys
 
 from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
+from pyflink.table.table_schema import TableSchema
 
 from pyflink.table.window import GroupWindow
 from pyflink.util.utils import to_jarray
@@ -531,6 +532,14 @@ class Table(object):
         gateway = get_gateway()
         j_table_path = to_jarray(gateway.jvm.String, table_path_continued)
         self._j_table.insertInto(table_path, j_table_path)
+
+    def get_schema(self):
+        """
+        Returns the :class:`TableSchema` of this table.
+
+        :return: The schema of this table.
+        """
+        return TableSchema(j_table_schema=self._j_table.getSchema())
 
     def print_schema(self):
         """

@@ -19,6 +19,7 @@ import os
 
 from pyflink.table.table_descriptor import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
                                             Elasticsearch)
+from pyflink.table.table_schema import TableSchema
 from pyflink.table.table_sink import CsvTableSink
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
@@ -506,6 +507,22 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
                     'format.property-version': '1'}
         assert properties == expected
 
+    def test_schema(self):
+        csv = OldCsv()
+        schema = TableSchema(["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
+
+        csv = csv.schema(schema)
+
+        properties = csv.to_properties()
+        expected = {'format.fields.0.name': 'a',
+                    'format.fields.0.type': 'INT',
+                    'format.fields.1.name': 'b',
+                    'format.fields.1.type': 'VARCHAR',
+                    'format.type': 'csv',
+                    'format.property-version': '1'}
+
+        assert properties == expected
+
 
 class RowTimeDescriptorTests(PyFlinkTestCase):
 
@@ -736,6 +753,19 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.2.rowtime.watermarks.delay': '5000',
                     'schema.3.name': 'string_field',
                     'schema.3.type': 'VARCHAR'}
+        assert properties == expected
+
+    def test_schema(self):
+        schema = Schema()
+        table_schema = TableSchema(["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
+
+        schema = schema.schema(table_schema)
+
+        properties = schema.to_properties()
+        expected = {'schema.0.name': 'a',
+                    'schema.0.type': 'INT',
+                    'schema.1.name': 'b',
+                    'schema.1.type': 'VARCHAR'}
         assert properties == expected
 
 

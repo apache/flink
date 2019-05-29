@@ -27,6 +27,8 @@ from copy import copy
 from functools import reduce
 from threading import RLock
 
+from py4j.java_gateway import JavaClass, JavaObject, get_java_class
+
 from pyflink.util.utils import to_jarray
 from pyflink.java_gateway import get_gateway
 
@@ -56,11 +58,11 @@ class DataType(object):
     """
 
     def __init__(self, nullable=True):
-        self.nullable = nullable
-        self.conversion_cls = ''
+        self._nullable = nullable
+        self._conversion_cls = ''
 
     def __repr__(self):
-        return '%s(%s)' % (self.__class__.__name__, str(self.nullable).lower())
+        return '%s(%s)' % (self.__class__.__name__, str(self._nullable).lower())
 
     def __str__(self, *args, **kwargs):
         return self.__class__.type_name()
@@ -76,12 +78,12 @@ class DataType(object):
 
     def not_null(self):
         cp = copy(self)
-        cp.nullable = False
+        cp._nullable = False
         return cp
 
     def nullable(self):
         cp = copy(self)
-        cp.nullable = True
+        cp._nullable = True
         return cp
 
     @classmethod
@@ -95,7 +97,8 @@ class DataType(object):
 
         :param conversion_cls: the string representation of the conversion class
         """
-        self.conversion_cls = conversion_cls
+        self._conversion_cls = conversion_cls
+        return self
 
     def need_conversion(self):
         """
@@ -182,7 +185,7 @@ class CharType(AtomicType):
         self.length = length
 
     def __repr__(self):
-        return 'CharType(%d, %s)' % (self.length, str(self.nullable).lower())
+        return 'CharType(%d, %s)' % (self.length, str(self._nullable).lower())
 
 
 class VarCharType(AtomicType):
@@ -201,7 +204,7 @@ class VarCharType(AtomicType):
         self.length = length
 
     def __repr__(self):
-        return "VarCharType(%d, %s)" % (self.length, str(self.nullable).lower())
+        return "VarCharType(%d, %s)" % (self.length, str(self._nullable).lower())
 
 
 class BinaryType(AtomicType):
@@ -220,7 +223,7 @@ class BinaryType(AtomicType):
         self.length = length
 
     def __repr__(self):
-        return "BinaryType(%d, %s)" % (self.length, str(self.nullable).lower())
+        return "BinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
 
 
 class VarBinaryType(AtomicType):
@@ -239,7 +242,7 @@ class VarBinaryType(AtomicType):
         self.length = length
 
     def __repr__(self):
-        return "VarBinaryType(%d, %s)" % (self.length, str(self.nullable).lower())
+        return "VarBinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
 
 
 class BooleanType(AtomicType):
@@ -346,7 +349,7 @@ class DecimalType(FractionalType):
         self.has_precision_info = True  # this is public API
 
     def __repr__(self):
-        return "DecimalType(%d, %d, %s)" % (self.precision, self.scale, str(self.nullable).lower())
+        return "DecimalType(%d, %d, %s)" % (self.precision, self.scale, str(self._nullable).lower())
 
 
 class DateType(AtomicType):
@@ -391,7 +394,7 @@ class TimeType(AtomicType):
         self.precision = precision
 
     def __repr__(self):
-        return "TimeType(%s, %s)" % (self.precision, str(self.nullable).lower())
+        return "TimeType(%s, %s)" % (self.precision, str(self._nullable).lower())
 
     def need_conversion(self):
         return True
@@ -445,7 +448,7 @@ class TimestampType(AtomicType):
 
     def __repr__(self):
         return "TimestampType(%s, %s, %s)" % (
-            self.kind, self.precision, str(self.nullable).lower())
+            self.kind, self.precision, str(self._nullable).lower())
 
     def need_conversion(self):
         return True
@@ -460,6 +463,17 @@ class TimestampType(AtomicType):
         if ts is not None:
             # using int to avoid precision loss in float
             return datetime.datetime.fromtimestamp(ts // 10**6).replace(microsecond=ts % 10**6)
+
+
+_boxed_to_primitive_array_map = \
+    {'java.lang.Integer': '[I',
+     'java.lang.Long': '[J',
+     'java.lang.Byte': '[B',
+     'java.lang.Short': '[S',
+     'java.lang.Character': '[C',
+     'java.lang.Boolean': '[Z',
+     'java.lang.Float': '[F',
+     'java.lang.Double': '[D'}
 
 
 class ArrayType(DataType):
@@ -483,7 +497,7 @@ class ArrayType(DataType):
         self.element_type = element_type
 
     def __repr__(self):
-        return "ArrayType(%s, %s)" % (repr(self.element_type), str(self.nullable).lower())
+        return "ArrayType(%s, %s)" % (repr(self.element_type), str(self._nullable).lower())
 
     def need_conversion(self):
         return self.element_type.need_conversion()
@@ -529,7 +543,7 @@ class MapType(DataType):
 
     def __repr__(self):
         return "MapType(%s, %s, %s)" % (
-            repr(self.key_type), repr(self.value_type), str(self.nullable).lower())
+            repr(self.key_type), repr(self.value_type), str(self._nullable).lower())
 
     def need_conversion(self):
         return self.key_type.need_conversion() or self.value_type.need_conversion()
@@ -568,7 +582,7 @@ class MultisetType(DataType):
         self.element_type = element_type
 
     def __repr__(self):
-        return "MultisetType(%s, %s)" % (repr(self.element_type), str(self.nullable).lower())
+        return "MultisetType(%s, %s)" % (repr(self.element_type), str(self._nullable).lower())
 
     def need_conversion(self):
         return self.element_type.need_conversion()
@@ -1238,7 +1252,10 @@ def _to_java_type(data_type):
     # ArrayType
     elif isinstance(data_type, ArrayType):
         if type(data_type.element_type) in _primitive_array_element_types:
-            return Types.PRIMITIVE_ARRAY(_to_java_type(data_type.element_type))
+            if data_type.element_type._nullable is False:
+                return Types.PRIMITIVE_ARRAY(_to_java_type(data_type.element_type))
+            else:
+                return Types.OBJECT_ARRAY(_to_java_type(data_type.element_type))
         elif isinstance(data_type.element_type, VarCharType) or isinstance(
                 data_type.element_type, CharType):
             return gateway.jvm.org.apache.flink.api.common.typeinfo.\
@@ -1271,6 +1288,164 @@ def _to_java_type(data_type):
 
     else:
         raise TypeError("Not supported type: %s" % data_type)
+
+
+def _is_instance_of(java_data_type, java_class):
+    gateway = get_gateway()
+    if isinstance(java_class, basestring):
+        param = java_class
+    elif isinstance(java_class, JavaClass):
+        param = get_java_class(java_class)
+    elif isinstance(java_class, JavaObject):
+        if not _is_instance_of(java_class, gateway.jvm.Class):
+            param = java_class.getClass()
+        else:
+            param = java_class
+    else:
+        raise TypeError(
+            "java_class must be a string, a JavaClass, or a JavaObject")
+
+    return gateway.jvm.org.apache.flink.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
+        param, java_data_type)
+
+
+def _from_java_type(j_data_type):
+    gateway = get_gateway()
+
+    if _is_instance_of(j_data_type, gateway.jvm.TypeInformation):
+        # input is TypeInformation
+        LegacyTypeInfoDataTypeConverter = \
+            gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+        java_data_type = LegacyTypeInfoDataTypeConverter.toDataType(j_data_type)
+    else:
+        # input is DataType
+        java_data_type = j_data_type
+
+    # Atomic Type with parameters.
+    if _is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
+        logical_type = java_data_type.getLogicalType()
+        if _is_instance_of(logical_type, gateway.jvm.CharType):
+            data_type = DataTypes.CHAR(logical_type.getLength(), logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.VarCharType):
+            data_type = DataTypes.VARCHAR(logical_type.getLength(), logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.BinaryType):
+            data_type = DataTypes.BINARY(logical_type.getLength(), logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.VarBinaryType):
+            data_type = DataTypes.VARBINARY(logical_type.getLength(), logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.DecimalType):
+            data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
+                                          logical_type.getScale(),
+                                          logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.TimeType):
+            data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.TimestampType):
+            j_kind = logical_type.getKind()
+            kind = None
+            if j_kind == gateway.jvm.TimestampKind.REGULAR:
+                kind = TimestampKind.REGULAR
+            elif j_kind == gateway.jvm.TimestampKind.ROWTIME:
+                kind = TimestampKind.ROWTIME
+            elif j_kind == gateway.jvm.TimestampKind.PROCTIME:
+                kind = TimestampKind.PROCTIME
+            if kind is None:
+                raise Exception("Unsupported java timestamp kind %s" % j_kind)
+            data_type = DataTypes.TIMESTAMP(kind,
+                                            nullable=logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.BooleanType):
+            data_type = DataTypes.BOOLEAN(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.TinyIntType):
+            data_type = DataTypes.TINYINT(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.SmallIntType):
+            data_type = DataTypes.SMALLINT(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.IntType):
+            data_type = DataTypes.INT(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.BigIntType):
+            data_type = DataTypes.BIGINT(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.FloatType):
+            data_type = DataTypes.FLOAT(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.DoubleType):
+            data_type = DataTypes.DOUBLE(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.DateType):
+            data_type = DataTypes.DATE(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.TimeType):
+            data_type = DataTypes.TIME(logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
+            raise \
+                TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
+                          % j_data_type)
+        elif _is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
+            raise \
+                TypeError("Unsupported type: %s, LocalZonedTimestampType is not supported "
+                          "currently." % j_data_type)
+        elif _is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType):
+            raise \
+                TypeError("Unsupported type: %s, DayTimeIntervalType is not supported yet."
+                          % j_data_type)
+        elif _is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
+            raise \
+                TypeError("Unsupported type: %s, YearMonthIntervalType is not supported "
+                          "currently." % j_data_type)
+        elif _is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
+            type_info = logical_type.getTypeInformation()
+            BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
+                BasicArrayTypeInfo
+            if type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
+                data_type = DataTypes.ARRAY(DataTypes.STRING())
+            else:
+                raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
+                                % type_info)
+        else:
+            raise TypeError("Unsupported type: %s, it is not supported yet in current python type"
+                            " system" % j_data_type)
+
+        return data_type
+
+    # Array Type, MultiSet Type.
+    elif _is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
+        logical_type = java_data_type.getLogicalType()
+        element_type = java_data_type.getElementDataType()
+        if _is_instance_of(logical_type, gateway.jvm.ArrayType):
+            data_type = DataTypes.ARRAY(_from_java_type(element_type), logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.MultisetType):
+            data_type = DataTypes.MULTISET(_from_java_type(element_type),
+                                           logical_type.isNullable())
+        else:
+            raise TypeError("Unsupported collection data type: %s" % j_data_type)
+
+        return data_type
+
+    # Map Type.
+    elif _is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
+        logical_type = java_data_type.getLogicalType()
+        key_type = java_data_type.getKeyDataType()
+        value_type = java_data_type.getValueDataType()
+        if _is_instance_of(logical_type, gateway.jvm.MapType):
+            data_type = DataTypes.MAP(
+                _from_java_type(key_type),
+                _from_java_type(value_type),
+                logical_type.isNullable())
+        else:
+            raise TypeError("Unsupported map data type: %s" % j_data_type)
+
+        return data_type
+
+    # Row Type.
+    elif _is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
+        logical_type = java_data_type.getLogicalType()
+        field_data_types = java_data_type.getFieldDataTypes()
+        if _is_instance_of(logical_type, gateway.jvm.RowType):
+            fields = [DataTypes.FIELD(item,
+                                      _from_java_type(
+                                          field_data_types[item])) for item in field_data_types]
+            data_type = DataTypes.ROW(fields, logical_type.isNullable())
+        else:
+            raise TypeError("Unsupported row data type: %s" % j_data_type)
+
+        return data_type
+
+    # Unrecognized type.
+    else:
+        TypeError("Unsupported data type: %s" % j_data_type)
 
 
 def _create_row(fields, values):
@@ -1516,7 +1691,7 @@ def _create_type_verifier(data_type, name=None):
 
     def verify_nullability(obj):
         if obj is None:
-            if data_type.nullable:
+            if data_type._nullable:
                 return True
             else:
                 raise ValueError(new_msg("This field is not nullable, but got None"))
