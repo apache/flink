@@ -29,6 +29,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
@@ -88,6 +91,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBSnapshotTransformFactoryAdaptor.wrapStateSnapshotTransformFactory;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An {@link AbstractKeyedStateBackend} that stores its state in {@code RocksDB} and serializes state to
@@ -538,13 +542,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * the key here, which is made up of key group, key, namespace and map key
 	 * (in case of MapState).
 	 */
+	@SuppressWarnings("unchecked")
 	private <N, S extends State, SV> void migrateStateValues(
 		StateDescriptor<S, SV> stateDesc,
 		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo) throws Exception {
 
 		if (stateDesc.getType() == StateDescriptor.Type.MAP) {
-			throw new StateMigrationException("The new serializer for a MapState requires state migration in order for the job to proceed." +
-				" However, migration for MapState currently isn't supported.");
+			TypeSerializerSnapshot previousSerializerSnapshot = stateMetaInfo.f1.getStateSerializerProvider().getPreviousSerializerSnapshot();
+			checkState(previousSerializerSnapshot instanceof MapSerializerSnapshot, "previous serializer have to be map serializer.");
+			TypeSerializerSnapshot previousKeySerializerSnapshot = ((MapSerializerSnapshot) previousSerializerSnapshot).getNestedSerializersSnapshotDelegate().getNestedSerializerSnapshots()[0];
+			TypeSerializer newUserKeySerializer = ((MapSerializer) stateMetaInfo.f1.getStateSerializer()).getKeySerializer();
+			TypeSerializerSchemaCompatibility compatibility = previousKeySerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
+			if (!compatibility.isCompatibleAsIs()) {
+				throw new StateMigrationException(
+					"The new serializer for a MapState requires state migration in order for the job to proceed." + " However, migration for MapState currently only supported value migration.");
+			}
 		}
 
 		LOG.info(

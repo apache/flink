@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -52,7 +53,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.RunnableFuture;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link KeyedStateBackend} and {@link OperatorStateBackend} as produced
@@ -105,7 +110,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	}
 
 	@Test
-	public void testKeyedValueStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
+	public void testKeyedValueStateRegistrationFailsIfNewStateSerializerIsIncompatible() {
 		final String stateName = "test-name";
 
 		try {
@@ -117,7 +122,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					stateName,
 					new TestType.IncompatibleTestTypeSerializer()));
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception expected) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
 		}
@@ -159,15 +164,15 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// make sure that reading and writing each key state works with the new serializer
 			backend.setCurrentKey(1);
-			Assert.assertEquals(new TestType("foo", 1456), valueState.value());
+			assertEquals(new TestType("foo", 1456), valueState.value());
 			valueState.update(new TestType("newValue1", 751));
 
 			backend.setCurrentKey(2);
-			Assert.assertEquals(new TestType("bar", 478), valueState.value());
+			assertEquals(new TestType("bar", 478), valueState.value());
 			valueState.update(new TestType("newValue2", 167));
 
 			backend.setCurrentKey(3);
-			Assert.assertEquals(new TestType("hello", 189), valueState.value());
+			assertEquals(new TestType("hello", 189), valueState.value());
 			valueState.update(new TestType("newValue3", 444));
 
 			// do another snapshot to verify the snapshot logic after migration
@@ -213,7 +218,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	}
 
 	@Test
-	public void testKeyedListStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
+	public void testKeyedListStateRegistrationFailsIfNewStateSerializerIsIncompatible() {
 		final String stateName = "test-name";
 
 		try {
@@ -225,7 +230,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					stateName,
 					new TestType.IncompatibleTestTypeSerializer()));
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception expected) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
 		}
@@ -273,24 +278,188 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			// make sure that reading and writing each key state works with the new serializer
 			backend.setCurrentKey(1);
 			Iterator<TestType> iterable1 = listState.get().iterator();
-			Assert.assertEquals(new TestType("key-1", 1), iterable1.next());
-			Assert.assertEquals(new TestType("key-1", 2), iterable1.next());
-			Assert.assertEquals(new TestType("key-1", 3), iterable1.next());
+			assertEquals(new TestType("key-1", 1), iterable1.next());
+			assertEquals(new TestType("key-1", 2), iterable1.next());
+			assertEquals(new TestType("key-1", 3), iterable1.next());
 			Assert.assertFalse(iterable1.hasNext());
 			listState.add(new TestType("new-key-1", 123));
 
 			backend.setCurrentKey(2);
 			Iterator<TestType> iterable2 = listState.get().iterator();
-			Assert.assertEquals(new TestType("key-2", 1), iterable2.next());
+			assertEquals(new TestType("key-2", 1), iterable2.next());
 			Assert.assertFalse(iterable2.hasNext());
 			listState.add(new TestType("new-key-2", 456));
 
 			backend.setCurrentKey(3);
 			Iterator<TestType> iterable3 = listState.get().iterator();
-			Assert.assertEquals(new TestType("key-3", 1), iterable3.next());
-			Assert.assertEquals(new TestType("key-3", 2), iterable3.next());
+			assertEquals(new TestType("key-3", 1), iterable3.next());
+			assertEquals(new TestType("key-3", 2), iterable3.next());
 			Assert.assertFalse(iterable3.hasNext());
 			listState.add(new TestType("new-key-3", 777));
+
+			// do another snapshot to verify the snapshot logic after migration
+			snapshot = runSnapshot(
+				backend.snapshot(2L, 3L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			snapshot.discardState();
+
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	// -------------------------------------------------------------------------------
+	//  Tests for keyed MapState
+	// -------------------------------------------------------------------------------
+
+	@Test
+	public void testKeyedMapStateAsIs() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedMapStateUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedMapStateStateMigration() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedMapStateUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				// restore with a V2 serializer that has a different schema
+				new TestType.V2TestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedMapStateSerializerReconfiguration() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedMapStateUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				// restore with a V2 serializer that has a different schema
+				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedMapStateRegistrationFailsIfNewStateSerializerIsIncompatible() {
+		final String stateName = "test-name";
+
+		try {
+			testKeyedMapStateUpgrade(
+				new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+				new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				// restore with a V2 serializer that has a different schema
+				new TestType.IncompatibleTestTypeSerializer()));
+			fail("should have failed");
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testKeyedMapStateUpgrade(
+		MapStateDescriptor<Integer, TestType> initialAccessDescriptor,
+		MapStateDescriptor<Integer, TestType> newAccessDescriptorAfterRestore) throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			MapState<Integer, TestType> mapState = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				CustomVoidNamespaceSerializer.INSTANCE,
+				initialAccessDescriptor);
+
+			backend.setCurrentKey(1);
+			mapState.put(1, new TestType("key-1", 1));
+			mapState.put(2, new TestType("key-1", 2));
+			mapState.put(3, new TestType("key-1", 3));
+
+			backend.setCurrentKey(2);
+			mapState.put(1, new TestType("key-2", 1));
+
+			backend.setCurrentKey(3);
+			mapState.put(1, new TestType("key-3", 1));
+			mapState.put(2, new TestType("key-3", 2));
+
+			KeyedStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+			backend.dispose();
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
+
+			mapState = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				CustomVoidNamespaceSerializer.INSTANCE,
+				newAccessDescriptorAfterRestore);
+
+			// make sure that reading and writing each key state works with the new serializer
+			backend.setCurrentKey(1);
+			Iterator<Map.Entry<Integer, TestType>> iterable1 = mapState.iterator();
+			Map.Entry<Integer, TestType> actual = iterable1.next();
+			assertEquals((Integer) 1, actual.getKey());
+			assertEquals(new TestType("key-1", 1), actual.getValue());
+
+			actual = iterable1.next();
+			assertEquals((Integer) 2, actual.getKey());
+			assertEquals(new TestType("key-1", 2), actual.getValue());
+
+			actual = iterable1.next();
+			assertEquals((Integer) 3, actual.getKey());
+			assertEquals(new TestType("key-1", 3), actual.getValue());
+
+			Assert.assertFalse(iterable1.hasNext());
+
+			mapState.put(123, new TestType("new-key-1", 123));
+
+			backend.setCurrentKey(2);
+			Iterator<Map.Entry<Integer, TestType>> iterable2 = mapState.iterator();
+
+			actual = iterable2.next();
+			assertEquals((Integer) 1, actual.getKey());
+			assertEquals(new TestType("key-2", 1), actual.getValue());
+			Assert.assertFalse(iterable2.hasNext());
+
+			mapState.put(456, new TestType("new-key-2", 456));
+
+			backend.setCurrentKey(3);
+			Iterator<Map.Entry<Integer, TestType>> iterable3 = mapState.iterator();
+
+			actual = iterable3.next();
+			assertEquals((Integer) 1, actual.getKey());
+			assertEquals(new TestType("key-3", 1), actual.getValue());
+
+			actual = iterable3.next();
+			assertEquals((Integer) 2, actual.getKey());
+			assertEquals(new TestType("key-3", 2), actual.getValue());
+
+			Assert.assertFalse(iterable3.hasNext());
+			mapState.put(777, new TestType("new-key-3", 777));
 
 			// do another snapshot to verify the snapshot logic after migration
 			snapshot = runSnapshot(
@@ -331,7 +500,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.create(
 				"testPriorityQueue", new TestType.IncompatibleTestTypeSerializer());
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
@@ -350,7 +519,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				new TestType.V1TestTypeSerializer(),
 				new TestType.V2TestTypeSerializer());
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception expected) {
 			// the new key serializer requires migration; this should fail the restore
 			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
@@ -371,7 +540,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				new TestType.V1TestTypeSerializer(),
 				new TestType.IncompatibleTestTypeSerializer());
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception expected) {
 			// the new key serializer is incompatible; this should fail the restore
 			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
@@ -410,9 +579,9 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// access and check previous state
 			backend.setCurrentKey(new TestType("foo", 123));
-			Assert.assertEquals(1, valueState.value().intValue());
+			assertEquals(1, valueState.value().intValue());
 			backend.setCurrentKey(new TestType("bar", 456));
-			Assert.assertEquals(5, valueState.value().intValue());
+			assertEquals(5, valueState.value().intValue());
 
 			// do another snapshot to verify the snapshot logic after migration
 			snapshot = runSnapshot(
@@ -435,7 +604,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				new TestType.V1TestTypeSerializer(),
 				new TestType.V2TestTypeSerializer());
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception expected) {
 			// the new namespace serializer requires migration; this should fail the restore
 			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
@@ -456,7 +625,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				new TestType.V1TestTypeSerializer(),
 				new TestType.IncompatibleTestTypeSerializer());
 
-			Assert.fail("should have failed");
+			fail("should have failed");
 		} catch (Exception expected) {
 			// the new namespace serializer is incompatible; this should fail the restore
 			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
@@ -501,10 +670,10 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// access and check previous state
 			backend.setCurrentKey(1);
-			Assert.assertEquals(10, valueState.value().intValue());
+			assertEquals(10, valueState.value().intValue());
 			valueState.update(10);
 			backend.setCurrentKey(5);
-			Assert.assertEquals(50, valueState.value().intValue());
+			assertEquals(50, valueState.value().intValue());
 
 			// do another snapshot to verify the snapshot logic after migration
 			snapshot = runSnapshot(
@@ -562,7 +731,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					// restore with a new incompatible serializer
 					new TestType.IncompatibleTestTypeSerializer()));
 
-			Assert.fail("should have failed.");
+			fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		}
@@ -592,8 +761,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// make sure that reading and writing each state partition works with the new serializer
 			Iterator<TestType> iterator = state.get().iterator();
-			Assert.assertEquals(new TestType("foo", 13), iterator.next());
-			Assert.assertEquals(new TestType("bar", 278), iterator.next());
+			assertEquals(new TestType("foo", 13), iterator.next());
+			assertEquals(new TestType("bar", 278), iterator.next());
 			Assert.assertFalse(iterator.hasNext());
 			state.add(new TestType("new-entry", 777));
 		} finally {
@@ -635,7 +804,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 
 	@Test
-	public void testOperatorUnionListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
+	public void testOperatorUnionListStateRegistrationFailsIfNewSerializerIsIncompatible() {
 		final String stateName = "union-list-state";
 
 		try {
@@ -648,7 +817,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					// restore with a new incompatible serializer
 					new TestType.IncompatibleTestTypeSerializer()));
 
-			Assert.fail("should have failed.");
+			fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		}
@@ -679,8 +848,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each state partition works with the new serializer
 			Iterator<TestType> iterator = state.get().iterator();
-			Assert.assertEquals(new TestType("foo", 13), iterator.next());
-			Assert.assertEquals(new TestType("bar", 278), iterator.next());
+			assertEquals(new TestType("foo", 13), iterator.next());
+			assertEquals(new TestType("bar", 278), iterator.next());
 			Assert.assertFalse(iterator.hasNext());
 			state.add(new TestType("new-entry", 777));
 		} finally {
@@ -758,7 +927,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	}
 
 	@Test
-	public void testBroadcastStateRegistrationFailsIfNewValueSerializerIsIncompatible() throws Exception {
+	public void testBroadcastStateRegistrationFailsIfNewValueSerializerIsIncompatible() {
 		final String stateName = "broadcast-state";
 
 		try {
@@ -773,14 +942,14 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					// new value serializer is incompatible
 					new TestType.IncompatibleTestTypeSerializer()));
 
-			Assert.fail("should have failed.");
+			fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		}
 	}
 
 	@Test
-	public void testBroadcastStateRegistrationFailsIfNewKeySerializerIsIncompatible() throws Exception {
+	public void testBroadcastStateRegistrationFailsIfNewKeySerializerIsIncompatible() {
 		final String stateName = "broadcast-state";
 
 		try {
@@ -795,7 +964,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 					new TestType.IncompatibleTestTypeSerializer(),
 					IntSerializer.INSTANCE));
 
-			Assert.fail("should have failed.");
+			fail("should have failed.");
 		} catch (Exception e) {
 			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		}
@@ -824,8 +993,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each broadcast entry works with the new serializer
-			Assert.assertEquals(new TestType("foo", 13), state.get(3));
-			Assert.assertEquals(new TestType("bar", 278), state.get(5));
+			assertEquals(new TestType("foo", 13), state.get(3));
+			assertEquals(new TestType("bar", 278), state.get(5));
 			state.put(17, new TestType("new-entry", 777));
 		} finally {
 			backend.dispose();
@@ -856,8 +1025,8 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each broadcast entry works with the new serializer
-			Assert.assertEquals((Integer) 3, state.get(new TestType("foo", 13)));
-			Assert.assertEquals((Integer) 5, state.get(new TestType("bar", 278)));
+			assertEquals((Integer) 3, state.get(new TestType("foo", 13)));
+			assertEquals((Integer) 5, state.get(new TestType("bar", 278)));
 			state.put(new TestType("new-entry", 777), 17);
 		} finally {
 			backend.dispose();
