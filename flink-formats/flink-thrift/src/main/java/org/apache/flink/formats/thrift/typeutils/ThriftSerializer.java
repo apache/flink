@@ -29,6 +29,8 @@ import org.apache.thrift.TEnum;
 import org.apache.thrift.TFieldIdEnum;
 import org.apache.thrift.meta_data.FieldMetaData;
 import org.apache.thrift.protocol.TType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -49,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A serializer that serializes types via Thrift.
  */
 public class ThriftSerializer<T extends TBase> extends TypeSerializer<T> {
+	private static final Logger LOG = LoggerFactory.getLogger(ThriftSerializer.class);
 
 	public Class<T> thriftClass;
 
@@ -216,6 +219,7 @@ public class ThriftSerializer<T extends TBase> extends TypeSerializer<T> {
 		} else if (type.equals(byte[].class)) {
 			outputView.write((byte[]) object);
 		} else {
+			LOG.error("Unexpected serialize type : {}", type);
 			throw new IOException("Unexpected type : " + type);
 		}
 	}
@@ -560,6 +564,7 @@ public class ThriftSerializer<T extends TBase> extends TypeSerializer<T> {
 		try {
 			clazz = Class.forName(className);
 		} catch (ClassNotFoundException e) {
+			LOG.error("Failed to find class {}", className, e);
 			throw new IOException(e);
 		}
 
@@ -584,6 +589,7 @@ public class ThriftSerializer<T extends TBase> extends TypeSerializer<T> {
 		} else if (clazz.equals(double.class) || clazz.equals(Double.class)) {
 			return inputView.readDouble();
 		} else {
+			LOG.error("Unexpected deserialization type : {}", objectType);
 			throw new IOException("Unexpected type : " + objectType);
 		}
 	}
@@ -615,6 +621,7 @@ public class ThriftSerializer<T extends TBase> extends TypeSerializer<T> {
 				deserialize(result, fieldIdEnum, fieldType, inputView);
 			}
 		} catch (InstantiationException | IllegalAccessException | NoSuchFieldException | ClassNotFoundException e) {
+			LOG.error("Failed to deserialize {}", thriftObject,  e);
 			throw new IOException((e));
 		}
 		return result;
@@ -636,7 +643,6 @@ public class ThriftSerializer<T extends TBase> extends TypeSerializer<T> {
 	}
 
 	public boolean equals(Object obj) {
-
 		return false;
 	}
 

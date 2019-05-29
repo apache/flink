@@ -20,11 +20,14 @@ package org.apache.flink.formats.thrift;
 
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.formats.thrift.generated.StructWithBinaryField;
 import org.apache.flink.formats.thrift.typeutils.ThriftSerializer;
 
 import org.apache.thrift.TBase;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *  Thrift-format test utils.
@@ -44,6 +47,20 @@ public class TestUtils {
 	}
 
 	public static <T extends TBase> boolean isSerDeConsistentFor(T object) throws IOException {
-		return isSerDeConsistentFor(object, ThriftCodeGenerator.SCROOGE);
+		return isSerDeConsistentFor(object, ThriftCodeGenerator.THRIFT);
+	}
+
+	public static List<StructWithBinaryField> generateStructWithBinaryFieldTestData() {
+		List<StructWithBinaryField> result = new ArrayList<>();
+
+		for (int i = 0; i < 20; i++) {
+			StructWithBinaryField message = new StructWithBinaryField();
+			message.setId(1000L + i);
+			message.setSegmentIds("123456789".getBytes());
+			message.setValue("4567890");
+			message.setNums(200L + i);
+			result.add(message);
+		}
+		return result;
 	}
 }

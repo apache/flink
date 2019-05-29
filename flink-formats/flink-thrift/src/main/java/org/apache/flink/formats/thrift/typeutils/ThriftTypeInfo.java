@@ -33,9 +33,10 @@ import org.apache.thrift.TBase;
 import org.apache.thrift.TEnum;
 import org.apache.thrift.TFieldIdEnum;
 import org.apache.thrift.meta_data.FieldMetaData;
-import org.apache.thrift.meta_data.FieldValueMetaData;
 import org.apache.thrift.meta_data.StructMetaData;
 import org.apache.thrift.protocol.TType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -43,10 +44,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * ThriftInfoInfo is for creating TypeInformation for Thrift classes.
@@ -54,6 +53,7 @@ import java.util.Set;
  * @param <T> The Thrift class
  */
 public class ThriftTypeInfo<T extends TBase> extends PojoTypeInfo<T> {
+	private static final Logger LOG = LoggerFactory.getLogger(ThriftTypeInfo.class);
 
 	public Class<T> thriftClass;
 	private ThriftCodeGenerator codeGenerator;
@@ -78,37 +78,18 @@ public class ThriftTypeInfo<T extends TBase> extends PojoTypeInfo<T> {
 		Class<T> typeClass, ThriftCodeGenerator codeGenerator) {
 		List<PojoField> result = new ArrayList<>();
 		Map<TFieldIdEnum, FieldMetaData> fieldMetaDataMap;
-		Set<FieldValueMetaData> fieldValueMetaDataSet = new HashSet<>();
 		try {
 			fieldMetaDataMap = ThriftUtils.getMetaDataMapField(typeClass);
-			if (codeGenerator.equals(ThriftCodeGenerator.SCROOGE)) {
-				fieldValueMetaDataSet = ThriftUtils.getBinaryFieldValueMetaDatas(typeClass);
-			}
 			for (Map.Entry<TFieldIdEnum, FieldMetaData> entry : fieldMetaDataMap.entrySet()) {
 				FieldMetaData fieldMetaData = entry.getValue();
-				boolean isBinaryField = false;
-				if (codeGenerator.equals(ThriftCodeGenerator.THRIFT)) {
-					isBinaryField = fieldMetaData.valueMetaData.isBinary();
-				} else if (codeGenerator.equals(ThriftCodeGenerator.SCROOGE)) {
-					isBinaryField = fieldValueMetaDataSet.contains(fieldMetaData.valueMetaData);
-				}
+				boolean isBinaryField = ThriftUtils.isBinaryField(typeClass, fieldMetaData, codeGenerator);
 				PojoField pojoField = generatePojoField(typeClass, fieldMetaData, isBinaryField, codeGenerator);
 				result.add(pojoField);
 			}
 		} catch (IOException | NoSuchFieldException | ClassNotFoundException e) {
-
+			LOG.error("Failed to get thrift fields", e);
 		}
 		return result;
-	}
-
-	private static TypeInformation getParameterizedTypeInfo(Field field, ThriftCodeGenerator codeGenerator)
-		throws ClassNotFoundException {
-		ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
-		Type elementType = parameterizedType.getActualTypeArguments()[0];
-		Class<?> elementClass = Class.forName(elementType.getTypeName());
-		TypeInformation typeInfo = TBase.class.isAssignableFrom(elementClass) ?
-			new ThriftTypeInfo(elementClass, codeGenerator) : TypeInformation.of(elementClass);
-		return typeInfo;
 	}
 
 	private static PojoField generatePojoField(Class<?> typeClass, FieldMetaData fieldMetaData,
@@ -128,7 +109,6 @@ public class ThriftTypeInfo<T extends TBase> extends PojoTypeInfo<T> {
 				result = new PojoField(field, TypeInformation.of(fieldClass));
 				break;
 			}
-
 			case TType.STRING: {
 				if (isBinaryField) {
 					result = new PojoField(field, TypeInformation.of(ByteBuffer.class));
@@ -137,13 +117,14 @@ public class ThriftTypeInfo<T extends TBase> extends PojoTypeInfo<T> {
 				}
 				break;
 			}
+
 			case TType.ENUM: {
 				result = new PojoField(field, TypeInformation.of(TEnum.class));
 				break;
 			}
 
 			case TType.LIST: {
-				TypeInformation typeInfo = getParameterizedTypeInfo(field, codeGenerator);
+				TypeInformation typeInfo = ThriftUtils.getParameterizedTypeInfo(field, codeGenerator);
 				result = new PojoField(field, new ListTypeInfo<>(typeInfo));
 				break;
 			}
@@ -164,7 +145,7 @@ public class ThriftTypeInfo<T extends TBase> extends PojoTypeInfo<T> {
 			}
 
 			case TType.SET: {
-				TypeInformation typeInfo = getParameterizedTypeInfo(field, codeGenerator);
+				TypeInformation typeInfo = ThriftUtils.getParameterizedTypeInfo(field, codeGenerator);
 				result = new PojoField(field, new MultisetTypeInfo<>(typeInfo));
 				break;
 			}

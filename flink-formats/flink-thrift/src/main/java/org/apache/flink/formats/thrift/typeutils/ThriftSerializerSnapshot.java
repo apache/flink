@@ -25,6 +25,9 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.thrift.ThriftCodeGenerator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -37,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The data type that the originating serializer of this configuration serializes.
  */
 public class ThriftSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
+	private static final Logger LOG = LoggerFactory.getLogger(ThriftSerializerSnapshot.class);
 
 	private Class<T> runtimeType;
 	private ThriftCodeGenerator codeGenerator;
@@ -78,9 +82,7 @@ public class ThriftSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		if (!(newSerializer instanceof ThriftSerializer)) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
-
 		ThriftSerializer<?> newThriftSerializer = (ThriftSerializer<?>) newSerializer;
-
 		return runtimeType.getName().equals(newThriftSerializer.getThriftClassName())
 			? TypeSerializerSchemaCompatibility.compatibleAsIs()
 			: TypeSerializerSchemaCompatibility.incompatible();
@@ -99,6 +101,7 @@ public class ThriftSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
 			return (Class<T>) runtimeTarget;
 		} catch (ClassNotFoundException e) {
+			LOG.error("Failed to find class {}", className, e);
 			throw new IllegalStateException(""
 				+ "Unable to find the class '" + className + "' which is used to deserialize "
 				+ "the elements of this serializer. "

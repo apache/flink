@@ -22,4 +22,6 @@ namespace java org.apache.flink.formats.thrift.generated
 struct StructWithBinaryField {
     1: optional i64 id,
     2: optional binary segmentIds,
+    3: optional string value,
+    4: optional i64 nums,
 }
