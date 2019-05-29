@@ -468,7 +468,7 @@ class StreamTableEnvironment(TableEnvironment):
 
     def _from_file(self, filename, schema):
         gateway = get_gateway()
-        jds = gateway.jvm.PythonUtils.createDataStreamFromFile(
+        jds = gateway.jvm.PythonBridgeUtils.createDataStreamFromFile(
             self._j_tenv.execEnv(), filename, True)
         return Table(gateway.jvm.PythonTableUtils.fromDataStream(
             self._j_tenv, jds, _to_java_type(schema)))
@@ -533,7 +533,7 @@ class BatchTableEnvironment(TableEnvironment):
 
     def _from_file(self, filename, schema):
         gateway = get_gateway()
-        jds = gateway.jvm.PythonUtils.createDataSetFromFile(
+        jds = gateway.jvm.PythonBridgeUtils.createDataSetFromFile(
             self._j_tenv.execEnv(), filename, True)
         return Table(gateway.jvm.PythonTableUtils.fromDataSet(
             self._j_tenv, jds, _to_java_type(schema)))

@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.client.python.PythonDriver;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -176,7 +175,7 @@ public class PackagedProgram {
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		// Whether the job is a Python job.
-		isPython = entryPointClassName != null && entryPointClassName.equals(PythonDriver.class.getCanonicalName());
+		isPython = entryPointClassName != null && entryPointClassName.equals("org.apache.flink.python.client.PythonDriver");
 
 		URL jarFileUrl = null;
 		if (jarFile != null) {
@@ -242,7 +241,7 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
-		isPython = entryPointClass == PythonDriver.class;
+		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.python.client.PythonDriver");
 
 		// if the entry point is a program, instantiate the class and get the plan
 		if (Program.class.isAssignableFrom(this.mainClass)) {

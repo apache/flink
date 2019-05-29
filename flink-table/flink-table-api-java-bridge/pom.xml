@@ -52,47 +52,5 @@ under the License.
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
-		<!-- python dependencies -->
-
-		<dependency>
-			<groupId>net.razorvine</groupId>
-			<artifactId>pyrolite</artifactId>
-			<version>4.13</version>
-			<exclusions>
-				<exclusion>
-					<groupId>net.razorvine</groupId>
-					<artifactId>serpent</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<includes combine.children="append">
-									<include>net.razorvine:*</include>
-								</includes>
-							</artifactSet>
-							<relocations>
-								<relocation>
-									<pattern>net.razorvine</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.net.razorvine</shadedPattern>
-								</relocation>
-							</relocations>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>

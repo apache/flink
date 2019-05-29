@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.python;
+package org.apache.flink.python.client;
 
 import org.apache.flink.core.fs.Path;
 
@@ -59,11 +59,11 @@ public class PythonDriver {
 		List<String> commands = constructPythonCommands(filePathMap, parsedArgs);
 		try {
 			// prepare the exec environment of python progress.
-			PythonUtil.PythonEnvironment pythonEnv = PythonUtil.preparePythonEnvironment(filePathMap);
+			PythonEnvUtils.PythonEnvironment pythonEnv = PythonEnvUtils.preparePythonEnvironment(filePathMap);
 			// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python progress.
 			pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
 			// start the python process.
-			Process pythonProcess = PythonUtil.startPythonProcess(pythonEnv, commands);
+			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
 			int exitCode = pythonProcess.waitFor();
 			if (exitCode != 0) {
 				throw new RuntimeException("Python process exits with code: " + exitCode);

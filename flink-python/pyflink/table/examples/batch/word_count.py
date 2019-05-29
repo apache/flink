@@ -50,7 +50,7 @@ def word_count():
     t_env = TableEnvironment.create(t_config)
 
     field_names = ["word", "cout"]
-    field_types = [DataTypes.STRING, DataTypes.LONG]
+    field_types = [DataTypes.STRING(), DataTypes.BIGINT()]
 
     # register Orders table in table environment
     t_env.register_table_source(

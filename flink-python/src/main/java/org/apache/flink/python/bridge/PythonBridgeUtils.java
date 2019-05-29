@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.python;
+package org.apache.flink.python.bridge;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.bridge.pickle.ArrayConstructor;
+import org.apache.flink.python.bridge.pickle.ByteArrayConstructor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.python.pickle.ArrayConstructor;
-import org.apache.flink.table.python.pickle.ByteArrayConstructor;
 import org.apache.flink.util.Collector;
 
 import net.razorvine.pickle.Unpickler;
@@ -42,7 +42,7 @@ import java.util.List;
  * Utility class that contains helper methods to create a DataStream/DataSet from
  * a file which contains Python objects.
  */
-public final class PythonUtils {
+public final class PythonBridgeUtils {
 
 	/**
 	 * Creates a DataStream from a file which contains serialized python objects.
@@ -133,7 +133,7 @@ public final class PythonUtils {
 
 	private static boolean initialized = false;
 	private static void initialize() {
-		synchronized (PythonUtils.class) {
+		synchronized (PythonBridgeUtils.class) {
 			if (!initialized) {
 				Unpickler.registerConstructor("array", "array", new ArrayConstructor());
 				Unpickler.registerConstructor("__builtin__", "bytearray", new ByteArrayConstructor());
