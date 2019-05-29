@@ -24,8 +24,6 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
@@ -38,14 +36,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code StreamTransformation} represents the operation that creates a
- * {@link org.apache.flink.streaming.api.datastream.DataStream}. Every
- * {@link org.apache.flink.streaming.api.datastream.DataStream} has an underlying
+ * DataStream. Every DataStream has an underlying
  * {@code StreamTransformation} that is the origin of said DataStream.
  *
- * <p>API operations such as {@link org.apache.flink.streaming.api.datastream.DataStream#map} create
+ * <p>API operations such as DataStream#map create
  * a tree of {@code StreamTransformation}s underneath. When the stream program is to be executed
- * this graph is translated to a {@link StreamGraph} using
- * {@link org.apache.flink.streaming.api.graph.StreamGraphGenerator}.
+ * this graph is translated to a StreamGraph using StreamGraphGenerator.
  *
  * <p>A {@code StreamTransformation} does not necessarily correspond to a physical operation
  * at runtime. Some operations are only logical concepts. Examples of this are union,
@@ -100,6 +96,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public abstract class StreamTransformation<T> {
 
+	// Has to be equal to StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
+	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
+
 	// This is used to assign a unique ID to every StreamTransformation
 	protected static Integer idCounter = 0;
 
@@ -107,7 +106,6 @@ public abstract class StreamTransformation<T> {
 		idCounter++;
 		return idCounter;
 	}
-
 
 	protected final int id;
 
@@ -227,8 +225,8 @@ public abstract class StreamTransformation<T> {
 	 */
 	public void setMaxParallelism(int maxParallelism) {
 		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM,
-				"Maximum parallelism must be between 1 and " + StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
+						&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+				"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
 						+ ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
 	}
