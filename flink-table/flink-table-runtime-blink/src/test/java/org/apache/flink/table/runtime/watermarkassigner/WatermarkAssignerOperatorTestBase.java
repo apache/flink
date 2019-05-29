@@ -30,6 +30,9 @@ import java.util.List;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Base class for watermark assigner operator test.
+ */
 public class WatermarkAssignerOperatorTestBase {
 
 	protected Tuple2<Long, Long> validateElement(Object element, long nextElementValue, long currentWatermark) {
