@@ -36,13 +36,11 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.container.entrypoint.StandaloneJobClusterConfigurationParserFactory.DEFAULT_JOB_ID;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.IsNull.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -91,7 +89,7 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 
 		assertThat(clusterConfiguration.getSavepointRestoreSettings(), is(equalTo(SavepointRestoreSettings.none())));
 
-		assertThat(clusterConfiguration.getJobId(), is(equalTo(DEFAULT_JOB_ID)));
+		assertThat(clusterConfiguration.getJobId(), is(nullValue()));
 	}
 
 	@Test
@@ -106,7 +104,7 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 		assertThat(clusterConfiguration.getRestPort(), is(equalTo(-1)));
 		assertThat(clusterConfiguration.getHostname(), is(nullValue()));
 		assertThat(clusterConfiguration.getSavepointRestoreSettings(), is(equalTo(SavepointRestoreSettings.none())));
-		assertThat(clusterConfiguration.getJobId(), is(not(nullValue())));
+		assertThat(clusterConfiguration.getJobId(), is(nullValue()));
 		assertThat(clusterConfiguration.getJobClassName(),  is(nullValue()));
 	}
 
