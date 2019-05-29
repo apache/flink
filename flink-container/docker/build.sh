@@ -20,9 +20,9 @@
 usage() {
   cat <<HERE
 Usage:
-  build.sh --job-jar <path-to-job-jar> --from-local-dist [--image-name <image>]
-  build.sh --job-jar <path-to-job-jar> --from-archive <path-to-dist-archive> [--image-name <image>]
-  build.sh --job-jar <path-to-job-jar> --from-release --flink-version <x.x.x> --scala-version <x.xx> [--hadoop-version <x.x>] [--image-name <image>]
+  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] [--opt-jars <comma-separated-opt-jars>] --from-local-dist [--image-name <image>]
+  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] [--opt-jars <comma-separated-opt-jars>] --from-archive <path-to-dist-archive> [--image-name <image>]
+  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] [--opt-jars <comma-separated-opt-jars>] --from-release --flink-version <x.x.x> --scala-version <x.xx> [--hadoop-version <x.x>] [--image-name <image>]
   build.sh --help
 
   If the --image-name flag is not used the built image name will be 'flink-job'.
@@ -35,8 +35,18 @@ while [[ $# -ge 1 ]]
 do
 key="$1"
   case $key in
-    --job-jar)
-    JOB_JAR_PATH="$2"
+    --job-artifacts)
+    JOB_ARTIFACTS_PATH="$2"
+    shift
+    ;;
+    --with-python2)
+    PYTHON_VERSION="2"
+    ;;
+    --with-python3)
+    PYTHON_VERSION="3"
+    ;;
+    --opt-jars)
+    OPT_JARS="$2"
     shift
     ;;
     --from-local-dist)
@@ -93,8 +103,16 @@ trap cleanup EXIT
 
 mkdir -p "${TMPDIR}"
 
-JOB_JAR_TARGET="${TMPDIR}/job.jar"
-cp ${JOB_JAR_PATH} ${JOB_JAR_TARGET}
+JOB_ARTIFACTS_TARGET="${TMPDIR}/artifacts"
+mkdir -p ${JOB_ARTIFACTS_TARGET}
+
+OLD_IFS="$IFS"
+IFS=","
+job_artifacts_array=(${JOB_ARTIFACTS_PATH})
+IFS="$OLD_IFS"
+for artifact in ${job_artifacts_array[@]}; do
+  cp ${artifact} ${JOB_ARTIFACTS_TARGET}/
+done
 
 checkUrlAvailable() {
     curl --output /dev/null --silent --head --fail $1
@@ -170,4 +188,4 @@ else
 
 fi
 
-docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_jar="${JOB_JAR_TARGET}" --build-arg hadoop_jar="${SHADED_HADOOP}" -t "${IMAGE_NAME}" .
+docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_artifacts="${JOB_ARTIFACTS_TARGET}" --build-arg opt_jars="${OPT_JARS}" --build-arg hadoop_jar="${SHADED_HADOOP}" --build-arg python_version="${PYTHON_VERSION}" -t "${IMAGE_NAME}" .
