@@ -104,7 +104,6 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 			}
 
 			// TODO: the calculation of preferred location should be refined.
-			// in ExecutionVertexSchedulingRequirements instead of calculating it here
 			CompletableFuture<LogicalSlot> slotFuture = calculatePreferredLocations(
 					executionVertexId,
 					schedulingRequirements.getPreferredLocations(),
@@ -217,20 +216,17 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 				);
 				// If the parallelism is large, wait for all futures coming back may cost a long time,
 				// so using the unfulfilled future number here to speed up it.
-				System.out.println(inputLocations.size() + " while " + inputLocationsFutures.size());
 				if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER ||
 						inputLocationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
 					locationsFutures.clear();
 					break;
 				}
 			}
-			System.out.println(executionVertexId + " should wait for " + locationsFutures);
 
 			if (!locationsFutures.isEmpty()) {
 				CompletableFuture<Collection<TaskManagerLocation>> uniqueLocationsFuture =
 						FutureUtils.combineAll(locationsFutures).thenApply(
 								(locations) -> {
-									System.out.println("I am completed with size " + locations.size());
 									Set<TaskManagerLocation> uniqueLocations = new HashSet<>(locations);
 									if (uniqueLocations.size() <= MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
 										return uniqueLocations;
