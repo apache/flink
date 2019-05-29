@@ -41,7 +41,8 @@ public class InputProcessorUtil {
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
 			InputGate inputGate,
-			Configuration taskManagerConfig) throws IOException {
+			Configuration taskManagerConfig,
+			String taskName) throws IOException {
 
 		CheckpointBarrierHandler barrierHandler;
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
@@ -53,9 +54,17 @@ public class InputProcessorUtil {
 			}
 
 			if (taskManagerConfig.getBoolean(NetworkEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
-				barrierHandler = new BarrierBuffer(inputGate, new CachedBufferBlocker(inputGate.getPageSize()), maxAlign);
+				barrierHandler = new BarrierBuffer(
+					inputGate,
+					new CachedBufferBlocker(inputGate.getPageSize()),
+					maxAlign,
+					taskName);
 			} else {
-				barrierHandler = new BarrierBuffer(inputGate, new BufferSpiller(ioManager, inputGate.getPageSize()), maxAlign);
+				barrierHandler = new BarrierBuffer(
+					inputGate,
+					new BufferSpiller(ioManager, inputGate.getPageSize()),
+					maxAlign,
+					taskName);
 			}
 		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
 			barrierHandler = new BarrierTracker(inputGate);

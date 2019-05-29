@@ -137,12 +137,6 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
-	public String getOwningTaskName() {
-		// all input gates have the same owning task
-		return inputGates[0].getOwningTaskName();
-	}
-
-	@Override
 	public boolean isFinished() {
 		for (InputGate inputGate : inputGates) {
 			if (!inputGate.isFinished()) {

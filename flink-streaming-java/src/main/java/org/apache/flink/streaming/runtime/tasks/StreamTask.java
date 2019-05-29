@@ -600,6 +600,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
+	 * Gets the name of the task, appended with the subtask indicator and execution id.
+	 *
+	 * @return The name of the task, with subtask indicator and execution id.
+	 */
+	String getTaskNameWithSubtaskAndId() {
+		return getEnvironment().getTaskInfo().getTaskNameWithSubtasks() +
+			" (" + getEnvironment().getExecutionId() + ')';
+	}
+
+	/**
 	 * Gets the lock object on which all operations that involve data and state mutation have to lock.
 	 * @return The checkpoint lock object.
 	 */

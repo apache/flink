@@ -140,12 +140,18 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
 			TaskIOMetricGroup metrics,
 			WatermarkGauge input1WatermarkGauge,
-			WatermarkGauge input2WatermarkGauge) throws IOException {
+			WatermarkGauge input2WatermarkGauge,
+			String taskName) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
 		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
-			checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
+			checkpointedTask,
+			checkpointMode,
+			ioManager,
+			inputGate,
+			taskManagerConfig,
+			taskName);
 
 		this.lock = checkNotNull(lock);
 

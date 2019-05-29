@@ -273,11 +273,6 @@ public class SingleInputGate extends InputGate {
 		return 0;
 	}
 
-	@Override
-	public String getOwningTaskName() {
-		return owningTaskName;
-	}
-
 	public CompletableFuture<Void> getCloseFuture() {
 		return closeFuture;
 	}

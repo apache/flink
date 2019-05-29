@@ -138,29 +138,17 @@ public class BarrierBufferMassiveRandomTest {
 		private int currentChannel = 0;
 		private long c = 0;
 
-		private final String owningTaskName;
-
 		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
-			this(bufferPools, barrierGens, "TestTask");
-		}
-
-		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens, String owningTaskName) {
 			this.numberOfChannels = bufferPools.length;
 			this.currentBarriers = new int[numberOfChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
-			this.owningTaskName = owningTaskName;
 			this.isAvailable = AVAILABLE;
 		}
 
 		@Override
 		public int getNumberOfInputChannels() {
 			return numberOfChannels;
-		}
-
-		@Override
-		public String getOwningTaskName() {
-			return owningTaskName;
 		}
 
 		@Override
