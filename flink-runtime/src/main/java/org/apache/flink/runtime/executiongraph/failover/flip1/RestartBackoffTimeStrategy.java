@@ -17,39 +17,46 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-
-import java.util.Set;
-
 /**
- * New interface for failover strategies.
+ * Strategy to decide whether to restart failed tasks and the delay to do the restarting.
  */
-public interface FailoverStrategy {
+public interface RestartBackoffTimeStrategy {
 
 	/**
-	 * Returns a set of IDs corresponding to the set of vertices that should be restarted.
+	 * Returns whether a restart should be conducted.
 	 *
-	 * @param executionVertexId ID of the failed task
-	 * @param cause cause of the failure
-	 * @return set of IDs of vertices to restart
+	 * @return whether a restart should be conducted
 	 */
-	Set<ExecutionVertexID> getTasksNeedingRestart(ExecutionVertexID executionVertexId, Throwable cause);
+	boolean canRestart();
+
+	/**
+	 * Returns the delay to do the restarting.
+	 *
+	 * @return the delay to do the restarting
+	 */
+	long getBackoffTime();
+
+	/**
+	 * Notify the strategy about the task failure cause.
+	 *
+	 * @param cause of the task failure
+	 */
+	void notifyFailure(Throwable cause);
 
 	// ------------------------------------------------------------------------
 	//  factory
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The factory to instantiate {@link FailoverStrategy}.
+	 * The factory to instantiate {@link RestartBackoffTimeStrategy}.
 	 */
 	interface Factory {
 
 		/**
-		 * Instantiates the {@link FailoverStrategy}.
+		 * Instantiates the {@link RestartBackoffTimeStrategy}.
 		 *
-		 * @param topology of the graph to failover
-		 * @return The instantiated failover strategy.
+		 * @return The instantiated restart strategy.
 		 */
-		FailoverStrategy create(FailoverTopology topology);
+		RestartBackoffTimeStrategy create();
 	}
 }
