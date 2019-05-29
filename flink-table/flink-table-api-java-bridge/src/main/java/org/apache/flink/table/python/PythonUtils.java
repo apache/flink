@@ -42,7 +42,7 @@ import java.util.List;
  * Utility class that contains helper methods to create a DataStream/DataSet from
  * a file which contains Python objects.
  */
-public final class PythonUtil {
+public final class PythonUtils {
 
 	/**
 	 * Creates a DataStream from a file which contains serialized python objects.
@@ -133,7 +133,7 @@ public final class PythonUtil {
 
 	private static boolean initialized = false;
 	private static void initialize() {
-		synchronized (PythonUtil.class) {
+		synchronized (PythonUtils.class) {
 			if (!initialized) {
 				Unpickler.registerConstructor("array", "array", new ArrayConstructor());
 				Unpickler.registerConstructor("__builtin__", "bytearray", new ByteArrayConstructor());

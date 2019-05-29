@@ -16,24 +16,74 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils
+package org.apache.flink.table.python
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
 import java.util.function.BiConsumer
 
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.Types
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.{Table, Types}
+import org.apache.flink.table.api.java.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.types.Row
 
-object PythonTypeUtil {
+object PythonTableUtils {
+
+  /**
+    * Converts the given [[DataStream]] into a [[Table]].
+    *
+    * The schema of the [[Table]] is derived from the specified schemaString.
+    *
+    * @param tableEnv The table environment.
+    * @param dataStream The [[DataStream]] to be converted.
+    * @param dataType The type information of the table.
+    * @return The converted [[Table]].
+    */
+  def fromDataStream(
+      tableEnv: StreamTableEnvironment,
+      dataStream: DataStream[Array[Object]],
+      dataType: TypeInformation[Row]): Table = {
+    val convertedDataStream = dataStream.map(
+      new MapFunction[Array[Object], Row] {
+        override def map(value: Array[Object]): Row =
+          convertTo(dataType).apply(value).asInstanceOf[Row]
+      }).returns(dataType.asInstanceOf[TypeInformation[Row]])
+
+    tableEnv.fromDataStream(convertedDataStream)
+  }
+
+  /**
+    * Converts the given [[DataSet]] into a [[Table]].
+    *
+    * The schema of the [[Table]] is derived from the specified schemaString.
+    *
+    * @param tableEnv The table environment.
+    * @param dataSet The [[DataSet]] to be converted.
+    * @param dataType The type information of the table.
+    * @return The converted [[Table]].
+    */
+  def fromDataSet(
+      tableEnv: BatchTableEnvironment,
+      dataSet: DataSet[Array[Object]],
+      dataType: TypeInformation[Row]): Table = {
+    val convertedDataSet = dataSet.map(
+      new MapFunction[Array[Object], Row] {
+        override def map(value: Array[Object]): Row =
+          convertTo(dataType).apply(value).asInstanceOf[Row]
+      }).returns(dataType.asInstanceOf[TypeInformation[Row]])
+
+    tableEnv.fromDataSet(convertedDataSet)
+  }
 
   /**
     * Creates a converter that converts `obj` to the type specified by the data type, or returns
     * null if the type of obj is unexpected because Python doesn't enforce the type.
     */
-  def convertTo(dataType: TypeInformation[_]): Any => Any = dataType match {
+  private def convertTo(dataType: TypeInformation[_]): Any => Any = dataType match {
     case Types.BOOLEAN => (obj: Any) => nullSafeConvert(obj) {
       case b: Boolean => b
     }

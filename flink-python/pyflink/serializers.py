@@ -58,44 +58,39 @@ class Serializer(object):
         return hash(str(self))
 
     @abstractmethod
-    def dump_stream(self, iterator, stream):
+    def dump_to_stream(self, iterator, stream):
         """
         Serializes an iterator of objects to the output stream.
         """
         pass
 
     @abstractmethod
-    def load_stream(self, stream):
+    def load_from_stream(self, stream):
         """
         Returns an iterator of deserialized objects from the input stream.
         """
         pass
 
-    def _load_stream_without_unbatching(self, stream):
+    def _load_from_stream_without_unbatching(self, stream):
         """
         Returns an iterator of deserialized batches (iterable) of objects from the input stream.
         If the serializer does not operate on batches the default implementation returns an
         iterator of single element lists.
         """
-        return map(lambda x: [x], self.load_stream(stream))
+        return map(lambda x: [x], self.load_from_stream(stream))
 
 
-class FramedSerializer(Serializer):
+class VarLengthDataSerializer(Serializer):
     """
     Serializer that writes objects as a stream of (length, data) pairs,
-    where C{length} is a 32-bit integer and data is C{length} bytes.
+    where length is a 32-bit integer and data is length bytes.
     """
 
-    def __init__(self):
-        # On Python 2.6, we can't write bytearrays to streams, so we need to convert them
-        # to strings first. Check if the version number is that old.
-        self._only_write_strings = sys.version_info[0:2] <= (2, 6)
-
-    def dump_stream(self, iterator, stream):
+    def dump_to_stream(self, iterator, stream):
         for obj in iterator:
             self._write_with_length(obj, stream)
 
-    def load_stream(self, stream):
+    def load_from_stream(self, stream):
         while True:
             try:
                 yield self._read_with_length(stream)
@@ -109,10 +104,7 @@ class FramedSerializer(Serializer):
         if len(serialized) > (1 << 31):
             raise ValueError("Can not serialize object larger than 2G")
         write_int(len(serialized), stream)
-        if self._only_write_strings:
-            stream.write(str(serialized))
-        else:
-            stream.write(serialized)
+        stream.write(serialized)
 
     def _read_with_length(self, stream):
         length = read_int(stream)
@@ -141,11 +133,11 @@ class FramedSerializer(Serializer):
         pass
 
 
-class PickleSerializer(FramedSerializer):
+class PickleSerializer(VarLengthDataSerializer):
     """
     Serializes objects using Python's pickle serializer:
 
-        http://docs.python.org/2/library/pickle.html
+        http://docs.python.org/3/library/pickle.html
 
     This serializer supports nearly any Python object, but may
     not be as fast as more specialized serializers.
@@ -198,14 +190,14 @@ class BatchedSerializer(Serializer):
             if items:
                 yield items
 
-    def dump_stream(self, iterator, stream):
-        self.serializer.dump_stream(self._batched(iterator), stream)
+    def dump_to_stream(self, iterator, stream):
+        self.serializer.dump_to_stream(self._batched(iterator), stream)
 
-    def load_stream(self, stream):
-        return chain.from_iterable(self._load_stream_without_unbatching(stream))
+    def load_from_stream(self, stream):
+        return chain.from_iterable(self._load_from_stream_without_unbatching(stream))
 
-    def _load_stream_without_unbatching(self, stream):
-        return self.serializer.load_stream(stream)
+    def _load_from_stream_without_unbatching(self, stream):
+        return self.serializer.load_from_stream(stream)
 
 
 def read_int(stream):

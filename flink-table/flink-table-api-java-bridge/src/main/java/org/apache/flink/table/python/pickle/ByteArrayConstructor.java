@@ -22,7 +22,7 @@ import org.apache.commons.lang3.ArrayUtils;
 /**
  * Creates byte arrays (byte[]). Deal with an empty byte array pickled by Python 3.
  */
-public class ByteArrayConstructor extends net.razorvine.pickle.objects.ByteArrayConstructor {
+public final class ByteArrayConstructor extends net.razorvine.pickle.objects.ByteArrayConstructor {
 
 	@Override
 	public Object construct(Object[] args) {

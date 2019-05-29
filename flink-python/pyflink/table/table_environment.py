@@ -387,7 +387,7 @@ class TableEnvironment(object):
         """
         Creates a table from a collection of elements.
 
-        :param elements: The elements to create table from.
+        :param elements: The elements to create a table from.
         :param schema: The schema of the table.
         :param verify_schema: Whether to verify the elements against the schema.
         :return: A Table.
@@ -414,9 +414,8 @@ class TableEnvironment(object):
             def verify_obj(obj):
                 return obj
 
-        # makes sure we distribute data evenly if it's smaller than self.batchSize
         if "__len__" not in dir(elements):
-            elements = list(elements)  # Makes it a list so we can compute its length
+            elements = list(elements)
 
         # infers the schema if not specified
         if schema is None or isinstance(schema, (list, tuple)):
@@ -440,7 +439,7 @@ class TableEnvironment(object):
         """
         Creates a table from a collection of elements.
 
-        :param elements: The elements to create table from.
+        :param elements: The elements to create a table from.
         :return: A table.
         """
 
@@ -449,7 +448,7 @@ class TableEnvironment(object):
         serializer = BatchedSerializer(self._serializer)
         try:
             try:
-                serializer.dump_stream(elements, temp_file)
+                serializer.dump_to_stream(elements, temp_file)
             finally:
                 temp_file.close()
             return self._from_file(temp_file.name, schema)
@@ -469,9 +468,9 @@ class StreamTableEnvironment(TableEnvironment):
 
     def _from_file(self, filename, schema):
         gateway = get_gateway()
-        jds = gateway.jvm.PythonUtil.createDataStreamFromFile(
+        jds = gateway.jvm.PythonUtils.createDataStreamFromFile(
             self._j_tenv.execEnv(), filename, True)
-        return Table(gateway.jvm.PythonTableUtil.fromDataStream(
+        return Table(gateway.jvm.PythonTableUtils.fromDataStream(
             self._j_tenv, jds, _to_java_type(schema)))
 
     def get_config(self):
@@ -534,9 +533,9 @@ class BatchTableEnvironment(TableEnvironment):
 
     def _from_file(self, filename, schema):
         gateway = get_gateway()
-        jds = gateway.jvm.PythonUtil.createDataSetFromFile(
+        jds = gateway.jvm.PythonUtils.createDataSetFromFile(
             self._j_tenv.execEnv(), filename, True)
-        return Table(gateway.jvm.PythonTableUtil.fromDataSet(
+        return Table(gateway.jvm.PythonTableUtils.fromDataSet(
             self._j_tenv, jds, _to_java_type(schema)))
 
     def get_config(self):
