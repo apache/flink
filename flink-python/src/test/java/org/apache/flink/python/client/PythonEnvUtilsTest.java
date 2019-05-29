@@ -31,52 +31,73 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Tests for the {@link PythonEnvUtils}.
  */
 public class PythonEnvUtilsTest {
-	private Path sourceTmpDirPath;
-	private Path targetTmpDirPath;
-	private FileSystem sourceFs;
-	private FileSystem targetFs;
+	private Path tmpDirPath;
+	private FileSystem tmpDirFs;
 
 	@Before
 	public void prepareTestEnvironment() {
-		String sourceTmpDir = System.getProperty("java.io.tmpdir") +
-			File.separator + "source_" + UUID.randomUUID();
-		String targetTmpDir = System.getProperty("java.io.tmpdir") +
-			File.separator + "target_" + UUID.randomUUID();
+		String tmpDir = System.getProperty("java.io.tmpdir") +
+			File.separator + "pyflink" + File.separator + UUID.randomUUID();
 
-		sourceTmpDirPath = new Path(sourceTmpDir);
-		targetTmpDirPath = new Path(targetTmpDir);
+		tmpDirPath = new Path(tmpDir);
 		try {
-			sourceFs = sourceTmpDirPath.getFileSystem();
-			if (sourceFs.exists(sourceTmpDirPath)) {
-				sourceFs.delete(sourceTmpDirPath, true);
+			tmpDirFs = tmpDirPath.getFileSystem();
+			if (tmpDirFs.exists(tmpDirPath)) {
+				tmpDirFs.delete(tmpDirPath, true);
 			}
-			sourceFs.mkdirs(sourceTmpDirPath);
-			targetFs = targetTmpDirPath.getFileSystem();
-			if (targetFs.exists(targetTmpDirPath)) {
-				targetFs.delete(targetTmpDirPath, true);
-			}
-			targetFs.mkdirs(targetTmpDirPath);
+			tmpDirFs.mkdirs(tmpDirPath);
 		} catch (IOException e) {
 			throw new RuntimeException("initial PythonUtil test environment failed");
 		}
 	}
 
 	@Test
+	public void testPreparePythonEnvironment() throws IOException {
+		// xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
+		File a = new File(tmpDirPath.toString() + File.separator + "a.zip");
+		a.createNewFile();
+		File subdir = new File(tmpDirPath.toString() + File.separator + "subdir");
+		subdir.mkdir();
+		File b = new File(tmpDirPath.toString() + File.separator + "subdir" + File.separator + "b.py");
+		b.createNewFile();
+		File c = new File(tmpDirPath.toString() + File.separator + "subdir" + File.separator + "c.zip");
+		c.createNewFile();
+
+		List<Path> pyFilesList = new ArrayList<>();
+		pyFilesList.add(tmpDirPath);
+
+		PythonEnvUtils.PythonEnvironment env = PythonEnvUtils.preparePythonEnvironment(pyFilesList);
+		Set<String> expectedPythonPaths = new HashSet<>();
+		expectedPythonPaths.add(env.workingDirectory);
+
+		String targetDir = env.workingDirectory + File.separator + tmpDirPath.getName();
+		expectedPythonPaths.add(targetDir + File.separator + a.getName());
+		expectedPythonPaths.add(targetDir + File.separator + "subdir" + File.separator + c.getName());
+
+		// the parent dir for files suffixed with .py should also be added to PYTHONPATH
+		expectedPythonPaths.add(targetDir + File.separator + "subdir");
+		Assert.assertEquals(expectedPythonPaths, new HashSet<>(Arrays.asList(env.pythonPath.split(File.pathSeparator))));
+	}
+
+	@Test
 	public void testStartPythonProcess() {
 		PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
-		pythonEnv.workingDirectory = targetTmpDirPath.toString();
-		pythonEnv.pythonPath = targetTmpDirPath.toString();
+		pythonEnv.workingDirectory = tmpDirPath.toString();
+		pythonEnv.pythonPath = tmpDirPath.toString();
 		List<String> commands = new ArrayList<>();
-		Path pyPath = new Path(targetTmpDirPath, "word_count.py");
+		Path pyPath = new Path(tmpDirPath, "word_count.py");
 		try {
-			targetFs.create(pyPath, FileSystem.WriteMode.OVERWRITE);
+			tmpDirFs.create(pyPath, FileSystem.WriteMode.OVERWRITE);
 			File pyFile = new File(pyPath.toString());
 			String pyProgram = "#!/usr/bin/python\n" +
 				"# -*- coding: UTF-8 -*-\n" +
@@ -88,7 +109,7 @@ public class PythonEnvUtilsTest {
 				"\tfo.write( \"hello world\")\n" +
 				"\tfo.close()";
 			Files.write(pyFile.toPath(), pyProgram.getBytes(), StandardOpenOption.WRITE);
-			Path result = new Path(targetTmpDirPath, "word_count_result.txt");
+			Path result = new Path(tmpDirPath, "word_count_result.txt");
 			commands.add(pyFile.getName());
 			commands.add(result.getName());
 			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
@@ -99,8 +120,8 @@ public class PythonEnvUtilsTest {
 			String cmdResult = new String(Files.readAllBytes(new File(result.toString()).toPath()));
 			Assert.assertEquals(cmdResult, "hello world");
 			pythonProcess.destroyForcibly();
-			targetFs.delete(pyPath, true);
-			targetFs.delete(result, true);
+			tmpDirFs.delete(pyPath, true);
+			tmpDirFs.delete(result, true);
 		} catch (IOException | InterruptedException e) {
 			throw new RuntimeException("test start Python process failed " + e.getMessage());
 		}
@@ -109,8 +130,7 @@ public class PythonEnvUtilsTest {
 	@After
 	public void cleanEnvironment() {
 		try {
-			sourceFs.delete(sourceTmpDirPath, true);
-			targetFs.delete(targetTmpDirPath, true);
+			tmpDirFs.delete(tmpDirPath, true);
 		} catch (IOException e) {
 			throw new RuntimeException("delete tmp dir failed " + e.getMessage());
 		}

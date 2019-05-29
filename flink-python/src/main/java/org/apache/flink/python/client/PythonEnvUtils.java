@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The util class help to prepare Python env and run the python process.
@@ -89,10 +92,10 @@ public final class PythonEnvUtils {
 	/**
 	 * Prepares PythonEnvironment to start python process.
 	 *
-	 * @param filePathMap map file name to its file path.
+	 * @param pythonLibFiles The dependent Python files.
 	 * @return PythonEnvironment the Python environment which will be executed in Python process.
 	 */
-	public static PythonEnvironment preparePythonEnvironment(Map<String, Path> filePathMap) {
+	public static PythonEnvironment preparePythonEnvironment(List<Path> pythonLibFiles) throws IOException {
 		PythonEnvironment env = new PythonEnvironment();
 
 		// 1. setup temporary local directory for the user files
@@ -100,15 +103,11 @@ public final class PythonEnvUtils {
 			File.separator + "pyflink" + File.separator + UUID.randomUUID();
 
 		Path tmpDirPath = new Path(tmpDir);
-		try {
-			FileSystem fs = tmpDirPath.getFileSystem();
-			if (fs.exists(tmpDirPath)) {
-				fs.delete(tmpDirPath, true);
-			}
-			fs.mkdirs(tmpDirPath);
-		} catch (IOException e) {
-			LOG.error("Prepare tmp directory failed.", e);
+		FileSystem fs = tmpDirPath.getFileSystem();
+		if (fs.exists(tmpDirPath)) {
+			fs.delete(tmpDirPath, true);
 		}
+		fs.mkdirs(tmpDirPath);
 
 		env.workingDirectory = tmpDirPath.toString();
 
@@ -127,18 +126,30 @@ public final class PythonEnvUtils {
 		}
 
 		// 3. copy relevant python files to tmp dir and set them in PYTHONPATH.
-		filePathMap.forEach((sourceFileName, sourcePath) -> {
+		for (Path pythonFile : pythonLibFiles) {
+			String sourceFileName = pythonFile.getName();
 			Path targetPath = new Path(tmpDirPath, sourceFileName);
-			try {
-				FileUtils.copy(sourcePath, targetPath, true);
-			} catch (IOException e) {
-				LOG.error("Copy files to tmp dir failed", e);
-			}
-			String targetFileName = targetPath.toString();
+			FileUtils.copy(pythonFile, targetPath, true);
+			String targetFileNames = Files.walk(Paths.get(targetPath.toString()))
+				.filter(Files::isRegularFile)
+				.filter(f -> !f.toString().endsWith(".py"))
+				.map(java.nio.file.Path::toString)
+				.collect(Collectors.joining(File.pathSeparator));
 			pythonPathEnv.append(File.pathSeparator);
-			pythonPathEnv.append(targetFileName);
+			pythonPathEnv.append(targetFileNames);
+		}
 
-		});
+		// 4. add the parent directory to PYTHONPATH for files suffixed with .py
+		String pyFileParents = Files.walk(Paths.get(tmpDirPath.toString()))
+			.filter(file -> file.toString().endsWith(".py"))
+			.map(java.nio.file.Path::getParent)
+			.distinct()
+			.map(java.nio.file.Path::toString)
+			.collect(Collectors.joining(File.pathSeparator));
+		if (!StringUtils.isNullOrWhitespaceOnly(pyFileParents)) {
+			pythonPathEnv.append(File.pathSeparator);
+			pythonPathEnv.append(pyFileParents);
+		}
 
 		env.pythonPath = pythonPathEnv.toString();
 		return env;
@@ -175,17 +186,14 @@ public final class PythonEnvUtils {
 	 * @param libPath          the pyflink lib file path.
 	 * @param symbolicLinkPath the symbolic link to pyflink lib.
 	 */
-	public static void createSymbolicLinkForPyflinkLib(java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath) {
+	public static void createSymbolicLinkForPyflinkLib(java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath)
+			throws IOException {
 		try {
 			Files.createSymbolicLink(symbolicLinkPath, libPath);
 		} catch (IOException e) {
 			LOG.error("Create symbol link for pyflink lib failed.", e);
 			LOG.info("Try to copy pyflink lib to working directory");
-			try {
-				Files.copy(libPath, symbolicLinkPath);
-			} catch (IOException ex) {
-				LOG.error("Copy pylink lib to working directory failed", ex);
-			}
+			Files.copy(libPath, symbolicLinkPath);
 		}
 	}
 

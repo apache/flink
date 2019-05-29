@@ -90,19 +90,19 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			// -------------------------------transformed-------------------------------------------------------
 			// e.g. -py wordcount.py(CLI cmd) -----------> py wordcount.py(PythonDriver args)
 			// e.g. -py wordcount.py -pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(CLI cmd)
-			// 	-----> py wordcount.py pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(PythonDriver args)
+			// 	-----> -py wordcount.py -pyfs file:///AAA.py,hdfs:///BBB.py --input in.txt --output out.txt(PythonDriver args)
 			String[] newArgs;
 			int argIndex;
 			if (line.hasOption(PYFILES_OPTION.getOpt())) {
 				newArgs = new String[args.length + 4];
-				newArgs[2] = PYFILES_OPTION.getOpt();
+				newArgs[2] = "-" + PYFILES_OPTION.getOpt();
 				newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
 				argIndex = 4;
 			} else {
 				newArgs = new String[args.length + 2];
 				argIndex = 2;
 			}
-			newArgs[0] = PY_OPTION.getOpt();
+			newArgs[0] = "-" + PY_OPTION.getOpt();
 			newArgs[1] = line.getOptionValue(PY_OPTION.getOpt());
 			System.arraycopy(args, 0, newArgs, argIndex, args.length);
 			args = newArgs;
@@ -116,12 +116,12 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			}
 			// The cli cmd args which will be transferred to PythonDriver will be transformed as follows:
 			// CLI cmd : -pym ${py-module} -pyfs ${py-files} [optional] ${other args}.
-			// PythonDriver args: pym ${py-module} pyfs ${py-files} [optional] ${other args}.
-			// e.g. -pym AAA.fun -pyfs AAA.zip(CLI cmd) ----> pym AAA.fun -pyfs AAA.zip(PythonDriver args)
+			// PythonDriver args: -pym ${py-module} -pyfs ${py-files} [optional] ${other args}.
+			// e.g. -pym AAA.fun -pyfs AAA.zip(CLI cmd) ----> -pym AAA.fun -pyfs AAA.zip(PythonDriver args)
 			String[] newArgs = new String[args.length + 4];
-			newArgs[0] = PYMODULE_OPTION.getOpt();
+			newArgs[0] = "-" + PYMODULE_OPTION.getOpt();
 			newArgs[1] = line.getOptionValue(PYMODULE_OPTION.getOpt());
-			newArgs[2] = PYFILES_OPTION.getOpt();
+			newArgs[2] = "-" + PYFILES_OPTION.getOpt();
 			newArgs[3] = line.getOptionValue(PYFILES_OPTION.getOpt());
 			System.arraycopy(args, 0, newArgs, 4, args.length);
 			args = newArgs;
