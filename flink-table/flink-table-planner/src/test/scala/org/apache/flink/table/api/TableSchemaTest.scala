@@ -39,8 +39,8 @@ class TableSchemaTest extends TableTestBase {
     assertEquals(Types.STRING, schema.getFieldTypes.apply(1))
 
     val expectedString = "root\n" +
-      " |-- a: Integer\n" +
-      " |-- b: String\n"
+      " |-- a: INT\n" +
+      " |-- b: STRING\n"
     assertEquals(expectedString, schema.toString)
 
     assertTrue(!schema.getFieldName(3).isPresent)
@@ -61,8 +61,8 @@ class TableSchemaTest extends TableTestBase {
     assertEquals(Types.STRING, schema.getFieldTypes.apply(1))
 
     val expectedString = "root\n" +
-      " |-- a: Integer\n" +
-      " |-- b: String\n"
+      " |-- a: INT\n" +
+      " |-- b: STRING\n"
     assertEquals(expectedString, schema.toString)
 
     assertTrue(!schema.getFieldName(3).isPresent)

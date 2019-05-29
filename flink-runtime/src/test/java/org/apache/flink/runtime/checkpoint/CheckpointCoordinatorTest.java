@@ -55,14 +55,19 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializableObject;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.verification.VerificationMode;
@@ -77,6 +82,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -143,7 +149,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -204,7 +211,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -256,7 +264,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -309,7 +318,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -412,7 +422,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -532,7 +543,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -700,7 +712,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -831,7 +844,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -996,7 +1010,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
@@ -1074,7 +1089,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -1138,7 +1154,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -1271,7 +1288,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 
 			coord.startCheckpointScheduler();
@@ -1361,7 +1379,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 		try {
 			coord.startCheckpointScheduler();
@@ -1435,7 +1454,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1587,7 +1607,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(10),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -1681,7 +1702,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			coord.startCheckpointScheduler();
 
@@ -1755,7 +1777,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			coord.startCheckpointScheduler();
 
@@ -1832,7 +1855,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			coord.startCheckpointScheduler();
 
@@ -1885,7 +1909,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(2),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		List<CompletableFuture<CompletedCheckpoint>> savepointFutures = new ArrayList<>();
 
@@ -1939,7 +1964,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(2),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -2002,7 +2028,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			store,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2117,7 +2144,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2197,6 +2225,149 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	}
 
 	@Test
+	public void testRestoreLatestCheckpointWhenPreferCheckpoint() throws Exception {
+		testRestoreLatestCheckpointIsPreferSavepoint(true);
+	}
+
+	@Test
+	public void testRestoreLatestCheckpointWhenPreferSavepoint() throws Exception {
+		testRestoreLatestCheckpointIsPreferSavepoint(false);
+	}
+
+	private void testRestoreLatestCheckpointIsPreferSavepoint(boolean isPreferCheckpoint) {
+		try {
+			final JobID jid = new JobID();
+			long timestamp = System.currentTimeMillis();
+			StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+
+			final JobVertexID statefulId = new JobVertexID();
+			final JobVertexID statelessId = new JobVertexID();
+
+			Execution statefulExec1 = mockExecution();
+			Execution statelessExec1 = mockExecution();
+
+			ExecutionVertex stateful1 = mockExecutionVertex(statefulExec1, statefulId, 0, 1);
+			ExecutionVertex stateless1 = mockExecutionVertex(statelessExec1, statelessId, 0, 1);
+
+			ExecutionJobVertex stateful = mockExecutionJobVertex(statefulId,
+				new ExecutionVertex[] { stateful1 });
+			ExecutionJobVertex stateless = mockExecutionJobVertex(statelessId,
+				new ExecutionVertex[] { stateless1 });
+
+			Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
+			map.put(statefulId, stateful);
+			map.put(statelessId, stateless);
+
+			CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore(2);
+
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				600000,
+				600000,
+				0,
+				Integer.MAX_VALUE,
+				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				new ExecutionVertex[] { stateful1, stateless1 },
+				new ExecutionVertex[] { stateful1, stateless1 },
+				new ExecutionVertex[] { stateful1, stateless1 },
+				checkpointIDCounter,
+				store,
+				new MemoryStateBackend(),
+				Executors.directExecutor(),
+				SharedStateRegistry.DEFAULT_FACTORY,
+				isPreferCheckpoint);
+
+			//trigger a checkpoint and wait to become a completed checkpoint
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
+
+			long checkpointId = checkpointIDCounter.getLast();
+
+			KeyGroupRange keyGroupRange = KeyGroupRange.of(0,0);
+			List<SerializableObject> testStates = Collections.singletonList(new SerializableObject());
+			KeyedStateHandle serializedKeyGroupStates = CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRange, testStates);
+
+			TaskStateSnapshot subtaskStatesForCheckpoint = new TaskStateSnapshot();
+
+			subtaskStatesForCheckpoint.putSubtaskStateByOperatorID(
+				OperatorID.fromJobVertexID(statefulId),
+				new OperatorSubtaskState(
+					StateObjectCollection.empty(),
+					StateObjectCollection.empty(),
+					StateObjectCollection.singleton(serializedKeyGroupStates),
+					StateObjectCollection.empty()));
+
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStatesForCheckpoint));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId));
+
+			CompletedCheckpoint success = coord.getSuccessfulCheckpoints().get(0);
+			assertEquals(jid, success.getJobId());
+
+			// trigger a savepoint and wait it to be finished
+			String savepointDir = tmpFolder.newFolder().getAbsolutePath();
+			timestamp = System.currentTimeMillis();
+			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+
+
+			KeyGroupRange keyGroupRangeForSavepoint = KeyGroupRange.of(1, 1);
+			List<SerializableObject> testStatesForSavepoint = Collections.singletonList(new SerializableObject());
+			KeyedStateHandle serializedKeyGroupStatesForSavepoint = CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRangeForSavepoint, testStatesForSavepoint);
+
+			TaskStateSnapshot subtaskStatesForSavepoint = new TaskStateSnapshot();
+
+			subtaskStatesForSavepoint.putSubtaskStateByOperatorID(
+				OperatorID.fromJobVertexID(statefulId),
+				new OperatorSubtaskState(
+					StateObjectCollection.empty(),
+					StateObjectCollection.empty(),
+					StateObjectCollection.singleton(serializedKeyGroupStatesForSavepoint),
+					StateObjectCollection.empty()));
+
+			checkpointId = checkpointIDCounter.getLast();
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStatesForSavepoint));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId));
+
+			assertTrue(savepointFuture.isDone());
+
+			//restore and jump the latest savepoint
+			coord.restoreLatestCheckpointedState(map, true, false);
+
+			//compare and see if it used the checkpoint's subtaskStates
+			BaseMatcher<JobManagerTaskRestore> matcher = new BaseMatcher<JobManagerTaskRestore>() {
+				@Override
+				public boolean matches(Object o) {
+					if (o instanceof JobManagerTaskRestore) {
+						JobManagerTaskRestore taskRestore = (JobManagerTaskRestore) o;
+						if (isPreferCheckpoint) {
+							return Objects.equals(taskRestore.getTaskStateSnapshot(), subtaskStatesForCheckpoint);
+						} else {
+							return Objects.equals(taskRestore.getTaskStateSnapshot(), subtaskStatesForSavepoint);
+						}
+					}
+					return false;
+				}
+
+				@Override
+				public void describeTo(Description description) {
+					if (isPreferCheckpoint) {
+						description.appendValue(subtaskStatesForCheckpoint);
+					} else {
+						description.appendValue(subtaskStatesForSavepoint);
+					}
+				}
+			};
+
+			verify(statefulExec1, times(1)).setInitialState(MockitoHamcrest.argThat(matcher));
+			verify(statelessExec1, times(0)).setInitialState(Mockito.<JobManagerTaskRestore>any());
+
+			coord.shutdown(JobStatus.FINISHED);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
 	public void testStateRecoveryWhenTopologyChangeOut() throws Exception {
 		testStateRecoveryWithTopologyChange(0);
 	}
@@ -2264,7 +2435,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2532,7 +2704,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 				new TestCompletedCheckpointStorageLocation());
 
-		when(standaloneCompletedCheckpointStore.getLatestCheckpoint()).thenReturn(completedCheckpoint);
+		when(standaloneCompletedCheckpointStore.getLatestCheckpoint(false)).thenReturn(completedCheckpoint);
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinator(
@@ -2549,7 +2721,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			standaloneCompletedCheckpointStore,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		coord.restoreLatestCheckpointedState(tasks, false, true);
 
@@ -2701,7 +2874,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -3136,7 +3310,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		// Periodic
 		try {
@@ -3357,7 +3532,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		coord.setCheckpointStatsTracker(tracker);
@@ -3396,7 +3572,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			store,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		store.addCheckpoint(new CompletedCheckpoint(
 			new JobID(),
@@ -3463,7 +3640,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 					SharedStateRegistry instance = new SharedStateRegistry(deleteExecutor);
 					createdSharedStateRegistries.add(instance);
 					return instance;
-				});
+				},
+			false);
 
 		final int numCheckpoints = 3;
 
@@ -3653,5 +3831,37 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint);
 		}
+	}
+
+	private Execution mockExecution() {
+		Execution mock = mock(Execution.class);
+		when(mock.getAttemptId()).thenReturn(new ExecutionAttemptID());
+		when(mock.getState()).thenReturn(ExecutionState.RUNNING);
+		return mock;
+	}
+
+	private ExecutionVertex mockExecutionVertex(Execution execution, JobVertexID vertexId, int subtask, int parallelism) {
+		ExecutionVertex mock = mock(ExecutionVertex.class);
+		when(mock.getJobvertexId()).thenReturn(vertexId);
+		when(mock.getParallelSubtaskIndex()).thenReturn(subtask);
+		when(mock.getCurrentExecutionAttempt()).thenReturn(execution);
+		when(mock.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
+		when(mock.getMaxParallelism()).thenReturn(parallelism);
+		return mock;
+	}
+
+	private ExecutionJobVertex mockExecutionJobVertex(JobVertexID id, ExecutionVertex[] vertices) {
+		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
+		when(vertex.getParallelism()).thenReturn(vertices.length);
+		when(vertex.getMaxParallelism()).thenReturn(vertices.length);
+		when(vertex.getJobVertexId()).thenReturn(id);
+		when(vertex.getTaskVertices()).thenReturn(vertices);
+		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorID.fromJobVertexID(id)));
+		when(vertex.getUserDefinedOperatorIDs()).thenReturn(Collections.<OperatorID>singletonList(null));
+
+		for (ExecutionVertex v : vertices) {
+			when(v.getJobVertex()).thenReturn(vertex);
+		}
+		return vertex;
 	}
 }

@@ -20,10 +20,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -33,18 +30,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FailoverRegion {
 
+	/** All vertex IDs in this region. */
+	private final Set<ExecutionVertexID> executionVertexIDs;
+
 	/** All vertices in this region. */
-	private final Map<ExecutionVertexID, FailoverVertex> executionVertices;
+	private final Set<FailoverVertex> executionVertices;
 
 	/**
 	 * Creates a new failover region containing a set of vertices.
 	 *
 	 * @param executionVertices to be contained in this region
 	 */
-	public FailoverRegion(Collection<? extends FailoverVertex> executionVertices) {
-		checkNotNull(executionVertices);
-		this.executionVertices = new HashMap<>();
-		executionVertices.forEach(v -> this.executionVertices.put(v.getExecutionVertexID(), v));
+	public FailoverRegion(Set<FailoverVertex> executionVertices) {
+		this.executionVertices = checkNotNull(executionVertices);
+		this.executionVertexIDs = new HashSet<>();
+		executionVertices.forEach(v -> this.executionVertexIDs.add(v.getExecutionVertexID()));
 	}
 
 	/**
@@ -53,7 +53,7 @@ public class FailoverRegion {
 	 * @return IDs of all vertices in this region
 	 */
 	public Set<ExecutionVertexID> getAllExecutionVertexIDs() {
-		return executionVertices.keySet();
+		return executionVertexIDs;
 	}
 
 	/**
@@ -62,6 +62,6 @@ public class FailoverRegion {
 	 * @return all vertices in this region
 	 */
 	public Set<FailoverVertex> getAllExecutionVertices() {
-		return new HashSet<>(executionVertices.values());
+		return executionVertices;
 	}
 }

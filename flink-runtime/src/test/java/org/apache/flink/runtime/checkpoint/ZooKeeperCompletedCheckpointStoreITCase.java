@@ -119,7 +119,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		assertEquals(3, ZOOKEEPER.getClient().getChildren().forPath(CHECKPOINT_PATH).size());
 		assertEquals(3, checkpoints.getNumberOfRetainedCheckpoints());
-		assertEquals(expected[2], checkpoints.getLatestCheckpoint());
+		assertEquals(expected[2], checkpoints.getLatestCheckpoint(false));
 
 		List<CompletedCheckpoint> expectedCheckpoints = new ArrayList<>(3);
 		expectedCheckpoints.add(expected[1]);
@@ -193,7 +193,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		sharedStateRegistry.close();
 		store.recover();
 
-		CompletedCheckpoint recovered = store.getLatestCheckpoint();
+		CompletedCheckpoint recovered = store.getLatestCheckpoint(false);
 		assertEquals(checkpoint, recovered);
 	}
 
@@ -220,7 +220,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		sharedStateRegistry.close();
 		checkpointStore.recover();
 
-		CompletedCheckpoint latestCheckpoint = checkpointStore.getLatestCheckpoint();
+		CompletedCheckpoint latestCheckpoint = checkpointStore.getLatestCheckpoint(false);
 
 		assertEquals(checkpoints.get(checkpoints.size() -1), latestCheckpoint);
 	}
@@ -251,7 +251,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		sharedStateRegistry = new SharedStateRegistry();
 		zkCheckpointStore2.recover();
 
-		CompletedCheckpoint recoveredCheckpoint = zkCheckpointStore2.getLatestCheckpoint();
+		CompletedCheckpoint recoveredCheckpoint = zkCheckpointStore2.getLatestCheckpoint(false);
 		assertTrue(recoveredCheckpoint instanceof TestCompletedCheckpoint);
 		TestCompletedCheckpoint recoveredTestCheckpoint = (TestCompletedCheckpoint) recoveredCheckpoint;
 

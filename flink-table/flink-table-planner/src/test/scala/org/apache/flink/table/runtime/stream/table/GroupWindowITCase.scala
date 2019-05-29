@@ -458,7 +458,7 @@ object GroupWindowITCase {
     override def extractTimestamp(
         element: T,
         previousElementTimestamp: Long): Long = {
-      element.productElement(0).asInstanceOf[Long]
+      element.productElement(0).asInstanceOf[Number].longValue()
     }
   }
 }

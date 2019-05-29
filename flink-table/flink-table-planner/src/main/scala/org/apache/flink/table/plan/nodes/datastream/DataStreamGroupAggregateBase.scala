@@ -27,8 +27,10 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableConfig}
 import org.apache.flink.table.plan.nodes.CommonAggregate
+import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
+import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
@@ -91,9 +93,24 @@ abstract class DataStreamGroupAggregateBase(
         inputSchema.relDataType, groupings, getRowType, namedAggregates, Nil))
   }
 
-  protected def createKeyedProcessFunction[K](
+  private def createKeyedProcessFunction[K](
     tableConfig: TableConfig,
-    queryConfig: StreamQueryConfig): KeyedProcessFunction[K, CRow, CRow]
+    queryConfig: StreamQueryConfig): KeyedProcessFunction[K, CRow, CRow] = {
+
+    AggregateUtil.createDataStreamGroupAggregateFunction[K](
+      tableConfig,
+      false,
+      inputSchema.typeInfo,
+      None,
+      namedAggregates,
+      inputSchema.relDataType,
+      inputSchema.fieldTypeInfos,
+      schema.relDataType,
+      groupings,
+      queryConfig,
+      DataStreamRetractionRules.isAccRetract(this),
+      DataStreamRetractionRules.isAccRetract(getInput))
+  }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvImpl,

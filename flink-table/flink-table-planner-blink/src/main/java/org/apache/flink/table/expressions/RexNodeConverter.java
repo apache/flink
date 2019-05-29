@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType;
 import static org.apache.flink.table.type.TypeConverters.createInternalTypeFromTypeInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isString;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTemporal;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval;
@@ -88,7 +89,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
 			return relBuilder.getRexBuilder().makeAbstractCast(
 					typeFactory.createTypeFromInternalType(
-							createInternalTypeFromTypeInfo(type.getType()),
+							createInternalTypeFromTypeInfo(
+								fromDataTypeToLegacyInfo(type.getDataType())),
 							child.getType().isNullable()),
 					child);
 		} else if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
@@ -97,7 +99,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			RexNode checkOverflow = call.getChildren().get(2).accept(this);
 			return relBuilder.getRexBuilder().makeReinterpretCast(
 					typeFactory.createTypeFromInternalType(
-							createInternalTypeFromTypeInfo(type.getType()),
+							createInternalTypeFromTypeInfo(
+								fromDataTypeToLegacyInfo(type.getDataType())),
 							child.getType().isNullable()),
 					child,
 					checkOverflow);

@@ -700,7 +700,8 @@ public class StreamingJobGraphGenerator {
 				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				retentionAfterTermination,
-				isExactlyOnce),
+				isExactlyOnce,
+				cfg.isPreferCheckpointForRecovery()),
 			serializedStateBackend,
 			serializedHooks);
 

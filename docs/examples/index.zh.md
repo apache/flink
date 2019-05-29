@@ -26,25 +26,24 @@ under the License.
 -->
 
 
-## Bundled Examples
+## 附带示例
 
-The Flink sources include many examples for Flink's different APIs:
+在Flink源文件中，包含了许多 Flink 不同 API 接口的代码示例：
 
-* DataStream applications ({% gh_link flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples "Java" %} / {% gh_link flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples "Scala" %}) 
-* DataSet applications ({% gh_link flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala "Scala" %})
-* Table API / SQL queries ({% gh_link flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-table/src/main/scala/org/apache/flink/table/examples/scala "Scala" %})
+* DataStream 应用 ({% gh_link flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples "Java" %} / {% gh_link flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples "Scala" %}) 
+* DataSet 应用 ({% gh_link flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala "Scala" %})
+* Table API / SQL 查询 ({% gh_link flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java "Java" %} / {% gh_link flink-examples/flink-examples-table/src/main/scala/org/apache/flink/table/examples/scala "Scala" %})
 
-These [instructions]({{ site.baseurl }}/dev/batch/examples.html#running-an-example) explain how to run the examples.
+这些[代码示例]({{ site.baseurl }}/zh/dev/batch/examples.html#running-an-example)清晰的解释了如何运行一个 Flink 程序。
 
-## Examples on the Web
+## 网上示例
 
-There are also a few blog posts published online that discuss example applications:
+在网上也有一些博客讨论了 Flink 应用示例
 
-* [How to build stateful streaming applications with Apache Flink
-](https://www.infoworld.com/article/3293426/big-data/how-to-build-stateful-streaming-applications-with-apache-flink.html) presents an event-driven application implemented with the DataStream API and two SQL queries for streaming analytics.
+* [如何使用 Apache Flink 构建有状态流数据应用](https://www.infoworld.com/article/3293426/big-data/how-to-build-stateful-streaming-applications-with-apache-flink.html)，这篇博客提供了基于 DataStream API 以及两个用于流数据分析的 SQL 查询实现的事件驱动的应用程序。
 
-* [Building real-time dashboard applications with Apache Flink, Elasticsearch, and Kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana) is a blog post at elastic.co showing how to build a real-time dashboard solution for streaming data analytics using Apache Flink, Elasticsearch, and Kibana.
+* [使用 Apache Flink、Elasticsearch 和 Kibana 构建实时仪表板应用程序](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana)是 Elastic 的一篇博客，它向我们提供了一种基于 Apache Flink、Elasticsearch 和 Kibana 构建流数据分析实时仪表板的解决方案。
 
-* The [Flink training website](http://training.data-artisans.com/) from data Artisans has a number of examples. Check out the hands-on sections and the exercises.
+* 来自 Ververica 的 [Flink 学习网站](https://training.ververica.com/)也有许多示例。你可以从中选取能够亲自实践的部分，并加以练习。
 
 {% top %}

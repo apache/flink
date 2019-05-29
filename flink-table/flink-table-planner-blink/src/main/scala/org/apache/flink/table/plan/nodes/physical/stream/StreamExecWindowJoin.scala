@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap, TwoInputStreamOperator}
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation, TwoInputTransformation, UnionTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
@@ -33,13 +33,11 @@ import org.apache.flink.table.plan.util.{JoinTypeUtil, KeySelectorUtil, RelExpla
 import org.apache.flink.table.runtime.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Collector
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -65,7 +63,8 @@ class StreamExecWindowJoin(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.toFlinkJoinType(joinType)
+  // TODO remove FlinkJoinType
+  private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(joinType)
 
   override def producesUpdates: Boolean = false
 
@@ -292,7 +291,7 @@ class StreamExecWindowJoin(
       leftPlan,
       rightPlan,
       "Co-Process",
-      new KeyedCoProcessOperator(procJoinFunc).
+      new LegacyKeyedCoProcessOperator(procJoinFunc).
         asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
       leftPlan.getParallelism

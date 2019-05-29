@@ -18,6 +18,8 @@
 # limitations under the License.
 ################################################################################
 
+source "${END_TO_END_DIR}"/test-scripts/common.sh
+
 # flag indicating if we have already cleared up things after a test
 CLEARED=0
 
@@ -53,13 +55,12 @@ function verify_num_occurences_in_logs() {
 }
 
 function verify_logs() {
-    local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
     local EXIT_CODE=0
     local VERIFY_CHECKPOINTS=$2
 
     # verify that we have no alerts
-    if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
+    if ! check_logs_for_non_empty_out_files; then
         echo "FAILURE: Alerts found at the general purpose job."
         EXIT_CODE=1
     fi

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
 import org.junit.runner.RunWith;
@@ -29,7 +30,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -75,16 +75,22 @@ public abstract class InputGateTestBase {
 	}
 
 	protected SingleInputGate createInputGate(int numberOfInputChannels) {
-		return createInputGate(numberOfInputChannels, ResultPartitionType.PIPELINED);
+		return createInputGate(null, numberOfInputChannels, ResultPartitionType.PIPELINED);
 	}
 
 	protected SingleInputGate createInputGate(
-			int numberOfInputChannels, ResultPartitionType partitionType) {
-		SingleInputGate inputGate = createSingleInputGate(
-			numberOfInputChannels,
-			partitionType,
-			enableCreditBasedFlowControl);
+		NetworkEnvironment environment, int numberOfInputChannels, ResultPartitionType partitionType) {
 
+		SingleInputGateBuilder builder = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfInputChannels)
+			.setResultPartitionType(partitionType)
+			.setIsCreditBased(enableCreditBasedFlowControl);
+
+		if (environment != null) {
+			builder = builder.setupBufferPoolFactory(environment);
+		}
+
+		SingleInputGate inputGate = builder.build();
 		assertEquals(partitionType, inputGate.getConsumedPartitionType());
 		return inputGate;
 	}

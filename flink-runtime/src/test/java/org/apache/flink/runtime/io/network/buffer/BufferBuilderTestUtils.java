@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Utility class for create not-pooled {@link BufferBuilder}.
@@ -82,5 +85,31 @@ public class BufferBuilderTestUtils {
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE,
 			false);
+	}
+
+	public static Buffer buildBufferWithAscendingInts(int bufferSize, int numInts, int nextValue) {
+		final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+		for (int i = 0; i < numInts; i++) {
+			seg.putIntLittleEndian(4 * i, nextValue++);
+		}
+
+		return new NetworkBuffer(seg, MemorySegment::free, true, 4 * numInts);
+	}
+
+	public static void validateBufferWithAscendingInts(Buffer buffer, int numInts, int nextValue) {
+		final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
+
+		for (int i = 0; i < numInts; i++) {
+			assertEquals(nextValue++, bb.getInt());
+		}
+	}
+
+	public static Buffer buildSomeBuffer() {
+		return buildSomeBuffer(1024);
+	}
+
+	public static Buffer buildSomeBuffer(int size) {
+		final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(size);
+		return new NetworkBuffer(seg, MemorySegment::free, true, size);
 	}
 }

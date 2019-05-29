@@ -19,13 +19,15 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
-import org.apache.flink.table.api.{Table, TableImpl}
+import org.apache.flink.table.api.{Table, TableException, TableImpl}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
 import org.apache.flink.util.StringUtils
+
+import org.apache.calcite.avatica.util.DateTimeUtils
 
 import java.sql.{Date, Time, Timestamp}
 import java.util.TimeZone
@@ -38,16 +40,23 @@ object TestSinkUtil {
     val rowType = table.asInstanceOf[TableImpl].getRelNode.getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList.asScala
-        .map(field => FlinkTypeFactory.toInternalType(field.getType))
-        .map(createExternalTypeInfoFromInternalType).toArray
-    new TestingAppendTableSink().configure(fieldNames, fieldTypes).asInstanceOf[T]
+      .map(field => FlinkTypeFactory.toInternalType(field.getType))
+      .map(createExternalTypeInfoFromInternalType).toArray
+    sink match {
+      case _: TestingAppendTableSink =>
+        new TestingAppendTableSink().configure(fieldNames, fieldTypes).asInstanceOf[T]
+      case s: TestingUpsertTableSink =>
+        new TestingUpsertTableSink(s.keys, s.tz).configure(fieldNames, fieldTypes).asInstanceOf[T]
+      case _: TestingRetractTableSink =>
+        new TestingRetractTableSink().configure(fieldNames, fieldTypes).asInstanceOf[T]
+      case _ => throw new TableException(s"Unsupported sink: $sink")
+    }
   }
 
   def fieldToString(field: Any, tz: TimeZone): String = {
     field match {
       case _: Date | _: Time | _: Timestamp =>
-        // TODO TimeConvertUtils.unixDateTimeToString(field, tz)
-        throw new RuntimeException
+        DateTimeUtils.unixDateTimeToString(field, tz)
       case _ => StringUtils.arrayAwareToString(field)
     }
   }

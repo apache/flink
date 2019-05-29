@@ -801,6 +801,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					0,
 					1,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+					false,
 					false),
 				null));
 

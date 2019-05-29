@@ -22,13 +22,14 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 
 /**
- * A table that performs flatAggregate on a {@link Table} or a {@link GroupedTable}.
+ * A table that performs flatAggregate on a {@link Table}, a {@link GroupedTable} or a
+ * {@link WindowGroupedTable}.
  */
 @PublicEvolving
 public interface FlatAggregateTable {
 
 	/**
-	 * Performs a selection operation on a FlatAggregateTable. Similar to an SQL SELECT
+	 * Performs a selection operation on a FlatAggregateTable. Similar to a SQL SELECT
 	 * statement. The field expressions can contain complex expressions.
 	 *
 	 * <p><b>Note</b>: You have to close the flatAggregate with a select statement. And the select
@@ -49,7 +50,7 @@ public interface FlatAggregateTable {
 	Table select(String fields);
 
 	/**
-	 * Performs a selection operation on a FlatAggregateTable table. Similar to an SQL SELECT
+	 * Performs a selection operation on a FlatAggregateTable table. Similar to a SQL SELECT
 	 * statement. The field expressions can contain complex expressions.
 	 *
 	 * <p><b>Note</b>: You have to close the flatAggregate with a select statement. And the select

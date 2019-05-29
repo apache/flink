@@ -36,6 +36,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.table.util.JavaScalaConversionUtil.toJava;
 
 /**
@@ -108,7 +109,9 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			} else if (TypeCoercion.canSafelyCast(actualType, expectedType)) {
 				return new CallExpression(
 					BuiltInFunctionDefinitions.CAST,
-					asList(childExpression, typeLiteral(expectedType))
+					asList(
+						childExpression,
+						typeLiteral(fromLegacyInfoToDataType(expectedType)))
 				);
 			} else {
 				throw new ValidationException(String.format("Incompatible type of argument: %s Expected: %s",

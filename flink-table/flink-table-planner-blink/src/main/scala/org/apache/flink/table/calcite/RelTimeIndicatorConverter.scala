@@ -86,8 +86,6 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         aggregate.getNamedProperties,
         convAggregate)
 
-    // TODO supports SemiJoin
-
     case watermarkAssigner: LogicalWatermarkAssigner =>
       watermarkAssigner
 

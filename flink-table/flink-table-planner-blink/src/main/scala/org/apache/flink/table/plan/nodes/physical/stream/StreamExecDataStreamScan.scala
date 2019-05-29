@@ -153,7 +153,7 @@ class StreamExecDataStreamScan(
         case dataType: RowType
           if dataType.getFieldNames.contains(rowtimeField) &&
               dataType.getTypeAt(
-                dataType.getFieldIndex(rowtimeField)).equals(ROWTIME_INDICATOR) =>
+                dataType.getFieldIndex(rowtimeField)).equals(InternalTypes.ROWTIME_INDICATOR) =>
           // if rowtimeField already existed in the data stream, use the default rowtime
           None
         case _ =>

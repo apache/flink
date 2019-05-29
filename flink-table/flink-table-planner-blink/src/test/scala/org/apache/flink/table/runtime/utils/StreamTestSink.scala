@@ -249,7 +249,7 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
   }
 }
 
-final class TestingUpsertTableSink(keys: Array[Int], tz: TimeZone)
+final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   extends UpsertStreamTableSink[BaseRow] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
@@ -280,6 +280,7 @@ final class TestingUpsertTableSink(keys: Array[Int], tz: TimeZone)
         (value.f0, value.f1)
       }
     })
+      .setParallelism(dataStream.getParallelism)
       .addSink(sink)
       .name(s"TestingUpsertTableSink(keys=${
         if (keys != null) {
@@ -288,7 +289,7 @@ final class TestingUpsertTableSink(keys: Array[Int], tz: TimeZone)
           "null"
         }
       })")
-      .setParallelism(1)
+      .setParallelism(dataStream.getParallelism)
   }
 
   override def configure(

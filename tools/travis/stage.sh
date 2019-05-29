@@ -19,6 +19,7 @@
 
 STAGE_COMPILE="compile"
 STAGE_CORE="core"
+STAGE_PYTHON="python"
 STAGE_LIBRARIES="libraries"
 STAGE_CONNECTORS="connectors"
 STAGE_TESTS="tests"

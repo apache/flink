@@ -114,7 +114,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		// verify checkpoint has been completed successfully.
 		assertEquals(1, eg.getCheckpointCoordinator().getCheckpointStore().getNumberOfRetainedCheckpoints());
-		assertEquals(checkpointId, eg.getCheckpointCoordinator().getCheckpointStore().getLatestCheckpoint().getCheckpointID());
+		assertEquals(checkpointId, eg.getCheckpointCoordinator().getCheckpointStore().getLatestCheckpoint(false).getCheckpointID());
 
 		ev.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev).getState());
@@ -535,7 +535,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		// verify checkpoint has been restored successfully.
 		assertEquals(1, eg.getCheckpointCoordinator().getCheckpointStore().getNumberOfRetainedCheckpoints());
-		assertEquals(checkpointId, eg.getCheckpointCoordinator().getCheckpointStore().getLatestCheckpoint().getCheckpointID());
+		assertEquals(checkpointId, eg.getCheckpointCoordinator().getCheckpointStore().getLatestCheckpoint(false).getCheckpointID());
 	}
 
 	private ExecutionGraph createSingleRegionExecutionGraph(RestartStrategy restartStrategy) throws Exception {
@@ -622,7 +622,8 @@ public class FailoverRegionTest extends TestLogger {
 					0,
 					jobVertices,
 					mock(CheckpointCoordinatorConfiguration.class),
-					new UnregisteredMetricsGroup()));
+					new UnregisteredMetricsGroup()),
+				false);
 	}
 
 	/**

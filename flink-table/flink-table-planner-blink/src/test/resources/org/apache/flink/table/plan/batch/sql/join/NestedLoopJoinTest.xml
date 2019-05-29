@@ -124,8 +124,8 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
       <![CDATA[
 Calc(select=[d, e, f, g, h, a, b, c])
 +- NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), $f5, <(b, h))], select=[d, e, f, g, h, $f5, a, b, c], build=[right])
-   :- Exchange(distribution=[single])
-   :  +- Calc(select=[d, e, f, g, h, <(d, 2) AS $f5])
+   :- Calc(select=[d, e, f, g, h, <(d, 2) AS $f5])
+   :  +- Exchange(distribution=[single])
    :     +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[single])
       +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -176,6 +176,33 @@ NestedLoopJoin(joinType=[FullOuterJoin], where=[<>(a, d)], select=[d, e, f, g, h
 :  +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[single])
    +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullOuterWithUsing">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (SELECT * FROM MyTable1) FULL JOIN (SELECT * FROM MyTable3) USING (a)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[COALESCE($0, $3)], b=[$1], c=[$2], b0=[$4], c0=[$5])
++- LogicalJoin(condition=[=($0, $3)], joinType=[full])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[MyTable3, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CASE(IS NOT NULL(a), a, a0) AS $f0, b, c, b0, c0])
++- NestedLoopJoin(joinType=[FullOuterJoin], where=[=(a, a0)], select=[a, b, c, a0, b0, c0], build=[left])
+   :- Exchange(distribution=[single])
+   :  +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[MyTable3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -338,12 +365,13 @@ LogicalProject(a=[$0], d=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[=(+(a, 1), d)], select=[a, d], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- Calc(select=[a])
-:     +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[d])
-   +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+Calc(select=[a, d])
++- NestedLoopJoin(joinType=[InnerJoin], where=[=($f3, d)], select=[a, $f3, d], build=[right])
+   :- Calc(select=[a, +(a, 1) AS $f3])
+   :  +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d])
+         +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -367,31 +395,6 @@ NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, d], build=[left])
 :     +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[d])
    +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinNonMatchingKeyTypes">
-    <Resource name="sql">
-      <![CDATA[SELECT c, g FROM MyTable1, MyTable2 WHERE a = g]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(c=[$2], g=[$6])
-+- LogicalFilter(condition=[=($0, $6)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
-      +- LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[=(a, g)], select=[a, c, g], build=[right])
-   :- Calc(select=[a, c])
-   :  +- TableSourceScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- Exchange(distribution=[broadcast])
-      +- Calc(select=[g])
-         +- TableSourceScan(table=[[MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>

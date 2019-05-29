@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
@@ -50,8 +51,9 @@ import org.apache.flink.types.Row
   */
 abstract class BatchTableEnvImpl(
     private[flink] val execEnv: ExecutionEnvironment,
-    config: TableConfig)
-  extends TableEnvImpl(config) {
+    config: TableConfig,
+    catalogManager: CatalogManager)
+  extends TableEnvImpl(config, catalogManager) {
 
   // a counter for unique table names.
   private val nameCntr: AtomicInteger = new AtomicInteger(0)
@@ -97,7 +99,7 @@ abstract class BatchTableEnvImpl(
       // check for proper batch table source
       case batchTableSource: BatchTableSource[_] =>
         // check if a table (source or sink) is registered
-        getTable(name) match {
+        getTable(defaultCatalogName, defaultDatabaseName, name) match {
 
           // table source and/or sink is registered
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {

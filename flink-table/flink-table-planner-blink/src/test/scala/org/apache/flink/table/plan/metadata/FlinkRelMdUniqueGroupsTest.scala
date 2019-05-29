@@ -311,8 +311,47 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetUniqueGroupsOnOverWindow(): Unit = {
-    Array(flinkLogicalOverWindow, batchOverWindowAgg).foreach { agg =>
+  def testGetUniqueGroupsOnWindowAgg(): Unit = {
+    Array(logicalWindowAgg, flinkLogicalWindowAgg,
+      batchGlobalWindowAggWithoutLocalAgg,
+      batchGlobalWindowAggWithLocalAgg).foreach { agg =>
+      assertEquals(ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6)))
+      assertEquals(ImmutableBitSet.of(3, 4, 5, 6),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(3, 4, 5, 6)))
+      assertEquals(ImmutableBitSet.of(0, 3, 4, 5, 6),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 3, 4, 5, 6)))
+      assertEquals(ImmutableBitSet.of(0, 1),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1)))
+      assertEquals(ImmutableBitSet.of(0, 1, 2),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2)))
+    }
+    assertEquals(ImmutableBitSet.of(0, 1, 2, 3),
+      mq.getUniqueGroups(batchLocalWindowAgg, ImmutableBitSet.of(0, 1, 2, 3)))
+
+    Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
+      batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
+      assertEquals(ImmutableBitSet.of(1),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(1)))
+      assertEquals(ImmutableBitSet.of(0),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1)))
+      assertEquals(ImmutableBitSet.of(0, 1, 2),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2)))
+      assertEquals(ImmutableBitSet.of(0, 1, 2, 3),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2, 3)))
+      assertEquals(ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6),
+        mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2, 3, 4, 5, 6)))
+    }
+    assertEquals(ImmutableBitSet.of(0),
+      mq.getUniqueGroups(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 1)))
+    assertEquals(ImmutableBitSet.of(0, 1, 2),
+      mq.getUniqueGroups(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 1, 2)))
+  }
+
+  @Test
+  def testGetUniqueGroupsOnOverAgg(): Unit = {
+    Array(flinkLogicalOverAgg, batchOverAgg).foreach { agg =>
       assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1)))
       assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(agg, ImmutableBitSet.of(0, 1, 2)))
       assertEquals(ImmutableBitSet.of(1, 2), mq.getUniqueGroups(agg, ImmutableBitSet.of(1, 2)))

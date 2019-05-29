@@ -22,12 +22,19 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
  * A buffer-oriented runtime result writer API for producing results.
  */
 public interface ResultPartitionWriter extends AutoCloseable {
+
+	/**
+	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
+	 */
+	void setup() throws IOException;
 
 	BufferProvider getBufferProvider();
 
@@ -60,4 +67,21 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
 	 */
 	void flush(int subpartitionIndex);
+
+	/**
+	 * Fail the production of the partition.
+	 *
+	 * <p>This method propagates non-{@code null} failure causes to consumers on a best-effort basis.
+	 * Closing of partition is still needed.
+	 *
+	 * @param throwable failure cause
+	 */
+	void fail(@Nullable Throwable throwable);
+
+	/**
+	 * Successfully finish the production of the partition.
+	 *
+	 * <p>Closing of partition is still needed.
+	 */
+	void finish() throws IOException;
 }

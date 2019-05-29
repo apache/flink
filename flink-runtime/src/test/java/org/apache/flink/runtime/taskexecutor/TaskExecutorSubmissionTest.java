@@ -38,6 +38,7 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -52,7 +53,7 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
+import org.apache.flink.runtime.taskexecutor.exceptions.PartitionUpdateException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
@@ -413,9 +414,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
 		final int dataPort = NetUtils.getAvailablePort();
 		Configuration config = new Configuration();
-		config.setInteger(TaskManagerOptions.DATA_PORT, dataPort);
-		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(NetworkEnvironmentOptions.DATA_PORT, dataPort);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
 		// Remote location (on the same TM though) for the partition
 		final ResultPartitionLocation loc = ResultPartitionLocation
@@ -494,7 +495,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				updateFuture.get();
 				fail();
 			} catch (Exception e) {
-				assertTrue(ExceptionUtils.findThrowable(e, PartitionException.class).isPresent());
+				assertTrue(ExceptionUtils.findThrowable(e, PartitionUpdateException.class).isPresent());
 			}
 		}
 	}
@@ -526,8 +527,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 				Collections.singletonList(inputGateDeploymentDescriptor));
 
 		Configuration config = new Configuration();
-		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
 		final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();

@@ -45,6 +45,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
@@ -126,6 +127,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	private KinesisShardAssigner shardAssigner = KinesisDataFetcher.DEFAULT_SHARD_ASSIGNER;
 
 	private AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+	private WatermarkTracker watermarkTracker;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
@@ -252,6 +254,20 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
 		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
 		ClosureCleaner.clean(this.periodicWatermarkAssigner, true);
+	}
+
+	public WatermarkTracker getWatermarkTracker() {
+		return this.watermarkTracker;
+	}
+
+	/**
+	 * Set the global watermark tracker. When set, it will be used by the fetcher
+	 * to align the shard consumers by event time.
+	 * @param watermarkTracker
+	 */
+	public void setWatermarkTracker(WatermarkTracker watermarkTracker) {
+		this.watermarkTracker = watermarkTracker;
+		ClosureCleaner.clean(this.watermarkTracker, true);
 	}
 
 	// ------------------------------------------------------------------------
@@ -448,7 +464,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			Properties configProps,
 			KinesisDeserializationSchema<T> deserializationSchema) {
 
-		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema, shardAssigner, periodicWatermarkAssigner);
+		return new KinesisDataFetcher<>(streams, sourceContext, runtimeContext, configProps, deserializationSchema, shardAssigner, periodicWatermarkAssigner, watermarkTracker);
 	}
 
 	@VisibleForTesting

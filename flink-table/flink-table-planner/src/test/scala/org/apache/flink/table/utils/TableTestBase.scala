@@ -32,8 +32,10 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.api.scala.{BatchTableEnvImpl => ScalaBatchTableEnvImpl, StreamTableEnvImpl => ScalaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Table, TableConfig, TableImpl, TableSchema}
+import org.apache.flink.table.catalog.{CatalogManager, GenericCatalogDatabase, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.utils.TableTestUtil.{createCatalogManager, extractBuiltinPath}
 import org.junit.Assert.assertEquals
 import org.junit.{ComparisonFailure, Rule}
 import org.junit.rules.ExpectedException
@@ -70,7 +72,7 @@ class TableTestBase {
   }
 }
 
-abstract class TableTestUtil {
+abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
 
   private var counter = 0
 
@@ -106,8 +108,16 @@ abstract class TableTestUtil {
     // depends on the native machine (Little/Big Endian)
     val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
 
+    // majority of tests did not assume existence of Catalog API.
+    // this enables disabling catalog path verification
+    val actualWithAdjustedPath = if (!verifyCatalogPath) {
+      actualNoCharset.replaceAll("default_catalog, default_database, ", "")
+    } else {
+      actualNoCharset
+    }
+
     val expectedLines = expected.split("\n").map(_.trim)
-    val actualLines = actualNoCharset.split("\n").map(_.trim)
+    val actualLines = actualWithAdjustedPath.split("\n").map(_.trim)
 
     val expectedMessage = expectedLines.mkString("\n")
     val actualMessage = actualLines.mkString("\n")
@@ -118,8 +128,7 @@ abstract class TableTestUtil {
         }
         else if (expectedLine == TableTestUtil.ANY_SUBTREE) {
           break
-        }
-        else if (expectedLine != actualLine) {
+        } else if (expectedLine != actualLine) {
           throw new ComparisonFailure(null, expectedMessage, actualMessage)
         }
       }
@@ -133,6 +142,27 @@ object TableTestUtil {
   val ANY_NODE = "%ANY_NODE%"
 
   val ANY_SUBTREE = "%ANY_SUBTREE%"
+
+  /**
+    * Creates a [[CatalogManager]] with a builtin default catalog & database set to values
+    * specified in the [[TableConfig]].
+    */
+  def createCatalogManager(config: TableConfig): CatalogManager = {
+    new CatalogManager(
+      config.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(config.getBuiltInCatalogName, config.getBuiltInDatabaseName))
+  }
+
+  /**
+    * Sets the configuration of the builtin catalog & databases in [[TableConfig]]
+    * to the current catalog & database of the given [[CatalogManager]]. This should be used
+    * to ensure sanity of a [[org.apache.flink.table.api.TableEnvironment]].
+    */
+  def extractBuiltinPath(config: TableConfig, catalogManager: CatalogManager): TableConfig = {
+    config.setBuiltInCatalogName(catalogManager.getCurrentCatalog)
+    config.setBuiltInDatabaseName(catalogManager.getCurrentDatabase)
+    config
+  }
 
   // this methods are currently just for simplifying string construction,
   // we could replace it with logic later
@@ -189,11 +219,27 @@ object TableTestUtil {
   }
 }
 
-case class BatchTableTestUtil() extends TableTestUtil {
+case class BatchTableTestUtil(
+    catalogManager: Option[CatalogManager] = None)
+  extends TableTestUtil {
   val javaEnv = new LocalEnvironment()
-  val javaTableEnv = new JavaBatchTableEnvImpl(javaEnv, new TableConfig)
+
+  private def tableConfig = catalogManager match {
+    case Some(c) =>
+      TableTestUtil.extractBuiltinPath(new TableConfig, c)
+    case None =>
+      new TableConfig
+  }
+
+  val javaTableEnv = new JavaBatchTableEnvImpl(
+    javaEnv,
+    tableConfig,
+    catalogManager.getOrElse(createCatalogManager(new TableConfig)))
   val env = new ExecutionEnvironment(javaEnv)
-  val tableEnv = ScalaBatchTableEnv.create(env).asInstanceOf[ScalaBatchTableEnvImpl]
+  val tableEnv = new ScalaBatchTableEnvImpl(
+    env,
+    tableConfig,
+    catalogManager.getOrElse(createCatalogManager(new TableConfig)))
 
   def addTable[T: TypeInformation](
       name: String,
@@ -273,13 +319,28 @@ case class BatchTableTestUtil() extends TableTestUtil {
   }
 }
 
-case class StreamTableTestUtil() extends TableTestUtil {
+case class StreamTableTestUtil(
+    catalogManager: Option[CatalogManager] = None)
+  extends TableTestUtil {
   val javaEnv = new LocalStreamEnvironment()
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-  val javaTableEnv = new JavaStreamTableEnvImpl(javaEnv, new TableConfig)
+  private def tableConfig = catalogManager match {
+    case Some(c) =>
+      TableTestUtil.extractBuiltinPath(new TableConfig, c)
+    case None =>
+      new TableConfig
+  }
+
+  val javaTableEnv = new JavaStreamTableEnvImpl(
+    javaEnv,
+    tableConfig,
+    catalogManager.getOrElse(createCatalogManager(new TableConfig)))
   val env = new StreamExecutionEnvironment(javaEnv)
-  val tableEnv = ScalaStreamTableEnv.create(env).asInstanceOf[StreamTableEnvImpl]
+  val tableEnv = new StreamTableEnvImpl(
+    env,
+    tableConfig,
+    catalogManager.getOrElse(createCatalogManager(new TableConfig)))
 
   def addTable[T: TypeInformation](
       name: String,

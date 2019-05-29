@@ -85,9 +85,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
           case InternalTypes.BINARY => createSqlType(VARBINARY)
 
-          case InternalTypes.CHAR =>
-            throw new TableException("Character type is not supported.")
-
           case decimal: DecimalType =>
             createSqlType(DECIMAL, decimal.precision(), decimal.scale())
 
@@ -193,11 +190,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     buildRelDataType(
       tableSchema.getFieldNames.toSeq,
       tableSchema.getFieldTypes map {
-        case TimeIndicatorTypeInfo.PROCTIME_INDICATOR
-          if isStreaming.isDefined && !isStreaming.get =>
-          InternalTypes.TIMESTAMP
-        case TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-          if isStreaming.isDefined && !isStreaming.get =>
+        case _: TimeIndicatorTypeInfo if isStreaming.isDefined && !isStreaming.get =>
           InternalTypes.TIMESTAMP
         case tpe: TypeInformation[_] => createInternalTypeFromTypeInfo(tpe)
       })

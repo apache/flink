@@ -22,15 +22,21 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.ImmutableIntList
 
 import java.util
+
+import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * Batch physical RelNode for local sort-based aggregate operator.
@@ -88,6 +94,44 @@ class BatchExecLocalSortAggregate(
         aggCallToAggFunction,
         isMerge = false,
         isGlobal = false))
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    // Does not to try to satisfy requirement by localAgg's input if enforce to use two-stage agg.
+    if (isEnforceTwoStageAgg) {
+      return None
+    }
+    val groupCount = grouping.length
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val canSatisfy = requiredDistribution.getType match {
+      case Type.HASH_DISTRIBUTED | Type.RANGE_DISTRIBUTED =>
+        // Cannot satisfy distribution if keys are not group keys of agg
+        requiredDistribution.getKeys.forall(_ < groupCount)
+      case _ => false
+    }
+    if (!canSatisfy) {
+      return None
+    }
+
+    val keys = requiredDistribution.getKeys.map(grouping(_))
+    val inputRequiredDistributionKeys = ImmutableIntList.of(keys: _*)
+    val inputRequiredDistribution = requiredDistribution.getType match {
+      case Type.HASH_DISTRIBUTED =>
+        FlinkRelDistribution.hash(inputRequiredDistributionKeys, requiredDistribution.requireStrict)
+      case Type.RANGE_DISTRIBUTED =>
+        FlinkRelDistribution.range(inputRequiredDistributionKeys)
+    }
+    val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    val providedFieldCollations = (0 until groupCount).map(FlinkRelOptUtil.ofRelFieldCollation)
+    val providedCollation = RelCollations.of(providedFieldCollations)
+    val newProvidedTraits = if (providedCollation.satisfies(requiredCollation)) {
+      getTraitSet.replace(requiredDistribution).replace(requiredCollation)
+    } else {
+      getTraitSet.replace(requiredDistribution)
+    }
+    val inputRequiredTraits = getInput.getTraitSet.replace(inputRequiredDistribution)
+    val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
+    Some(copy(newProvidedTraits, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

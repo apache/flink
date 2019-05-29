@@ -19,43 +19,42 @@
 package org.apache.flink.table.api
 
 import _root_.java.lang.reflect.Modifier
+import _root_.java.util.Optional
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.schema
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
+import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.calcite._
-import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.catalog._
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
-import org.apache.flink.table.plan.TableOperationConverter
-import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
+import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 
@@ -67,46 +66,23 @@ import _root_.scala.collection.mutable
   *
   * @param config The configuration of the TableEnvironment
   */
-abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
-
-  // the catalog to hold all registered and translated tables
-  // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
-  private val rootSchema: SchemaPlus = internalSchema.plus()
+abstract class TableEnvImpl(
+    val config: TableConfig,
+    private val catalogManager: CatalogManager)
+  extends TableEnvironment {
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog()
 
-  // the configuration to create a Calcite planner
-  private lazy val frameworkConfig: FrameworkConfig = Frameworks
-    .newConfigBuilder
-    .defaultSchema(rootSchema)
-    .parserConfig(getSqlParserConfig)
-    .costFactory(new DataSetCostFactory)
-    .typeSystem(new FlinkTypeSystem)
-    .operatorTable(getSqlOperatorTable)
-    .sqlToRelConverterConfig(getSqlToRelConverterConfig)
-    // the converter is needed when calling temporal table functions from SQL, because
-    // they reference a history table represented with a tree of table operations
-    .context(Contexts.of(
-      new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
-    ))
-    // set the executor to evaluate constant expressions
-    .executor(new ExpressionReducer(config))
-    .build
+  protected val defaultCatalogName: String = config.getBuiltInCatalogName
+  protected val defaultDatabaseName: String = config.getBuiltInDatabaseName
+
+  private val internalSchema: CalciteSchema =
+    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isBatch))
 
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
-
-  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder
-    .create(frameworkConfig, expressionBridge)
-
-  // the planner instance used to optimize queries of this TableEnvironment
-  private lazy val planner: RelOptPlanner = relBuilder.getPlanner
-
-  private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -116,52 +92,28 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
+  private val planningConfigurationBuilder: PlanningConfigurationBuilder =
+    new PlanningConfigurationBuilder(
+      config,
+      functionCatalog,
+      internalSchema,
+      expressionBridge)
+
   protected def calciteConfig: CalciteConfig = config.getPlannerConfig
     .unwrap(classOf[CalciteConfig])
     .orElse(CalciteConfig.DEFAULT)
 
   def getConfig: TableConfig = config
 
+  private def isBatch: Boolean = this match {
+    case _: BatchTableEnvImpl => true
+    case _ => false
+  }
+
   private[flink] def queryConfig: QueryConfig = this match {
     case _: BatchTableEnvImpl => new BatchQueryConfig
     case _: StreamTableEnvImpl => new StreamQueryConfig
     case _ => null
-  }
-
-  /**
-    * Returns the SqlToRelConverter config.
-    */
-  protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
-    calciteConfig.sqlToRelConverterConfig match {
-
-      case None =>
-        SqlToRelConverter.configBuilder()
-          .withTrimUnusedFields(false)
-          .withConvertTableAccess(false)
-          .withInSubQueryThreshold(Integer.MAX_VALUE)
-          .withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
-          .build()
-
-      case Some(c) => c
-    }
-  }
-
-  /**
-    * Returns the operator table for this environment including a custom Calcite configuration.
-    */
-  protected def getSqlOperatorTable: SqlOperatorTable = {
-    calciteConfig.sqlOperatorTable match {
-
-      case None =>
-        functionCatalog.getSqlOperatorTable
-
-      case Some(table) =>
-        if (calciteConfig.replacesSqlOperatorTable) {
-          table
-        } else {
-          ChainedSqlOperatorTable.of(functionCatalog.getSqlOperatorTable, table)
-        }
-    }
   }
 
   /**
@@ -218,25 +170,6 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
         } else {
           RuleSets.ofList((getBuiltInPhysicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
-    }
-  }
-
-  /**
-    * Returns the SQL parser config for this environment including a custom Calcite configuration.
-    */
-  protected def getSqlParserConfig: SqlParser.Config = {
-    calciteConfig.sqlParserConfig match {
-
-      case None =>
-        // we use Java lex because back ticks are easier than double quotes in programming
-        // and cases are preserved
-        SqlParser
-          .configBuilder()
-          .setLex(Lex.JAVA)
-          .build()
-
-      case Some(sqlParserConfig) =>
-        sqlParserConfig
     }
   }
 
@@ -355,7 +288,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     input: RelNode,
     targetTraits: RelTraitSet): RelNode = {
 
-    val planner = new HepPlanner(hepProgram, frameworkConfig.getContext)
+    val planner = new HepPlanner(hepProgram, planningConfigurationBuilder.getContext)
     planner.setRoot(input)
     if (input.getTraitSet != targetTraits) {
       planner.changeTraits(input, targetTraits.simplify)
@@ -402,12 +335,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   }
 
   override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
-    if (rootSchema.getSubSchema(name) != null) {
-      throw new ExternalCatalogAlreadyExistException(name)
-    }
-    this.externalCatalogs.put(name, externalCatalog)
-    // create an external catalog Calcite schema, register it on the root schema
-    ExternalCatalogSchema.registerCatalog(this, rootSchema, name, externalCatalog)
+    catalogManager.registerExternalCatalog(name, externalCatalog)
   }
 
   override def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
@@ -424,7 +352,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     functionCatalog.registerScalarFunction(
       name,
       function,
-      typeFactory)
+      planningConfigurationBuilder.getTypeFactory)
   }
 
   /**
@@ -448,7 +376,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       name,
       function,
       typeInfo,
-      typeFactory)
+      planningConfigurationBuilder.getTypeFactory)
   }
 
   /**
@@ -475,7 +403,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       function,
       resultTypeInfo,
       accTypeInfo,
-      typeFactory)
+      planningConfigurationBuilder.getTypeFactory)
   }
 
   override def registerTable(name: String, table: Table): Unit = {
@@ -496,6 +424,30 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     registerTableSourceInternal(name, tableSource)
   }
 
+  override def registerCatalog(catalogName: String, catalog: Catalog): Unit = {
+    catalogManager.registerCatalog(catalogName, catalog)
+  }
+
+  override def getCatalog(catalogName: String): Optional[Catalog] = {
+    catalogManager.getCatalog(catalogName)
+  }
+
+  override def getCurrentCatalog: String = {
+    catalogManager.getCurrentCatalog
+  }
+
+  override def getCurrentDatabase: String = {
+    catalogManager.getCurrentDatabase
+  }
+
+  override def useCatalog(catalogName: String): Unit = {
+    catalogManager.setCurrentCatalog(catalogName)
+  }
+
+  override def useDatabase(databaseName: String): Unit = {
+    catalogManager.setCurrentDatabase(databaseName)
+  }
+
   /**
     * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
     * name checking. Registered tables can be referenced in SQL queries.
@@ -504,14 +456,6 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     * @param tableSource The [[TableSource]] to register.
     */
   protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit
-
-  override def registerTableSink(
-      name: String,
-      fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
 
   /**
     * Replaces a registered Table with another Table under the same name.
@@ -522,58 +466,37 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     * @param table The table that replaces the previous table.
     */
   protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
-
-    if (isRegistered(name)) {
-      rootSchema.add(name, table)
-    } else {
-      throw new TableException(s"Table \'$name\' is not registered.")
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) =>
+        catalog.alterTable(
+          path,
+          new CalciteCatalogTable(table, planningConfigurationBuilder.getTypeFactory),
+          false)
+      case None => throw new TableException("The default catalog does not exist.")
     }
   }
 
   @throws[TableException]
   override def scan(tablePath: String*): Table = {
     scanInternal(tablePath.toArray) match {
-      case Some(table) => table
+      case Some(table) => new TableImpl(this, table)
       case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
     }
   }
 
-  private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
-    require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
-    val schemaPaths = tablePath.slice(0, tablePath.length - 1)
-    val schema = getSchema(schemaPaths)
-    if (schema != null) {
-      val tableName = tablePath(tablePath.length - 1)
-      val table = schema.getTable(tableName)
-      if (table != null) {
-        return Some(new TableImpl(this,
-          new CatalogTableOperation(tablePath.toList.asJava, extractTableSchema(table))))
-      }
-    }
-    None
-  }
-
-  private def extractTableSchema(table: schema.Table): TableSchema = {
-    val relDataType = table.getRowType(typeFactory)
-    val fieldNames = relDataType.getFieldNames
-    val fieldTypes = relDataType.getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-    new TableSchema(fieldNames.asScala.toArray, fieldTypes.toArray)
-  }
-
-  private def getSchema(schemaPath: Array[String]): SchemaPlus = {
-    var schema = rootSchema
-    for (schemaName <- schemaPath) {
-      schema = schema.getSubSchema(schemaName)
-      if (schema == null) {
-        return schema
-      }
-    }
-    schema
+  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogTableOperation] = {
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath : _*))
   }
 
   override def listTables(): Array[String] = {
-    rootSchema.getTableNames.asScala.toArray
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentCatalog = catalogManager.getCatalog(currentCatalogName)
+    JavaScalaConversionUtil.toScala(currentCatalog) match {
+      case Some(catalog) => catalog.listTables(catalogManager.getCurrentDatabase).asScala.toArray
+      case None =>
+        throw new TableException(s"The current catalog ($currentCatalogName) does not exist.")
+    }
   }
 
   override def listUserDefinedFunctions(): Array[String] = {
@@ -583,15 +506,12 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   override def explain(table: Table): String
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = new FlinkPlannerImpl(
-      getFrameworkConfig,
-      getPlanner,
-      getTypeFactory)
+    val planner = getFlinkPlanner
     planner.getCompletionHints(statement, position)
   }
 
   override def sqlQuery(query: String): Table = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = getFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
@@ -612,7 +532,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   }
 
   override def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = getFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {
@@ -626,10 +546,10 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
           new PlannerTableOperation(planner.rel(validatedQuery).rel))
 
         // get name of sink table
-        val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
+        val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
 
         // insert query result into sink table
-        insertInto(queryResult, targetTableName, config)
+        insertInto(queryResult, config, targetTablePath.asScala:_*)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
@@ -650,19 +570,19 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
     *
     * @param table The table to write to the TableSink.
-    * @param sinkTableName The name of the registered TableSink.
+    * @param sinkTablePath The name of the registered TableSink.
     * @param conf The query configuration to use.
     */
-  private[flink] def insertInto(table: Table, sinkTableName: String, conf: QueryConfig): Unit = {
+  private[flink] def insertInto(table: Table, conf: QueryConfig, sinkTablePath: String*): Unit = {
 
     // check that sink table exists
-    if (null == sinkTableName) throw new TableException("Name of TableSink must not be null.")
-    if (sinkTableName.isEmpty) throw new TableException("Name of TableSink must not be empty.")
+    if (null == sinkTablePath) throw new TableException("Name of TableSink must not be null.")
+    if (sinkTablePath.isEmpty) throw new TableException("Name of TableSink must not be empty.")
 
-    getTable(sinkTableName) match {
+    getTable(sinkTablePath: _*) match {
 
       case None =>
-        throw new TableException(s"No table was registered under the name $sinkTableName.")
+        throw new TableException(s"No table was registered under the name $sinkTablePath.")
 
       case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
         val tableSink = s.tableSinkTable.get.tableSink
@@ -686,7 +606,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
           throw new ValidationException(
             s"Field types of query result and registered TableSink " +
-              s"$sinkTableName do not match.\n" +
+              s"$sinkTablePath do not match.\n" +
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }
@@ -694,13 +614,13 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
         writeToSink(table, tableSink, conf)
 
       case Some(_) =>
-        throw new TableException(s"The table registered as $sinkTableName is not a TableSink. " +
+        throw new TableException(s"The table registered as $sinkTablePath is not a TableSink. " +
           s"You can only emit query results to a registered TableSink.")
     }
   }
 
   /**
-    * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
+    * Registers a Calcite [[AbstractTable]] in the TableEnvironment's default catalog.
     *
     * @param name The name under which the table will be registered.
     * @param table The table to register in the catalog
@@ -708,12 +628,14 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     */
   @throws[TableException]
   protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
-
-    if (isRegistered(name)) {
-      throw new TableException(s"Table \'$name\' already exists. " +
-        s"Please, choose a different name.")
-    } else {
-      rootSchema.add(name, table)
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) =>
+        catalog.createTable(
+          path,
+          new CalciteCatalogTable(table, planningConfigurationBuilder.getTypeFactory),
+          false)
+      case None => throw new TableException("The default catalog does not exist.")
     }
   }
 
@@ -728,22 +650,12 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   protected def checkValidTableName(name: String): Unit
 
   /**
-    * Checks if a table is registered under the given name.
-    *
-    * @param name The table name to check.
-    * @return true, if a table is registered under the name, false otherwise.
-    */
-  protected[flink] def isRegistered(name: String): Boolean = {
-    rootSchema.getTableNames.contains(name)
-  }
-
-  /**
     * Get a table from either internal or external catalogs.
     *
     * @param name The name of the table.
     * @return The table registered either internally or externally, None otherwise.
     */
-  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
+  protected def getTable(name: String*): Option[org.apache.calcite.schema.Table] = {
 
     // recursively fetches a table from a schema.
     def getTableFromSchema(
@@ -768,8 +680,10 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       }
     }
 
-    val pathNames = name.split('.').toList
-    getTableFromSchema(rootSchema, pathNames)
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(name: _*))
+      .flatMap(t =>
+        getTableFromSchema(internalSchema.plus(), t.getTablePath.asScala.toList)
+      )
   }
 
   /** Returns a unique temporary attribute name. */
@@ -779,26 +693,31 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
-    relBuilder
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentDatabase = catalogManager.getCurrentDatabase
+
+    planningConfigurationBuilder.createRelBuilder(currentCatalogName, currentDatabase)
   }
 
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
-  private[flink] def getPlanner: RelOptPlanner = {
-    planner
-  }
-
-  /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
-  private[flink] def getTypeFactory: FlinkTypeFactory = {
-    typeFactory
+  private def getPlanner: RelOptPlanner = {
+    planningConfigurationBuilder.getPlanner
   }
 
   private[flink] def getFunctionCatalog: FunctionCatalog = {
     functionCatalog
   }
 
+  private[flink] def getParserConfig: SqlParser.Config = planningConfigurationBuilder
+    .getSqlParserConfig
+
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
-  private[flink] def getFrameworkConfig: FrameworkConfig = {
-    frameworkConfig
+  @VisibleForTesting
+  private[flink] def getFlinkPlanner: FlinkPlannerImpl = {
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentDatabase = catalogManager.getCurrentDatabase
+
+    planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
   }
 
   /**

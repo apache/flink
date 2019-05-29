@@ -26,16 +26,17 @@ import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.ExpressionFormat
-import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil, SortUtil}
+import org.apache.flink.table.plan.nodes.exec.ExecNode
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.join.{FlinkJoinType, SortMergeJoinOperator}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 
 import java.util
@@ -45,12 +46,18 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for sort-merge [[Join]].
   */
-trait BatchExecSortMergeJoinBase extends BatchExecJoinBase with BatchExecNode[BaseRow] {
-
-  // true if LHS is sorted by left join keys, else false
-  val leftSorted: Boolean
-  // true if RHS is sorted by right join key, else false
-  val rightSorted: Boolean
+class BatchExecSortMergeJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType,
+    // true if LHS is sorted by left join keys, else false
+    val leftSorted: Boolean,
+    // true if RHS is sorted by right join key, else false
+    val rightSorted: Boolean)
+  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   protected lazy val (leftAllKey, rightAllKey) =
     JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
@@ -74,6 +81,24 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase with BatchExecNode[Ba
         SortMergeJoinType.SortRightJoin
       case _ => SortMergeJoinType.SortMergeJoin
     }
+  }
+
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
+    new BatchExecSortMergeJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType,
+      leftSorted,
+      rightSorted)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter =
@@ -116,6 +141,55 @@ trait BatchExecSortMergeJoinBase extends BatchExecJoinBase with BatchExecNode[Ba
     }
     val rowCount = mq.getRowCount(this)
     costFactory.makeCost(rowCount, cpuCost, 0, 0, sortMemCost)
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
+      satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
+    if (!canSatisfyDistribution) {
+      return None
+    }
+
+    val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    val requiredFieldCollations = requiredCollation.getFieldCollations
+    val shuffleKeysSize = leftRequiredDistribution.getKeys.size
+
+    val newLeft = RelOptRule.convert(getLeft, leftRequiredDistribution)
+    val newRight = RelOptRule.convert(getRight, rightRequiredDistribution)
+
+    // SortMergeJoin can provide collation trait, check whether provided collation can satisfy
+    // required collations
+    val canProvideCollation = if (requiredCollation.getFieldCollations.isEmpty) {
+      false
+    } else if (requiredFieldCollations.size > shuffleKeysSize) {
+      // Sort by [a, b] can satisfy [a], but cannot satisfy [a, b, c]
+      false
+    } else {
+      val leftKeys = leftRequiredDistribution.getKeys
+      val leftFieldCnt = getLeft.getRowType.getFieldCount
+      val rightKeys = rightRequiredDistribution.getKeys.map(_ + leftFieldCnt)
+      requiredFieldCollations.zipWithIndex.forall { case (collation, index) =>
+        val idxOfCollation = collation.getFieldIndex
+        // Full outer join is handled before, so does not need care about it
+        if (idxOfCollation < leftFieldCnt && joinType != JoinRelType.RIGHT) {
+          val fieldCollationOnLeftSortKey = FlinkRelOptUtil.ofRelFieldCollation(leftKeys.get(index))
+          collation == fieldCollationOnLeftSortKey
+        } else if (idxOfCollation >= leftFieldCnt &&
+          (joinType == JoinRelType.RIGHT || joinType == JoinRelType.INNER)) {
+          val fieldCollationOnRightSortKey =
+            FlinkRelOptUtil.ofRelFieldCollation(rightKeys.get(index))
+          collation == fieldCollationOnRightSortKey
+        } else {
+          false
+        }
+      }
+    }
+    var newProvidedTraitSet = getTraitSet.replace(requiredDistribution)
+    if (canProvideCollation) {
+      newProvidedTraitSet = newProvidedTraitSet.replace(requiredCollation)
+    }
+    Some(copy(newProvidedTraitSet, Seq(newLeft, newRight)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------
@@ -225,34 +299,4 @@ object SortMergeJoinType extends Enumeration {
   SortRightJoin,
   // both LHS and RHS need sort
   SortMergeJoin = Value
-}
-
-class BatchExecSortMergeJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    joinType: JoinRelType,
-    override val leftSorted: Boolean,
-    override val rightSorted: Boolean)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
-  with BatchExecSortMergeJoinBase {
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): Join =
-    new BatchExecSortMergeJoin(
-      cluster,
-      traitSet,
-      left,
-      right,
-      conditionExpr,
-      joinType,
-      leftSorted,
-      rightSorted)
 }

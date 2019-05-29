@@ -27,6 +27,8 @@ import org.apache.flink.table.generated.GeneratedHashFunction;
 import org.apache.flink.table.generated.HashFunction;
 import org.apache.flink.util.MathUtils;
 
+import java.util.Arrays;
+
 /**
  * Hash partitioner for {@link BinaryRow}.
  */
@@ -35,9 +37,11 @@ public class BinaryHashPartitioner extends StreamPartitioner<BaseRow> {
 	private GeneratedHashFunction genHashFunc;
 
 	private transient HashFunction hashFunc;
+	private String[] hashFieldNames;
 
-	public BinaryHashPartitioner(GeneratedHashFunction genHashFunc) {
+	public BinaryHashPartitioner(GeneratedHashFunction genHashFunc, String[] hashFieldNames) {
 		this.genHashFunc = genHashFunc;
+		this.hashFieldNames = hashFieldNames;
 	}
 
 	@Override
@@ -65,6 +69,6 @@ public class BinaryHashPartitioner extends StreamPartitioner<BaseRow> {
 
 	@Override
 	public String toString() {
-		return "HASH(" + genHashFunc.getClassName() + ")";
+		return "HASH" + Arrays.toString(hashFieldNames);
 	}
 }

@@ -204,7 +204,7 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_IPC_PORT_KEY = "taskmanager.rpc.port";
 
 	/**
-	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
+	 * @deprecated use {@link NetworkEnvironmentOptions#DATA_PORT} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
@@ -212,7 +212,7 @@ public final class ConfigConstants {
 	/**
 	 * Config parameter to override SSL support for taskmanager's data transport.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
+	 * @deprecated use {@link NetworkEnvironmentOptions#DATA_SSL_ENABLED} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
@@ -270,7 +270,7 @@ public final class ConfigConstants {
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
 	 *
-	 * @deprecated Use {@link TaskManagerOptions#NETWORK_NUM_BUFFERS} instead
+	 * @deprecated Use {@link NetworkEnvironmentOptions#NETWORK_NUM_BUFFERS} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
@@ -1241,6 +1241,9 @@ public final class ConfigConstants {
 	/** The class of the reporter to use. This is used as a suffix in an actual reporter config */
 	public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
 
+	/** The class of the reporter factory to use. This is used as a suffix in an actual reporter config */
+	public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
+
 	/** The interval between reports. This is used as a suffix in an actual reporter config */
 	public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
@@ -1389,7 +1392,7 @@ public final class ConfigConstants {
 	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
 	 * the TaskManager searches for a free port.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
+	 * @deprecated use {@link NetworkEnvironmentOptions#DATA_PORT} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
@@ -1397,7 +1400,7 @@ public final class ConfigConstants {
 	/**
 	 * The default value to override ssl support for task manager's data transport.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
+	 * @deprecated use {@link NetworkEnvironmentOptions#DATA_SSL_ENABLED} instead
 	 */
 	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
@@ -1421,7 +1424,7 @@ public final class ConfigConstants {
 	/**
 	 * Config key has been deprecated. Therefore, no default value required.
 	 *
-	 * @deprecated {@link TaskManagerOptions#NETWORK_NUM_BUFFERS} provides the default value now
+	 * @deprecated {@link NetworkEnvironmentOptions#NETWORK_NUM_BUFFERS} provides the default value now
 	 */
 	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS = 2048;

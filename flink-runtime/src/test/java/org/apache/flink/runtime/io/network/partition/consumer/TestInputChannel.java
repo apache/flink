@@ -27,12 +27,15 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -42,6 +45,8 @@ import static org.mockito.Mockito.when;
 public class TestInputChannel extends InputChannel {
 
 	private final Queue<BufferAndAvailabilityProvider> buffers = new ConcurrentLinkedQueue<>();
+
+	private final Collection<Buffer> allReturnedBuffers = new ArrayList<>();
 
 	private BufferAndAvailabilityProvider lastProvider = null;
 
@@ -125,7 +130,9 @@ public class TestInputChannel extends InputChannel {
 
 		if (provider != null) {
 			lastProvider = provider;
-			return provider.getBufferAvailability();
+			Optional<BufferAndAvailability> baa = provider.getBufferAvailability();
+			baa.ifPresent((v) -> allReturnedBuffers.add(v.buffer()));
+			return baa;
 		} else if (lastProvider != null) {
 			return lastProvider.getBufferAvailability();
 		} else {
@@ -160,6 +167,29 @@ public class TestInputChannel extends InputChannel {
 	@Override
 	protected void notifyChannelNonEmpty() {
 
+	}
+
+	public void assertReturnedDataBuffersAreRecycled() {
+		assertReturnedBuffersAreRecycled(true, false);
+	}
+
+	public void assertReturnedEventsAreRecycled() {
+		assertReturnedBuffersAreRecycled(false, true);
+	}
+
+	public void assertAllReturnedBuffersAreRecycled() {
+		assertReturnedBuffersAreRecycled(true, true);
+	}
+
+	private void assertReturnedBuffersAreRecycled(boolean assertBuffers, boolean assertEvents) {
+		for (Buffer b : allReturnedBuffers) {
+			if (b.isBuffer() && assertBuffers && !b.isRecycled()) {
+				fail("Data Buffer " + b + " not recycled");
+			}
+			if (!b.isBuffer() && assertEvents && !b.isRecycled()) {
+				fail("Event Buffer " + b + " not recycled");
+			}
+		}
 	}
 
 	interface BufferAndAvailabilityProvider {

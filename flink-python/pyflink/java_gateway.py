@@ -28,7 +28,6 @@ from threading import RLock
 from py4j.java_gateway import java_import, JavaGateway, GatewayParameters
 from pyflink.find_flink_home import _find_flink_home
 
-
 _gateway = None
 _lock = RLock()
 
@@ -46,6 +45,9 @@ def get_gateway():
                 _gateway = JavaGateway(gateway_parameters=gateway_param)
             else:
                 _gateway = launch_gateway()
+
+            # import the flink view
+            import_flink_view(_gateway)
     return _gateway
 
 
@@ -62,7 +64,7 @@ def launch_gateway():
         raise Exception("Windows system is not supported currently.")
     script = "./bin/pyflink-gateway-server.sh"
     command = [os.path.join(FLINK_HOME, script)]
-    command += ['-c', 'org.apache.flink.api.python.PythonGatewayServer']
+    command += ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
 
     # Create a temporary directory where the gateway server should write the connection information.
     conn_info_dir = tempfile.mkdtemp()
@@ -97,10 +99,19 @@ def launch_gateway():
     gateway = JavaGateway(
         gateway_parameters=GatewayParameters(port=gateway_port, auto_convert=True))
 
+    return gateway
+
+
+def import_flink_view(gateway):
+    """
+    import the classes used by PyFlink.
+    :param gateway:gateway connected to JavaGateWayServer
+    """
     # Import the classes used by PyFlink
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
+    java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.TypeInformation")
@@ -108,5 +119,3 @@ def launch_gateway():
     java_import(gateway.jvm, "org.apache.flink.api.java.ExecutionEnvironment")
     java_import(gateway.jvm,
                 "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
-
-    return gateway

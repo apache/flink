@@ -38,7 +38,9 @@ from pyflink.table.table_environment import (TableEnvironment, StreamTableEnviro
                                              BatchTableEnvironment)
 from pyflink.table.table_sink import TableSink, CsvTableSink
 from pyflink.table.table_source import TableSource, CsvTableSource
-from pyflink.table.types import DataTypes
+from pyflink.table.types import DataTypes, UserDefinedType, Row
+from pyflink.table.window import Tumble, Session, Slide, Over
+from pyflink.table.table_descriptor import Rowtime, Schema, OldCsv, FileSystem
 
 __all__ = [
     'TableEnvironment',
@@ -50,5 +52,15 @@ __all__ = [
     'TableSource',
     'CsvTableSink',
     'CsvTableSource',
-    'DataTypes'
+    'DataTypes',
+    'Tumble',
+    'Session',
+    'Slide',
+    'Over',
+    'Rowtime',
+    'Schema',
+    'OldCsv',
+    'FileSystem',
+    'UserDefinedType',
+    'Row',
 ]

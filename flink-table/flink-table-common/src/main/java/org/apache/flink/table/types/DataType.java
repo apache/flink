@@ -52,13 +52,15 @@ import java.util.Objects;
 @PublicEvolving
 public abstract class DataType implements Serializable {
 
-	protected LogicalType logicalType;
+	protected final LogicalType logicalType;
 
-	protected @Nullable Class<?> conversionClass;
+	protected final Class<?> conversionClass;
 
 	DataType(LogicalType logicalType, @Nullable Class<?> conversionClass) {
 		this.logicalType = Preconditions.checkNotNull(logicalType, "Logical type must not be null.");
-		this.conversionClass = performEarlyClassValidation(logicalType, conversionClass);
+		this.conversionClass = performEarlyClassValidation(
+			logicalType,
+			ensureConversionClass(logicalType, conversionClass));
 	}
 
 	/**
@@ -79,9 +81,6 @@ public abstract class DataType implements Serializable {
 	 * @return the expected conversion class
 	 */
 	public Class<?> getConversionClass() {
-		if (conversionClass == null) {
-			return logicalType.getDefaultConversion();
-		}
 		return conversionClass;
 	}
 
@@ -116,6 +115,8 @@ public abstract class DataType implements Serializable {
 	 */
 	public abstract DataType bridgedTo(Class<?> newConversionClass);
 
+	public abstract <R> R accept(DataTypeVisitor<R> visitor);
+
 	@Override
 	public String toString() {
 		return logicalType.toString();
@@ -131,7 +132,7 @@ public abstract class DataType implements Serializable {
 		}
 		DataType dataType = (DataType) o;
 		return logicalType.equals(dataType.logicalType) &&
-			Objects.equals(conversionClass, dataType.conversionClass);
+			conversionClass.equals(dataType.conversionClass);
 	}
 
 	@Override
@@ -159,5 +160,12 @@ public abstract class DataType implements Serializable {
 					candidate.getName()));
 		}
 		return candidate;
+	}
+
+	private static Class<?> ensureConversionClass(LogicalType logicalType, @Nullable Class<?> clazz) {
+		if (clazz == null) {
+			return logicalType.getDefaultConversion();
+		}
+		return clazz;
 	}
 }

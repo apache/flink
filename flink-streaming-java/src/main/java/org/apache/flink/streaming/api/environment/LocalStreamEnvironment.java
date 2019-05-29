@@ -76,7 +76,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
+	 * Executes the JobGraph of the on a mini cluster of ClusterUtil with a user
 	 * specified name.
 	 *
 	 * @param jobName

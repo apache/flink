@@ -89,7 +89,9 @@ object MetadataTestUtil {
     rootSchema.add("MyTable2", createMyTable2())
     rootSchema.add("MyTable3", createMyTable3())
     rootSchema.add("MyTable4", createMyTable4())
-    rootSchema.add("TemporalTable", createTemporalTable())
+    rootSchema.add("TemporalTable1", createTemporalTable1())
+    rootSchema.add("TemporalTable2", createTemporalTable2())
+    rootSchema.add("TemporalTable3", createTemporalTable3())
     rootSchema
   }
 
@@ -213,7 +215,48 @@ object MetadataTestUtil {
     getDataStreamTable(schema, new FlinkStatistic(tableStats, uniqueKeys))
   }
 
-  private def createTemporalTable(): DataStreamTable[BaseRow] = {
+  private def createTemporalTable1(): DataStreamTable[BaseRow] = {
+    val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
+    val fieldTypes = Array[InternalType](
+      InternalTypes.LONG,
+      InternalTypes.STRING,
+      InternalTypes.INT,
+      InternalTypes.PROCTIME_INDICATOR,
+      InternalTypes.ROWTIME_INDICATOR)
+
+    val colStatsMap = Map[String, ColumnStats](
+      "a" -> new ColumnStats(30L, 0L, 4D, 4, 45, 5),
+      "b" -> new ColumnStats(5L, 0L, 32D, 32, null, null),
+      "c" -> new ColumnStats(48L, 0L, 8D, 8, 50, 0)
+    )
+
+    val tableStats = new TableStats(50L, colStatsMap)
+    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats),
+      producesUpdates = false, isAccRetract = false)
+  }
+
+  private def createTemporalTable2(): DataStreamTable[BaseRow] = {
+    val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
+    val fieldTypes = Array[InternalType](
+      InternalTypes.LONG,
+      InternalTypes.STRING,
+      InternalTypes.INT,
+      InternalTypes.PROCTIME_INDICATOR,
+      InternalTypes.ROWTIME_INDICATOR)
+
+    val colStatsMap = Map[String, ColumnStats](
+      "a" -> new ColumnStats(50L, 0L, 8D, 8, 55, 5),
+      "b" -> new ColumnStats(5L, 0L, 16D, 32, null, null),
+      "c" -> new ColumnStats(48L, 0L, 4D, 4, 50, 0)
+    )
+
+    val tableStats = new TableStats(50L, colStatsMap)
+    val uniqueKeys = Set(Set("a").asJava).asJava
+    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats, uniqueKeys),
+      producesUpdates = false, isAccRetract = false)
+  }
+
+  private def createTemporalTable3(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
     val fieldTypes = Array[InternalType](
       InternalTypes.INT,
@@ -228,7 +271,7 @@ object MetadataTestUtil {
       "c" -> new ColumnStats(null, 0L, 18.6, 64, null, null)
     )
 
-    val tableStats = new TableStats(20000000L, colStatsMap)
+    val tableStats = new TableStats(4000000000L, colStatsMap)
     getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats),
       producesUpdates = false, isAccRetract = false)
   }

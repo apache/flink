@@ -38,12 +38,13 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
@@ -211,20 +212,17 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			NetworkEnvironment environment,
 			int channels) throws Exception {
 
-		ResultPartition resultPartition = new ResultPartition(
-			"sender task",
-			new NoOpTaskActions(),
-			jobId,
-			partitionId,
-			ResultPartitionType.PIPELINED_BOUNDED,
-			channels,
-			1,
-			environment.getResultPartitionManager(),
-			new NoOpResultPartitionConsumableNotifier(),
-			ioManager,
-			false);
+		ResultPartition resultPartition = new ResultPartitionBuilder()
+			.setJobId(jobId)
+			.setResultPartitionId(partitionId)
+			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
+			.setNumberOfSubpartitions(channels)
+			.setResultPartitionManager(environment.getResultPartitionManager())
+			.setIOManager(ioManager)
+			.setupBufferPoolFactoryFromNetworkEnvironment(environment)
+			.build();
 
-		environment.setupPartition(resultPartition);
+		resultPartition.setup();
 
 		return resultPartition;
 	}
@@ -252,17 +250,21 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				channel,
 				channelDescriptors);
 
-			SingleInputGate gate = SingleInputGate.create(
-				"receiving task[" + channel + "]",
-				jobId,
-				gateDescriptor,
-				environment,
+			SingleInputGate gate = new SingleInputGateFactory(
+				environment.getConfiguration(),
+				environment.getConnectionManager(),
+				environment.getResultPartitionManager(),
 				new TaskEventDispatcher(),
-				new NoOpTaskActions(),
-				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
-				new SimpleCounter());
+				environment.getNetworkBufferPool())
+				.create(
+					"receiving task[" + channel + "]",
+					jobId,
+					gateDescriptor,
+					new NoOpTaskActions(),
+					InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
+					new SimpleCounter());
 
-			environment.setupInputGate(gate);
+			gate.setup();
 			gates[channel] = gate;
 		}
 

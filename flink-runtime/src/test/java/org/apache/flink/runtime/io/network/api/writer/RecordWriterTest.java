@@ -55,6 +55,8 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -474,6 +476,10 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public void setup() {
+		}
+
+		@Override
 		public BufferProvider getBufferProvider() {
 			return bufferProvider;
 		}
@@ -507,6 +513,16 @@ public class RecordWriterTest {
 		}
 
 		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public void close() {
 		}
 	}
@@ -532,6 +548,10 @@ public class RecordWriterTest {
 
 		private RecyclingPartitionWriter(BufferProvider bufferProvider) {
 			this.bufferProvider = bufferProvider;
+		}
+
+		@Override
+		public void setup() {
 		}
 
 		@Override
@@ -565,6 +585,16 @@ public class RecordWriterTest {
 
 		@Override
 		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

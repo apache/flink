@@ -381,7 +381,6 @@ class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   }
 
   /** test rowtime inner join with window aggregation **/
-  @Ignore("Enable after StreamExecWindowAggregate is merged")
   @Test
   def testRowTimeInnerJoinWithWindowAggregateOnFirstTime(): Unit = {
     val sqlQuery =
@@ -426,16 +425,15 @@ class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList[String](
-      "A,1970-01-01 00:00:04.0,3",
-      "A,1970-01-01 00:00:12.0,2",
-      "A,1970-01-01 00:00:16.0,1",
+      "A,1970-01-01 00:00:04.000,3",
+      "A,1970-01-01 00:00:12.000,2",
+      "A,1970-01-01 00:00:16.000,1",
       //"B,1970-01-01 00:00:04.0,1",
-      "B,1970-01-01 00:00:08.0,1")
+      "B,1970-01-01 00:00:08.000,1")
     assertEquals(expected.toList.sorted, sink.getAppendResults.sorted)
   }
 
   /** test row time inner join with window aggregation **/
-  @Ignore("Enable after StreamExecWindowAggregate is merged")
   @Test
   def testRowTimeInnerJoinWithWindowAggregateOnSecondTime(): Unit = {
     val sqlQuery =
@@ -478,9 +476,9 @@ class WindowJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList[String](
-      "A,1970-01-01 00:00:08.0,3",
-      "A,1970-01-01 00:00:12.0,3",
-      "B,1970-01-01 00:00:08.0,1")
+      "A,1970-01-01 00:00:08.000,3",
+      "A,1970-01-01 00:00:12.000,3",
+      "B,1970-01-01 00:00:08.000,1")
     assertEquals(expected.toList.sorted, sink.getAppendResults.sorted)
   }
 

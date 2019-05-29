@@ -19,18 +19,89 @@
 package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.`type`.InternalTypes.{INT, LONG, STRING}
+import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class ExplainTest extends TableTestBase {
+@RunWith(classOf[Parameterized])
+class ExplainTest(extended: Boolean) extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
+  util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
 
   @Test
-  def testExplainTableSourceScan(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable")
+  def testExplainWithTableSourceScan(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable", extended)
   }
 
+  @Test
+  def testExplainWithDataStreamScan(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1", extended)
+  }
+
+  @Test
+  def testExplainWithFilter(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extended)
+  }
+
+  @Test
+  def testExplainWithAgg(): Unit = {
+    util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extended)
+  }
+
+  @Test
+  def testExplainWithJoin(): Unit = {
+    // TODO support other join operators when them are supported
+    util.tableEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+    util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extended)
+  }
+
+  @Test
+  def testExplainWithUnion(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extended)
+  }
+
+  @Test
+  def testExplainWithSort(): Unit = {
+    util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extended)
+  }
+
+  @Test
+  def testExplainWithSingleSink(): Unit = {
+    val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
+    val sink = util.createCollectTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
+    util.tableEnv.writeToSink(table, sink)
+    util.verifyExplain(extended)
+  }
+
+  @Test
+  def testExplainWithMultiSinks(): Unit = {
+    val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable1 GROUP BY a")
+    util.tableEnv.registerTable("TempTable", table)
+
+    val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
+    val sink1 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
+    util.tableEnv.writeToSink(table1, sink1, "sink1")
+
+    val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
+    val sink2 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
+    util.tableEnv.writeToSink(table2, sink2, "sink1")
+
+    util.verifyExplain(extended)
+  }
+
+}
+
+object ExplainTest {
+  @Parameterized.Parameters(name = "extended={0}")
+  def parameters(): java.util.Collection[Boolean] = {
+    java.util.Arrays.asList(true, false)
+  }
 }

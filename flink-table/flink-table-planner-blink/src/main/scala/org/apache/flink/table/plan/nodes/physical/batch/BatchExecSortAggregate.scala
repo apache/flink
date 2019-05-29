@@ -19,18 +19,23 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
+import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.{ImmutableIntList, Util}
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode for (global) sort-based aggregate operator.
@@ -44,7 +49,7 @@ class BatchExecSortAggregate(
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
-    aggInputRowType: RelDataType,
+    val aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
@@ -93,6 +98,64 @@ class BatchExecSortAggregate(
         aggCallToAggFunction,
         isMerge,
         isGlobal = true))
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val canSatisfy = requiredDistribution.getType match {
+      case SINGLETON => grouping.length == 0
+      case HASH_DISTRIBUTED =>
+        val shuffleKeys = requiredDistribution.getKeys
+        val groupKeysList = ImmutableIntList.of(grouping.indices.toArray: _*)
+        if (requiredDistribution.requireStrict) {
+          shuffleKeys == groupKeysList
+        } else if (Util.startsWith(shuffleKeys, groupKeysList)) {
+          // If required distribution is not strict, Hash[a] can satisfy Hash[a, b].
+          // so return true if shuffleKeys(Hash[a, b]) start with groupKeys(Hash[a])
+          true
+        } else {
+          // If partialKey is enabled, try to use partial key to satisfy the required distribution
+          val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+          val partialKeyEnabled = tableConfig.getConf.getBoolean(
+            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+          partialKeyEnabled && groupKeysList.containsAll(shuffleKeys)
+        }
+      case _ => false
+    }
+    if (!canSatisfy) {
+      return None
+    }
+
+    val inputRequiredDistribution = requiredDistribution.getType match {
+      case SINGLETON => requiredDistribution
+      case HASH_DISTRIBUTED =>
+        val shuffleKeys = requiredDistribution.getKeys
+        val groupKeysList = ImmutableIntList.of(grouping.indices.toArray: _*)
+        if (requiredDistribution.requireStrict) {
+          FlinkRelDistribution.hash(grouping, requireStrict = true)
+        } else if (Util.startsWith(shuffleKeys, groupKeysList)) {
+          // Hash [a] can satisfy Hash[a, b]
+          FlinkRelDistribution.hash(grouping, requireStrict = false)
+        } else {
+          // use partial key to satisfy the required distribution
+          FlinkRelDistribution.hash(shuffleKeys.map(grouping(_)).toArray, requireStrict = false)
+        }
+    }
+
+    val providedCollation = if (grouping.length == 0) {
+      RelCollations.EMPTY
+    } else {
+      val providedFieldCollations = grouping.map(FlinkRelOptUtil.ofRelFieldCollation).toList
+      RelCollations.of(providedFieldCollations)
+    }
+    val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    val newProvidedTraitSet = if (providedCollation.satisfies(requiredCollation)) {
+      getTraitSet.replace(requiredDistribution).replace(requiredCollation)
+    } else {
+      getTraitSet.replace(requiredDistribution)
+    }
+    val newInput = RelOptRule.convert(getInput, inputRequiredDistribution)
+    Some(copy(newProvidedTraitSet, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

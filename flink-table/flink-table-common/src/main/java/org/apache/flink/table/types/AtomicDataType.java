@@ -61,4 +61,9 @@ public final class AtomicDataType extends DataType {
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."));
 	}
+
+	@Override
+	public <R> R accept(DataTypeVisitor<R> visitor) {
+		return visitor.visit(this);
+	}
 }

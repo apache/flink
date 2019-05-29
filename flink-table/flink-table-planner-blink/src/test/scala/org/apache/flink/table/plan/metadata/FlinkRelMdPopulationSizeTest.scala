@@ -222,8 +222,52 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetPopulationSizeOnOverWindow(): Unit = {
-    Array(flinkLogicalOverWindow, batchOverWindowAgg).foreach { agg =>
+  def testGetPopulationSizeOnWindowAgg(): Unit = {
+    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithoutLocalAgg,
+      batchGlobalWindowAggWithLocalAgg).foreach { agg =>
+      assertEquals(30D, mq.getPopulationSize(agg, ImmutableBitSet.of(0)))
+      assertEquals(5D, mq.getPopulationSize(agg, ImmutableBitSet.of(1)))
+      assertEquals(50D, mq.getPopulationSize(agg, ImmutableBitSet.of(0, 1)))
+      assertEquals(50D, mq.getPopulationSize(agg, ImmutableBitSet.of(0, 2)))
+      assertEquals(null, mq.getPopulationSize(agg, ImmutableBitSet.of(3)))
+      assertEquals(null, mq.getPopulationSize(agg, ImmutableBitSet.of(0, 3)))
+      assertEquals(null, mq.getPopulationSize(agg, ImmutableBitSet.of(1, 3)))
+      assertEquals(null, mq.getPopulationSize(agg, ImmutableBitSet.of(2, 3)))
+    }
+    assertEquals(30D, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(0)))
+    assertEquals(5D, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(1)))
+    assertEquals(null, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(2)))
+    assertEquals(50D, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(0, 1)))
+    assertEquals(null, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(0, 2)))
+    assertEquals(10D, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(3)))
+    assertEquals(50D, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(0, 3)))
+    assertEquals(50D, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(1, 3)))
+    assertEquals(null, mq.getPopulationSize(batchLocalWindowAgg, ImmutableBitSet.of(2, 3)))
+
+    Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
+      batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
+      assertEquals(50D, mq.getPopulationSize(agg, ImmutableBitSet.of(0)))
+      assertEquals(48D, mq.getPopulationSize(agg, ImmutableBitSet.of(1)))
+      assertEquals(10D, mq.getPopulationSize(agg, ImmutableBitSet.of(2)))
+      assertEquals(null, mq.getPopulationSize(agg, ImmutableBitSet.of(3)))
+      assertEquals(50D, mq.getPopulationSize(agg, ImmutableBitSet.of(0, 1)))
+      assertEquals(50D, mq.getPopulationSize(agg, ImmutableBitSet.of(0, 1, 2)))
+      assertEquals(null, mq.getPopulationSize( agg, ImmutableBitSet.of(0, 1, 3)))
+    }
+    assertEquals(50D, mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0)))
+    assertNull(mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(1)))
+    assertEquals(48D, mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(2)))
+    assertEquals(10D, mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(3)))
+    assertNull(mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 1)))
+    assertEquals(50D,
+      mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 2)))
+    assertNull(mq.getPopulationSize(batchLocalWindowAggWithAuxGroup, ImmutableBitSet.of(0, 1, 3)))
+  }
+
+  @Test
+  def testGetPopulationSizeOnOverAgg(): Unit = {
+    Array(flinkLogicalOverAgg, batchOverAgg).foreach { agg =>
       assertEquals(1.0, mq.getPopulationSize(agg, ImmutableBitSet.of()))
       assertEquals(50.0, mq.getPopulationSize(agg, ImmutableBitSet.of(0)))
       assertEquals(48.0, mq.getPopulationSize(agg, ImmutableBitSet.of(1)))

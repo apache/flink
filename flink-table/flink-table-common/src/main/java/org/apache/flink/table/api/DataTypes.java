@@ -81,7 +81,7 @@ public final class DataTypes {
 
 	/**
 	 * Data type of a fixed-length character string {@code CHAR(n)} where {@code n} is the number
-	 * of code points. {@code n} must have a value between 1 and 255 (both inclusive).
+	 * of code points. {@code n} must have a value between 1 and {@link Integer#MAX_VALUE} (both inclusive).
 	 *
 	 * @see CharType
 	 */
@@ -240,10 +240,27 @@ public final class DataTypes {
 	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
 	 * semantics are closer to {@link java.time.LocalTime}. A time WITH time zone is not provided.
 	 *
+	 * @see #TIME()
 	 * @see TimeType
 	 */
 	public static DataType TIME(int precision) {
 		return new AtomicDataType(new TimeType(precision));
+	}
+
+	/**
+	 * Data type of a time WITHOUT time zone {@code TIME} with no fractional seconds by default.
+	 *
+	 * <p>An instance consists of {@code hour:minute:second} with up to second precision
+	 * and values ranging from {@code 00:00:00} to {@code 23:59:59}.
+	 *
+	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
+	 * semantics are closer to {@link java.time.LocalTime}. A time WITH time zone is not provided.
+	 *
+	 * @see #TIME(int)
+	 * @see TimeType
+	 */
+	public static DataType TIME() {
+		return new AtomicDataType(new TimeType());
 	}
 
 	/**
@@ -267,6 +284,26 @@ public final class DataTypes {
 	}
 
 	/**
+	 * Data type of a timestamp WITHOUT time zone {@code TIMESTAMP} with 6 digits of fractional seconds
+	 * by default.
+	 *
+	 * <p>An instance consists of {@code year-month-day hour:minute:second[.fractional]} with up to
+	 * microsecond precision and values ranging from {@code 0000-01-01 00:00:00.000000} to
+	 * {@code 9999-12-31 23:59:59.999999}.
+	 *
+	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
+	 * semantics are closer to {@link java.time.LocalDateTime}.
+	 *
+	 * @see #TIMESTAMP(int)
+	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
+	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
+	 * @see TimestampType
+	 */
+	public static DataType TIMESTAMP() {
+		return new AtomicDataType(new TimestampType());
+	}
+
+	/**
 	 * Data type of a timestamp WITH time zone {@code TIMESTAMP(p) WITH TIME ZONE} where {@code p} is
 	 * the number of digits of fractional seconds (=precision). {@code p} must have a value between 0
 	 * and 9 (both inclusive).
@@ -284,6 +321,26 @@ public final class DataTypes {
 	 */
 	public static DataType TIMESTAMP_WITH_TIME_ZONE(int precision) {
 		return new AtomicDataType(new ZonedTimestampType(precision));
+	}
+
+	/**
+	 * Data type of a timestamp WITH time zone {@code TIMESTAMP WITH TIME ZONE} with 6 digits of fractional
+	 * seconds by default.
+	 *
+	 * <p>An instance consists of {@code year-month-day hour:minute:second[.fractional] zone} with up
+	 * to microsecond precision and values ranging from {@code 0000-01-01 00:00:00.000000 +14:59} to
+	 * {@code 9999-12-31 23:59:59.999999 -14:59}.
+	 *
+	 * <p>Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are not supported as the
+	 * semantics are closer to {@link java.time.OffsetDateTime}.
+	 *
+	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
+	 * @see #TIMESTAMP(int)
+	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
+	 * @see ZonedTimestampType
+	 */
+	public static DataType TIMESTAMP_WITH_TIME_ZONE() {
+		return new AtomicDataType(new ZonedTimestampType());
 	}
 
 	/**
@@ -310,6 +367,32 @@ public final class DataTypes {
 	 */
 	public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE(int precision) {
 		return new AtomicDataType(new LocalZonedTimestampType(precision));
+	}
+
+	/**
+	 * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP WITH LOCAL TIME ZONE} with 6 digits
+	 * of fractional seconds by default.
+	 *
+	 * <p>An instance consists of {@code year-month-day hour:minute:second[.fractional] zone} with up
+	 * to microsecond precision and values ranging from {@code 0000-01-01 00:00:00.000000 +14:59} to
+	 * {@code 9999-12-31 23:59:59.999999 -14:59}. Leap seconds (23:59:60 and 23:59:61) are not supported
+	 * as the semantics are closer to {@link java.time.OffsetDateTime}.
+	 *
+	 * <p>Compared to {@link ZonedTimestampType}, the time zone offset information is not stored physically
+	 * in every datum. Instead, the type assumes {@link java.time.Instant} semantics in UTC time zone
+	 * at the edges of the table ecosystem. Every datum is interpreted in the local time zone configured
+	 * in the current session for computation and visualization.
+	 *
+	 * <p>This type fills the gap between time zone free and time zone mandatory timestamp types by
+	 * allowing the interpretation of UTC timestamps according to the configured session timezone.
+	 *
+	 * @see #TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)
+	 * @see #TIMESTAMP(int)
+	 * @see #TIMESTAMP_WITH_TIME_ZONE(int)
+	 * @see LocalZonedTimestampType
+	 */
+	public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE() {
+		return new AtomicDataType(new LocalZonedTimestampType());
 	}
 
 	/**

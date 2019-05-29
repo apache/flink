@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,55 +123,32 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private volatile Throwable cause;
 
+	private final FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory;
+
 	public ResultPartition(
 		String owningTaskName,
 		TaskActions taskActions, // actions on the owning task
 		JobID jobId,
 		ResultPartitionID partitionId,
 		ResultPartitionType partitionType,
-		int numberOfSubpartitions,
+		ResultSubpartition[] subpartitions,
 		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
 		ResultPartitionConsumableNotifier partitionConsumableNotifier,
-		IOManager ioManager,
-		boolean sendScheduleOrUpdateConsumersMessage) {
+		boolean sendScheduleOrUpdateConsumersMessage,
+		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.taskActions = checkNotNull(taskActions);
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
-		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
+		this.subpartitions = checkNotNull(subpartitions);
 		this.numTargetKeyGroups = numTargetKeyGroups;
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
-
-		// Create the subpartitions.
-		switch (partitionType) {
-			case BLOCKING:
-				for (int i = 0; i < subpartitions.length; i++) {
-					subpartitions[i] = new SpillableSubpartition(i, this, ioManager);
-				}
-
-				break;
-
-			case PIPELINED:
-			case PIPELINED_BOUNDED:
-				for (int i = 0; i < subpartitions.length; i++) {
-					subpartitions[i] = new PipelinedSubpartition(i, this);
-				}
-
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unsupported result partition type.");
-		}
-
-		// Initially, partitions should be consumed once before release.
-		pin();
-
-		LOG.debug("{}: Initialized {}", owningTaskName, this);
+		this.bufferPoolFactory = bufferPoolFactory;
 	}
 
 	/**
@@ -182,13 +159,16 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * <p>The pool is registered with the partition *after* it as been constructed in order to conform
 	 * to the life-cycle of task registrations in the {@link TaskExecutor}.
 	 */
-	public void registerBufferPool(BufferPool bufferPool) {
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
-				"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
-
+	@Override
+	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
-		this.bufferPool = checkNotNull(bufferPool);
+		BufferPool bufferPool = checkNotNull(bufferPoolFactory.apply(this));
+		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
+			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
+
+		this.bufferPool = bufferPool;
+		partitionManager.registerResultPartition(this);
 	}
 
 	public JobID getJobId() {
@@ -276,6 +256,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 *
 	 * <p>For BLOCKING results, this will trigger the deployment of consuming tasks.
 	 */
+	@Override
 	public void finish() throws IOException {
 		boolean success = false;
 
@@ -333,6 +314,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
+	@Override
 	public void fail(@Nullable Throwable throwable) {
 		partitionManager.releasePartition(partitionId, throwable);
 	}

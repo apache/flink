@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.{TableEnvironment, _}
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
@@ -281,8 +282,19 @@ object StreamTableEnvironment {
   : StreamTableEnvironment = {
     try {
       val clazz = Class.forName("org.apache.flink.table.api.scala.StreamTableEnvImpl")
-      val const = clazz.getConstructor(classOf[StreamExecutionEnvironment], classOf[TableConfig])
-      const.newInstance(executionEnvironment, tableConfig).asInstanceOf[StreamTableEnvironment]
+      val const = clazz
+        .getConstructor(
+          classOf[StreamExecutionEnvironment],
+          classOf[TableConfig],
+          classOf[CatalogManager])
+      val catalogManager = new CatalogManager(
+        tableConfig.getBuiltInCatalogName,
+        new GenericInMemoryCatalog(
+          tableConfig.getBuiltInCatalogName,
+          tableConfig.getBuiltInDatabaseName)
+      )
+      const.newInstance(executionEnvironment, tableConfig, catalogManager)
+        .asInstanceOf[StreamTableEnvironment]
     } catch {
       case t: Throwable => throw new TableException("Create StreamTableEnvironment failed.", t)
     }

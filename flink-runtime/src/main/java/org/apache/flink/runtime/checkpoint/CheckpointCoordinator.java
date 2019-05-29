@@ -183,6 +183,8 @@ public class CheckpointCoordinator {
 	/** Registry that tracks state which is shared across (incremental) checkpoints. */
 	private SharedStateRegistry sharedStateRegistry;
 
+	private boolean isPreferCheckpointForRecovery;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -199,7 +201,8 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			StateBackend checkpointStateBackend,
 			Executor executor,
-			SharedStateRegistryFactory sharedStateRegistryFactory) {
+			SharedStateRegistryFactory sharedStateRegistryFactory,
+			boolean isPreferCheckpointForRecovery) {
 
 		// sanity checks
 		checkNotNull(checkpointStateBackend);
@@ -233,6 +236,7 @@ public class CheckpointCoordinator {
 		this.executor = checkNotNull(executor);
 		this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
 		this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
+		this.isPreferCheckpointForRecovery = isPreferCheckpointForRecovery;
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
@@ -1080,7 +1084,7 @@ public class CheckpointCoordinator {
 			LOG.debug("Status of the shared state registry of job {} after restore: {}.", job, sharedStateRegistry);
 
 			// Restore from the latest checkpoint
-			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
+			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint(isPreferCheckpointForRecovery);
 
 			if (latest == null) {
 				if (errorIfNoCheckpoint) {

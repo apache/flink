@@ -49,8 +49,8 @@ class DataStreamTableAggregateRule
       convInput,
       new RowSchema(rel.getRowType),
       new RowSchema(agg.getInput.getRowType),
-      agg.getNamedAggCalls(agg.aggCalls, agg.deriveRowType(), agg.indicator, agg.groupSet),
-      agg.groupSet.toArray)
+      agg.getNamedAggCalls(agg.aggCalls, agg.deriveRowType(), agg.getIndicator, agg.getGroupSet),
+      agg.getGroupSet.toArray)
   }
 }
 

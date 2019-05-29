@@ -158,7 +158,10 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             # by removing files not required for subsequent stages
     
             # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
+            find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-dist*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-table*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf
     
             # .git directory
             # not deleting this can cause build stability issues
@@ -201,7 +204,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	travis_time_finish
 	end_fold "adjust_timestamps"
 
-	TEST="$STAGE" "./tools/travis_mvn_watchdog.sh" 300
+	TEST="$STAGE" "./tools/travis_watchdog.sh" 300
 	EXIT_CODE=$?
 elif [ $STAGE == "$STAGE_CLEANUP" ]; then
 	echo "Cleaning up $CACHE_BUILD_DIR"

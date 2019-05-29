@@ -105,6 +105,8 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.runtime.scheduler.LegacySchedulerFactory;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -202,7 +204,7 @@ public class JobMasterTest extends TestLogger {
 	private static final Time testingTimeout = Time.seconds(10L);
 
 	private static final long fastHeartbeatInterval = 1L;
-	private static final long fastHeartbeatTimeout = 5L;
+	private static final long fastHeartbeatTimeout = 10L;
 
 	private static final long heartbeatInterval = 1000L;
 	private static final long heartbeatTimeout = 5_000_000L;
@@ -490,7 +492,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -551,7 +553,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -602,7 +604,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -1837,7 +1839,8 @@ public class JobMasterTest extends TestLogger {
 			1000L,
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true);
+			true,
+			false);
 		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
 			Collections.emptyList(),
 			Collections.emptyList(),

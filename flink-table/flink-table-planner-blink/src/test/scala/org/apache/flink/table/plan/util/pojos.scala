@@ -39,3 +39,13 @@ class MyPojo() {
 
   override def toString = s"MyPojo($f1, $f2)"
 }
+
+class NonPojo {
+  val x = new java.util.HashMap[String, String]()
+
+  override def toString: String = x.toString
+
+  override def hashCode(): Int = super.hashCode()
+
+  override def equals(obj: scala.Any): Boolean = super.equals(obj)
+}

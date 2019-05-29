@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.util.Preconditions;
 
@@ -109,8 +108,6 @@ public final class ValueLiteralExpression implements Expression {
 			return value + ".millis";
 		} else if (type.equals(TimeIntervalTypeInfo.INTERVAL_MONTHS)) {
 			return value + ".months";
-		} else if (type.equals(RowIntervalTypeInfo.INTERVAL_ROWS)) {
-			return value + ".rows";
 		} else {
 			return stringifyValue(value);
 		}

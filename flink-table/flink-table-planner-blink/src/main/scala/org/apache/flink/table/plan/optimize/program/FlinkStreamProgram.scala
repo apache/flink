@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.plan.optimize.program
 
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkStreamRuleSets
-
-import org.apache.calcite.plan.hep.HepMatchOrder
 
 /**
   * Defines a sequence of programs to optimize for stream table plan.
@@ -30,6 +29,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 object FlinkStreamProgram {
 
   val SUBQUERY_REWRITE = "subquery_rewrite"
+  val CORRELATE_REWRITE = "correlate_rewrite"
   val DECORRELATE = "decorrelate"
   val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
@@ -46,6 +46,17 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       SUBQUERY_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        // rewrite RelTable before rewriting sub-queries
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.TABLE_REF_RULES)
+          .build(), "convert table references before rewriting sub-queries to semi-join")
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkStreamRuleSets.SEMI_JOIN_RULES)
+          .build(), "rewrite sub-queries to semi-join")
         .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
           .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
@@ -57,6 +68,24 @@ object FlinkStreamProgram {
           .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
           .add(FlinkStreamRuleSets.TABLE_REF_RULES)
           .build(), "convert table references after sub-queries removed")
+        .build())
+
+    // rewrite special temporal join plan
+    chainedProgram.addLast(
+      CORRELATE_REWRITE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.EXPAND_PLAN_RULES)
+            .build(), "convert correlate to temporal table join")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.POST_EXPAND_CLEAN_UP_RULES)
+            .build(), "convert enumerable table scan")
         .build())
 
     // query decorrelation

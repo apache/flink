@@ -242,6 +242,13 @@ under the License.
 			<fileMode>0755</fileMode>
 		</fileSet>
 
+		<!-- copy python table example to examples of dist -->
+		<fileSet>
+			<directory>../flink-python/pyflink/table/examples</directory>
+			<outputDirectory>examples/python/table</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 	</fileSets>
 
 </assembly>

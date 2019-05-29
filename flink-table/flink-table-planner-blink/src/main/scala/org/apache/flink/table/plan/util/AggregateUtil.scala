@@ -17,16 +17,17 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
+import org.apache.flink.table.JLong
 import org.apache.flink.table.`type`.InternalTypes._
-import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
+import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
-import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RexNodeConverter, RowtimeAttribute, WindowEnd, WindowStart}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
@@ -34,7 +35,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo, TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo, TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -44,6 +45,7 @@ import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
 
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -490,7 +492,7 @@ object AggregateUtil extends Enumeration {
             s"Please re-check the data type.")
       }
     } else {
-      TypeConverters.createExternalTypeInfoFromInternalType(new RowType(argTypes: _*))
+      new BaseRowTypeInfo(argTypes: _*)
     }
   }
 
@@ -697,15 +699,51 @@ object AggregateUtil extends Enumeration {
     (propPos._1, propPos._2, propPos._3)
   }
 
-  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
-    TimeIndicatorTypeInfo.ROWTIME_INDICATOR == fieldType
+  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = fieldType match {
+    case typeInfo: TimeIndicatorTypeInfo => typeInfo.isEventTime
+    case _ => false
   }
 
-  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = {
-    TimeIndicatorTypeInfo.PROCTIME_INDICATOR == fieldType
+  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = fieldType match {
+    case typeInfo: TimeIndicatorTypeInfo => !typeInfo.isEventTime
+    case _ => false
   }
 
   def isTimeIntervalType(intervalType: TypeInformation[_]): Boolean = {
     intervalType == TimeIntervalTypeInfo.INTERVAL_MILLIS
+  }
+
+  def isRowIntervalType(intervalType: TypeInformation[_]): Boolean = {
+    intervalType == BasicTypeInfo.LONG_TYPE_INFO
+  }
+
+  def toLong(literalExpr: ValueLiteralExpression): JLong = {
+    if (literalExpr.getType == BasicTypeInfo.LONG_TYPE_INFO) {
+      literalExpr.getValue match {
+        case v: JLong => v
+        case _ => throw new IllegalArgumentException()
+      }
+    } else {
+      throw new IllegalArgumentException()
+    }
+  }
+
+  def toDuration(literalExpr: ValueLiteralExpression): Duration = {
+    if (literalExpr.getType == TimeIntervalTypeInfo.INTERVAL_MILLIS) {
+      literalExpr.getValue match {
+        case v: JLong => Duration.ofMillis(v)
+        case _ => throw new IllegalArgumentException()
+      }
+    } else {
+      throw new IllegalArgumentException()
+    }
+  }
+
+  def extractTimeIntervalValue(literal: ValueLiteralExpression): JLong = {
+    if (isTimeIntervalType(literal.getType)) {
+      literal.getValue.asInstanceOf[JLong]
+    } else {
+      throw new IllegalArgumentException()
+    }
   }
 }

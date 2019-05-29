@@ -314,14 +314,13 @@ class DistinctAggCodeGen(
     }
 
     val otherAccTerm = otherAccExpr.resultTerm
-    val Seq(otherEntries, otherMapView) = newNames("otherEntries", "otherMapView")
+    val otherEntries = newName("otherEntries")
     val valueTypeTerm = valueGenerator.valueTypeTerm
     val thisValue = "thisValue"
     val otherValue = "otherValue"
 
     s"""
-       |$MAP_VIEW $otherMapView = ${genToExternal(ctx, externalAccType, otherAccTerm)};
-       |$ITERABLE<$MAP_ENTRY> $otherEntries = ($ITERABLE<$MAP_ENTRY>) $otherMapView.entries();
+       |$ITERABLE<$MAP_ENTRY> $otherEntries = ($ITERABLE<$MAP_ENTRY>) $otherAccTerm.entries();
        |if ($otherEntries != null) {
        |  for ($MAP_ENTRY entry: $otherEntries) {
        |    $keyTypeTerm $keyTerm = ($keyTypeTerm) entry.getKey();
@@ -461,14 +460,23 @@ class DistinctAggCodeGen(
           val expr = generateFieldAccess(ctx, inputType, inputTerm, index)
           if (useBackupDataView) {
             // this is called in the merge method
-            expr
+            val otherMapViewTerm = newName("otherMapView")
+            val code =
+              s"""
+                 |${expr.code}
+                 |$MAP_VIEW $otherMapViewTerm = null;
+                 |if (!${expr.nullTerm}) {
+                 | $otherMapViewTerm = ${genToExternal(ctx, externalAccType, expr.resultTerm)};
+                 |}
+               """.stripMargin
+            GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, internalAccType)
           } else {
             val code =
               s"""
                  |${expr.code}
                  |$distinctAccTerm = ($MAP_VIEW) ${expr.resultTerm}.getJavaObject();
               """.stripMargin
-            GeneratedExpression(distinctAccTerm, NEVER_NULL, code, expr.resultType)
+            GeneratedExpression(distinctAccTerm, NEVER_NULL, code, internalAccType)
           }
         }
 

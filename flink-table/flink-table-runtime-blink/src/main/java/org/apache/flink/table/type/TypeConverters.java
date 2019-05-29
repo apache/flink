@@ -37,6 +37,7 @@ import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.Arrays;
@@ -64,7 +65,6 @@ public class TypeConverters {
 		tiToType.put(BasicTypeInfo.INT_TYPE_INFO, InternalTypes.INT);
 		tiToType.put(BasicTypeInfo.LONG_TYPE_INFO, InternalTypes.LONG);
 		tiToType.put(BasicTypeInfo.SHORT_TYPE_INFO, InternalTypes.SHORT);
-		tiToType.put(BasicTypeInfo.CHAR_TYPE_INFO, InternalTypes.CHAR);
 		tiToType.put(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, InternalTypes.BINARY);
 		tiToType.put(SqlTimeTypeInfo.DATE, InternalTypes.DATE);
 		tiToType.put(SqlTimeTypeInfo.TIMESTAMP, InternalTypes.TIMESTAMP);
@@ -91,7 +91,6 @@ public class TypeConverters {
 		internalTypeToInfo.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
-		internalTypeToInfo.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.DATE, BasicTypeInfo.INT_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.TIMESTAMP, BasicTypeInfo.LONG_TYPE_INFO);
 		internalTypeToInfo.put(InternalTypes.PROCTIME_INDICATOR, BasicTypeInfo.LONG_TYPE_INFO);
@@ -111,11 +110,10 @@ public class TypeConverters {
 		itToEti.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO);
 		itToEti.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO);
 		itToEti.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
-		itToEti.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO);
 		itToEti.put(InternalTypes.DATE, SqlTimeTypeInfo.DATE);
 		itToEti.put(InternalTypes.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP);
-		itToEti.put(InternalTypes.PROCTIME_INDICATOR, SqlTimeTypeInfo.TIMESTAMP);
-		itToEti.put(InternalTypes.ROWTIME_INDICATOR, SqlTimeTypeInfo.TIMESTAMP);
+		itToEti.put(InternalTypes.PROCTIME_INDICATOR, TimeIndicatorTypeInfo.PROCTIME_INDICATOR);
+		itToEti.put(InternalTypes.ROWTIME_INDICATOR, TimeIndicatorTypeInfo.ROWTIME_INDICATOR);
 		itToEti.put(InternalTypes.TIME, SqlTimeTypeInfo.TIME);
 		itToEti.put(InternalTypes.BINARY, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO);
 		INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO = Collections.unmodifiableMap(itToEti);
@@ -135,6 +133,15 @@ public class TypeConverters {
 	 * {@link TupleTypeInfo} (CompositeType) => {@link RowType}.
 	 */
 	public static InternalType createInternalTypeFromTypeInfo(TypeInformation typeInfo) {
+		if (typeInfo instanceof TimeIndicatorTypeInfo) {
+			TimeIndicatorTypeInfo timeIndicatorTypeInfo = (TimeIndicatorTypeInfo) typeInfo;
+			if (timeIndicatorTypeInfo.isEventTime()) {
+				return InternalTypes.ROWTIME_INDICATOR;
+			} else {
+				return InternalTypes.PROCTIME_INDICATOR;
+			}
+		}
+
 		InternalType type = TYPE_INFO_TO_INTERNAL_TYPE.get(typeInfo);
 		if (type != null) {
 			return type;
@@ -164,6 +171,10 @@ public class TypeConverters {
 			ObjectArrayTypeInfo arrayType = (ObjectArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
 					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()));
+		} else if (typeInfo instanceof MultisetTypeInfo) {
+			MultisetTypeInfo multisetType = (MultisetTypeInfo) typeInfo;
+			return InternalTypes.createMultisetType(
+				createInternalTypeFromTypeInfo(multisetType.getElementTypeInfo()));
 		} else if (typeInfo instanceof MapTypeInfo) {
 			MapTypeInfo mapType = (MapTypeInfo) typeInfo;
 			return InternalTypes.createMapType(
@@ -239,20 +250,19 @@ public class TypeConverters {
 		} else if (type instanceof ArrayType) {
 			return ObjectArrayTypeInfo.getInfoFor(
 					createExternalTypeInfoFromInternalType(((ArrayType) type).getElementType()));
+		} else if (type instanceof MultisetType) {
+			MultisetType multisetType = (MultisetType) type;
+			return MultisetTypeInfo.getInfoFor(
+				createExternalTypeInfoFromInternalType(multisetType.getElementType()));
 		} else if (type instanceof MapType) {
 			MapType mapType = (MapType) type;
 			return new MapTypeInfo(
 					createExternalTypeInfoFromInternalType(mapType.getKeyType()),
 					createExternalTypeInfoFromInternalType(mapType.getValueType()));
-		} else if (type instanceof MultisetType) {
-			MultisetType multisetType = (MultisetType) type;
-			return MultisetTypeInfo.getInfoFor(
-				createExternalTypeInfoFromInternalType(multisetType.getElementType()));
-		}
-		else if (type instanceof DecimalType) {
+		} else if (type instanceof DecimalType) {
 			DecimalType decimalType = (DecimalType) type;
 			return new BigDecimalTypeInfo(decimalType.precision(), decimalType.scale());
-		}  else if (type instanceof GenericType) {
+		} else if (type instanceof GenericType) {
 			GenericType genericType = (GenericType) type;
 			return genericType.getTypeInfo();
 		} else {

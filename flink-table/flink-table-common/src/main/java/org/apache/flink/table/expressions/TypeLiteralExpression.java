@@ -19,8 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.utils.TypeStringUtils;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -28,19 +27,23 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Expression that wraps {@link TypeInformation} as a literal.
+ * Expression that wraps {@link DataType} as a literal.
+ *
+ * <p>Expressing a type is primarily needed for casting operations. This expression simplifies the
+ * {@link Expression} design as it makes {@link CallExpression} the only expression that takes
+ * subexpressions.
  */
 @PublicEvolving
 public final class TypeLiteralExpression implements Expression {
 
-	private final TypeInformation<?> type;
+	private final DataType dataType;
 
-	public TypeLiteralExpression(TypeInformation<?> type) {
-		this.type = Preconditions.checkNotNull(type);
+	public TypeLiteralExpression(DataType dataType) {
+		this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
 	}
 
-	public TypeInformation<?> getType() {
-		return type;
+	public DataType getDataType() {
+		return dataType;
 	}
 
 	@Override
@@ -62,16 +65,16 @@ public final class TypeLiteralExpression implements Expression {
 			return false;
 		}
 		TypeLiteralExpression that = (TypeLiteralExpression) o;
-		return Objects.equals(type, that.type);
+		return dataType.equals(that.dataType);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(type);
+		return Objects.hash(dataType);
 	}
 
 	@Override
 	public String toString() {
-		return TypeStringUtils.writeTypeInfo(type);
+		return dataType.toString();
 	}
 }

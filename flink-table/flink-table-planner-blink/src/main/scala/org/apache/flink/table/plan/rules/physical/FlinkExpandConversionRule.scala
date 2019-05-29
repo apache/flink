@@ -81,14 +81,16 @@ class FlinkExpandConversionRule(flinkConvention: Convention)
       call: RelOptRuleCall): Unit = {
     node match {
       case batchRel: BatchPhysicalRel =>
-        var otherChoice = batchRel.satisfyTraitsByInput(requiredTraits)
-        if (otherChoice != null) {
-          // It is possible only push down distribution instead of push down both distribution and
-          // collation. So it is necessary to check whether collation satisfy requirement.
-          val requiredCollation = requiredTraits.getTrait(RelCollationTraitDef.INSTANCE)
-          otherChoice = satisfyCollation(flinkConvention, otherChoice, requiredCollation)
-          checkSatisfyRequiredTrait(otherChoice, requiredTraits)
-          call.transformTo(otherChoice)
+        val otherChoice = batchRel.satisfyTraits(requiredTraits)
+        otherChoice match {
+          case Some(newRel) =>
+            // It is possible only push down distribution instead of push down both distribution and
+            // collation. So it is necessary to check whether collation satisfy requirement.
+            val requiredCollation = requiredTraits.getTrait(RelCollationTraitDef.INSTANCE)
+            val finalRel = satisfyCollation(flinkConvention, newRel, requiredCollation)
+            checkSatisfyRequiredTrait(finalRel, requiredTraits)
+            call.transformTo(finalRel)
+          case _ => // do nothing
         }
       case _ => // ignore
     }

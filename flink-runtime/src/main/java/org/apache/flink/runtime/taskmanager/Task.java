@@ -50,8 +50,8 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -189,7 +189,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	private final ResultPartition[] producedPartitions;
+	private final ResultPartitionWriter[] producedPartitions;
 
 	private final SingleInputGate[] inputGates;
 
@@ -215,9 +215,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
-
-	/** The gateway to the network stack, which handles inputs and produced results. */
-	private final NetworkEnvironment network;
 
 	/** The service for kvState registration of this task. */
 	private final KvStateService kvStateService;
@@ -352,7 +349,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		this.blobService = Preconditions.checkNotNull(blobService);
 		this.libraryCache = Preconditions.checkNotNull(libraryCache);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
-		this.network = Preconditions.checkNotNull(networkEnvironment);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
@@ -436,14 +432,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
-	}
-
-	public SingleInputGate[] getAllInputGates() {
-		return inputGates;
-	}
-
-	public ResultPartition[] getProducedPartitions() {
-		return producedPartitions;
 	}
 
 	public SingleInputGate getInputGateById(IntermediateDataSetID id) {
@@ -607,9 +595,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 			LOG.info("Registering task at network: {}.", this);
 
-			network.registerTask(this);
+			setupPartionsAndGates(producedPartitions, inputGates);
 
-			for (ResultPartition partition : producedPartitions) {
+			for (ResultPartitionWriter partition : producedPartitions) {
 				taskEventDispatcher.registerPartition(partition.getPartitionId());
 			}
 
@@ -699,7 +687,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			// ----------------------------------------------------------------
 
 			// finish the produced partitions. if this fails, we consider the execution failed.
-			for (ResultPartition partition : producedPartitions) {
+			for (ResultPartitionWriter partition : producedPartitions) {
 				if (partition != null) {
 					partition.finish();
 				}
@@ -836,6 +824,19 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		}
 	}
 
+	@VisibleForTesting
+	public static void setupPartionsAndGates(
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
+
+		for (ResultPartitionWriter partition : producedPartitions) {
+			partition.setup();
+		}
+
+		for (InputGate gate : inputGates) {
+			gate.setup();
+		}
+	}
+
 	/**
 	 * Releases network resources before task exits. We should also fail the partition to release if the task
 	 * has failed, is canceled, or is being canceled at the moment.
@@ -843,7 +844,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	private void releaseNetworkResources() {
 		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
 
-		for (ResultPartition partition : producedPartitions) {
+		for (ResultPartitionWriter partition : producedPartitions) {
 			taskEventDispatcher.unregisterPartition(partition.getPartitionId());
 			if (isCanceledOrFailed()) {
 				partition.fail(getFailureCause());
@@ -858,7 +859,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * release partitions and gates. Another is from task thread during task exiting.
 	 */
 	private void closeNetworkResources() {
-		for (ResultPartition partition : producedPartitions) {
+		for (ResultPartitionWriter partition : producedPartitions) {
 			try {
 				partition.close();
 			} catch (Throwable t) {

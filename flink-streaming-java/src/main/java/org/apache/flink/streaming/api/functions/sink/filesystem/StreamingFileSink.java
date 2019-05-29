@@ -127,7 +127,7 @@ public class StreamingFileSink<IN>
 	/**
 	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory.
 	 */
-	private StreamingFileSink(
+	protected StreamingFileSink(
 			final StreamingFileSink.BucketsBuilder<IN, ?> bucketsBuilder,
 			final long bucketCheckInterval) {
 
@@ -170,7 +170,7 @@ public class StreamingFileSink<IN>
 	/**
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
-	private abstract static class BucketsBuilder<IN, BucketID> implements Serializable {
+	protected abstract static class BucketsBuilder<IN, BucketID> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 

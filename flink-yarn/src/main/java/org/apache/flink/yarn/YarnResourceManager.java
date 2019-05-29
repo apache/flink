@@ -40,6 +40,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -63,6 +64,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,6 +72,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -292,8 +295,12 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
 		log.info("Unregister application from the YARN Resource Manager with final status {}.", yarnStatus);
 
+		final Optional<URL> historyServerURL = HistoryServerUtils.getHistoryServerURL(flinkConfig);
+
+		final String appTrackingUrl = historyServerURL.map(URL::toString).orElse("");
+
 		try {
-			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, "");
+			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, appTrackingUrl);
 		} catch (Throwable t) {
 			log.error("Could not unregister the application master.", t);
 		}

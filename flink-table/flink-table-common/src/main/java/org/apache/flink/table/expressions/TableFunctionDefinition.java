@@ -31,23 +31,23 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_F
 @PublicEvolving
 public final class TableFunctionDefinition extends FunctionDefinition {
 
-	private final TableFunction tableFunction;
-	private final TypeInformation resultType;
+	private final TableFunction<?> tableFunction;
+	private final TypeInformation<?> resultType;
 
 	public TableFunctionDefinition(
 			String name,
-			TableFunction tableFunction,
-			TypeInformation resultType) {
+			TableFunction<?> tableFunction,
+			TypeInformation<?> resultType) {
 		super(name, TABLE_FUNCTION);
 		this.tableFunction = Preconditions.checkNotNull(tableFunction);
 		this.resultType = Preconditions.checkNotNull(resultType);
 	}
 
-	public TableFunction getTableFunction() {
+	public TableFunction<?> getTableFunction() {
 		return tableFunction;
 	}
 
-	public TypeInformation getResultType() {
+	public TypeInformation<?> getResultType() {
 		return resultType;
 	}
 }

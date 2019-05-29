@@ -154,14 +154,16 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- Exchange(distribution=[single])
-:  +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
-:     +- Exchange(distribution=[hash[c]])
-:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[single])
-   +- Calc(select=[c, a, b], where=[>(a, 1)])
-      +- Reused(reference_id=[1])
+Calc(select=[c, a, b, c0, a1, b0])
++- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0])
+   :- Exchange(distribution=[hash[a0]])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- GroupAggregate(groupBy=[c], select=[c, MyFirst(a) AS a, MyLast(b) AS b], reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[c, a, b], where=[>(a, 1)])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -372,14 +374,16 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(CAST(a), b0)], select=[c, a, b, c0, a0, b0])
-:- Exchange(distribution=[single])
-:  +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
-:     +- Exchange(distribution=[hash[c]])
-:        +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[single])
-   +- Calc(select=[c, a, b], where=[>(a, 1)])
-      +- Reused(reference_id=[1])
+Calc(select=[c, a, b, c0, a1, b0])
++- Join(joinType=[InnerJoin], where=[=(a0, b0)], select=[c, a, b, a0, c0, a1, b0])
+   :- Exchange(distribution=[hash[a0]])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b], reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[c, a, b], where=[>(a, 1)])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -413,12 +417,12 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
-:  +- Join(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, f], reuse_id=[1])
+:  +- Join(joinType=[InnerJoin], where=[OR(=(ABS(a), ABS(d)), =(c, f))], select=[a, b, c, d, e, f], reuse_id=[1])
 :     :- Exchange(distribution=[single])
 :     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
 :     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[single])
-:        +- Calc(select=[d, f], where=[<(e, 2)])
+:        +- Calc(select=[d, e, f], where=[<(e, 2)])
 :           +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Calc(select=[a, *(b, 2) AS b])
    +- Reused(reference_id=[1])
@@ -455,12 +459,12 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
-:  +- Join(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, f], reuse_id=[1])
+:  +- Join(joinType=[InnerJoin], where=[OR(=(random_udf(a), random_udf(d)), =(c, f))], select=[a, b, c, d, e, f], reuse_id=[1])
 :     :- Exchange(distribution=[single])
 :     :  +- Calc(select=[a, b, c], where=[>(b, 1)])
 :     :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[single])
-:        +- Calc(select=[d, f], where=[<(e, 2)])
+:        +- Calc(select=[d, e, f], where=[<(e, 2)])
 :           +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Calc(select=[a, *(b, 2) AS b])
    +- Reused(reference_id=[1])
@@ -640,6 +644,43 @@ Union(all=[true], union=[a, b])
 :              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[a, *(b, 2) AS b], where=[<(b, 10)])
    +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseWithDynamicFunction">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalIntersect(all=[false])
+:  :- LogicalProject(random=[$0])
+:  :  +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:  :     +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:  :        +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+:  +- LogicalProject(random=[$0])
+:     +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+:        +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+:           +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(random=[$0])
+   +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
+      +- LogicalProject(random=[$0], EXPR$1=[RAND()])
+         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Join(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random])
+:- Exchange(distribution=[hash[random]])
+:  +- GroupAggregate(groupBy=[random], select=[random])
+:     +- Exchange(distribution=[hash[random]])
+:        +- Join(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random])
+:           :- Exchange(distribution=[hash[random]], reuse_id=[1])
+:           :  +- Calc(select=[random])
+:           :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1])
+:           :        +- Exchange(distribution=[single])
+:           :           +- Calc(select=[a AS random, RAND() AS EXPR$1])
+:           :              +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:           +- Reused(reference_id=[1])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

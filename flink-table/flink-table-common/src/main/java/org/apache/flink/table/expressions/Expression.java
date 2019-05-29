@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.DataType;
 
 import java.util.List;
 
@@ -26,8 +27,11 @@ import java.util.List;
  * The interface for all expressions.
  *
  * <p>Expressions represent a logical tree for producing a computation result. Every expression
- * consists of zero or more sub-expressions. Expressions might be literal values, function calls,
+ * consists of zero, one, or more sub-expressions. Expressions might be literal values, function calls,
  * or field references.
+ *
+ * <p>Expressions are part of the API. Thus, value types and return types are expressed as instances of
+ * {@link DataType}.
  */
 @PublicEvolving
 public interface Expression {

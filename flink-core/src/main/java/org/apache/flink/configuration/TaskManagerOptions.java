@@ -109,24 +109,6 @@ public class TaskManagerOptions {
 				" collisions when multiple TaskManagers are running on the same machine.");
 
 	/**
-	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
-	 * the TaskManager searches for a free port.
-	 */
-	public static final ConfigOption<Integer> DATA_PORT =
-		key("taskmanager.data.port")
-			.defaultValue(0)
-			.withDescription("The task manager’s port used for data exchange operations.");
-
-	/**
-	 * Config parameter to override SSL support for taskmanager's data transport.
-	 */
-	public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
-		key("taskmanager.data.ssl.enabled")
-			.defaultValue(true)
-			.withDescription("Enable SSL support for the taskmanager data transport. This is applicable only when the" +
-				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
-
-	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
 	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
 	 */
@@ -263,10 +245,6 @@ public class TaskManagerOptions {
 					" GC. For streaming setups is is highly recommended to set this value to false as the core state" +
 					" backends currently do not use the managed memory.", code(MEMORY_OFF_HEAP.key())).build());
 
-	// ------------------------------------------------------------------------
-	//  Network Options
-	// ------------------------------------------------------------------------
-
 	/**
 	 * The config parameter for automatically defining the TaskManager's binding address,
 	 * if {@link #HOST} configuration option is not set.
@@ -281,113 +259,6 @@ public class TaskManagerOptions {
 					text("\"name\" - uses hostname as binding address"),
 					text("\"ip\" - uses host's ip address as binding address"))
 				.build());
-
-
-	/**
-	 * Number of buffers used in the network stack. This defines the number of possible tasks and
-	 * shuffles.
-	 *
-	 * @deprecated use {@link #NETWORK_BUFFERS_MEMORY_FRACTION}, {@link #NETWORK_BUFFERS_MEMORY_MIN},
-	 * and {@link #NETWORK_BUFFERS_MEMORY_MAX} instead
-	 */
-	@Deprecated
-	public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
-			key("taskmanager.network.numberOfBuffers")
-			.defaultValue(2048);
-
-	/**
-	 * Fraction of JVM memory to use for network buffers.
-	 */
-	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
-			key("taskmanager.network.memory.fraction")
-			.defaultValue(0.1f)
-			.withDescription("Fraction of JVM memory to use for network buffers. This determines how many streaming" +
-				" data exchange channels a TaskManager can have at the same time and how well buffered the channels" +
-				" are. If a job is rejected or you get a warning that the system has not enough buffers available," +
-				" increase this value or the min/max values below. Also note, that \"taskmanager.network.memory.min\"" +
-				"` and \"taskmanager.network.memory.max\" may override this fraction.");
-
-	/**
-	 * Minimum memory size for network buffers.
-	 */
-	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
-			key("taskmanager.network.memory.min")
-			.defaultValue("64mb")
-			.withDescription("Minimum memory size for network buffers.");
-
-	/**
-	 * Maximum memory size for network buffers.
-	 */
-	public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =
-			key("taskmanager.network.memory.max")
-			.defaultValue("1gb")
-			.withDescription("Maximum memory size for network buffers.");
-
-	/**
-	 * Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).
-	 *
-	 * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization.
-	 */
-	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
-			key("taskmanager.network.memory.buffers-per-channel")
-			.defaultValue(2)
-			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
-				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
-				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
-				" for parallel serialization.");
-
-	/**
-	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
-	 */
-	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
-			key("taskmanager.network.memory.floating-buffers-per-gate")
-			.defaultValue(8)
-			.withDescription("Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)." +
-				" In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels." +
-				" The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can" +
-				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
-				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
-
-
-	/**
-	 * Minimum backoff for partition requests of input channels.
-	 */
-	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
-			key("taskmanager.network.request-backoff.initial")
-			.defaultValue(100)
-			.withDeprecatedKeys("taskmanager.net.request-backoff.initial")
-			.withDescription("Minimum backoff in milliseconds for partition requests of input channels.");
-
-	/**
-	 * Maximum backoff for partition requests of input channels.
-	 */
-	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
-			key("taskmanager.network.request-backoff.max")
-			.defaultValue(10000)
-			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
-			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
-
-	/**
-	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
-	 * lengths.
-	 */
-	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
-			key("taskmanager.network.detailed-metrics")
-			.defaultValue(false)
-			.withDescription("Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
-
-	/**
-	 * Boolean flag to enable/disable network credit-based flow control.
-	 *
-	 * @deprecated Will be removed for Flink 1.6 when the old code will be dropped in favour of
-	 * credit-based flow control.
-	 */
-	@Deprecated
-	public static final ConfigOption<Boolean> NETWORK_CREDIT_MODEL =
-			key("taskmanager.network.credit-model")
-			.defaultValue(true)
-			.withDeprecatedKeys("taskmanager.network.credit-based-flow-control.enabled")
-			.withDescription("Boolean flag to enable/disable network credit-based flow control.");
 
 	// ------------------------------------------------------------------------
 	//  Task Options

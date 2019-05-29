@@ -38,6 +38,9 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
+import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
+import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
@@ -191,6 +194,9 @@ public class KinesisDataFetcher<T> {
 	private volatile boolean running = true;
 
 	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+	private final WatermarkTracker watermarkTracker;
+	private final transient RecordEmitter recordEmitter;
+	private transient boolean isIdle;
 
 	/**
 	 * The watermark related state for each shard consumer. Entries in this map will be created when shards
@@ -207,6 +213,14 @@ public class KinesisDataFetcher<T> {
 	private long lastWatermark = Long.MIN_VALUE;
 
 	/**
+	 * The next watermark used for synchronization.
+	 * For purposes of global watermark calculation, we need to consider the next watermark based
+	 * on the buffered records vs. the last emitted watermark to allow for progress.
+	 */
+	private long nextWatermark = Long.MIN_VALUE;
+
+
+	/**
 	 * The time span since last consumed record, after which a shard will be considered idle for purpose of watermark
 	 * calculation. A positive value will allow the watermark to progress even when some shards don't receive new records.
 	 */
@@ -217,6 +231,82 @@ public class KinesisDataFetcher<T> {
 	 */
 	public interface FlinkKinesisProxyFactory {
 		KinesisProxyInterface create(Properties configProps);
+	}
+
+	/**
+	 * The wrapper that holds the watermark handling related parameters
+	 * of a record produced by the shard consumer thread.
+	 *
+	 * @param <T>
+	 */
+	private static class RecordWrapper<T> extends TimestampedValue<T> {
+		int shardStateIndex;
+		SequenceNumber lastSequenceNumber;
+		long timestamp;
+		Watermark watermark;
+
+		private RecordWrapper(T record, long timestamp) {
+			super(record, timestamp);
+			this.timestamp = timestamp;
+		}
+
+		@Override
+		public long getTimestamp() {
+			return timestamp;
+		}
+	}
+
+	/** Kinesis data fetcher specific, asynchronous record emitter. */
+	private class AsyncKinesisRecordEmitter extends RecordEmitter<RecordWrapper<T>> {
+
+		private AsyncKinesisRecordEmitter() {
+			this(DEFAULT_QUEUE_CAPACITY);
+		}
+
+		private AsyncKinesisRecordEmitter(int queueCapacity) {
+			super(queueCapacity);
+		}
+
+		@Override
+		public void emit(RecordWrapper<T> record, RecordQueue<RecordWrapper<T>> queue) {
+			emitRecordAndUpdateState(record);
+			ShardWatermarkState<T> sws = shardWatermarks.get(queue.getQueueId());
+			sws.lastEmittedRecordWatermark = record.watermark;
+		}
+	}
+
+	/** Synchronous emitter for use w/o watermark synchronization. */
+	private class SyncKinesisRecordEmitter extends AsyncKinesisRecordEmitter {
+		private final ConcurrentHashMap<Integer, RecordQueue<RecordWrapper<T>>> queues =
+			new ConcurrentHashMap<>();
+
+		@Override
+		public RecordQueue<RecordWrapper<T>> getQueue(int producerIndex) {
+			return queues.computeIfAbsent(producerIndex, (key) -> {
+				return new RecordQueue<RecordWrapper<T>>() {
+					@Override
+					public void put(RecordWrapper<T> record) {
+						emit(record, this);
+					}
+
+					@Override
+					public int getQueueId() {
+						return producerIndex;
+					}
+
+					@Override
+					public int getSize() {
+						return 0;
+					}
+
+					@Override
+					public RecordWrapper<T> peek() {
+						return null;
+					}
+
+				};
+			});
+		}
 	}
 
 	/**
@@ -234,7 +324,8 @@ public class KinesisDataFetcher<T> {
 							Properties configProps,
 							KinesisDeserializationSchema<T> deserializationSchema,
 							KinesisShardAssigner shardAssigner,
-							AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
+							AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
+							WatermarkTracker watermarkTracker) {
 		this(streams,
 			sourceContext,
 			sourceContext.getCheckpointLock(),
@@ -243,6 +334,7 @@ public class KinesisDataFetcher<T> {
 			deserializationSchema,
 			shardAssigner,
 			periodicWatermarkAssigner,
+			watermarkTracker,
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
@@ -258,6 +350,7 @@ public class KinesisDataFetcher<T> {
 								KinesisDeserializationSchema<T> deserializationSchema,
 								KinesisShardAssigner shardAssigner,
 								AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
+								WatermarkTracker watermarkTracker,
 								AtomicReference<Throwable> error,
 								List<KinesisStreamShardState> subscribedShardsState,
 								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
@@ -272,6 +365,7 @@ public class KinesisDataFetcher<T> {
 		this.deserializationSchema = checkNotNull(deserializationSchema);
 		this.shardAssigner = checkNotNull(shardAssigner);
 		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
+		this.watermarkTracker = watermarkTracker;
 		this.kinesisProxyFactory = checkNotNull(kinesisProxyFactory);
 		this.kinesis = kinesisProxyFactory.create(configProps);
 
@@ -284,6 +378,17 @@ public class KinesisDataFetcher<T> {
 
 		this.shardConsumersExecutor =
 			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
+		this.recordEmitter = createRecordEmitter(configProps);
+	}
+
+	private RecordEmitter createRecordEmitter(Properties configProps) {
+		if (periodicWatermarkAssigner != null && watermarkTracker != null) {
+			int queueCapacity = Integer.parseInt(configProps.getProperty(
+				ConsumerConfigConstants.WATERMARK_SYNC_QUEUE_CAPACITY,
+				Integer.toString(AsyncKinesisRecordEmitter.DEFAULT_QUEUE_CAPACITY)));
+			return new AsyncKinesisRecordEmitter(queueCapacity);
+		}
+		return new SyncKinesisRecordEmitter();
 	}
 
 	/**
@@ -380,16 +485,37 @@ public class KinesisDataFetcher<T> {
 				ProcessingTimeService timerService = ((StreamingRuntimeContext) runtimeContext).getProcessingTimeService();
 				LOG.info("Starting periodic watermark emitter with interval {}", periodicWatermarkIntervalMillis);
 				new PeriodicWatermarkEmitter(timerService, periodicWatermarkIntervalMillis).start();
+				if (watermarkTracker != null) {
+					// setup global watermark tracking
+					long watermarkSyncMillis = Long.parseLong(
+						getConsumerConfiguration().getProperty(ConsumerConfigConstants.WATERMARK_SYNC_MILLIS,
+							Long.toString(ConsumerConfigConstants.DEFAULT_WATERMARK_SYNC_MILLIS)));
+					watermarkTracker.setUpdateTimeoutMillis(watermarkSyncMillis * 3); // synchronization latency
+					watermarkTracker.open(runtimeContext);
+					new WatermarkSyncCallback(timerService, watermarkSyncMillis).start();
+					// emit records ahead of watermark to offset synchronization latency
+					long lookaheadMillis = Long.parseLong(
+						getConsumerConfiguration().getProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS,
+							Long.toString(0)));
+					recordEmitter.setMaxLookaheadMillis(Math.max(lookaheadMillis, watermarkSyncMillis * 3));
+				}
 			}
 			this.shardIdleIntervalMillis = Long.parseLong(
 				getConsumerConfiguration().getProperty(ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS,
 					Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS)));
+
+			// run record emitter in separate thread since main thread is used for discovery
+			Thread thread = new Thread(this.recordEmitter);
+			thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
+			thread.setDaemon(true);
+			thread.start();
 		}
 
 		// ------------------------------------------------------------------------
 
 		// finally, start the infinite shard discovery and consumer launching loop;
 		// we will escape from this loop only when shutdownFetcher() or stopWithError() is called
+		// TODO: have this thread emit the records for tracking backpressure
 
 		final long discoveryIntervalMillis = Long.valueOf(
 			configProps.getProperty(
@@ -489,6 +615,11 @@ public class KinesisDataFetcher<T> {
 		if (mainThread != null) {
 			mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
 		}
+
+		if (watermarkTracker != null) {
+			watermarkTracker.close();
+		}
+		this.recordEmitter.stop();
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
@@ -603,28 +734,48 @@ public class KinesisDataFetcher<T> {
 	 * @param lastSequenceNumber the last sequence number value to update
 	 */
 	protected void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
-		// track per shard watermarks and emit timestamps extracted from the record,
-		// when a watermark assigner was configured.
-		if (periodicWatermarkAssigner != null) {
-			ShardWatermarkState sws = shardWatermarks.get(shardStateIndex);
-			Preconditions.checkNotNull(
-				sws, "shard watermark state initialized in registerNewSubscribedShardState");
+		ShardWatermarkState sws = shardWatermarks.get(shardStateIndex);
+		Preconditions.checkNotNull(
+			sws, "shard watermark state initialized in registerNewSubscribedShardState");
+		Watermark watermark = null;
+		if (sws.periodicWatermarkAssigner != null) {
 			recordTimestamp =
 				sws.periodicWatermarkAssigner.extractTimestamp(record, sws.lastRecordTimestamp);
-			sws.lastRecordTimestamp = recordTimestamp;
-			sws.lastUpdated = getCurrentTimeMillis();
+			// track watermark per record since extractTimestamp has side effect
+			watermark = sws.periodicWatermarkAssigner.getCurrentWatermark();
 		}
+		sws.lastRecordTimestamp = recordTimestamp;
+		sws.lastUpdated = getCurrentTimeMillis();
 
+		RecordWrapper<T> recordWrapper = new RecordWrapper<>(record, recordTimestamp);
+		recordWrapper.shardStateIndex = shardStateIndex;
+		recordWrapper.lastSequenceNumber = lastSequenceNumber;
+		recordWrapper.watermark = watermark;
+		try {
+			sws.emitQueue.put(recordWrapper);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Actual record emission called from the record emitter.
+	 *
+	 * <p>Responsible for tracking per shard watermarks and emit timestamps extracted from
+	 * the record, when a watermark assigner was configured.
+	 *
+	 * @param rw
+	 */
+	private void emitRecordAndUpdateState(RecordWrapper<T> rw) {
 		synchronized (checkpointLock) {
-			if (record != null) {
-				sourceContext.collectWithTimestamp(record, recordTimestamp);
+			if (rw.getValue() != null) {
+				sourceContext.collectWithTimestamp(rw.getValue(), rw.timestamp);
 			} else {
 				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
-					lastSequenceNumber,
-					subscribedShardsState.get(shardStateIndex).getStreamShardHandle());
+					rw.lastSequenceNumber,
+					subscribedShardsState.get(rw.shardStateIndex).getStreamShardHandle());
 			}
-
-			updateState(shardStateIndex, lastSequenceNumber);
+			updateState(rw.shardStateIndex, rw.lastSequenceNumber);
 		}
 	}
 
@@ -689,6 +840,7 @@ public class KinesisDataFetcher<T> {
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to instantiate new WatermarkAssigner", e);
 				}
+				sws.emitQueue = recordEmitter.getQueue(shardStateIndex);
 				sws.lastUpdated = getCurrentTimeMillis();
 				sws.lastRecordTimestamp = Long.MIN_VALUE;
 				shardWatermarks.put(shardStateIndex, sws);
@@ -721,41 +873,57 @@ public class KinesisDataFetcher<T> {
 	protected void emitWatermark() {
 		LOG.debug("Evaluating watermark for subtask {} time {}", indexOfThisConsumerSubtask, getCurrentTimeMillis());
 		long potentialWatermark = Long.MAX_VALUE;
+		long potentialNextWatermark = Long.MAX_VALUE;
 		long idleTime =
 			(shardIdleIntervalMillis > 0)
 				? getCurrentTimeMillis() - shardIdleIntervalMillis
 				: Long.MAX_VALUE;
 
 		for (Map.Entry<Integer, ShardWatermarkState> e : shardWatermarks.entrySet()) {
+			Watermark w = e.getValue().lastEmittedRecordWatermark;
 			// consider only active shards, or those that would advance the watermark
-			Watermark w = e.getValue().periodicWatermarkAssigner.getCurrentWatermark();
-			if (w != null && (e.getValue().lastUpdated >= idleTime || w.getTimestamp() > lastWatermark)) {
+			if (w != null && (e.getValue().lastUpdated >= idleTime
+				|| e.getValue().emitQueue.getSize() > 0
+				|| w.getTimestamp() > lastWatermark)) {
 				potentialWatermark = Math.min(potentialWatermark, w.getTimestamp());
+				// for sync, use the watermark of the next record, when available
+				// otherwise watermark may stall when record is blocked by synchronization
+				RecordEmitter.RecordQueue<RecordWrapper<T>> q = e.getValue().emitQueue;
+				RecordWrapper<T> nextRecord = q.peek();
+				Watermark nextWatermark = (nextRecord != null) ? nextRecord.watermark : w;
+				potentialNextWatermark = Math.min(potentialNextWatermark, nextWatermark.getTimestamp());
 			}
 		}
 
 		// advance watermark if possible (watermarks can only be ascending)
 		if (potentialWatermark == Long.MAX_VALUE) {
 			if (shardWatermarks.isEmpty() || shardIdleIntervalMillis > 0) {
-				LOG.debug("No active shard for subtask {}, marking the source idle.",
+				LOG.info("No active shard for subtask {}, marking the source idle.",
 					indexOfThisConsumerSubtask);
 				// no active shard, signal downstream operators to not wait for a watermark
 				sourceContext.markAsTemporarilyIdle();
+				isIdle = true;
 			}
-		} else if (potentialWatermark > lastWatermark) {
-			LOG.debug("Emitting watermark {} from subtask {}",
-				potentialWatermark,
-				indexOfThisConsumerSubtask);
-			sourceContext.emitWatermark(new Watermark(potentialWatermark));
-			lastWatermark = potentialWatermark;
+		} else {
+			if (potentialWatermark > lastWatermark) {
+				LOG.debug("Emitting watermark {} from subtask {}",
+					potentialWatermark,
+					indexOfThisConsumerSubtask);
+				sourceContext.emitWatermark(new Watermark(potentialWatermark));
+				lastWatermark = potentialWatermark;
+				isIdle = false;
+			}
+			nextWatermark = potentialNextWatermark;
 		}
 	}
 
 	/** Per shard tracking of watermark and last activity. */
 	private static class ShardWatermarkState<T> {
 		private AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+		private RecordEmitter.RecordQueue<RecordWrapper<T>> emitQueue;
 		private volatile long lastRecordTimestamp;
 		private volatile long lastUpdated;
+		private volatile Watermark lastEmittedRecordWatermark;
 	}
 
 	/**
@@ -781,6 +949,82 @@ public class KinesisDataFetcher<T> {
 		public void onProcessingTime(long timestamp) {
 			emitWatermark();
 			// schedule the next watermark
+			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
+		}
+	}
+
+	/** Timer task to update shared watermark state. */
+	private class WatermarkSyncCallback implements ProcessingTimeCallback {
+
+		private final ProcessingTimeService timerService;
+		private final long interval;
+		private final MetricGroup shardMetricsGroup;
+		private long lastGlobalWatermark = Long.MIN_VALUE;
+		private long propagatedLocalWatermark = Long.MIN_VALUE;
+		private long logIntervalMillis = 60_000;
+		private int stalledWatermarkIntervalCount = 0;
+		private long lastLogged;
+
+		WatermarkSyncCallback(ProcessingTimeService timerService, long interval) {
+			this.timerService = checkNotNull(timerService);
+			this.interval = interval;
+			this.shardMetricsGroup = consumerMetricGroup.addGroup("subtaskId",
+				String.valueOf(indexOfThisConsumerSubtask));
+			this.shardMetricsGroup.gauge("localWatermark", () -> nextWatermark);
+			this.shardMetricsGroup.gauge("globalWatermark", () -> lastGlobalWatermark);
+		}
+
+		public void start() {
+			LOG.info("Registering watermark tracker with interval {}", interval);
+			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
+		}
+
+		@Override
+		public void onProcessingTime(long timestamp) {
+			if (nextWatermark != Long.MIN_VALUE) {
+				long globalWatermark = lastGlobalWatermark;
+				// TODO: refresh watermark while idle
+				if (!(isIdle && nextWatermark == propagatedLocalWatermark)) {
+					globalWatermark = watermarkTracker.updateWatermark(nextWatermark);
+					propagatedLocalWatermark = nextWatermark;
+				} else {
+					LOG.info("WatermarkSyncCallback subtask: {} is idle", indexOfThisConsumerSubtask);
+				}
+
+				if (timestamp - lastLogged > logIntervalMillis) {
+					lastLogged = System.currentTimeMillis();
+					LOG.info("WatermarkSyncCallback subtask: {} local watermark: {}"
+							+ ", global watermark: {}, delta: {} timeouts: {}, emitter: {}",
+						indexOfThisConsumerSubtask,
+						nextWatermark,
+						globalWatermark,
+						nextWatermark - globalWatermark,
+						watermarkTracker.getUpdateTimeoutCount(),
+						recordEmitter.printInfo());
+
+					// Following is for debugging non-reproducible issue with stalled watermark
+					if (globalWatermark == nextWatermark && globalWatermark == lastGlobalWatermark
+						&& stalledWatermarkIntervalCount++ > 5) {
+						// subtask blocks watermark, log to aid troubleshooting
+						stalledWatermarkIntervalCount = 0;
+						for (Map.Entry<Integer, ShardWatermarkState> e : shardWatermarks.entrySet()) {
+							RecordEmitter.RecordQueue<RecordWrapper<T>> q = e.getValue().emitQueue;
+							RecordWrapper<T> nextRecord = q.peek();
+							if (nextRecord != null) {
+								LOG.info("stalled watermark {} key {} next watermark {} next timestamp {}",
+									nextWatermark,
+									e.getKey(),
+									nextRecord.watermark,
+									nextRecord.timestamp);
+							}
+						}
+					}
+				}
+
+				lastGlobalWatermark = globalWatermark;
+				recordEmitter.setCurrentWatermark(globalWatermark);
+			}
+			// schedule next callback
 			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
 		}
 	}

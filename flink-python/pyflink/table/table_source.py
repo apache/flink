@@ -17,8 +17,7 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType
-from pyflink.util import type_utils
+from pyflink.table.types import DataType, _to_java_type
 from pyflink.util import utils
 
 __all__ = ['TableSource', 'CsvTableSource']
@@ -48,7 +47,7 @@ class CsvTableSource(TableSource):
         gateway = get_gateway()
         j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
         j_field_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                        [type_utils.to_java_type(field_type)
+                                        [_to_java_type(field_type)
                                          for field_type in field_types])
         super(CsvTableSource, self).__init__(
             gateway.jvm.CsvTableSource(source_path, j_field_names, j_field_types))

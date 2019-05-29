@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan.isTableSourceScan
@@ -49,7 +48,9 @@ class FlinkLogicalTableSourceScan(
   extends TableScan(cluster, traitSet, relOptTable)
   with FlinkLogicalRel {
 
-  val tableSource: TableSource[_] = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+  lazy val tableSource: TableSource[_] = tableSourceTable.tableSource
+
+  private lazy val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
 
   def copy(
       traitSet: RelTraitSet,
@@ -63,15 +64,7 @@ class FlinkLogicalTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-
-    tableSource match {
-      case s: StreamTableSource[_] =>
-        TableSourceUtil.getRelDataType(s, None, streaming = true, flinkTypeFactory)
-      case _: BatchTableSource[_] =>
-        flinkTypeFactory.buildLogicalRowType(
-          tableSource.getTableSchema, isStreaming = Option.apply(false))
-      case _ => throw new TableException("Unknown TableSource type.")
-    }
+    tableSourceTable.getRowType(flinkTypeFactory)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -82,7 +75,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", tableSource.getTableSchema.getColumnNames.mkString(", "))
+      .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
   }
 
 }

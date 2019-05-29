@@ -33,6 +33,10 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -51,8 +55,10 @@ import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
@@ -262,7 +268,29 @@ public class TaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testExecutionFailsInNetworkRegistration() throws Exception {
+	public void testExecutionFailsInNetworkRegistrationForPartitions() throws Exception {
+		ResultPartitionDeploymentDescriptor dummyPartition = new ResultPartitionDeploymentDescriptor(
+			new IntermediateDataSetID(), new IntermediateResultPartitionID(),
+			ResultPartitionType.PIPELINED, 1, 1, true);
+		testExecutionFailsInNetworkRegistration(Collections.singleton(dummyPartition), Collections.emptyList());
+	}
+
+	@Test
+	public void testExecutionFailsInNetworkRegistrationForGates() throws Exception {
+		InputChannelDeploymentDescriptor dummyChannel =
+			new InputChannelDeploymentDescriptor(new ResultPartitionID(), ResultPartitionLocation.createLocal());
+		InputGateDeploymentDescriptor dummyGate = new InputGateDeploymentDescriptor(
+			new IntermediateDataSetID(), ResultPartitionType.PIPELINED, 0,
+			new InputChannelDeploymentDescriptor[] { dummyChannel });
+		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singleton(dummyGate));
+	}
+
+	private void testExecutionFailsInNetworkRegistration(
+		Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
+		Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
+
+		final String errorMessage = "Network buffer pool has already been destroyed.";
+
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 
@@ -271,6 +299,8 @@ public class TaskTest extends TestLogger {
 			.setTaskManagerActions(taskManagerActions)
 			.setConsumableNotifier(consumableNotifier)
 			.setPartitionProducerStateChecker(partitionProducerStateChecker)
+			.setResultPartitions(resultPartitions)
+			.setInputGates(inputGates)
 			.build();
 
 		// shut down the network to make the following task registration failure
@@ -282,10 +312,10 @@ public class TaskTest extends TestLogger {
 		// verify final state
 		assertEquals(ExecutionState.FAILED, task.getExecutionState());
 		assertTrue(task.isCanceledOrFailed());
-		assertTrue(task.getFailureCause().getMessage().contains("NetworkEnvironment is shut down"));
+		assertTrue(task.getFailureCause().getMessage().contains(errorMessage));
 
 		taskManagerActions.validateListenerMessage(
-			ExecutionState.FAILED, task, new IllegalStateException("NetworkEnvironment is shut down"));
+			ExecutionState.FAILED, task, new IllegalStateException(errorMessage));
 	}
 
 	@Test
@@ -935,6 +965,8 @@ public class TaskTest extends TestLogger {
 		private Configuration taskManagerConfig;
 		private ExecutionConfig executionConfig;
 		private Collection<PermanentBlobKey> requiredJarFileBlobKeys;
+		private Collection<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
+		private Collection<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
 
 		{
 			invokable = TestInvokableCorrect.class;
@@ -1010,6 +1042,16 @@ public class TaskTest extends TestLogger {
 			return this;
 		}
 
+		public TaskBuilder setResultPartitions(Collection<ResultPartitionDeploymentDescriptor> resultPartitions) {
+			this.resultPartitions = resultPartitions;
+			return this;
+		}
+
+		public TaskBuilder setInputGates(Collection<InputGateDeploymentDescriptor> inputGates) {
+			this.inputGates = inputGates;
+			return this;
+		}
+
 		private Task build() throws Exception {
 			final JobID jobId = new JobID();
 			final JobVertexID jobVertexId = new JobVertexID();
@@ -1046,8 +1088,8 @@ public class TaskTest extends TestLogger {
 				new AllocationID(),
 				0,
 				0,
-				Collections.emptyList(),
-				Collections.emptyList(),
+				resultPartitions,
+				inputGates,
 				0,
 				mock(MemoryManager.class),
 				mock(IOManager.class),

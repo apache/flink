@@ -30,16 +30,20 @@ ENV PATH $PATH:$FLINK_HOME/bin
 # flink-dist can point to a directory or a tarball on the local system
 ARG flink_dist=NOT_SET
 ARG job_jar=NOT_SET
+# hadoop jar is optional
+ARG hadoop_jar=NOT_SET*
 
 # Install build dependencies and flink
-ADD $flink_dist $FLINK_INSTALL_PATH
+ADD $flink_dist $hadoop_jar $FLINK_INSTALL_PATH/
 ADD $job_jar $FLINK_INSTALL_PATH/job.jar
 
 RUN set -x && \
-  ln -s $FLINK_INSTALL_PATH/flink-* $FLINK_HOME && \
+  ln -s $FLINK_INSTALL_PATH/flink-[0-9]* $FLINK_HOME && \
   ln -s $FLINK_INSTALL_PATH/job.jar $FLINK_LIB_DIR && \
+  if [ -f ${FLINK_INSTALL_PATH}/flink-shaded-hadoop* ]; then ln -s ${FLINK_INSTALL_PATH}/flink-shaded-hadoop* $FLINK_LIB_DIR; fi && \
   addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
-  chown -R flink:flink $FLINK_INSTALL_PATH/flink-* && \
+  chown -R flink:flink ${FLINK_INSTALL_PATH}/flink-* && \
+  chown -R flink:flink ${FLINK_INSTALL_PATH}/job.jar && \
   chown -h flink:flink $FLINK_HOME
 
 COPY docker-entrypoint.sh /

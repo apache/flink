@@ -18,29 +18,33 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
+import org.apache.flink.table.`type`.{InternalType, InternalTypes, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RowtimeAttribute, ValueLiteralExpression, WindowReference, WindowStart}
 import org.apache.flink.table.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
 import org.apache.flink.table.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank}
+import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalWindowAggregate}
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
-import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, FlinkRelOptUtil, SortUtil}
+import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, FlinkRelOptUtil, SortUtil, WindowEmitStrategy}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS
 import org.apache.flink.table.util.CountAggFunction
 
-import com.google.common.collect.ImmutableList
+import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinRelType, Window}
+import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinRelType, Project, Window}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rel.{RelCollationImpl, RelCollationTraitDef, RelCollations, RelFieldCollation, RelNode, SingleRel}
@@ -49,8 +53,8 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, PLUS}
+import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.FrameworkConfig
 import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
@@ -90,17 +94,11 @@ class FlinkRelMdHandlerTestBase {
 
     logicalTraits = cluster.traitSetOf(Convention.NONE)
 
-    flinkLogicalTraits = cluster
-      .traitSetOf(Convention.NONE)
-      .replace(FlinkConventions.LOGICAL)
+    flinkLogicalTraits = cluster.traitSetOf(FlinkConventions.LOGICAL)
 
-    batchPhysicalTraits = cluster
-      .traitSetOf(Convention.NONE)
-      .replace(FlinkConventions.BATCH_PHYSICAL)
+    batchPhysicalTraits = cluster.traitSetOf(FlinkConventions.BATCH_PHYSICAL)
 
-    streamPhysicalTraits = cluster
-      .traitSetOf(Convention.NONE)
-      .replace(FlinkConventions.STREAM_PHYSICAL)
+    streamPhysicalTraits = cluster.traitSetOf(FlinkConventions.STREAM_PHYSICAL)
   }
 
   protected val intType: RelDataType = typeFactory.createTypeFromInternalType(
@@ -579,16 +577,16 @@ class FlinkRelMdHandlerTestBase {
   // equivalent SQL is
   // select a, b, c from (
   //  select a, b, c, proctime
-  //  ROW_NUMBER() over (partition by b order by proctime) rn from TemporalTable
+  //  ROW_NUMBER() over (partition by b order by proctime) rn from TemporalTable3
   // ) t where rn <= 1
   //
   // select a, b, c from (
   //  select a, b, c, proctime
-  //  ROW_NUMBER() over (partition by b, c order by proctime desc) rn from TemporalTable
+  //  ROW_NUMBER() over (partition by b, c order by proctime desc) rn from TemporalTable3
   // ) t where rn <= 1
   protected lazy val (streamDeduplicateFirstRow, streamDeduplicateLastRow) = {
     val scan: StreamExecDataStreamScan =
-      createDataStreamScan(ImmutableList.of("TemporalTable"), streamPhysicalTraits)
+      createDataStreamScan(ImmutableList.of("TemporalTable3"), streamPhysicalTraits)
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
     val streamExchange1 = new StreamExecExchange(
       cluster, scan.getTraitSet.replace(hash1), scan, hash1)
@@ -943,6 +941,449 @@ class FlinkRelMdHandlerTestBase {
       batchLocalAggWithAuxGroup, batchGlobalAggWithAuxGroup, batchGlobalAggWithoutLocalWithAuxGroup)
   }
 
+  // For window start/end/proc_time the windowAttribute inferred type is a hard code val,
+  // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
+  // which is ok here for testing.
+  private lazy val windowRef: WindowReference =
+  WindowReference.apply("w$", Some(InternalTypes.TIMESTAMP))
+
+  protected lazy val tumblingGroupWindow: LogicalWindow =
+    TumblingGroupWindow(
+      windowRef,
+      new FieldReferenceExpression(
+        "rowtime",
+        TypeConverters.createExternalTypeInfoFromInternalType(InternalTypes.ROWTIME_INDICATOR),
+        0,
+        4),
+      new ValueLiteralExpression(900000, INTERVAL_MILLIS)
+    )
+
+  protected lazy val namedPropertiesOfWindowAgg: Seq[NamedWindowProperty] =
+    Seq(NamedWindowProperty("w$start", WindowStart(windowRef)),
+      NamedWindowProperty("w$end", WindowStart(windowRef)),
+      NamedWindowProperty("w$rowtime", RowtimeAttribute(windowRef)),
+      NamedWindowProperty("w$proctime", ProctimeAttribute(windowRef)))
+
+  // equivalent SQL is
+  // select a, b, count(c) as s,
+  //   TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as w$start,
+  //   TUMBLE_END(rowtime, INTERVAL '15' MINUTE) as w$end,
+  //   TUMBLE_ROWTIME(rowtime, INTERVAL '15' MINUTE) as w$rowtime,
+  //   TUMBLE_PROCTIME(rowtime, INTERVAL '15' MINUTE) as w$proctime
+  // from TemporalTable1 group by a, b, TUMBLE(rowtime, INTERVAL '15' MINUTE)
+  protected lazy val (
+    logicalWindowAgg,
+    flinkLogicalWindowAgg,
+    batchLocalWindowAgg,
+    batchGlobalWindowAggWithLocalAgg,
+    batchGlobalWindowAggWithoutLocalAgg,
+    streamWindowAgg) = {
+    relBuilder.scan("TemporalTable1")
+    val ts = relBuilder.peek()
+    val project = relBuilder.project(relBuilder.fields(Seq[Integer](0, 1, 4, 2).toList))
+      .build().asInstanceOf[Project]
+    val program = RexProgram.create(
+      ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
+    val aggCallOfWindowAgg = Lists.newArrayList(AggregateCall.create(
+      new SqlCountAggFunction("COUNT"), false, false, List[Integer](3), -1, 2, project, null, "s"))
+    // TUMBLE(rowtime, INTERVAL '15' MINUTE))
+    val logicalWindowAgg = new LogicalWindowAggregate(
+      ts.getCluster,
+      ts.getTraitSet,
+      project,
+      ImmutableBitSet.of(0, 1),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val flinkLogicalTs: FlinkLogicalDataStreamTableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), flinkLogicalTraits)
+    val flinkLogicalWindowAgg = new FlinkLogicalWindowAggregate(
+      ts.getCluster,
+      logicalTraits,
+      new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
+      ImmutableBitSet.of(0, 1),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val batchTs: BatchExecBoundedStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), batchPhysicalTraits)
+    val batchCalc = new BatchExecCalc(
+      cluster, batchPhysicalTraits, batchTs, program, program.getOutputRowType)
+    val hash01 = FlinkRelDistribution.hash(Array(0, 1), requireStrict = true)
+    val batchExchange1 = new BatchExecExchange(
+      cluster, batchPhysicalTraits.replace(hash01), batchCalc, hash01)
+    val (_, _, aggregates) =
+      AggregateUtil.transformToBatchAggregateFunctions(
+        flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
+    val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
+
+    val localWindowAggTypes =
+      (Array(0, 1).map(batchCalc.getRowType.getFieldList.get(_).getType) ++ // grouping
+        Array(longType) ++ // assignTs
+        aggCallOfWindowAgg.map(_.getType)).toList // agg calls
+    val localWindowAggNames =
+      (Array(0, 1).map(batchCalc.getRowType.getFieldNames.get(_)) ++ // grouping
+        Array("assignedWindow$") ++ // assignTs
+        Array("count$0")).toList // agg calls
+    val localWindowAggRowType = typeFactory.createStructType(
+      localWindowAggTypes, localWindowAggNames)
+    val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
+      batchCalc.getCluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchCalc,
+      localWindowAggRowType,
+      batchCalc.getRowType,
+      Array(0, 1),
+      Array.empty,
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false)
+    val batchExchange2 = new BatchExecExchange(
+      cluster, batchPhysicalTraits.replace(hash01), batchLocalWindowAgg, hash01)
+    val batchWindowAggWithLocal = new BatchExecHashWindowAggregate(
+      cluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchExchange2,
+      flinkLogicalWindowAgg.getRowType,
+      batchExchange2.getRowType,
+      batchCalc.getRowType,
+      Array(0, 1),
+      Array.empty,
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false,
+      isMerge = true
+    )
+
+    val batchWindowAggWithoutLocal = new BatchExecHashWindowAggregate(
+      batchExchange1.getCluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchExchange1,
+      flinkLogicalWindowAgg.getRowType,
+      batchExchange1.getRowType,
+      batchExchange1.getRowType,
+      Array(0, 1),
+      Array.empty,
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false,
+      isMerge = false
+    )
+
+    val streamTs: StreamExecDataStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
+    val streamCalc = new BatchExecCalc(
+      cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
+    val streamExchange = new StreamExecExchange(
+      cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
+    val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
+    val streamWindowAgg = new StreamExecGroupWindowAggregate(
+      cluster,
+      streamPhysicalTraits,
+      streamExchange,
+      flinkLogicalWindowAgg.getRowType,
+      streamExchange.getRowType,
+      Array(0, 1),
+      flinkLogicalWindowAgg.getAggCallList,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg,
+      inputTimeFieldIndex = 2,
+      emitStrategy
+    )
+
+    (logicalWindowAgg, flinkLogicalWindowAgg, batchLocalWindowAgg, batchWindowAggWithLocal,
+      batchWindowAggWithoutLocal, streamWindowAgg)
+  }
+
+  // equivalent SQL is
+  // select b, count(a) as s,
+  //   TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as w$start,
+  //   TUMBLE_END(rowtime, INTERVAL '15' MINUTE) as w$end,
+  //   TUMBLE_ROWTIME(rowtime, INTERVAL '15' MINUTE) as w$rowtime,
+  //   TUMBLE_PROCTIME(rowtime, INTERVAL '15' MINUTE) as w$proctime
+  // from TemporalTable1 group by b, TUMBLE(rowtime, INTERVAL '15' MINUTE)
+  protected lazy val (
+    logicalWindowAgg2,
+    flinkLogicalWindowAgg2,
+    batchLocalWindowAgg2,
+    batchGlobalWindowAggWithLocalAgg2,
+    batchGlobalWindowAggWithoutLocalAgg2,
+    streamWindowAgg2) = {
+    relBuilder.scan("TemporalTable1")
+    val ts = relBuilder.peek()
+    val project = relBuilder.project(relBuilder.fields(Seq[Integer](0, 1, 4).toList))
+      .build().asInstanceOf[Project]
+    val program = RexProgram.create(
+      ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
+    val aggCallOfWindowAgg = Lists.newArrayList(AggregateCall.create(
+      new SqlCountAggFunction("COUNT"), false, false, List[Integer](0), -1, 1, project, null, "s"))
+    // TUMBLE(rowtime, INTERVAL '15' MINUTE))
+    val logicalWindowAgg = new LogicalWindowAggregate(
+      ts.getCluster,
+      ts.getTraitSet,
+      project,
+      ImmutableBitSet.of(1),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val flinkLogicalTs: FlinkLogicalDataStreamTableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), flinkLogicalTraits)
+    val flinkLogicalWindowAgg = new FlinkLogicalWindowAggregate(
+      ts.getCluster,
+      logicalTraits,
+      new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
+      ImmutableBitSet.of(1),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val batchTs: BatchExecBoundedStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), batchPhysicalTraits)
+    val batchCalc = new BatchExecCalc(
+      cluster, batchPhysicalTraits, batchTs, program, program.getOutputRowType)
+    val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
+    val batchExchange1 = new BatchExecExchange(
+      cluster, batchPhysicalTraits.replace(hash1), batchCalc, hash1)
+    val (_, _, aggregates) =
+      AggregateUtil.transformToBatchAggregateFunctions(
+        flinkLogicalWindowAgg.getAggCallList, batchExchange1.getRowType)
+    val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
+
+    val localWindowAggTypes =
+      (Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // grouping
+        Array(longType) ++ // assignTs
+        aggCallOfWindowAgg.map(_.getType)).toList // agg calls
+    val localWindowAggNames =
+      (Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // grouping
+        Array("assignedWindow$") ++ // assignTs
+        Array("count$0")).toList // agg calls
+    val localWindowAggRowType = typeFactory.createStructType(
+      localWindowAggTypes, localWindowAggNames)
+    val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
+      batchCalc.getCluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchCalc,
+      localWindowAggRowType,
+      batchCalc.getRowType,
+      Array(1),
+      Array.empty,
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false)
+    val batchExchange2 = new BatchExecExchange(
+      cluster, batchPhysicalTraits.replace(hash1), batchLocalWindowAgg, hash1)
+    val batchWindowAggWithLocal = new BatchExecHashWindowAggregate(
+      cluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchExchange2,
+      flinkLogicalWindowAgg.getRowType,
+      batchExchange2.getRowType,
+      batchCalc.getRowType,
+      Array(0),
+      Array.empty,
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false,
+      isMerge = true
+    )
+
+    val batchWindowAggWithoutLocal = new BatchExecHashWindowAggregate(
+      batchExchange1.getCluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchExchange1,
+      flinkLogicalWindowAgg.getRowType,
+      batchExchange1.getRowType,
+      batchExchange1.getRowType,
+      Array(1),
+      Array.empty,
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false,
+      isMerge = false
+    )
+
+    val streamTs: StreamExecDataStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
+    val streamCalc = new BatchExecCalc(
+      cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
+    val streamExchange = new StreamExecExchange(
+      cluster, streamPhysicalTraits.replace(hash1), streamCalc, hash1)
+    val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
+    val streamWindowAgg = new StreamExecGroupWindowAggregate(
+      cluster,
+      streamPhysicalTraits,
+      streamExchange,
+      flinkLogicalWindowAgg.getRowType,
+      streamExchange.getRowType,
+      Array(1),
+      flinkLogicalWindowAgg.getAggCallList,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg,
+      inputTimeFieldIndex = 2,
+      emitStrategy
+    )
+
+    (logicalWindowAgg, flinkLogicalWindowAgg, batchLocalWindowAgg, batchWindowAggWithLocal,
+      batchWindowAggWithoutLocal, streamWindowAgg)
+  }
+
+  // equivalent SQL is
+  // select a, c, count(b) as s,
+  //   TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as w$start,
+  //   TUMBLE_END(rowtime, INTERVAL '15' MINUTE) as w$end,
+  //   TUMBLE_ROWTIME(rowtime, INTERVAL '15' MINUTE) as w$rowtime,
+  //   TUMBLE_PROCTIME(rowtime, INTERVAL '15' MINUTE) as w$proctime
+  // from TemporalTable2 group by a, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)
+  protected lazy val (
+    logicalWindowAggWithAuxGroup,
+    flinkLogicalWindowAggWithAuxGroup,
+    batchLocalWindowAggWithAuxGroup,
+    batchGlobalWindowAggWithLocalAggWithAuxGroup,
+    batchGlobalWindowAggWithoutLocalAggWithAuxGroup) = {
+    relBuilder.scan("TemporalTable2")
+    val ts = relBuilder.peek()
+    val project = relBuilder.project(relBuilder.fields(Seq[Integer](0, 2, 4, 1).toList))
+      .build().asInstanceOf[Project]
+    val program = RexProgram.create(
+      ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
+    val aggCallOfWindowAgg = Lists.newArrayList(
+      AggregateCall.create(FlinkSqlOperatorTable.AUXILIARY_GROUP, false, false,
+        List[Integer](1), -1, 1, project, null, "c"),
+      AggregateCall.create(new SqlCountAggFunction("COUNT"), false, false,
+        List[Integer](3), -1, 2, project, null, "s"))
+    // TUMBLE(rowtime, INTERVAL '15' MINUTE))
+    val logicalWindowAggWithAuxGroup = new LogicalWindowAggregate(
+      ts.getCluster,
+      ts.getTraitSet,
+      project,
+      ImmutableBitSet.of(0),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val flinkLogicalTs: FlinkLogicalDataStreamTableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable2"), flinkLogicalTraits)
+    val flinkLogicalWindowAggWithAuxGroup = new FlinkLogicalWindowAggregate(
+      ts.getCluster,
+      logicalTraits,
+      new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
+      ImmutableBitSet.of(0),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val batchTs: BatchExecBoundedStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable2"), batchPhysicalTraits)
+    val batchCalc = new BatchExecCalc(
+      cluster, batchPhysicalTraits, batchTs, program, program.getOutputRowType)
+    val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
+    val batchExchange1 = new BatchExecExchange(
+      cluster, batchPhysicalTraits.replace(hash0), batchCalc, hash0)
+    val aggCallsWithoutAuxGroup = flinkLogicalWindowAggWithAuxGroup.getAggCallList.drop(1)
+    val (_, _, aggregates) =
+      AggregateUtil.transformToBatchAggregateFunctions(
+        aggCallsWithoutAuxGroup, batchExchange1.getRowType)
+    val aggCallToAggFunction = aggCallsWithoutAuxGroup.zip(aggregates)
+
+    val localWindowAggTypes =
+      (Array(batchCalc.getRowType.getFieldList.get(0).getType) ++ // grouping
+        Array(longType) ++ // assignTs
+        Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // auxGrouping
+        aggCallsWithoutAuxGroup.map(_.getType)).toList // agg calls
+    val localWindowAggNames =
+      (Array(batchCalc.getRowType.getFieldNames.get(0)) ++ // grouping
+        Array("assignedWindow$") ++ // assignTs
+        Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // auxGrouping
+        Array("count$0")).toList // agg calls
+    val localWindowAggRowType = typeFactory.createStructType(
+      localWindowAggTypes, localWindowAggNames)
+    val batchLocalWindowAggWithAuxGroup = new BatchExecLocalHashWindowAggregate(
+      batchCalc.getCluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchCalc,
+      localWindowAggRowType,
+      batchCalc.getRowType,
+      Array(0),
+      Array(1),
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false)
+    val batchExchange2 = new BatchExecExchange(
+      cluster, batchPhysicalTraits.replace(hash0), batchLocalWindowAggWithAuxGroup, hash0)
+    val batchWindowAggWithLocalWithAuxGroup = new BatchExecHashWindowAggregate(
+      cluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchExchange2,
+      flinkLogicalWindowAggWithAuxGroup.getRowType,
+      batchExchange2.getRowType,
+      batchCalc.getRowType,
+      Array(0),
+      Array(2), // local output grouping keys: grouping + assignTs + auxGrouping
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false,
+      isMerge = true
+    )
+
+    val batchWindowAggWithoutLocalWithAuxGroup = new BatchExecHashWindowAggregate(
+      batchExchange1.getCluster,
+      relBuilder,
+      batchPhysicalTraits,
+      batchExchange1,
+      flinkLogicalWindowAggWithAuxGroup.getRowType,
+      batchExchange1.getRowType,
+      batchExchange1.getRowType,
+      Array(0),
+      Array(1),
+      aggCallToAggFunction,
+      tumblingGroupWindow,
+      inputTimeFieldIndex = 2,
+      inputTimeIsDate = false,
+      namedPropertiesOfWindowAgg,
+      enableAssignPane = false,
+      isMerge = false
+    )
+
+    (logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchLocalWindowAggWithAuxGroup, batchWindowAggWithLocalWithAuxGroup,
+      batchWindowAggWithoutLocalWithAuxGroup)
+  }
+
   // equivalent SQL is
   // select id, name, score, age, class,
   //  row_number() over(partition by class order by name) as rn,
@@ -952,7 +1393,7 @@ class FlinkRelMdHandlerTestBase {
   //  max(score) over (partition by age) as max_score,
   //  count(id) over (partition by age) as cnt
   //  from student
-  protected lazy val (flinkLogicalOverWindow, batchOverWindowAgg) = {
+  protected lazy val (flinkLogicalOverAgg, batchOverAgg) = {
     val types = Map(
       "id" -> longType,
       "name" -> stringType,
@@ -989,26 +1430,26 @@ class FlinkRelMdHandlerTestBase {
     val rowTypeOfWindowAgg = createRowType(
       "id", "name", "score", "age", "class", "rn", "rk", "drk",
       "count$0_score", "sum$0_score", "max_score", "cnt")
-    val flinkLogicalOverWindow = new FlinkLogicalOverWindow(
+    val flinkLogicalOverAgg = new FlinkLogicalOverAggregate(
       cluster,
       flinkLogicalTraits,
       new FlinkLogicalCalc(cluster, flinkLogicalTraits, studentFlinkLogicalScan, rexProgram),
       ImmutableList.of(),
       rowTypeOfWindowAgg,
-      overWindowGroups
+      overAggGroups
     )
 
     val rowTypeOfWindowAggOutput = createRowType(
       "id", "name", "score", "age", "class", "rn", "rk", "drk", "avg_score", "max_score", "cnt")
     val projectProgram = RexProgram.create(
-      flinkLogicalOverWindow.getRowType,
-      (0 until flinkLogicalOverWindow.getRowType.getFieldCount).flatMap { i =>
+      flinkLogicalOverAgg.getRowType,
+      (0 until flinkLogicalOverAgg.getRowType.getFieldCount).flatMap { i =>
         if (i < 8 || i >= 10) {
-          Array[RexNode](RexInputRef.of(i, flinkLogicalOverWindow.getRowType))
+          Array[RexNode](RexInputRef.of(i, flinkLogicalOverAgg.getRowType))
         } else if (i == 8) {
           Array[RexNode](rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE,
-            RexInputRef.of(8, flinkLogicalOverWindow.getRowType),
-            RexInputRef.of(9, flinkLogicalOverWindow.getRowType)))
+            RexInputRef.of(8, flinkLogicalOverAgg.getRowType),
+            RexInputRef.of(9, flinkLogicalOverAgg.getRowType)))
         } else {
           Array.empty[RexNode]
         }
@@ -1018,10 +1459,10 @@ class FlinkRelMdHandlerTestBase {
       rexBuilder
     )
 
-    val flinkLogicalOverWindowOutput = new FlinkLogicalCalc(
+    val flinkLogicalOverAggOutput = new FlinkLogicalCalc(
       cluster,
       flinkLogicalTraits,
-      flinkLogicalOverWindow,
+      flinkLogicalOverAgg,
       projectProgram
     )
 
@@ -1048,11 +1489,11 @@ class FlinkRelMdHandlerTestBase {
       Array(1),
       Array(true),
       Array(false),
-      Seq((overWindowGroups(0), Seq(
+      Seq((overAggGroups(0), Seq(
         (AggregateCall.create(SqlStdOperatorTable.ROW_NUMBER, false, ImmutableList.of(), -1,
           longType, "rn"),
           new RowNumberAggFunction())))),
-      flinkLogicalOverWindow
+      flinkLogicalOverAgg
     )
 
     // sort class, score
@@ -1075,7 +1516,7 @@ class FlinkRelMdHandlerTestBase {
       Array(2),
       Array(true),
       Array(false),
-      Seq((overWindowGroups(1), Seq(
+      Seq((overAggGroups(1), Seq(
         (AggregateCall.create(SqlStdOperatorTable.RANK, false, ImmutableList.of(), -1, longType,
           "rk"),
           new RankAggFunction(Array(InternalTypes.STRING))),
@@ -1089,7 +1530,7 @@ class FlinkRelMdHandlerTestBase {
           ImmutableList.of(Integer.valueOf(2)), -1, doubleType, "sum$0_score"),
           new DoubleSumAggFunction())
       ))),
-      flinkLogicalOverWindow
+      flinkLogicalOverAgg
     )
 
     val hash3 = FlinkRelDistribution.hash(Array(3), requireStrict = true)
@@ -1110,7 +1551,7 @@ class FlinkRelMdHandlerTestBase {
       Array.empty,
       Array.empty,
       Array.empty,
-      Seq((overWindowGroups(2), Seq(
+      Seq((overAggGroups(2), Seq(
         (AggregateCall.create(SqlStdOperatorTable.MAX, false,
           ImmutableList.of(Integer.valueOf(2)), -1, longType, "max_score"),
           new CountAggFunction()),
@@ -1118,7 +1559,7 @@ class FlinkRelMdHandlerTestBase {
           ImmutableList.of(Integer.valueOf(0)), -1, doubleType, "cnt"),
           new DoubleSumAggFunction())
       ))),
-      flinkLogicalOverWindow
+      flinkLogicalOverAgg
     )
 
     val batchWindowAggOutput = new BatchExecCalc(
@@ -1129,7 +1570,7 @@ class FlinkRelMdHandlerTestBase {
       projectProgram.getOutputRowType
     )
 
-    (flinkLogicalOverWindowOutput, batchWindowAggOutput)
+    (flinkLogicalOverAggOutput, batchWindowAggOutput)
   }
 
   // equivalent SQL is
@@ -1138,7 +1579,7 @@ class FlinkRelMdHandlerTestBase {
   //  dense_rank() over (partition by class order by score) as drk,
   //  avg(score) over (partition by class order by score) as avg_score
   //  from student
-  protected lazy val streamOverWindowAgg: StreamPhysicalRel = {
+  protected lazy val streamOverAgg: StreamPhysicalRel = {
     val types = Map(
       "id" -> longType,
       "name" -> stringType,
@@ -1171,13 +1612,13 @@ class FlinkRelMdHandlerTestBase {
 
     val rowTypeOfWindowAgg = createRowType(
       "id", "name", "score", "age", "class", "rk", "drk", "count$0_score", "sum$0_score")
-    val flinkLogicalOverWindow = new FlinkLogicalOverWindow(
+    val flinkLogicalOverAgg = new FlinkLogicalOverAggregate(
       cluster,
       flinkLogicalTraits,
       new FlinkLogicalCalc(cluster, flinkLogicalTraits, studentFlinkLogicalScan, rexProgram),
       ImmutableList.of(),
       rowTypeOfWindowAgg,
-      util.Arrays.asList(overWindowGroups.get(1))
+      util.Arrays.asList(overAggGroups.get(1))
     )
 
     val streamScan: StreamExecDataStreamScan =
@@ -1193,20 +1634,20 @@ class FlinkRelMdHandlerTestBase {
       exchange,
       rowTypeOfWindowAgg,
       exchange.getRowType,
-      flinkLogicalOverWindow
+      flinkLogicalOverAgg
     )
 
     val rowTypeOfWindowAggOutput = createRowType(
       "id", "name", "score", "age", "class", "rk", "drk", "avg_score")
     val projectProgram = RexProgram.create(
-      flinkLogicalOverWindow.getRowType,
-      (0 until flinkLogicalOverWindow.getRowType.getFieldCount).flatMap { i =>
+      flinkLogicalOverAgg.getRowType,
+      (0 until flinkLogicalOverAgg.getRowType.getFieldCount).flatMap { i =>
         if (i < 7) {
-          Array[RexNode](RexInputRef.of(i, flinkLogicalOverWindow.getRowType))
+          Array[RexNode](RexInputRef.of(i, flinkLogicalOverAgg.getRowType))
         } else if (i == 7) {
           Array[RexNode](rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE,
-            RexInputRef.of(7, flinkLogicalOverWindow.getRowType),
-            RexInputRef.of(8, flinkLogicalOverWindow.getRowType)))
+            RexInputRef.of(7, flinkLogicalOverAgg.getRowType),
+            RexInputRef.of(8, flinkLogicalOverAgg.getRowType)))
         } else {
           Array.empty[RexNode]
         }
@@ -1232,7 +1673,7 @@ class FlinkRelMdHandlerTestBase {
   //  avg(score) over (partition by class order by score) as avg_score,
   //  max(score) over (partition by age) as max_score,
   //  count(id) over (partition by age) as cnt
-  private lazy val overWindowGroups = {
+  private lazy val overAggGroups = {
     ImmutableList.of(
       new Window.Group(
         ImmutableBitSet.of(5),

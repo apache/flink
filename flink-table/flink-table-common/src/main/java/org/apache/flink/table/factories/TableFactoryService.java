@@ -211,6 +211,7 @@ public class TableFactoryService {
 			plainContext.remove(METADATA_PROPERTY_VERSION);
 			plainContext.remove(STATISTICS_PROPERTY_VERSION);
 			plainContext.remove(CATALOG_PROPERTY_VERSION);
+			plainContext.remove(org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION);
 
 			// check if required context is met
 			return plainContext.keySet().stream().allMatch(e -> properties.containsKey(e) && properties.get(e).equals(plainContext.get(e)));

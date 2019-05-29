@@ -1,12 +1,12 @@
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[_DataStreamTable_0]])
-  LogicalTableScan(table=[[_DataStreamTable_1]])
+  LogicalTableScan(table=[[default_catalog, default_database, _DataStreamTable_0]])
+  LogicalTableScan(table=[[default_catalog, default_database, _DataStreamTable_1]])
 
 == Optimized Logical Plan ==
 DataStreamUnion(all=[true], union all=[count, word])
-  DataStreamScan(table=[[_DataStreamTable_0]])
-  DataStreamScan(table=[[_DataStreamTable_1]])
+  DataStreamScan(table=[[default_catalog, default_database, _DataStreamTable_0]])
+  DataStreamScan(table=[[default_catalog, default_database, _DataStreamTable_1]])
 
 == Physical Execution Plan ==
 Stage 1 : Data Source

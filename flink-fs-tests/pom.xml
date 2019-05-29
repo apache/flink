@@ -142,5 +142,30 @@ under the License.
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<id>java9</id>
+			<activation>
+				<jdk>9</jdk>
+			</activation>
 
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-common</artifactId>
+						<version>${hadoop.version}</version>
+						<type>test-jar</type>
+						<exclusions>
+							<exclusion>
+								<!-- This dependency is not available with java 9.-->
+								<groupId>jdk.tools</groupId>
+								<artifactId>jdk.tools</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+		</profile>
+	</profiles>
 </project>

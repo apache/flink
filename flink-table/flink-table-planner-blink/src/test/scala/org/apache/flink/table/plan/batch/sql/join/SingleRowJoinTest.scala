@@ -33,13 +33,6 @@ class SingleRowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testSingleRowEquiJoin(): Unit = {
-    val util = batchTestUtil()
-    util.addTableSource[(Int, String)]("A", 'a1, 'a2)
-    util.verifyPlan("SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 = cnt")
-  }
-
-  @Test
   def testSingleRowNotEquiJoin(): Unit = {
     val util = batchTestUtil()
     util.addTableSource[(Int, String)]("A", 'a1, 'a2)

@@ -54,4 +54,39 @@ public interface WindowGroupedTable {
 	 * </pre>
 	 */
 	Table select(Expression... fields);
+
+	/**
+	 * Performs a flatAggregate operation on a window grouped table. FlatAggregate takes a
+	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction
+	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+	 *   windowGroupedTable
+	 *     .flatAggregate("tableAggFunc(a, b) as (x, y, z)")
+	 *     .select("key, window.start, x, y, z")
+	 * }
+	 * </pre>
+	 */
+	FlatAggregateTable flatAggregate(String tableAggregateFunction);
+
+	/**
+	 * Performs a flatAggregate operation on a window grouped table. FlatAggregate takes a
+	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val tableAggFunc = new MyTableAggregateFunction
+	 *   windowGroupedTable
+	 *     .flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
+	 *     .select('key, 'window.start, 'x, 'y, 'z)
+	 * }
+	 * </pre>
+	 */
+	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 }

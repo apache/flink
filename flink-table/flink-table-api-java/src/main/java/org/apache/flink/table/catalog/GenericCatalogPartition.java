@@ -25,37 +25,26 @@ import java.util.Optional;
 /**
  * A generic catalog partition implementation.
  */
-public class GenericCatalogPartition implements CatalogPartition {
-	private final Map<String, String> properties;
-
-	private String comment = "This is a generic catalog partition";
-
-	public GenericCatalogPartition(Map<String, String> properties) {
-		this.properties = properties;
-	}
+public class GenericCatalogPartition extends AbstractCatalogPartition {
 
 	public GenericCatalogPartition(Map<String, String> properties, String comment) {
-		this(properties);
-		this.comment = comment;
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
+		super(properties, comment);
+		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
 	}
 
 	@Override
 	public CatalogPartition copy() {
-		return new GenericCatalogPartition(new HashMap<>(properties));
+		return new GenericCatalogPartition(new HashMap<>(getProperties()), getComment());
 	}
 
 	@Override
 	public Optional<String> getDescription() {
-		return Optional.of(comment);
+		return Optional.of(getComment());
 	}
 
 	@Override
 	public Optional<String> getDetailedDescription() {
 		return Optional.of("This is a generic catalog partition with detailed description");
 	}
+
 }

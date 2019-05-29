@@ -23,14 +23,11 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import java.util.Arrays;
 import java.util.Optional;
-
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
 
 /**
  * Utilities for API-specific {@link Expression}s.
@@ -62,8 +59,8 @@ public final class ApiExpressionUtils {
 		return new ValueLiteralExpression(value, type);
 	}
 
-	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
-		return new TypeLiteralExpression(type);
+	public static TypeLiteralExpression typeLiteral(DataType dataType) {
+		return new TypeLiteralExpression(dataType);
 	}
 
 	public static SymbolExpression symbol(TableSymbol symbol) {
@@ -86,17 +83,7 @@ public final class ApiExpressionUtils {
 		// check for constant
 		return ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
 			.map((v) -> (Expression) valueLiteral(v * multiplier, TimeIntervalTypeInfo.INTERVAL_MONTHS))
-			.orElse(
-				call(
-					CAST,
-					call(
-						TIMES,
-						e,
-						valueLiteral(multiplier)
-					),
-					typeLiteral(TimeIntervalTypeInfo.INTERVAL_MONTHS)
-				)
-			);
+			.orElseThrow(() -> new ValidationException("Only constant intervals are supported: " + e));
 	}
 
 	public static Expression toMilliInterval(Expression e, long multiplier) {
@@ -111,23 +98,15 @@ public final class ApiExpressionUtils {
 		} else if (longInterval.isPresent()) {
 			return longInterval.get();
 		}
-		return call(
-			CAST,
-			call(
-				TIMES,
-				e,
-				valueLiteral(multiplier)
-			),
-			typeLiteral(TimeIntervalTypeInfo.INTERVAL_MONTHS)
-		);
+		throw new ValidationException("Only constant intervals are supported:" + e);
 	}
 
 	public static Expression toRowInterval(Expression e) {
 		final Optional<Expression> intInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.INT_TYPE_INFO)
-			.map((v) -> valueLiteral((long) v, RowIntervalTypeInfo.INTERVAL_ROWS));
+			.map((v) -> valueLiteral((long) v, BasicTypeInfo.LONG_TYPE_INFO));
 
 		final Optional<Expression> longInterval = ExpressionUtils.extractValue(e, BasicTypeInfo.LONG_TYPE_INFO)
-			.map((v) -> valueLiteral(v, RowIntervalTypeInfo.INTERVAL_ROWS));
+			.map((v) -> valueLiteral(v, BasicTypeInfo.LONG_TYPE_INFO));
 
 		if (intInterval.isPresent()) {
 			return intInterval.get();

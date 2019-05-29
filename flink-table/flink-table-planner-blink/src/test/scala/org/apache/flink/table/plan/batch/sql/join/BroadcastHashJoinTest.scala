@@ -34,24 +34,10 @@ class BroadcastHashJoinTest extends JoinTestBase {
   }
 
   @Test
-  override def testJoinNonMatchingKeyTypes(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Equality join predicate on incompatible types")
-    super.testJoinNonMatchingKeyTypes()
-  }
-
-  @Test
   override def testInnerJoinWithoutJoinPred(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testInnerJoinWithoutJoinPred()
-  }
-
-  @Test
-  override def testInnerJoinWithNonEquiPred(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInnerJoinWithNonEquiPred()
   }
 
   @Test
@@ -129,6 +115,13 @@ class BroadcastHashJoinTest extends JoinTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testFullOuterJoinOnFalse()
+  }
+
+  @Test
+  override def testFullOuterWithUsing(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
+    super.testFullOuterWithUsing()
   }
 
   @Test
