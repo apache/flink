@@ -26,6 +26,8 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -705,7 +707,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					.setBytesBufferedInAlignment(0L)
 					.setAlignmentDurationNanos(0L);
 
-			return performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
+			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
+			if (!success) {
+				declineCheckpoint(checkpointMetaData.getCheckpointId());
+			}
+			return success;
 		}
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
@@ -826,6 +832,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				return false;
 			}
 		}
+	}
+
+	protected void declineCheckpoint(long checkpointId) {
+		getEnvironment().declineCheckpoint(
+			checkpointId,
+			new CheckpointException("Task Name" + getName(), CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
 	}
 
 	public ExecutorService getAsyncOperationsThreadPool() {
