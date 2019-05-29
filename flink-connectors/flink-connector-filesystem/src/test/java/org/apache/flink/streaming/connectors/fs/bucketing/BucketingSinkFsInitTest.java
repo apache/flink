@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.core.fs.FileSystemSafetyNet;
-import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,6 +27,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -75,7 +76,7 @@ public class BucketingSinkFsInitTest {
 		assertEquals("hdfs", fs.getUri().getScheme());
 	}
 
-	@Test(expected = UnsupportedFileSystemSchemeException.class)
+	@Test(expected = IOException.class)
 	public void testInitForUnsupportedFileSystem() throws Exception {
 		final Path path = new Path("nofs://localhost:51234/some/path/");
 		BucketingSink.createHadoopFileSystem(path, null);

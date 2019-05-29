@@ -117,12 +117,6 @@ public class HadoopFsFactory implements FileSystemFactory {
 		}
 	}
 
-	private static String getMissingAuthorityErrorPrefix(URI fsURI) {
-		return "The given file system URI (" + fsURI.toString() + ") did not describe the authority " +
-				"(like for example HDFS NameNode address/port or S3 host). " +
-				"The attempt to use a configured default authority failed: ";
-	}
-
 	private static FileSystem limitIfConfigured(HadoopFileSystem fs, String scheme, Configuration config) {
 		final ConnectionLimitingSettings limitSettings = ConnectionLimitingSettings.fromConfig(config, scheme);
 
