@@ -24,6 +24,8 @@ from pyflink.util.utils import to_jarray
 if sys.version >= '3':
     unicode = str
 
+__all__ = ['TableSchema']
+
 
 class TableSchema(object):
     """

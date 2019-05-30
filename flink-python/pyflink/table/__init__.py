@@ -41,6 +41,7 @@ from pyflink.table.table_source import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
 from pyflink.table.window import Tumble, Session, Slide, Over
 from pyflink.table.table_descriptor import Rowtime, Schema, OldCsv, FileSystem, Kafka, Elasticsearch
+from pyflink.table.table_schema import TableSchema
 
 __all__ = [
     'TableEnvironment',
@@ -64,5 +65,6 @@ __all__ = [
     'UserDefinedType',
     'Row',
     'Kafka',
-    'Elasticsearch'
+    'Elasticsearch',
+    'TableSchema'
 ]
