@@ -131,7 +131,7 @@ public class LocalInputChannelTest {
 				false,
 				new TestPartitionProducerBufferSource(
 					parallelism,
-					partition.getBufferProvider(),
+					partition.getBufferPool(),
 					numberOfBuffersPerChannel)
 			);
 		}
