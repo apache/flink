@@ -100,40 +100,40 @@ These examples about how to submit a job in CLI.
 
 -   Run Python Table program:
 
-        ./bin/flink run -py examples/python/table/batch/word_count.py -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
 
 -   Run Python Table program with pyFiles:
 
-        ./bin/flink run -py examples/python/table/batch/word_count.py -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar> \
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar> \
                                 -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
 
 -   Run Python Table program with pyFiles and pyModule:
 
-        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
 
 -   Run Python Table program with parallelism 16:
 
-        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
 
 -   Run Python Table program with flink log output disabled:
 
-        ./bin/flink run -q -py examples/python/table/batch/word_count.py -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+        ./bin/flink run -q -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
 
 -   Run Python Table program in detached mode:
 
-        ./bin/flink run -d -py examples/python/table/batch/word_count.py -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+        ./bin/flink run -d -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
 
 -   Run Python Table program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:8081 \
                                -py examples/python/table/batch/word_count.py \
-                               -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+                               -j <path/to/flink-table.jar>
 
 -   Run Python Table program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                -py examples/python/table/batch/word_count.py \
-                               -C <path/to/flink-table.jar> -C <path/to/flink-python-*-java-binding.jar>
+                               -j <path/to/flink-table.jar>
 </div>
 
 ### Job Management Examples

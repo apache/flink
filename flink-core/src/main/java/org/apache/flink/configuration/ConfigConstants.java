@@ -2008,6 +2008,9 @@ public final class ConfigConstants {
 	/** The environment variable name which contains the location of the lib folder. */
 	public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
 
+	/** The environment variable name which contains the location of the opt directory. */
+	public static final String ENV_FLINK_OPT_DIR = "FLINK_OPT_DIR";
+
 	/** The environment variable name which contains the location of the bin directory. */
 	public static final String ENV_FLINK_BIN_DIR = "FLINK_BIN_DIR";
 
