@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -57,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -398,5 +400,21 @@ public class NetworkEnvironment {
 		synchronized (lock) {
 			return isShutdown;
 		}
+	}
+
+	public static NetworkEnvironment fromConfiguration(
+			Configuration configuration,
+			TaskEventPublisher taskEventPublisher,
+			MetricGroup metricGroup,
+			IOManager ioManager,
+			long maxJvmHeapMemory,
+			boolean localTaskManagerCommunication,
+			InetAddress taskManagerAddress) {
+		final NetworkEnvironmentConfiguration networkConfig = NetworkEnvironmentConfiguration.fromConfiguration(
+			configuration,
+			maxJvmHeapMemory,
+			localTaskManagerCommunication,
+			taskManagerAddress);
+		return NetworkEnvironment.create(networkConfig, taskEventPublisher, metricGroup, ioManager);
 	}
 }

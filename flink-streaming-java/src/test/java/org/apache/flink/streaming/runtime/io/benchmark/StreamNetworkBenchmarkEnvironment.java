@@ -47,7 +47,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -203,7 +202,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		final NettyConfig nettyConfig = new NettyConfig(
 			LOCAL_ADDRESS,
 			0,
-			NetworkEnvironmentConfiguration.getPageSize(config),
+			ConfigurationParserUtils.getPageSize(config),
 			// please note that the number of slots directly influences the number of netty threads!
 			ConfigurationParserUtils.getSlot(config),
 			config);
