@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -99,8 +98,7 @@ public class SingleInputGateFactory {
 			@Nonnull String owningTaskName,
 			@Nonnull InputGateDeploymentDescriptor igdd,
 			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
-			@Nonnull InputChannelMetrics metrics,
-			@Nonnull Counter numBytesInCounter) {
+			@Nonnull InputChannelMetrics metrics) {
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 		final ResultPartitionType consumedPartitionType = checkNotNull(igdd.getConsumedPartitionType());
 
@@ -116,7 +114,6 @@ public class SingleInputGateFactory {
 			consumedSubpartitionIndex,
 			icdd.length,
 			partitionProducerStateProvider,
-			numBytesInCounter,
 			isCreditBased,
 			createBufferPoolFactory(icdd.length, consumedPartitionType));
 

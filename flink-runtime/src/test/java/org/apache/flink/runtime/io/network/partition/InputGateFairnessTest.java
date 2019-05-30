@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -331,7 +330,6 @@ public class InputGateFairnessTest {
 				consumedSubpartitionIndex,
 				numberOfInputChannels,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-				new SimpleCounter(),
 				isCreditBased,
 				STUB_BUFFER_POOL_FACTORY);
 

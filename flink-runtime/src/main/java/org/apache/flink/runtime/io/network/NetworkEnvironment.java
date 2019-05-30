@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -248,8 +247,7 @@ public class NetworkEnvironment {
 			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
 			MetricGroup parentGroup,
 			MetricGroup inputGroup,
-			MetricGroup buffersGroup,
-			Counter numBytesInCounter) {
+			MetricGroup buffersGroup) {
 		synchronized (lock) {
 			Preconditions.checkState(!isShutdown, "The NetworkEnvironment has already been shut down.");
 
@@ -261,8 +259,7 @@ public class NetworkEnvironment {
 					taskName,
 					igdd,
 					partitionProducerStateProvider,
-					inputChannelMetrics,
-					numBytesInCounter);
+					inputChannelMetrics);
 				InputGateID id = new InputGateID(igdd.getConsumedResultId(), executionId);
 				inputGatesById.put(id, inputGate);
 				inputGate.getCloseFuture().thenRun(() -> inputGatesById.remove(id));

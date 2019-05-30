@@ -47,6 +47,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
@@ -237,12 +238,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				senderLocation,
 				channel);
 
-			final SingleInputGate gate = gateFactory.create(
-				"receiving task[" + channel + "]",
-				gateDescriptor,
-				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
-				new SimpleCounter());
+			final InputGate gate = createInputGateWithMetrics(gateFactory, gateDescriptor, channel);
 
 			gate.setup();
 			gates[channel] = gate;
@@ -271,5 +267,19 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			ResultPartitionType.PIPELINED_BOUNDED,
 			consumedSubpartitionIndex,
 			channelDescriptors);
+	}
+
+	private InputGate createInputGateWithMetrics(
+		SingleInputGateFactory gateFactory,
+		InputGateDeploymentDescriptor gateDescriptor,
+		int channelIndex) {
+
+		final SingleInputGate singleGate = gateFactory.create(
+			"receiving task[" + channelIndex + "]",
+			gateDescriptor,
+			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
+			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+
+		return new InputGateWithMetrics(singleGate, new SimpleCounter());
 	}
 }
