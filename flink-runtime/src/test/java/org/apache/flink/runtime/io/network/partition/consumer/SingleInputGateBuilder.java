@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
@@ -50,8 +48,6 @@ public class SingleInputGateBuilder {
 	private int numberOfChannels = 1;
 
 	private final PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
-
-	private final Counter numBytesInCounter = new SimpleCounter();
 
 	private boolean isCreditBased = true;
 
@@ -99,7 +95,6 @@ public class SingleInputGateBuilder {
 			consumedSubpartitionIndex,
 			numberOfChannels,
 			partitionProducerStateProvider,
-			numBytesInCounter,
 			isCreditBased,
 			bufferPoolFactory);
 	}

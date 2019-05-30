@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -347,8 +346,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 				"TestTask",
 				gateDesc,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-				InputChannelTestUtils.newUnregisteredInputChannelMetrics(),
-				new SimpleCounter());
+				InputChannelTestUtils.newUnregisteredInputChannelMetrics());
 
 		try {
 			assertEquals(gateDesc.getConsumedPartitionType(), gate.getConsumedPartitionType());
@@ -599,8 +597,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			Arrays.asList(gateDescs),
 			new UnregisteredMetricsGroup(),
 			new UnregisteredMetricsGroup(),
-			new UnregisteredMetricsGroup(),
-			new SimpleCounter());
+			new UnregisteredMetricsGroup());
 		Map<InputGateID, SingleInputGate> inputGatesById = new HashMap<>();
 		for (int i = 0; i < numberOfGates; i++) {
 			inputGatesById.put(new InputGateID(ids[i], consumerID), gates[i]);

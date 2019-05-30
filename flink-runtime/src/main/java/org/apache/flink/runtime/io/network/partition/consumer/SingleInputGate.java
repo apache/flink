@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -165,8 +164,6 @@ public class SingleInputGate extends InputGate {
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
 
-	private final Counter numBytesIn;
-
 	private final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
 
 	private final CompletableFuture<Void> closeFuture;
@@ -178,7 +175,6 @@ public class SingleInputGate extends InputGate {
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
 		PartitionProducerStateProvider partitionProducerStateProvider,
-		Counter numBytesIn,
 		boolean isCreditBased,
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
@@ -199,8 +195,6 @@ public class SingleInputGate extends InputGate {
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
 		this.partitionProducerStateProvider = checkNotNull(partitionProducerStateProvider);
-
-		this.numBytesIn = checkNotNull(numBytesIn);
 
 		this.isCreditBased = isCreditBased;
 
@@ -566,7 +560,6 @@ public class SingleInputGate extends InputGate {
 			Buffer buffer,
 			boolean moreAvailable,
 			InputChannel currentChannel) throws IOException, InterruptedException {
-		numBytesIn.inc(buffer.getSizeUnsafe());
 		if (buffer.isBuffer()) {
 			return new BufferOrEvent(buffer, currentChannel.getChannelIndex(), moreAvailable);
 		}
@@ -596,7 +589,7 @@ public class SingleInputGate extends InputGate {
 				currentChannel.releaseAllResources();
 			}
 
-			return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable);
+			return new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable, buffer.getSize());
 		}
 	}
 

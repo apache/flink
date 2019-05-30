@@ -56,7 +56,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvi
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -192,7 +191,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 	private final ResultPartitionWriter[] producedPartitions;
 
-	private final SingleInputGate[] inputGates;
+	private final InputGate[] inputGates;
 
 	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
@@ -380,15 +379,20 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			buffersGroup);
 
 		// consumed intermediate result partitions
-		this.inputGates = networkEnvironment.createInputGates(
+		InputGate[] gates = networkEnvironment.createInputGates(
 			taskNameWithSubtaskAndId,
 			executionId,
 			this,
 			inputGateDeploymentDescriptors,
 			metrics.getIOMetricGroup(),
 			inputGroup,
-			buffersGroup,
-			metrics.getIOMetricGroup().getNumBytesInCounter());
+			buffersGroup);
+
+		this.inputGates = new InputGate[gates.length];
+		int counter = 0;
+		for (InputGate gate : gates) {
+			inputGates[counter++] = new InputGateWithMetrics(gate, metrics.getIOMetricGroup().getNumBytesInCounter());
+		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
 
