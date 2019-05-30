@@ -24,12 +24,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
 /**
- * Builder for the {@link NetworkEnvironment}.
+ * Builder for the {@link NettyShuffleEnvironment}.
  */
-public class NetworkEnvironmentBuilder {
+public class NettyShuffleEnvironmentBuilder {
 
 	private int numNetworkBuffers = 1024;
 
@@ -57,69 +57,69 @@ public class NetworkEnvironmentBuilder {
 
 	private IOManager ioManager = new IOManagerAsync();
 
-	public NetworkEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
+	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
+	public NettyShuffleEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
 		this.numNetworkBuffers = numNetworkBuffers;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setNetworkBufferSize(int networkBufferSize) {
+	public NettyShuffleEnvironmentBuilder setNetworkBufferSize(int networkBufferSize) {
 		this.networkBufferSize = networkBufferSize;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setPartitionRequestInitialBackoff(int partitionRequestInitialBackoff) {
+	public NettyShuffleEnvironmentBuilder setPartitionRequestInitialBackoff(int partitionRequestInitialBackoff) {
 		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setPartitionRequestMaxBackoff(int partitionRequestMaxBackoff) {
+	public NettyShuffleEnvironmentBuilder setPartitionRequestMaxBackoff(int partitionRequestMaxBackoff) {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
+	public NettyShuffleEnvironmentBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
+	public NettyShuffleEnvironmentBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
+	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
 		this.isCreditBased = isCreditBased;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setNettyConfig(NettyConfig nettyConfig) {
+	public NettyShuffleEnvironmentBuilder setNettyConfig(NettyConfig nettyConfig) {
 		this.nettyConfig = nettyConfig;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setTaskEventDispatcher(TaskEventDispatcher taskEventDispatcher) {
+	public NettyShuffleEnvironmentBuilder setTaskEventDispatcher(TaskEventDispatcher taskEventDispatcher) {
 		this.taskEventDispatcher = taskEventDispatcher;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
+	public NettyShuffleEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
 		this.metricGroup = metricGroup;
 		return this;
 	}
 
-	public NetworkEnvironmentBuilder setIOManager(IOManager ioManager) {
+	public NettyShuffleEnvironmentBuilder setIOManager(IOManager ioManager) {
 		this.ioManager = ioManager;
 		return this;
 	}
 
-	public NetworkEnvironment build() {
-		return NetworkEnvironment.create(
-			new NetworkEnvironmentConfiguration(
+	public NettyShuffleEnvironment build() {
+		return NettyShuffleEnvironment.create(
+			new NettyShuffleEnvironmentConfiguration(
 				numNetworkBuffers,
 				networkBufferSize,
 				partitionRequestInitialBackoff,

@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -163,7 +163,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 		try {
 			final Configuration cfg = new Configuration();
-			cfg.setInteger(NetworkEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
+			cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
 
 			startTaskManager(
 				cfg,

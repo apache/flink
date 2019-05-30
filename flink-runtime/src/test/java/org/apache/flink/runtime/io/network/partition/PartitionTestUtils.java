@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 
 /**
  * This class should consolidate all mocking logic for ResultPartitions.
@@ -36,11 +36,11 @@ public class PartitionTestUtils {
 	}
 
 	public static ResultPartition createPartition(
-			NetworkEnvironment environment,
+			NettyShuffleEnvironment environment,
 			ResultPartitionType partitionType,
 			int numChannels) {
 		return new ResultPartitionBuilder()
-			.setupBufferPoolFactoryFromNetworkEnvironment(environment)
+			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
 			.setResultPartitionType(partitionType)
 			.setNumberOfSubpartitions(numChannels)
 			.build();

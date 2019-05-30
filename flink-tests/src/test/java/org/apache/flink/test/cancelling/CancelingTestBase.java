@@ -24,7 +24,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -80,7 +80,7 @@ public abstract class CancelingTestBase extends TestLogger {
 		config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
 		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
-		config.setInteger(NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS, 2048);
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 2048);
 
 		return config;
 	}

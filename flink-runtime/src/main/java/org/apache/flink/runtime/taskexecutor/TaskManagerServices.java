@@ -30,7 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -38,7 +38,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -320,7 +320,7 @@ public class TaskManagerServices {
 			taskManagerMetricGroup,
 			ioManager);
 
-		return NetworkEnvironment.fromShuffleContext(shuffleEnvironmentContext);
+		return NettyShuffleEnvironment.fromShuffleContext(shuffleEnvironmentContext);
 	}
 
 	/**
@@ -426,7 +426,7 @@ public class TaskManagerServices {
 		Preconditions.checkArgument(totalJavaMemorySizeMB > 0);
 
 		// subtract the Java memory used for network buffers (always off-heap)
-		final long networkBufMB = NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(
+		final long networkBufMB = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
 			totalJavaMemorySizeMB << 20, // megabytes to bytes
 			config) >> 20; // bytes to megabytes
 		final long remainingJavaMemorySizeMB = totalJavaMemorySizeMB - networkBufMB;
