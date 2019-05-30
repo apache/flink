@@ -75,6 +75,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -170,6 +171,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final Map<ResourceID, Tuple2<TaskManagerLocation, TaskExecutorGateway>> registeredTaskManagers;
 
+	private final ShuffleMaster<?> shuffleMaster;
+
 	// -------- Mutable fields ---------
 
 	private SchedulerNG schedulerNG;
@@ -207,7 +210,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler fatalErrorHandler,
 			ClassLoader userCodeLoader,
-			SchedulerNGFactory schedulerNGFactory) throws Exception {
+			SchedulerNGFactory schedulerNGFactory,
+			ShuffleMaster<?> shuffleMaster) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
 
@@ -253,6 +257,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
 
+		this.shuffleMaster = checkNotNull(shuffleMaster);
+
 		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
 		this.schedulerNG = createScheduler(jobManagerJobMetricGroup);
 		this.jobStatusListener = null;
@@ -277,7 +283,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcTimeout,
 			blobWriter,
 			jobManagerJobMetricGroup,
-			jobMasterConfiguration.getSlotRequestTimeout());
+			jobMasterConfiguration.getSlotRequestTimeout(),
+			shuffleMaster);
 	}
 
 	//----------------------------------------------------------------------------------------------

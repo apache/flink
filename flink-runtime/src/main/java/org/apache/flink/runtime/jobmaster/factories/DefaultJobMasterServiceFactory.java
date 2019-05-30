@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 /**
  * Default implementation of the {@link JobMasterServiceFactory}.
@@ -57,6 +58,8 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 
 	private final SchedulerNGFactory schedulerNGFactory;
 
+	private final ShuffleMaster<?> shuffleMaster;
+
 	public DefaultJobMasterServiceFactory(
 			JobMasterConfiguration jobMasterConfiguration,
 			SlotPoolFactory slotPoolFactory,
@@ -67,7 +70,8 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 			HeartbeatServices heartbeatServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			FatalErrorHandler fatalErrorHandler,
-			SchedulerNGFactory schedulerNGFactory) {
+			SchedulerNGFactory schedulerNGFactory,
+			ShuffleMaster<?> shuffleMaster) {
 		this.jobMasterConfiguration = jobMasterConfiguration;
 		this.slotPoolFactory = slotPoolFactory;
 		this.schedulerFactory = schedulerFactory;
@@ -78,6 +82,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 		this.jobManagerJobMetricGroupFactory = jobManagerJobMetricGroupFactory;
 		this.fatalErrorHandler = fatalErrorHandler;
 		this.schedulerNGFactory = schedulerNGFactory;
+		this.shuffleMaster = shuffleMaster;
 	}
 
 	@Override
@@ -100,6 +105,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 			jobCompletionActions,
 			fatalErrorHandler,
 			userCodeClassloader,
-			schedulerNGFactory);
+			schedulerNGFactory,
+			shuffleMaster);
 	}
 }

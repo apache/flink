@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
@@ -51,6 +52,7 @@ public interface SchedulerNGFactory {
 		Time rpcTimeout,
 		BlobWriter blobWriter,
 		JobManagerJobMetricGroup jobManagerJobMetricGroup,
-		Time slotRequestTimeout) throws Exception;
+		Time slotRequestTimeout,
+		ShuffleMaster<?> shuffleMaster) throws Exception;
 
 }

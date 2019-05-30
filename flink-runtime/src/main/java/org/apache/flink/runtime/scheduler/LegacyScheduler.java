@@ -69,6 +69,7 @@ import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -142,7 +143,8 @@ public class LegacyScheduler implements SchedulerNG {
 			final RestartStrategyFactory restartStrategyFactory,
 			final BlobWriter blobWriter,
 			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			final Time slotRequestTimeout) throws Exception {
+			final Time slotRequestTimeout,
+			final ShuffleMaster<?> shuffleMaster) throws Exception {
 
 		this.log = checkNotNull(log);
 		this.jobGraph = checkNotNull(jobGraph);
@@ -169,12 +171,14 @@ public class LegacyScheduler implements SchedulerNG {
 		this.blobWriter = checkNotNull(blobWriter);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
 
-		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup);
+		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster));
 	}
 
-	private ExecutionGraph createAndRestoreExecutionGraph(JobManagerJobMetricGroup currentJobManagerJobMetricGroup) throws Exception {
+	private ExecutionGraph createAndRestoreExecutionGraph(
+			JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+			ShuffleMaster<?> shuffleMaster) throws Exception {
 
-		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup);
+		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup, shuffleMaster);
 
 		final CheckpointCoordinator checkpointCoordinator = newExecutionGraph.getCheckpointCoordinator();
 
@@ -193,7 +197,9 @@ public class LegacyScheduler implements SchedulerNG {
 		return newExecutionGraph;
 	}
 
-	private ExecutionGraph createExecutionGraph(JobManagerJobMetricGroup currentJobManagerJobMetricGroup) throws JobExecutionException, JobException {
+	private ExecutionGraph createExecutionGraph(
+			JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+			ShuffleMaster<?> shuffleMaster) throws JobExecutionException, JobException {
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -208,7 +214,8 @@ public class LegacyScheduler implements SchedulerNG {
 			currentJobManagerJobMetricGroup,
 			blobWriter,
 			slotRequestTimeout,
-			log);
+			log,
+			shuffleMaster);
 	}
 
 	/**

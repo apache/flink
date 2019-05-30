@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ShuffleEnvironmentContext {
 	private final Configuration configuration;
-	private final ResourceID location;
+	private final ResourceID taskExecutorResourceId;
 	private final long maxJvmHeapMemory;
 	private final boolean localCommunicationOnly;
 	private final InetAddress hostAddress;
@@ -43,7 +43,7 @@ public class ShuffleEnvironmentContext {
 
 	public ShuffleEnvironmentContext(
 			Configuration configuration,
-			ResourceID location,
+			ResourceID taskExecutorResourceId,
 			long maxJvmHeapMemory,
 			boolean localCommunicationOnly,
 			InetAddress hostAddress,
@@ -51,7 +51,7 @@ public class ShuffleEnvironmentContext {
 			MetricGroup parentMetricGroup,
 			IOManager ioManager) {
 		this.configuration = checkNotNull(configuration);
-		this.location = checkNotNull(location);
+		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
 		this.maxJvmHeapMemory = maxJvmHeapMemory;
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.hostAddress = checkNotNull(hostAddress);
@@ -64,8 +64,8 @@ public class ShuffleEnvironmentContext {
 		return configuration;
 	}
 
-	public ResourceID getLocation() {
-		return location;
+	public ResourceID getTaskExecutorResourceId() {
+		return taskExecutorResourceId;
 	}
 
 	public long getMaxJvmHeapMemory() {

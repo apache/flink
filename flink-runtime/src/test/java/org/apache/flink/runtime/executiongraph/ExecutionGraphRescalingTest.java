@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -77,7 +78,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
-			TEST_LOGGER);
+			TEST_LOGGER,
+			NettyShuffleMaster.INSTANCE);
 
 		for (JobVertex jv : jobVertices) {
 			assertThat(jv.getParallelism(), is(initialParallelism));
@@ -106,7 +108,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
-			TEST_LOGGER);
+			TEST_LOGGER,
+			NettyShuffleMaster.INSTANCE);
 
 		for (JobVertex jv : jobVertices) {
 			assertThat(jv.getParallelism(), is(1));
@@ -135,7 +138,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
-			TEST_LOGGER);
+			TEST_LOGGER,
+			NettyShuffleMaster.INSTANCE);
 
 		for (JobVertex jv : jobVertices) {
 			assertThat(jv.getParallelism(), is(scaleUpParallelism));
@@ -177,7 +181,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				new UnregisteredMetricsGroup(),
 				VoidBlobWriter.getInstance(),
 				AkkaUtils.getDefaultTimeout(),
-				TEST_LOGGER);
+				TEST_LOGGER,
+				NettyShuffleMaster.INSTANCE);
 
 			fail("Building the ExecutionGraph with a parallelism higher than the max parallelism should fail.");
 		} catch (JobException e) {
