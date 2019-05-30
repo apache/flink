@@ -18,7 +18,7 @@
 import os
 
 from pyflink.table.table_descriptor import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
-                                            Elasticsearch)
+                                            Elasticsearch, Csv, Avro, Json)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.table_sink import CsvTableSink
 from pyflink.table.types import DataTypes
@@ -521,6 +521,253 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
                     'format.type': 'csv',
                     'format.property-version': '1'}
 
+        assert properties == expected
+
+
+class CsvDescriptorTests(PyFlinkTestCase):
+
+    def test_field_delimiter(self):
+        csv = Csv()
+
+        csv = csv.field_delimiter("|")
+
+        properties = csv.to_properties()
+        expected = {'format.field-delimiter': '|',
+                    'format.type': 'csv',
+                    'format.property-version': '1'}
+        assert properties == expected
+
+    def test_line_delimiter(self):
+        csv = Csv()
+
+        csv = csv.line_delimiter(";")
+
+        expected = {'format.line-delimiter': ';',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_quote_character(self):
+        csv = Csv()
+
+        csv = csv.quote_character("'")
+
+        expected = {'format.quote-character': "'",
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_allow_comments(self):
+        csv = Csv()
+
+        csv = csv.allow_comments()
+
+        expected = {'format.allow-comments': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_ignore_parse_errors(self):
+        csv = Csv()
+
+        csv = csv.ignore_parse_errors()
+
+        expected = {'format.ignore-parse-errors': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_array_element_delimiter(self):
+        csv = Csv()
+
+        csv = csv.array_element_delimiter("/")
+
+        expected = {'format.array-element-delimiter': '/',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_escape_character(self):
+        csv = Csv()
+
+        csv = csv.escape_character("\\")
+
+        expected = {'format.escape-character': '\\',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_null_literal(self):
+        csv = Csv()
+
+        csv = csv.null_literal("null")
+
+        expected = {'format.null-literal': 'null',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_schema(self):
+        csv = Csv()
+
+        csv = csv.schema(DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+                                        DataTypes.FIELD("b", DataTypes.STRING())]))
+
+        expected = {'format.schema': 'ROW<a INT, b VARCHAR>',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+    def test_derive_schema(self):
+        csv = Csv()
+
+        csv = csv.derive_schema()
+
+        expected = {'format.derive-schema': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'csv'}
+
+        properties = csv.to_properties()
+        assert properties == expected
+
+
+class AvroDescriptorTest(PyFlinkTestCase):
+
+    def test_record_class(self):
+        avro = Avro()
+
+        avro = avro.record_class("org.apache.flink.formats.avro.generated.Address")
+
+        expected = {'format.record-class': 'org.apache.flink.formats.avro.generated.Address',
+                    'format.property-version': '1',
+                    'format.type': 'avro'}
+
+        properties = avro.to_properties()
+        assert properties == expected
+
+    def test_avro_schema(self):
+        avro = Avro()
+
+        avro = avro.avro_schema('{"type":"record",'
+                                '"name":"Address",'
+                                '"namespace":"org.apache.flink.formats.avro.generated",'
+                                '"fields":['
+                                '{"name":"num","type":"int"},'
+                                '{"name":"street","type":"string"},'
+                                '{"name":"city","type":"string"},'
+                                '{"name":"state","type":"string"},'
+                                '{"name":"zip","type":"string"}'
+                                ']}')
+
+        expected = {'format.avro-schema': '{"type":"record",'
+                                          '"name":"Address",'
+                                          '"namespace":"org.apache.flink.formats.avro.generated",'
+                                          '"fields":['
+                                          '{"name":"num","type":"int"},'
+                                          '{"name":"street","type":"string"},'
+                                          '{"name":"city","type":"string"},'
+                                          '{"name":"state","type":"string"},'
+                                          '{"name":"zip","type":"string"}'
+                                          ']}',
+                    'format.property-version': '1',
+                    'format.type': 'avro'}
+
+        properties = avro.to_properties()
+        assert properties == expected
+
+
+class JsonDescriptorTests(PyFlinkTestCase):
+
+    def test_fail_on_missing_field_true(self):
+        json = Json()
+
+        json = json.fail_on_missing_field(True)
+
+        expected = {'format.fail-on-missing-field': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = json.to_properties()
+        assert properties == expected
+
+    def test_json_schema(self):
+        json = Json()
+
+        json = json.json_schema("{"
+                                "'title': 'Fruit',"
+                                "'type': 'object',"
+                                "'properties': "
+                                "{"
+                                "'name': {'type': 'string'},"
+                                "'count': {'type': 'integer'},"
+                                "'time': "
+                                "{"
+                                "'description': 'row time',"
+                                "'type': 'string',"
+                                "'format': 'date-time'"
+                                "}"
+                                "},"
+                                "'required': ['name', 'count', 'time']"
+                                "}")
+
+        expected = {'format.json-schema':
+                    "{"
+                    "'title': 'Fruit',"
+                    "'type': 'object',"
+                    "'properties': {"
+                    "'name': {'type': 'string'},"
+                    "'count': {'type': 'integer'},"
+                    "'time': {"
+                    "'description': 'row time',"
+                    "'type': 'string',"
+                    "'format': 'date-time'}"
+                    "},"
+                    "'required': ['name', 'count', 'time']}",
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = json.to_properties()
+        assert properties == expected
+
+    def test_schema(self):
+        json = Json()
+
+        json = json.schema(DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+                                          DataTypes.FIELD("b", DataTypes.STRING())]))
+
+        expected = {'format.schema': 'ROW<a INT, b VARCHAR>',
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = json.to_properties()
+        assert properties == expected
+
+    def test_derive_schema(self):
+        json = Json()
+
+        json = json.derive_schema()
+
+        expected = {'format.derive-schema': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = json.to_properties()
         assert properties == expected
 
 
