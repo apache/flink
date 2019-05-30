@@ -78,7 +78,7 @@ public class ExecutionContextTest {
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 
 		assertEquals(tableEnv.getCurrentCatalog(), catalogName);
-		assertEquals(tableEnv.getCurrentDatabase(), "test-default-database");
+		assertEquals(tableEnv.getCurrentDatabase(), "mydatabase");
 	}
 
 	@Test

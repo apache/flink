@@ -54,7 +54,7 @@ public class GenericInMemoryCatalogFactoryTest extends TestLogger {
 
 	private static void checkEquals(GenericInMemoryCatalog c1, GenericInMemoryCatalog c2) throws Exception {
 		// Only assert a few selected properties for now
-		assertEquals(c1.getCatalogName(), c2.getCatalogName());
+		assertEquals(c1.getName(), c2.getName());
 		assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
 		assertEquals(c1.listDatabases(), c2.listDatabases());
 

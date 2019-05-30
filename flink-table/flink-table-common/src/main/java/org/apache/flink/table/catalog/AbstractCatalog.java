@@ -24,8 +24,7 @@ import org.apache.flink.util.StringUtils;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
- * from a registered catalog. It connects a registered catalog and Flink's Table API.
+ * Abstract class for catalogs.
  */
 @PublicEvolving
 public abstract class AbstractCatalog implements Catalog {
@@ -40,7 +39,7 @@ public abstract class AbstractCatalog implements Catalog {
 		this.defaultDatabase = defaultDatabase;
 	}
 
-	public String getCatalogName() {
+	public String getName() {
 		return catalogName;
 	}
 

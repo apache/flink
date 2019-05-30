@@ -113,7 +113,7 @@ execution:
     failure-rate-interval: 99000
     delay: 1000
   current-catalog: inmemorycatalog
-  current-database: test-default-database
+  current-database: mydatabase
 
 deployment:
   response-timeout: 5000
@@ -123,7 +123,7 @@ catalogs:
     type: DependencyTest
   - name: catalog2
     type: DependencyTest
-    default-database: test-default-database
+    default-database: mydatabase
   - name: inmemorycatalog
     type: generic_in_memory
-    default-database: test-default-database
+    default-database: mydatabase
