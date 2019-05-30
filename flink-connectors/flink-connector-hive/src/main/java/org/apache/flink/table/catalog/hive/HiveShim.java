@@ -46,7 +46,8 @@ public interface HiveShim {
 	 * @param client       Hive Metastore client
 	 * @param databaseName the name of the database
 	 * @return A list of names of the views
-	 * @throws UnknownDBException TException
+	 * @throws UnknownDBException if the database doesn't exist
+	 * @throws TException         for any other generic exceptions caused by Thrift
 	 */
 	List<String> getViews(IMetaStoreClient client, String databaseName) throws UnknownDBException, TException;
 
@@ -58,6 +59,7 @@ public interface HiveShim {
 	 * @param functionName name of the function
 	 * @return the Function under the specified name
 	 * @throws NoSuchObjectException if the function doesn't exist
+	 * @throws TException            for any other generic exceptions caused by Thrift
 	 */
 	Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException;
 }
