@@ -21,7 +21,7 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -52,7 +52,7 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		long cutoff = Math.max((long) (CONTAINER_MEMORY * memoryCutoffRatio), minCutoff);
-		final long networkBufMB = NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(
+		final long networkBufMB = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
 			(CONTAINER_MEMORY - cutoff) << 20, // megabytes to bytes
 			conf) >> 20; // bytes to megabytes
 		assertEquals(networkBufMB + cutoff, params.taskManagerDirectMemoryLimitMB());

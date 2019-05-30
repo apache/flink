@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -39,8 +39,8 @@ import java.net.InetSocketAddress;
 /**
  * Configuration object for the network stack.
  */
-public class NetworkEnvironmentConfiguration {
-	private static final Logger LOG = LoggerFactory.getLogger(NetworkEnvironmentConfiguration.class);
+public class NettyShuffleEnvironmentConfiguration {
+	private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleEnvironmentConfiguration.class);
 
 	private final int numNetworkBuffers;
 
@@ -62,7 +62,7 @@ public class NetworkEnvironmentConfiguration {
 
 	private final NettyConfig nettyConfig;
 
-	public NetworkEnvironmentConfiguration(
+	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
 			int partitionRequestInitialBackoff,
@@ -132,9 +132,9 @@ public class NetworkEnvironmentConfiguration {
 	 * @param maxJvmHeapMemory the maximum JVM heap size (in bytes)
 	 * @param localTaskManagerCommunication true, to skip initializing the network stack
 	 * @param taskManagerAddress identifying the IP address under which the TaskManager will be accessible
-	 * @return NetworkEnvironmentConfiguration
+	 * @return NettyShuffleEnvironmentConfiguration
 	 */
-	public static NetworkEnvironmentConfiguration fromConfiguration(
+	public static NettyShuffleEnvironmentConfiguration fromConfiguration(
 		Configuration configuration,
 		long maxJvmHeapMemory,
 		boolean localTaskManagerCommunication,
@@ -148,17 +148,17 @@ public class NetworkEnvironmentConfiguration {
 
 		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
 
-		int initialRequestBackoff = configuration.getInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
-		int maxRequestBackoff = configuration.getInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
+		int initialRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
+		int maxRequestBackoff = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
 
-		int buffersPerChannel = configuration.getInteger(NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
-		int extraBuffersPerGate = configuration.getInteger(NetworkEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+		int buffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
+		int extraBuffersPerGate = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
-		boolean isCreditBased = nettyConfig != null && configuration.getBoolean(NetworkEnvironmentOptions.NETWORK_CREDIT_MODEL);
+		boolean isCreditBased = nettyConfig != null && configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL);
 
-		boolean isNetworkDetailedMetrics = configuration.getBoolean(NetworkEnvironmentOptions.NETWORK_DETAILED_METRICS);
+		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
-		return new NetworkEnvironmentConfiguration(
+		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
 			initialRequestBackoff,
@@ -182,10 +182,10 @@ public class NetworkEnvironmentConfiguration {
 	 * <ul>
 	 *  <li>{@link TaskManagerOptions#MANAGED_MEMORY_SIZE},</li>
 	 *  <li>{@link TaskManagerOptions#MANAGED_MEMORY_FRACTION},</li>
-	 *  <li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
-	 * 	<li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
-	 * 	<li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}, and</li>
-	 *  <li>{@link NetworkEnvironmentOptions#NETWORK_NUM_BUFFERS} (fallback if the ones above do not exist)</li>
+	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
+	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
+	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}, and</li>
+	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_NUM_BUFFERS} (fallback if the ones above do not exist)</li>
 	 * </ul>.
 	 *
 	 * @param config configuration object
@@ -220,7 +220,7 @@ public class NetworkEnvironmentConfiguration {
 		// jvmHeapNoNet = jvmHeap - networkBufBytes
 		//              = jvmHeap - Math.min(networkBufMax, Math.max(networkBufMin, jvmHeap * netFraction)
 		// jvmHeap = jvmHeapNoNet / (1.0 - networkBufFraction)
-		float networkBufFraction = config.getFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
+		float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
 		long networkBufSize = (long) (jvmHeapNoNet / (1.0 - networkBufFraction) * networkBufFraction);
 		return calculateNewNetworkBufferMemory(config, networkBufSize, maxJvmHeapMemory);
 	}
@@ -231,10 +231,10 @@ public class NetworkEnvironmentConfiguration {
 	 *
 	 * <p>The following configuration parameters are involved:
 	 * <ul>
-	 *  <li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
-	 * 	<li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
-	 * 	<li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}, and</li>
-	 *  <li>{@link NetworkEnvironmentOptions#NETWORK_NUM_BUFFERS} (fallback if the ones above do not exist)</li>
+	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
+	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
+	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}, and</li>
+	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_NUM_BUFFERS} (fallback if the ones above do not exist)</li>
 	 * </ul>.
 	 *
 	 * @param totalJavaMemorySize overall available memory to use (in bytes)
@@ -248,18 +248,18 @@ public class NetworkEnvironmentConfiguration {
 
 		final long networkBufBytes;
 		if (hasNewNetworkConfig(config)) {
-			float networkBufFraction = config.getFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
+			float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
 			long networkBufSize = (long) (totalJavaMemorySize * networkBufFraction);
 			networkBufBytes = calculateNewNetworkBufferMemory(config, networkBufSize, totalJavaMemorySize);
 		} else {
 			// use old (deprecated) network buffers parameter
-			int numNetworkBuffers = config.getInteger(NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS);
+			int numNetworkBuffers = config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
 			networkBufBytes = (long) numNetworkBuffers * (long) segmentSize;
 
 			checkOldNetworkConfig(numNetworkBuffers);
 
 			ConfigurationParserUtils.checkConfigParameter(networkBufBytes < totalJavaMemorySize,
-				networkBufBytes, NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS.key(),
+				networkBufBytes, NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key(),
 				"Network buffer memory size too large: " + networkBufBytes + " >= " +
 					totalJavaMemorySize + " (total JVM memory size)");
 		}
@@ -273,9 +273,9 @@ public class NetworkEnvironmentConfiguration {
 	 *
 	 * <p>The following configuration parameters are involved:
 	 * <ul>
-	 *  <li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
-	 * 	<li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
-	 * 	<li>{@link NetworkEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}</li>
+	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
+	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
+	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}</li>
 	 * </ul>.
 	 *
 	 * @param config configuration object
@@ -285,9 +285,9 @@ public class NetworkEnvironmentConfiguration {
 	 * @return memory to use for network buffers (in bytes)
 	 */
 	private static long calculateNewNetworkBufferMemory(Configuration config, long networkBufSize, long maxJvmHeapMemory) {
-		float networkBufFraction = config.getFloat(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		long networkBufMin = MemorySize.parse(config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
-		long networkBufMax = MemorySize.parse(config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
+		float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
+		long networkBufMin = MemorySize.parse(config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
+		long networkBufMax = MemorySize.parse(config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
 
 		int pageSize = ConfigurationParserUtils.getPageSize(config);
 
@@ -297,9 +297,9 @@ public class NetworkEnvironmentConfiguration {
 
 		ConfigurationParserUtils.checkConfigParameter(networkBufBytes < maxJvmHeapMemory,
 			"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
-			"(" + NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
-				NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
-				NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
+			"(" + NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
+				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
+				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
 			"Network buffer memory size too large: " + networkBufBytes + " >= " +
 				maxJvmHeapMemory + " (maximum JVM memory size)");
 
@@ -316,7 +316,7 @@ public class NetworkEnvironmentConfiguration {
 	@SuppressWarnings("deprecation")
 	private static void checkOldNetworkConfig(final int numNetworkBuffers) {
 		ConfigurationParserUtils.checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
-			NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS.key(),
+			NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key(),
 			"Must have at least one network buffer");
 	}
 
@@ -337,23 +337,23 @@ public class NetworkEnvironmentConfiguration {
 		final long networkBufMax) throws IllegalConfigurationException {
 
 		ConfigurationParserUtils.checkConfigParameter(networkBufFraction > 0.0f && networkBufFraction < 1.0f, networkBufFraction,
-			NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
+			NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
 			"Network buffer memory fraction of the free memory must be between 0.0 and 1.0");
 
 		ConfigurationParserUtils.checkConfigParameter(networkBufMin >= pageSize, networkBufMin,
-			NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
+			NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
 			"Minimum memory for network buffers must allow at least one network " +
 				"buffer with respect to the memory segment size");
 
 		ConfigurationParserUtils.checkConfigParameter(networkBufMax >= pageSize, networkBufMax,
-			NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
+			NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
 			"Maximum memory for network buffers must allow at least one network " +
 				"buffer with respect to the memory segment size");
 
 		ConfigurationParserUtils.checkConfigParameter(networkBufMax >= networkBufMin, networkBufMax,
-			NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
+			NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
 			"Maximum memory for network buffers must not be smaller than minimum memory (" +
-				NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ": " + networkBufMin + ")");
+				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ": " + networkBufMin + ")");
 	}
 
 	/**
@@ -366,10 +366,10 @@ public class NetworkEnvironmentConfiguration {
 	@SuppressWarnings("deprecation")
 	@VisibleForTesting
 	public static boolean hasNewNetworkConfig(final Configuration config) {
-		return config.contains(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION) ||
-			config.contains(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN) ||
-			config.contains(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX) ||
-			!config.contains(NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS);
+		return config.contains(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION) ||
+			config.contains(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN) ||
+			config.contains(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX) ||
+			!config.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
 	}
 
 	/**
@@ -379,8 +379,8 @@ public class NetworkEnvironmentConfiguration {
 	 * @return the data port
 	 */
 	private static int getDataport(Configuration configuration) {
-		final int dataport = configuration.getInteger(NetworkEnvironmentOptions.DATA_PORT);
-		ConfigurationParserUtils.checkConfigParameter(dataport >= 0, dataport, NetworkEnvironmentOptions.DATA_PORT.key(),
+		final int dataport = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+		ConfigurationParserUtils.checkConfigParameter(dataport >= 0, dataport, NettyShuffleEnvironmentOptions.DATA_PORT.key(),
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
 		return dataport;
@@ -398,13 +398,13 @@ public class NetworkEnvironmentConfiguration {
 		final int numberOfNetworkBuffers;
 		if (!hasNewNetworkConfig(configuration)) {
 			// fallback: number of network buffers
-			numberOfNetworkBuffers = configuration.getInteger(NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS);
+			numberOfNetworkBuffers = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
 
 			checkOldNetworkConfig(numberOfNetworkBuffers);
 		} else {
-			if (configuration.contains(NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
+			if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
 				LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
-					NetworkEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
+					NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
 			}
 
 			final long networkMemorySize = calculateNewNetworkBufferMemory(configuration, maxJvmHeapMemory);
@@ -479,7 +479,7 @@ public class NetworkEnvironmentConfiguration {
 			return false;
 		}
 		else {
-			final NetworkEnvironmentConfiguration that = (NetworkEnvironmentConfiguration) obj;
+			final NettyShuffleEnvironmentConfiguration that = (NettyShuffleEnvironmentConfiguration) obj;
 
 			return this.numNetworkBuffers == that.numNetworkBuffers &&
 					this.networkBufferSize == that.networkBufferSize &&
@@ -494,7 +494,7 @@ public class NetworkEnvironmentConfiguration {
 
 	@Override
 	public String toString() {
-		return "NetworkEnvironmentConfiguration{" +
+		return "NettyShuffleEnvironmentConfiguration{" +
 				", numNetworkBuffers=" + numNetworkBuffers +
 				", networkBufferSize=" + networkBufferSize +
 				", partitionRequestInitialBackoff=" + partitionRequestInitialBackoff +

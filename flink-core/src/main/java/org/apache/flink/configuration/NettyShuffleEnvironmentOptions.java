@@ -29,7 +29,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 @PublicEvolving
 @ConfigGroups(groups = @ConfigGroup(name = "NetworkNetty", keyPrefix = "taskmanager.network.netty"))
-public class NetworkEnvironmentOptions {
+public class NettyShuffleEnvironmentOptions {
 
 	// ------------------------------------------------------------------------
 	//  Network General Options
@@ -212,5 +212,5 @@ public class NetworkEnvironmentOptions {
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated. */
-	private NetworkEnvironmentOptions() {}
+	private NettyShuffleEnvironmentOptions() {}
 }

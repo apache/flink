@@ -24,8 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -346,7 +346,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
 
-		final NetworkEnvironment netEnv = new NetworkEnvironmentBuilder()
+		final NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder()
 			.setPartitionRequestInitialBackoff(initialBackoff)
 			.setPartitionRequestMaxBackoff(maxBackoff)
 			.setIsCreditBased(enableCreditBasedFlowControl)
@@ -410,7 +410,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testRequestBuffersWithRemoteInputChannel() throws Exception {
-		final NetworkEnvironment network = createNetworkEnvironment();
+		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
 		final SingleInputGate inputGate = createInputGate(network, 1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
@@ -418,7 +418,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		try {
 			RemoteInputChannel remote =
 				InputChannelBuilder.newBuilder()
-					.setupFromNetworkEnvironment(network)
+					.setupFromNettyShuffleEnvironment(network)
 					.buildRemoteAndSetToGate(inputGate);
 			inputGate.setup();
 
@@ -446,7 +446,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
-		final NetworkEnvironment network = createNetworkEnvironment();
+		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
 		final SingleInputGate inputGate = createInputGate(network, 1, ResultPartitionType.PIPELINED_BOUNDED);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
@@ -497,7 +497,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testUpdateUnknownInputChannel() throws Exception {
-		final NetworkEnvironment network = createNetworkEnvironment();
+		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
 		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
 
 		try {
@@ -564,8 +564,8 @@ public class SingleInputGateTest extends InputGateTestBase {
 	}
 
 	@Test
-	public void testInputGateRemovalFromNetworkEnvironment() throws Exception {
-		NetworkEnvironment network = createNetworkEnvironment();
+	public void testInputGateRemovalFromNettyShuffleEnvironment() throws Exception {
+		NettyShuffleEnvironment network = createNettyShuffleEnvironment();
 
 		try {
 			int numberOfGates = 10;
@@ -587,7 +587,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 	// ---------------------------------------------------------------------------------------------
 
 	private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
-			NetworkEnvironment network,
+			NettyShuffleEnvironment network,
 			int numberOfGates,
 			@SuppressWarnings("SameParameterValue") int numberOfLocalChannels) {
 		ShuffleDescriptor[] channelDescs = new NettyShuffleDescriptor[numberOfLocalChannels];
@@ -624,19 +624,19 @@ public class SingleInputGateTest extends InputGateTestBase {
 	}
 
 	private void addUnknownInputChannel(
-			NetworkEnvironment network,
+			NettyShuffleEnvironment network,
 			SingleInputGate inputGate,
 			ResultPartitionID partitionId,
 			int channelIndex) {
 		InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionId(partitionId)
-			.setupFromNetworkEnvironment(network)
+			.setupFromNettyShuffleEnvironment(network)
 			.buildUnknownAndSetToGate(inputGate);
 	}
 
-	private NetworkEnvironment createNetworkEnvironment() {
-		return new NetworkEnvironmentBuilder()
+	private NettyShuffleEnvironment createNettyShuffleEnvironment() {
+		return new NettyShuffleEnvironmentBuilder()
 			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
 	}

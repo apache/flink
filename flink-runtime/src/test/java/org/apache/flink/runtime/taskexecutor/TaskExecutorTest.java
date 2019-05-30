@@ -25,7 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -57,8 +57,8 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -197,7 +197,7 @@ public class TaskExecutorTest extends TestLogger {
 
 	private SettableLeaderRetrievalService jobManagerLeaderRetriever;
 
-	private NetworkEnvironment networkEnvironment;
+	private NettyShuffleEnvironment nettyShuffleEnvironment;
 
 	@Before
 	public void setup() throws IOException {
@@ -223,7 +223,7 @@ public class TaskExecutorTest extends TestLogger {
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
 
-		networkEnvironment = new NetworkEnvironmentBuilder().build();
+		nettyShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 	}
 
 	@After
@@ -243,8 +243,8 @@ public class TaskExecutorTest extends TestLogger {
 			dummyBlobCacheService = null;
 		}
 
-		if (networkEnvironment != null) {
-			networkEnvironment.close();
+		if (nettyShuffleEnvironment != null) {
+			nettyShuffleEnvironment.close();
 		}
 
 		testingFatalErrorHandler.rethrowError();
@@ -270,7 +270,7 @@ public class TaskExecutorTest extends TestLogger {
 			MemoryType.HEAP,
 			false);
 
-		networkEnvironment.start();
+		nettyShuffleEnvironment.start();
 
 		final KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
 		kvStateService.start();
@@ -279,7 +279,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskManagerLocation(taskManagerLocation)
 			.setMemoryManager(memoryManager)
 			.setIoManager(ioManager)
-			.setShuffleEnvironment(networkEnvironment)
+			.setShuffleEnvironment(nettyShuffleEnvironment)
 			.setKvStateService(kvStateService)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobLeaderService(jobLeaderService)
@@ -295,7 +295,7 @@ public class TaskExecutorTest extends TestLogger {
 		}
 
 		assertThat(memoryManager.isShutdown(), is(true));
-		assertThat(networkEnvironment.isClosed(), is(true));
+		assertThat(nettyShuffleEnvironment.isClosed(), is(true));
 		assertThat(ioManager.isProperlyShutDown(), is(true));
 		assertThat(kvStateService.isShutdown(), is(true));
 	}
@@ -709,7 +709,7 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setShuffleEnvironment(networkEnvironment)
+			.setShuffleEnvironment(nettyShuffleEnvironment)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobManagerTable(jobManagerTable)
 			.setTaskStateManager(localStateStoresManager)
@@ -967,7 +967,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
-			.setShuffleEnvironment(networkEnvironment)
+			.setShuffleEnvironment(nettyShuffleEnvironment)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobLeaderService(jobLeaderService)
 			.setJobManagerTable(jobManagerTable)
@@ -1627,9 +1627,9 @@ public class TaskExecutorTest extends TestLogger {
 	public void testLogNotFoundHandling() throws Throwable {
 		final int dataPort = NetUtils.getAvailablePort();
 		Configuration config = new Configuration();
-		config.setInteger(NetworkEnvironmentOptions.DATA_PORT, dataPort);
-		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
 
 		try (TaskSubmissionTestEnvironment env =

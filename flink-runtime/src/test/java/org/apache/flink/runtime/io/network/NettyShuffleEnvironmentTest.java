@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,10 +48,10 @@ import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 /**
- * Various tests for the {@link NetworkEnvironment} class.
+ * Various tests for the {@link NettyShuffleEnvironment} class.
  */
 @RunWith(Parameterized.class)
-public class NetworkEnvironmentTest {
+public class NettyShuffleEnvironmentTest extends TestLogger {
 
 	@Parameterized.Parameter
 	public boolean enableCreditBasedFlowControl;
@@ -69,7 +70,7 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
-		final NetworkEnvironment network = new NetworkEnvironmentBuilder()
+		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
 			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
 
@@ -141,7 +142,7 @@ public class NetworkEnvironmentTest {
 			bufferCount = 20;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 		}
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
@@ -160,7 +161,7 @@ public class NetworkEnvironmentTest {
 			bufferCount = 19;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
+			bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 		}
 
 		expectedException.expect(IOException.class);
@@ -169,7 +170,7 @@ public class NetworkEnvironmentTest {
 	}
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
-		final NetworkEnvironment network = new NetworkEnvironmentBuilder()
+		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
 			.setNumNetworkBuffers(bufferPoolSize)
 			.setIsCreditBased(enableCreditBasedFlowControl)
 			.build();
@@ -262,7 +263,7 @@ public class NetworkEnvironmentTest {
 	 * @return input gate with some fake settings
 	 */
 	private SingleInputGate createSingleInputGate(
-		NetworkEnvironment network, ResultPartitionType partitionType, int numberOfChannels) {
+		NettyShuffleEnvironment network, ResultPartitionType partitionType, int numberOfChannels) {
 
 		return spy(new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfChannels)
