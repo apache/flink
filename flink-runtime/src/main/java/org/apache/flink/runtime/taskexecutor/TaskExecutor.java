@@ -48,7 +48,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -169,7 +169,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final TaskExecutorLocalStateStoresManager localStateStoresManager;
 
 	/** The network component in the task manager. */
-	private final NetworkEnvironment networkEnvironment;
+	private final ShuffleEnvironment shuffleEnvironment;
 
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
@@ -238,7 +238,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
 		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
-		this.networkEnvironment = taskExecutorServices.getNetworkEnvironment();
+		this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
 		this.kvStateService = taskExecutorServices.getKvStateService();
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
@@ -270,8 +270,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
-		return CompletableFuture.completedFuture(
-			taskExecutorServices.getNetworkEnvironment().getUnreleasedPartitions().isEmpty());
+		return CompletableFuture.completedFuture(shuffleEnvironment.getPartitionsOccupyingLocalResources().isEmpty());
 	}
 
 	// ------------------------------------------------------------------------
@@ -533,7 +532,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getTargetSlotNumber(),
 				taskExecutorServices.getMemoryManager(),
 				taskExecutorServices.getIOManager(),
-				taskExecutorServices.getNetworkEnvironment(),
+				taskExecutorServices.getShuffleEnvironment(),
 				taskExecutorServices.getKvStateService(),
 				taskExecutorServices.getBroadcastVariableManager(),
 				taskExecutorServices.getTaskEventDispatcher(),
@@ -615,7 +614,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					CompletableFuture.runAsync(
 						() -> {
 							try {
-								if (!networkEnvironment.updatePartitionInfo(executionAttemptID, partitionInfo)) {
+								if (!shuffleEnvironment.updatePartitionInfo(executionAttemptID, partitionInfo)) {
 									log.debug(
 										"Discard update for input gate partition {} of result {} in task {}. " +
 											"The partition is no longer available.",
@@ -643,7 +642,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public void releasePartitions(Collection<ResultPartitionID> partitionIds) {
 		try {
-			networkEnvironment.releasePartitions(partitionIds);
+			shuffleEnvironment.releasePartitions(partitionIds);
 		} catch (Throwable t) {
 			// TODO: Do we still need this catch branch?
 			onFatalError(t);

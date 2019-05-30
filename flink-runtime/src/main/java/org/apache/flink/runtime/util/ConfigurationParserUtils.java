@@ -146,11 +146,15 @@ public class ConfigurationParserUtils {
 			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
 
 		// check page size of for minimum size
-		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
+		checkConfigParameter(
+			pageSize >= MemoryManager.MIN_PAGE_SIZE,
+			pageSize,
 			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
 			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
 		// check page size for power of two
-		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
+		checkConfigParameter(
+			MathUtils.isPowerOf2(pageSize),
+			pageSize,
 			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
 			"Memory segment size must be a power of 2.");
 

@@ -401,7 +401,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			}
 		} finally {
 			gate.close();
-			netEnv.shutdown();
+			netEnv.close();
 		}
 	}
 
@@ -436,7 +436,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			}
 		} finally {
 			inputGate.close();
-			network.shutdown();
+			network.close();
 		}
 	}
 
@@ -487,7 +487,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			}
 		} finally {
 			inputGate.close();
-			network.shutdown();
+			network.close();
 		}
 	}
 
@@ -537,7 +537,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 				is(instanceOf((LocalInputChannel.class))));
 		} finally {
 			inputGate.close();
-			network.shutdown();
+			network.close();
 		}
 	}
 
@@ -580,7 +580,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 				assertThat(network.getInputGate(id).isPresent(), is(false));
 			}
 		} finally {
-			network.shutdown();
+			network.close();
 		}
 	}
 
@@ -614,7 +614,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			Arrays.asList(gateDescs),
 			new UnregisteredMetricsGroup(),
 			new UnregisteredMetricsGroup(),
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup()).toArray(new SingleInputGate[] {});
 		Map<InputGateID, SingleInputGate> inputGatesById = new HashMap<>();
 		for (int i = 0; i < numberOfGates; i++) {
 			inputGatesById.put(new InputGateID(ids[i], consumerID), gates[i]);

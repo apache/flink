@@ -32,7 +32,6 @@ import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -47,8 +46,8 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -125,7 +124,7 @@ public class TaskTest extends TestLogger {
 	private static OneShotLatch awaitLatch;
 	private static OneShotLatch triggerLatch;
 
-	private NetworkEnvironment networkEnvironment;
+	private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -135,13 +134,13 @@ public class TaskTest extends TestLogger {
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
 
-		networkEnvironment = new NetworkEnvironmentBuilder().build();
+		shuffleEnvironment = new NetworkEnvironmentBuilder().build();
 	}
 
 	@After
-	public void teardown() {
-		if (networkEnvironment != null) {
-			networkEnvironment.shutdown();
+	public void teardown() throws Exception {
+		if (shuffleEnvironment != null) {
+			shuffleEnvironment.close();
 		}
 	}
 
@@ -308,7 +307,7 @@ public class TaskTest extends TestLogger {
 		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
-		final Task task = new TaskBuilder(networkEnvironment)
+		final Task task = new TaskBuilder(shuffleEnvironment)
 			.setTaskManagerActions(taskManagerActions)
 			.setConsumableNotifier(consumableNotifier)
 			.setPartitionProducerStateChecker(partitionProducerStateChecker)
@@ -317,7 +316,7 @@ public class TaskTest extends TestLogger {
 			.build();
 
 		// shut down the network to make the following task registration failure
-		networkEnvironment.shutdown();
+		shuffleEnvironment.close();
 
 		// should fail
 		task.run();
@@ -974,7 +973,7 @@ public class TaskTest extends TestLogger {
 	}
 
 	private TaskBuilder createTaskBuilder() {
-		return new TaskBuilder(networkEnvironment);
+		return new TaskBuilder(shuffleEnvironment);
 	}
 
 	private static final class TaskBuilder {
@@ -983,7 +982,7 @@ public class TaskTest extends TestLogger {
 		private LibraryCacheManager libraryCacheManager;
 		private ResultPartitionConsumableNotifier consumableNotifier;
 		private PartitionProducerStateChecker partitionProducerStateChecker;
-		private final NetworkEnvironment networkEnvironment;
+		private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 		private KvStateService kvStateService;
 		private Executor executor;
 		private Configuration taskManagerConfig;
@@ -1012,8 +1011,8 @@ public class TaskTest extends TestLogger {
 			requiredJarFileBlobKeys = Collections.emptyList();
 		}
 
-		private TaskBuilder(NetworkEnvironment networkEnvironment) {
-			this.networkEnvironment = Preconditions.checkNotNull(networkEnvironment);
+		private TaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
+			this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
 		}
 
 		TaskBuilder setInvokable(Class<? extends AbstractInvokable> invokable) {
@@ -1117,7 +1116,7 @@ public class TaskTest extends TestLogger {
 				0,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
-				networkEnvironment,
+				shuffleEnvironment,
 				kvStateService,
 				mock(BroadcastVariableManager.class),
 				new TaskEventDispatcher(),

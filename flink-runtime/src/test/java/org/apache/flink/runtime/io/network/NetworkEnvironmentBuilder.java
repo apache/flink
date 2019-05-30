@@ -119,7 +119,6 @@ public class NetworkEnvironmentBuilder {
 
 	public NetworkEnvironment build() {
 		return NetworkEnvironment.create(
-			taskManagerLocation,
 			new NetworkEnvironmentConfiguration(
 				numNetworkBuffers,
 				networkBufferSize,
@@ -130,6 +129,7 @@ public class NetworkEnvironmentBuilder {
 				isCreditBased,
 				isNetworkDetailedMetrics,
 				nettyConfig),
+			taskManagerLocation,
 			taskEventDispatcher,
 			metricGroup,
 			ioManager);

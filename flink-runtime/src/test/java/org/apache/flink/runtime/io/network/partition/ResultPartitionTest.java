@@ -258,7 +258,7 @@ public class ResultPartitionTest {
 			}
 		} finally {
 			resultPartition.release();
-			network.shutdown();
+			network.close();
 		}
 	}
 
