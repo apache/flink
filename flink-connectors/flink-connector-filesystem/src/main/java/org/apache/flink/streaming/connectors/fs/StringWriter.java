@@ -40,7 +40,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 	private transient Charset charset;
 
-	private byte[] rowDelimiter ;
+	private String rowDelimiter ;
 
 
 	/**
@@ -48,7 +48,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	 * strings to bytes.
 	 */
 	public StringWriter() {
-		this("UTF-8",new byte[] {'\n'});
+		this("UTF-8", "\n");
 	}
 
 	/**
@@ -57,7 +57,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	 *
 	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
 	 */
-	public StringWriter(String charsetName,byte[] rowDelimiter ) {
+	public StringWriter(String charsetName, String rowDelimiter ) {
 		this.charsetName = charsetName;
 		this.rowDelimiter = rowDelimiter;
 	}
@@ -87,7 +87,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	public void write(T element) throws IOException {
 		FSDataOutputStream outputStream = getStream();
 		outputStream.write(element.toString().getBytes(charset));
-		outputStream.write(rowDelimiter);
+		outputStream.write(rowDelimiter.getBytes(charset));
 	}
 
 	@Override
@@ -99,7 +99,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 		return charsetName;
 	}
 
-	public byte[] getRowDelimiter() {
+	public String getRowDelimiter() {
 		return rowDelimiter;
 	}
 }
