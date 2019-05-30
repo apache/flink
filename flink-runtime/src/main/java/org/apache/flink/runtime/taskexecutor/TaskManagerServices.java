@@ -221,22 +221,27 @@ public class TaskManagerServices {
 	/**
 	 * Creates and returns the task manager services.
 	 *
+	 * @param configuration Flink configuration.
 	 * @param taskManagerServicesConfiguration task manager configuration
 	 * @param taskManagerMetricGroup metric group of the task manager
 	 * @param resourceID resource ID of the task manager
 	 * @param taskIOExecutor executor for async IO operations
 	 * @param freeHeapMemoryWithDefrag an estimate of the size of the free heap memory
 	 * @param maxJvmHeapMemory the maximum JVM heap size
+	 * @param localCommunicationOnly True, to skip initializing the network stack.
+	 *                               Use only in cases where only one task manager runs.
 	 * @return task manager components
 	 * @throws Exception
 	 */
 	public static TaskManagerServices fromConfiguration(
+			Configuration configuration,
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
 			MetricGroup taskManagerMetricGroup,
 			ResourceID resourceID,
 			Executor taskIOExecutor,
 			long freeHeapMemoryWithDefrag,
-			long maxJvmHeapMemory) throws Exception {
+			long maxJvmHeapMemory,
+			boolean localCommunicationOnly) throws Exception {
 
 		// pre-start checks
 		checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
@@ -246,12 +251,14 @@ public class TaskManagerServices {
 		// start the I/O manager, it will create some temp directories.
 		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final NetworkEnvironment network = NetworkEnvironment.create(
-			resourceID,
-			taskManagerServicesConfiguration.getNetworkConfig(),
+		final NetworkEnvironment network = NetworkEnvironment.fromConfiguration(
+			configuration,
 			taskEventDispatcher,
 			taskManagerMetricGroup,
-			ioManager);
+			ioManager,
+			maxJvmHeapMemory,
+			localCommunicationOnly,
+			taskManagerServicesConfiguration.getTaskManagerAddress());
 		int dataPort = network.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
@@ -382,7 +389,7 @@ public class TaskManagerServices {
 			memoryManager = new MemoryManager(
 				memorySize,
 				taskManagerServicesConfiguration.getNumberOfSlots(),
-				taskManagerServicesConfiguration.getNetworkConfig().networkBufferSize(),
+				taskManagerServicesConfiguration.getPageSize(),
 				memType,
 				preAllocateMemory);
 		} catch (OutOfMemoryError e) {

@@ -26,18 +26,15 @@ import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.util.MathUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-
-import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Configuration object for the network stack.
@@ -145,7 +142,7 @@ public class NetworkEnvironmentConfiguration {
 
 		final int dataport = getDataport(configuration);
 
-		final int pageSize = getPageSize(configuration);
+		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
 		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(configuration, maxJvmHeapMemory);
 
@@ -247,7 +244,7 @@ public class NetworkEnvironmentConfiguration {
 	 */
 	@SuppressWarnings("deprecation")
 	public static long calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config) {
-		final int segmentSize = getPageSize(config);
+		final int segmentSize = ConfigurationParserUtils.getPageSize(config);
 
 		final long networkBufBytes;
 		if (hasNewNetworkConfig(config)) {
@@ -292,7 +289,7 @@ public class NetworkEnvironmentConfiguration {
 		long networkBufMin = MemorySize.parse(config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
 		long networkBufMax = MemorySize.parse(config.getString(NetworkEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
 
-		int pageSize = getPageSize(config);
+		int pageSize = ConfigurationParserUtils.getPageSize(config);
 
 		checkNewNetworkConfig(pageSize, networkBufFraction, networkBufMin, networkBufMax);
 
@@ -413,7 +410,7 @@ public class NetworkEnvironmentConfiguration {
 			final long networkMemorySize = calculateNewNetworkBufferMemory(configuration, maxJvmHeapMemory);
 
 			// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
-			long numberOfNetworkBuffersLong = networkMemorySize / getPageSize(configuration);
+			long numberOfNetworkBuffersLong = networkMemorySize / ConfigurationParserUtils.getPageSize(configuration);
 			if (numberOfNetworkBuffersLong > Integer.MAX_VALUE) {
 				throw new IllegalArgumentException("The given number of memory bytes (" + networkMemorySize
 					+ ") corresponds to more than MAX_INT pages.");
@@ -444,35 +441,17 @@ public class NetworkEnvironmentConfiguration {
 		if (!localTaskManagerCommunication) {
 			final InetSocketAddress taskManagerInetSocketAddress = new InetSocketAddress(taskManagerAddress, dataport);
 
-			nettyConfig = new NettyConfig(taskManagerInetSocketAddress.getAddress(), taskManagerInetSocketAddress.getPort(),
-				getPageSize(configuration), ConfigurationParserUtils.getSlot(configuration), configuration);
+			nettyConfig = new NettyConfig(
+				taskManagerInetSocketAddress.getAddress(),
+				taskManagerInetSocketAddress.getPort(),
+				ConfigurationParserUtils.getPageSize(configuration),
+				ConfigurationParserUtils.getSlot(configuration),
+				configuration);
 		} else {
 			nettyConfig = null;
 		}
 
 		return nettyConfig;
-	}
-
-	/**
-	 * Parses the configuration to get the page size and validates the value.
-	 *
-	 * @param configuration configuration object
-	 * @return size of memory segment
-	 */
-	public static int getPageSize(Configuration configuration) {
-		final int pageSize = checkedDownCast(MemorySize.parse(
-			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
-
-		// check page size of for minimum size
-		ConfigurationParserUtils.checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
-			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
-		// check page size for power of two
-		ConfigurationParserUtils.checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
-			"Memory segment size must be a power of 2.");
-
-		return pageSize;
 	}
 
 	// ------------------------------------------------------------------------

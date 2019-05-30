@@ -23,8 +23,11 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.util.MathUtils;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
+import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Utility class to extract related parameters from {@link Configuration} and to
@@ -130,5 +133,27 @@ public class ConfigurationParserUtils {
 			throw new IllegalConfigurationException("Invalid configuration value for " +
 				name + " : " + parameter + " - " + errorMessage);
 		}
+	}
+
+	/**
+	 * Parses the configuration to get the page size and validates the value.
+	 *
+	 * @param configuration configuration object
+	 * @return size of memory segment
+	 */
+	public static int getPageSize(Configuration configuration) {
+		final int pageSize = checkedDownCast(MemorySize.parse(
+			configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+
+		// check page size of for minimum size
+		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
+		// check page size for power of two
+		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
+			"Memory segment size must be a power of 2.");
+
+		return pageSize;
 	}
 }

@@ -26,7 +26,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import javax.annotation.Nullable;
@@ -38,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Configuration for the task manager services such as the network environment, the memory manager,
+ * Configuration for the task manager services such as the memory manager,
  * the io manager and the metric registry.
  */
 public class TaskManagerServicesConfiguration {
@@ -50,8 +49,6 @@ public class TaskManagerServicesConfiguration {
 	private final String[] localRecoveryStateRootDirectories;
 
 	private final int numberOfSlots;
-
-	private final NetworkEnvironmentConfiguration networkConfig;
 
 	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
@@ -69,6 +66,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final float memoryFraction;
 
+	private final int pageSize;
+
 	private final long timerServiceShutdownTimeout;
 
 	private final boolean localRecoveryEnabled;
@@ -82,13 +81,13 @@ public class TaskManagerServicesConfiguration {
 			String[] tmpDirPaths,
 			String[] localRecoveryStateRootDirectories,
 			boolean localRecoveryEnabled,
-			NetworkEnvironmentConfiguration networkConfig,
 			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
 			long configuredMemory,
 			MemoryType memoryType,
 			boolean preAllocateMemory,
 			float memoryFraction,
+			int pageSize,
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 			Optional<Time> systemResourceMetricsProbingInterval) {
@@ -97,7 +96,6 @@ public class TaskManagerServicesConfiguration {
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
-		this.networkConfig = checkNotNull(networkConfig);
 		this.queryableStateConfig = queryableStateConfig;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
@@ -105,6 +103,7 @@ public class TaskManagerServicesConfiguration {
 		this.memoryType = checkNotNull(memoryType);
 		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
+		this.pageSize = pageSize;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -132,10 +131,6 @@ public class TaskManagerServicesConfiguration {
 
 	boolean isLocalRecoveryEnabled() {
 		return localRecoveryEnabled;
-	}
-
-	public NetworkEnvironmentConfiguration getNetworkConfig() {
-		return networkConfig;
 	}
 
 	@Nullable
@@ -175,6 +170,10 @@ public class TaskManagerServicesConfiguration {
 		return preAllocateMemory;
 	}
 
+	public int getPageSize() {
+		return pageSize;
+	}
+
 	long getTimerServiceShutdownTimeout() {
 		return timerServiceShutdownTimeout;
 	}
@@ -196,17 +195,13 @@ public class TaskManagerServicesConfiguration {
 	 * sanity check them.
 	 *
 	 * @param configuration The configuration.
-	 * @param maxJvmHeapMemory The maximum JVM heap size, in bytes.
 	 * @param remoteAddress identifying the IP address under which the TaskManager will be accessible
-	 * @param localCommunication True, to skip initializing the network stack.
-	 *                                      Use only in cases where only one task manager runs.
-	 * @return TaskExecutorConfiguration that wrappers InstanceConnectionInfo, NetworkEnvironmentConfiguration, etc.
+	 *
+	 * @return TaskExecutorConfiguration that wrappers InstanceConnectionInfo, etc.
 	 */
 	public static TaskManagerServicesConfiguration fromConfiguration(
 			Configuration configuration,
-			long maxJvmHeapMemory,
-			InetAddress remoteAddress,
-			boolean localCommunication) {
+			InetAddress remoteAddress) {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -215,12 +210,6 @@ public class TaskManagerServicesConfiguration {
 		}
 
 		boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
-
-		final NetworkEnvironmentConfiguration networkConfig = NetworkEnvironmentConfiguration.fromConfiguration(
-			configuration,
-			maxJvmHeapMemory,
-			localCommunication,
-			remoteAddress);
 
 		final QueryableStateConfiguration queryableStateConfig = QueryableStateConfiguration.fromConfiguration(configuration);
 
@@ -235,13 +224,13 @@ public class TaskManagerServicesConfiguration {
 			tmpDirs,
 			localStateRootDir,
 			localRecoveryMode,
-			networkConfig,
 			queryableStateConfig,
 			ConfigurationParserUtils.getSlot(configuration),
 			ConfigurationParserUtils.getManagedMemorySize(configuration),
 			ConfigurationParserUtils.getMemoryType(configuration),
 			preAllocateMemory,
 			ConfigurationParserUtils.getManagedMemoryFraction(configuration),
+			ConfigurationParserUtils.getPageSize(configuration),
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
 			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));

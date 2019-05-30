@@ -27,6 +27,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.net.InetAddress;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -38,6 +39,38 @@ import static org.junit.Assert.fail;
  * Unit test for {@link TaskManagerServices}.
  */
 public class NetworkEnvironmentConfigurationTest extends TestLogger {
+
+	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
+
+	/**
+	 * Verifies that {@link NetworkEnvironmentConfiguration#fromConfiguration(Configuration, long, boolean, InetAddress)}
+	 * returns the correct result for new configurations via
+	 * {@link NetworkEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
+	 * {@link NetworkEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX},
+	 * {@link NetworkEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and
+	 * {@link NetworkEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
+	 */
+	@Test
+	public void testNetworkRequestBackoffAndBuffers() {
+
+		// set some non-default values
+		final Configuration config = new Configuration();
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(NetworkEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+
+		final NetworkEnvironmentConfiguration networkConfig = NetworkEnvironmentConfiguration.fromConfiguration(
+			config,
+			MEM_SIZE_PARAM,
+			true,
+			InetAddress.getLoopbackAddress());
+
+		assertEquals(networkConfig.partitionRequestInitialBackoff(), 100);
+		assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
+		assertEquals(networkConfig.networkBuffersPerChannel(), 10);
+		assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
+	}
 
 	/**
 	 * Test for {@link NetworkEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)} using old
