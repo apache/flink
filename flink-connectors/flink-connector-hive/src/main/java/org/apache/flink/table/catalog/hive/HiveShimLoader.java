@@ -32,9 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HiveShimLoader {
 
-	private static final String HIVE_V1_VERSION_NAME = "1.x";
-	private static final String HIVE_V2_VERSION_NAME = "2.x";
-	private static final String DEFAULT_HIVE_VERSION_NAME = HIVE_V2_VERSION_NAME;
+	private static final String HIVE_V1_VERSION_NAME = "1.2.1";
+	private static final String HIVE_V2_VERSION_NAME = "2.3.4";
 
 	private static final Map<String, HiveShim> hiveShims = new ConcurrentHashMap<>(2);
 
@@ -44,39 +43,15 @@ public class HiveShimLoader {
 	}
 
 	public static HiveShim loadHiveShim() {
-		String version = getVersion();
-		return hiveShims.computeIfAbsent(version, (v) -> {
-			switch (v) {
-				case HIVE_V1_VERSION_NAME:
-					return new HiveShimV1();
-				case HIVE_V2_VERSION_NAME:
-					return new HiveShimV2();
-				default:
-					throw new CatalogException("Unsupported Hive version " + v);
-			}
-		});
-	}
-
-	private static String getVersion() {
 		String version = HiveVersionInfo.getVersion();
-		String[] parts = version.split("\\.");
-		if (parts.length > 1) {
-			try {
-				int majorVersion = Integer.parseInt(parts[0]);
-				switch (majorVersion) {
-					case 1:
-						return HIVE_V1_VERSION_NAME;
-					case 2:
-						return HIVE_V2_VERSION_NAME;
-					default:
-						LOG.warn("Unsupported Hive version {}", version);
-				}
-			} catch (NumberFormatException e) {
-				LOG.warn("Unknown Hive version {}", version);
+		return hiveShims.computeIfAbsent(version, (v) -> {
+			if (v.startsWith(HIVE_V1_VERSION_NAME)) {
+				return new HiveShimV1();
 			}
-		} else {
-			LOG.warn("Unknown Hive version {}", version);
-		}
-		return DEFAULT_HIVE_VERSION_NAME;
+			if (v.startsWith(HIVE_V2_VERSION_NAME)) {
+				return new HiveShimV2();
+			}
+			throw new CatalogException("Unsupported Hive version " + v);
+		});
 	}
 }
