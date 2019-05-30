@@ -27,8 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HMSClientFactory;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatConverters;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -88,7 +87,7 @@ import static org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.OUTDIR;
 /**
  * HiveTableOutputFormat used to write data to hive table, including non-partition and partitioned table.
  */
-public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow> implements InitializeOnMaster,
+public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> implements InitializeOnMaster,
 	FinalizeOnMaster {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableOutputFormat.class);
@@ -111,7 +110,6 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 	private transient StructObjectInspector rowObjectInspector;
 	private transient Class<? extends Writable> outputClass;
 	private transient TaskAttemptContext context;
-	private transient DataFormatConverters.DataFormatConverter[] converters;
 
 	// Maps a partition dir name to the corresponding writer. Used for dynamic partitioning.
 	private transient Map<String, HivePartitionWriter> partitionToWriter;
@@ -251,7 +249,6 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 		for (int i = 0; i < rowTypeInfo.getArity() - partitionCols.size(); i++) {
 			objectInspectors.add(HiveTableUtil.getObjectInspector(rowTypeInfo.getTypeAt(i)));
 		}
-		converters = new DataFormatConverters.DataFormatConverter[rowTypeInfo.getArity()];
 
 		if (!isPartitioned) {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
@@ -265,7 +262,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 	}
 
 	@Override
-	public void writeRecord(BaseRow record) throws IOException {
+	public void writeRecord(Row record) throws IOException {
 		try {
 			HivePartitionWriter partitionWriter = staticWriter;
 			if (isDynamicPartition) {
@@ -318,15 +315,12 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 		outputCommitter.commitJob(jobContext);
 	}
 
-	// converts each field in the record to external object
-	private Object getConvertedRow(BaseRow record) {
+	// converts a Row to a list so that Hive can serialize it
+	private Object getConvertedRow(Row record) {
 		int actualArity = isPartitioned ? record.getArity() - partitionCols.size() : record.getArity();
 		List<Object> res = new ArrayList<>(actualArity);
 		for (int i = 0; i < actualArity; i++) {
-			if (converters[i] == null) {
-				converters[i] = DataFormatConverters.getConverterForTypeInfo(rowTypeInfo.getTypeAt(i));
-			}
-			res.add(converters[i].toExternal(record, i));
+			res.add(record.getField(i));
 		}
 		return res;
 	}

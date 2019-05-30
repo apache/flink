@@ -26,9 +26,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogTable;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.types.Row;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -80,12 +78,12 @@ public class HiveTableOutputFormatTest {
 		final String tblName = "dest";
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 		TableSchema tableSchema = new TableSchema(
-			new String[]{"i", "l", "d", "s"},
-			new TypeInformation[]{
-				BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.LONG_TYPE_INFO,
-				BasicTypeInfo.DOUBLE_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO}
+				new String[]{"i", "l", "d", "s"},
+				new TypeInformation[]{
+						BasicTypeInfo.INT_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO,
+						BasicTypeInfo.DOUBLE_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO}
 		);
 		HiveCatalogTable catalogTable = new HiveCatalogTable(tableSchema, new HashMap<>(), "");
 		hiveCatalog.createTable(tablePath, catalogTable, false);
@@ -97,10 +95,10 @@ public class HiveTableOutputFormatTest {
 		HiveTablePartition hiveTablePartition = new HiveTablePartition(jobSD, null);
 		JobConf jobConf = new JobConf(hiveConf);
 		HiveTableOutputFormat outputFormat = new HiveTableOutputFormat(jobConf, dbName, tblName,
-			Collections.emptyList(), rowTypeInfo, hiveTablePartition, MetaStoreUtils.getTableMetadata(hiveTable), false);
+				Collections.emptyList(), rowTypeInfo, hiveTablePartition, MetaStoreUtils.getTableMetadata(hiveTable), false);
 		outputFormat.open(0, 1);
-		List<BaseRow> toWrite = generateRecords();
-		for (BaseRow row : toWrite) {
+		List<Row> toWrite = generateRecords();
+		for (Row row : toWrite) {
 			outputFormat.writeRecord(row);
 		}
 		outputFormat.close();
@@ -114,7 +112,7 @@ public class HiveTableOutputFormatTest {
 			int numWritten = 0;
 			String line = reader.readLine();
 			while (line != null) {
-				numWritten++;
+				assertEquals(toWrite.get(numWritten++).toString(), line.replaceAll("\u0001", ","));
 				line = reader.readLine();
 			}
 			reader.close();
@@ -122,16 +120,16 @@ public class HiveTableOutputFormatTest {
 		}
 	}
 
-	private List<BaseRow> generateRecords() {
+	private List<Row> generateRecords() {
 		int numRecords = 5;
 		int arity = 4;
-		List<BaseRow> res = new ArrayList<>(numRecords);
+		List<Row> res = new ArrayList<>(numRecords);
 		for (int i = 0; i < numRecords; i++) {
-			GenericRow row = new GenericRow(arity);
-			row.setInt(0, i);
-			row.setLong(1, i);
-			row.setDouble(2, Double.valueOf(String.valueOf(String.format("%d.%d", i, i))));
-			row.setField(3, new BinaryString(String.valueOf((char) ('a' + i))));
+			Row row = new Row(arity);
+			row.setField(0, i);
+			row.setField(1, (long) i);
+			row.setField(2, Double.valueOf(String.valueOf(String.format("%d.%d", i, i))));
+			row.setField(3, String.valueOf((char) ('a' + i)));
 			res.add(row);
 		}
 		return res;
