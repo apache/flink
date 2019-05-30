@@ -32,7 +32,11 @@ __all__ = [
     'OldCsv',
     'FileSystem',
     'Kafka',
-    'Elasticsearch'
+    'Elasticsearch',
+    'Csv',
+    'Avro',
+    'Json',
+    'FileSystem'
 ]
 
 
@@ -103,8 +107,8 @@ class Rowtime(Descriptor):
         """
         Sets a custom timestamp extractor to be used for the rowtime attribute.
 
-        :param extractor: The java canonical class name of the TimestampExtractor to extract the
-                          rowtime attribute from the physical type. The TimestampExtractor must
+        :param extractor: The java fully-qualified class name of the TimestampExtractor to extract
+                          the rowtime attribute from the physical type. The TimestampExtractor must
                           have a public no-argument constructor and can be founded by
                           in current Java classloader.
         :return: This rowtime descriptor.
@@ -154,7 +158,7 @@ class Rowtime(Descriptor):
         """
         Sets a custom watermark strategy to be used for the rowtime attribute.
 
-        :param strategy: The java canonical class name of the WatermarkStrategy. The
+        :param strategy: The java fully-qualified class name of the WatermarkStrategy. The
                          WatermarkStrategy must have a public no-argument constructor and can be
                          founded by in current Java classloader.
         :return: This rowtime descriptor.
@@ -365,6 +369,236 @@ class OldCsv(FormatDescriptor):
         :return: This :class:`OldCsv` object.
         """
         self._j_csv = self._j_csv.ignoreFirstLine()
+        return self
+
+
+class Csv(FormatDescriptor):
+    """
+    Format descriptor for comma-separated values (CSV).
+
+    This descriptor aims to comply with RFC-4180 ("Common Format and MIME Type for
+    Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
+
+    ..note::
+        This descriptor does not describe Flink's old non-standard CSV table
+        source/sink. Currently, this descriptor can be used when writing to Kafka. The old one is
+        still available as :class:`OldCsv` for stream/batch filesystem operations.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_csv = gateway.jvm.Csv()
+        super(Csv, self).__init__(self._j_csv)
+
+    def field_delimiter(self, delimiter):
+        """
+        Sets the field delimiter character (',' by default).
+
+        :param delimiter: The field delimiter character.
+        :return: This :class:`Csv` object.
+        """
+        if not isinstance(delimiter, (str, unicode)) or len(delimiter) != 1:
+            raise TypeError("Only one-character string is supported!")
+        self._j_csv = self._j_csv.fieldDelimiter(delimiter)
+        return self
+
+    def line_delimiter(self, delimiter):
+        """
+        Sets the line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed).
+
+        :param delimiter: The line delimiter.
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.lineDelimiter(delimiter)
+        return self
+
+    def quote_character(self, quote_character):
+        """
+        Sets the field delimiter character (',' by default).
+
+        :param quote_character: The quote character.
+        :return: This :class:`Csv` object.
+        """
+        if not isinstance(quote_character, (str, unicode)) or len(quote_character) != 1:
+            raise TypeError("Only one-character string is supported!")
+        self._j_csv = self._j_csv.quoteCharacter(quote_character)
+        return self
+
+    def allow_comments(self):
+        """
+        Ignores comment lines that start with '#' (disabled by default). If enabled, make sure to
+        also ignore parse errors to allow empty rows.
+
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.allowComments()
+        return self
+
+    def ignore_parse_errors(self):
+        """
+        Skip records with parse error instead to fail. Throw an exception by default.
+
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.ignoreParseErrors()
+        return self
+
+    def array_element_delimiter(self, delimiter):
+        """
+        Sets the array element delimiter string for separating array or row element
+        values (";" by default).
+
+        :param delimiter: The array element delimiter.
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.arrayElementDelimiter(delimiter)
+        return self
+
+    def escape_character(self, escape_character):
+        """
+        Sets the escape character for escaping values (disabled by default).
+
+        :param escape_character: Escaping character (e.g. backslash).
+        :return: This :class:`Csv` object.
+        """
+        if not isinstance(escape_character, (str, unicode)) or len(escape_character) != 1:
+            raise TypeError("Only one-character string is supported!")
+        self._j_csv = self._j_csv.escapeCharacter(escape_character)
+        return self
+
+    def null_literal(self, null_literal):
+        """
+        Sets the null literal string that is interpreted as a null value (disabled by default).
+
+        :param null_literal:
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.nullLiteral(null_literal)
+        return self
+
+    def schema(self, schema_data_type):
+        """
+        Sets the format schema with field names and the types. Required if schema is not derived.
+
+        :param schema_data_type: Data type from :class:`DataTypes` that describes the schema.
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.schema(_to_java_type(schema_data_type))
+        return self
+
+    def derive_schema(self):
+        """
+        Derives the format schema from the table's schema. Required if no format schema is defined.
+
+        This allows for defining schema information only once.
+
+        The names, types, and fields' order of the format are determined by the table's
+        schema. Time attributes are ignored if their origin is not a field. A "from" definition
+        is interpreted as a field renaming in the format.
+
+        :return: This :class:`Csv` object.
+        """
+        self._j_csv = self._j_csv.deriveSchema()
+        return self
+
+
+class Avro(FormatDescriptor):
+    """
+    Format descriptor for Apache Avro records.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_avro = gateway.jvm.Avro()
+        super(Avro, self).__init__(self._j_avro)
+
+    def record_class(self, record_class):
+        """
+        Sets the class of the Avro specific record.
+
+        :param record_class: The java fully-qualified class name of the Avro record.
+        :return: This object.
+        """
+        gateway = get_gateway()
+        clz = gateway.jvm.Thread.currentThread().getContextClassLoader().loadClass(record_class)
+        self._j_avro = self._j_avro.recordClass(clz)
+        return self
+
+    def avro_schema(self, avro_schema):
+        """
+        Sets the Avro schema for specific or generic Avro records.
+
+        :param avro_schema: Avro schema string.
+        :return: This object.
+        """
+        self._j_avro = self._j_avro.avroSchema(avro_schema)
+        return self
+
+
+class Json(FormatDescriptor):
+    """
+    Format descriptor for JSON.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_json = gateway.jvm.Json()
+        super(Json, self).__init__(self._j_json)
+
+    def fail_on_missing_field(self, fail_on_missing_field):
+        """
+        Sets flag whether to fail if a field is missing or not.
+
+        :param fail_on_missing_field: If set to ``True``, the operation fails if there is a missing
+                                      field.
+                                      If set to ``False``, a missing field is set to null.
+        :return: This object.
+        """
+        if not isinstance(fail_on_missing_field, bool):
+            raise TypeError("Only bool value is supported!")
+        self._j_json = self._j_json.failOnMissingField(fail_on_missing_field)
+        return self
+
+    def json_schema(self, json_schema):
+        """
+        Sets the JSON schema string with field names and the types according to the JSON schema
+        specification: http://json-schema.org/specification.html
+
+        The schema might be nested.
+
+        :param json_schema: The JSON schema string.
+        :return: This object.
+        """
+        self._j_json = self._j_json.jsonSchema(json_schema)
+        return self
+
+    def schema(self, schema_data_type):
+        """
+        Sets the schema using :class:`DataTypes`.
+
+        JSON objects are represented as ROW types.
+
+        The schema might be nested.
+
+        :param schema_data_type: Data type that describes the schema.
+        :return: This object.
+        """
+        self._j_json = self._j_json.schema(_to_java_type(schema_data_type))
+        return self
+
+    def derive_schema(self):
+        """
+        Derives the format schema from the table's schema described.
+
+        This allows for defining schema information only once.
+
+        The names, types, and fields' order of the format are determined by the table's
+        schema. Time attributes are ignored if their origin is not a field. A "from" definition
+        is interpreted as a field renaming in the format.
+
+        :return: This object.
+        """
+        self._j_json = self._j_json.deriveSchema()
         return self
 
 

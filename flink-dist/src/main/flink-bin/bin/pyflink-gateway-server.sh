@@ -58,13 +58,24 @@ if [[ -n "$FLINK_TESTING" ]]; then
   bin=`dirname "$0"`
   FLINK_SOURCE_ROOT_DIR=`cd "$bin/../../"; pwd -P`
 
+  FIND_EXPRESSION=""
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-csv/target/flink-csv*.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-avro/target/flink-avro*.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-avro/target/avro*.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-json/target/flink-json*.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-connectors/flink-connector-elasticsearch-base/target/flink*.jar"
+  FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-connectors/flink-connector-kafka-base/target/flink*.jar"
+
+  # disable the wildcard expansion for the moment.
+  set -f
   while read -d '' -r testJarFile ; do
     if [[ "$FLINK_TEST_CLASSPATH" == "" ]]; then
       FLINK_TEST_CLASSPATH="$testJarFile";
     else
       FLINK_TEST_CLASSPATH="$FLINK_TEST_CLASSPATH":"$testJarFile"
     fi
-  done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d \( -name 'flink-*-tests.jar' -o -path "${FLINK_SOURCE_ROOT_DIR}/flink-connectors/flink-connector-elasticsearch-base/target/flink*.jar" -o -path "${FLINK_SOURCE_ROOT_DIR}/flink-connectors/flink-connector-kafka-base/target/flink*.jar" \) -print0 | sort -z)
+  done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d \( -name 'flink-*-tests.jar'${FIND_EXPRESSION} \) -print0 | sort -z)
+  set +f
 fi
 
 exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH}:${FLINK_TEST_CLASSPATH} ${DRIVER} ${ARGS[@]}
