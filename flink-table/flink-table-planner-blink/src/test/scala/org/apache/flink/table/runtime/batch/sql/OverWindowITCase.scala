@@ -42,11 +42,11 @@ class OverWindowITCase extends BatchTestBase {
   @Before
   def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
-    registerCollection("Table5", data5, type5, nullablesOfData5, "d, e, f, g, h")
+    registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
     registerCollection("ShuflledTable5",
-      Random.shuffle(data5), type5, nullablesOfData5, "sd, se, sf, sg, sh")
-    registerCollection("Table6", data6, type6, nullablesOfData6, "a, b, c, d, e, f")
-    registerCollection("NullTable5", nullData5, type5, nullablesOfNullData5, "d, e, f, g, h")
+      Random.shuffle(data5), type5, "sd, se, sf, sg, sh", nullablesOfData5)
+    registerCollection("Table6", data6, type6, "a, b, c, d, e, f", nullablesOfData6)
+    registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
   }
 
   @Test
@@ -1606,7 +1606,7 @@ class OverWindowITCase extends BatchTestBase {
       row(null, 3L, 3, "NullTuple", 3L),
       row(null, 3L, 3, "NullTuple", 3L)
     )
-    registerCollection("NullTable", nullData, type5, nullablesOfNullData5, "d, e, f, g, h")
+    registerCollection("NullTable", nullData, type5, "d, e, f, g, h", nullablesOfNullData5)
 
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d range between 0 PRECEDING and " +
@@ -1826,7 +1826,7 @@ class OverWindowITCase extends BatchTestBase {
       row(null, 3L, 3, "NullTuple", 3L),
       row(null, 3L, 3, "NullTuple", 3L)
     )
-    registerCollection("NullTable", nullData, type5, nullablesOfNullData5, "d, e, f, g, h")
+    registerCollection("NullTable", nullData, type5, "d, e, f, g, h", nullablesOfNullData5)
     checkResult(
       "SELECT h, d, count(*) over (partition by h order by d range between 1 PRECEDING and 2 " +
           "FOLLOWING) FROM NullTable",

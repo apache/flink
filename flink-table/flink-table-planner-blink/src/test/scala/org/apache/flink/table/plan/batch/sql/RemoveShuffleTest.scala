@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, Types}
-import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.util.{TableFunc1, TableTestBase}
 
 import org.junit.{Before, Test}
@@ -35,12 +35,12 @@ class RemoveShuffleTest extends TableTestBase {
     util.addTableSource("x",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("a", "b", "c"),
-      tableStats = Some(new TableStats(100L))
+      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
     util.addTableSource("y",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("d", "e", "f"),
-      tableStats = Some(new TableStats(100L))
+      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
     util.tableEnv.getConfig.getConf.setBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)

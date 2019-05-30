@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions}
 import org.apache.flink.table.dataformat.BinaryString.fromString
@@ -46,9 +45,9 @@ class UnionITCase extends BatchTestBase {
   @Before
   def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
-    registerCollection("Table3", smallData3, type3, nullablesOfSmallData3, "a, b, c")
-    registerCollection("Table5", data5, type5, nullablesOfData5, "d, e, f, g, h")
-    registerCollection("Table6", data6, type6, Array(false, false, false), "a, b, c")
+    registerCollection("Table3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
+    registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
+    registerCollection("Table6", data6, type6, "a, b, c", Array(false, false, false))
     tEnv.getConfig.getConf.setString(
       TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
   }

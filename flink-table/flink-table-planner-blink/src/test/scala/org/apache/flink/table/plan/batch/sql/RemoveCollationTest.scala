@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, Types}
-import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.util.{TableFunc1, TableTestBase}
 
@@ -37,22 +37,22 @@ class RemoveCollationTest extends TableTestBase {
     util.addTableSource("x",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("a", "b", "c"),
-      tableStats = Some(new TableStats(100L))
+      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
     util.addTableSource("y",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("d", "e", "f"),
-      tableStats = Some(new TableStats(100L))
+      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
     util.addTableSource("t1",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("a1", "b1", "c1"),
-      tableStats = Some(new TableStats(100L))
+      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
     util.addTableSource("t2",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("d1", "e1", "f1"),
-      tableStats = Some(new TableStats(100L))
+      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
 
     util.tableEnv.getConfig.getConf.setBoolean(
@@ -269,27 +269,27 @@ class RemoveCollationTest extends TableTestBase {
       Array[TypeInformation[_]](
         Types.STRING, Types.STRING, Types.STRING, Types.STRING, Types.STRING),
       Array("id", "key", "tb2_ids", "tb3_ids", "name"),
-      uniqueKeys = Some(ImmutableSet.of(ImmutableSet.of("id")))
+      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("id"))).build()
     )
     util.addTableSource("tb2",
       Array[TypeInformation[_]](Types.STRING, Types.STRING),
       Array("id",  "name"),
-      uniqueKeys = Some(ImmutableSet.of(ImmutableSet.of("id")))
+      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("id"))).build()
     )
     util.addTableSource("tb3",
       Array[TypeInformation[_]](Types.STRING, Types.STRING),
       Array("id",  "name"),
-      uniqueKeys = Some(ImmutableSet.of(ImmutableSet.of("id")))
+      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("id"))).build()
     )
     util.addTableSource("tb4",
       Array[TypeInformation[_]](Types.STRING, Types.STRING),
       Array("id",  "name"),
-      uniqueKeys = Some(ImmutableSet.of(ImmutableSet.of("id")))
+      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("id"))).build()
     )
     util.addTableSource("tb5",
       Array[TypeInformation[_]](Types.STRING, Types.STRING),
       Array("id",  "name"),
-      uniqueKeys = Some(ImmutableSet.of(ImmutableSet.of("id")))
+      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("id"))).build()
     )
     util.tableEnv.registerFunction("split", new StringSplit())
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironment}
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.utils.BatchTableEnvUtil.parseFieldNames
 
 import scala.reflect.ClassTag
@@ -40,7 +41,7 @@ object BatchScalaTableEnvUtil {
       tableName: String, data: Iterable[T], fieldNames: String): Unit = {
     val typeInfo = implicitly[TypeInformation[T]]
     BatchTableEnvUtil.registerCollection(
-      tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), None)
+      tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), None, None)
   }
 
   /**
@@ -51,15 +52,20 @@ object BatchScalaTableEnvUtil {
     * @param data The [[Iterable]] to be converted.
     * @param fieldNames field names, eg: "a, b, c"
     * @param fieldNullables The field isNullables attributes of data.
+    * @param statistic statistics of current Table
     * @tparam T The type of the [[Iterable]].
     * @return The converted [[Table]].
     */
-  def registerCollection[T : ClassTag : TypeInformation](
-      tEnv: BatchTableEnvironment, tableName: String, data: Iterable[T],
-      fieldNames: String, fieldNullables: Array[Boolean]): Unit = {
+  def registerCollection[T: ClassTag : TypeInformation](
+      tEnv: BatchTableEnvironment,
+      tableName: String,
+      data: Iterable[T],
+      fieldNames: String,
+      fieldNullables: Array[Boolean],
+      statistic: Option[FlinkStatistic]): Unit = {
     val typeInfo = implicitly[TypeInformation[T]]
-    BatchTableEnvUtil.registerCollection(
-      tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), Option(fieldNullables))
+    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo,
+      Some(parseFieldNames(fieldNames)), Option(fieldNullables), statistic)
   }
 
   /**
@@ -91,7 +97,7 @@ object BatchScalaTableEnvUtil {
   def fromCollection[T: ClassTag : TypeInformation](
       tEnv: BatchTableEnvironment, data: Iterable[T]): Table = {
     val typeInfo = implicitly[TypeInformation[T]]
-    BatchTableEnvUtil.fromCollection(tEnv, null, data, typeInfo, null)
+    BatchTableEnvUtil.fromCollection(tEnv, null, data, typeInfo, null, None)
   }
 
   /**

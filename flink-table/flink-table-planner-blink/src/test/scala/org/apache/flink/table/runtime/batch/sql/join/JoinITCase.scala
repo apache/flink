@@ -44,14 +44,14 @@ class JoinITCase() extends BatchTestBase {
 
   @Before
   def before(): Unit = {
-    registerCollection("SmallTable3", smallData3, type3, nullablesOfSmallData3, "a, b, c")
-    registerCollection("Table3", data3, type3, nullablesOfData3, "a, b, c")
-    registerCollection("Table5", data5, type5, nullablesOfData5, "d, e, f, g, h")
-    registerCollection("NullTable3", nullData3, type3, nullablesOfNullData3, "a, b, c")
-    registerCollection("NullTable5", nullData5, type5, nullablesOfNullData5, "d, e, f, g, h")
+    registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
+    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
+    registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
+    registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfNullData3)
+    registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
     registerCollection("l", data2_1, INT_DOUBLE, "a, b")
     registerCollection("r", data2_2, INT_DOUBLE, "c, d")
-    registerCollection("t", data2_3, INT_DOUBLE, nullablesOfData2_3, "c, d")
+    registerCollection("t", data2_3, INT_DOUBLE, "c, d", nullablesOfData2_3)
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
@@ -96,11 +96,11 @@ class JoinITCase() extends BatchTestBase {
       registerCollection("PojoSmallTable3", smallData3,
         new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO,
           new GenericTypeInfoWithoutComparator[String](classOf[String])),
-        nullablesOfSmallData3, "a, b, c")
+        "a, b, c", nullablesOfSmallData3)
       registerCollection("PojoTable5", data5,
         new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, INT_TYPE_INFO,
           new GenericTypeInfoWithoutComparator[String](classOf[String]), LONG_TYPE_INFO),
-        nullablesOfData5, "d, e, f, g, h")
+        "d, e, f, g, h", nullablesOfData5)
 
       checkResult(
         "SELECT c, g FROM (SELECT h, g, f, e, d FROM PojoSmallTable3, PojoTable5 WHERE b = e)," +
@@ -667,7 +667,7 @@ class JoinITCase() extends BatchTestBase {
       ))
 
     registerCollection(
-      "NullT", Seq(row(null, null, "c")), type3, allNullablesOfNullData3, "a, b, c")
+      "NullT", Seq(row(null, null, "c")), type3, "a, b, c", allNullablesOfNullData3)
     checkResult(
       "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
         "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +

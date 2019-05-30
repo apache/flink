@@ -187,30 +187,6 @@ Calc(select=[a, b, c, PROCTIME() AS proctime, id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLogicalPlanWithImplicitTypeCast">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
-+- LogicalFilter(condition=[=($1, $4)])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
-      :- LogicalTableScan(table=[[MyTable]])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[temporalTest, source: [TestTemporalTable(id, name, age)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, b, c, PROCTIME() AS proctime, id, name, age])
-+- FlinkLogicalJoin(condition=[=($1, $3)], joinType=[inner])
-   :- FlinkLogicalDataStreamTableScan(table=[[T0]])
-   +- FlinkLogicalSnapshot(period=[$cor0.proctime])
-      +- FlinkLogicalTableSourceScan(table=[[temporalTest, source: [TestTemporalTable(id, name, age)]]], fields=[id, name, age])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testLogicalPlan">
     <Resource name="sql">
       <![CDATA[
@@ -322,9 +298,9 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
             :- Exchange(distribution=[hash[a]], exchange_mode=[BATCH])
             :  +- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[>(age, 10)], select=[b, a, id], reuse_id=[1])
             :     +- Calc(select=[b, a])
-            :        +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_SUM(sum$0) AS c, Final_SUM(sum$1) AS d])
+            :        +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
             :           +- Exchange(distribution=[hash[a, b]])
-            :              +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_SUM(c) AS sum$0, Partial_SUM(d) AS sum$1])
+            :              +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
             :                 +- BoundedStreamScan(table=[[T1]], fields=[a, b, c, d])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[id AS a, b])

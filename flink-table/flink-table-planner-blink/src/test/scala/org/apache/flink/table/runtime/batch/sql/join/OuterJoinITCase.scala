@@ -60,9 +60,9 @@ class OuterJoinITCase extends BatchTestBase {
   @Before
   def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
-    registerCollection("uppercasedata", upperCaseData, INT_STRING, nullablesOfUpperCaseData, "N, L")
-    registerCollection("lowercasedata", lowerCaseData, INT_STRING, nullablesOfLowerCaseData, "n, l")
-    registerCollection("allnulls", allNulls, INT_ONLY, nullablesOfAllNulls, "a")
+    registerCollection("uppercasedata", upperCaseData, INT_STRING, "N, L", nullablesOfUpperCaseData)
+    registerCollection("lowercasedata", lowerCaseData, INT_STRING, "n, l", nullablesOfLowerCaseData)
+    registerCollection("allnulls", allNulls, INT_ONLY, "a", nullablesOfAllNulls)
     registerCollection("leftT", leftT, INT_DOUBLE, "a, b")
     registerCollection("rightT", rightT, INT_DOUBLE, "c, d")
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
