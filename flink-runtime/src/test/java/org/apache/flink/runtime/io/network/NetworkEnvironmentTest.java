@@ -124,7 +124,7 @@ public class NetworkEnvironmentTest {
 		for (SingleInputGate ig : inputGates) {
 			ig.close();
 		}
-		network.shutdown();
+		network.close();
 	}
 
 	/**
@@ -245,7 +245,7 @@ public class NetworkEnvironmentTest {
 		for (SingleInputGate ig : inputGates) {
 			ig.close();
 		}
-		network.shutdown();
+		network.close();
 	}
 
 	/**

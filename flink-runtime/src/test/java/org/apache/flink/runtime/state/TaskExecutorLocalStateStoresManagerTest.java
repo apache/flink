@@ -66,7 +66,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		// test configuration of the local state mode
 		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
-		TaskManagerServices taskManagerServices = createTaskManagerServices(config, createTaskManagerServiceConfiguration(config));
+		TaskManagerServices taskManagerServices = createTaskManagerServices(createTaskManagerServiceConfiguration(config));
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -99,7 +99,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration = createTaskManagerServiceConfiguration(config);
 
-		TaskManagerServices taskManagerServices = createTaskManagerServices(config, taskManagerServicesConfiguration);
+		TaskManagerServices taskManagerServices = createTaskManagerServices(taskManagerServicesConfiguration);
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -206,20 +206,18 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 			Configuration config) throws IOException {
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,
-			InetAddress.getLocalHost());
-	}
-
-	private TaskManagerServices createTaskManagerServices(
-			Configuration flinkConfig,
-			TaskManagerServicesConfiguration config) throws Exception {
-		return TaskManagerServices.fromConfiguration(
-			flinkConfig,
-			config,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			ResourceID.generate(),
-			Executors.directExecutor(),
+			InetAddress.getLocalHost(),
 			MEM_SIZE_PARAM,
 			MEM_SIZE_PARAM,
 			true);
+	}
+
+	private TaskManagerServices createTaskManagerServices(
+			TaskManagerServicesConfiguration config) throws Exception {
+		return TaskManagerServices.fromConfiguration(
+			config,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			Executors.directExecutor());
 	}
 }

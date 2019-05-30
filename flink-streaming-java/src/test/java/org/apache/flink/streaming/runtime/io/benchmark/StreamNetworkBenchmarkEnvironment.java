@@ -166,8 +166,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	}
 
 	public void tearDown() {
-		suppressExceptions(senderEnv::shutdown);
-		suppressExceptions(receiverEnv::shutdown);
+		suppressExceptions(senderEnv::close);
+		suppressExceptions(receiverEnv::close);
 		suppressExceptions(ioManager::shutdown);
 	}
 

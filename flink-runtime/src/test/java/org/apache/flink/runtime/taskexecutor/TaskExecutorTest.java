@@ -244,7 +244,7 @@ public class TaskExecutorTest extends TestLogger {
 		}
 
 		if (networkEnvironment != null) {
-			networkEnvironment.shutdown();
+			networkEnvironment.close();
 		}
 
 		testingFatalErrorHandler.rethrowError();
@@ -279,7 +279,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskManagerLocation(taskManagerLocation)
 			.setMemoryManager(memoryManager)
 			.setIoManager(ioManager)
-			.setNetworkEnvironment(networkEnvironment)
+			.setShuffleEnvironment(networkEnvironment)
 			.setKvStateService(kvStateService)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobLeaderService(jobLeaderService)
@@ -295,7 +295,7 @@ public class TaskExecutorTest extends TestLogger {
 		}
 
 		assertThat(memoryManager.isShutdown(), is(true));
-		assertThat(networkEnvironment.isShutdown(), is(true));
+		assertThat(networkEnvironment.isClosed(), is(true));
 		assertThat(ioManager.isProperlyShutDown(), is(true));
 		assertThat(kvStateService.isShutdown(), is(true));
 	}
@@ -709,7 +709,7 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setNetworkEnvironment(networkEnvironment)
+			.setShuffleEnvironment(networkEnvironment)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobManagerTable(jobManagerTable)
 			.setTaskStateManager(localStateStoresManager)
@@ -967,7 +967,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
-			.setNetworkEnvironment(networkEnvironment)
+			.setShuffleEnvironment(networkEnvironment)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobLeaderService(jobLeaderService)
 			.setJobManagerTable(jobManagerTable)

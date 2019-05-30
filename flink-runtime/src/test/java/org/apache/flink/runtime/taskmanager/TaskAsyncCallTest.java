@@ -40,8 +40,8 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
@@ -106,7 +106,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
 	private static final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
 
-	private NetworkEnvironment networkEnvironment;
+	private ShuffleEnvironment shuffleEnvironment;
 
 	@Before
 	public void createQueuesAndActors() {
@@ -117,15 +117,15 @@ public class TaskAsyncCallTest extends TestLogger {
 		notifyCheckpointCompleteLatch = new OneShotLatch();
 		stopLatch = new OneShotLatch();
 
-		networkEnvironment = new NetworkEnvironmentBuilder().build();
+		shuffleEnvironment = new NetworkEnvironmentBuilder().build();
 
 		classLoaders.clear();
 	}
 
 	@After
-	public void teardown() {
-		if (networkEnvironment != null) {
-			networkEnvironment.shutdown();
+	public void teardown() throws Exception {
+		if (shuffleEnvironment != null) {
+			shuffleEnvironment.close();
 		}
 	}
 
@@ -255,7 +255,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			0,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			networkEnvironment,
+			shuffleEnvironment,
 			new KvStateService(new KvStateRegistry(), null, null),
 			mock(BroadcastVariableManager.class),
 			new TaskEventDispatcher(),

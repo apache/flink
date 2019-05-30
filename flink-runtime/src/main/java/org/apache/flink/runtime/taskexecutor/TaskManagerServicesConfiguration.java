@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
@@ -42,7 +43,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TaskManagerServicesConfiguration {
 
+	private final Configuration configuration;
+
+	private final ResourceID resourceID;
+
 	private final InetAddress taskManagerAddress;
+
+	private final boolean localCommunicationOnly;
 
 	private final String[] tmpDirPaths;
 
@@ -52,6 +59,10 @@ public class TaskManagerServicesConfiguration {
 
 	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
+
+	private final long freeHeapMemoryWithDefrag;
+
+	private final long maxJvmHeapMemory;
 
 	/**
 	 * Managed memory (in megabytes).
@@ -77,9 +88,14 @@ public class TaskManagerServicesConfiguration {
 	private Optional<Time> systemResourceMetricsProbingInterval;
 
 	public TaskManagerServicesConfiguration(
+			Configuration configuration,
+			ResourceID resourceID,
 			InetAddress taskManagerAddress,
+			boolean localCommunicationOnly,
 			String[] tmpDirPaths,
 			String[] localRecoveryStateRootDirectories,
+			long freeHeapMemoryWithDefrag,
+			long maxJvmHeapMemory,
 			boolean localRecoveryEnabled,
 			@Nullable QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
@@ -91,10 +107,15 @@ public class TaskManagerServicesConfiguration {
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 			Optional<Time> systemResourceMetricsProbingInterval) {
+		this.configuration = checkNotNull(configuration);
+		this.resourceID = checkNotNull(resourceID);
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
+		this.localCommunicationOnly = localCommunicationOnly;
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
+		this.freeHeapMemoryWithDefrag = freeHeapMemoryWithDefrag;
+		this.maxJvmHeapMemory = maxJvmHeapMemory;
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.queryableStateConfig = queryableStateConfig;
 		this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -117,8 +138,20 @@ public class TaskManagerServicesConfiguration {
 	//  Getter/Setter
 	// --------------------------------------------------------------------------------------------
 
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
+
 	InetAddress getTaskManagerAddress() {
 		return taskManagerAddress;
+	}
+
+	boolean isLocalCommunicationOnly() {
+		return localCommunicationOnly;
 	}
 
 	public String[] getTmpDirPaths() {
@@ -153,6 +186,14 @@ public class TaskManagerServicesConfiguration {
 	 */
 	MemoryType getMemoryType() {
 		return memoryType;
+	}
+
+	long getFreeHeapMemoryWithDefrag() {
+		return freeHeapMemoryWithDefrag;
+	}
+
+	long getMaxJvmHeapMemory() {
+		return maxJvmHeapMemory;
 	}
 
 	/**
@@ -195,13 +236,22 @@ public class TaskManagerServicesConfiguration {
 	 * sanity check them.
 	 *
 	 * @param configuration The configuration.
+	 * @param resourceID resource ID of the task manager
 	 * @param remoteAddress identifying the IP address under which the TaskManager will be accessible
+	 * @param freeHeapMemoryWithDefrag an estimate of the size of the free heap memory
+	 * @param maxJvmHeapMemory the maximum JVM heap size
+	 * @param localCommunicationOnly True if only local communication is possible.
+	 *                               Use only in cases where only one task manager runs.
 	 *
-	 * @return TaskExecutorConfiguration that wrappers InstanceConnectionInfo, etc.
+	 * @return configuration of task manager services used to create them
 	 */
 	public static TaskManagerServicesConfiguration fromConfiguration(
 			Configuration configuration,
-			InetAddress remoteAddress) {
+			ResourceID resourceID,
+			InetAddress remoteAddress,
+			long freeHeapMemoryWithDefrag,
+			long maxJvmHeapMemory,
+			boolean localCommunicationOnly) {
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
 		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 		if (localStateRootDir.length == 0) {
@@ -220,9 +270,14 @@ public class TaskManagerServicesConfiguration {
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
 		return new TaskManagerServicesConfiguration(
+			configuration,
+			resourceID,
 			remoteAddress,
+			localCommunicationOnly,
 			tmpDirs,
 			localStateRootDir,
+			freeHeapMemoryWithDefrag,
+			maxJvmHeapMemory,
 			localRecoveryMode,
 			queryableStateConfig,
 			ConfigurationParserUtils.getSlot(configuration),

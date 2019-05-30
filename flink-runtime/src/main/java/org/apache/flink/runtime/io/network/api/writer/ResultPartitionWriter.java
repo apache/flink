@@ -28,6 +28,11 @@ import java.io.IOException;
 
 /**
  * A buffer-oriented runtime result writer API for producing results.
+ *
+ * <p>If {@link ResultPartitionWriter#close()} is called before {@link ResultPartitionWriter#fail(Throwable)} or
+ * {@link ResultPartitionWriter#finish()}, it abruptly triggers failure and cancellation of production.
+ * In this case {@link ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release
+ * all resources associated the the partition and propagate failure cause to the consumer if possible.
  */
 public interface ResultPartitionWriter extends AutoCloseable {
 
@@ -73,8 +78,9 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	/**
 	 * Fail the production of the partition.
 	 *
-	 * <p>This method propagates non-{@code null} failure causes to consumers on a best-effort basis.
-	 * Closing of partition is still needed.
+	 * <p>This method propagates non-{@code null} failure causes to consumers on a best-effort basis. This call also
+	 * leads to the release of all resources associated with the partition. Closing of the partition is still needed
+	 * afterwards if it has not been done before.
 	 *
 	 * @param throwable failure cause
 	 */
@@ -83,7 +89,7 @@ public interface ResultPartitionWriter extends AutoCloseable {
 	/**
 	 * Successfully finish the production of the partition.
 	 *
-	 * <p>Closing of partition is still needed.
+	 * <p>Closing of partition is still needed afterwards.
 	 */
 	void finish() throws IOException;
 }
