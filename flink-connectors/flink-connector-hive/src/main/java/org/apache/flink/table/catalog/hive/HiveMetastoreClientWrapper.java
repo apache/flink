@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -44,6 +46,7 @@ import java.util.Map;
  * Wrapper class for Hive Metastore Client, which embeds a HiveShim layer to handle different Hive versions.
  * Methods provided mostly conforms to IMetaStoreClient interfaces except those that require shims.
  */
+@Internal
 public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveMetastoreClientWrapper.class);

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+
 import org.apache.hive.common.util.HiveVersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +52,7 @@ public class HiveShimLoader {
 				case HIVE_V2_VERSION_NAME:
 					return new HiveShimV2();
 				default:
-					throw new IllegalArgumentException("Unsupported Hive version " + v);
+					throw new CatalogException("Unsupported Hive version " + v);
 			}
 		});
 	}

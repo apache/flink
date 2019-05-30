@@ -138,7 +138,7 @@ public class HiveCatalog implements Catalog {
 	@Override
 	public void open() throws CatalogException {
 		if (client == null) {
-			client = HMSClientFactory.create(hiveConf);
+			client = HiveMetastoreClientFactory.create(hiveConf);
 			LOG.info("Connected to Hive metastore");
 		}
 

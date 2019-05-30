@@ -23,9 +23,9 @@ import org.apache.hadoop.hive.conf.HiveConf;
 /**
  * Factory to create Hive metastore client.
  */
-public class HMSClientFactory {
+public class HiveMetastoreClientFactory {
 
-	private HMSClientFactory() {
+	private HiveMetastoreClientFactory() {
 	}
 
 	public static HiveMetastoreClientWrapper create(HiveConf hiveConf) {

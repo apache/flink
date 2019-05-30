@@ -42,6 +42,7 @@ public class HiveShimV2 implements HiveShim {
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {
 			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class, Boolean.TYPE);
+			// getProxy is a static method
 			return (IMetaStoreClient) method.invoke(null, hiveConf, true);
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to create Hive Metastore client", ex);
@@ -55,15 +56,13 @@ public class HiveShimV2 implements HiveShim {
 			return (List<String>) method.invoke(client, databaseName, null, TableType.VIRTUAL_VIEW);
 		} catch (InvocationTargetException ite) {
 			Throwable targetEx = ite.getTargetException();
-			if (targetEx instanceof UnknownDBException) {
-				throw (UnknownDBException) targetEx;
-			} else if (targetEx instanceof TException) {
+			if (targetEx instanceof TException) {
 				throw (TException) targetEx;
 			} else {
 				throw new CatalogException(String.format("Failed to get views for %s", databaseName), targetEx);
 			}
-		} catch (Exception ex) {
-			throw new CatalogException(String.format("Failed to get views for %s", databaseName), ex);
+		} catch (NoSuchMethodException | IllegalAccessException e) {
+			throw new CatalogException(String.format("Failed to get views for %s", databaseName), e);
 		}
 	}
 

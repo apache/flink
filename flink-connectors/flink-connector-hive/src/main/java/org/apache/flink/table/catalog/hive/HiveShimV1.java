@@ -43,6 +43,7 @@ public class HiveShimV1 implements HiveShim {
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {
 			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class);
+			// getProxy is a static method
 			return (IMetaStoreClient) method.invoke(null, (hiveConf));
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to create Hive Metastore client", ex);
@@ -50,8 +51,9 @@ public class HiveShimV1 implements HiveShim {
 	}
 
 	@Override
+	// 1.x client doesn't support filtering tables by type, so here we need to get all tables and filter by ourselves
 	public List<String> getViews(IMetaStoreClient client, String databaseName) throws UnknownDBException, TException {
-		// We don't have to use reflection here because client.GetAllTables(String) is supposed to be there for
+		// We don't have to use reflection here because client.getAllTables(String) is supposed to be there for
 		// all versions.
 		List<String> tableNames = client.getAllTables(databaseName);
 		List<String> views = new ArrayList<>();
