@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.sources;
 
+import org.apache.flink.annotation.Experimental;
+
 import javax.annotation.Nullable;
 
 import java.util.List;
@@ -29,9 +31,13 @@ import java.util.List;
  * <p>A primary key is a column or a group of columns that uniquely identifies each row in
  * a table or stream.
  *
- * <p>NOTE: Although a primary key usually has an Unique Index, if you have defined
- * a primary key, there is no need to define a same index in {@link DefinedIndexes} again.
+ * <p>A primary key information will be used by optimizer and query execution to get .
+ *
+ * <p>NOTE: A PRIMARY KEY automatically has a UNIQUE KEY constraint. If you have defined a
+ * PRIMARY KEY in {@link DefinedPrimaryKey}, there is no need to define a same UNIQUE KEY
+ * in {@link DefinedUniqueKeys} again.
  */
+@Experimental
 public interface DefinedPrimaryKey {
 
 	/**
