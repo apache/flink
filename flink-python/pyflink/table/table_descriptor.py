@@ -180,6 +180,15 @@ class Schema(Descriptor):
         super(Schema, self).__init__(self._j_schema)
 
     def schema(self, table_schema):
+        """
+        Sets the schema with field names and the types. Required.
+
+        This method overwrites existing fields added with
+        :func:`~pyflink.table.table_descriptor.Schema.field`.
+
+        :param schema: The :class:`TableSchema` object.
+        :return: This schema object.
+        """
         self._j_schema = self._j_schema.schema(table_schema._j_table_schema)
         return self
 
@@ -292,6 +301,15 @@ class OldCsv(FormatDescriptor):
         return self
 
     def schema(self, schema):
+        """
+        Sets the schema with field names and the types. Required.
+
+        This method overwrites existing fields added with
+        :func:`~pyflink.table.table_descriptor.OldCsv.field`.
+
+        :param schema: The :class:`TableSchema` object.
+        :return: This schema object.
+        """
         self._j_csv = self._j_csv.schema(schema._j_table_schema)
         return self
 

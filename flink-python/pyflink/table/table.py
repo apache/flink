@@ -534,7 +534,12 @@ class Table(object):
         self._j_table.insertInto(table_path, j_table_path)
 
     def get_schema(self):
-        return TableSchema(java_object=self._j_table.getSchema())
+        """
+        Returns the :class:`TableSchema` of this table.
+
+        :return: The schema of this table.
+        """
+        return TableSchema(j_table_schema=self._j_table.getSchema())
 
     def print_schema(self):
         """

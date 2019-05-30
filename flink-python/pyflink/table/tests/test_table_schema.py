@@ -29,9 +29,9 @@ class TableSchemaTests(PyFlinkTestCase):
 
         assert schema.get_field_count() == 3
         assert schema.get_field_names() == ["a", "b", "c"]
-        assert schema.get_field_types() == [DataTypes.INT(),
-                                            DataTypes.BIGINT(),
-                                            DataTypes.STRING()]
+        assert schema.get_field_data_types() == [DataTypes.INT(),
+                                                 DataTypes.BIGINT(),
+                                                 DataTypes.STRING()]
 
     def test_copy(self):
         schema = \
@@ -44,15 +44,6 @@ class TableSchemaTests(PyFlinkTestCase):
         copied_schema._j_table_schema = None
         assert schema != copied_schema
 
-    def test_get_field_types(self):
-        schema = \
-            TableSchema(["a", "b", "c"],
-                        [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
-
-        types = schema.get_field_types()
-
-        assert types == [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()]
-
     def test_get_field_data_types(self):
         schema = \
             TableSchema(["a", "b", "c"],
@@ -61,23 +52,6 @@ class TableSchemaTests(PyFlinkTestCase):
         types = schema.get_field_data_types()
 
         assert types == [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()]
-
-    def test_get_field_type(self):
-        schema = \
-            TableSchema(["a", "b", "c"],
-                        [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
-
-        type_by_name = schema.get_field_type("b")
-        type_by_index = schema.get_field_type(2)
-        type_by_name_not_exist = schema.get_field_type("d")
-        type_by_index_not_exist = schema.get_field_type(6)
-        with self.assertRaises(TypeError):
-            schema.get_field_type(None)
-
-        assert type_by_name == DataTypes.BIGINT()
-        assert type_by_index == DataTypes.STRING()
-        assert type_by_name_not_exist is None
-        assert type_by_index_not_exist is None
 
     def test_get_field_data_type(self):
         schema = \
@@ -136,30 +110,6 @@ class TableSchemaTests(PyFlinkTestCase):
                                   DataTypes.FIELD("b", DataTypes.BIGINT()),
                                   DataTypes.FIELD("c", DataTypes.STRING())])
         assert row_type == expected
-
-    def test_to_row_type(self):
-        schema = \
-            TableSchema(["a", "b", "c"],
-                        [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
-
-        row_type = schema.to_row_type()
-
-        expected = DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
-                                  DataTypes.FIELD("b", DataTypes.BIGINT()),
-                                  DataTypes.FIELD("c", DataTypes.STRING())])
-        assert row_type == expected
-
-    def test_from_type_info(self):
-        schema = TableSchema.from_type_info(DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.INT()),
-             DataTypes.FIELD("b", DataTypes.BIGINT()),
-             DataTypes.FIELD("c", DataTypes.STRING())]))
-
-        assert schema.get_field_count() == 3
-        assert schema.get_field_names() == ["a", "b", "c"]
-        assert schema.get_field_types() == [DataTypes.INT(),
-                                            DataTypes.BIGINT(),
-                                            DataTypes.STRING()]
 
     def test_hash(self):
         schema = \

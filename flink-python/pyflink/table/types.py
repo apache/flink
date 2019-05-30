@@ -1373,8 +1373,8 @@ def _from_java_type(j_data_type):
             data_type = DataTypes.VARBINARY(logical_type.getLength(), logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.DecimalType):
             data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
-                                            logical_type.getScale(),
-                                            logical_type.isNullable())
+                                          logical_type.getScale(),
+                                          logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.TimestampType):
@@ -1389,8 +1389,8 @@ def _from_java_type(j_data_type):
             if kind is None:
                 raise Exception("Unsupported java timestamp kind %s" % j_kind)
             data_type = DataTypes.TIMESTAMP(kind,
-                                              logical_type.getPrecision(),
-                                              logical_type.isNullable())
+                                            logical_type.getPrecision(),
+                                            logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.TinyIntType):
@@ -1454,7 +1454,7 @@ def _from_java_type(j_data_type):
             data_type = DataTypes.ARRAY(_from_java_type(element_type), logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.MultisetType):
             data_type = DataTypes.MULTISET(_from_java_type(element_type),
-                                             logical_type.isNullable())
+                                           logical_type.isNullable())
         else:
             raise TypeError("Unsupported collection data type: %s" % j_data_type)
 
