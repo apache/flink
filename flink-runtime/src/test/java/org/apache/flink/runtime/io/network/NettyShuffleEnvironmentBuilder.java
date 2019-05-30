@@ -118,7 +118,7 @@ public class NettyShuffleEnvironmentBuilder {
 	}
 
 	public NettyShuffleEnvironment build() {
-		return NettyShuffleEnvironment.create(
+		return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
 			new NettyShuffleEnvironmentConfiguration(
 				numNetworkBuffers,
 				networkBufferSize,

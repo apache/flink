@@ -57,6 +57,7 @@ public class ConfigOptionsDocGenerator {
 
 	static final OptionsClassLocation[] LOCATIONS = new OptionsClassLocation[]{
 		new OptionsClassLocation("flink-core", "org.apache.flink.configuration"),
+		new OptionsClassLocation("flink-runtime", "org.apache.flink.runtime.shuffle"),
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),

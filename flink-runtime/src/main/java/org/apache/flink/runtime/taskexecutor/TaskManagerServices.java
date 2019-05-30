@@ -30,11 +30,11 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
+import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -241,7 +241,7 @@ public class TaskManagerServices {
 		// start the I/O manager, it will create some temp directories.
 		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final ShuffleEnvironment shuffleEnvironment = createShuffleEnvironment(
+		final ShuffleEnvironment<?, ?> shuffleEnvironment = createShuffleEnvironment(
 			taskManagerServicesConfiguration,
 			taskEventDispatcher,
 			taskManagerMetricGroup,
@@ -304,11 +304,11 @@ public class TaskManagerServices {
 			taskEventDispatcher);
 	}
 
-	private static ShuffleEnvironment createShuffleEnvironment(
+	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
 			TaskEventDispatcher taskEventDispatcher,
 			MetricGroup taskManagerMetricGroup,
-			IOManager ioManager) {
+			IOManager ioManager) throws FlinkException {
 
 		final ShuffleEnvironmentContext shuffleEnvironmentContext = new ShuffleEnvironmentContext(
 			taskManagerServicesConfiguration.getConfiguration(),
@@ -320,7 +320,9 @@ public class TaskManagerServices {
 			taskManagerMetricGroup,
 			ioManager);
 
-		return NettyShuffleEnvironment.fromShuffleContext(shuffleEnvironmentContext);
+		return ShuffleServiceLoader
+			.loadShuffleServiceFactory(taskManagerServicesConfiguration.getConfiguration())
+			.createShuffleEnvironment(shuffleEnvironmentContext);
 	}
 
 	/**

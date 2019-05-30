@@ -132,6 +132,10 @@ The configuration keys in this section are independent of the used resource mana
 
 {% include generated/resource_manager_configuration.html %}
 
+### Shuffle Service
+
+{% include generated/shuffle_service_configuration.html %}
+
 ### YARN
 
 {% include generated/yarn_config_configuration.html %}
