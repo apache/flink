@@ -138,40 +138,7 @@ public class HiveTypeUtil {
 	 * Converts a Flink {@link TypeInformation} to corresponding Hive {@link TypeInfo}.
 	 */
 	public static TypeInfo toHiveTypeInfo(TypeInformation flinkType) {
-		if (flinkType.equals(BasicTypeInfo.STRING_TYPE_INFO)) {
-			return TypeInfoFactory.stringTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.SHORT_TYPE_INFO)) {
-			return TypeInfoFactory.shortTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.INT_TYPE_INFO)) {
-			return TypeInfoFactory.intTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.LONG_TYPE_INFO)) {
-			return TypeInfoFactory.longTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.FLOAT_TYPE_INFO)) {
-			return TypeInfoFactory.floatTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.DOUBLE_TYPE_INFO)) {
-			return TypeInfoFactory.doubleTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.BOOLEAN_TYPE_INFO)) {
-			return TypeInfoFactory.booleanTypeInfo;
-		}
-		if (flinkType.equals(SqlTimeTypeInfo.TIMESTAMP)) {
-			return TypeInfoFactory.timestampTypeInfo;
-		}
-		if (flinkType.equals(SqlTimeTypeInfo.DATE)) {
-			return TypeInfoFactory.dateTypeInfo;
-		}
-		if (flinkType.equals(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)) {
-			return TypeInfoFactory.binaryTypeInfo;
-		}
-		if (flinkType.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
-			return TypeInfoFactory.decimalTypeInfo;
-		}
 		// TODO: support complex data types
-		throw new IllegalArgumentException("Unsupported type " + flinkType.toString());
+		return TypeInfoFactory.getPrimitiveTypeInfo(toHiveType(flinkType));
 	}
 }

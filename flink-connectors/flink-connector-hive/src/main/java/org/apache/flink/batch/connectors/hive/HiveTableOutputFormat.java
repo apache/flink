@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HMSClientFactory;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -107,7 +108,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 
 	private transient AbstractSerDe serializer;
 	//StructObjectInspector represents the hive row structure.
-	private transient StructObjectInspector sois;
+	private transient StructObjectInspector rowObjectInspector;
 	private transient Class<? extends Writable> outputClass;
 	private transient TaskAttemptContext context;
 	private transient DataFormatConverters.DataFormatConverter[] converters;
@@ -223,15 +224,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 			StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
 			serializer = (AbstractSerDe) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
 			ReflectionUtils.setConf(serializer, jobConf);
-			// Pass null as partition properties, assuming they're same as table properties
+			// TODO: support partition properties, for now assume they're same as table properties
 			SerDeUtils.initializeSerDe(serializer, jobConf, tblProperties, null);
 			outputClass = serializer.getSerializedClass();
 		} catch (IllegalAccessException | SerDeException | InstantiationException | ClassNotFoundException e) {
-			LOG.error("Error initializing Hive serializer");
-			throw new RuntimeException(e);
-		}
-		if (Integer.toString(taskNumber).length() > 6) {
-			throw new IOException("Task id too large.");
+			throw new FlinkRuntimeException("Error initializing Hive serializer", e);
 		}
 
 		TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_"
@@ -257,11 +254,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 		converters = new DataFormatConverters.DataFormatConverter[rowTypeInfo.getArity()];
 
 		if (!isPartitioned) {
-			sois = ObjectInspectorFactory.getStandardStructObjectInspector(
+			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()),
 				objectInspectors);
 		} else {
-			sois = ObjectInspectorFactory.getStandardStructObjectInspector(
+			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionCols.size()),
 				objectInspectors);
 		}
@@ -274,7 +271,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 			if (isDynamicPartition) {
 				// TODO: to be implemented
 			}
-			partitionWriter.recordWriter.write(serializer.serialize(getConvertedRow(record), sois));
+			partitionWriter.recordWriter.write(serializer.serialize(getConvertedRow(record), rowObjectInspector));
 		} catch (IOException | SerDeException e) {
 			throw new IOException("Could not write Record.", e);
 		}
@@ -365,7 +362,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<BaseRow>
 			outputFormatClz = HiveFileFormatUtils.getOutputFormatSubstitute(outputFormatClz);
 			outputFormat = (OutputFormat) outputFormatClz.newInstance();
 		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-			throw new RuntimeException("Unable to instantiate the hadoop output format", e);
+			throw new FlinkRuntimeException("Unable to instantiate the hadoop output format", e);
 		}
 		ReflectionUtils.setConf(outputFormat, clonedConf);
 		OutputCommitter outputCommitter = clonedConf.getOutputCommitter();
