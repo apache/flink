@@ -18,6 +18,7 @@
 package org.apache.flink.hadoopcompatibility.mapreduce;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,6 +31,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 
 import java.io.IOException;
@@ -52,36 +54,54 @@ public class HadoopMapFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 	private HadoopProxyMapper.HadoopDummyMapperContext mapperContext;
 
 	private transient Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper;
-	private transient org.apache.hadoop.conf.Configuration jobConf;
+	private transient Job jobConf;
 
 	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper) throws IOException {
-		this(hadoopMapper, new org.apache.hadoop.conf.Configuration());
+		this(hadoopMapper, Job.getInstance());
 	}
 
-	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper, org.apache.hadoop.conf.Configuration conf) {
+	public HadoopMapFunction(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> hadoopMapper, Job conf) {
 		this.hadoopMapper = Preconditions.checkNotNull(hadoopMapper);
 		this.jobConf = Preconditions.checkNotNull(conf);
+	}
+
+	@VisibleForTesting
+	public HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> getHadoopProxyMapper() {
+		return hadoopProxyMapper;
+	}
+
+	@VisibleForTesting
+	public HadoopProxyMapper.HadoopDummyMapperContext getMapperContext() {
+		return mapperContext;
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		this.hadoopProxyMapper = new HadoopProxyMapper<>(hadoopMapper);
-		this.mapperContext = this.hadoopProxyMapper.new HadoopDummyMapperContext<KEYIN, VALUEIN, KEYOUT, VALUEOUT>();
-		this.mapperContext.setHadoopConf(jobConf);
-		this.hadoopProxyMapper.setup(this.mapperContext);
+		boolean isObjectReused = getRuntimeContext().getExecutionConfig().isObjectReuseEnabled();
+		hadoopProxyMapper = new HadoopProxyMapper<>(hadoopMapper, isObjectReused);
+		mapperContext = this.hadoopProxyMapper.new HadoopDummyMapperContext<KEYIN, VALUEIN, KEYOUT, VALUEOUT>();
+		mapperContext.setHadoopConf(jobConf.getConfiguration());
+		mapperContext.setMapperClass(this.hadoopMapper.getClass());
+		if (hadoopProxyMapper.getSetupMethod() != null) {
+			hadoopProxyMapper.getSetupMethod().invoke(hadoopMapper, mapperContext);
+		}
 	}
 
 	@Override
 	public void flatMap(Tuple2<KEYIN, VALUEIN> value, Collector<Tuple2<KEYOUT, VALUEOUT>> out) throws Exception {
 		mapperContext.setFlinkCollector(out);
-		hadoopProxyMapper.map(value.f0, value.f1, mapperContext);
+		mapperContext.setKeyIn(value.f0);
+		mapperContext.setValueIn(value.f1);
+		hadoopProxyMapper.getMapMethod().invoke(hadoopMapper, value.f0, value.f1, mapperContext);
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
-		this.hadoopProxyMapper.cleanup(this.mapperContext);
+		if (hadoopProxyMapper.getCleanupMethod() != null) {
+			hadoopProxyMapper.getCleanupMethod().invoke(hadoopMapper, mapperContext);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -101,15 +121,15 @@ public class HadoopMapFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 	 */
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		out.writeObject(hadoopMapper.getClass());
-		jobConf.write(out);
+		jobConf.getConfiguration().write(out);
 	}
 
 	@SuppressWarnings("unchecked")
 	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
 		Class<Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>> mapperClass =
 			(Class<Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>>) in.readObject();
-		jobConf = new org.apache.hadoop.conf.Configuration();
-		jobConf.readFields(in);
+		jobConf = Job.getInstance();
+		jobConf.getConfiguration().readFields(in);
 
 		hadoopMapper = InstantiationUtil.instantiate(mapperClass);
 	}

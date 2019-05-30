@@ -17,6 +17,7 @@
 
 package org.apache.flink.hadoopcompatibility.mapreduce.wrapper;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -45,73 +46,47 @@ import java.net.URI;
  */
 public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
 
-	private final Mapper delegatedMapper;
-	private Method mapMethod;
+	private final boolean isObjectReuseEnabled;
+	private final Method mapMethod;
 	private Method setupMethod;
 	private Method cleanupMethod;
 
-	public HadoopProxyMapper(Mapper delegatedMapper) {
-		this.delegatedMapper = Preconditions.checkNotNull(delegatedMapper);
-		try {
-			mapMethod = delegatedMapper.getClass().getDeclaredMethod("map", Object.class, Object.class, Mapper.Context.class);
-			mapMethod.setAccessible(true);
-		} catch (NoSuchMethodException e) {
-			mapMethod = null;
-		}
+	public HadoopProxyMapper(Mapper delegatedMapper, boolean isObjectReuseEnabled) throws NoSuchMethodException {
+		Preconditions.checkNotNull(delegatedMapper);
+		this.isObjectReuseEnabled = isObjectReuseEnabled;
+		mapMethod = delegatedMapper.getClass().getDeclaredMethod("map", Object.class, Object.class, Mapper.Context.class);
+		mapMethod.setAccessible(true);
 
 		try {
 			setupMethod = delegatedMapper.getClass().getDeclaredMethod("setup", Context.class);
 			setupMethod.setAccessible(true);
-		} catch (NoSuchMethodException e) {
+		} catch (Exception e) {
 			setupMethod = null;
 		}
 
 		try {
 			cleanupMethod = delegatedMapper.getClass().getDeclaredMethod("cleanup", Context.class);
 			cleanupMethod.setAccessible(true);
-		} catch (NoSuchMethodException e) {
+		} catch (Exception e) {
 			cleanupMethod = null;
 		}
 	}
 
-	@Override
-	public void setup(Context context) throws IOException, InterruptedException {
-		super.setup(context);
-		if (setupMethod != null) {
-			try {
-				setupMethod.invoke(delegatedMapper, context);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
+	public Method getMapMethod() {
+		return mapMethod;
 	}
 
-	@Override
-	public void map(KEYIN key, VALUEIN value, Context context) throws IOException, InterruptedException {
-		if (mapMethod != null) {
-			try {
-				mapMethod.invoke(delegatedMapper, key, value, context);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
+	public Method getSetupMethod() {
+		return setupMethod;
 	}
 
-	@Override
-	public void cleanup(Context context) throws IOException, InterruptedException {
-		super.cleanup(context);
-		if (cleanupMethod != null) {
-			try {
-				cleanupMethod.invoke(delegatedMapper, context);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
+	public Method getCleanupMethod() {
+		return cleanupMethod;
 	}
 
 	@Override
 	public void run(Context context) throws IOException, InterruptedException {
-		super.run(context);
+		throw new UnsupportedOperationException();
 	}
 
 	/**
@@ -119,11 +94,18 @@ public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<
 	 */
 	public class HadoopDummyMapperContext<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>.Context {
 
+		private final Tuple2<KEYOUT, VALUEOUT> outTuple = new Tuple2<KEYOUT, VALUEOUT>();
+
+		private KEYIN keyIn;
+		private VALUEIN valueIn;
+		private KEYOUT keyOut;
+		private VALUEOUT valueOut;
+
 		private Collector<Tuple2<KEYOUT, VALUEOUT>> flinkCollector;
 
 		private Configuration hadoopConf;
 
-		private final Tuple2<KEYOUT, VALUEOUT> outTuple = new Tuple2<KEYOUT, VALUEOUT>();
+		private Class<? extends Mapper<?, ?, ?, ?>> mapperClass;
 
 		public void setFlinkCollector(Collector<Tuple2<KEYOUT, VALUEOUT>> flinkCollector) {
 			this.flinkCollector = flinkCollector;
@@ -133,66 +115,92 @@ public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<
 			this.hadoopConf = hadoopConf;
 		}
 
+		public void setKeyIn(KEYIN keyIn) {
+			this.keyIn = keyIn;
+		}
+
+		public void setValueIn(VALUEIN valueIn) {
+			this.valueIn = valueIn;
+		}
+
+		public void setMapperClass(Class<? extends Mapper<?, ?, ?, ?>> mapperClass) {
+			this.mapperClass = mapperClass;
+		}
+
+		@VisibleForTesting
+		public boolean isObjectReuseEnabled() {
+			return isObjectReuseEnabled;
+		}
+
 		@Override
 		public InputSplit getInputSplit() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public boolean nextKeyValue() throws IOException, InterruptedException {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public KEYIN getCurrentKey() throws IOException, InterruptedException {
-			return null;
+			return this.keyIn;
 		}
 
 		@Override
 		public VALUEIN getCurrentValue() throws IOException, InterruptedException {
-			return null;
+			return this.valueIn;
 		}
 
 		@Override
 		public void write(KEYOUT keyout, VALUEOUT valueout) throws IOException, InterruptedException {
-			this.outTuple.f0 = keyout;
-			this.outTuple.f1 = valueout;
-			this.flinkCollector.collect(outTuple);
+			this.keyOut = keyout;
+			this.valueOut = valueout;
+			if (isObjectReuseEnabled) {
+				this.outTuple.f0 = this.keyOut;
+				this.outTuple.f1 = this.valueOut;
+				this.flinkCollector.collect(outTuple);
+			} else {
+				Tuple2<KEYOUT, VALUEOUT> outTuple = new Tuple2<KEYOUT, VALUEOUT>();
+				outTuple.f0 = this.keyOut;
+				outTuple.f1 = this.valueOut;
+				this.flinkCollector.collect(outTuple);
+			}
 		}
 
 		@Override
 		public OutputCommitter getOutputCommitter() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public TaskAttemptID getTaskAttemptID() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public void setStatus(String s) {
-
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String getStatus() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public float getProgress() {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Counter getCounter(Enum<?> anEnum) {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Counter getCounter(String s, String s1) {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -202,187 +210,187 @@ public class HadoopProxyMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> extends Mapper<
 
 		@Override
 		public Credentials getCredentials() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public JobID getJobID() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public int getNumReduceTasks() {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Path getWorkingDirectory() throws IOException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<?> getOutputKeyClass() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<?> getOutputValueClass() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<?> getMapOutputKeyClass() {
-			return null;
+			return this.keyOut.getClass();
 		}
 
 		@Override
 		public Class<?> getMapOutputValueClass() {
-			return null;
+			return this.valueOut.getClass();
 		}
 
 		@Override
 		public String getJobName() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<? extends InputFormat<?, ?>> getInputFormatClass() throws ClassNotFoundException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<? extends Mapper<?, ?, ?, ?>> getMapperClass() throws ClassNotFoundException {
-			return null;
+			return this.mapperClass;
 		}
 
 		@Override
 		public Class<? extends Reducer<?, ?, ?, ?>> getCombinerClass() throws ClassNotFoundException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<? extends Reducer<?, ?, ?, ?>> getReducerClass() throws ClassNotFoundException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<? extends OutputFormat<?, ?>> getOutputFormatClass() throws ClassNotFoundException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Class<? extends Partitioner<?, ?>> getPartitionerClass() throws ClassNotFoundException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public RawComparator<?> getSortComparator() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String getJar() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public RawComparator<?> getCombinerKeyGroupingComparator() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public RawComparator<?> getGroupingComparator() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public boolean getJobSetupCleanupNeeded() {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public boolean getTaskCleanupNeeded() {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public boolean getProfileEnabled() {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String getProfileParams() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Configuration.IntegerRanges getProfileTaskRange(boolean b) {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String getUser() {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public boolean getSymlink() {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Path[] getArchiveClassPaths() {
-			return new Path[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public URI[] getCacheArchives() throws IOException {
-			return new URI[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public URI[] getCacheFiles() throws IOException {
-			return new URI[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Path[] getLocalCacheArchives() throws IOException {
-			return new Path[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Path[] getLocalCacheFiles() throws IOException {
-			return new Path[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Path[] getFileClassPaths() {
-			return new Path[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String[] getArchiveTimestamps() {
-			return new String[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public String[] getFileTimestamps() {
-			return new String[0];
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public int getMaxMapAttempts() {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public int getMaxReduceAttempts() {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public void progress() {
-
+			throw new UnsupportedOperationException();
 		}
 	}
 }
