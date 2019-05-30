@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -208,7 +209,8 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 * @throws IOException Thrown, if the pointer cannot be resolved, the file system not accessed, or
 	 *                     the pointer points to a location that does not seem to be a checkpoint/savepoint.
 	 */
-	protected static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
+	@Internal
+	public static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
 		checkNotNull(checkpointPointer, "checkpointPointer");
 		checkArgument(!checkpointPointer.isEmpty(), "empty checkpoint pointer");
 
