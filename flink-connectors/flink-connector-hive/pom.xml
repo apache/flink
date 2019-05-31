@@ -352,13 +352,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-        <!-- Common dependency of calcite-core and flink-* -->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>19.0</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
 	<build>

@@ -117,7 +117,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			this.mapredInputFormat = (InputFormat)
 				Class.forName(sd.getInputFormat(), true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {
-			throw new RuntimeException("Unable to instantiate the hadoop input format", e);
+			throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
 		}
 		ReflectionUtils.setConf(mapredInputFormat, jobConf);
 		if (this.mapredInputFormat instanceof Configurable) {
@@ -201,6 +201,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	public void close() throws IOException {
 		if (this.recordReader != null) {
 			this.recordReader.close();
+			this.recordReader = null;
 		}
 	}
 

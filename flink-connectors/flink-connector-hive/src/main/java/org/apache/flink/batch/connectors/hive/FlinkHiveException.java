@@ -20,12 +20,10 @@ package org.apache.flink.batch.connectors.hive;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Exception used by {@link HiveTableInputFormat} and {@link HiveTableOutputFormat}.
+ * Exception used by {@link HiveTableInputFormat}.
  */
 @PublicEvolving
 public class FlinkHiveException extends RuntimeException {
-
-	private static final long serialVersionUID = 920269130311214200L;
 
 	public FlinkHiveException(Throwable cause) {
 		super(cause);

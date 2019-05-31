@@ -43,15 +43,16 @@ public class HiveRecordSerDe {
 	 * Return underlying Java Object from an object-representation
 	 * that is readable by a provided ObjectInspector.
 	 */
-	public static Object obtainFlinkRowField(Object field, ObjectInspector fieldObjectInspector)
-			throws SerDeException {
+	public static Object obtainFlinkRowField(Object field, ObjectInspector fieldObjectInspector) {
 		Object res;
 		if (fieldObjectInspector.getCategory() == ObjectInspector.Category.PRIMITIVE) {
 			res = convertPrimitiveField(field, (PrimitiveObjectInspector) fieldObjectInspector);
 		} else {
-			throw new SerDeException(HiveRecordSerDe.class.toString()
-									+ " does not know what to do with fields of unknown category: "
-									+ fieldObjectInspector.getCategory() + " , type: " + fieldObjectInspector.getTypeName());
+			throw new FlinkHiveException(new SerDeException(HiveRecordSerDe.class.toString()
+											+ " does not know what to do with fields of unknown category: "
+											+ fieldObjectInspector.getCategory() + " , type: "
+											+ fieldObjectInspector.getTypeName())
+			);
 		}
 		return res;
 	}
@@ -60,7 +61,7 @@ public class HiveRecordSerDe {
 	 * This method actually convert java objects of Hive's scalar data types to those of Flink's internal data types.
 	 * @param field field value
 	 * @param primitiveObjectInspector Hive's primitive object inspector for the field
-	 * @return the java objects conforming to Flink's internal data types.
+	 * @return the java object conforming to Flink's internal data types.
 	 *
 	 * TODO: Comparing to original HCatRecordSerDe.java, we may need add more type converter according to conf.
 	 */
