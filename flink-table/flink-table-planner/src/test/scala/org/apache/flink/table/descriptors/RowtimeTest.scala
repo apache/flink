@@ -20,9 +20,9 @@ package org.apache.flink.table.descriptors
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor

@@ -20,8 +20,8 @@ package org.apache.flink.table.sources.tsextractors
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation, Types}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.descriptors.Rowtime
 import org.apache.flink.table.expressions._
 

@@ -84,67 +84,67 @@ object PythonTableUtils {
     * null if the type of obj is unexpected because Python doesn't enforce the type.
     */
   private def convertTo(dataType: TypeInformation[_]): Any => Any = dataType match {
-    case Types.BOOLEAN => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.BOOLEAN => (obj: Any) => nullSafeConvert(obj) {
       case b: Boolean => b
     }
 
-    case Types.BYTE => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.BYTE => (obj: Any) => nullSafeConvert(obj) {
       case c: Byte => c
       case c: Short => c.toByte
       case c: Int => c.toByte
       case c: Long => c.toByte
     }
 
-    case Types.SHORT => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.SHORT => (obj: Any) => nullSafeConvert(obj) {
       case c: Byte => c.toShort
       case c: Short => c
       case c: Int => c.toShort
       case c: Long => c.toShort
     }
 
-    case Types.INT => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.INT => (obj: Any) => nullSafeConvert(obj) {
       case c: Byte => c.toInt
       case c: Short => c.toInt
       case c: Int => c
       case c: Long => c.toInt
     }
 
-    case Types.LONG => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.LONG => (obj: Any) => nullSafeConvert(obj) {
       case c: Byte => c.toLong
       case c: Short => c.toLong
       case c: Int => c.toLong
       case c: Long => c
     }
 
-    case Types.FLOAT => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.FLOAT => (obj: Any) => nullSafeConvert(obj) {
       case c: Float => c
       case c: Double => c.toFloat
     }
 
-    case Types.DOUBLE => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.DOUBLE => (obj: Any) => nullSafeConvert(obj) {
       case c: Float => c.toDouble
       case c: Double => c
     }
 
-    case Types.DECIMAL => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.DECIMAL => (obj: Any) => nullSafeConvert(obj) {
       case c: java.math.BigDecimal => c
     }
 
-    case Types.SQL_DATE => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.SQL_DATE => (obj: Any) => nullSafeConvert(obj) {
       case c: Int => new Date(c * 86400000)
     }
 
-    case Types.SQL_TIME => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.SQL_TIME => (obj: Any) => nullSafeConvert(obj) {
       case c: Long => new Time(c / 1000)
       case c: Int => new Time(c.toLong / 1000)
     }
 
-    case Types.SQL_TIMESTAMP => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.SQL_TIMESTAMP => (obj: Any) => nullSafeConvert(obj) {
       case c: Long => new Timestamp(c / 1000)
       case c: Int => new Timestamp(c.toLong / 1000)
     }
 
-    case Types.STRING => (obj: Any) => nullSafeConvert(obj) {
+    case _ if dataType == Types.STRING => (obj: Any) => nullSafeConvert(obj) {
       case _ => obj.toString
     }
 
