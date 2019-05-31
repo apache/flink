@@ -57,8 +57,7 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	}
 
 	public static <T2> ConnectorCatalogTable sink(TableSink<T2> sink, boolean isBatch) {
-		TableSchema tableSchema = new TableSchema(sink.getFieldNames(), sink.getFieldTypes());
-		return new ConnectorCatalogTable<>(null, sink, tableSchema, isBatch);
+		return new ConnectorCatalogTable<>(null, sink, sink.getTableSchema(), isBatch);
 	}
 
 	public static <T1, T2> ConnectorCatalogTable sourceAndSink(

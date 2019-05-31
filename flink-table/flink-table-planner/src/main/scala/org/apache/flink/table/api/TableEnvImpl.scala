@@ -455,14 +455,8 @@ abstract class TableEnvImpl(
 
   override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
     // validate
-    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
-      throw new TableException("Table sink is not configured.")
-    }
-    if (configuredSink.getFieldNames.length == 0) {
+    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
       throw new TableException("Field names must not be empty.")
-    }
-    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
     }
 
     validateTableSink(configuredSink)
@@ -692,13 +686,13 @@ abstract class TableEnvImpl(
       case Some(tableSink) =>
         // validate schema of source table and table sink
         val srcFieldTypes = table.getSchema.getFieldTypes
-        val sinkFieldTypes = tableSink.getFieldTypes
+        val sinkFieldTypes = tableSink.getTableSchema.getFieldTypes
 
         if (srcFieldTypes.length != sinkFieldTypes.length ||
           srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
           val srcFieldNames = table.getSchema.getFieldNames
-          val sinkFieldNames = tableSink.getFieldNames
+          val sinkFieldNames = tableSink.getTableSchema.getFieldNames
 
           // format table and table sink schema strings
           val srcSchema = srcFieldNames.zip(srcFieldTypes)

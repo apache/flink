@@ -41,6 +41,7 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, validateInputTypeInfo}
 import org.apache.flink.types.Row
 
@@ -108,7 +109,8 @@ abstract class BatchTableEnvImpl(
 
     sink match {
       case batchSink: BatchTableSink[T] =>
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val result: DataSet[T] = translate(table, batchQueryConfig)(outputType)
         // Give the DataSet to the TableSink to emit it.

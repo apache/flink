@@ -44,7 +44,7 @@ class DataStreamTableSink[T](
   /**
     * Return the type expected by this [[TableSink]].
     *
-    * This type should depend on the types returned by [[getFieldNames]].
+    * This type should depend on the types returned by [[getTableSchema]].
     *
     * @return The type expected by this [[TableSink]].
     */

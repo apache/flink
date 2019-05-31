@@ -51,7 +51,7 @@ class CollectTableSink[T](produceOutputType: (Array[TypeInformation[_]] => TypeI
   }
 
   override def getOutputType: TypeInformation[T] = {
-    produceOutputType(getFieldTypes)
+    produceOutputType(getTableSchema.getFieldTypes)
   }
 
   def init(typeSerializer: TypeSerializer[T], id: String): Unit = {

@@ -35,8 +35,9 @@ class TableSinkTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val fieldTypes = tableSink.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo)
-    flinkTypeFactory.buildRelDataType(tableSink.getFieldNames, fieldTypes)
+    val fieldTypes = tableSink.getTableSchema.getFieldTypes
+      .map(TypeConverters.createInternalTypeFromTypeInfo)
+    flinkTypeFactory.buildRelDataType(tableSink.getTableSchema.getFieldNames, fieldTypes)
   }
 
   /**

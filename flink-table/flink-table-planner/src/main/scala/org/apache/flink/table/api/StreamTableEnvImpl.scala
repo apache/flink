@@ -52,6 +52,7 @@ import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFuncti
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, isReferenceByPosition}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
 import _root_.scala.collection.JavaConverters._
@@ -139,7 +140,8 @@ abstract class StreamTableEnvImpl(
 
       case retractSink: RetractStreamTableSink[_] =>
         // retraction sink can always be used
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
@@ -166,7 +168,8 @@ abstract class StreamTableEnvImpl(
           case None if !isAppendOnlyTable => throw new TableException(
             "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
         }
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         val resultType = getResultType(table.getRelNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
@@ -187,7 +190,8 @@ abstract class StreamTableEnvImpl(
           throw new TableException(
             "AppendStreamTableSink requires that Table has only insert changes.")
         }
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         val resultType = getResultType(table.getRelNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =

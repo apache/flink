@@ -18,25 +18,25 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
-import org.apache.flink.table.codegen.SinkCodeGenerator.{extractTableSinkTypeClass, generateRowConverterOperator}
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.nodes.calcite.Sink
-import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
-import org.apache.flink.table.plan.util.UpdatingPlanChecker
-import org.apache.flink.table.sinks._
-import org.apache.flink.table.`type`.InternalTypes
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import java.util
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
-import java.util
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.`type`.InternalTypes
+import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.SinkCodeGenerator.{extractTableSinkTypeClass, generateRowConverterOperator}
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
+import org.apache.flink.table.plan.nodes.calcite.Sink
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.UpdatingPlanChecker
+import org.apache.flink.table.sinks._
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import scala.collection.JavaConversions._
 
@@ -178,7 +178,7 @@ class StreamExecSink[T](
     } else {
       parTransformation.getOutputType
     }
-    val resultType = sink.getOutputType
+    val resultType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
     val typeClass = extractTableSinkTypeClass(sink)
     if (CodeGenUtils.isInternalClass(typeClass, resultType)) {
       parTransformation.asInstanceOf[StreamTransformation[T]]

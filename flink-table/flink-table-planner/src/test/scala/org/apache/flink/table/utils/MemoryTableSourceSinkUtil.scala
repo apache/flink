@@ -104,7 +104,7 @@ object MemoryTableSourceSinkUtil {
     with AppendStreamTableSink[Row] {
 
     override def getOutputType: TypeInformation[Row] = {
-      new RowTypeInfo(getFieldTypes, getFieldNames)
+      new RowTypeInfo(getTableSchema.getFieldTypes, getTableSchema.getFieldNames)
     }
 
     override protected def copy: TableSinkBase[Row] = {
@@ -114,7 +114,7 @@ object MemoryTableSourceSinkUtil {
     override def emitDataSet(dataSet: DataSet[Row]): Unit = {
       dataSet
         .output(new MemoryCollectionOutputFormat)
-        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getFieldNames))
+        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getTableSchema.getFieldNames))
     }
 
     override def emitDataStream(dataStream: DataStream[Row]): Unit = {
@@ -122,7 +122,7 @@ object MemoryTableSourceSinkUtil {
       dataStream
         .addSink(new MemoryAppendSink)
         .setParallelism(inputParallelism)
-        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getFieldNames))
+        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getTableSchema.getFieldNames))
     }
   }
 

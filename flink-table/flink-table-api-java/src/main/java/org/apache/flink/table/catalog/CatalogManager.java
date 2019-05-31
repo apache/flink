@@ -383,8 +383,8 @@ public class CatalogManager {
 		if (externalTable.isTableSource()) {
 			return TableFactoryUtil.findAndCreateTableSource(externalTable).getTableSchema();
 		} else {
-			TableSink tableSink = TableFactoryUtil.findAndCreateTableSink(externalTable);
-			return new TableSchema(tableSink.getFieldNames(), tableSink.getFieldTypes());
+			TableSink<?> tableSink = TableFactoryUtil.findAndCreateTableSink(externalTable);
+			return tableSink.getTableSchema();
 		}
 	}
 }

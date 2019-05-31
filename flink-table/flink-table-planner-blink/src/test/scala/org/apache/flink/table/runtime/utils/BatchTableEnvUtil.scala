@@ -29,8 +29,9 @@ import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.CollectTableSink
 import org.apache.flink.util.AbstractID
-
 import _root_.java.util.{ArrayList => JArrayList}
+
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -42,7 +43,9 @@ object BatchTableEnvUtil {
       table: Table,
       sink: CollectTableSink[T],
       jobName: Option[String]): Seq[T] = {
-    val typeSerializer = sink.getOutputType.createSerializer(tEnv.streamEnv.getConfig)
+    val typeSerializer = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+      .asInstanceOf[TypeInformation[T]]
+      .createSerializer(tEnv.streamEnv.getConfig)
     val id = new AbstractID().toString
     sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
     tEnv.writeToSink(table, sink)
