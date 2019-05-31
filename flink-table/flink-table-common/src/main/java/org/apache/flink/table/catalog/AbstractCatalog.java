@@ -31,11 +31,11 @@ public abstract class AbstractCatalog implements Catalog {
 	private final String catalogName;
 	private final String defaultDatabase;
 
-	public AbstractCatalog(String catalogName, String defaultDatabase) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "catalogName cannot be null or empty");
+	public AbstractCatalog(String name, String defaultDatabase) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(name), "name cannot be null or empty");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(defaultDatabase), "defaultDatabase cannot be null or empty");
 
-		this.catalogName = catalogName;
+		this.catalogName = name;
 		this.defaultDatabase = defaultDatabase;
 	}
 
