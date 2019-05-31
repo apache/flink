@@ -480,11 +480,6 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferProvider getBufferProvider() {
-			return bufferProvider;
-		}
-
-		@Override
 		public ResultPartitionID getPartitionId() {
 			return partitionId;
 		}
@@ -497,6 +492,11 @@ public class RecordWriterTest {
 		@Override
 		public int getNumTargetKeyGroups() {
 			return 1;
+		}
+
+		@Override
+		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking();
 		}
 
 		@Override
@@ -555,11 +555,6 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferProvider getBufferProvider() {
-			return bufferProvider;
-		}
-
-		@Override
 		public ResultPartitionID getPartitionId() {
 			return partitionId;
 		}
@@ -572,6 +567,11 @@ public class RecordWriterTest {
 		@Override
 		public int getNumTargetKeyGroups() {
 			return 1;
+		}
+
+		@Override
+		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking();
 		}
 
 		@Override

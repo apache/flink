@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -49,11 +50,6 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	}
 
 	@Override
-	public BufferProvider getBufferProvider() {
-		return bufferProvider;
-	}
-
-	@Override
 	public ResultPartitionID getPartitionId() {
 		return new ResultPartitionID();
 	}
@@ -66,6 +62,11 @@ public abstract class AbstractCollectingResultPartitionWriter implements ResultP
 	@Override
 	public int getNumTargetKeyGroups() {
 		return 1;
+	}
+
+	@Override
+	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+		return bufferProvider.requestBufferBuilderBlocking();
 	}
 
 	@Override
