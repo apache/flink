@@ -76,10 +76,6 @@ function start_hadoop_cluster() {
 
     return 0
 }
-
-mkdir -p $FLINK_TARBALL_DIR
-tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
-
 echo "Building Hadoop Docker container"
 until docker build --build-arg HADOOP_VERSION=2.8.4 \
     -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile \
@@ -96,6 +92,9 @@ if ! retry_times $CLUSTER_SETUP_RETRIES 0 start_hadoop_cluster; then
     echo "ERROR: Could not start hadoop cluster. Aborting..."
     exit 1
 fi
+
+mkdir -p $FLINK_TARBALL_DIR
+tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
 
 docker cp $FLINK_TARBALL_DIR/$FLINK_TARBALL master:/home/hadoop-user/
 
