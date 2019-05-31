@@ -56,9 +56,7 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	private final HiveConf hiveConf;
 
 	public HiveMetastoreClientWrapper(HiveConf hiveConf) {
-		Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
-
-		this.hiveConf = hiveConf;
+		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
 		client = createMetastoreClient();
 	}
 

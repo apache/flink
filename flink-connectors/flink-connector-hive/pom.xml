@@ -425,8 +425,9 @@ under the License.
 	</build>
 
 	<profiles>
+		<!-- Activate this profile with -Phive-1.2.1 to build and test against hive-1.2.1 -->
 		<profile>
-			<id>hive-1</id>
+			<id>hive-1.2.1</id>
 			<properties>
 				<hive.version>1.2.1</hive.version>
 				<hivemetastore.hadoop.version>2.6.0</hivemetastore.hadoop.version>
