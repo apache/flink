@@ -71,6 +71,7 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSta
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -527,10 +528,13 @@ public class LegacyScheduler implements SchedulerNG {
 			checkpointMetrics,
 			checkpointState);
 
+		final Optional<TaskManagerLocation> optionalLocation = tryRetrieveTaskManagerLocation(executionAttemptID);
+		final TaskManagerLocation taskManagerLocation = optionalLocation.isPresent() ? optionalLocation.get() : null;
+
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
-					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage);
+					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocation);
 				} catch (Throwable t) {
 					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
@@ -550,11 +554,13 @@ public class LegacyScheduler implements SchedulerNG {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		final Optional<TaskManagerLocation> optionalLocation = tryRetrieveTaskManagerLocation(decline.getTaskExecutionId());
+		final TaskManagerLocation taskManagerLocation = optionalLocation.isPresent() ? optionalLocation.get() : null;
 
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
-					checkpointCoordinator.receiveDeclineMessage(decline);
+					checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocation);
 				} catch (Exception e) {
 					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
 				}
@@ -623,5 +629,10 @@ public class LegacyScheduler implements SchedulerNG {
 
 		return savepointFuture.thenCompose((path) ->
 			terminationFuture.thenApply((jobStatus -> path)));
+	}
+
+	private Optional<TaskManagerLocation> tryRetrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
+		final Execution currentExecution = executionGraph.getRegisteredExecutions().get(executionAttemptID);
+		return currentExecution != null ? Optional.ofNullable(currentExecution.getAssignedResourceLocation()) : Optional.empty();
 	}
 }
