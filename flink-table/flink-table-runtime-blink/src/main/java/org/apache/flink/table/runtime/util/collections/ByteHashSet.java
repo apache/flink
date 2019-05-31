@@ -17,8 +17,6 @@
 
 package org.apache.flink.table.runtime.util.collections;
 
-import org.apache.flink.table.util.MurmurHashUtil;
-
 /**
  * Byte hash set.
  */
