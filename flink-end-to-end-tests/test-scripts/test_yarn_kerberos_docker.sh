@@ -118,6 +118,18 @@ docker exec -it master bash -c "cat /home/hadoop-user/$FLINK_DIRNAME/conf/flink-
 # had cached docker containers
 OUTPUT_PATH=hdfs:///user/hadoop-user/wc-out-$RANDOM
 
+function copy_and_show_logs {
+    mkdir -p $TEST_DATA_DIR/logs
+    echo "Hadoop logs:"
+    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
+    for f in $TEST_DATA_DIR/logs/*; do
+        echo "$f:"
+        cat $f
+    done
+    echo "Docker logs:"
+    docker logs master
+}
+
 start_time=$(date +%s)
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
@@ -132,15 +144,7 @@ then
     echo "$OUTPUT"
 else
     echo "Running the job failed."
-    mkdir -p $TEST_DATA_DIR/logs
-    echo "Hadoop logs:"
-    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
-    for f in $TEST_DATA_DIR/logs/*; do
-        echo "$f:"
-        cat $f
-    done
-    echo "Docker logs:"
-    docker logs master
+    copy_and_show_logs
     exit 1
 fi
 
@@ -148,15 +152,7 @@ EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
 for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
     if [[ ! "$OUTPUT" =~ $expected_result ]]; then
         echo "Output does not contain '$expected_result' as required"
-        mkdir -p $TEST_DATA_DIR/logs
-        echo "Hadoop logs:"
-        docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
-        for f in $TEST_DATA_DIR/logs/*; do
-            echo "$f:"
-            cat $f
-        done
-        echo "Docker logs:"
-        docker logs master
+        copy_and_show_logs
         exit 1
     fi
 done
