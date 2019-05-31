@@ -109,7 +109,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 					ResourceProfile.UNKNOWN,
 					new SlotSharingGroupId(),
 					null,
-					null,
 					null
 			));
 			executionVertexIds.add(executionVertexId);
@@ -193,13 +192,11 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 						ResourceProfile.UNKNOWN,
 						null,
 						null,
-						null,
 						null),
 				new ExecutionVertexSchedulingRequirements(
 						executionVertexIds.get(1),
 						expectAllocationIds.get(0),
 						ResourceProfile.UNKNOWN,
-						null,
 						null,
 						null,
 						null),
@@ -209,13 +206,11 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 						ResourceProfile.UNKNOWN,
 						null,
 						null,
-						null,
 						null),
 				new ExecutionVertexSchedulingRequirements(
 						executionVertexIds.get(3),
 						null,
 						ResourceProfile.UNKNOWN,
-						null,
 						null,
 						null,
 						null)
@@ -270,7 +265,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 		// The first upstream has more than 10 different locations
 		List<TaskManagerLocation> locationsOfProducer1 = new ArrayList<>(producer1.getParallelism());
-		for (int i = 0 ; i < producer1.getParallelism(); i++) {
+		for (int i = 0; i < producer1.getParallelism(); i++) {
 			TaskManagerLocation location = new LocalTaskManagerLocation();
 			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer1.getID(), i))
 					.ifPresent((locationFuture -> locationFuture.complete(location)));
@@ -279,7 +274,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 		// The second upstream has 1 different locations with 7 uncompleted
 		TaskManagerLocation location = new LocalTaskManagerLocation();
-		for (int i = 0 ; i < 3; i++) {
+		for (int i = 0; i < 3; i++) {
 			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer2.getID(), i))
 					.ifPresent((locationFuture -> locationFuture.complete(location)));
 		}
@@ -289,7 +284,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 					.ifPresent((locationFuture -> locationFuture.complete(new LocalTaskManagerLocation())));
 
 		// The fourth upstream has 3 different locations
-		for (int i = 0 ; i < producer4.getParallelism(); i++) {
+		for (int i = 0; i < producer4.getParallelism(); i++) {
 			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer4.getID(), i))
 					.ifPresent((locationFuture -> locationFuture.complete(new LocalTaskManagerLocation())));
 		}
@@ -307,7 +302,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		}
 		assertFalse(preferredLocationsOfConsumer1.isDone());
 
-		for (int i = 0 ; i < producer5.getParallelism(); i++) {
+		for (int i = 0; i < producer5.getParallelism(); i++) {
 			locationsRetriever.getTaskManagerLocation(new ExecutionVertexID(producer5.getID(), i))
 					.ifPresent((locationFuture -> locationFuture.complete(new LocalTaskManagerLocation())));
 		}

@@ -46,8 +46,6 @@ public class ExecutionVertexSchedulingRequirements {
 
 	private final CoLocationConstraint coLocationConstraint;
 
-	private final AbstractID groupId;
-
 	private final Collection<TaskManagerLocation> preferredLocations;
 
 	public ExecutionVertexSchedulingRequirements(
@@ -56,14 +54,12 @@ public class ExecutionVertexSchedulingRequirements {
 			ResourceProfile resourceProfile,
 			SlotSharingGroupId slotSharingGroupId,
 			CoLocationConstraint coLocationConstraint,
-			AbstractID groupId,
 			Collection<TaskManagerLocation> preferredLocations) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.previousAllocationId = previousAllocationId;
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.slotSharingGroupId = slotSharingGroupId;
 		this.coLocationConstraint = coLocationConstraint;
-		this.groupId = groupId;
 		this.preferredLocations = preferredLocations;
 	}
 
@@ -85,10 +81,6 @@ public class ExecutionVertexSchedulingRequirements {
 
 	public CoLocationConstraint getCoLocationConstraint() {
 		return coLocationConstraint;
-	}
-
-	public AbstractID getGroupId() {
-		return groupId;
 	}
 
 	public Collection<TaskManagerLocation> getPreferredLocations() {
