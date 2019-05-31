@@ -21,7 +21,7 @@ package org.apache.flink.table.type;
 import org.apache.flink.types.Nothing;
 
 /**
- * Placeholder type information for the {@link Nothing} type.
+ * Placeholder internal type for the {@link Nothing} type.
  */
 public class NothingType implements InternalType {
 
