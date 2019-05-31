@@ -20,17 +20,13 @@ package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableConfigOptions;
-import org.apache.flink.table.api.TableImpl;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
-import org.apache.flink.table.runtime.utils.TableUtil;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -50,12 +46,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import scala.collection.Seq;
-
 /**
- * Tests {@link HiveTableSource}.
+ * Tests {@link HiveTableInputFormat}.
  */
-public class HiveTableSourceTest {
+public class HiveInputFormatTest {
 
 	public static final String DEFAULT_SERDE_CLASS = org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe.class.getName();
 	public static final String DEFAULT_INPUT_FORMAT_CLASS = org.apache.hadoop.mapred.TextInputFormat.class.getName();
@@ -79,7 +73,7 @@ public class HiveTableSourceTest {
 	}
 
 	@Test
-	public void testReadNonPartitionedTable() throws Exception {
+	public void testReadFromHiveInputFormat() throws Exception {
 		final String dbName = "default";
 		final String tblName = "test";
 		TableSchema tableSchema = new TableSchema(
@@ -100,7 +94,7 @@ public class HiveTableSourceTest {
 		tbl.setCreateTime((int) (System.currentTimeMillis() / 1000));
 		tbl.setParameters(new HashMap<>());
 		StorageDescriptor sd = new StorageDescriptor();
-		String location = HiveTableSourceTest.class.getResource("/test").getPath();
+		String location = HiveInputFormatTest.class.getResource("/test").getPath();
 		sd.setLocation(location);
 		sd.setInputFormat(DEFAULT_INPUT_FORMAT_CLASS);
 		sd.setOutputFormat(DEFAULT_OUTPUT_FORMAT_CLASS);
@@ -114,23 +108,19 @@ public class HiveTableSourceTest {
 		tbl.setPartitionKeys(new ArrayList<>());
 
 		client.createTable(tbl);
-		BatchTableEnvironment tEnv = createTableEnv(1);
-		HiveTableSource hiveTableSource = new HiveTableSource(tableSchema, new JobConf(hiveConf), dbName, tblName, null);
-		tEnv.registerTableSource("hiveTableSource", hiveTableSource);
-		Table table = tEnv.sqlQuery("Select * from hiveTableSource");
-		Seq<Row> rowSeq = TableUtil.collect((TableImpl) table);
-		List<Row> rows = scala.collection.JavaConversions.seqAsJavaList(rowSeq);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		RowTypeInfo rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+		List<HiveTablePartition> partitions = new ArrayList<>();
+		partitions.add(new HiveTablePartition(sd, new HashMap<>()));
+		HiveTableInputFormat hiveTableInputFormat = new HiveTableInputFormat(new JobConf(hiveConf), false, null,
+																			partitions, rowTypeInfo);
+		DataSet<Row> rowDataSet = env.createInput(hiveTableInputFormat);
+		List<Row> rows = rowDataSet.collect();
 		Assert.assertEquals(4, rows.size());
 		Assert.assertEquals(1, rows.get(0).getField(0));
 		Assert.assertEquals(2, rows.get(1).getField(0));
 		Assert.assertEquals(3, rows.get(2).getField(0));
 		Assert.assertEquals(4, rows.get(3).getField(0));
-	}
-
-	private BatchTableEnvironment createTableEnv(int parallelism) {
-		Configuration config = new Configuration();
-		config.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1);
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, config);
-		return BatchTableEnvironment.create(env);
 	}
 }

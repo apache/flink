@@ -23,13 +23,14 @@ import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopInputSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * An wrapper class that wraps info needed for a hadoop input split.
  * Right now, it contains info about the partition of the split.
  */
 public class HiveTableInputSplit extends HadoopInputSplit {
-	//todo: make this variable final, check other class variable
-	private HiveTablePartition hiveTablePartition;
+	private final HiveTablePartition hiveTablePartition;
 
 	public HiveTableInputSplit(
 			int splitNumber,
@@ -37,6 +38,7 @@ public class HiveTableInputSplit extends HadoopInputSplit {
 			JobConf jobconf,
 			HiveTablePartition hiveTablePartition) {
 		super(splitNumber, hInputSplit, jobconf);
+		checkArgument(null != hiveTablePartition, "hiveTablePartition can not be null");
 		this.hiveTablePartition = hiveTablePartition;
 	}
 

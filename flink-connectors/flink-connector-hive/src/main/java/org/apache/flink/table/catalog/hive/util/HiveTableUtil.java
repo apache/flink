@@ -29,11 +29,6 @@ import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -86,47 +81,15 @@ public class HiveTableUtil {
 		return columns;
 	}
 
-	/**
-	 * Convert partition value string to actual type in flink.
-	 * @param partitionValue
-	 * @param clazz
-	 * @return
-	 */
-	//todo: check whether hive partition field can be decimal or not .
-	public static Object getActualObjectFromString(String partitionValue, Class clazz) {
-		Object partitionObject = null;
-		if (String.class == clazz) {
-			partitionObject = partitionValue;
-		} else if (Short.class == clazz) {
-			partitionObject = Short.parseShort(partitionValue);
-		} else if (Integer.class == clazz) {
-			partitionObject = Integer.parseInt(partitionValue);
-		} else if (Long.class == clazz) {
-			partitionObject = Long.parseLong(partitionValue);
-		} else if (Float.class == clazz) {
-			partitionObject = Float.parseFloat(partitionValue);
-		} else if (Double.class == clazz) {
-			partitionObject = Double.parseDouble(partitionValue);
-		} else if (Boolean.class == clazz) {
-			partitionObject = Boolean.parseBoolean(partitionValue);
-		} else if (Timestamp.class == clazz) {
-			partitionObject = Timestamp.parse(partitionValue);
-		} else if (Date.class == clazz) {
-			partitionObject = Date.parse(partitionValue);
-		} else if (Time.class == clazz) {
-			partitionObject = Time.parse(partitionValue);
-		} else if (BigDecimal.class == clazz) {
-			partitionObject = new BigDecimal(partitionValue);
-		} else if (BigInteger.class == clazz) {
-			partitionObject = new BigInteger(partitionValue);
-		}
-		return partitionObject;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Create properties info to initialize a SerDe.
+	 * @param storageDescriptor
+	 * @return
+	 */
 	public static Properties createPropertiesFromStorageDescriptor(StorageDescriptor storageDescriptor) {
 		SerDeInfo serDeInfo = storageDescriptor.getSerdeInfo();
 		Map<String, String> parameters = serDeInfo.getParameters();

@@ -18,9 +18,6 @@
 
 package org.apache.flink.batch.connectors.hive;
 
-import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.type.DecimalType;
-
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.serde2.SerDeException;
@@ -31,9 +28,9 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveCharObjectIns
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveVarcharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
-import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.Timestamp;
 
 /**
@@ -46,11 +43,11 @@ public class HiveRecordSerDe {
 	 * Return underlying Java Object from an object-representation
 	 * that is readable by a provided ObjectInspector.
 	 */
-	public static Object serializeField(Object field, ObjectInspector fieldObjectInspector)
+	public static Object obtainFlinkRowField(Object field, ObjectInspector fieldObjectInspector)
 			throws SerDeException {
 		Object res;
 		if (fieldObjectInspector.getCategory() == ObjectInspector.Category.PRIMITIVE) {
-			res = serializePrimitiveField(field, (PrimitiveObjectInspector) fieldObjectInspector);
+			res = convertPrimitiveField(field, (PrimitiveObjectInspector) fieldObjectInspector);
 		} else {
 			throw new SerDeException(HiveRecordSerDe.class.toString()
 									+ " does not know what to do with fields of unknown category: "
@@ -67,24 +64,22 @@ public class HiveRecordSerDe {
 	 *
 	 * TODO: Comparing to original HCatRecordSerDe.java, we may need add more type converter according to conf.
 	 */
-	private static Object serializePrimitiveField(Object field, PrimitiveObjectInspector primitiveObjectInspector) {
+	private static Object convertPrimitiveField(Object field, PrimitiveObjectInspector primitiveObjectInspector) {
 		if (field == null) {
 			return null;
 		}
 
 		switch(primitiveObjectInspector.getPrimitiveCategory()) {
 			case DECIMAL:
-				DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveObjectInspector.getTypeInfo();
 				HiveDecimalObjectInspector decimalOI = (HiveDecimalObjectInspector) primitiveObjectInspector;
 				BigDecimal bigDecimal = decimalOI.getPrimitiveJavaObject(field).bigDecimalValue();
-				DecimalType decimalType = new DecimalType(decimalTypeInfo.precision(), decimalTypeInfo.scale());
-				return new DataFormatConverters.BigDecimalConverter(decimalType.precision(), decimalType.scale()).toInternal(bigDecimal);
+				return bigDecimal;
 			case TIMESTAMP:
 				Timestamp ts = ((TimestampObjectInspector) primitiveObjectInspector).getPrimitiveJavaObject(field);
-				return DataFormatConverters.TimestampConverter.INSTANCE.toInternal(ts);
+				return ts;
 			case DATE:
-				int days = ((DateObjectInspector) primitiveObjectInspector).getPrimitiveWritableObject(field).getDays();
-				return days;
+				Date date = ((DateObjectInspector) primitiveObjectInspector).getPrimitiveWritableObject(field).get();
+				return date;
 			case CHAR:
 				HiveChar c = ((HiveCharObjectInspector) primitiveObjectInspector).getPrimitiveJavaObject(field);
 				return c.getStrippedValue();
