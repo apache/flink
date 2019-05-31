@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.plan.nodes.common
 
+import java.util.Collections
+
 import com.google.common.primitives.Primitives
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -45,16 +47,14 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getParamClassesConsiderVarArgs, getUserDefinedMethod, signatureToString, signaturesToString}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.nodes.FlinkRelNode
-import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
 import org.apache.flink.table.plan.util.LookupJoinUtil._
-import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, LookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinWithCalcRunner}
+import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
 import org.apache.flink.table.sources.TableIndex.IndexType
 import org.apache.flink.table.sources.{LookupConfig, LookupableTableSource, TableIndex, TableSource}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
-
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -157,6 +157,9 @@ abstract class CommonLookupJoin(
     val resultRowType = FlinkTypeFactory.toInternalRowType(getRowType)
     val tableSchema = tableSource.getTableSchema
 
+    val producedDataType = tableSource.getProducedDataType
+    val producedTypeInfo = fromDataTypeToLegacyInfo(producedDataType)
+
     // validate whether the node is valid and supported.
     validate(
       tableSource,
@@ -202,7 +205,7 @@ abstract class CommonLookupJoin(
         0)
       checkUdtfReturnType(
         tableSource.explainSource(),
-        tableSource.getReturnType,
+        producedTypeInfo,
         udtfResultType,
         extractedResultTypeInfo)
       val parameters = Array(new GenericType(classOf[ResultFuture[_]])) ++ lookupFieldTypesInOrder
@@ -216,7 +219,7 @@ abstract class CommonLookupJoin(
         relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory],
         inputRowType,
         resultRowType,
-        tableSource.getReturnType,
+        producedTypeInfo,
         lookupFieldsInOrder,
         allLookupKeys,
         asyncLookupFunction)
@@ -240,7 +243,7 @@ abstract class CommonLookupJoin(
           generatedFetcher,
           generatedCalc,
           generatedResultFuture,
-          tableSource.getReturnType,
+          producedTypeInfo,
           rightRowType.toTypeInfo,
           leftOuterJoin,
           lookupConfig.getAsyncBufferCapacity)
@@ -256,7 +259,7 @@ abstract class CommonLookupJoin(
         new AsyncLookupJoinRunner(
           generatedFetcher,
           generatedResultFuture,
-          tableSource.getReturnType,
+          producedTypeInfo,
           rightRowType.toTypeInfo,
           leftOuterJoin,
           asyncBufferCapacity)
@@ -277,7 +280,7 @@ abstract class CommonLookupJoin(
         0)
       checkUdtfReturnType(
         tableSource.explainSource(),
-        tableSource.getReturnType,
+        producedTypeInfo,
         udtfResultType,
         extractedResultTypeInfo)
       checkEvalMethodSignature(
@@ -290,7 +293,7 @@ abstract class CommonLookupJoin(
         relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory],
         inputRowType,
         resultRowType,
-        tableSource.getReturnType,
+        producedTypeInfo,
         lookupFieldsInOrder,
         allLookupKeys,
         lookupFunction,
@@ -655,7 +658,7 @@ abstract class CommonLookupJoin(
           "but was " + joinType.toString + " JOIN")
     }
 
-    val tableReturnType = tableSource.getReturnType
+    val tableReturnType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
     if (!tableReturnType.isInstanceOf[BaseRowTypeInfo] &&
       !tableReturnType.isInstanceOf[RowTypeInfo]) {
       throw new TableException(

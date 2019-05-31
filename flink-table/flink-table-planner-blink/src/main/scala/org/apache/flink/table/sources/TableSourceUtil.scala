@@ -32,7 +32,7 @@ import org.apache.flink.table.`type`.{InternalType, TypeConverters}
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 
 import scala.collection.JavaConversions._
 
@@ -113,7 +113,7 @@ object TableSourceUtil {
         }
         idx
     }
-    val inputType = tableSource.getReturnType
+    val inputType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
 
     // ensure that only one field is mapped to an atomic type
     if (!inputType.isInstanceOf[CompositeType[_]] && mapping.count(_ >= 0) > 1) {
@@ -315,7 +315,7 @@ object TableSourceUtil {
       fieldName: String,
       tableSource: TableSource[_]): (String, Int, TypeInformation[_]) = {
 
-    val returnType = tableSource.getReturnType
+    val returnType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
 
     /** Look up a field by name in a type information */
     def lookupField(fieldName: String, failMsg: String): (String, Int, TypeInformation[_]) = {

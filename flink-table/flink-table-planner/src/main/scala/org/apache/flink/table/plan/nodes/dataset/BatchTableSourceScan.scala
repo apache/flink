@@ -29,6 +29,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.sources._
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
@@ -91,11 +92,14 @@ class BatchTableSourceScan(
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
     val outputSchema = new RowSchema(this.getRowType)
 
+    val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType)
+    val producedDataType = tableSource.getProducedDataType
+
     // check that declared and actual type of table source DataSet are identical
-    if (inputDataSet.getType != tableSource.getReturnType) {
+    if (inputDataType != producedDataType) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataSet of type ${inputDataSet.getType} that does not match with the " +
-        s"type ${tableSource.getReturnType} declared by the TableSource.getReturnType() method. " +
+        s"returned a DataSet of data type $producedDataType that does not match with the " +
+        s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
 
