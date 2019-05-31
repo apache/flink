@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import java.util
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
@@ -28,12 +32,8 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.sinks.{BatchTableSink, DataStreamTableSink, TableSink}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -98,7 +98,7 @@ class BatchExecSink[T](
   private def translateToStreamTransformation(
       withChangeFlag: Boolean,
       tableEnv: BatchTableEnvironment): StreamTransformation[T] = {
-    val resultType = sink.getOutputType
+    val resultType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
     TableEnvironment.validateType(resultType)
     val inputNode = getInputNodes.get(0)
     inputNode match {

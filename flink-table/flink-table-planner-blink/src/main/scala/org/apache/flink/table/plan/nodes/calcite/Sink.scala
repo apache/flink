@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.calcite
 
-import org.apache.flink.table.`type`.TypeConverters
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.sinks.TableSink
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.table.`type`.TypeConverters
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 /**
   * Relational expression that writes out data of input node into a [[TableSink]].
@@ -45,7 +45,7 @@ abstract class Sink(
 
   override def deriveRowType(): RelDataType = {
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val outputType = sink.getOutputType
+    val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
     val internalType = TypeConverters.createInternalTypeFromTypeInfo(outputType)
     typeFactory.createTypeFromInternalType(internalType, isNullable = true)
   }
@@ -53,7 +53,7 @@ abstract class Sink(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("name", sinkName, sinkName != null)
-      .item("fields", sink.getFieldNames.mkString(", "))
+      .item("fields", sink.getTableSchema.getFieldNames.mkString(", "))
   }
 
 }

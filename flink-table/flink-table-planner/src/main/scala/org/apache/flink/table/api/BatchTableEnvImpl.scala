@@ -42,6 +42,7 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateInputTypeInfo}
 import org.apache.flink.types.Row
 
@@ -164,14 +165,9 @@ abstract class BatchTableEnvImpl(
   private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
     // validate
     checkValidTableName(name)
-    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
-      throw new TableException("Table sink is not configured.")
-    }
-    if (configuredSink.getFieldNames.length == 0) {
+
+    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
       throw new TableException("Field names must not be empty.")
-    }
-    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
     }
 
     // register
@@ -238,7 +234,8 @@ abstract class BatchTableEnvImpl(
 
     sink match {
       case batchSink: BatchTableSink[T] =>
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val result: DataSet[T] = translate(table, batchQueryConfig)(outputType)
         // Give the DataSet to the TableSink to emit it.

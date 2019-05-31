@@ -51,6 +51,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, isReferenceByPosition}
 
@@ -183,14 +184,9 @@ abstract class StreamTableEnvImpl(
   private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
     // validate
     checkValidTableName(name)
-    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
-      throw new TableException("Table sink is not configured.")
-    }
-    if (configuredSink.getFieldNames.length == 0) {
+
+    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
       throw new TableException("Field names must not be empty.")
-    }
-    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
     }
 
     // register
@@ -262,7 +258,8 @@ abstract class StreamTableEnvImpl(
 
       case retractSink: RetractStreamTableSink[_] =>
         // retraction sink can always be used
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
@@ -289,7 +286,8 @@ abstract class StreamTableEnvImpl(
           case None if !isAppendOnlyTable => throw new TableException(
             "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
         }
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         val resultType = getResultType(table.getRelNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
@@ -310,7 +308,8 @@ abstract class StreamTableEnvImpl(
           throw new TableException(
             "AppendStreamTableSink requires that Table has only insert changes.")
         }
-        val outputType = sink.getOutputType
+        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+          .asInstanceOf[TypeInformation[T]]
         val resultType = getResultType(table.getRelNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =

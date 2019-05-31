@@ -124,11 +124,11 @@ public class ExecutionContextTest {
 
 		assertArrayEquals(
 			new String[]{"BooleanField", "StringField"},
-			sinks.get("TableSourceSink").getFieldNames());
+			sinks.get("TableSourceSink").getTableSchema().getFieldNames());
 
 		assertArrayEquals(
 			new TypeInformation[]{Types.BOOLEAN(), Types.STRING()},
-			sinks.get("TableSourceSink").getFieldTypes());
+			sinks.get("TableSourceSink").getTableSchema().getFieldTypes());
 
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 

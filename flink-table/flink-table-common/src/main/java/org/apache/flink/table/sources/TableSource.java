@@ -46,7 +46,6 @@ public interface TableSource<T> {
 
 	/**
 	 * Returns the {@link DataType} for the produced data of the {@link TableSource}.
-	 * The fields of the data type are mapped to the table schema based on their name.
 	 *
 	 * @return The data type of the returned {@code DataSet} or {@code DataStream}.
 	 */
@@ -55,7 +54,7 @@ public interface TableSource<T> {
 		if (legacyType == null) {
 			throw new TableException("Table source does not implement a produced data type.");
 		}
-		return fromLegacyInfoToDataType(getReturnType());
+		return fromLegacyInfoToDataType(legacyType);
 	}
 
 	/**
@@ -66,7 +65,6 @@ public interface TableSource<T> {
 	 *             for more information.
 	 */
 	@Deprecated
-	@SuppressWarnings("unchecked")
 	default TypeInformation<T> getReturnType() {
 		return null;
 	}

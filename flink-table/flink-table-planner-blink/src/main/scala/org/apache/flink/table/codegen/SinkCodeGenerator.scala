@@ -44,7 +44,7 @@ object SinkCodeGenerator {
     try {
       sink match {
         // DataStreamTableSink has no generic class, so we need get the type to get type class.
-        case sink: DataStreamTableSink[_] => sink.getOutputType.getTypeClass
+        case sink: DataStreamTableSink[_] => sink.getConsumedDataType.getConversionClass
         case _ => TypeExtractor.createTypeInfo(sink, classOf[TableSink[_]], sink.getClass, 0)
                   .getTypeClass.asInstanceOf[Class[_]]
       }

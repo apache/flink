@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
@@ -37,7 +36,9 @@ class TableSinkTable[T](
     */
   def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildLogicalRowType(tableSink.getFieldNames, tableSink.getFieldTypes)
+    flinkTypeFactory.buildLogicalRowType(
+      tableSink.getTableSchema.getFieldNames,
+      tableSink.getTableSchema.getFieldTypes)
   }
 
   /**
