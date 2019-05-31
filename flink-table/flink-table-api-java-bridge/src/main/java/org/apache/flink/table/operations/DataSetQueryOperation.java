@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,26 +28,35 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Relational operation that performs computations on top of subsets of input rows grouped by
- * key.
+ * Describes a relational operation that reads from a {@link DataSet}.
+ *
+ * <p>This operation may expose only part, or change the order of the fields available in a
+ * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataSet}.
+ * The {@link DataSetQueryOperation#getFieldIndices()} describes the mapping between fields of the
+ * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class AggregateTableOperation extends TableOperation {
+public class DataSetQueryOperation<E> implements QueryOperation {
 
-	private final List<Expression> groupingExpressions;
-	private final List<Expression> aggregateExpressions;
-	private final TableOperation child;
+	private final DataSet<E> dataSet;
+	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
 
-	public AggregateTableOperation(
-			List<Expression> groupingExpressions,
-			List<Expression> aggregateExpressions,
-			TableOperation child,
+	public DataSetQueryOperation(
+			DataSet<E> dataSet,
+			int[] fieldIndices,
 			TableSchema tableSchema) {
-		this.groupingExpressions = groupingExpressions;
-		this.aggregateExpressions = aggregateExpressions;
-		this.child = child;
+		this.dataSet = dataSet;
 		this.tableSchema = tableSchema;
+		this.fieldIndices = fieldIndices;
+	}
+
+	public DataSet<E> getDataSet() {
+		return dataSet;
+	}
+
+	public int[] getFieldIndices() {
+		return fieldIndices;
 	}
 
 	@Override
@@ -58,27 +67,18 @@ public class AggregateTableOperation extends TableOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("group", groupingExpressions);
-		args.put("agg", aggregateExpressions);
+		args.put("fields", tableSchema.getFieldNames());
 
-		return formatWithChildren("Aggregate", args);
-	}
-
-	public List<Expression> getGroupingExpressions() {
-		return groupingExpressions;
-	}
-
-	public List<Expression> getAggregateExpressions() {
-		return aggregateExpressions;
+		return OperationUtils.formatWithChildren("DataSet", args, getChildren(), Operation::asSummaryString);
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
-		return Collections.singletonList(child);
+	public List<QueryOperation> getChildren() {
+		return Collections.emptyList();
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitAggregate(this);
+	public <T> T accept(QueryOperationVisitor<T> visitor) {
+		return visitor.visitOther(this);
 	}
 }

@@ -33,27 +33,27 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.AbstractTable;
 
 /**
- * A bridge between a Flink's specific {@link TableOperationCatalogView} and a Calcite's
+ * A bridge between a Flink's specific {@link QueryOperationCatalogView} and a Calcite's
  * {@link org.apache.calcite.schema.Table}. It implements {@link TranslatableTable} interface. This enables
- * direct translation from {@link org.apache.flink.table.operations.TableOperation} to {@link RelNode}.
+ * direct translation from {@link org.apache.flink.table.operations.QueryOperation} to {@link RelNode}.
  *
  * <p>NOTE: Due to legacy inconsistency in null handling in the {@link TableSchema} the translation might introduce
  * additional cast to comply with manifested schema in
- * {@link TableOperationCatalogViewTable#getRowType(RelDataTypeFactory)}.
+ * {@link QueryOperationCatalogViewTable#getRowType(RelDataTypeFactory)}.
  */
 @Internal
-public class TableOperationCatalogViewTable extends AbstractTable implements TranslatableTable {
-	private final TableOperationCatalogView catalogView;
+public class QueryOperationCatalogViewTable extends AbstractTable implements TranslatableTable {
+	private final QueryOperationCatalogView catalogView;
 	private final RelProtoDataType rowType;
 
-	public static TableOperationCatalogViewTable createCalciteTable(TableOperationCatalogView catalogView) {
-		return new TableOperationCatalogViewTable(catalogView, typeFactory -> {
+	public static QueryOperationCatalogViewTable createCalciteTable(QueryOperationCatalogView catalogView) {
+		return new QueryOperationCatalogViewTable(catalogView, typeFactory -> {
 			TableSchema tableSchema = catalogView.getSchema();
 			return ((FlinkTypeFactory) typeFactory).buildLogicalRowType(tableSchema);
 		});
 	}
 
-	private TableOperationCatalogViewTable(TableOperationCatalogView catalogView, RelProtoDataType rowType) {
+	private QueryOperationCatalogViewTable(QueryOperationCatalogView catalogView, RelProtoDataType rowType) {
 		this.catalogView = catalogView;
 		this.rowType = rowType;
 	}
@@ -62,7 +62,7 @@ public class TableOperationCatalogViewTable extends AbstractTable implements Tra
 	public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
 		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable);
 
-		RelNode relNode = relBuilder.tableOperation(catalogView.getTableOperation()).build();
+		RelNode relNode = relBuilder.tableOperation(catalogView.getQueryOperation()).build();
 		return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);
 	}
 

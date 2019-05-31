@@ -34,24 +34,24 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMi
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for describing {@link TableOperation}s.
+ * Tests for describing {@link Operation}s.
  */
-public class TableOperationTest {
+public class QueryOperationTest {
 
 	@Test
 	public void testSummaryString() {
 		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
 
-		ProjectTableOperation tableOperation = new ProjectTableOperation(
+		ProjectQueryOperation tableOperation = new ProjectQueryOperation(
 			Collections.singletonList(new FieldReferenceExpression("a", Types.INT, 0, 0)),
-			new CatalogTableOperation(
+			new CatalogQueryOperation(
 				Arrays.asList("cat1", "db1", "tab1"),
 				schema), schema);
 
-		SetTableOperation unionTableOperation = new SetTableOperation(
+		SetQueryOperation unionQueryOperation = new SetQueryOperation(
 			tableOperation,
 			tableOperation,
-			SetTableOperation.SetTableOperationType.UNION,
+			SetQueryOperation.SetQueryOperationType.UNION,
 			true);
 
 		assertEquals("Union: (all: [true])\n" +
@@ -59,33 +59,33 @@ public class TableOperationTest {
 			"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])\n" +
 			"    Project: (projections: [a])\n" +
 			"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
-			unionTableOperation.asSummaryString());
+			unionQueryOperation.asSummaryString());
 	}
 
 	@Test
 	public void testWindowAggregationSummaryString() {
 		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
 		FieldReferenceExpression field = new FieldReferenceExpression("a", Types.INT, 0, 0);
-		WindowAggregateTableOperation tableOperation = new WindowAggregateTableOperation(
+		WindowAggregateQueryOperation tableOperation = new WindowAggregateQueryOperation(
 			Collections.singletonList(field),
 			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM,
 				Collections.singletonList(field))),
 			Collections.emptyList(),
-			WindowAggregateTableOperation.ResolvedGroupWindow.sessionWindow("w", field, intervalOfMillis(10)),
-			new CatalogTableOperation(
+			WindowAggregateQueryOperation.ResolvedGroupWindow.sessionWindow("w", field, intervalOfMillis(10)),
+			new CatalogQueryOperation(
 				Arrays.asList("cat1", "db1", "tab1"),
 				schema),
 			schema
 		);
 
-		DistinctTableOperation distinctTableOperation = new DistinctTableOperation(tableOperation);
+		DistinctQueryOperation distinctQueryOperation = new DistinctQueryOperation(tableOperation);
 
 		assertEquals(
 			"Distinct:\n" +
 			"    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
 				" window: [SessionWindow(field: [a], gap: [10])])\n" +
 				"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
-			distinctTableOperation.asSummaryString());
+			distinctQueryOperation.asSummaryString());
 	}
 
 	@Test
@@ -98,7 +98,7 @@ public class TableOperationTest {
 			"    secondLevel1\n" +
 			"        thirdLevel1";
 
-		String indentedInput = TableOperationUtils.indent(input);
+		String indentedInput = OperationUtils.indent(input);
 
 		assertEquals(
 			"\n" +

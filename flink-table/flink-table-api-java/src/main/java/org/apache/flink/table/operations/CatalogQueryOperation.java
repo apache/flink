@@ -19,7 +19,6 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.Collections;
@@ -28,35 +27,21 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Describes a relational operation that reads from a {@link DataStream}.
- *
- * <p>This operation may expose only part, or change the order of the fields available in a
- * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
- * The {@link DataStreamTableOperation#getFieldIndices()} describes the mapping between fields of the
- * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
+ * Describes a relational operation that was created from a lookup to a catalog.
  */
 @Internal
-public class DataStreamTableOperation<E> extends TableOperation {
+public class CatalogQueryOperation implements QueryOperation {
 
-	private final DataStream<E> dataStream;
-	private final int[] fieldIndices;
+	private final List<String> tablePath;
 	private final TableSchema tableSchema;
 
-	public DataStreamTableOperation(
-			DataStream<E> dataStream,
-			int[] fieldIndices,
-			TableSchema tableSchema) {
-		this.dataStream = dataStream;
+	public CatalogQueryOperation(List<String> tablePath, TableSchema tableSchema) {
+		this.tablePath = tablePath;
 		this.tableSchema = tableSchema;
-		this.fieldIndices = fieldIndices;
 	}
 
-	public DataStream<E> getDataStream() {
-		return dataStream;
-	}
-
-	public int[] getFieldIndices() {
-		return fieldIndices;
+	public List<String> getTablePath() {
+		return tablePath;
 	}
 
 	@Override
@@ -67,19 +52,19 @@ public class DataStreamTableOperation<E> extends TableOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("id", dataStream.getId());
+		args.put("path", tablePath);
 		args.put("fields", tableSchema.getFieldNames());
 
-		return formatWithChildren("DataStream", args);
+		return OperationUtils.formatWithChildren("CatalogTable", args, getChildren(), Operation::asSummaryString);
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryOperation> getChildren() {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitOther(this);
+	public <T> T accept(QueryOperationVisitor<T> visitor) {
+		return visitor.visitCatalogTable(this);
 	}
 }

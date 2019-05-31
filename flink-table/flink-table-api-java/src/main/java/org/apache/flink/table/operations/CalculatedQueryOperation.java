@@ -33,14 +33,14 @@ import java.util.Map;
  * Describes a relational operation that was created from applying a {@link TableFunction}.
  */
 @Internal
-public class CalculatedTableOperation<T> extends TableOperation {
+public class CalculatedQueryOperation<T> implements QueryOperation {
 
 	private final TableFunction<T> tableFunction;
 	private final List<Expression> parameters;
 	private final TypeInformation<T> resultType;
 	private final TableSchema tableSchema;
 
-	public CalculatedTableOperation(
+	public CalculatedQueryOperation(
 			TableFunction<T> tableFunction,
 			List<Expression> parameters,
 			TypeInformation<T> resultType,
@@ -74,16 +74,16 @@ public class CalculatedTableOperation<T> extends TableOperation {
 		args.put("function", tableFunction);
 		args.put("parameters", parameters);
 
-		return formatWithChildren("CalculatedTable", args);
+		return OperationUtils.formatWithChildren("CalculatedTable", args, getChildren(), Operation::asSummaryString);
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryOperation> getChildren() {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public <U> U accept(TableOperationVisitor<U> visitor) {
+	public <U> U accept(QueryOperationVisitor<U> visitor) {
 		return visitor.visitCalculatedTable(this);
 	}
 }

@@ -51,7 +51,7 @@ public final class AliasOperationUtils {
 	 * @param child relational operation on top of which to apply the aliases
 	 * @return validated list of aliases
 	 */
-	public static List<Expression> createAliasList(List<Expression> aliases, TableOperation child) {
+	public static List<Expression> createAliasList(List<Expression> aliases, QueryOperation child) {
 		TableSchema childSchema = child.getTableSchema();
 
 		if (aliases.size() > childSchema.getFieldCount()) {

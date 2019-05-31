@@ -54,7 +54,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
- * Utility class for creating valid {@link ProjectTableOperation} operation.
+ * Utility class for creating valid {@link ProjectQueryOperation} operation.
  */
 @Internal
 public final class ProjectionOperationFactory {
@@ -70,9 +70,9 @@ public final class ProjectionOperationFactory {
 		this.expressionBridge = expressionBridge;
 	}
 
-	public TableOperation create(
+	public QueryOperation create(
 			List<Expression> projectList,
-			TableOperation child,
+			QueryOperation child,
 			boolean explicitAlias) {
 
 		final List<Expression> namedExpressions = nameExpressions(projectList);
@@ -94,7 +94,7 @@ public final class ProjectionOperationFactory {
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
 
-		return new ProjectTableOperation(finalExpression, child, tableSchema);
+		return new ProjectQueryOperation(finalExpression, child, tableSchema);
 	}
 
 	private String[] validateAndGetUniqueNames(List<Expression> namedExpressions) {

@@ -21,7 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.operations.TableOperation;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.sql.Timestamp;
 
@@ -36,13 +36,13 @@ import java.sql.Timestamp;
 @Internal
 public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 
-	private final transient TableOperation underlyingHistoryTable;
+	private final transient QueryOperation underlyingHistoryTable;
 	private final transient Expression timeAttribute;
 	private final transient Expression primaryKey;
 	private final RowTypeInfo resultType;
 
 	private TemporalTableFunctionImpl(
-			TableOperation underlyingHistoryTable,
+		QueryOperation underlyingHistoryTable,
 			Expression timeAttribute,
 			Expression primaryKey,
 			RowTypeInfo resultType) {
@@ -69,7 +69,7 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 		return resultType;
 	}
 
-	public TableOperation getUnderlyingHistoryTable() {
+	public QueryOperation getUnderlyingHistoryTable() {
 		if (underlyingHistoryTable == null) {
 			throw new IllegalStateException("Accessing table field after planing/serialization");
 		}
@@ -77,7 +77,7 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
 	}
 
 	public static TemporalTableFunction create(
-			TableOperation operationTree,
+			QueryOperation operationTree,
 			Expression timeAttribute,
 			Expression primaryKey) {
 		return new TemporalTableFunctionImpl(

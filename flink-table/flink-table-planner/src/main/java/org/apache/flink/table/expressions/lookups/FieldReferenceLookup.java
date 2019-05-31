@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.operations.TableOperation;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,8 +43,8 @@ public class FieldReferenceLookup {
 
 	private final List<Map<String, FieldReferenceExpression>> fieldReferences;
 
-	public FieldReferenceLookup(List<TableOperation> tableOperations) {
-		fieldReferences = prepareFieldReferences(tableOperations);
+	public FieldReferenceLookup(List<QueryOperation> queryOperations) {
+		fieldReferences = prepareFieldReferences(queryOperations);
 	}
 
 	/**
@@ -79,13 +79,13 @@ public class FieldReferenceLookup {
 	}
 
 	private static List<Map<String, FieldReferenceExpression>> prepareFieldReferences(
-			List<TableOperation> tableOperations) {
-		return IntStream.range(0, tableOperations.size())
-			.mapToObj(idx -> prepareFieldsInInput(tableOperations.get(idx), idx))
+			List<QueryOperation> queryOperations) {
+		return IntStream.range(0, queryOperations.size())
+			.mapToObj(idx -> prepareFieldsInInput(queryOperations.get(idx), idx))
 			.collect(Collectors.toList());
 	}
 
-	private static Map<String, FieldReferenceExpression> prepareFieldsInInput(TableOperation input, int inputIdx) {
+	private static Map<String, FieldReferenceExpression> prepareFieldsInInput(QueryOperation input, int inputIdx) {
 		TableSchema tableSchema = input.getTableSchema();
 		return IntStream.range(0, tableSchema.getFieldCount())
 			.mapToObj(i -> new FieldReferenceExpression(

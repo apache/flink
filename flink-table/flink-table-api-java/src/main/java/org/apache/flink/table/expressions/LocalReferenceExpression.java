@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Reference to entity local to a certain {@link org.apache.flink.table.operations.TableOperation}.
+ * Reference to entity local to a certain {@link QueryOperation}.
  * That entity does not come from any of the Operations input. It might be for example a group
  * window in window aggregation.
  */

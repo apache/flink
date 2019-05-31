@@ -25,7 +25,7 @@ import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
-import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -154,7 +154,7 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
   override def toString: String = s"'$name"
 }
 
-case class TableReference(name: String, tableOperation: TableOperation)
+case class TableReference(name: String, tableOperation: QueryOperation)
   extends LeafExpression
   with NamedExpression {
 

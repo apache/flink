@@ -30,7 +30,7 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.operations.JoinTableOperation.JoinType;
+import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -38,7 +38,7 @@ import java.util.Set;
 import static java.util.Arrays.asList;
 
 /**
- * Utility class for creating a valid {@link JoinTableOperation} operation.
+ * Utility class for creating a valid {@link JoinQueryOperation} operation.
  */
 @Internal
 public class JoinOperationFactory {
@@ -51,7 +51,7 @@ public class JoinOperationFactory {
 	}
 
 	/**
-	 * Creates a valid {@link JoinTableOperation} operation.
+	 * Creates a valid {@link JoinQueryOperation} operation.
 	 *
 	 * <p>It performs validations such as:
 	 * <ul>
@@ -68,19 +68,19 @@ public class JoinOperationFactory {
 	 * @param correlated if the join should be a correlated join
 	 * @return valid join operation
 	 */
-	public TableOperation create(
-			TableOperation left,
-			TableOperation right,
+	public QueryOperation create(
+			QueryOperation left,
+			QueryOperation right,
 			JoinType joinType,
 			Expression condition,
 			boolean correlated) {
 		verifyConditionType(condition);
 		validateNamesAmbiguity(left, right);
 		validateCondition(right, joinType, condition, correlated);
-		return new JoinTableOperation(left, right, joinType, condition, correlated);
+		return new JoinQueryOperation(left, right, joinType, condition, correlated);
 	}
 
-	private void validateCondition(TableOperation right, JoinType joinType, Expression condition, boolean correlated) {
+	private void validateCondition(QueryOperation right, JoinType joinType, Expression condition, boolean correlated) {
 		boolean alwaysTrue = ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
 
 		if (alwaysTrue) {
@@ -88,7 +88,7 @@ public class JoinOperationFactory {
 		}
 
 		Boolean equiJoinExists = condition.accept(equiJoinExistsChecker);
-		if (correlated && right instanceof CalculatedTableOperation && joinType != JoinType.INNER) {
+		if (correlated && right instanceof CalculatedQueryOperation && joinType != JoinType.INNER) {
 			throw new ValidationException(
 				"Predicate for lateral left outer join with table function can only be empty or literal true.");
 		} else if (!equiJoinExists) {
@@ -107,7 +107,7 @@ public class JoinOperationFactory {
 		}
 	}
 
-	private void validateNamesAmbiguity(TableOperation left, TableOperation right) {
+	private void validateNamesAmbiguity(QueryOperation left, QueryOperation right) {
 		Set<String> leftNames = new HashSet<>(asList(left.getTableSchema().getFieldNames()));
 		Set<String> rightNames = new HashSet<>(asList(right.getTableSchema().getFieldNames()));
 		leftNames.retainAll(rightNames);

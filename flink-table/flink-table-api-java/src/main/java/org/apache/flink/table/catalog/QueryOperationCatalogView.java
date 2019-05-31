@@ -19,39 +19,39 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.operations.TableOperation;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.HashMap;
 import java.util.Optional;
 
 /**
- * A view created from a {@link TableOperation} via operations on {@link org.apache.flink.table.api.Table}.
+ * A view created from a {@link QueryOperation} via operations on {@link org.apache.flink.table.api.Table}.
  */
 @Internal
-public class TableOperationCatalogView extends AbstractCatalogView {
-	private final TableOperation tableOperation;
+public class QueryOperationCatalogView extends AbstractCatalogView {
+	private final QueryOperation queryOperation;
 
-	public TableOperationCatalogView(TableOperation tableOperation) {
-		this(tableOperation, "");
+	public QueryOperationCatalogView(QueryOperation queryOperation) {
+		this(queryOperation, "");
 	}
 
-	public TableOperationCatalogView(TableOperation tableOperation, String comment) {
+	public QueryOperationCatalogView(QueryOperation queryOperation, String comment) {
 		super(
-			tableOperation.asSummaryString(),
-			tableOperation.asSummaryString(),
-			tableOperation.getTableSchema(),
+			queryOperation.asSummaryString(),
+			queryOperation.asSummaryString(),
+			queryOperation.getTableSchema(),
 			new HashMap<>(),
 			comment);
-		this.tableOperation = tableOperation;
+		this.queryOperation = queryOperation;
 	}
 
-	public TableOperation getTableOperation() {
-		return tableOperation;
+	public QueryOperation getQueryOperation() {
+		return queryOperation;
 	}
 
 	@Override
-	public TableOperationCatalogView copy() {
-		return new TableOperationCatalogView(this.tableOperation, getComment());
+	public QueryOperationCatalogView copy() {
+		return new QueryOperationCatalogView(this.queryOperation, getComment());
 	}
 
 	@Override

@@ -23,7 +23,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.operations.QueryOperation
 
 import _root_.scala.collection.JavaConversions._
 
@@ -208,7 +208,7 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
 
   override def flatMap(tableFunction: Expression): Table = ???
 
-  override def getTableOperation: TableOperation = ???
+  override def getQueryOperation: QueryOperation = ???
 
   override def aggregate(aggregateFunction: String): AggregatedTable = ???
 

@@ -771,7 +771,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   override def visitTableReference(tableRef: TableReferenceExpression): PlannerExpression = {
     TableReference(
       tableRef.asInstanceOf[TableReferenceExpression].getName,
-      tableRef.asInstanceOf[TableReferenceExpression].getTableOperation
+      tableRef.asInstanceOf[TableReferenceExpression].getQueryOperation
     )
   }
 

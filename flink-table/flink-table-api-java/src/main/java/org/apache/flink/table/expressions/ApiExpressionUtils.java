@@ -69,7 +69,7 @@ public final class ApiExpressionUtils {
 	}
 
 	public static TableReferenceExpression tableRef(String name, Table table) {
-		return new TableReferenceExpression(name, table.getTableOperation());
+		return new TableReferenceExpression(name, table.getQueryOperation());
 	}
 
 	public static LookupCallExpression lookupCall(String name, Expression... args) {

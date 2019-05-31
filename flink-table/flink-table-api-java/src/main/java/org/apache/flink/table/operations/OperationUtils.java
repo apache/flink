@@ -19,55 +19,61 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Base class for representing the operation structure behind a user-facing {@link Table} API.
+ * Helper methods for {@link Operation}s.
  */
 @Internal
-public abstract class TableOperation {
+public class OperationUtils {
+
+	private static final String OPERATION_INDENT = "    ";
 
 	/**
-	 * Resolved schema of this operation.
-	 */
-	public abstract TableSchema getTableSchema();
-
-	/**
-	 * Returns a string that summarizes this operation for printing to a console. An implementation might
-	 * skip very specific properties.
+	 * Increases indentation for description of string of child {@link Operation}.
+	 * The input can already contain indentation. This will increase all the indentations
+	 * by one level.
 	 *
-	 * <p>Use {@link #asSerializableString()} for a operation string that fully serializes
-	 * this instance.
-	 *
-	 * @return summary string of this operation for debugging purposes
+	 * @param item result of {@link Operation#asSummaryString()}
+	 * @return string with increased indentation
 	 */
-	public abstract String asSummaryString();
-
-	/**
-	 * Returns a string that fully serializes this instance. The serialized string can be used for storing
-	 * the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
-	 *
-	 * @return detailed string for persisting in a catalog
-	 */
-	public String asSerializableString() {
-		throw new UnsupportedOperationException("TableOperations are not string serializable for now.");
+	static String indent(String item) {
+		return "\n" + OPERATION_INDENT +
+			item.replace("\n" + OPERATION_INDENT, "\n" + OPERATION_INDENT + OPERATION_INDENT);
 	}
 
-	public abstract List<TableOperation> getChildren();
-
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitOther(this);
-	}
-
-	protected final String formatWithChildren(String operationName, Map<String, Object> parameters) {
+	/**
+	 * Formats a Tree of {@link Operation} in a unified way. It prints all the parameters and
+	 * adds all children formatted and properly indented in the following lines.
+	 *
+	 * <p>The format is <pre>
+	 * {@code
+	 * <operationName>: [(key1: [value1], key2: [v1, v2])]
+	 *     <child1>
+	 *          <child2>
+	 *     <child3>
+	 * }
+	 * </pre>
+	 *
+	 * @param operationName The operation name.
+	 * @param parameters The operation's parameters.
+	 * @param children The operation's children.
+	 * @param childToString The function to convert child to String.
+	 * @param <T> The type of the child.
+	 * @return String representation of the given operation.
+	 */
+	static <T extends Operation> String formatWithChildren(
+			String operationName,
+			Map<String, Object> parameters,
+			List<T> children,
+			Function<T, String> childToString) {
 		String description = parameters.entrySet()
 			.stream()
 			.map(entry -> formatParameter(entry.getKey(), entry.getValue()))
@@ -81,14 +87,14 @@ public abstract class TableOperation {
 			stringBuilder.append(" (").append(description).append(")");
 		}
 
-		String childrenDescription = getChildren().stream()
-			.map(child -> TableOperationUtils.indent(child.asSummaryString()))
+		String childrenDescription = children.stream()
+			.map(child -> OperationUtils.indent(childToString.apply(child)))
 			.collect(Collectors.joining());
 
 		return stringBuilder.append(childrenDescription).toString();
 	}
 
-	private String formatParameter(String name, Object value) {
+	private static String formatParameter(String name, Object value) {
 		final StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append(name);
 		stringBuilder.append(": ");
@@ -100,5 +106,8 @@ public abstract class TableOperation {
 			stringBuilder.append("[").append(value).append("]");
 		}
 		return stringBuilder.toString();
+	}
+
+	private OperationUtils() {
 	}
 }

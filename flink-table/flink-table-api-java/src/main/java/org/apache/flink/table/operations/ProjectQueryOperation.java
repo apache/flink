@@ -28,68 +28,49 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Expresses sort operation of rows of the underlying relational operation with given order.
- * It also allows specifying offset and number of rows to fetch from the sorted data set/stream.
+ * Table operation that computes new table using given {@link Expression}s
+ * from its input relational operation.
  */
 @Internal
-public class SortTableOperation extends TableOperation {
+public class ProjectQueryOperation implements QueryOperation {
 
-	private final List<Expression> order;
-	private final TableOperation child;
-	private final int offset;
-	private final int fetch;
+	private final List<Expression> projectList;
+	private final QueryOperation child;
+	private final TableSchema tableSchema;
 
-	public SortTableOperation(
-			List<Expression> order,
-			TableOperation child) {
-		this(order, child, -1, -1);
-	}
-
-	public SortTableOperation(List<Expression> order, TableOperation child, int offset, int fetch) {
-		this.order = order;
+	public ProjectQueryOperation(
+			List<Expression> projectList,
+			QueryOperation child,
+			TableSchema tableSchema) {
+		this.projectList = projectList;
 		this.child = child;
-		this.offset = offset;
-		this.fetch = fetch;
+		this.tableSchema = tableSchema;
 	}
 
-	public List<Expression> getOrder() {
-		return order;
-	}
-
-	public TableOperation getChild() {
-		return child;
-	}
-
-	public int getOffset() {
-		return offset;
-	}
-
-	public int getFetch() {
-		return fetch;
+	public List<Expression> getProjectList() {
+		return projectList;
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return child.getTableSchema();
+		return tableSchema;
 	}
 
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("order", order);
-		args.put("offset", offset);
-		args.put("fetch", fetch);
+		args.put("projections", projectList);
 
-		return formatWithChildren("Sort", args);
+		return OperationUtils.formatWithChildren("Project", args, getChildren(), Operation::asSummaryString);
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitSort(this);
+	public <T> T accept(QueryOperationVisitor<T> visitor) {
+		return visitor.visitProject(this);
 	}
 }

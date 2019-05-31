@@ -30,7 +30,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType,
 import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
 import org.apache.flink.util.Preconditions.checkState
@@ -80,7 +80,7 @@ class LogicalCorrelateToTemporalTableJoinRule
         rightTemporalTableFunction: TemporalTableFunctionImpl, leftTimeAttribute)) =>
 
         // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
-        val underlyingHistoryTable: TableOperation = rightTemporalTableFunction
+        val underlyingHistoryTable: QueryOperation = rightTemporalTableFunction
           .getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 

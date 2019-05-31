@@ -47,7 +47,7 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
-import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
+import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
@@ -66,14 +66,14 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
-import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
-import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
+import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.SLIDE;
+import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
- * Utility class for creating a valid {@link AggregateTableOperation} or {@link WindowAggregateTableOperation}.
+ * Utility class for creating a valid {@link AggregateQueryOperation} or {@link WindowAggregateQueryOperation}.
  */
 @Internal
 public class AggregateOperationFactory {
@@ -91,17 +91,17 @@ public class AggregateOperationFactory {
 	}
 
 	/**
-	 * Creates a valid {@link AggregateTableOperation} operation.
+	 * Creates a valid {@link AggregateQueryOperation} operation.
 	 *
 	 * @param groupings expressions describing grouping key of aggregates
 	 * @param aggregates expressions describing aggregation functions
 	 * @param child relational operation on top of which to apply the aggregation
 	 * @return valid aggregate operation
 	 */
-	public TableOperation createAggregate(
+	public QueryOperation createAggregate(
 			List<Expression> groupings,
 			List<Expression> aggregates,
-			TableOperation child) {
+			QueryOperation child) {
 		validateGroupings(groupings);
 		validateAggregates(aggregates);
 
@@ -120,11 +120,11 @@ public class AggregateOperationFactory {
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
 
-		return new AggregateTableOperation(groupings, aggregates, child, tableSchema);
+		return new AggregateQueryOperation(groupings, aggregates, child, tableSchema);
 	}
 
 	/**
-	 * Creates a valid {@link WindowAggregateTableOperation} operation.
+	 * Creates a valid {@link WindowAggregateQueryOperation} operation.
 	 *
 	 * @param groupings expressions describing grouping key of aggregates
 	 * @param aggregates expressions describing aggregation functions
@@ -133,12 +133,12 @@ public class AggregateOperationFactory {
 	 * @param child relational operation on top of which to apply the aggregation
 	 * @return valid window aggregate operation
 	 */
-	public TableOperation createWindowAggregate(
+	public QueryOperation createWindowAggregate(
 			List<Expression> groupings,
 			List<Expression> aggregates,
 			List<Expression> windowProperties,
 			ResolvedGroupWindow window,
-			TableOperation child) {
+			QueryOperation child) {
 		validateGroupings(groupings);
 		validateAggregates(aggregates);
 		validateWindowProperties(windowProperties, window);
@@ -161,7 +161,7 @@ public class AggregateOperationFactory {
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
 
-		return new WindowAggregateTableOperation(
+		return new WindowAggregateQueryOperation(
 			groupings,
 			aggregates,
 			windowProperties,
