@@ -42,6 +42,8 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 	private String rowDelimiter;
 
+	private byte[] rowDelimiterBytes;
+
 
 	/**
 	 * Creates a new {@code StringWriter} that uses {@code "UTF-8"} charset to convert
@@ -87,7 +89,10 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	public void write(T element) throws IOException {
 		FSDataOutputStream outputStream = getStream();
 		outputStream.write(element.toString().getBytes(charset));
-		outputStream.write(rowDelimiter.getBytes(charset));
+		if (rowDelimiterBytes == null) {
+			rowDelimiterBytes = rowDelimiter.getBytes(charset);
+		}
+		outputStream.write(rowDelimiterBytes);
 	}
 
 	@Override
