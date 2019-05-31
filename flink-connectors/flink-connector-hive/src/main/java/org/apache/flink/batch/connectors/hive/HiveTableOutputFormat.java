@@ -104,6 +104,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient boolean overwrite;
 	private transient boolean isPartitioned;
 	private transient boolean isDynamicPartition;
+	// number of non-partitioning columns
+	private transient int numNonPartitionCols;
 
 	private transient AbstractSerDe serializer;
 	//StructObjectInspector represents the hive row structure.
@@ -254,10 +256,12 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()),
 				objectInspectors);
+			numNonPartitionCols = rowTypeInfo.getArity();
 		} else {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionCols.size()),
 				objectInspectors);
+			numNonPartitionCols = rowTypeInfo.getArity() - partitionCols.size();
 		}
 	}
 
@@ -317,9 +321,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 
 	// converts a Row to a list so that Hive can serialize it
 	private Object getConvertedRow(Row record) {
-		int actualArity = isPartitioned ? record.getArity() - partitionCols.size() : record.getArity();
-		List<Object> res = new ArrayList<>(actualArity);
-		for (int i = 0; i < actualArity; i++) {
+		List<Object> res = new ArrayList<>(numNonPartitionCols);
+		for (int i = 0; i < numNonPartitionCols; i++) {
 			res.add(record.getField(i));
 		}
 		return res;
