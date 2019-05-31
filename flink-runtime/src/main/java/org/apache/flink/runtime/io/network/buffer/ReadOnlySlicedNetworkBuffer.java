@@ -153,11 +153,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	}
 
 	@Override
-	public int getSizeUnsafe() {
-		return writerIndex();
-	}
-
-	@Override
 	public int getSize() {
 		return writerIndex();
 	}
