@@ -16,67 +16,58 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Function;
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.thrift.TException;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shim for Hive version 1.x.
+ * Shim for Hive version 2.x.
  */
-public class HiveShimV1 implements HiveShim {
+public class HiveShimV2 implements HiveShim {
 
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
 		try {
-			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class);
+			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class, Boolean.TYPE);
 			// getProxy is a static method
-			return (IMetaStoreClient) method.invoke(null, (hiveConf));
+			return (IMetaStoreClient) method.invoke(null, hiveConf, true);
 		} catch (Exception ex) {
 			throw new CatalogException("Failed to create Hive Metastore client", ex);
 		}
 	}
 
 	@Override
-	// 1.x client doesn't support filtering tables by type, so here we need to get all tables and filter by ourselves
 	public List<String> getViews(IMetaStoreClient client, String databaseName) throws UnknownDBException, TException {
-		// We don't have to use reflection here because client.getAllTables(String) is supposed to be there for
-		// all versions.
-		List<String> tableNames = client.getAllTables(databaseName);
-		List<String> views = new ArrayList<>();
-		for (String name : tableNames) {
-			Table table = client.getTable(databaseName, name);
-			String viewDef = table.getViewOriginalText();
-			if (viewDef != null && !viewDef.isEmpty()) {
-				views.add(table.getTableName());
+		try {
+			Method method = client.getClass().getMethod("getTables", String.class, String.class, TableType.class);
+			return (List<String>) method.invoke(client, databaseName, null, TableType.VIRTUAL_VIEW);
+		} catch (InvocationTargetException ite) {
+			Throwable targetEx = ite.getTargetException();
+			if (targetEx instanceof TException) {
+				throw (TException) targetEx;
+			} else {
+				throw new CatalogException(String.format("Failed to get views for %s", databaseName), targetEx);
 			}
+		} catch (NoSuchMethodException | IllegalAccessException e) {
+			throw new CatalogException(String.format("Failed to get views for %s", databaseName), e);
 		}
-		return views;
 	}
 
 	@Override
 	public Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException {
-		try {
-			// hive-1.x doesn't throw NoSuchObjectException if function doesn't exist, instead it throws a MetaException
-			return client.getFunction(dbName, functionName);
-		} catch (MetaException e) {
-			if (e.getCause() instanceof NoSuchObjectException) {
-				throw (NoSuchObjectException) e.getCause();
-			}
-			throw e;
-		}
+		return client.getFunction(dbName, functionName);
 	}
 }
