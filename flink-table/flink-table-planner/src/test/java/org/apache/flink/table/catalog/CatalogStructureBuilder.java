@@ -22,7 +22,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.types.Row;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -265,18 +267,18 @@ public class CatalogStructureBuilder {
 		}
 	}
 
-	private static class TestTable extends ConnectorCatalogTable<Object, Object> {
+	private static class TestTable extends ConnectorCatalogTable<Row, Row> {
 		private final String fullyQualifiedPath;
 
-		private static final StreamTableSource<Object> tableSource = new StreamTableSource<Object>() {
+		private static final StreamTableSource<Row> tableSource = new StreamTableSource<Row>() {
 			@Override
-			public DataStream<Object> getDataStream(StreamExecutionEnvironment execEnv) {
+			public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
 				return null;
 			}
 
 			@Override
-			public TypeInformation<Object> getReturnType() {
-				return null;
+			public TypeInformation<Row> getReturnType() {
+				return Types.ROW();
 			}
 
 			@Override

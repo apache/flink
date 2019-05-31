@@ -18,30 +18,29 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import java.util
+
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException, Types}
+import org.apache.flink.table.codegen.CodeGeneratorContext
+import org.apache.flink.table.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
-import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
-import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource, TableSourceUtil}
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.codegen.CodeGeneratorContext
-import org.apache.flink.table.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.plan.util.ScanUtil
 import org.apache.flink.table.runtime.AbstractProcessStreamOperator
-
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
-
-import java.util
+import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
+import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource, TableSourceUtil}
+import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 
 import scala.collection.JavaConversions._
 
@@ -99,13 +98,16 @@ class StreamExecTableSourceScan(
       isStreamTable = true,
       None)
 
+    val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
+    val producedDataType = tableSource.getProducedDataType
+    val producedTypeInfo = fromDataTypeToLegacyInfo(producedDataType)
+
     // check that declared and actual type of table source DataStream are identical
-    if (createInternalTypeFromTypeInfo(inputTransform.getOutputType) !=
-      createInternalTypeFromTypeInfo(tableSource.getReturnType)) {
+    if (inputDataType != producedDataType) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of type ${inputTransform.getOutputType} that does not match with " +
-        s"the type ${tableSource.getReturnType} declared by the TableSource.getReturnType() " +
-        s"method. Please validate the implementation of the TableSource.")
+        s"returned a DataStream of data type $producedDataType that does not match with the " +
+        s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
+        s"Please validate the implementation of the TableSource.")
     }
 
     // get expression to extract rowtime attribute
@@ -131,7 +133,7 @@ class StreamExecTableSourceScan(
         ctx,
         inputTransform.asInstanceOf[StreamTransformation[Any]],
         fieldIndexes,
-        tableSource.getReturnType,
+        producedTypeInfo,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -177,7 +179,7 @@ class StreamExecTableSourceScan(
       None)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(
-        tableSource.getReturnType,
+        fromDataTypeToLegacyInfo(tableSource.getProducedDataType),
         TypeExtractor.createTypeInfo(
           tableSource, classOf[StreamTableSource[_]], tableSource.getClass, 0)
           .getTypeClass.asInstanceOf[Class[_]])

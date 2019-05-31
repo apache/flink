@@ -33,6 +33,7 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -95,11 +96,14 @@ class StreamTableSourceScan(
     val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
     val outputSchema = new RowSchema(this.getRowType)
 
+    val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType)
+    val producedDataType = tableSource.getProducedDataType
+
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataStream.getType != tableSource.getReturnType) {
+    if (inputDataType != producedDataType) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of type ${inputDataStream.getType} that does not match with the " +
-        s"type ${tableSource.getReturnType} declared by the TableSource.getReturnType() method. " +
+        s"returned a DataStream of data type $producedDataType that does not match with the " +
+        s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
 
