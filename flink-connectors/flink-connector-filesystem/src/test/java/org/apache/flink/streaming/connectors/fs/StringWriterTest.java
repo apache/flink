@@ -32,7 +32,7 @@ public class StringWriterTest {
 
 	@Test
 	public void testDuplicate() {
-		StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name());
+		StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name(),"\n");
 		writer.setSyncOnFlush(true);
 		StringWriter<String> other = writer.duplicate();
 
