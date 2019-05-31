@@ -118,9 +118,9 @@ public class HiveInputFormatTest {
 		DataSet<Row> rowDataSet = env.createInput(hiveTableInputFormat);
 		List<Row> rows = rowDataSet.collect();
 		Assert.assertEquals(4, rows.size());
-		Assert.assertEquals(1, rows.get(0).getField(0));
-		Assert.assertEquals(2, rows.get(1).getField(0));
-		Assert.assertEquals(3, rows.get(2).getField(0));
-		Assert.assertEquals(4, rows.get(3).getField(0));
+		Assert.assertEquals("1,1,a,1000,1.11", rows.get(0).toString());
+		Assert.assertEquals("2,2,a,2000,2.22", rows.get(1).toString());
+		Assert.assertEquals("3,3,a,3000,3.33", rows.get(2).toString());
+		Assert.assertEquals("4,4,a,4000,4.44", rows.get(3).toString());
 	}
 }
