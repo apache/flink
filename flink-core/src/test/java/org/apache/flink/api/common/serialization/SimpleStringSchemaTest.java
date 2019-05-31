@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * Tests for the {@link SimpleStringSchema}.
@@ -50,4 +51,13 @@ public class SimpleStringSchemaTest {
 
 		assertEquals(schema.getCharset(), copy.getCharset());
 	}
+
+	@Test
+	public void testDeserializeWithNullValue() {
+		final SimpleStringSchema schema = new SimpleStringSchema();
+		final String value = schema.deserialize(null);
+
+		assertNull(value);
+	}
+
 }

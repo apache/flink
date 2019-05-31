@@ -21,6 +21,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.charset.Charset;
@@ -70,9 +72,10 @@ public class SimpleStringSchema implements DeserializationSchema<String>, Serial
 	//  Kafka Serialization
 	// ------------------------------------------------------------------------
 
+	@Nullable
 	@Override
 	public String deserialize(byte[] message) {
-		return new String(message, charset);
+		return message != null ? new String(message, charset) : null;
 	}
 
 	@Override
