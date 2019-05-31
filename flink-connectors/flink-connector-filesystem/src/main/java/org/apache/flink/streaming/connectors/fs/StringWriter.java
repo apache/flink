@@ -40,7 +40,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 	private transient Charset charset;
 
-	private String rowDelimiter ;
+	private String rowDelimiter;
 
 
 	/**
@@ -57,7 +57,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	 *
 	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
 	 */
-	public StringWriter(String charsetName, String rowDelimiter ) {
+	public StringWriter(String charsetName, String rowDelimiter) {
 		this.charsetName = charsetName;
 		this.rowDelimiter = rowDelimiter;
 	}
