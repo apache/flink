@@ -30,6 +30,7 @@ import org.apache.flink.table.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsA
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase.AggMode
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.runtime.utils.{StreamingWithAggTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo
@@ -559,8 +560,11 @@ class AggregateITCase(
 
   @Test
   def testWindowWithUnboundedAgg(): Unit = {
-    val t = failingDataSource(TestData.tupleData5).assignAscendingTimestamps(x => x._2)
-        .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'rowtime)
+    val t = failingDataSource(TestData.tupleData5.map {
+      case (a, b, c, d, e) => (b, a, c, d, e)
+    }).assignTimestampsAndWatermarks(
+      new TimestampAndWatermarkWithOffset[(Long, Int, Int, String, Long)](0L))
+        .toTable(tEnv, 'rowtime, 'a, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
 
     val innerSql =

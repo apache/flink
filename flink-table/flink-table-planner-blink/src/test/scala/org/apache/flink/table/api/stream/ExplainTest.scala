@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
@@ -94,6 +94,47 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
     val upsertSink2 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
     util.tableEnv.writeToSink(table2, upsertSink2, "sink1")
+
+    util.verifyExplain(extended)
+  }
+
+  @Test
+  def testMiniBatchIntervalInfer(): Unit = {
+    // Test emit latency propagate among RelNodeBlocks
+    util.addDataStream[(Int, String)]("T1", 'id1, 'text, 'rowtime)
+    util.addDataStream[(Int, String, Int, String, Long)](
+      "T2", 'id2, 'cnt, 'name, 'goods, 'rowtime)
+    util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
+    util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
+    util.tableEnv.getConfig.getConf.setLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 3000L)
+    val table = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1, T3.rowtime AS ts, text
+        |  FROM T3, T4
+        |WHERE id1 = id2
+        |      AND T3.rowtime > T4.rowtime - INTERVAL '5' MINUTE
+        |      AND T3.rowtime < T4.rowtime + INTERVAL '3' MINUTE
+      """.stripMargin)
+    util.tableEnv.registerTable("TempTable", table)
+
+    val table1 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1, CONCAT_AGG('#', text)
+        |FROM TempTable
+        |GROUP BY id1, TUMBLE(ts, INTERVAL '8' SECOND)
+      """.stripMargin)
+    val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
+    util.tableEnv.writeToSink(table1, appendSink1)
+
+    val table2 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1, CONCAT_AGG('*', text)
+        |FROM TempTable
+        |GROUP BY id1, HOP(ts, INTERVAL '12' SECOND, INTERVAL '6' SECOND)
+      """.stripMargin)
+    val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
+    util.tableEnv.writeToSink(table2, appendSink2)
 
     util.verifyExplain(extended)
   }

@@ -546,16 +546,15 @@ case class StreamTableTestUtil(
       rowtimeField: String,
       offset: Long): Unit = {
     val sourceRel = TableTestUtil.toRelNode(sourceTable)
-    val rowtimeFieldIndex = if (sourceTable.getSchema.getFieldNames.contains(rowtimeField)) {
-      Some(sourceTable.getSchema.getFieldNames.indexOf(rowtimeField))
-    } else {
-      None
+    val rowtimeFieldIdx = sourceRel.getRowType.getFieldNames.indexOf(rowtimeField)
+    if (rowtimeFieldIdx < 0) {
+      throw new TableException(s"$rowtimeField does not exist, please check it")
     }
     val watermarkAssigner = new LogicalWatermarkAssigner(
       sourceRel.getCluster,
       sourceRel.getTraitSet,
       sourceRel,
-      rowtimeFieldIndex,
+      Some(rowtimeFieldIdx),
       Option(offset)
     )
     val queryOperation = new PlannerQueryOperation(watermarkAssigner)
