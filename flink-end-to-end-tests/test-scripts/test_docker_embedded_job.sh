@@ -40,12 +40,12 @@ build_image() {
 mkdir -p $OUTPUT_VOLUME
 chmod 777 $OUTPUT_VOLUME
 
-cd "$DOCKER_MODULE_DIR"
+pushd "$DOCKER_MODULE_DIR"
 if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} build_image; then
     echo "Failed to build docker image. Aborting..."
     exit 1
 fi
-cd "$END_TO_END_DIR"
+popd
 
 docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
 docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > ${FLINK_DIR}/log/jobmanager.log
