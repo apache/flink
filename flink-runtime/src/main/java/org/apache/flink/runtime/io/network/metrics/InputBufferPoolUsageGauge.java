@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.metrics;
 
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 /**
@@ -38,8 +39,11 @@ public class InputBufferPoolUsageGauge implements Gauge<Float> {
 		int bufferPoolSize = 0;
 
 		for (SingleInputGate inputGate : inputGates) {
-			usedBuffers += inputGate.getBufferPool().bestEffortGetNumOfUsedBuffers();
-			bufferPoolSize += inputGate.getBufferPool().getNumBuffers();
+			BufferPool bufferPool = inputGate.getBufferPool();
+			if (bufferPool != null) {
+				usedBuffers += bufferPool.bestEffortGetNumOfUsedBuffers();
+				bufferPoolSize += bufferPool.getNumBuffers();
+			}
 		}
 
 		if (bufferPoolSize != 0) {
