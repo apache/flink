@@ -52,9 +52,8 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
-import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldInfo, isReferenceByPosition}
+import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, isReferenceByPosition}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
-import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, isReferenceByPosition}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -444,7 +443,7 @@ abstract class StreamTableEnvImpl(
     val (indices, names) = fields match {
       case Some(f) =>
         // validate and extract time attributes
-        val fieldsInfo = getFieldInfo[T](streamType, f)
+        val fieldsInfo = getFieldsInfo[T](streamType, f)
         val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, f)
 
         // check if event-time is enabled
@@ -467,7 +466,7 @@ abstract class StreamTableEnvImpl(
 
         (indexesWithIndicatorFields, namesWithIndicatorFields)
       case None =>
-        val fieldsInfo = getFieldInfo[T](streamType)
+        val fieldsInfo = getFieldsInfo[T](streamType)
         (fieldsInfo.getIndices, fieldsInfo.getFieldNames)
     }
 

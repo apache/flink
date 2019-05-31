@@ -30,8 +30,7 @@ class DataSetScanRule
     classOf[FlinkLogicalDataSetScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.DATASET,
-    "DataSetScanRule")
-{
+    "DataSetScanRule") {
 
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkLogicalDataSetScan = rel.asInstanceOf[FlinkLogicalDataSetScan]
@@ -51,8 +50,3 @@ class DataSetScanRule
 object DataSetScanRule {
   val INSTANCE = new DataSetScanRule
 }
-
-
-
-
-

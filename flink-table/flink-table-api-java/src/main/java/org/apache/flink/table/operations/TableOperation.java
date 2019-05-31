@@ -35,6 +35,27 @@ public interface TableOperation {
 	 */
 	TableSchema getTableSchema();
 
+	/**
+	 * Returns a string that summarizes this operation for printing to a console. An implementation might
+	 * skip very specific properties.
+	 *
+	 * <p>Use {@link #asSerializableString()} for a operation string that fully serializes
+	 * this instance.
+	 *
+	 * @return summary string of this operation for debugging purposes
+	 */
+	String asSummaryString();
+
+	/**
+	 * Returns a string that fully serializes this instance. The serialized string can be used for storing
+	 * the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
+	 *
+	 * @return detailed string for persisting in a catalog
+	 */
+	default String asSerializableString() {
+		throw new UnsupportedOperationException("TableOperations are not string serializable for now");
+	}
+
 	List<TableOperation> getChildren();
 
 	<T> T accept(TableOperationVisitor<T> visitor);

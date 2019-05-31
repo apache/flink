@@ -71,6 +71,16 @@ public class WindowAggregateTableOperation implements TableOperation {
 		return tableSchema;
 	}
 
+	@Override
+	public String asSummaryString() {
+		return String.format("WindowAggregate: (group: %s, agg: %s, windowProperties: %s, window: [%s])",
+			groupingExpressions,
+			aggregateExpressions,
+			windowPropertiesExpressions,
+			groupWindow) +
+			TableOperationUtils.indent(this.child.asSummaryString());
+	}
+
 	public List<Expression> getGroupingExpressions() {
 		return groupingExpressions;
 	}

@@ -22,10 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
-import org.apache.flink.table.expressions.ExpressionBridge;
-import org.apache.flink.table.expressions.PlannerExpression;
 
-import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -63,23 +60,10 @@ public class TableOperationCatalogViewTable extends AbstractTable implements Tra
 
 	@Override
 	public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
-		Context clusterContext = context.getCluster()
-			.getPlanner()
-			.getContext();
-
-		FlinkRelBuilder relBuilder = new FlinkRelBuilder(
-			clusterContext,
-			context.getCluster(),
-			relOptTable.getRelOptSchema(),
-			unwrapExpressionBridge(clusterContext));
+		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable);
 
 		RelNode relNode = relBuilder.tableOperation(catalogView.getTableOperation()).build();
 		return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);
-	}
-
-	@SuppressWarnings("unchecked")
-	private ExpressionBridge<PlannerExpression> unwrapExpressionBridge(Context clusterContext) {
-		return clusterContext.unwrap(ExpressionBridge.class);
 	}
 
 	@Override

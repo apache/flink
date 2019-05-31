@@ -28,7 +28,7 @@ import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.plan.schema.TableSourceTable
 
 /**
-  * The class provides statistics for a [[InlineTable]] or [[TableSourceTable]].
+  * The class provides statistics for a [[TableSourceTable]].
   *
   * @param tableStats The table statistics.
   */

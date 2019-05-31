@@ -106,6 +106,13 @@ public class JoinTableOperation implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return String.format("Join: (joinType: [%s], condition: [%s], correlated: [%s])", joinType, condition, correlated) +
+			TableOperationUtils.indent("left: " + this.left.asSummaryString()) +
+			TableOperationUtils.indent("right: " + this.right.asSummaryString());
+	}
+
+	@Override
 	public List<TableOperation> getChildren() {
 		return Arrays.asList(left, right);
 	}

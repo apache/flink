@@ -72,6 +72,12 @@ public class SortTableOperation implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return String.format("Sort: (order: %s, offset: [%d], fetch: [%d])", order, offset, fetch) +
+			TableOperationUtils.indent(this.child.asSummaryString());
+	}
+
+	@Override
 	public List<TableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}

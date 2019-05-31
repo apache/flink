@@ -22,11 +22,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
+ *
+ * <p>This operation may expose only part, or change the order of the fields available in a
+ * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
+ * The {@link DataSetTableOperation#getFieldIndices()} describes the mapping between fields of the
+ * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
 public class DataStreamTableOperation<E> implements TableOperation {
@@ -55,6 +61,12 @@ public class DataStreamTableOperation<E> implements TableOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return tableSchema;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return String.format("DataStream(id: [%s], fields: %s)", dataStream.getId(),
+			Arrays.toString(tableSchema.getFieldNames()));
 	}
 
 	@Override

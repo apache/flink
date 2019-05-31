@@ -32,9 +32,9 @@ import org.apache.flink.types.Row
 
 trait BatchScan extends CommonScan[Row] with DataSetRel {
 
-  protected def convertToInternalRow(
+  protected def convertToInternalRow[T](
       schema: RowSchema,
-      input: DataSet[Any],
+      input: DataSet[T],
       fieldIdxs: Array[Int],
       config: TableConfig,
       rowtimeExpression: Option[RexNode]): DataSet[Row] = {
@@ -58,7 +58,7 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
         fieldIdxs,
         rowtimeExpression)
 
-      val runner = new MapRunner[Any, Row](
+      val runner = new MapRunner[T, Row](
         function.name,
         function.code,
         function.returnType)
@@ -75,12 +75,12 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
 
   private def generateConversionMapper(
       config: TableConfig,
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_],
       outputType: TypeInformation[Row],
       conversionOperatorName: String,
       fieldNames: Seq[String],
       inputFieldMapping: Array[Int],
-      rowtimeExpression: Option[RexNode]): GeneratedFunction[MapFunction[Any, Row], Row] = {
+      rowtimeExpression: Option[RexNode]): GeneratedFunction[MapFunction[_, Row], Row] = {
 
     val generator = new FunctionCodeGenerator(
       config,
@@ -102,7 +102,7 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
 
     generator.generateFunction(
       "DataSetSourceConversion",
-      classOf[MapFunction[Any, Row]],
+      classOf[MapFunction[_, Row]],
       body,
       outputType)
   }

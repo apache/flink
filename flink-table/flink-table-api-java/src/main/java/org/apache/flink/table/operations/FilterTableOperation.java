@@ -49,6 +49,12 @@ public class FilterTableOperation implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return String.format("Filter: (condition: [%s])", condition) +
+			TableOperationUtils.indent(this.child.asSummaryString());
+	}
+
+	@Override
 	public List<TableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}

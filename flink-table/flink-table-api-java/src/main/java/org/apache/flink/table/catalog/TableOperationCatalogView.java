@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.TableOperation;
 
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import java.util.Optional;
 /**
  * A view created from {@link TableOperation} via operations on {@link org.apache.flink.table.api.Table}.
  */
+@Internal
 public class TableOperationCatalogView extends AbstractCatalogView {
 	private final TableOperation tableOperation;
 
@@ -33,10 +35,10 @@ public class TableOperationCatalogView extends AbstractCatalogView {
 		this(tableOperation, "This is a catalog view backed by TableOperation");
 	}
 
-	private TableOperationCatalogView(TableOperation tableOperation, String comment) {
+	public TableOperationCatalogView(TableOperation tableOperation, String comment) {
 		super(
-			tableOperation.toString(),
-			tableOperation.toString(),
+			tableOperation.asSummaryString(),
+			tableOperation.asSummaryString(),
 			tableOperation.getTableSchema(),
 			new HashMap<>(),
 			comment);

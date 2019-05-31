@@ -68,6 +68,13 @@ public class SetTableOperation implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return String.format("%s: (all: [%s])", type, all) +
+			TableOperationUtils.indent(this.leftOperation.asSummaryString()) +
+			TableOperationUtils.indent(this.rightOperation.asSummaryString());
+	}
+
+	@Override
 	public <T> T accept(TableOperationVisitor<T> visitor) {
 		return visitor.visitSetOperation(this);
 	}

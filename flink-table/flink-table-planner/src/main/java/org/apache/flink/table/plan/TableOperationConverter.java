@@ -279,15 +279,16 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		private RelNode convertToDataSetScan(DataSetTableOperation<?> tableOperation) {
-			RelDataType relDataType = relBuilder.getTypeFactory()
+			RelDataType logicalRowType = relBuilder.getTypeFactory()
 				.buildLogicalRowType(tableOperation.getTableSchema());
+
 			return new FlinkLogicalDataSetScan(
 				relBuilder.getCluster(),
 				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),
 				relBuilder.getRelOptSchema(),
 				tableOperation.getDataSet(),
 				tableOperation.getFieldIndices(),
-				relDataType);
+				logicalRowType);
 		}
 
 		private RexNode convertToRexNode(Expression expression) {

@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -45,6 +46,12 @@ public class CatalogTableOperation implements TableOperation {
 	@Override
 	public TableSchema getTableSchema() {
 		return tableSchema;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return String.format("CatalogTable(path: %s, fields: %s)", tablePath,
+			Arrays.toString(tableSchema.getFieldNames()));
 	}
 
 	@Override

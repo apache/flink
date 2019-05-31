@@ -67,6 +67,11 @@ public class CalculatedTableOperation<T> implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return String.format("CalculateTable(function: [%s], parameters: %s)", tableFunction, parameters);
+	}
+
+	@Override
 	public List<TableOperation> getChildren() {
 		return Collections.emptyList();
 	}

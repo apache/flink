@@ -53,6 +53,12 @@ public class AggregateTableOperation implements TableOperation {
 		return tableSchema;
 	}
 
+	@Override
+	public String asSummaryString() {
+		return String.format("Aggregate: (group: %s, agg: %s)", groupingExpressions, aggregateExpressions) +
+			TableOperationUtils.indent(this.child.asSummaryString());
+	}
+
 	public List<Expression> getGroupingExpressions() {
 		return groupingExpressions;
 	}

@@ -43,8 +43,7 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
-import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateInputTypeInfo}
-import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldInfo, validateType}
+import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, validateInputTypeInfo}
 import org.apache.flink.types.Row
 
 /**
@@ -327,8 +326,8 @@ abstract class BatchTableEnvImpl(
             ".rowtime and .proctime time indicators are not allowed in a batch environment.")
         }
 
-        getFieldInfo[T](inputType, f)
-      case None => getFieldInfo[T](inputType)
+        getFieldsInfo[T](inputType, f)
+      case None => getFieldsInfo[T](inputType)
     }
 
     val tableOperation = new DataSetTableOperation[T](dataSet,

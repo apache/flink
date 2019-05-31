@@ -430,7 +430,7 @@ abstract class TableEnvImpl(
 
     checkValidTableName(name)
 
-    val tableTable = new TableOperationCatalogView(table.asInstanceOf[TableImpl].getTableOperation)
+    val tableTable = new TableOperationCatalogView(table.getTableOperation)
     registerTableInternal(name, tableTable)
   }
 

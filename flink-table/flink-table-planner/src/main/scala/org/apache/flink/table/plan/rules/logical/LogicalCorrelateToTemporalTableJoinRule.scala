@@ -85,14 +85,7 @@ class LogicalCorrelateToTemporalTableJoinRule
           .getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 
-        val expressionBridge = call.getPlanner.getContext
-          .unwrap(classOf[ExpressionBridge[PlannerExpression]])
-
-        val relBuilder = new FlinkRelBuilder(call.getPlanner.getContext,
-          cluster,
-          leftNode.getTable.getRelOptSchema,
-          expressionBridge)
-
+        val relBuilder = FlinkRelBuilder.of(cluster, leftNode.getTable)
         val rightNode: RelNode = relBuilder.tableOperation(underlyingHistoryTable).build()
 
         val rightTimeIndicatorExpression = createRightExpression(

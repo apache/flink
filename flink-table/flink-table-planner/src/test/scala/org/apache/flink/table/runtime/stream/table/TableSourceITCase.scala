@@ -75,7 +75,7 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   @Test
-  def testInlineCsvTableSource(): Unit = {
+  def testUnregisteredCsvTableSource(): Unit = {
 
     val csvTable = CommonTestData.getCsvTableSource
     StreamITCase.testResults = mutable.MutableList()

@@ -19,40 +19,28 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
- * Removes duplicated rows of underlying relational operation.
+ * Helper methods for {@link TableOperation}s.
  */
 @Internal
-public class DistinctTableOperation implements TableOperation {
+public class TableOperationUtils {
 
-	private final TableOperation child;
+	private static final String OPERATION_INDENT = "    ";
 
-	public DistinctTableOperation(TableOperation child) {
-		this.child = child;
+	/**
+	 * Increases indentation for description of string of child {@link TableOperation}.
+	 * The input can already contain indentation. This will increase all the indentations
+	 * by one level.
+	 *
+	 * @param item result of {@link TableOperation#asSummaryString()}
+	 * @return string with increased indentation
+	 */
+	static String indent(String item) {
+		return "\n" + OPERATION_INDENT +
+			item.replace("\n" + OPERATION_INDENT, "\n" + OPERATION_INDENT + OPERATION_INDENT);
 	}
 
-	@Override
-	public TableSchema getTableSchema() {
-		return child.getTableSchema();
-	}
-
-	@Override
-	public String asSummaryString() {
-		return "DISTINCT" + TableOperationUtils.indent(this.child.asSummaryString());
-	}
-
-	@Override
-	public List<TableOperation> getChildren() {
-		return Collections.singletonList(child);
-	}
-
-	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitDistinct(this);
+	private TableOperationUtils() {
 	}
 }

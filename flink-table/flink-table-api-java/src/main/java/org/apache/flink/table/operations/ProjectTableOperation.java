@@ -55,6 +55,12 @@ public class ProjectTableOperation implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return String.format("Project: (projections: %s)", projectList) +
+			TableOperationUtils.indent(this.child.asSummaryString());
+	}
+
+	@Override
 	public List<TableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}

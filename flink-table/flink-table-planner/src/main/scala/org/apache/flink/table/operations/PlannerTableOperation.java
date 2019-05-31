@@ -60,6 +60,11 @@ public class PlannerTableOperation implements TableOperation {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return "PlannerNode";
+	}
+
+	@Override
 	public List<TableOperation> getChildren() {
 		return Collections.emptyList();
 	}
