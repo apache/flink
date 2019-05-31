@@ -624,7 +624,7 @@ class AggFunctionFactory(
   private def createCollectAggFunction(argTypes: Array[InternalType]): UserDefinedFunction = {
     val elementTypeInfo = argTypes(0) match {
       case gt: GenericType[_] => gt.getTypeInfo
-      case t => TypeConverters.createInternalTypeInfoFromInternalType(t)
+      case t => TypeConverters.createExternalTypeInfoFromInternalType(t)
     }
     new CollectAggFunction(elementTypeInfo)
   }

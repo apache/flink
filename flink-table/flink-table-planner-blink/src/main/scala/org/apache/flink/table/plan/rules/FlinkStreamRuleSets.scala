@@ -121,7 +121,9 @@ object FlinkStreamRuleSets {
         new CoerceInputsRule(classOf[LogicalMinus], false),
         ConvertToNotInOrInRule.INSTANCE,
         // optimize limit 0
-        FlinkLimit0RemoveRule.INSTANCE
+        FlinkLimit0RemoveRule.INSTANCE,
+        // unnest rule
+        LogicalUnnestRule.INSTANCE
       )
     ).asJava)
 

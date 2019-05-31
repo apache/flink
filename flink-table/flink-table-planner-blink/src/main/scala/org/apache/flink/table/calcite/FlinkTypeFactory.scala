@@ -467,6 +467,9 @@ object FlinkTypeFactory {
       val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
       mapRelDataType.mapType
 
+    // CURSOR for UDTF case, whose type info will never be used, just a placeholder
+    case CURSOR => NothingType.INSTANCE
+
     case _@t =>
       throw new TableException(s"Type is not supported: $t")
   }

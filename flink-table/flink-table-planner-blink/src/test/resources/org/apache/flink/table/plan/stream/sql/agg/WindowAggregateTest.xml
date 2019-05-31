@@ -142,14 +142,14 @@ SELECT weightedAvg(c, a) FROM
         TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as ping_start
      FROM MyTable
          GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
-GROUP BY b, ping_start
+GROUP BY b
       ]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
-+- LogicalAggregate(group=[{0, 1}], EXPR$0=[weightedAvg($2, $3)])
-   +- LogicalProject(b=[$1], ping_start=[TUMBLE_START($3)], c=[$2], a=[$0])
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[weightedAvg($1, $2)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0])
       +- LogicalAggregate(group=[{0, 1, 2, 3}])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[TUMBLE($4, 900000:INTERVAL MINUTE)])
             +- LogicalTableScan(table=[[MyTable]])
@@ -158,13 +158,12 @@ LogicalProject(EXPR$0=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[EXPR$0])
-+- GroupAggregate(groupBy=[b, ping_start], select=[b, ping_start, weightedAvg(c, a) AS EXPR$0])
-   +- Exchange(distribution=[hash[b, ping_start]])
-      +- Calc(select=[b, CAST(w$start) AS ping_start, c, a])
-         +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, b, c, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
-            +- Exchange(distribution=[hash[a, b, c]])
-               +- Calc(select=[a, b, c, rowtime])
-                  +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
++- GroupAggregate(groupBy=[b], select=[b, weightedAvg(c, a) AS EXPR$0])
+   +- Exchange(distribution=[hash[b]])
+      +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow], select=[a, b, c])
+         +- Exchange(distribution=[hash[a, b, c]])
+            +- Calc(select=[a, b, c, rowtime])
+               +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
