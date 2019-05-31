@@ -92,20 +92,7 @@ do
     sleep 2
 done
 
-CLUSTER_STARTED=1
-for (( i = 0; i < $CLUSTER_SETUP_RETRIES; i++ ))
-do
-    if start_hadoop_cluster; then
-       echo "Cluster started successfully."
-       CLUSTER_STARTED=0
-       break #continue test, cluster set up succeeded
-    fi
-
-    echo "ERROR: Could not start hadoop cluster. Retrying..."
-    docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
-done
-
-if [[ ${CLUSTER_STARTED} -ne 0 ]]; then
+if ! retry_times $CLUSTER_SETUP_RETRIES 0 start_hadoop_cluster; then
     echo "ERROR: Could not start hadoop cluster. Aborting..."
     exit 1
 fi
