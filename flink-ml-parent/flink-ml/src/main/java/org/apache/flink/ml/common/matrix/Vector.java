@@ -44,7 +44,7 @@ public abstract class Vector implements Serializable {
 
 	public abstract double normL1();
 
-	public abstract double normMax();
+	public abstract double normInf();
 
 	public abstract double normL2();
 

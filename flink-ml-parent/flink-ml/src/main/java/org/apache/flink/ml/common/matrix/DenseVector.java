@@ -121,7 +121,7 @@ public class DenseVector extends Vector {
 	}
 
 	@Override
-	public double normMax() {
+	public double normInf() {
 		double d = 0;
 		for (double t : data) {
 			d = Math.max(Math.abs(t), d);

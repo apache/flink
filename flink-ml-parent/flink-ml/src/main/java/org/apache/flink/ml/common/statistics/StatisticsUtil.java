@@ -43,8 +43,8 @@ import org.apache.flink.ml.common.utils.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.math.BigDecimal;
 import java.security.InvalidParameterException;
@@ -600,10 +600,11 @@ public class StatisticsUtil {
 	}
 
 	public static BaseSummary fromJson(String json) {
-		JSONObject dayObj = (JSONObject) JSON.parse((json));
-		if (dayObj.containsKey("cols")) {
+		JsonObject jsonObject = new JsonParser().parse(json).getAsJsonObject();
+
+		if (jsonObject.has("cols")) {
 			return MLSession.gson.fromJson(json, SparseVectorSummary.class);
-		} else if (dayObj.containsKey("numMissingValue")) {
+		} else if (jsonObject.has("numMissingValue")) {
 			return MLSession.gson.fromJson(json, TableSummary.class);
 		} else {
 			return MLSession.gson.fromJson(json, DenseVectorSummary.class);
@@ -635,7 +636,12 @@ public class StatisticsUtil {
 				sb.append("null");
 			} else {
 				if (obj instanceof Double || obj instanceof Float) {
-					sb.append(round((double) obj, 4));
+					double val = (double) obj;
+					if (Double.isNaN(val)) {
+						sb.append("NaN");
+					} else {
+						sb.append(round(val, 4));
+					}
 				} else {
 					sb.append(obj);
 				}

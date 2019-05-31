@@ -20,27 +20,18 @@
 package org.apache.flink.ml.common.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.ml.common.MLSession;
-import org.apache.flink.ml.io.utils.CsvUtil;
-import org.apache.flink.ml.io.utils.JdbcTypeConverter;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.IntStream;
 
 /**
  * Table Util.
  */
 public class TableUtil {
-	public static synchronized String getTempTableName() {
-		return ("temp_" + UUID.randomUUID().toString().replaceAll("-", "_"))
-			.toLowerCase(); //temp table name must be lower case
-	}
-
 	public static int findIndexFromName(String[] colNames, String name) {
 		int idx = -1;
 		for (int i = 0; i < colNames.length; i++) {
@@ -124,56 +115,6 @@ public class TableUtil {
 		}
 
 		return selectedColNames.toArray(new String[0]);
-	}
-
-	public static String toSchemaJson(TableSchema schema) {
-		TypeInformation <?>[] types = schema.getFieldTypes();
-		int n = types.length;
-		String[] typestrs = new String[n];
-		for (int i = 0; i < n; i++) {
-			typestrs[i] = JdbcTypeConverter.getSqlType(types[i]);
-		}
-		return MLSession.gson.toJson(new String[][] {schema.getFieldNames(), typestrs}, String[][].class);
-	}
-
-	public static TableSchema fromSchemaJson(String schemaJson) {
-		String[][] t = MLSession.gson.fromJson(schemaJson, String[][].class);
-		int n = t[1].length;
-		TypeInformation <?>[] types = new TypeInformation <?>[n];
-		for (int i = 0; i < n; i++) {
-			types[i] = JdbcTypeConverter.getFlinkType(t[1][i]);
-		}
-		return new TableSchema(t[0], types);
-	}
-
-	public static TableSchema schemaStr2Schema(String schemaStr) {
-		String[] fields = schemaStr.split(",");
-		String[] colNames = new String[fields.length];
-		TypeInformation[] colTypes = new TypeInformation[fields.length];
-		for (int i = 0; i < colNames.length; i++) {
-			String[] kv = fields[i].trim().split("\\s+");
-			colNames[i] = kv[0];
-			colTypes[i] = CsvUtil.stringToType(kv[1]);
-		}
-		return new TableSchema(colNames, colTypes);
-	}
-
-	public static String schema2SchemaStr(TableSchema schema) {
-		String[] colNames = schema.getFieldNames();
-		TypeInformation[] colTypes = schema.getFieldTypes();
-
-		StringBuilder sbd = new StringBuilder();
-		for (int i = 0; i < colNames.length; i++) {
-			if (i > 0) {
-				sbd.append(",");
-			}
-			sbd.append(colNames[i]).append(" ").append(CsvUtil.typeToString(colTypes[i]));
-		}
-		return sbd.toString();
-	}
-
-	public static TypeInformation getColType(TableSchema schema, String name) {
-		return getColType(schema.getFieldTypes(), schema.getFieldNames(), name);
 	}
 
 	static TypeInformation getColType(TypeInformation[] types, String[] names, String name) {

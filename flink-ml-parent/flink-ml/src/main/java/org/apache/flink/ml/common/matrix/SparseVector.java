@@ -384,7 +384,7 @@ public class SparseVector extends Vector {
 	}
 
 	@Override
-	public double normMax() {
+	public double normInf() {
 		double d = 0;
 		for (double t : values) {
 			d = Math.max(Math.abs(t), d);

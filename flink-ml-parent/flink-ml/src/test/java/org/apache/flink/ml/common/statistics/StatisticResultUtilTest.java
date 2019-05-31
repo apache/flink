@@ -29,6 +29,7 @@ import org.apache.flink.ml.common.utils.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -40,25 +41,26 @@ import java.util.List;
 public class StatisticResultUtilTest {
 
 	@Test
-	public void testHelper2() throws Exception {
+	public void testSummaryHelper() throws Exception {
 		TableSchema schema = new TableSchema(
-			new String[] {"y", "vec"},
-			new TypeInformation <?>[] {Types.STRING, Types.STRING}
+			new String[]{"y", "vec"},
+			new TypeInformation<?>[]{Types.STRING, Types.STRING}
 		);
 
-		List <Row> rows = new ArrayList <>();
-		//        rows.add(Row.of(new Object[]{"0", "0.1,0.2,0.3"}));
-		rows.add(Row.of(new Object[] {"0", "1:0.1,3:0.2,10:0.1"}));
-		//        rows.add(Row.of(new Object[]{"0", "0.2,0.3,0.4"}));
-		//        rows.add(Row.of(new Object[]{"0", "0.1,0.2,0.3,0.7"}));
+		List<Row> rows = new ArrayList<>();
+		rows.add(Row.of(new Object[]{"0", "0.1,0.2,0.3"}));
+		rows.add(Row.of(new Object[]{"0", "1:0.1,3:0.2,10:0.1"}));
+		rows.add(Row.of(new Object[]{"0", "0.2,0.3,0.4"}));
+		rows.add(Row.of(new Object[]{"0", "0.1,0.2,0.3,0.7"}));
 
 		MemSourceBatchOp source = new MemSourceBatchOp(rows, schema);
 
-		Tuple2 <DataSet <Tuple2 <Vector, Row>>, DataSet <BaseVectorSummary>> info =
-			StatisticsUtil.summaryHelper(source, null, "vec", new String[] {"y"});
+		Tuple2<DataSet<Tuple2<Vector, Row>>, DataSet<BaseVectorSummary>> info =
+			StatisticsUtil.summaryHelper(source, null, "vec", new String[]{"y"});
 
 		BaseVectorSummary srt = info.f1.collect().get(0);
-		System.out.println(srt.vectorSize());
+
+		Assert.assertEquals(11, srt.vectorSize());
 	}
 
 }

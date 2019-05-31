@@ -244,27 +244,30 @@ public class TableSummarizer extends BaseSummarizer {
 			for (int i = 0; i < n; i++) {
 				for (int j = i; j < n; j++) {
 					double val = cov.get(i, j);
-					if (!Double.isNaN(val) && val != 0) {
-						double d = val / stv[i] / stv[j];
-						cov.set(i, j, d);
-						cov.set(j, i, d);
-					} else {
-						cov.set(i, j, 0);
-						cov.set(j, i, 0);
+					if (!Double.isNaN(val)) {
+						if (val != 0) {
+							double d = val / stv[i] / stv[j];
+							cov.set(i, j, d);
+							cov.set(j, i, d);
+						}
 					}
 				}
 			}
 
 			for (int i = 0; i < n; i++) {
-				cov.set(i, i, 1.0);
+				if (!Double.isNaN(cov.get(i, i))) {
+					cov.set(i, i, 1.0);
+				}
 			}
 			for (int i = 0; i < n; i++) {
 				for (int j = 0; j < n; j++) {
 					if (i != j) {
-						if (cov.get(i, j) > 1.0) {
-							cov.set(i, j, 1.0);
-						} else if (cov.get(i, j) < -1.0) {
-							cov.set(i, j, -1.0);
+						if (!Double.isNaN(cov.get(i, j))) {
+							if (cov.get(i, j) > 1.0) {
+								cov.set(i, j, 1.0);
+							} else if (cov.get(i, j) < -1.0) {
+								cov.set(i, j, -1.0);
+							}
 						}
 					}
 				}
@@ -283,7 +286,7 @@ public class TableSummarizer extends BaseSummarizer {
 	@Override
 	public DenseMatrix covariance() {
 		if (null != this.dotProduction) {
-			int nStat = dotProduction.numCols();
+			int nStat = numMissingValue.size();
 			TableSummary summary = toSummary();
 
 			double[][] cov = new double[nStat][nStat];
@@ -297,7 +300,7 @@ public class TableSummarizer extends BaseSummarizer {
 				double cnt = summary.numValidValue(colNames[idxI]);
 				for (int j = i; j < numberIdxs.length; j++) {
 					int idxJ = numberIdxs[j];
-					double d = dotProduction.get(idxI, idxJ);
+					double d = dotProduction.get(i, j);
 					d = (d - summary.sum(colNames[idxI]) * summary.sum(colNames[idxJ]) / cnt) / (cnt - 1);
 					cov[idxI][idxJ] = d;
 					cov[idxJ][idxI] = d;
