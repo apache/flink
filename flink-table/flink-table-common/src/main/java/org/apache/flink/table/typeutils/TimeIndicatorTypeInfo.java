@@ -25,14 +25,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampComparator;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampSerializer;
+import org.apache.flink.table.api.DataTypes;
 
 import java.sql.Timestamp;
 
 /**
  * Type information for indicating event or processing time. However, it behaves like a
  * regular SQL timestamp but is serialized as Long.
+ *
+ * @deprecated This class will be removed in future versions as it is used for the old type system. It
+ *             is recommended to use {@link DataTypes} instead. Please make sure to use either the old
+ *             or the new type system consistently to avoid unintended behavior. See the website documentation
+ *             for more information.
  */
 @Internal
+@Deprecated
 public class TimeIndicatorTypeInfo extends SqlTimeTypeInfo<Timestamp> {
 
 	private final boolean isEventTime;
