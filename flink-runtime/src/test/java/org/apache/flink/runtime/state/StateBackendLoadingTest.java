@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -340,24 +341,29 @@ public class StateBackendLoadingTest {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This tests that in the case of configured high-availability, and no externalized checkpoint configured,
-	 * the memory state backend would not create HA persistence directory.
+	 * This tests the default behaviour in the case of configured high-availability.
+	 * Specially, if not configured checkpoint directory, the memory state backend
+	 * would not create arbitrary directory under HA persistence directory.
 	 */
 	@Test
-	public void testHighAvailabilityDefaultWithNoExternalizedCheckpoint() throws Exception {
+	public void testHighAvailabilityDefault() throws Exception {
 		final String haPersistenceDir = new Path(tmp.newFolder().toURI()).toString();
+		testMemoryBackendHighAvailabilityDefault(haPersistenceDir, null);
 
-		testHighAvailabilityWithNoExternalizedCheckpoint(haPersistenceDir);
+		final Path checkpointPath = new Path(tmp.newFolder().toURI().toString());
+		testMemoryBackendHighAvailabilityDefault(haPersistenceDir, checkpointPath);
 	}
 
 	@Test
-	public void testHighAvailabilityDefaultLocalPathsWithNoExternalizedCheckpoint() throws Exception {
+	public void testHighAvailabilityDefaultLocalPaths() throws Exception {
 		final String haPersistenceDir = new Path(tmp.newFolder().getAbsolutePath()).toString();
+		testMemoryBackendHighAvailabilityDefault(haPersistenceDir, null);
 
-		testHighAvailabilityWithNoExternalizedCheckpoint(haPersistenceDir);
+		final Path checkpointPath = new Path(tmp.newFolder().toURI().toString()).makeQualified(FileSystem.getLocalFileSystem());
+		testMemoryBackendHighAvailabilityDefault(haPersistenceDir, checkpointPath);
 	}
 
-	private void testHighAvailabilityWithNoExternalizedCheckpoint(String haPersistenceDir) throws Exception {
+	private void testMemoryBackendHighAvailabilityDefault(String haPersistenceDir, Path checkpointPath) throws Exception {
 		final Configuration config1 = new Configuration();
 		config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 		config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
@@ -368,6 +374,11 @@ public class StateBackendLoadingTest {
 		config2.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 		config2.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
 		config2.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+
+		if (checkpointPath != null) {
+			config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath.toUri().toString());
+			config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath.toUri().toString());
+		}
 
 		final MemoryStateBackend appBackend = new MemoryStateBackend();
 
@@ -383,12 +394,23 @@ public class StateBackendLoadingTest {
 		final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded2;
 		final MemoryStateBackend memBackend3 = (MemoryStateBackend) loaded3;
 
-		assertNull(memBackend1.getCheckpointPath());
-		assertNull(memBackend2.getCheckpointPath());
-		assertNull(memBackend3.getCheckpointPath());
 		assertNull(memBackend1.getSavepointPath());
 		assertNull(memBackend2.getSavepointPath());
 		assertNull(memBackend3.getSavepointPath());
+
+		if (checkpointPath != null) {
+			assertNotNull(memBackend1.getCheckpointPath());
+			assertNotNull(memBackend2.getCheckpointPath());
+			assertNotNull(memBackend3.getCheckpointPath());
+
+			assertEquals(checkpointPath, memBackend1.getCheckpointPath());
+			assertEquals(checkpointPath, memBackend2.getCheckpointPath());
+			assertEquals(checkpointPath, memBackend3.getCheckpointPath());
+		} else {
+			assertNull(memBackend1.getCheckpointPath());
+			assertNull(memBackend2.getCheckpointPath());
+			assertNull(memBackend3.getCheckpointPath());
+		}
 	}
 
 	// ------------------------------------------------------------------------
