@@ -144,29 +144,22 @@ else
     exit 1
 fi
 
-if [[ ! "$OUTPUT" =~ "consummation,1" ]]; then
-    echo "Output does not contain (consummation, 1) as required"
-    mkdir -p $TEST_DATA_DIR/logs
-    echo "Hadoop logs:"
-    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
-    for f in $TEST_DATA_DIR/logs/*; do
-        echo "$f:"
-        cat $f
-    done
-    echo "Docker logs:"
-    docker logs master
-    exit 1
-fi
-
-if [[ ! "$OUTPUT" =~ "of,14" ]]; then
-    echo "Output does not contain (of, 14) as required"
-    exit 1
-fi
-
-if [[ ! "$OUTPUT" =~ "calamity,1" ]]; then
-    echo "Output does not contain (calamity, 1) as required"
-    exit 1
-fi
+EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
+for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
+    if [[ ! "$OUTPUT" =~ $expected_result ]]; then
+        echo "Output does not contain '$expected_result' as required"
+        mkdir -p $TEST_DATA_DIR/logs
+        echo "Hadoop logs:"
+        docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
+        for f in $TEST_DATA_DIR/logs/*; do
+            echo "$f:"
+            cat $f
+        done
+        echo "Docker logs:"
+        docker logs master
+        exit 1
+    fi
+done
 
 echo "Running Job without configured keytab, the exception you see below is expected"
 docker exec -it master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
