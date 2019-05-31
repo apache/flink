@@ -67,8 +67,8 @@ class DatabaseCalciteSchema implements Schema {
 
 			CatalogBaseTable table = catalog.getTable(tablePath);
 
-			if (table instanceof TableOperationCatalogView) {
-				return TableOperationCatalogViewTable.createCalciteTable(((TableOperationCatalogView) table));
+			if (table instanceof QueryOperationCatalogView) {
+				return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
 			} else if (table instanceof ConnectorCatalogTable) {
 				ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
 				return connectorTable.getTableSource()

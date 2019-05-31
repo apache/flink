@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
-import org.apache.flink.table.operations.TableOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
@@ -87,7 +87,7 @@ public interface Table {
 	/**
 	 * Returns underlying logical representation of this table.
 	 */
-	TableOperation getTableOperation();
+	QueryOperation getQueryOperation();
 
 	/**
 	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions

@@ -20,20 +20,29 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Removes duplicated rows of underlying relational operation.
+ * Filters out rows of underlying relational operation that do not match given condition.
  */
 @Internal
-public class DistinctTableOperation extends TableOperation {
+public class FilterQueryOperation implements QueryOperation {
 
-	private final TableOperation child;
+	private final Expression condition;
+	private final QueryOperation child;
 
-	public DistinctTableOperation(TableOperation child) {
+	public FilterQueryOperation(Expression condition, QueryOperation child) {
+		this.condition = condition;
 		this.child = child;
+	}
+
+	public Expression getCondition() {
+		return condition;
 	}
 
 	@Override
@@ -43,16 +52,20 @@ public class DistinctTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("Distinct", Collections.emptyMap());
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("condition", condition);
+
+		return OperationUtils.formatWithChildren("Filter", args, getChildren(), Operation::asSummaryString);
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitDistinct(this);
+	public <T> T accept(QueryOperationVisitor<T> visitor) {
+		return visitor.visitFilter(this);
 	}
+
 }

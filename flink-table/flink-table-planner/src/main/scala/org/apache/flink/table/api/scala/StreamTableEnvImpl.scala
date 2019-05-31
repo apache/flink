@@ -42,12 +42,12 @@ class StreamTableEnvImpl(
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    val tableOperation = asTableOperation(dataStream.javaStream, None)
+    val tableOperation = asQueryOperation(dataStream.javaStream, None)
     new TableImpl(this, tableOperation)
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
-    val tableOperation = asTableOperation(dataStream.javaStream, Some(fields.toArray))
+    val tableOperation = asQueryOperation(dataStream.javaStream, Some(fields.toArray))
     new TableImpl(this, tableOperation)
   }
 
@@ -72,7 +72,7 @@ class StreamTableEnvImpl(
     queryConfig: StreamQueryConfig): DataStream[T] = {
     val returnType = createTypeInformation[T]
     asScalaStream(translate(
-      table.getTableOperation, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(
+      table.getQueryOperation, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(
       returnType))
   }
 
@@ -86,7 +86,7 @@ class StreamTableEnvImpl(
     val returnType = createTypeInformation[(Boolean, T)]
     asScalaStream(
       translate(
-        table.getTableOperation,
+        table.getQueryOperation,
         queryConfig,
         updatesAsRetraction = true,
         withChangeFlag = true)(returnType))

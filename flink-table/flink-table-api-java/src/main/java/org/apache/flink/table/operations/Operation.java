@@ -18,29 +18,21 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Helper methods for {@link TableOperation}s.
+ * Covers all sort of Table operations such as queries(DQL), modifications(DML), definitions(DDL),
+ * or control actions(DCL).
+ *
+ * @see QueryOperation
  */
-@Internal
-public class TableOperationUtils {
-
-	private static final String OPERATION_INDENT = "    ";
-
+@PublicEvolving
+public interface Operation {
 	/**
-	 * Increases indentation for description of string of child {@link TableOperation}.
-	 * The input can already contain indentation. This will increase all the indentations
-	 * by one level.
+	 * Returns a string that summarizes this operation for printing to a console. An implementation might
+	 * skip very specific properties.
 	 *
-	 * @param item result of {@link TableOperation#asSummaryString()}
-	 * @return string with increased indentation
+	 * @return summary string of this operation for debugging purposes
 	 */
-	static String indent(String item) {
-		return "\n" + OPERATION_INDENT +
-			item.replace("\n" + OPERATION_INDENT, "\n" + OPERATION_INDENT + OPERATION_INDENT);
-	}
-
-	private TableOperationUtils() {
-	}
+	String asSummaryString();
 }

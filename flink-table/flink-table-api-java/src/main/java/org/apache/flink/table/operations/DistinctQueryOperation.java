@@ -20,57 +20,43 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Table operation that computes new table using given {@link Expression}s
- * from its input relational operation.
+ * Removes duplicated rows of underlying relational operation.
  */
 @Internal
-public class ProjectTableOperation extends TableOperation {
+public class DistinctQueryOperation implements QueryOperation {
 
-	private final List<Expression> projectList;
-	private final TableOperation child;
-	private final TableSchema tableSchema;
+	private final QueryOperation child;
 
-	public ProjectTableOperation(
-			List<Expression> projectList,
-			TableOperation child,
-			TableSchema tableSchema) {
-		this.projectList = projectList;
+	public DistinctQueryOperation(QueryOperation child) {
 		this.child = child;
-		this.tableSchema = tableSchema;
-	}
-
-	public List<Expression> getProjectList() {
-		return projectList;
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return tableSchema;
+		return child.getTableSchema();
 	}
 
 	@Override
 	public String asSummaryString() {
-		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("projections", projectList);
-
-		return formatWithChildren("Project", args);
+		return OperationUtils.formatWithChildren(
+			"Distinct",
+			Collections.emptyMap(),
+			getChildren(),
+			Operation::asSummaryString);
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitProject(this);
+	public <T> T accept(QueryOperationVisitor<T> visitor) {
+		return visitor.visitDistinct(this);
 	}
 }

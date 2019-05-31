@@ -22,32 +22,32 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * Class that implements visitor pattern. It allows type safe logic on top of tree
- * of {@link TableOperation}s.
+ * of {@link QueryOperation}s.
  */
 @Internal
-public interface TableOperationVisitor<T> {
+public interface QueryOperationVisitor<T> {
 
-	T visitProject(ProjectTableOperation projection);
+	T visitProject(ProjectQueryOperation projection);
 
-	T visitAggregate(AggregateTableOperation aggregation);
+	T visitAggregate(AggregateQueryOperation aggregation);
 
-	T visitWindowAggregate(WindowAggregateTableOperation windowAggregate);
+	T visitWindowAggregate(WindowAggregateQueryOperation windowAggregate);
 
-	T visitJoin(JoinTableOperation join);
+	T visitJoin(JoinQueryOperation join);
 
-	T visitSetOperation(SetTableOperation setOperation);
+	T visitSetOperation(SetQueryOperation setOperation);
 
-	T visitFilter(FilterTableOperation filter);
+	T visitFilter(FilterQueryOperation filter);
 
-	T visitDistinct(DistinctTableOperation distinct);
+	T visitDistinct(DistinctQueryOperation distinct);
 
-	T visitSort(SortTableOperation sort);
+	T visitSort(SortQueryOperation sort);
 
-	<U> T visitCalculatedTable(CalculatedTableOperation<U> calculatedTable);
+	<U> T visitCalculatedTable(CalculatedQueryOperation<U> calculatedTable);
 
-	T visitCatalogTable(CatalogTableOperation catalogTable);
+	T visitCatalogTable(CatalogQueryOperation catalogTable);
 
-	<U> T visitTableSourceTable(TableSourceTableOperation<U> tableSourceTable);
+	<U> T visitTableSourceTable(TableSourceQueryOperation<U> tableSourceTable);
 
-	T visitOther(TableOperation other);
+	T visitOther(QueryOperation other);
 }

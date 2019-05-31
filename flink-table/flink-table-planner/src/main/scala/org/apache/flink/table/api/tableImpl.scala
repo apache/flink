@@ -21,9 +21,9 @@ import _root_.java.util.Collections.emptyList
 
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
-import org.apache.flink.table.operations.JoinTableOperation.JoinType
+import org.apache.flink.table.operations.JoinQueryOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
-import org.apache.flink.table.operations.{OperationTreeBuilder, TableOperation}
+import org.apache.flink.table.operations.{OperationTreeBuilder, QueryOperation}
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
 import _root_.scala.collection.JavaConversions._
@@ -41,7 +41,7 @@ import _root_.scala.collection.JavaConverters._
   */
 class TableImpl(
     private[flink] val tableEnv: TableEnvImpl,
-    private[flink] val operationTree: TableOperation)
+    private[flink] val operationTree: QueryOperation)
   extends Table {
 
   private[flink] val operationTreeBuilder: OperationTreeBuilder = tableEnv.operationTreeBuilder
@@ -61,7 +61,7 @@ class TableImpl(
 
   override def printSchema(): Unit = print(tableSchema.toString)
 
-  override def getTableOperation: TableOperation = operationTree
+  override def getQueryOperation: QueryOperation = operationTree
 
   override def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields).asScala: _*)
@@ -200,7 +200,7 @@ class TableImpl(
 
     wrap(operationTreeBuilder.join(
         this.operationTree,
-        right.getTableOperation,
+        right.getQueryOperation,
         joinType,
         toJava(joinPredicate),
         correlated = false))
@@ -467,7 +467,7 @@ class TableImpl(
     tableName
   }
 
-  private def wrap(operation: TableOperation): Table = {
+  private def wrap(operation: QueryOperation): Table = {
     new TableImpl(tableEnv, operation)
   }
 }

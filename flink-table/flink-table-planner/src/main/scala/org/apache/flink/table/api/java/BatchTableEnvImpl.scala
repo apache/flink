@@ -45,7 +45,7 @@ class BatchTableEnvImpl(
   with org.apache.flink.table.api.java.BatchTableEnvironment {
 
   override def fromDataSet[T](dataSet: DataSet[T]): Table = {
-    new TableImpl(this, asDataSetTableOperation(dataSet, None))
+    new TableImpl(this, asQueryOperation(dataSet, None))
   }
 
   override def fromDataSet[T](dataSet: DataSet[T], fields: String): Table = {
@@ -53,7 +53,7 @@ class BatchTableEnvImpl(
       .parseExpressionList(fields).asScala
       .toArray
 
-    new TableImpl(this, asDataSetTableOperation(dataSet, Some(exprs)))
+    new TableImpl(this, asQueryOperation(dataSet, Some(exprs)))
   }
 
   override def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit = {

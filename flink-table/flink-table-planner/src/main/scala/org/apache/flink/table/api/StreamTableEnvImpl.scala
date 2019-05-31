@@ -40,7 +40,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.operations.{DataStreamTableOperation, TableOperation}
+import org.apache.flink.table.operations.{DataStreamQueryOperation, QueryOperation}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -128,7 +128,7 @@ abstract class StreamTableEnvImpl(
       sink: TableSink[T],
       queryConfig: QueryConfig): Unit = {
 
-    val tableOperation = inputTable.getTableOperation
+    val tableOperation = inputTable.getQueryOperation
     val relNode = getRelBuilder.tableOperation(tableOperation).build()
     // Check query configuration
     val streamQueryConfig = queryConfig match {
@@ -314,10 +314,10 @@ abstract class StreamTableEnvImpl(
       }
   }
 
-  protected def asTableOperation[T](
+  protected def asQueryOperation[T](
       dataStream: DataStream[T],
       fields: Option[Array[Expression]])
-    : DataStreamTableOperation[T] = {
+    : DataStreamQueryOperation[T] = {
     val streamType = dataStream.getType
 
     // get field names and types for all non-replaced fields
@@ -351,7 +351,7 @@ abstract class StreamTableEnvImpl(
         (fieldsInfo.getIndices, fieldsInfo.getFieldNames)
     }
 
-    val dataStreamTable = new DataStreamTableOperation(
+    val dataStreamTable = new DataStreamQueryOperation(
       dataStream,
       indices,
       calculateTableSchema(streamType, indices, names))
@@ -645,7 +645,7 @@ abstract class StreamTableEnvImpl(
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](
-      tableOperation: TableOperation,
+      tableOperation: QueryOperation,
       queryConfig: StreamQueryConfig,
       updatesAsRetraction: Boolean,
       withChangeFlag: Boolean)(implicit tpe: TypeInformation[A]): DataStream[A] = {
@@ -784,7 +784,7 @@ abstract class StreamTableEnvImpl(
   }
 
   def explain(table: Table): String = {
-    val ast = getRelBuilder.tableOperation(table.getTableOperation).build()
+    val ast = getRelBuilder.tableOperation(table.getQueryOperation).build()
     val optimizedPlan = optimize(ast, updatesAsRetraction = false)
     val dataStream = translateToCRow(optimizedPlan, queryConfig)
 

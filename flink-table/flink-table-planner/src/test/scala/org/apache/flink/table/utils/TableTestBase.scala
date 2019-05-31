@@ -29,18 +29,18 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.java.{BatchTableEnvImpl => JavaBatchTableEnvImpl, StreamTableEnvImpl => JavaStreamTableEnvImpl}
 import org.apache.flink.table.api.scala.{BatchTableEnvImpl => ScalaBatchTableEnvImpl, _}
-import org.apache.flink.table.api.{TableImpl, Table, TableConfig, TableEnvImpl, TableSchema}
+import org.apache.flink.table.api.{BatchTableEnvImpl => _, StreamTableEnvImpl => _, _}
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.{DataSetTableOperation, DataStreamTableOperation}
+import org.apache.flink.table.operations.{DataSetQueryOperation, DataStreamQueryOperation}
 import org.apache.flink.table.utils.TableTestUtil.createCatalogManager
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
-import scala.util.control.Breaks._
+import _root_.scala.util.control.Breaks._
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -157,7 +157,7 @@ object TableTestUtil {
 
   private[utils] def toRelNode(expected: Table) = {
     expected.asInstanceOf[TableImpl].getTableEnvironment.asInstanceOf[TableEnvImpl]
-      .getRelBuilder.tableOperation(expected.getTableOperation).build()
+      .getRelBuilder.tableOperation(expected.getQueryOperation).build()
   }
 
   // this methods are currently just for simplifying string construction,
@@ -207,13 +207,13 @@ object TableTestUtil {
   }
 
   def batchTableNode(table: Table): String = {
-    val dataSetTable = table.getTableOperation.asInstanceOf[DataSetTableOperation[_]]
+    val dataSetTable = table.getQueryOperation.asInstanceOf[DataSetQueryOperation[_]]
     s"DataSetScan(ref=[${System.identityHashCode(dataSetTable.getDataSet)}], " +
       s"fields=[${dataSetTable.getTableSchema.getFieldNames.mkString(", ")}])"
   }
 
   def streamTableNode(table: Table): String = {
-    val dataStreamTable = table.getTableOperation.asInstanceOf[DataStreamTableOperation[_]]
+    val dataStreamTable = table.getQueryOperation.asInstanceOf[DataStreamQueryOperation[_]]
     s"DataStreamScan(id=[${dataStreamTable.getDataStream.getId}], " +
       s"fields=[${dataStreamTable.getTableSchema.getFieldNames.mkString(", ")}])"
   }
@@ -319,7 +319,7 @@ case class BatchTableTestUtil(
   }
 
   def toRelNode(table: Table): RelNode = {
-    tableEnv.getRelBuilder.tableOperation(table.getTableOperation).build()
+    tableEnv.getRelBuilder.tableOperation(table.getQueryOperation).build()
   }
 }
 
@@ -430,7 +430,7 @@ case class StreamTableTestUtil(
   }
 
   def toRelNode(table: Table): RelNode = {
-    tableEnv.getRelBuilder.tableOperation(table.getTableOperation).build()
+    tableEnv.getRelBuilder.tableOperation(table.getQueryOperation).build()
   }
 }
 

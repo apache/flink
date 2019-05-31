@@ -41,7 +41,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
-import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation, TableSourceTableOperation}
+import org.apache.flink.table.operations.{CatalogQueryOperation, OperationTreeBuilder, PlannerQueryOperation, TableSourceQueryOperation}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.RowSchema
@@ -421,7 +421,7 @@ abstract class TableEnvImpl(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
-    val tableTable = new TableOperationCatalogView(table.getTableOperation)
+    val tableTable = new QueryOperationCatalogView(table.getQueryOperation)
     registerTableInternal(name, tableTable)
   }
 
@@ -464,7 +464,7 @@ abstract class TableEnvImpl(
   }
 
   override def fromTableSource(source: TableSource[_]): Table = {
-    new TableImpl(this, new TableSourceTableOperation(source, isBatch))
+    new TableImpl(this, new TableSourceQueryOperation(source, isBatch))
   }
 
   /**
@@ -579,9 +579,9 @@ abstract class TableEnvImpl(
     }
   }
 
-  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogTableOperation] = {
+  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogQueryOperation] = {
     JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath: _*))
-      .map(t => new CatalogTableOperation(t.getTablePath, t.getTableSchema))
+      .map(t => new CatalogQueryOperation(t.getTablePath, t.getTableSchema))
   }
 
   override def listTables(): Array[String] = {
@@ -614,7 +614,7 @@ abstract class TableEnvImpl(
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, new PlannerTableOperation(relational.rel))
+      new TableImpl(this, new PlannerQueryOperation(relational.rel))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -638,7 +638,7 @@ abstract class TableEnvImpl(
 
         // get query result as Table
         val queryResult = new TableImpl(this,
-          new PlannerTableOperation(planner.rel(validatedQuery).rel))
+          new PlannerQueryOperation(planner.rel(validatedQuery).rel))
 
         // get name of sink table
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names

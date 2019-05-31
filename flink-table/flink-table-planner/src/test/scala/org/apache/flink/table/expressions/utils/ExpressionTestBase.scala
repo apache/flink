@@ -198,7 +198,7 @@ abstract class ExpressionTestBase {
     val table = env
       .scan(tableName)
       .select(tableApiExpr)
-    val converted = env.getRelBuilder.tableOperation(table.getTableOperation).build()
+    val converted = env.getRelBuilder.tableOperation(table.getQueryOperation).build()
 
     val optimized = env.optimize(converted)
 

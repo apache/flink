@@ -44,7 +44,7 @@ import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfTyp
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 
 /**
- * Utility methods for transforming {@link Expression} to use them in {@link TableOperation}s.
+ * Utility methods for transforming {@link Expression} to use them in {@link QueryOperation}s.
  */
 @Internal
 public class OperationExpressionsUtils {

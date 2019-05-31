@@ -33,7 +33,7 @@ import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescri
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.expressions.{CallExpression, Expression}
-import org.apache.flink.table.operations.DataSetTableOperation
+import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -160,7 +160,7 @@ abstract class BatchTableEnvImpl(
     * @param extended Flag to include detailed optimizer estimates.
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
-    val ast = getRelBuilder.tableOperation(table.getTableOperation).build()
+    val ast = getRelBuilder.tableOperation(table.getQueryOperation).build()
     val optimizedPlan = optimize(ast)
     val dataSet = translate[Row](optimizedPlan, ast.getRowType, queryConfig) (
       new GenericTypeInfo (classOf[Row]))
@@ -184,8 +184,8 @@ abstract class BatchTableEnvImpl(
 
   def explain(table: Table): String = explain(table: Table, extended = false)
 
-  protected def asDataSetTableOperation[T](dataSet: DataSet[T], fields: Option[Array[Expression]])
-    : DataSetTableOperation[T] = {
+  protected def asQueryOperation[T](dataSet: DataSet[T], fields: Option[Array[Expression]])
+    : DataSetQueryOperation[T] = {
     val inputType = dataSet.getType
 
     val fieldsInfo = fields match {
@@ -201,7 +201,7 @@ abstract class BatchTableEnvImpl(
       case None => getFieldsInfo[T](inputType)
     }
 
-    val tableOperation = new DataSetTableOperation[T](dataSet,
+    val tableOperation = new DataSetQueryOperation[T](dataSet,
       fieldsInfo.getIndices,
       calculateTableSchema(inputType, fieldsInfo.getIndices, fieldsInfo.getFieldNames))
     tableOperation
@@ -247,7 +247,7 @@ abstract class BatchTableEnvImpl(
   protected def translate[A](
       table: Table,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    val relNode = getRelBuilder.tableOperation(table.getTableOperation).build()
+    val relNode = getRelBuilder.tableOperation(table.getQueryOperation).build()
     val dataSetPlan = optimize(relNode)
     translate(dataSetPlan, relNode.getRowType, queryConfig)
   }
