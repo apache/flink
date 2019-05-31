@@ -26,21 +26,44 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Filters out rows of underlying relational operation that do not match given condition.
+ * Expresses sort operation of rows of the underlying relational operation with given order.
+ * It also allows specifying offset and number of rows to fetch from the sorted data set/stream.
  */
 @Internal
-public class FilterTableOperation implements TableOperation {
+public class SortQueryTableOperation implements QueryTableOperation {
 
-	private final Expression condition;
-	private final TableOperation child;
+	private final List<Expression> order;
+	private final QueryTableOperation child;
+	private final int offset;
+	private final int fetch;
 
-	public FilterTableOperation(Expression condition, TableOperation child) {
-		this.condition = condition;
-		this.child = child;
+	public SortQueryTableOperation(
+			List<Expression> order,
+			QueryTableOperation child) {
+		this(order, child, -1, -1);
 	}
 
-	public Expression getCondition() {
-		return condition;
+	public SortQueryTableOperation(List<Expression> order, QueryTableOperation child, int offset, int fetch) {
+		this.order = order;
+		this.child = child;
+		this.offset = offset;
+		this.fetch = fetch;
+	}
+
+	public List<Expression> getOrder() {
+		return order;
+	}
+
+	public QueryTableOperation getChild() {
+		return child;
+	}
+
+	public int getOffset() {
+		return offset;
+	}
+
+	public int getFetch() {
+		return fetch;
 	}
 
 	@Override
@@ -49,13 +72,12 @@ public class FilterTableOperation implements TableOperation {
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryTableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitFilter(this);
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
+		return visitor.visitSort(this);
 	}
-
 }

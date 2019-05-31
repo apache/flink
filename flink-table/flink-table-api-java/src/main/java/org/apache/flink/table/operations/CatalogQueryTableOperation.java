@@ -28,12 +28,12 @@ import java.util.List;
  * Describes a relational operation that was created from a lookup to a catalog.
  */
 @Internal
-public class CatalogTableOperation implements TableOperation {
+public class CatalogQueryTableOperation implements QueryTableOperation {
 
 	private final List<String> tablePath;
 	private final TableSchema tableSchema;
 
-	public CatalogTableOperation(List<String> tablePath, TableSchema tableSchema) {
+	public CatalogQueryTableOperation(List<String> tablePath, TableSchema tableSchema) {
 		this.tablePath = tablePath;
 		this.tableSchema = tableSchema;
 	}
@@ -48,12 +48,12 @@ public class CatalogTableOperation implements TableOperation {
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryTableOperation> getChildren() {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
 		return visitor.visitCatalogTable(this);
 	}
 }

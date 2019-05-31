@@ -31,7 +31,7 @@ import org.apache.flink.table.catalog.CatalogReader;
 import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.plan.TableOperationConverter;
+import org.apache.flink.table.plan.QueryTableOperationConverter;
 import org.apache.flink.table.plan.cost.DataSetCostFactory;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
 import org.apache.flink.table.validate.FunctionCatalog;
@@ -86,7 +86,7 @@ public class PlanningConfigurationBuilder {
 
 		// create context instances with Flink type factory
 		this.context = Contexts.of(
-			new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
+			new QueryTableOperationConverter.ToRelConverterSupplier(expressionBridge)
 		);
 
 		this.planner = new VolcanoPlanner(costFactory, context);

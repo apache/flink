@@ -31,32 +31,32 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SESSION;
-import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
-import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
+import static org.apache.flink.table.operations.WindowAggregateQueryTableOperation.ResolvedGroupWindow.WindowType.SESSION;
+import static org.apache.flink.table.operations.WindowAggregateQueryTableOperation.ResolvedGroupWindow.WindowType.SLIDE;
+import static org.apache.flink.table.operations.WindowAggregateQueryTableOperation.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Relational operation that performs computations on top of subsets of input rows grouped by
- * key and group window. It differs from {@link AggregateTableOperation} by the group window.
+ * key and group window. It differs from {@link AggregateQueryTableOperation} by the group window.
  */
 @Internal
-public class WindowAggregateTableOperation implements TableOperation {
+public class WindowAggregateQueryTableOperation implements QueryTableOperation {
 
 	private final List<Expression> groupingExpressions;
 	private final List<Expression> aggregateExpressions;
 	private final List<Expression> windowPropertiesExpressions;
 	private final ResolvedGroupWindow groupWindow;
-	private final TableOperation child;
+	private final QueryTableOperation child;
 	private final TableSchema tableSchema;
 
-	public WindowAggregateTableOperation(
+	public WindowAggregateQueryTableOperation(
 			List<Expression> groupingExpressions,
 			List<Expression> aggregateExpressions,
 			List<Expression> windowPropertiesExpressions,
 			ResolvedGroupWindow groupWindow,
-			TableOperation child,
+			QueryTableOperation child,
 			TableSchema tableSchema) {
 		this.groupingExpressions = groupingExpressions;
 		this.aggregateExpressions = aggregateExpressions;
@@ -88,12 +88,12 @@ public class WindowAggregateTableOperation implements TableOperation {
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryTableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
 		return visitor.visitWindowAggregate(this);
 	}
 

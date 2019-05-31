@@ -37,22 +37,22 @@ import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
 import org.apache.flink.table.operations.AggregateOperationFactory;
-import org.apache.flink.table.operations.AggregateTableOperation;
-import org.apache.flink.table.operations.CalculatedTableOperation;
-import org.apache.flink.table.operations.CatalogTableOperation;
-import org.apache.flink.table.operations.DistinctTableOperation;
-import org.apache.flink.table.operations.FilterTableOperation;
-import org.apache.flink.table.operations.JoinTableOperation;
-import org.apache.flink.table.operations.JoinTableOperation.JoinType;
-import org.apache.flink.table.operations.PlannerTableOperation;
-import org.apache.flink.table.operations.ProjectTableOperation;
-import org.apache.flink.table.operations.SetTableOperation;
-import org.apache.flink.table.operations.SortTableOperation;
-import org.apache.flink.table.operations.TableOperation;
-import org.apache.flink.table.operations.TableOperationDefaultVisitor;
-import org.apache.flink.table.operations.TableOperationVisitor;
-import org.apache.flink.table.operations.WindowAggregateTableOperation;
-import org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow;
+import org.apache.flink.table.operations.AggregateQueryTableOperation;
+import org.apache.flink.table.operations.CalculatedQueryTableOperation;
+import org.apache.flink.table.operations.CatalogQueryTableOperation;
+import org.apache.flink.table.operations.DistinctQueryTableOperation;
+import org.apache.flink.table.operations.FilterQueryTableOperation;
+import org.apache.flink.table.operations.JoinQueryTableOperation;
+import org.apache.flink.table.operations.JoinQueryTableOperation.JoinType;
+import org.apache.flink.table.operations.PlannerQueryTableOperation;
+import org.apache.flink.table.operations.ProjectQueryTableOperation;
+import org.apache.flink.table.operations.QueryTableOperation;
+import org.apache.flink.table.operations.QueryTableOperationDefaultVisitor;
+import org.apache.flink.table.operations.QueryTableOperationVisitor;
+import org.apache.flink.table.operations.SetQueryTableOperation;
+import org.apache.flink.table.operations.SortQueryTableOperation;
+import org.apache.flink.table.operations.WindowAggregateQueryTableOperation;
+import org.apache.flink.table.operations.WindowAggregateQueryTableOperation.ResolvedGroupWindow;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.plan.logical.SlidingGroupWindow;
@@ -83,14 +83,14 @@ import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfTyp
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 
 /**
- * Converter from Flink's specific relational representation: {@link TableOperation} to Calcite's specific relational
+ * Converter from Flink's specific relational representation: {@link QueryTableOperation} to Calcite's specific relational
  * representation: {@link RelNode}.
  */
 @Internal
-public class TableOperationConverter extends TableOperationDefaultVisitor<RelNode> {
+public class QueryTableOperationConverter extends QueryTableOperationDefaultVisitor<RelNode> {
 
 	/**
-	 * Supplier for {@link TableOperationConverter} that can wrap given {@link RelBuilder}.
+	 * Supplier for {@link QueryTableOperationConverter} that can wrap given {@link RelBuilder}.
 	 */
 	@Internal
 	public static class ToRelConverterSupplier {
@@ -100,8 +100,8 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 			this.expressionBridge = expressionBridge;
 		}
 
-		public TableOperationConverter get(RelBuilder relBuilder) {
-			return new TableOperationConverter(relBuilder, expressionBridge);
+		public QueryTableOperationConverter get(RelBuilder relBuilder) {
+			return new QueryTableOperationConverter(relBuilder, expressionBridge);
 		}
 	}
 
@@ -112,7 +112,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 	private final TableAggregateVisitor tableAggregateVisitor = new TableAggregateVisitor();
 	private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
 
-	public TableOperationConverter(
+	public QueryTableOperationConverter(
 			RelBuilder relBuilder,
 			ExpressionBridge<PlannerExpression> expressionBridge) {
 		this.relBuilder = relBuilder;
@@ -120,22 +120,22 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 	}
 
 	@Override
-	public RelNode defaultMethod(TableOperation other) {
+	public RelNode defaultMethod(QueryTableOperation other) {
 		other.getChildren().forEach(child -> relBuilder.push(child.accept(this)));
 		return other.accept(singleRelVisitor);
 	}
 
-	private class SingleRelVisitor implements TableOperationVisitor<RelNode> {
+	private class SingleRelVisitor implements QueryTableOperationVisitor<RelNode> {
 
 		@Override
-		public RelNode visitProject(ProjectTableOperation projection) {
+		public RelNode visitProject(ProjectQueryTableOperation projection) {
 			List<RexNode> rexNodes = convertToRexNodes(projection.getProjectList());
 
 			return relBuilder.project(rexNodes, asList(projection.getTableSchema().getFieldNames()), true).build();
 		}
 
 		@Override
-		public RelNode visitAggregate(AggregateTableOperation aggregate) {
+		public RelNode visitAggregate(AggregateQueryTableOperation aggregate) {
 			List<AggCall> aggregations = aggregate.getAggregateExpressions()
 				.stream()
 				.map(this::getAggCall)
@@ -147,7 +147,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitWindowAggregate(WindowAggregateTableOperation windowAggregate) {
+		public RelNode visitWindowAggregate(WindowAggregateQueryTableOperation windowAggregate) {
 			FlinkRelBuilder flinkRelBuilder = (FlinkRelBuilder) relBuilder;
 			List<AggCall> aggregations = windowAggregate.getAggregateExpressions()
 				.stream()
@@ -176,7 +176,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitJoin(JoinTableOperation join) {
+		public RelNode visitJoin(JoinQueryTableOperation join) {
 			final Set<CorrelationId> corSet;
 			if (join.isCorrelated()) {
 				corSet = Collections.singleton(relBuilder.peek().getCluster().createCorrel());
@@ -192,7 +192,7 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitSetOperation(SetTableOperation setOperation) {
+		public RelNode visitSetOperation(SetQueryTableOperation setOperation) {
 			switch (setOperation.getType()) {
 				case INTERSECT:
 					relBuilder.intersect(setOperation.isAll());
@@ -208,25 +208,25 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitFilter(FilterTableOperation filter) {
+		public RelNode visitFilter(FilterQueryTableOperation filter) {
 			RexNode rexNode = convertToRexNode(filter.getCondition());
 			return relBuilder.filter(rexNode).build();
 		}
 
 		@Override
-		public RelNode visitDistinct(DistinctTableOperation distinct) {
+		public RelNode visitDistinct(DistinctQueryTableOperation distinct) {
 			return relBuilder.distinct().build();
 		}
 
 		@Override
-		public RelNode visitSort(SortTableOperation sort) {
+		public RelNode visitSort(SortQueryTableOperation sort) {
 			List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
 			return relBuilder.sortLimit(sort.getOffset(), sort.getFetch(), rexNodes)
 				.build();
 		}
 
 		@Override
-		public <U> RelNode visitCalculatedTable(CalculatedTableOperation<U> calculatedTable) {
+		public <U> RelNode visitCalculatedTable(CalculatedQueryTableOperation<U> calculatedTable) {
 			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
 			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
 			TypeInformation<U> resultType = calculatedTable.getResultType();
@@ -258,14 +258,14 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitCatalogTable(CatalogTableOperation catalogTable) {
+		public RelNode visitCatalogTable(CatalogQueryTableOperation catalogTable) {
 			return relBuilder.scan(catalogTable.getTablePath()).build();
 		}
 
 		@Override
-		public RelNode visitOther(TableOperation other) {
-			if (other instanceof PlannerTableOperation) {
-				return ((PlannerTableOperation) other).getCalciteTree();
+		public RelNode visitOther(QueryTableOperation other) {
+			if (other instanceof PlannerQueryTableOperation) {
+				return ((PlannerQueryTableOperation) other).getCalciteTree();
 			}
 
 			throw new TableException("Unknown table operation: " + other);

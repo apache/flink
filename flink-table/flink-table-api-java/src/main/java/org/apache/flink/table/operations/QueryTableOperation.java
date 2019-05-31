@@ -19,48 +19,27 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
- * Table operation that computes new table using given {@link Expression}s
- * from its input relational operation.
+ * Base class for representing an operation structure behind a user-facing {@link Table} API.
+ *
+ * <p>It represents an operation that can be a node of a relational query. It has a schema, that
+ * can be used to validate a {@link QueryTableOperation} applied on top of this one.
  */
 @Internal
-public class ProjectTableOperation implements TableOperation {
+public interface QueryTableOperation extends TableOperation {
 
-	private final List<Expression> projectList;
-	private final TableOperation child;
-	private final TableSchema tableSchema;
+	/**
+	 * Resolved schema of this operation. This is the schema of the data
+	 * that will be produced by the {@link QueryTableOperation}.
+	 */
+	TableSchema getTableSchema();
 
-	public ProjectTableOperation(
-			List<Expression> projectList,
-			TableOperation child,
-			TableSchema tableSchema) {
-		this.projectList = projectList;
-		this.child = child;
-		this.tableSchema = tableSchema;
-	}
+	List<QueryTableOperation> getChildren();
 
-	public List<Expression> getProjectList() {
-		return projectList;
-	}
-
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
-
-	@Override
-	public List<TableOperation> getChildren() {
-		return Collections.singletonList(child);
-	}
-
-	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitProject(this);
-	}
+	<T> T accept(QueryTableOperationVisitor<T> visitor);
 }

@@ -18,24 +18,14 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
-
-import java.util.List;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Base class for representing the operation structure behind a user-facing {@link Table} API.
+ * Covers all sort of Table operations such as queries(DQL), modifications(DML), definitions(DDL),
+ * or control actions(DCL).
+ *
+ * @see QueryTableOperation
  */
-@Internal
+@PublicEvolving
 public interface TableOperation {
-
-	/**
-	 * Resolved schema of this operation.
-	 */
-	TableSchema getTableSchema();
-
-	List<TableOperation> getChildren();
-
-	<T> T accept(TableOperationVisitor<T> visitor);
 }

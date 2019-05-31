@@ -26,48 +26,36 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Relational operation that performs computations on top of subsets of input rows grouped by
- * key.
+ * Filters out rows of underlying relational operation that do not match given condition.
  */
 @Internal
-public class AggregateTableOperation implements TableOperation {
+public class FilterQueryTableOperation implements QueryTableOperation {
 
-	private final List<Expression> groupingExpressions;
-	private final List<Expression> aggregateExpressions;
-	private final TableOperation child;
-	private final TableSchema tableSchema;
+	private final Expression condition;
+	private final QueryTableOperation child;
 
-	public AggregateTableOperation(
-			List<Expression> groupingExpressions,
-			List<Expression> aggregateExpressions,
-			TableOperation child,
-			TableSchema tableSchema) {
-		this.groupingExpressions = groupingExpressions;
-		this.aggregateExpressions = aggregateExpressions;
+	public FilterQueryTableOperation(Expression condition, QueryTableOperation child) {
+		this.condition = condition;
 		this.child = child;
-		this.tableSchema = tableSchema;
+	}
+
+	public Expression getCondition() {
+		return condition;
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
-
-	public List<Expression> getGroupingExpressions() {
-		return groupingExpressions;
-	}
-
-	public List<Expression> getAggregateExpressions() {
-		return aggregateExpressions;
+		return child.getTableSchema();
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryTableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitAggregate(this);
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
+		return visitor.visitFilter(this);
 	}
+
 }

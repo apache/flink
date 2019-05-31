@@ -22,7 +22,7 @@ import java.sql.Timestamp
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.operations.TableOperation
+import org.apache.flink.table.operations.QueryTableOperation
 
 /**
   * Class representing temporal table function over some history table.
@@ -33,7 +33,7 @@ import org.apache.flink.table.operations.TableOperation
   * into other operators (like Temporal Table Join).
   */
 class TemporalTableFunctionImpl private(
-    @transient private val underlyingHistoryTable: TableOperation,
+    @transient private val underlyingHistoryTable: QueryTableOperation,
     @transient private val timeAttribute: Expression,
     @transient private val primaryKey: Expression,
     private val resultType: RowTypeInfo)
@@ -55,7 +55,7 @@ class TemporalTableFunctionImpl private(
     primaryKey
   }
 
-  private[flink] def getUnderlyingHistoryTable: TableOperation = {
+  private[flink] def getUnderlyingHistoryTable: QueryTableOperation = {
     if (underlyingHistoryTable == null) {
       throw new IllegalStateException("Accessing table field after planing/serialization")
     }
@@ -65,7 +65,7 @@ class TemporalTableFunctionImpl private(
 
 object TemporalTableFunctionImpl {
   private[flink] def create(
-      operationTree: TableOperation,
+      operationTree: QueryTableOperation,
       timeAttribute: Expression,
       primaryKey: Expression): TemporalTableFunction = {
     new TemporalTableFunctionImpl(

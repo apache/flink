@@ -46,7 +46,7 @@ import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
-import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
+import org.apache.flink.table.operations.{CatalogQueryTableOperation, OperationTreeBuilder, PlannerQueryTableOperation}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
@@ -485,7 +485,7 @@ abstract class TableEnvImpl(
     }
   }
 
-  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogTableOperation] = {
+  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogQueryTableOperation] = {
     JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath : _*))
   }
 
@@ -519,7 +519,7 @@ abstract class TableEnvImpl(
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, new PlannerTableOperation(relational.rel))
+      new TableImpl(this, new PlannerQueryTableOperation(relational.rel))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -543,7 +543,7 @@ abstract class TableEnvImpl(
 
         // get query result as Table
         val queryResult = new TableImpl(this,
-          new PlannerTableOperation(planner.rel(validatedQuery).rel))
+          new PlannerQueryTableOperation(planner.rel(validatedQuery).rel))
 
         // get name of sink table
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names

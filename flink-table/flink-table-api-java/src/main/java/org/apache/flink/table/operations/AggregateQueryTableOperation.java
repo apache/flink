@@ -26,58 +26,48 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Expresses sort operation of rows of the underlying relational operation with given order.
- * It also allows specifying offset and number of rows to fetch from the sorted data set/stream.
+ * Relational operation that performs computations on top of subsets of input rows grouped by
+ * key.
  */
 @Internal
-public class SortTableOperation implements TableOperation {
+public class AggregateQueryTableOperation implements QueryTableOperation {
 
-	private final List<Expression> order;
-	private final TableOperation child;
-	private final int offset;
-	private final int fetch;
+	private final List<Expression> groupingExpressions;
+	private final List<Expression> aggregateExpressions;
+	private final QueryTableOperation child;
+	private final TableSchema tableSchema;
 
-	public SortTableOperation(
-			List<Expression> order,
-			TableOperation child) {
-		this(order, child, -1, -1);
-	}
-
-	public SortTableOperation(List<Expression> order, TableOperation child, int offset, int fetch) {
-		this.order = order;
+	public AggregateQueryTableOperation(
+			List<Expression> groupingExpressions,
+			List<Expression> aggregateExpressions,
+			QueryTableOperation child,
+			TableSchema tableSchema) {
+		this.groupingExpressions = groupingExpressions;
+		this.aggregateExpressions = aggregateExpressions;
 		this.child = child;
-		this.offset = offset;
-		this.fetch = fetch;
-	}
-
-	public List<Expression> getOrder() {
-		return order;
-	}
-
-	public TableOperation getChild() {
-		return child;
-	}
-
-	public int getOffset() {
-		return offset;
-	}
-
-	public int getFetch() {
-		return fetch;
+		this.tableSchema = tableSchema;
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return child.getTableSchema();
+		return tableSchema;
+	}
+
+	public List<Expression> getGroupingExpressions() {
+		return groupingExpressions;
+	}
+
+	public List<Expression> getAggregateExpressions() {
+		return aggregateExpressions;
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
+	public List<QueryTableOperation> getChildren() {
 		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <T> T accept(TableOperationVisitor<T> visitor) {
-		return visitor.visitSort(this);
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
+		return visitor.visitAggregate(this);
 	}
 }

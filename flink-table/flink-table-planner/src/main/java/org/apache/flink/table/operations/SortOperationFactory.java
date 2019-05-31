@@ -32,7 +32,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.ORDE
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.ORDER_ASC;
 
 /**
- * Utility class for creating a valid {@link SortTableOperation} operation.
+ * Utility class for creating a valid {@link SortQueryTableOperation} operation.
  */
 @Internal
 public class SortOperationFactory {
@@ -45,7 +45,7 @@ public class SortOperationFactory {
 	}
 
 	/**
-	 * Creates a valid {@link SortTableOperation} operation.
+	 * Creates a valid {@link SortQueryTableOperation} operation.
 	 *
 	 * <p><b>NOTE:</b> if the collation is not explicitly specified for any expression, it is wrapped in a
 	 * default ascending order
@@ -54,24 +54,24 @@ public class SortOperationFactory {
 	 * @param child relational expression on top of which to apply the sort operation
 	 * @return valid sort operation
 	 */
-	public TableOperation createSort(List<Expression> orders, TableOperation child) {
+	public QueryTableOperation createSort(List<Expression> orders, QueryTableOperation child) {
 		failIfStreaming();
 
 		List<Expression> convertedOrders = orders.stream()
 			.map(f -> f.accept(orderWrapper))
 			.collect(Collectors.toList());
-		return new SortTableOperation(convertedOrders, child);
+		return new SortQueryTableOperation(convertedOrders, child);
 	}
 
 	/**
-	 * Adds offset to the underlying {@link SortTableOperation} if it is a valid one.
+	 * Adds offset to the underlying {@link SortQueryTableOperation} if it is a valid one.
 	 *
 	 * @param offset offset to add
-	 * @param child should be {@link SortTableOperation}
+	 * @param child should be {@link SortQueryTableOperation}
 	 * @return valid sort operation with applied offset
 	 */
-	public TableOperation createLimitWithOffset(int offset, TableOperation child) {
-		SortTableOperation previousSort = validateAndGetChildSort(child);
+	public QueryTableOperation createLimitWithOffset(int offset, QueryTableOperation child) {
+		SortQueryTableOperation previousSort = validateAndGetChildSort(child);
 
 		if (offset < 0) {
 			throw new ValidationException("Offset should be greater or equal 0");
@@ -81,18 +81,18 @@ public class SortOperationFactory {
 			throw new ValidationException("OFFSET already defined");
 		}
 
-		return new SortTableOperation(previousSort.getOrder(), previousSort.getChild(), offset, -1);
+		return new SortQueryTableOperation(previousSort.getOrder(), previousSort.getChild(), offset, -1);
 	}
 
 	/**
-	 * Adds fetch to the underlying {@link SortTableOperation} if it is a valid one.
+	 * Adds fetch to the underlying {@link SortQueryTableOperation} if it is a valid one.
 	 *
 	 * @param fetch fetch number to add
-	 * @param child should be {@link SortTableOperation}
+	 * @param child should be {@link SortQueryTableOperation}
 	 * @return valid sort operation with applied fetch
 	 */
-	public TableOperation createLimitWithFetch(int fetch, TableOperation child) {
-		SortTableOperation previousSort = validateAndGetChildSort(child);
+	public QueryTableOperation createLimitWithFetch(int fetch, QueryTableOperation child) {
+		SortQueryTableOperation previousSort = validateAndGetChildSort(child);
 
 		if (fetch < 0) {
 			throw new ValidationException("Fetch should be greater or equal 0");
@@ -100,17 +100,17 @@ public class SortOperationFactory {
 
 		int offset = Math.max(previousSort.getOffset(), 0);
 
-		return new SortTableOperation(previousSort.getOrder(), previousSort.getChild(), offset, fetch);
+		return new SortQueryTableOperation(previousSort.getOrder(), previousSort.getChild(), offset, fetch);
 	}
 
-	private SortTableOperation validateAndGetChildSort(TableOperation child) {
+	private SortQueryTableOperation validateAndGetChildSort(QueryTableOperation child) {
 		failIfStreaming();
 
-		if (!(child instanceof SortTableOperation)) {
+		if (!(child instanceof SortQueryTableOperation)) {
 			throw new ValidationException("A limit operation must be preceded by a sort operation.");
 		}
 
-		SortTableOperation previousSort = (SortTableOperation) child;
+		SortQueryTableOperation previousSort = (SortQueryTableOperation) child;
 
 		if ((previousSort).getFetch() != -1) {
 			throw new ValidationException("FETCH is already defined.");

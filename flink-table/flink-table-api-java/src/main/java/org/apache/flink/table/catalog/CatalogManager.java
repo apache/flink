@@ -24,7 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.operations.CatalogTableOperation;
+import org.apache.flink.table.operations.CatalogQueryTableOperation;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.util.StringUtils;
 
@@ -243,7 +243,7 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Tries to resolve a table path to a {@link CatalogTableOperation}. The algorithm looks for requested table
+	 * Tries to resolve a table path to a {@link CatalogQueryTableOperation}. The algorithm looks for requested table
 	 * in following paths in that order:
 	 * <ol>
 	 *     <li>{@code [current-catalog].[current-database].[tablePath]}</li>
@@ -252,10 +252,10 @@ public class CatalogManager {
 	 * </ol>
 	 *
 	 * @param tablePath table path to look for
-	 * @return {@link CatalogTableOperation} containing both fully qualified table identifier and its
+	 * @return {@link CatalogQueryTableOperation} containing both fully qualified table identifier and its
 	 * {@link TableSchema}.
 	 */
-	public Optional<CatalogTableOperation> resolveTable(String... tablePath) {
+	public Optional<CatalogQueryTableOperation> resolveTable(String... tablePath) {
 		checkArgument(tablePath != null && tablePath.length != 0, "Table path must not be null or empty.");
 
 		List<String> userPath = asList(tablePath);
@@ -267,7 +267,7 @@ public class CatalogManager {
 		);
 
 		for (List<String> prefix : prefixes) {
-			Optional<CatalogTableOperation> potentialTable = lookupPath(prefix, userPath);
+			Optional<CatalogQueryTableOperation> potentialTable = lookupPath(prefix, userPath);
 			if (potentialTable.isPresent()) {
 				return potentialTable;
 			}
@@ -276,12 +276,12 @@ public class CatalogManager {
 		return Optional.empty();
 	}
 
-	private Optional<CatalogTableOperation> lookupPath(List<String> prefix, List<String> userPath) {
+	private Optional<CatalogQueryTableOperation> lookupPath(List<String> prefix, List<String> userPath) {
 		try {
 			List<String> path = new ArrayList<>(prefix);
 			path.addAll(userPath);
 
-			Optional<CatalogTableOperation> potentialTable = lookupCatalogTable(path);
+			Optional<CatalogQueryTableOperation> potentialTable = lookupCatalogTable(path);
 
 			if (!potentialTable.isPresent()) {
 				potentialTable = lookupExternalTable(path);
@@ -292,7 +292,7 @@ public class CatalogManager {
 		}
 	}
 
-	private Optional<CatalogTableOperation> lookupCatalogTable(List<String> path) throws TableNotExistException {
+	private Optional<CatalogQueryTableOperation> lookupCatalogTable(List<String> path) throws TableNotExistException {
 		if (path.size() == 3) {
 			Catalog currentCatalog = catalogs.get(path.get(0));
 			String currentDatabaseName = path.get(1);
@@ -301,7 +301,7 @@ public class CatalogManager {
 
 			if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
 				TableSchema tableSchema = currentCatalog.getTable(objectPath).getSchema();
-				return Optional.of(new CatalogTableOperation(
+				return Optional.of(new CatalogQueryTableOperation(
 					asList(path.get(0), currentDatabaseName, tableName),
 					tableSchema));
 			}
@@ -310,12 +310,12 @@ public class CatalogManager {
 		return Optional.empty();
 	}
 
-	private Optional<CatalogTableOperation> lookupExternalTable(List<String> path) {
+	private Optional<CatalogQueryTableOperation> lookupExternalTable(List<String> path) {
 		ExternalCatalog currentCatalog = externalCatalogs.get(path.get(0));
 		return Optional.ofNullable(currentCatalog)
 			.flatMap(externalCatalog -> extractPath(externalCatalog, path.subList(1, path.size() - 1)))
 			.map(finalCatalog -> finalCatalog.getTable(path.get(path.size() - 1)))
-			.map(table -> new CatalogTableOperation(path, getTableSchema(table)));
+			.map(table -> new CatalogQueryTableOperation(path, getTableSchema(table)));
 	}
 
 	private Optional<ExternalCatalog> extractPath(ExternalCatalog rootExternalCatalog, List<String> path) {

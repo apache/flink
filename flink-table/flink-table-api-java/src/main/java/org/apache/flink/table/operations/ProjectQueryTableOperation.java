@@ -19,46 +19,34 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.functions.TableFunction;
 
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Describes a relational operation that was created from applying a {@link TableFunction}.
+ * Table operation that computes new table using given {@link Expression}s
+ * from its input relational operation.
  */
 @Internal
-public class CalculatedTableOperation<T> implements TableOperation {
+public class ProjectQueryTableOperation implements QueryTableOperation {
 
-	private final TableFunction<T> tableFunction;
-	private final List<Expression> parameters;
-	private final TypeInformation<T> resultType;
+	private final List<Expression> projectList;
+	private final QueryTableOperation child;
 	private final TableSchema tableSchema;
 
-	public CalculatedTableOperation(
-			TableFunction<T> tableFunction,
-			List<Expression> parameters,
-			TypeInformation<T> resultType,
+	public ProjectQueryTableOperation(
+			List<Expression> projectList,
+			QueryTableOperation child,
 			TableSchema tableSchema) {
-		this.tableFunction = tableFunction;
-		this.parameters = parameters;
-		this.resultType = resultType;
+		this.projectList = projectList;
+		this.child = child;
 		this.tableSchema = tableSchema;
 	}
 
-	public TableFunction<T> getTableFunction() {
-		return tableFunction;
-	}
-
-	public List<Expression> getParameters() {
-		return parameters;
-	}
-
-	public TypeInformation<T> getResultType() {
-		return resultType;
+	public List<Expression> getProjectList() {
+		return projectList;
 	}
 
 	@Override
@@ -67,12 +55,12 @@ public class CalculatedTableOperation<T> implements TableOperation {
 	}
 
 	@Override
-	public List<TableOperation> getChildren() {
-		return Collections.emptyList();
+	public List<QueryTableOperation> getChildren() {
+		return Collections.singletonList(child);
 	}
 
 	@Override
-	public <U> U accept(TableOperationVisitor<U> visitor) {
-		return visitor.visitCalculatedTable(this);
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
+		return visitor.visitProject(this);
 	}
 }

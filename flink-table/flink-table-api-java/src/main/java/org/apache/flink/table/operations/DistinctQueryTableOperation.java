@@ -18,8 +18,36 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableSchema;
 
-@PublicEvolving
-public interface Operation {
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Removes duplicated rows of underlying relational operation.
+ */
+@Internal
+public class DistinctQueryTableOperation implements QueryTableOperation {
+
+	private final QueryTableOperation child;
+
+	public DistinctQueryTableOperation(QueryTableOperation child) {
+		this.child = child;
+	}
+
+	@Override
+	public TableSchema getTableSchema() {
+		return child.getTableSchema();
+	}
+
+	@Override
+	public List<QueryTableOperation> getChildren() {
+		return Collections.singletonList(child);
+	}
+
+	@Override
+	public <T> T accept(QueryTableOperationVisitor<T> visitor) {
+		return visitor.visitDistinct(this);
+	}
 }

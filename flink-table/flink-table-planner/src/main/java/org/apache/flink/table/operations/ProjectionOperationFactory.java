@@ -52,7 +52,7 @@ import static org.apache.flink.table.operations.OperationExpressionsUtils.extrac
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractNames;
 
 /**
- * Utility class for creating valid {@link ProjectTableOperation} operation.
+ * Utility class for creating valid {@link ProjectQueryTableOperation} operation.
  */
 @Internal
 public final class ProjectionOperationFactory {
@@ -68,9 +68,9 @@ public final class ProjectionOperationFactory {
 		this.expressionBridge = expressionBridge;
 	}
 
-	public TableOperation create(
+	public QueryTableOperation create(
 			List<Expression> projectList,
-			TableOperation child,
+			QueryTableOperation child,
 			boolean explicitAlias) {
 
 		final List<Expression> namedExpressions = nameExpressions(projectList);
@@ -92,7 +92,7 @@ public final class ProjectionOperationFactory {
 
 		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
 
-		return new ProjectTableOperation(finalExpression, child, tableSchema);
+		return new ProjectQueryTableOperation(finalExpression, child, tableSchema);
 	}
 
 	private String[] validateAndGetUniqueNames(List<Expression> namedExpressions) {
