@@ -35,6 +35,7 @@ import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util.{AggFunctionFactory, AggregateUtil, ExpandUtil, FlinkRelOptUtil, SortUtil, WindowEmitStrategy}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
@@ -44,7 +45,7 @@ import org.apache.flink.table.util.CountAggFunction
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinRelType, Project, Window}
+import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinInfo, JoinRelType, Project, Window}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rel.{RelCollationImpl, RelCollationTraitDef, RelCollations, RelFieldCollation, RelNode, SingleRel}
@@ -53,11 +54,11 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, PLUS}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.FrameworkConfig
-import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
+import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
@@ -135,16 +136,16 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
-    .builder()
-    .add("a", SqlTypeName.BIGINT)
-    .add("b", SqlTypeName.BOOLEAN)
-    .add("c", SqlTypeName.DATE)
-    .add("d", SqlTypeName.TIME)
-    .add("e", SqlTypeName.TIMESTAMP)
-    .add("f", SqlTypeName.DOUBLE)
-    .add("g", SqlTypeName.FLOAT)
-    .add("h", SqlTypeName.VARCHAR)
-    .build()
+      .builder()
+      .add("a", SqlTypeName.BIGINT)
+      .add("b", SqlTypeName.BOOLEAN)
+      .add("c", SqlTypeName.DATE)
+      .add("d", SqlTypeName.TIME)
+      .add("e", SqlTypeName.TIMESTAMP)
+      .add("f", SqlTypeName.DOUBLE)
+      .add("g", SqlTypeName.FLOAT)
+      .add("h", SqlTypeName.VARCHAR)
+      .build()
 
   protected lazy val emptyValues: LogicalValues = {
     relBuilder.values(valuesType)
@@ -266,7 +267,7 @@ class FlinkRelMdHandlerTestBase {
     val logicalSort = relBuilder.scan("student").sort(
       relBuilder.field("class"),
       relBuilder.desc(relBuilder.field("score")))
-      .build.asInstanceOf[LogicalSort]
+        .build.asInstanceOf[LogicalSort]
     val collation = logicalSort.getCollation
     val flinkLogicalSort = new FlinkLogicalSort(cluster, flinkLogicalTraits.replace(collation),
       studentFlinkLogicalScan, collation, null, null)
@@ -282,14 +283,14 @@ class FlinkRelMdHandlerTestBase {
   // equivalent SQL is
   // select * from student limit 20 offset 10
   protected lazy val (
-    logicalLimit,
-    flinkLogicalLimit,
-    batchLimit,
-    batchLocalLimit,
-    batchGlobalLimit,
-    streamLimit) = {
+      logicalLimit,
+      flinkLogicalLimit,
+      batchLimit,
+      batchLocalLimit,
+      batchGlobalLimit,
+      streamLimit) = {
     val logicalSort = relBuilder.scan("student").limit(10, 20)
-      .build.asInstanceOf[LogicalSort]
+        .build.asInstanceOf[LogicalSort]
     val collation = logicalSort.getCollation
 
     val flinkLogicalSort = new FlinkLogicalSort(
@@ -322,16 +323,16 @@ class FlinkRelMdHandlerTestBase {
   // equivalent SQL is
   // select * from student order by class asc, score desc limit 20 offset 10
   protected lazy val (
-    logicalSortLimit,
-    flinkLogicalSortLimit,
-    batchSortLimit,
-    batchLocalSortLimit,
-    batchGlobalSortLimit,
-    streamSortLimit) = {
+      logicalSortLimit,
+      flinkLogicalSortLimit,
+      batchSortLimit,
+      batchLocalSortLimit,
+      batchGlobalSortLimit,
+      streamSortLimit) = {
     val logicalSortLimit = relBuilder.scan("student").sort(
       relBuilder.field("class"),
       relBuilder.desc(relBuilder.field("score")))
-      .limit(10, 20).build.asInstanceOf[LogicalSort]
+        .limit(10, 20).build.asInstanceOf[LogicalSort]
 
     val collection = logicalSortLimit.collation
     val offset = logicalSortLimit.offset
@@ -361,7 +362,7 @@ class FlinkRelMdHandlerTestBase {
       studentStreamScan, collection, offset, fetch)
 
     (logicalSortLimit, flinkLogicalSortLimit,
-      batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
+        batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
   }
 
   // equivalent SQL is
@@ -370,11 +371,11 @@ class FlinkRelMdHandlerTestBase {
   //  RANK() over (partition by class order by score) rk from student
   // ) t where rk <= 5
   protected lazy val (
-    logicalRank,
-    flinkLogicalRank,
-    batchLocalRank,
-    batchGlobalRank,
-    streamRank) = {
+      logicalRank,
+      flinkLogicalRank,
+      batchLocalRank,
+      batchGlobalRank,
+      streamRank) = {
     val logicalRank = new LogicalRank(
       cluster,
       logicalTraits,
@@ -451,11 +452,11 @@ class FlinkRelMdHandlerTestBase {
   //  RANK() over (partition by age order by score) rk from student
   // ) t where rk <= 5 and rk >= 3
   protected lazy val (
-    logicalRank2,
-    flinkLogicalRank2,
-    batchLocalRank2,
-    batchGlobalRank2,
-    streamRank2) = {
+      logicalRank2,
+      flinkLogicalRank2,
+      batchLocalRank2,
+      batchGlobalRank2,
+      streamRank2) = {
     val logicalRank = new LogicalRank(
       cluster,
       logicalTraits,
@@ -642,9 +643,9 @@ class FlinkRelMdHandlerTestBase {
   //  RANK() over (partition by class order by score) rk from student
   // ) t where rk <= age
   protected lazy val (
-    logicalRankWithVariableRange,
-    flinkLogicalRankWithVariableRange,
-    streamRankWithVariableRange) = {
+      logicalRankWithVariableRange,
+      flinkLogicalRankWithVariableRange,
+      streamRankWithVariableRange) = {
     val logicalRankWithVariableRange = new LogicalRank(
       cluster,
       logicalTraits,
@@ -693,14 +694,14 @@ class FlinkRelMdHandlerTestBase {
   //        count(id) as cnt
   // from student group by age
   protected lazy val (
-    logicalAgg,
-    flinkLogicalAgg,
-    batchLocalAgg,
-    batchGlobalAggWithLocal,
-    batchGlobalAggWithoutLocal,
-    streamLocalAgg,
-    streamGlobalAggWithLocal,
-    streamGlobalAggWithoutLocal) = {
+      logicalAgg,
+      flinkLogicalAgg,
+      batchLocalAgg,
+      batchGlobalAggWithLocal,
+      batchGlobalAggWithoutLocal,
+      streamLocalAgg,
+      streamGlobalAggWithLocal,
+      streamGlobalAggWithoutLocal) = {
     val logicalAgg = relBuilder.push(studentLogicalScan).aggregate(
       relBuilder.groupKey(relBuilder.field(3)),
       relBuilder.avg(false, "avg_score", relBuilder.field(2)),
@@ -727,21 +728,21 @@ class FlinkRelMdHandlerTestBase {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
     val rowTypeOfLocalAgg = typeFactory.builder
-      .add("age", intType)
-      .add("sum$0", doubleType)
-      .add("count$1", longType)
-      .add("sum_score", doubleType)
-      .add("max_height", doubleType)
-      .add("min_height", doubleType)
-      .add("cnt", longType).build()
+        .add("age", intType)
+        .add("sum$0", doubleType)
+        .add("count$1", longType)
+        .add("sum_score", doubleType)
+        .add("max_height", doubleType)
+        .add("min_height", doubleType)
+        .add("cnt", longType).build()
 
     val rowTypeOfGlobalAgg = typeFactory.builder
-      .add("age", intType)
-      .add("avg_score", doubleType)
-      .add("sum_score", doubleType)
-      .add("max_height", doubleType)
-      .add("min_height", doubleType)
-      .add("cnt", longType).build()
+        .add("age", intType)
+        .add("avg_score", doubleType)
+        .add("sum_score", doubleType)
+        .add("max_height", doubleType)
+        .add("min_height", doubleType)
+        .add("cnt", longType).build()
 
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
     val hash3 = FlinkRelDistribution.hash(Array(3), requireStrict = true)
@@ -836,8 +837,8 @@ class FlinkRelMdHandlerTestBase {
       aggCalls)
 
     (logicalAgg, flinkLogicalAgg,
-      batchLocalAgg, batchGlobalAgg, batchGlobalAggWithoutLocal,
-      streamLocalAgg, streamGlobalAgg, streamGlobalAggWithoutLocal)
+        batchLocalAgg, batchGlobalAgg, batchGlobalAggWithoutLocal,
+        streamLocalAgg, streamGlobalAgg, streamGlobalAggWithoutLocal)
   }
 
   // equivalent SQL is
@@ -846,11 +847,11 @@ class FlinkRelMdHandlerTestBase {
   //        count(id) as cnt
   // from student group by id, name, height
   protected lazy val (
-    logicalAggWithAuxGroup,
-    flinkLogicalAggWithAuxGroup,
-    batchLocalAggWithAuxGroup,
-    batchGlobalAggWithLocalWithAuxGroup,
-    batchGlobalAggWithoutLocalWithAuxGroup) = {
+      logicalAggWithAuxGroup,
+      flinkLogicalAggWithAuxGroup,
+      batchLocalAggWithAuxGroup,
+      batchGlobalAggWithLocalWithAuxGroup,
+      batchGlobalAggWithoutLocalWithAuxGroup) = {
     val logicalAggWithAuxGroup = relBuilder.push(studentLogicalScan).aggregate(
       relBuilder.groupKey(relBuilder.field(0)),
       relBuilder.aggregateCall(FlinkSqlOperatorTable.AUXILIARY_GROUP, relBuilder.field(1)),
@@ -879,13 +880,13 @@ class FlinkRelMdHandlerTestBase {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
     val rowTypeOfLocalAgg = typeFactory.builder
-      .add("id", intType)
-      .add("name", stringType)
-      .add("height", doubleType)
-      .add("sum$0", doubleType)
-      .add("count$1", longType)
-      .add("sum_score", doubleType)
-      .add("cnt", longType).build()
+        .add("id", intType)
+        .add("name", stringType)
+        .add("height", doubleType)
+        .add("sum$0", doubleType)
+        .add("count$1", longType)
+        .add("sum_score", doubleType)
+        .add("cnt", longType).build()
 
     val batchLocalAggWithAuxGroup = new BatchExecLocalHashAggregate(
       cluster,
@@ -903,12 +904,12 @@ class FlinkRelMdHandlerTestBase {
       batchLocalAggWithAuxGroup.getTraitSet.replace(hash0), batchLocalAggWithAuxGroup, hash0)
 
     val rowTypeOfGlobalAgg = typeFactory.builder
-      .add("id", intType)
-      .add("name", stringType)
-      .add("height", doubleType)
-      .add("avg_score", doubleType)
-      .add("sum_score", doubleType)
-      .add("cnt", longType).build()
+        .add("id", intType)
+        .add("name", stringType)
+        .add("height", doubleType)
+        .add("avg_score", doubleType)
+        .add("sum_score", doubleType)
+        .add("cnt", longType).build()
     val batchGlobalAggWithAuxGroup = new BatchExecHashAggregate(
       cluster,
       relBuilder,
@@ -938,7 +939,8 @@ class FlinkRelMdHandlerTestBase {
       isMerge = false)
 
     (logicalAggWithAuxGroup, flinkLogicalAggWithAuxGroup,
-      batchLocalAggWithAuxGroup, batchGlobalAggWithAuxGroup, batchGlobalAggWithoutLocalWithAuxGroup)
+        batchLocalAggWithAuxGroup, batchGlobalAggWithAuxGroup,
+        batchGlobalAggWithoutLocalWithAuxGroup)
   }
 
   // For window start/end/proc_time the windowAttribute inferred type is a hard code val,
@@ -972,16 +974,16 @@ class FlinkRelMdHandlerTestBase {
   //   TUMBLE_PROCTIME(rowtime, INTERVAL '15' MINUTE) as w$proctime
   // from TemporalTable1 group by a, b, TUMBLE(rowtime, INTERVAL '15' MINUTE)
   protected lazy val (
-    logicalWindowAgg,
-    flinkLogicalWindowAgg,
-    batchLocalWindowAgg,
-    batchGlobalWindowAggWithLocalAgg,
-    batchGlobalWindowAggWithoutLocalAgg,
-    streamWindowAgg) = {
+      logicalWindowAgg,
+      flinkLogicalWindowAgg,
+      batchLocalWindowAgg,
+      batchGlobalWindowAggWithLocalAgg,
+      batchGlobalWindowAggWithoutLocalAgg,
+      streamWindowAgg) = {
     relBuilder.scan("TemporalTable1")
     val ts = relBuilder.peek()
     val project = relBuilder.project(relBuilder.fields(Seq[Integer](0, 1, 4, 2).toList))
-      .build().asInstanceOf[Project]
+        .build().asInstanceOf[Project]
     val program = RexProgram.create(
       ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
     val aggCallOfWindowAgg = Lists.newArrayList(AggregateCall.create(
@@ -1021,12 +1023,12 @@ class FlinkRelMdHandlerTestBase {
 
     val localWindowAggTypes =
       (Array(0, 1).map(batchCalc.getRowType.getFieldList.get(_).getType) ++ // grouping
-        Array(longType) ++ // assignTs
-        aggCallOfWindowAgg.map(_.getType)).toList // agg calls
+          Array(longType) ++ // assignTs
+          aggCallOfWindowAgg.map(_.getType)).toList // agg calls
     val localWindowAggNames =
       (Array(0, 1).map(batchCalc.getRowType.getFieldNames.get(_)) ++ // grouping
-        Array("assignedWindow$") ++ // assignTs
-        Array("count$0")).toList // agg calls
+          Array("assignedWindow$") ++ // assignTs
+          Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
     val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
@@ -1106,7 +1108,7 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (logicalWindowAgg, flinkLogicalWindowAgg, batchLocalWindowAgg, batchWindowAggWithLocal,
-      batchWindowAggWithoutLocal, streamWindowAgg)
+        batchWindowAggWithoutLocal, streamWindowAgg)
   }
 
   // equivalent SQL is
@@ -1117,16 +1119,16 @@ class FlinkRelMdHandlerTestBase {
   //   TUMBLE_PROCTIME(rowtime, INTERVAL '15' MINUTE) as w$proctime
   // from TemporalTable1 group by b, TUMBLE(rowtime, INTERVAL '15' MINUTE)
   protected lazy val (
-    logicalWindowAgg2,
-    flinkLogicalWindowAgg2,
-    batchLocalWindowAgg2,
-    batchGlobalWindowAggWithLocalAgg2,
-    batchGlobalWindowAggWithoutLocalAgg2,
-    streamWindowAgg2) = {
+      logicalWindowAgg2,
+      flinkLogicalWindowAgg2,
+      batchLocalWindowAgg2,
+      batchGlobalWindowAggWithLocalAgg2,
+      batchGlobalWindowAggWithoutLocalAgg2,
+      streamWindowAgg2) = {
     relBuilder.scan("TemporalTable1")
     val ts = relBuilder.peek()
     val project = relBuilder.project(relBuilder.fields(Seq[Integer](0, 1, 4).toList))
-      .build().asInstanceOf[Project]
+        .build().asInstanceOf[Project]
     val program = RexProgram.create(
       ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
     val aggCallOfWindowAgg = Lists.newArrayList(AggregateCall.create(
@@ -1166,12 +1168,12 @@ class FlinkRelMdHandlerTestBase {
 
     val localWindowAggTypes =
       (Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // grouping
-        Array(longType) ++ // assignTs
-        aggCallOfWindowAgg.map(_.getType)).toList // agg calls
+          Array(longType) ++ // assignTs
+          aggCallOfWindowAgg.map(_.getType)).toList // agg calls
     val localWindowAggNames =
       (Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // grouping
-        Array("assignedWindow$") ++ // assignTs
-        Array("count$0")).toList // agg calls
+          Array("assignedWindow$") ++ // assignTs
+          Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
     val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
@@ -1251,7 +1253,7 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (logicalWindowAgg, flinkLogicalWindowAgg, batchLocalWindowAgg, batchWindowAggWithLocal,
-      batchWindowAggWithoutLocal, streamWindowAgg)
+        batchWindowAggWithoutLocal, streamWindowAgg)
   }
 
   // equivalent SQL is
@@ -1262,15 +1264,15 @@ class FlinkRelMdHandlerTestBase {
   //   TUMBLE_PROCTIME(rowtime, INTERVAL '15' MINUTE) as w$proctime
   // from TemporalTable2 group by a, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)
   protected lazy val (
-    logicalWindowAggWithAuxGroup,
-    flinkLogicalWindowAggWithAuxGroup,
-    batchLocalWindowAggWithAuxGroup,
-    batchGlobalWindowAggWithLocalAggWithAuxGroup,
-    batchGlobalWindowAggWithoutLocalAggWithAuxGroup) = {
+      logicalWindowAggWithAuxGroup,
+      flinkLogicalWindowAggWithAuxGroup,
+      batchLocalWindowAggWithAuxGroup,
+      batchGlobalWindowAggWithLocalAggWithAuxGroup,
+      batchGlobalWindowAggWithoutLocalAggWithAuxGroup) = {
     relBuilder.scan("TemporalTable2")
     val ts = relBuilder.peek()
     val project = relBuilder.project(relBuilder.fields(Seq[Integer](0, 2, 4, 1).toList))
-      .build().asInstanceOf[Project]
+        .build().asInstanceOf[Project]
     val program = RexProgram.create(
       ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
     val aggCallOfWindowAgg = Lists.newArrayList(
@@ -1314,14 +1316,14 @@ class FlinkRelMdHandlerTestBase {
 
     val localWindowAggTypes =
       (Array(batchCalc.getRowType.getFieldList.get(0).getType) ++ // grouping
-        Array(longType) ++ // assignTs
-        Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // auxGrouping
-        aggCallsWithoutAuxGroup.map(_.getType)).toList // agg calls
+          Array(longType) ++ // assignTs
+          Array(batchCalc.getRowType.getFieldList.get(1).getType) ++ // auxGrouping
+          aggCallsWithoutAuxGroup.map(_.getType)).toList // agg calls
     val localWindowAggNames =
       (Array(batchCalc.getRowType.getFieldNames.get(0)) ++ // grouping
-        Array("assignedWindow$") ++ // assignTs
-        Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // auxGrouping
-        Array("count$0")).toList // agg calls
+          Array("assignedWindow$") ++ // assignTs
+          Array(batchCalc.getRowType.getFieldNames.get(1)) ++ // auxGrouping
+          Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
     val batchLocalWindowAggWithAuxGroup = new BatchExecLocalHashWindowAggregate(
@@ -1380,8 +1382,8 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
-      batchLocalWindowAggWithAuxGroup, batchWindowAggWithLocalWithAuxGroup,
-      batchWindowAggWithoutLocalWithAuxGroup)
+        batchLocalWindowAggWithAuxGroup, batchWindowAggWithLocalWithAuxGroup,
+        batchWindowAggWithoutLocalWithAuxGroup)
   }
 
   // equivalent SQL is
@@ -1492,7 +1494,7 @@ class FlinkRelMdHandlerTestBase {
       Seq((overAggGroups(0), Seq(
         (AggregateCall.create(SqlStdOperatorTable.ROW_NUMBER, false, ImmutableList.of(), -1,
           longType, "rn"),
-          new RowNumberAggFunction())))),
+            new RowNumberAggFunction())))),
       flinkLogicalOverAgg
     )
 
@@ -1519,16 +1521,16 @@ class FlinkRelMdHandlerTestBase {
       Seq((overAggGroups(1), Seq(
         (AggregateCall.create(SqlStdOperatorTable.RANK, false, ImmutableList.of(), -1, longType,
           "rk"),
-          new RankAggFunction(Array(InternalTypes.STRING))),
+            new RankAggFunction(Array(InternalTypes.STRING))),
         (AggregateCall.create(SqlStdOperatorTable.DENSE_RANK, false, ImmutableList.of(), -1,
           longType, "drk"),
-          new DenseRankAggFunction(Array(InternalTypes.STRING))),
+            new DenseRankAggFunction(Array(InternalTypes.STRING))),
         (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
           ImmutableList.of(Integer.valueOf(2)), -1, longType, "count$0_socre"),
-          new CountAggFunction()),
+            new CountAggFunction()),
         (AggregateCall.create(SqlStdOperatorTable.SUM, false,
           ImmutableList.of(Integer.valueOf(2)), -1, doubleType, "sum$0_score"),
-          new DoubleSumAggFunction())
+            new DoubleSumAggFunction())
       ))),
       flinkLogicalOverAgg
     )
@@ -1554,10 +1556,10 @@ class FlinkRelMdHandlerTestBase {
       Seq((overAggGroups(2), Seq(
         (AggregateCall.create(SqlStdOperatorTable.MAX, false,
           ImmutableList.of(Integer.valueOf(2)), -1, longType, "max_score"),
-          new CountAggFunction()),
+            new CountAggFunction()),
         (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
           ImmutableList.of(Integer.valueOf(0)), -1, doubleType, "cnt"),
-          new DoubleSumAggFunction())
+            new DoubleSumAggFunction())
       ))),
       flinkLogicalOverAgg
     )
@@ -1756,279 +1758,440 @@ class FlinkRelMdHandlerTestBase {
     )
   }
 
+  protected lazy val flinkLogicalSnapshot: FlinkLogicalSnapshot = {
+    new FlinkLogicalSnapshot(
+      cluster,
+      flinkLogicalTraits,
+      studentFlinkLogicalScan,
+      relBuilder.call(FlinkSqlOperatorTable.PROCTIME))
+  }
+
+  // SELECT * FROM student AS T JOIN TemporalTable
+  // FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+  protected lazy val (batchLookupJoin, streamLookupJoin) = {
+    val temporalTableSource = new TestTemporalTable
+    val temporalTableRowType = typeFactory.builder()
+        .add("id", SqlTypeName.INTEGER)
+        .add("name", SqlTypeName.VARCHAR)
+        .add("age", SqlTypeName.INTEGER)
+        .build()
+    val batchLookupJoin = new BatchExecLookupJoin(
+      cluster,
+      batchPhysicalTraits,
+      studentBatchScan,
+      temporalTableSource,
+      temporalTableRowType,
+      None,
+      JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
+      JoinRelType.INNER
+    )
+    val streamLookupJoin = new StreamExecLookupJoin(
+      cluster,
+      streamPhysicalTraits,
+      studentBatchScan,
+      temporalTableSource,
+      temporalTableRowType,
+      None,
+      JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
+      JoinRelType.INNER
+    )
+    (batchLookupJoin, streamLookupJoin)
+  }
+
   // select * from MyTable1 join MyTable4 on MyTable1.b = MyTable4.a
   protected lazy val logicalInnerJoinOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable4")
-    .join(JoinRelType.INNER,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(JoinRelType.INNER,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 join MyTable2 on MyTable1.a = MyTable2.a
   protected lazy val logicalInnerJoinNotOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.INNER,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.INNER,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 join MyTable2 on MyTable1.b = MyTable2.b
   protected lazy val logicalInnerJoinOnLHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.INNER,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.INNER,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable2 join MyTable1 on MyTable2.b = MyTable1.b
   protected lazy val logicalInnerJoinOnRHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable2")
-    .scan("MyTable1")
-    .join(JoinRelType.INNER,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable2")
+      .scan("MyTable1")
+      .join(JoinRelType.INNER,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable1 join MyTable2 on MyTable1.b = MyTable2.b and MyTable1.a > MyTable2.a
   protected lazy val logicalInnerJoinWithEquiAndNonEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.INNER, relBuilder.call(AND,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.INNER, relBuilder.call(AND,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+      .build
 
   // select * from MyTable1 join MyTable2 on MyTable1.a > MyTable2.a
   protected lazy val logicalInnerJoinWithoutEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.INNER,
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.INNER,
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 join MyTable2 on MyTable1.e = MyTable2.e
   protected lazy val logicalInnerJoinOnDisjointKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.INNER,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.INNER,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+      .build
 
   // select * from MyTable1 left join MyTable4 on MyTable1.b = MyTable4.a
   protected lazy val logicalLeftJoinOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable4")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(JoinRelType.LEFT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 left join MyTable2 on MyTable1.a = MyTable2.a
   protected lazy val logicalLeftJoinNotOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.LEFT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 left join MyTable2 on MyTable1.b = MyTable2.b
   protected lazy val logicalLeftJoinOnLHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.LEFT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable2 left join MyTable1 on MyTable2.b = MyTable1.b
   protected lazy val logicalLeftJoinOnRHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable2")
-    .scan("MyTable1")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable2")
+      .scan("MyTable1")
+      .join(JoinRelType.LEFT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable1 left join MyTable2 on
   // MyTable1.b = MyTable2.b and MyTable1.a > MyTable2.a
   protected lazy val logicalLeftJoinWithEquiAndNonEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.LEFT, relBuilder.call(AND,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.LEFT, relBuilder.call(AND,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+      .build
 
   // select * from MyTable1 left join MyTable2 on MyTable1.a > MyTable2.a
   protected lazy val logicalLeftJoinWithoutEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.LEFT,
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 left join MyTable2 on MyTable1.e = MyTable2.e
   protected lazy val logicalLeftJoinOnDisjointKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.LEFT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+      .build
 
   // select * from MyTable1 right join MyTable4 on MyTable1.b = MyTable4.a
   protected lazy val logicalRightJoinOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable4")
-    .join(JoinRelType.RIGHT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(JoinRelType.RIGHT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 right join MyTable2 on MyTable1.a = MyTable2.a
   protected lazy val logicalRightJoinNotOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.RIGHT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.RIGHT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 right join MyTable2 on MyTable1.b = MyTable2.b
   protected lazy val logicalRightJoinOnLHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.RIGHT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.RIGHT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable2 right join MyTable1 on MyTable2.b = MyTable1.b
   protected lazy val logicalRightJoinOnRHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable2")
-    .scan("MyTable1")
-    .join(JoinRelType.RIGHT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable2")
+      .scan("MyTable1")
+      .join(JoinRelType.RIGHT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable1 right join MyTable2 on
   // MyTable1.b = MyTable2.b and MyTable1.a > MyTable2.a
   protected lazy val logicalRightJoinWithEquiAndNonEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.RIGHT, relBuilder.call(AND,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.RIGHT, relBuilder.call(AND,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+      .build
 
   // select * from MyTable1 right join MyTable2 on MyTable1.a > MyTable2.a
   protected lazy val logicalRightJoinWithoutEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.RIGHT,
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.RIGHT,
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 right join MyTable2 on MyTable1.e = MyTable2.e
   protected lazy val logicalRightJoinOnDisjointKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.RIGHT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.RIGHT,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+      .build
 
   // select * from MyTable1 full join MyTable4 on MyTable1.b = MyTable4.a
   protected lazy val logicalFullJoinOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable4")
-    .join(JoinRelType.FULL,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(JoinRelType.FULL,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 full join MyTable2 on MyTable1.a = MyTable2.a
   protected lazy val logicalFullJoinNotOnUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.FULL,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.FULL,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 full join MyTable2 on MyTable1.b = MyTable2.b
   protected lazy val logicalFullJoinOnLHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.FULL,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.FULL,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable2 full join MyTable1 on MyTable2.b = MyTable1.b
   protected lazy val logicalFullJoinOnRHSUniqueKeys: RelNode = relBuilder
-    .scan("MyTable2")
-    .scan("MyTable1")
-    .join(JoinRelType.FULL,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
-    .build
+      .scan("MyTable2")
+      .scan("MyTable1")
+      .join(JoinRelType.FULL,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build
 
   // select * from MyTable1 full join MyTable2 on MyTable1.b = MyTable2.b and MyTable1.a >
   // MyTable2.a
   protected lazy val logicalFullJoinWithEquiAndNonEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.FULL, relBuilder.call(AND,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.FULL, relBuilder.call(AND,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+      .build
 
   // select * from MyTable1 full join MyTable2 on MyTable1.a > MyTable2.a
   protected lazy val logicalFullJoinWithoutEquiCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.FULL,
-      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.FULL,
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build
 
   // select * from MyTable1 full join MyTable2 on MyTable1.e = MyTable2.e
   protected lazy val logicalFullJoinOnDisjointKeys: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.FULL,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
-    .build
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.FULL,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+      .build
 
   // select * from MyTable1 full join MyTable2 on true
-  protected lazy val logicalFullWithoutCond: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .join(JoinRelType.FULL, relBuilder.literal(true))
-    .build
+  protected lazy val logicalFullJoinWithoutCond: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.FULL, relBuilder.literal(true))
+      .build
+
+  // select * from MyTable1 b in (select a from MyTable4)
+  protected lazy val logicalSemiJoinOnUniqueKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(JoinRelType.SEMI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build()
+
+  // select * from MyTable1 a in (select a from MyTable2)
+  protected lazy val logicalSemiJoinNotOnUniqueKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.SEMI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build()
+
+  // select * from MyTable1 b in (select b from MyTable2)
+  protected lazy val logicalSemiJoinOnLHSUniqueKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.SEMI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build()
+
+  // select * from MyTable2 a in (select b from MyTable1)
+  protected lazy val logicalSemiJoinOnRHSUniqueKeys: RelNode = relBuilder
+      .scan("MyTable2")
+      .scan("MyTable1")
+      .join(JoinRelType.SEMI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build()
+
+  // select * from MyTable1 b in (select b from MyTable2 where MyTable1.a > MyTable2.a)
+  protected lazy val logicalSemiJoinWithEquiAndNonEquiCond: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.SEMI, relBuilder.call(AND,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+      .build
+
+  // select * from MyTable1 exists (select * from MyTable2 where MyTable1.a > MyTable2.a)
+  protected lazy val logicalSemiJoinWithoutEquiCond: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.SEMI,
+        relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build()
+
+  // select * from MyTable1 where e in (select e from MyTable2)
+  protected lazy val logicalSemiJoinOnDisjointKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.SEMI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+      .build
+
+  // select * from MyTable1 not exists (select * from MyTable4 where MyTable1.b = MyTable4.a)
+  protected lazy val logicalAntiJoinOnUniqueKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable4")
+      .join(JoinRelType.ANTI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+      .build()
+
+  // select * from MyTable1 not exists (select * from MyTable2 where MyTable1.a = MyTable2.a)
+  protected lazy val logicalAntiJoinNotOnUniqueKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.ANTI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+      .build()
+
+  // select * from MyTable1 not exists (select * from MyTable2 where MyTable1.b = MyTable2.b)
+  protected lazy val logicalAntiJoinOnLHSUniqueKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.ANTI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build()
+
+  // select * from MyTable2 not exists (select * from MyTable1 where MyTable1.b = MyTable2.b)
+  protected lazy val logicalAntiJoinOnRHSUniqueKeys: RelNode = relBuilder
+      .scan("MyTable2")
+      .scan("MyTable1")
+      .join(JoinRelType.ANTI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+      .build()
+
+  // select * from MyTable1 b not in (select b from MyTable2 where MyTable1.a = MyTable2.a)
+  // notes: the nullable of b is true
+  protected lazy val logicalAntiJoinWithEquiAndNonEquiCond: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.ANTI, relBuilder.call(AND,
+        relBuilder.call(OR,
+          relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+          relBuilder.isNull(
+            relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))),
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+      .build
+
+  // select * from MyTable1 b not in (select b from MyTable2)
+  // notes: the nullable of b is true
+  protected lazy val logicalAntiJoinWithoutEquiCond: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.ANTI, relBuilder.call(OR,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.isNull(
+          relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))))
+      .build
+
+  // select * from MyTable1 where not exists (select e from MyTable2 where MyTable1.e = MyTable2.e)
+  protected lazy val logicalAntiJoinOnDisjointKeys: RelNode = relBuilder
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .join(JoinRelType.ANTI,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+      .build
 
   // SELECT * FROM MyTable1 UNION ALL SELECT * MyTable2
   protected lazy val logicalUnionAll: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .union(true).build()
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .union(true).build()
 
   // SELECT * FROM MyTable1 UNION ALL SELECT * MyTable2
   protected lazy val logicalUnion: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .union(false).build()
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .union(false).build()
 
   // SELECT * FROM MyTable1 INTERSECT ALL SELECT * MyTable2
   protected lazy val logicalIntersectAll: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .intersect(true).build()
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .intersect(true).build()
 
   // SELECT * FROM MyTable1 INTERSECT SELECT * MyTable2
   protected lazy val logicalIntersect: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .intersect(false).build()
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .intersect(false).build()
 
   // SELECT * FROM MyTable1 MINUS ALL SELECT * MyTable2
   protected lazy val logicalMinusAll: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .minus(true).build()
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .minus(true).build()
 
   // SELECT * FROM MyTable1 MINUS SELECT * MyTable2
   protected lazy val logicalMinus: RelNode = relBuilder
-    .scan("MyTable1")
-    .scan("MyTable2")
-    .minus(false).build()
+      .scan("MyTable1")
+      .scan("MyTable2")
+      .minus(false).build()
 
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
@@ -2122,7 +2285,7 @@ object FlinkRelMdHandlerTestBase {
   @BeforeClass
   def beforeAll(): Unit = {
     RelMetadataQuery
-      .THREAD_PROVIDERS
-      .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
+        .THREAD_PROVIDERS
+        .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }
 }

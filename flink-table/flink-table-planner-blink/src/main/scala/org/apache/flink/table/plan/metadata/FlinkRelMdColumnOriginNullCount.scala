@@ -58,6 +58,8 @@ class FlinkRelMdColumnOriginNullCount private extends MetadataHandler[ColumnOrig
     }
   }
 
+  def getColumnOriginNullCount(snapshot: Snapshot, mq: RelMetadataQuery, index: Int): JDouble = null
+
   def getColumnOriginNullCount(rel: Project, mq: RelMetadataQuery, index: Int): JDouble = {
     getColumnOriginNullOnProjects(rel.getInput, rel.getProjects, mq, index)
   }
@@ -118,8 +120,6 @@ class FlinkRelMdColumnOriginNullCount private extends MetadataHandler[ColumnOrig
       null
     }
   }
-
-  // TODO supports FlinkLogicalSnapshot
 
   def getColumnOriginNullCount(rel: RelNode, mq: RelMetadataQuery, index: Int): JDouble = null
 }

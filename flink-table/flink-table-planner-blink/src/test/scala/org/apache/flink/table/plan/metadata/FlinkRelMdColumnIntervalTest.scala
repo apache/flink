@@ -86,6 +86,13 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetColumnIntervalOnSnapshot(): Unit = {
+    (0 until flinkLogicalSnapshot.getRowType.getFieldCount).foreach { idx =>
+      assertNull(mq.getColumnInterval(flinkLogicalSnapshot, idx))
+    }
+  }
+
+  @Test
   def testGetColumnIntervalOnProject(): Unit = {
     assertEquals(ValueInterval(0, null), mq.getColumnInterval(logicalProject, 0))
     assertNull(mq.getColumnInterval(logicalProject, 1))
@@ -525,6 +532,22 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     assertEquals(ValueInterval(8L, 1000L), mq.getColumnInterval(join, 6))
     assertNull(mq.getColumnInterval(join, 7))
     assertNull(mq.getColumnInterval(join, 8))
+
+    assertEquals(ValueInterval(0, null, includeLower = true),
+      mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 0))
+    assertEquals(ValueInterval(1L, 800000000L),
+      mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 1))
+    assertNull(mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 2))
+    assertNull(mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 3))
+    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 4))
+
+    assertEquals(ValueInterval(0, null, includeLower = true),
+      mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 0))
+    assertEquals(ValueInterval(1L, 800000000L),
+      mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 1))
+    assertNull(mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 2))
+    assertNull(mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 3))
+    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 4))
   }
 
   @Test

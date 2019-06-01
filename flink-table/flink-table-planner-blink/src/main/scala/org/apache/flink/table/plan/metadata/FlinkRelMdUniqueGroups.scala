@@ -341,11 +341,17 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = {
     require(join.getSystemFieldList.isEmpty)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    join.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        return fmq.getUniqueGroups(join.getLeft, columns)
+      case _ => // do nothing
+    }
+
     val leftFieldCount = join.getLeft.getRowType.getFieldCount
     val (leftColumns, rightColumns) =
       FlinkRelMdUtil.splitColumnsIntoLeftAndRight(leftFieldCount, columns)
 
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val leftUniqueGroups = fmq.getUniqueGroups(join.getLeft, leftColumns)
     val rightUniqueGroups = fmq.getUniqueGroups(join.getRight, rightColumns)
 

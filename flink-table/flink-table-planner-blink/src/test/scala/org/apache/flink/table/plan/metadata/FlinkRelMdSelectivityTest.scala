@@ -496,6 +496,18 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1D, mq.getSelectivity(join, pred3))
     val pred4 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(3), relBuilder.literal(0))
     assertEquals(0D, mq.getSelectivity(join, pred4))
+
+    assertEquals(3.125E-8, mq.getSelectivity(logicalSemiJoinOnUniqueKeys, pred1))
+    val pred5 = relBuilder.push(logicalSemiJoinNotOnUniqueKeys)
+        .call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(100000000L))
+    assertEquals(0.5, mq.getSelectivity(logicalSemiJoinNotOnUniqueKeys, pred5))
+
+    val pred6 = relBuilder.push(logicalAntiJoinWithoutEquiCond)
+        .call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(100L))
+    assertEquals(0.375, mq.getSelectivity(logicalAntiJoinWithoutEquiCond, pred6))
+    val pred7 = relBuilder.push(logicalAntiJoinNotOnUniqueKeys)
+        .call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(100000000L))
+    assertEquals(0.05, mq.getSelectivity(logicalAntiJoinNotOnUniqueKeys, pred7))
   }
 
   @Test

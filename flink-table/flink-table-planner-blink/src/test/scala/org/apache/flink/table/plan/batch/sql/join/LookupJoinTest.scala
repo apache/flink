@@ -82,7 +82,6 @@ class LookupJoinTest extends TableTestBase {
     )
   }
 
-
   @Test
   def testLogicalPlan(): Unit = {
     val sql1 =

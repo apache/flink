@@ -124,6 +124,8 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
     tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConf.setString(
       PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, "TWO_PHASE")
+    // set smaller parallelism to avoid MemoryAllocationException
+    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 2)
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 1M
     testSingleAggOnTable()
   }

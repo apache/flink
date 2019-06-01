@@ -20,6 +20,8 @@ package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.table.`type`.InternalType
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.sources.TableIndex.IndexType
 import org.apache.flink.table.sources.{DefinedIndexes, DefinedPrimaryKey, TableIndex, TableSource}
 
 import scala.collection.JavaConverters._
@@ -74,4 +76,15 @@ object LookupJoinUtil {
     }
   }
 
+  /**
+    * Returns unique TableIndex from given `indexKeys`.
+    */
+  def getUniqueIndexKeys(
+      indexKeys: Array[TableIndex],
+      temporalTableSchema: TableSchema): Array[Array[Int]] = {
+    val fieldNames = temporalTableSchema.getFieldNames
+    indexKeys
+        .filter(_.getIndexType.equals(IndexType.UNIQUE))
+        .map(_.getIndexedColumns.asScala.map(fieldNames.indexOf(_)).toArray)
+  }
 }

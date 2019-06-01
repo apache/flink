@@ -23,11 +23,12 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, LookupJoinUtil, RankUtil}
 import org.apache.flink.table.runtime.rank.RankType
 import org.apache.flink.table.sources.TableSource
 
@@ -498,6 +499,24 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     )
   }
 
+  def areColumnsUnique(
+      join: CommonLookupJoin,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    val left = join.getInput
+    areColumnsUniqueOfJoin(
+      join.joinInfo, join.joinType, left.getRowType,
+      (leftSet: ImmutableBitSet) => mq.areColumnsUnique(left, leftSet, ignoreNulls),
+      (rightSet: ImmutableBitSet) => {
+        val uniqueIndexKeys = LookupJoinUtil.getUniqueIndexKeys(
+          join.indexKeys, join.tableSource.getTableSchema)
+        uniqueIndexKeys.exists(keys => rightSet.contains(ImmutableBitSet.of(keys: _*)))
+      },
+      mq, columns
+    )
+  }
+
   def areColumnsUniqueOfJoin(
       joinInfo: JoinInfo,
       joinRelType: JoinRelType,
@@ -597,8 +616,6 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null
-
-  // TODO supports temporal table join
 
   def areColumnsUnique(
       rel: SetOp,

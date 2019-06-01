@@ -20,11 +20,12 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
-import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, LookupJoinUtil, RankUtil}
 import org.apache.flink.table.runtime.rank.RankType
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
@@ -48,7 +49,6 @@ import scala.collection.JavaConversions._
 class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.UniqueKeys] {
 
   def getDef: MetadataDef[BuiltInMetadata.UniqueKeys] = BuiltInMetadata.UniqueKeys.DEF
-
 
   def getUniqueKeys(
       rel: TableScan,
@@ -137,7 +137,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
             }
           //rename
           case a: RexCall if a.getKind.equals(SqlKind.AS) &&
-            a.getOperands.get(0).isInstanceOf[RexInputRef] =>
+              a.getOperands.get(0).isInstanceOf[RexInputRef] =>
             appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
           case _ => // ignore
         }
@@ -410,6 +410,32 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     getJoinUniqueKeys(joinInfo, rel.joinType, rel.getLeft, rel.getRight, mq, ignoreNulls)
   }
 
+  def getUniqueKeys(
+      join: CommonLookupJoin,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
+    val left = join.getInput
+    val leftUniqueKeys = mq.getUniqueKeys(left, ignoreNulls)
+    val leftType = left.getRowType
+    val uniqueIndexKeys = LookupJoinUtil.getUniqueIndexKeys(
+      join.indexKeys, join.tableSource.getTableSchema)
+    val isMatchedLookupFieldsUnique = join.matchedLookupFields.exists {
+      fields => uniqueIndexKeys.exists(keys => keys.forall(fields.contains))
+    }
+    val rightUniqueKeys = if (isMatchedLookupFieldsUnique) {
+      ImmutableSet.of(ImmutableBitSet.of(join.matchedLookupFields.get: _*))
+    } else {
+      null
+    }
+    getJoinUniqueKeys(
+      join.joinInfo, join.joinType, leftType, leftUniqueKeys, rightUniqueKeys,
+      mq.areColumnsUnique(left, join.joinInfo.leftSet, ignoreNulls),
+      null != rightUniqueKeys && rightUniqueKeys.exists { uniqueKey =>
+        uniqueKey.forall(key => join.joinInfo.rightKeys.contains(key))
+      },
+      mq)
+  }
+
   private def getJoinUniqueKeys(
       joinInfo: JoinInfo,
       joinRelType: JoinRelType,
@@ -472,23 +498,21 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     // add the unique keys from left if the left hand side is not null
     // generating
     if (rightUnique != null
-      && rightUnique
-      && (leftUniqueKeys != null)
-      && !joinRelType.generatesNullsOnLeft) {
+        && rightUnique
+        && (leftUniqueKeys != null)
+        && !joinRelType.generatesNullsOnLeft) {
       retSet.addAll(leftUniqueKeys)
     }
 
     // same as above except left and right are reversed
     if (leftUnique != null
-      && leftUnique
-      && (rightSet != null)
-      && !joinRelType.generatesNullsOnRight) {
+        && leftUnique
+        && (rightSet != null)
+        && !joinRelType.generatesNullsOnRight) {
       retSet.addAll(rightSet)
     }
     retSet
   }
-
-  // TODO supports temporal table join
 
   def getUniqueKeys(
       rel: Correlate,
