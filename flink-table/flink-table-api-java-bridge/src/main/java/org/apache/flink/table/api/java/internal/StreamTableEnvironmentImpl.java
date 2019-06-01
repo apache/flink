@@ -85,8 +85,9 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			TableConfig tableConfig,
 			StreamExecutionEnvironment executionEnvironment,
 			Planner planner,
-			Executor executor) {
-		super(catalogManager, tableConfig, executor, functionCatalog, planner);
+			Executor executor,
+			boolean isStreaming) {
+		super(catalogManager, tableConfig, executor, functionCatalog, planner, isStreaming);
 		this.executionEnvironment = executionEnvironment;
 	}
 
@@ -119,7 +120,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			tableConfig,
 			executionEnvironment,
 			planner,
-			executor
+			executor,
+			!settings.isBatchMode()
 		);
 	}
 

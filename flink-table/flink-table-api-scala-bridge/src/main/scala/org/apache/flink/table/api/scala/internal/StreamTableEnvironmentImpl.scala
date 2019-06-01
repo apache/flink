@@ -55,13 +55,15 @@ class StreamTableEnvironmentImpl (
     config: TableConfig,
     scalaExecutionEnvironment: StreamExecutionEnvironment,
     planner: Planner,
-    executor: Executor)
+    executor: Executor,
+    isStreaming: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
     config,
     executor,
     functionCatalog,
-    planner)
+    planner,
+    isStreaming)
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
@@ -262,7 +264,9 @@ object StreamTableEnvironmentImpl {
       tableConfig,
       executionEnvironment,
       planner,
-      executor)
+      executor,
+      !settings.isBatchMode
+    )
   }
 
   private def lookupExecutor(

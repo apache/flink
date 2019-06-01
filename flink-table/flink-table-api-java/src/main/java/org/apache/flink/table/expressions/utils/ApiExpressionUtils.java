@@ -31,6 +31,7 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
@@ -116,18 +117,34 @@ public final class ApiExpressionUtils {
 	/**
 	 * Checks if the expression is a function call of given type.
 	 *
-	 * @param expr expression to check
+	 * @param expression expression to check
 	 * @param kind expected type of function
 	 * @return true if the expression is function call of given type, false otherwise
 	 */
-	public static boolean isFunctionOfKind(Expression expr, FunctionKind kind) {
-		if (expr instanceof UnresolvedCallExpression) {
-			return ((UnresolvedCallExpression) expr).getFunctionDefinition().getKind() == kind;
+	public static boolean isFunctionOfKind(Expression expression, FunctionKind kind) {
+		if (expression instanceof UnresolvedCallExpression) {
+			return ((UnresolvedCallExpression) expression).getFunctionDefinition().getKind() == kind;
 		}
-		if (expr instanceof CallExpression) {
-			return ((CallExpression) expr).getFunctionDefinition().getKind() == kind;
+		if (expression instanceof CallExpression) {
+			return ((CallExpression) expression).getFunctionDefinition().getKind() == kind;
 		}
 		return false;
+	}
 
+	/**
+	 * Checks if the given expression is a given builtin function.
+	 *
+	 * @param expression expression to check
+	 * @param functionDefinition expected function definition
+	 * @return true if the given expression is a given function call
+	 */
+	public static boolean isFunction(Expression expression, BuiltInFunctionDefinition functionDefinition) {
+		if (expression instanceof UnresolvedCallExpression) {
+			return ((UnresolvedCallExpression) expression).getFunctionDefinition() == functionDefinition;
+		}
+		if (expression instanceof CallExpression) {
+			return ((CallExpression) expression).getFunctionDefinition() == functionDefinition;
+		}
+		return false;
 	}
 }
