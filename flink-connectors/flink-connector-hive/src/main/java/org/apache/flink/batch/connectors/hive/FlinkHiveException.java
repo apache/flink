@@ -20,7 +20,7 @@ package org.apache.flink.batch.connectors.hive;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Exception used by {@link HiveTableInputFormat}.
+ * Exception used by  flink's hive data connector.
  */
 @PublicEvolving
 public class FlinkHiveException extends RuntimeException {

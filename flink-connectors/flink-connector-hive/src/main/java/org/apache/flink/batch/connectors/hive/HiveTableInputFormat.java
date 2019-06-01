@@ -54,7 +54,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
 
 /**
@@ -97,15 +97,11 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			List<HiveTablePartition> partitions,
 			RowTypeInfo rowTypeInfo) {
 		super(jobConf.getCredentials());
-		checkArgument(null != rowTypeInfo, "rowTypeInfo can not be null.");
-		checkArgument(null != isPartitioned, "isPartitioned can not be null.");
-		checkArgument(null != partitions, "partitions can not be null");
-		this.rowTypeInfo = rowTypeInfo;
+		this.rowTypeInfo = checkNotNull(rowTypeInfo, "rowTypeInfo can not be null.");
 		this.jobConf = new JobConf(jobConf);
-		this.jobConf = jobConf;
-		this.isPartitioned = isPartitioned;
+		this.isPartitioned = checkNotNull(isPartitioned, "isPartitioned can not be null.");
 		this.partitionColNames = partitionColNames;
-		this.partitions = partitions;
+		this.partitions = checkNotNull(partitions, "partitions can not be null.");
 	}
 
 	@Override
@@ -142,8 +138,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			structObjectInspector = (StructObjectInspector) deserializer.getObjectInspector();
 			structFields = structObjectInspector.getAllStructFieldRefs();
 		} catch (Exception e) {
-			logger.error("Error happens when deserialize from storage file.");
-			throw new FlinkHiveException(e);
+			throw new FlinkHiveException("Error happens when deserialize from storage file.", e);
 		}
 	}
 

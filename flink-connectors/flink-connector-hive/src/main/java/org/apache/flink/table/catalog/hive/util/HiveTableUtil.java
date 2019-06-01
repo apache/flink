@@ -104,7 +104,7 @@ public class HiveTableUtil {
 			colTypes.add(col.getType());
 			colNames.add(col.getName());
 		}
-		properties.setProperty(serdeConstants.LIST_COLUMNS, StringUtils.join(colNames, ","));
+		properties.setProperty(serdeConstants.LIST_COLUMNS, StringUtils.join(colNames, String.valueOf(SerDeUtils.COMMA)));
 		// Note: serdeConstants.COLUMN_NAME_DELIMITER is not defined in previous Hive. We use a literal to save on shim
 		properties.setProperty("column.name.delimite", String.valueOf(SerDeUtils.COMMA));
 		properties.setProperty(serdeConstants.LIST_COLUMN_TYPES, StringUtils.join(colTypes, DEFAULT_LIST_COLUMN_TYPES_SEPARATOR));

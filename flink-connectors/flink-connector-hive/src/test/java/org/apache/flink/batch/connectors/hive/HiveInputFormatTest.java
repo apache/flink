@@ -51,9 +51,9 @@ import java.util.List;
  */
 public class HiveInputFormatTest {
 
-	public static final String DEFAULT_SERDE_CLASS = org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe.class.getName();
-	public static final String DEFAULT_INPUT_FORMAT_CLASS = org.apache.hadoop.mapred.TextInputFormat.class.getName();
-	public static final String DEFAULT_OUTPUT_FORMAT_CLASS = org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat.class.getName();
+	public static final String DEFAULT_HIVE_INPUT_FORMAT_TEST_SERDE_CLASS = org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe.class.getName();
+	public static final String DEFAULT_HIVE_INPUT_FORMAT_TEST_INPUT_FORMAT_CLASS = org.apache.hadoop.mapred.TextInputFormat.class.getName();
+	public static final String DEFAULT_HIVE_INPUT_FORMAT_TEST_OUTPUT_FORMAT_CLASS = org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat.class.getName();
 
 	private static HiveCatalog hiveCatalog;
 	private static HiveConf hiveConf;
@@ -96,10 +96,10 @@ public class HiveInputFormatTest {
 		StorageDescriptor sd = new StorageDescriptor();
 		String location = HiveInputFormatTest.class.getResource("/test").getPath();
 		sd.setLocation(location);
-		sd.setInputFormat(DEFAULT_INPUT_FORMAT_CLASS);
-		sd.setOutputFormat(DEFAULT_OUTPUT_FORMAT_CLASS);
+		sd.setInputFormat(DEFAULT_HIVE_INPUT_FORMAT_TEST_INPUT_FORMAT_CLASS);
+		sd.setOutputFormat(DEFAULT_HIVE_INPUT_FORMAT_TEST_OUTPUT_FORMAT_CLASS);
 		sd.setSerdeInfo(new SerDeInfo());
-		sd.getSerdeInfo().setSerializationLib(DEFAULT_SERDE_CLASS);
+		sd.getSerdeInfo().setSerializationLib(DEFAULT_HIVE_INPUT_FORMAT_TEST_SERDE_CLASS);
 		sd.getSerdeInfo().setParameters(new HashMap<>());
 		sd.getSerdeInfo().getParameters().put("serialization.format", "1");
 		sd.getSerdeInfo().getParameters().put("field.delim", ",");

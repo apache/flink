@@ -48,11 +48,9 @@ public class HiveRecordSerDe {
 		if (fieldObjectInspector.getCategory() == ObjectInspector.Category.PRIMITIVE) {
 			res = convertPrimitiveField(field, (PrimitiveObjectInspector) fieldObjectInspector);
 		} else {
-			throw new FlinkHiveException(new SerDeException(HiveRecordSerDe.class.toString()
-											+ " does not know what to do with fields of unknown category: "
-											+ fieldObjectInspector.getCategory() + " , type: "
-											+ fieldObjectInspector.getTypeName())
-			);
+			throw new FlinkHiveException(new SerDeException(
+					String.format("HiveRecordSerDe doesn't support category %s, type %s yet",
+					fieldObjectInspector.getCategory(), fieldObjectInspector.getTypeName())));
 		}
 		return res;
 	}

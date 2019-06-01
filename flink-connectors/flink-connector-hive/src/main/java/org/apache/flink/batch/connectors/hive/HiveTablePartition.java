@@ -23,7 +23,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import java.io.Serializable;
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A class that describes a partition of a Hive table. And it represents the whole table if table is not partitioned.
@@ -40,10 +40,8 @@ public class HiveTablePartition implements Serializable {
 	private final Map<String, Object> partitionSpec;
 
 	public HiveTablePartition(StorageDescriptor storageDescriptor, Map<String, Object> partitionValues) {
-		checkArgument(null != storageDescriptor, "storageDescriptor can not be null");
-		checkArgument(null != partitionValues, "partitionValues can not be null");
-		this.storageDescriptor = storageDescriptor;
-		this.partitionSpec = partitionValues;
+		this.storageDescriptor = checkNotNull(storageDescriptor, "storageDescriptor can not be null");
+		this.partitionSpec = checkNotNull(partitionValues, "partitionValues can not be null");
 	}
 
 	public StorageDescriptor getStorageDescriptor() {

@@ -23,7 +23,7 @@ import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopInputSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An wrapper class that wraps info needed for a hadoop input split.
@@ -38,8 +38,7 @@ public class HiveTableInputSplit extends HadoopInputSplit {
 			JobConf jobconf,
 			HiveTablePartition hiveTablePartition) {
 		super(splitNumber, hInputSplit, jobconf);
-		checkArgument(null != hiveTablePartition, "hiveTablePartition can not be null");
-		this.hiveTablePartition = hiveTablePartition;
+		this.hiveTablePartition = checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
 	}
 
 	public HiveTablePartition getHiveTablePartition() {
