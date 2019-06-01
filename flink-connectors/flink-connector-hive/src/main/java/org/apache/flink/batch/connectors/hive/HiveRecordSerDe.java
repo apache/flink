@@ -57,6 +57,7 @@ public class HiveRecordSerDe {
 
 	/**
 	 * This method actually convert java objects of Hive's scalar data types to those of Flink's internal data types.
+	 *
 	 * @param field field value
 	 * @param primitiveObjectInspector Hive's primitive object inspector for the field
 	 * @return the java object conforming to Flink's internal data types.
