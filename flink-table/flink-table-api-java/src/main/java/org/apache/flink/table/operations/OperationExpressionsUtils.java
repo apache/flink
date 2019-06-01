@@ -155,8 +155,8 @@ public class OperationExpressionsUtils {
 		private final Map<Expression, String> properties;
 
 		private AggregationAndPropertiesReplacer(
-			Map<Expression, String> aggregates,
-			Map<Expression, String> properties) {
+				Map<Expression, String> aggregates,
+				Map<Expression, String> properties) {
 			this.aggregates = aggregates;
 			this.properties = properties;
 		}

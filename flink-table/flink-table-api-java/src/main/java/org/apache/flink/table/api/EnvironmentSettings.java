@@ -114,6 +114,13 @@ public class EnvironmentSettings {
 		return builtInDatabaseName;
 	}
 
+	/**
+	 * Tells if the {@link TableEnvironment} should work in a batch or streaming mode.
+	 */
+	public boolean isBatchMode() {
+		return isBatchMode;
+	}
+
 	@Internal
 	public Map<String, String> toPlannerProperties() {
 		Map<String, String> properties = new HashMap<>(toCommonProperties());

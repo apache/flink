@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.api.internal
 
-import _root_.java.util.Optional
-
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.FrameworkConfig
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
@@ -39,6 +33,13 @@ import org.apache.flink.table.sinks.{TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.StringUtils
+
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.parser.SqlParser
+import org.apache.calcite.tools.FrameworkConfig
+
+import _root_.java.util.Optional
 
 import _root_.scala.collection.JavaConverters._
 
@@ -73,9 +74,9 @@ abstract class TableEnvImpl(
     }
   }
 
-  private[flink] val operationTreeBuilder = new OperationTreeBuilderImpl(
-    tableLookup,
+  private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
     functionCatalog,
+    tableLookup,
     !isBatch)
 
   protected val planningConfigurationBuilder: PlanningConfigurationBuilder =

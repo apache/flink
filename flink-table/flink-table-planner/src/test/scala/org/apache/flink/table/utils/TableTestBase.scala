@@ -338,7 +338,8 @@ case class StreamTableTestUtil(
     tableConfig,
     javaEnv,
     streamPlanner,
-    executor)
+    executor,
+    true)
 
   val env = new StreamExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaStreamTableEnvironmentImpl(
@@ -347,7 +348,8 @@ case class StreamTableTestUtil(
     tableConfig,
     env,
     streamPlanner,
-    executor)
+    executor,
+    true)
 
   def addTable[T: TypeInformation](
       name: String,
