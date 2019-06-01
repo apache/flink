@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-parquet</artifactId>
+	<artifactId>flink-parquet_${scala.binary.version}</artifactId>
 	<name>flink-parquet</name>
 
 	<packaging>jar</packaging>
@@ -39,12 +39,6 @@ under the License.
 	</properties>
 
 	<dependencies>
-
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-library</artifactId>
-		</dependency>
-
 		<!-- Flink dependencies -->
 
 		<dependency>
