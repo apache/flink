@@ -204,10 +204,27 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
 
     assertEquals(8.0E8, mq.getRowCount(logicalFullJoinOnUniqueKeys))
     assertEquals(8.0E8, mq.getRowCount(logicalFullJoinNotOnUniqueKeys))
+    assertEquals(8.0E8, mq.getRowCount(logicalFullJoinOnLHSUniqueKeys))
     assertEquals(8.0E8, mq.getRowCount(logicalFullJoinOnRHSUniqueKeys))
     assertEquals(8.1E8, mq.getRowCount(logicalFullJoinWithEquiAndNonEquiCond))
     assertEquals(8.0E15, mq.getRowCount(logicalFullJoinWithoutEquiCond))
     assertEquals(8.2E8, mq.getRowCount(logicalFullJoinOnDisjointKeys))
+
+    assertEquals(50.0, mq.getRowCount(logicalSemiJoinOnUniqueKeys))
+    assertEquals(8.0E8, mq.getRowCount(logicalSemiJoinNotOnUniqueKeys))
+    assertEquals(2556.0, mq.getRowCount(logicalSemiJoinOnLHSUniqueKeys))
+    assertEquals(2.0E7, mq.getRowCount(logicalSemiJoinOnRHSUniqueKeys))
+    assertEquals(1278.0, mq.getRowCount(logicalSemiJoinWithEquiAndNonEquiCond))
+    assertEquals(4.0E8, mq.getRowCount(logicalSemiJoinWithoutEquiCond))
+    assertEquals(8.0E8, mq.getRowCount(logicalSemiJoinOnDisjointKeys))
+
+    assertEquals(7.9999995E8, mq.getRowCount(logicalAntiJoinOnUniqueKeys))
+    assertEquals(8.0E7, mq.getRowCount(logicalAntiJoinNotOnUniqueKeys))
+    assertEquals(7.99997444E8, mq.getRowCount(logicalAntiJoinOnLHSUniqueKeys))
+    assertEquals(2000000.0, mq.getRowCount(logicalAntiJoinOnRHSUniqueKeys))
+    assertEquals(6.0E8, mq.getRowCount(logicalAntiJoinWithEquiAndNonEquiCond))
+    assertEquals(6.0E8, mq.getRowCount(logicalAntiJoinWithoutEquiCond))
+    assertEquals(8.0E7, mq.getRowCount(logicalAntiJoinOnDisjointKeys))
   }
 
   @Test

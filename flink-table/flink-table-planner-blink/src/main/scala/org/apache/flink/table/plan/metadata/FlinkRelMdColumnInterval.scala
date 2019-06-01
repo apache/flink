@@ -101,6 +101,16 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
   }
 
   /**
+    * Gets interval of the given column on Snapshot.
+    *
+    * @param snapshot    Snapshot RelNode
+    * @param mq    RelMetadataQuery instance
+    * @param index the index of the given column
+    * @return interval of the given column on Snapshot.
+    */
+  def getColumnInterval(snapshot: Snapshot, mq: RelMetadataQuery, index: Int): ValueInterval = null
+
+  /**
     * Gets interval of the given column on Project.
     *
     * Note: Only support the simple RexNode, e.g RexInputRef.
