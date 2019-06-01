@@ -69,6 +69,10 @@ class FlinkRelMdPercentageOriginalRowsTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getPercentageOriginalRows(logicalRightJoinOnDisjointKeys))
     assertEquals(1.0, mq.getPercentageOriginalRows(logicalFullJoinOnUniqueKeys))
     assertEquals(1.0, mq.getPercentageOriginalRows(logicalFullJoinNotOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalSemiJoinOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalSemiJoinNotOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalAntiJoinOnUniqueKeys))
+    assertEquals(1.0, mq.getPercentageOriginalRows(logicalAntiJoinNotOnUniqueKeys))
   }
 
   @Test

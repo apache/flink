@@ -281,6 +281,9 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     val join3 = relBuilder.push(left).push(right).join(JoinRelType.INNER,
       relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 1))).build()
     assertEquals(null, mq.getRelModifiedMonotonicity(join3))
+
+    assertNull(mq.getRelModifiedMonotonicity(logicalAntiJoinNotOnUniqueKeys))
+    assertNull(mq.getRelModifiedMonotonicity(logicalAntiJoinOnUniqueKeys))
   }
 
 }

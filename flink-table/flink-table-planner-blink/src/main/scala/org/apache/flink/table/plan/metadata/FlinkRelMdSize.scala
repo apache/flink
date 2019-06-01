@@ -245,10 +245,9 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
 
   def averageColumnSizes(rel: Join, mq: RelMetadataQuery): JList[JDouble] = {
     val acsOfLeft = mq.getAverageColumnSizes(rel.getLeft)
-    val acsOfRight = if (rel.getJoinType.projectsRight) {
-      mq.getAverageColumnSizes(rel.getRight)
-    } else {
-      null
+    val acsOfRight = rel.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI => null
+      case _ => mq.getAverageColumnSizes(rel.getRight)
     }
     if (acsOfLeft == null && acsOfRight == null) {
       null

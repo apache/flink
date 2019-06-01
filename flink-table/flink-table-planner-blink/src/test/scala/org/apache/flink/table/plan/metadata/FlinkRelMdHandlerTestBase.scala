@@ -36,6 +36,7 @@ import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.planner.PlannerContext
@@ -50,18 +51,18 @@ import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core._
-import org.apache.calcite.rel.logical._
+import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinInfo, JoinRelType, Project, Window}
+import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
+import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
@@ -1770,6 +1771,46 @@ class FlinkRelMdHandlerTestBase {
     )
   }
 
+  protected lazy val flinkLogicalSnapshot: FlinkLogicalSnapshot = {
+    new FlinkLogicalSnapshot(
+      cluster,
+      flinkLogicalTraits,
+      studentFlinkLogicalScan,
+      relBuilder.call(FlinkSqlOperatorTable.PROCTIME))
+  }
+
+  // SELECT * FROM student AS T JOIN TemporalTable
+  // FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+  protected lazy val (batchLookupJoin, streamLookupJoin) = {
+    val temporalTableSource = new TestTemporalTable
+    val temporalTableRowType = typeFactory.builder()
+        .add("id", SqlTypeName.INTEGER)
+        .add("name", SqlTypeName.VARCHAR)
+        .add("age", SqlTypeName.INTEGER)
+        .build()
+    val batchLookupJoin = new BatchExecLookupJoin(
+      cluster,
+      batchPhysicalTraits,
+      studentBatchScan,
+      temporalTableSource,
+      temporalTableRowType,
+      None,
+      JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
+      JoinRelType.INNER
+    )
+    val streamLookupJoin = new StreamExecLookupJoin(
+      cluster,
+      streamPhysicalTraits,
+      studentBatchScan,
+      temporalTableSource,
+      temporalTableRowType,
+      None,
+      JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
+      JoinRelType.INNER
+    )
+    (batchLookupJoin, streamLookupJoin)
+  }
+
   // select * from MyTable1 join MyTable4 on MyTable1.b = MyTable4.a
   protected lazy val logicalInnerJoinOnUniqueKeys: RelNode = relBuilder
     .scan("MyTable1")
@@ -2002,10 +2043,131 @@ class FlinkRelMdHandlerTestBase {
     .build
 
   // select * from MyTable1 full join MyTable2 on true
-  protected lazy val logicalFullWithoutCond: RelNode = relBuilder
+  protected lazy val logicalFullJoinWithoutCond: RelNode = relBuilder
     .scan("MyTable1")
     .scan("MyTable2")
     .join(JoinRelType.FULL, relBuilder.literal(true))
+    .build
+
+  // select * from MyTable1 b in (select a from MyTable4)
+  protected lazy val logicalSemiJoinOnUniqueKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable4")
+    .join(JoinRelType.SEMI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+    .build()
+
+  // select * from MyTable1 a in (select a from MyTable2)
+  protected lazy val logicalSemiJoinNotOnUniqueKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.SEMI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .build()
+
+  // select * from MyTable1 b in (select b from MyTable2)
+  protected lazy val logicalSemiJoinOnLHSUniqueKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.SEMI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+    .build()
+
+  // select * from MyTable2 a in (select b from MyTable1)
+  protected lazy val logicalSemiJoinOnRHSUniqueKeys: RelNode = relBuilder
+    .scan("MyTable2")
+    .scan("MyTable1")
+    .join(JoinRelType.SEMI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+    .build()
+
+  // select * from MyTable1 b in (select b from MyTable2 where MyTable1.a > MyTable2.a)
+  protected lazy val logicalSemiJoinWithEquiAndNonEquiCond: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.SEMI, relBuilder.call(AND,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+    .build
+
+  // select * from MyTable1 exists (select * from MyTable2 where MyTable1.a > MyTable2.a)
+  protected lazy val logicalSemiJoinWithoutEquiCond: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.SEMI,
+      relBuilder.call(GREATER_THAN, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .build()
+
+  // select * from MyTable1 where e in (select e from MyTable2)
+  protected lazy val logicalSemiJoinOnDisjointKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.SEMI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
+    .build
+
+  // select * from MyTable1 not exists (select * from MyTable4 where MyTable1.b = MyTable4.a)
+  protected lazy val logicalAntiJoinOnUniqueKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable4")
+    .join(JoinRelType.ANTI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 0)))
+    .build()
+
+  // select * from MyTable1 not exists (select * from MyTable2 where MyTable1.a = MyTable2.a)
+  protected lazy val logicalAntiJoinNotOnUniqueKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.ANTI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .build()
+
+  // select * from MyTable1 not exists (select * from MyTable2 where MyTable1.b = MyTable2.b)
+  protected lazy val logicalAntiJoinOnLHSUniqueKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.ANTI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+    .build()
+
+  // select * from MyTable2 not exists (select * from MyTable1 where MyTable1.b = MyTable2.b)
+  protected lazy val logicalAntiJoinOnRHSUniqueKeys: RelNode = relBuilder
+    .scan("MyTable2")
+    .scan("MyTable1")
+    .join(JoinRelType.ANTI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+    .build()
+
+  // select * from MyTable1 b not in (select b from MyTable2 where MyTable1.a = MyTable2.a)
+  // notes: the nullable of b is true
+  protected lazy val logicalAntiJoinWithEquiAndNonEquiCond: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.ANTI, relBuilder.call(AND,
+      relBuilder.call(OR,
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+        relBuilder.isNull(
+          relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))),
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))))
+    .build
+
+  // select * from MyTable1 b not in (select b from MyTable2)
+  // notes: the nullable of b is true
+  protected lazy val logicalAntiJoinWithoutEquiCond: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.ANTI, relBuilder.call(OR,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)),
+      relBuilder.isNull(
+        relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))))
+    .build
+
+  // select * from MyTable1 where not exists (select e from MyTable2 where MyTable1.e = MyTable2.e)
+  protected lazy val logicalAntiJoinOnDisjointKeys: RelNode = relBuilder
+    .scan("MyTable1")
+    .scan("MyTable2")
+    .join(JoinRelType.ANTI,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 4), relBuilder.field(2, 1, 4)))
     .build
 
   // SELECT * FROM MyTable1 UNION ALL SELECT * MyTable2

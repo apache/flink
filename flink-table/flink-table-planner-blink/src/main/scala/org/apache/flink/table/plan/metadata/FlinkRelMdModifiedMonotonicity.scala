@@ -315,7 +315,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
           val childMono = inputMonotonicity.fieldMonotonicities(aggCall.getArgList.head)
           val currentMono = fieldMonotonicities(index)
           if (childMono != currentMono &&
-            !aggCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
+              !aggCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
             // count will Increasing even child is NOT_MONOTONIC
             fieldMonotonicities(index) = NOT_MONOTONIC
           }
@@ -369,12 +369,16 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(rel: Join, mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    val joinType = rel.getJoinType
+    if (joinType.equals(JoinRelType.ANTI)) {
+      return null
+    }
+
     val left = rel.getLeft
     val right = rel.getRight
     val joinInfo = rel.analyzeCondition
     val leftKeys = joinInfo.leftKeys
     val rightKeys = joinInfo.rightKeys
-    val joinType = rel.getJoinType
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
 
     // if group set contains update return null
@@ -389,8 +393,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val isKeyAllAppend = isAllConstantOnKeys(left, leftKeys.toIntArray) &&
       isAllConstantOnKeys(right, rightKeys.toIntArray)
 
-    if (!containDelete && !joinType.equals(JoinRelType.ANTI) && isKeyAllAppend &&
-      (containUpdate && joinInfo.isEqui || !containUpdate)) {
+    if (!containDelete && isKeyAllAppend && (containUpdate && joinInfo.isEqui || !containUpdate)) {
 
       // output rowtype of semi equals to the rowtype of left child
       if (joinType.equals(JoinRelType.SEMI)) {
@@ -426,7 +429,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     getMonotonicity(rel.getInput(0), mq, rel.getRowType.getFieldCount)
   }
 
-  // TODO supports temporal table join
+  // TODO supports temporal table function join
 
   def getRelModifiedMonotonicity(rel: Union, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
