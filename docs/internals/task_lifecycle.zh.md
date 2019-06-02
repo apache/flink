@@ -59,7 +59,7 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都是在 task
 
 <span class="label label-danger">注意</span> `initializeState()` 既包含在初始执行时（比如注册 keyed 状态）初始化算子状态的逻辑，又包含作业失败后从 checkpoint 中恢复原有状态的逻辑。在接下来的篇幅会更详细的介绍这块。
 
-当所有初始化都设置之后，算子开始准备处理即将流入的数据。流入的数据可以划分到以下三种类型之一：正常输入元素、水位 和 checkpoint 屏障。每种类型的数据都有单独的方法来处理。正常输入元素通过 `processElement()` 方法来处理，水位通过 `processWatermark()` 来处理，checkpoint 屏障会触发异步执行的 `snapshotState()` 方法来进行 checkpoint。`processElement()`方法也是用户自定义函数逻辑执行的地方，比如用户自定义 `MapFunction` 里的 `map()` 方法。
+当所有初始化都设置之后，算子开始准备处理即将流入的数据。流入的数据可以分为三种类型：正常输入元素、水位 和 checkpoint 屏障。每种类型的数据都有单独的方法来处理。正常输入元素通过 `processElement()` 方法来处理，水位通过 `processWatermark()` 来处理，checkpoint 屏障会触发异步执行的 `snapshotState()` 方法来进行 checkpoint。`processElement()`方法也是用户自定义函数逻辑执行的地方，比如用户自定义 `MapFunction` 里的 `map()` 方法。
 
 最后，在正常无失败的情况下结束算子（比如，如果流式数据是有限的，并且最后一个数据已经到了）会调用 `close()` 方法，进行算子逻辑（比如关闭算子执行期间打开的连接或 I/O 流）要求的最终簿记工作。在这之后会调用 `dispose()` 方法来释放算子持有的资源（比如算子数据持有的本地内存）。
 
@@ -110,7 +110,7 @@ Task 在没有中断的情况下执行直到最终完成所经历的步骤如下
 
 最后，当所有算子都已经关闭，所有资源都已被释放时，task 关掉它的定时器服务，进行 task 级别的清理操作，即清理掉所有内部缓存，然后进行常规的 task 清理操作，其中包括关闭所有的输出管道，清理所有输出缓存等。 
 
-**Checkpoints:** 之前我们看到在执行 `initializeState()` 方法期间，在从异常失败中恢复的情况下，task 和它内部的所有算子函数都从最后一次成功的 checkpoint 数据里获取对应的状态信息。Flink 里的 checkpoint 是根据用户自定义的时间间隔定时执行的，在一个单独的线程里进行的，与执行算子操作的 task 的主线程不同。这也是我们没有把 checkpoint 过程涵盖在 task 生命周期主要阶段里的原因。简而言之，Flink 作业的输入数据流 task 会定时插入一种叫 `checkpoint屏障` 的特殊数据，并跟正常数据一起从数据源头流入到最终落盘。数据源头 task 在进入运行模式后会插入这些屏障数据，假设 `checkpoint协调者` 也在运行中。当 task 接收到这样的屏障之后，会通过 task 算子里的 `snapshotState()` 方法调度 checkpoint 线程执行具体任务。在 checkpoint 处理期间，task 依然可以接收输入数据，但是数据会被缓存起来，当 checkpoint 执行成功之后才会被处理和发送到下游算子。 
+**Checkpoints:** 之前我们看到在执行 `initializeState()` 方法期间，在从异常失败中恢复的情况下，task 和它内部的所有算子函数都从最后一次成功的 checkpoint 数据里获取对应的状态信息。Flink 里的 checkpoint 是根据用户自定义的时间间隔定时执行的，在一个单独的线程里进行的，与执行算子操作的 task 的主线程不同。这也是我们没有把 checkpoint 过程涵盖在 task 生命周期主要阶段里的原因。简而言之，Flink 作业的输入数据流 task 会定时插入一种叫 `checkpoint 屏障` 的特殊数据，并跟正常数据一起从数据源头流入到最终落盘。数据源头 task 在进入运行模式后会插入这些屏障数据，假设 `checkpoint协调者` 也在运行中。当 task 接收到这样的屏障之后，会通过 task 算子里的 `snapshotState()` 方法调度 checkpoint 线程执行具体任务。在 checkpoint 处理期间，task 依然可以接收输入数据，但是数据会被缓存起来，当 checkpoint 执行成功之后才会被处理和发送到下游算子。 
 
 ### 中断执行
 
