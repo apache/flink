@@ -124,6 +124,6 @@ public class JoinQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitJoin(this);
+		return visitor.visit(this);
 	}
 }

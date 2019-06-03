@@ -52,7 +52,7 @@ public interface QueryOperation extends Operation {
 	List<QueryOperation> getChildren();
 
 	default  <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitOther(this);
+		return visitor.visit(this);
 	}
 
 }

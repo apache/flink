@@ -65,6 +65,6 @@ public class CatalogQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitCatalogTable(this);
+		return visitor.visit(this);
 	}
 }

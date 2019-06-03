@@ -75,6 +75,6 @@ public class PlannerQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitOther(this);
+		return visitor.visit(this);
 	}
 }

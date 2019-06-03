@@ -70,6 +70,6 @@ public class TableSourceQueryOperation<T> implements QueryOperation {
 
 	@Override
 	public <R> R accept(QueryOperationVisitor<R> visitor) {
-		return visitor.visitTableSourceTable(this);
+		return visitor.visit(this);
 	}
 }

@@ -57,6 +57,6 @@ public class DistinctQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitDistinct(this);
+		return visitor.visit(this);
 	}
 }
