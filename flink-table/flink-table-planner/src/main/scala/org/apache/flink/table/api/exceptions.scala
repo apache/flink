@@ -65,6 +65,7 @@ case class CatalogAlreadyExistException(
   * @param catalogName external catalog name
   * @param cause the cause
   */
+@deprecated
 case class ExternalCatalogNotExistException(
     catalogName: String,
     cause: Throwable)
@@ -79,6 +80,7 @@ case class ExternalCatalogNotExistException(
   * @param catalogName external catalog name
   * @param cause the cause
   */
+@deprecated
 case class ExternalCatalogAlreadyExistException(
     catalogName: String,
     cause: Throwable)

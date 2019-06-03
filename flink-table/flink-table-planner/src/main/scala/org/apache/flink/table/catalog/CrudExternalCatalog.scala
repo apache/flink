@@ -22,7 +22,10 @@ import org.apache.flink.table.api._
 
 /**
   * The CrudExternalCatalog provides methods to create, drop, and alter (sub-)catalogs or tables.
+  *
+  * @deprecated use [[Catalog]] instead.
   */
+@deprecated
 trait CrudExternalCatalog extends ExternalCatalog {
 
   /**

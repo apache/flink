@@ -236,6 +236,7 @@ public class CatalogStructureBuilder {
 	 * Marker interface to make {@link ExternalCatalogBuilder#extCatalog(String, ExternalCatalogEntry...)}
 	 * accept both {@link ExternalCatalogBuilder} and {@link TableBuilder}.
 	 */
+	@Deprecated
 	public interface ExternalCatalogEntry {
 	}
 
