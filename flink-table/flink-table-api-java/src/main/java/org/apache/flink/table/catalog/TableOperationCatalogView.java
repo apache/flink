@@ -32,7 +32,7 @@ public class TableOperationCatalogView extends AbstractCatalogView {
 	private final TableOperation tableOperation;
 
 	public TableOperationCatalogView(TableOperation tableOperation) {
-		this(tableOperation, "This is a catalog view backed by TableOperation");
+		this(tableOperation, "");
 	}
 
 	public TableOperationCatalogView(TableOperation tableOperation, String comment) {

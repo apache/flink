@@ -21,7 +21,11 @@ package org.apache.flink.table.operations;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
 import org.junit.Test;
 
@@ -51,12 +55,36 @@ public class TableOperationTest {
 			SetTableOperation.SetTableOperationType.UNION,
 			true);
 
-		assertEquals("UNION: (all: [true])\n" +
+		assertEquals("Union: (all: [true])\n" +
 			"    Project: (projections: [a])\n" +
 			"        CatalogTable(path: [cat1, db1, tab1], fields: [a])\n" +
 			"    Project: (projections: [a])\n" +
 			"        CatalogTable(path: [cat1, db1, tab1], fields: [a])",
 			unionTableOperation.asSummaryString());
+	}
+
+	@Test
+	public void testWindowAggregationSummaryString() {
+		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
+		FieldReferenceExpression field = new FieldReferenceExpression("a", Types.INT, 0, 0);
+		WindowAggregateTableOperation tableOperation = new WindowAggregateTableOperation(
+			Collections.singletonList(field),
+			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM, Arrays.asList(field))),
+			Collections.emptyList(),
+			WindowAggregateTableOperation.ResolvedGroupWindow.sessionWindow("w", field, ApiExpressionUtils.valueLiteral(
+				10,
+				TimeIntervalTypeInfo.INTERVAL_MILLIS)),
+			new CatalogTableOperation(
+				Arrays.asList("cat1", "db1", "tab1"),
+				schema),
+			schema
+		);
+
+		assertEquals(
+			"WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
+				" window: [SessionWindow(field: [a], gap: [10.millis])])\n" +
+				"    CatalogTable(path: [cat1, db1, tab1], fields: [a])",
+			tableOperation.asSummaryString());
 	}
 
 	@Test

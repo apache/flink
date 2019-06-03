@@ -31,11 +31,11 @@ import java.util.List;
  *
  * <p>This operation may expose only part, or change the order of the fields available in a
  * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
- * The {@link DataSetTableOperation#getFieldIndices()} describes the mapping between fields of the
+ * The {@link DataStreamTableOperation#getFieldIndices()} describes the mapping between fields of the
  * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class DataStreamTableOperation<E> implements TableOperation {
+public class DataStreamTableOperation<E> extends TableOperation {
 
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
@@ -65,8 +65,9 @@ public class DataStreamTableOperation<E> implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("DataStream(id: [%s], fields: %s)", dataStream.getId(),
-			Arrays.toString(tableSchema.getFieldNames()));
+		return formatWithChildren(
+			"DataStream(id: [%s], fields: %s)",
+			dataStream.getId(), Arrays.toString(tableSchema.getFieldNames()));
 	}
 
 	@Override

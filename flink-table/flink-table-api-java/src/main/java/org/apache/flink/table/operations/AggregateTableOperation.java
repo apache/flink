@@ -30,7 +30,7 @@ import java.util.List;
  * key.
  */
 @Internal
-public class AggregateTableOperation implements TableOperation {
+public class AggregateTableOperation extends TableOperation {
 
 	private final List<Expression> groupingExpressions;
 	private final List<Expression> aggregateExpressions;
@@ -55,8 +55,7 @@ public class AggregateTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("Aggregate: (group: %s, agg: %s)", groupingExpressions, aggregateExpressions) +
-			TableOperationUtils.indent(this.child.asSummaryString());
+		return formatWithChildren("Aggregate: (group: %s, agg: %s)", groupingExpressions, aggregateExpressions);
 	}
 
 	public List<Expression> getGroupingExpressions() {

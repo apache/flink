@@ -29,7 +29,7 @@ import java.util.List;
  * Describes a relational operation that was created from a lookup to a catalog.
  */
 @Internal
-public class CatalogTableOperation implements TableOperation {
+public class CatalogTableOperation extends TableOperation {
 
 	private final List<String> tablePath;
 	private final TableSchema tableSchema;
@@ -50,8 +50,7 @@ public class CatalogTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("CatalogTable(path: %s, fields: %s)", tablePath,
-			Arrays.toString(tableSchema.getFieldNames()));
+		return formatWithChildren("CatalogTable(path: %s, fields: %s)", tablePath, Arrays.toString(tableSchema.getFieldNames()));
 	}
 
 	@Override

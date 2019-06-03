@@ -23,17 +23,18 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Base class for representing the operation structure behind a user-facing {@link Table} API.
  */
 @Internal
-public interface TableOperation {
+public abstract class TableOperation {
 
 	/**
 	 * Resolved schema of this operation.
 	 */
-	TableSchema getTableSchema();
+	public abstract TableSchema getTableSchema();
 
 	/**
 	 * Returns a string that summarizes this operation for printing to a console. An implementation might
@@ -44,7 +45,7 @@ public interface TableOperation {
 	 *
 	 * @return summary string of this operation for debugging purposes
 	 */
-	String asSummaryString();
+	public abstract String asSummaryString();
 
 	/**
 	 * Returns a string that fully serializes this instance. The serialized string can be used for storing
@@ -52,11 +53,20 @@ public interface TableOperation {
 	 *
 	 * @return detailed string for persisting in a catalog
 	 */
-	default String asSerializableString() {
-		throw new UnsupportedOperationException("TableOperations are not string serializable for now");
+	public String asSerializableString() {
+		throw new UnsupportedOperationException("TableOperations are not string serializable for now.");
 	}
 
-	List<TableOperation> getChildren();
+	public abstract List<TableOperation> getChildren();
 
-	<T> T accept(TableOperationVisitor<T> visitor);
+	public <T> T accept(TableOperationVisitor<T> visitor) {
+		return visitor.visitOther(this);
+	}
+
+	protected final String formatWithChildren(String format, Object... args) {
+		return String.format(format, args) +
+			getChildren().stream()
+				.map(child -> TableOperationUtils.indent(child.asSummaryString()))
+				.collect(Collectors.joining());
+	}
 }

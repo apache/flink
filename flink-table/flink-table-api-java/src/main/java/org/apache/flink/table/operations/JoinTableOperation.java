@@ -30,7 +30,7 @@ import java.util.List;
  * Table operation that joins two relational operations based on given condition.
  */
 @Internal
-public class JoinTableOperation implements TableOperation {
+public class JoinTableOperation extends TableOperation {
 	private final TableOperation left;
 	private final TableOperation right;
 	private final JoinType joinType;
@@ -107,9 +107,7 @@ public class JoinTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("Join: (joinType: [%s], condition: [%s], correlated: [%s])", joinType, condition, correlated) +
-			TableOperationUtils.indent("left: " + this.left.asSummaryString()) +
-			TableOperationUtils.indent("right: " + this.right.asSummaryString());
+		return formatWithChildren("Join: (joinType: [%s], condition: [%s], correlated: [%s])", joinType, condition, correlated);
 	}
 
 	@Override

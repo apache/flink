@@ -31,7 +31,7 @@ import java.util.List;
  * Describes a relational operation that was created from applying a {@link TableFunction}.
  */
 @Internal
-public class CalculatedTableOperation<T> implements TableOperation {
+public class CalculatedTableOperation<T> extends TableOperation {
 
 	private final TableFunction<T> tableFunction;
 	private final List<Expression> parameters;
@@ -68,7 +68,7 @@ public class CalculatedTableOperation<T> implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("CalculateTable(function: [%s], parameters: %s)", tableFunction, parameters);
+		return formatWithChildren("CalculatedTable(function: [%s], parameters: %s)", tableFunction, parameters);
 	}
 
 	@Override

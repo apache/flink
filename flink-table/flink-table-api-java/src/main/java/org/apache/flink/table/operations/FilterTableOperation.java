@@ -29,7 +29,7 @@ import java.util.List;
  * Filters out rows of underlying relational operation that do not match given condition.
  */
 @Internal
-public class FilterTableOperation implements TableOperation {
+public class FilterTableOperation extends TableOperation {
 
 	private final Expression condition;
 	private final TableOperation child;
@@ -50,8 +50,7 @@ public class FilterTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("Filter: (condition: [%s])", condition) +
-			TableOperationUtils.indent(this.child.asSummaryString());
+		return formatWithChildren("Filter: (condition: [%s])", condition);
 	}
 
 	@Override

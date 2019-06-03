@@ -29,7 +29,7 @@ import java.util.List;
  * data sets/streams. Both relations must have equal schemas.
  */
 @Internal
-public class SetTableOperation implements TableOperation {
+public class SetTableOperation extends TableOperation {
 
 	private final TableOperation leftOperation;
 	private final TableOperation rightOperation;
@@ -69,9 +69,20 @@ public class SetTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("%s: (all: [%s])", type, all) +
-			TableOperationUtils.indent(this.leftOperation.asSummaryString()) +
-			TableOperationUtils.indent(this.rightOperation.asSummaryString());
+		return formatWithChildren("%s: (all: [%s])", typeToString(), all);
+	}
+
+	private String typeToString() {
+		switch (type) {
+			case INTERSECT:
+				return "Intersect";
+			case MINUS:
+				return "Minus";
+			case UNION:
+				return "Union";
+			default:
+				throw new IllegalStateException("Unknown set operation type: " + type);
+		}
 	}
 
 	@Override

@@ -28,7 +28,7 @@ import java.util.List;
  * Removes duplicated rows of underlying relational operation.
  */
 @Internal
-public class DistinctTableOperation implements TableOperation {
+public class DistinctTableOperation extends TableOperation {
 
 	private final TableOperation child;
 
@@ -43,7 +43,7 @@ public class DistinctTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return "DISTINCT" + TableOperationUtils.indent(this.child.asSummaryString());
+		return formatWithChildren("Distinct()");
 	}
 
 	@Override

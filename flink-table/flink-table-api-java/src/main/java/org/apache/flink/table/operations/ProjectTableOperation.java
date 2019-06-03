@@ -30,7 +30,7 @@ import java.util.List;
  * from its input relational operation.
  */
 @Internal
-public class ProjectTableOperation implements TableOperation {
+public class ProjectTableOperation extends TableOperation {
 
 	private final List<Expression> projectList;
 	private final TableOperation child;
@@ -56,8 +56,7 @@ public class ProjectTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("Project: (projections: %s)", projectList) +
-			TableOperationUtils.indent(this.child.asSummaryString());
+		return formatWithChildren("Project: (projections: %s)", projectList);
 	}
 
 	@Override

@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * key and group window. It differs from {@link AggregateTableOperation} by the group window.
  */
 @Internal
-public class WindowAggregateTableOperation implements TableOperation {
+public class WindowAggregateTableOperation extends TableOperation {
 
 	private final List<Expression> groupingExpressions;
 	private final List<Expression> aggregateExpressions;
@@ -73,12 +73,11 @@ public class WindowAggregateTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("WindowAggregate: (group: %s, agg: %s, windowProperties: %s, window: [%s])",
+		return formatWithChildren("WindowAggregate: (group: %s, agg: %s, windowProperties: %s, window: [%s])",
 			groupingExpressions,
 			aggregateExpressions,
 			windowPropertiesExpressions,
-			groupWindow) +
-			TableOperationUtils.indent(this.child.asSummaryString());
+			groupWindow.asSummaryString());
 	}
 
 	public List<Expression> getGroupingExpressions() {
@@ -134,7 +133,8 @@ public class WindowAggregateTableOperation implements TableOperation {
 		 */
 		private ResolvedGroupWindow(
 				WindowType type,
-				String alias, FieldReferenceExpression timeAttribute,
+				String alias,
+				FieldReferenceExpression timeAttribute,
 				@Nullable ValueLiteralExpression size,
 				@Nullable ValueLiteralExpression slide,
 				@Nullable ValueLiteralExpression gap) {
@@ -211,6 +211,29 @@ public class WindowAggregateTableOperation implements TableOperation {
 		 */
 		public Optional<ValueLiteralExpression> getGap() {
 			return Optional.of(gap);
+		}
+
+		public String asSummaryString() {
+			switch (type) {
+				case SLIDE:
+					return String.format(
+						"SlideWindow(field: [%s], slide: [%s], size: [%s])",
+						timeAttribute,
+						slide,
+						size);
+				case SESSION:
+					return String.format(
+						"SessionWindow(field: [%s], gap: [%s])",
+						timeAttribute,
+						gap);
+				case TUMBLE:
+					return String.format(
+						"TumbleWindow(field: [%s], size: [%s])",
+						timeAttribute,
+						size);
+				default:
+					throw new IllegalStateException("Unknown window type: " + type);
+			}
 		}
 	}
 }

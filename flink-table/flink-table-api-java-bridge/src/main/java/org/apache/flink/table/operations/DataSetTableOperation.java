@@ -35,7 +35,7 @@ import java.util.List;
  * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class DataSetTableOperation<E> implements TableOperation {
+public class DataSetTableOperation<E> extends TableOperation {
 
 	private final DataSet<E> dataStream;
 	private final int[] fieldIndices;
@@ -65,7 +65,7 @@ public class DataSetTableOperation<E> implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("DataSet(fields: %s)", Arrays.toString(tableSchema.getFieldNames()));
+		return formatWithChildren("DataSet(fields: %s)", Arrays.toString(tableSchema.getFieldNames()));
 	}
 
 	@Override

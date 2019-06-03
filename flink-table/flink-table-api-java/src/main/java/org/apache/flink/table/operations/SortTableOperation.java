@@ -30,7 +30,7 @@ import java.util.List;
  * It also allows specifying offset and number of rows to fetch from the sorted data set/stream.
  */
 @Internal
-public class SortTableOperation implements TableOperation {
+public class SortTableOperation extends TableOperation {
 
 	private final List<Expression> order;
 	private final TableOperation child;
@@ -73,8 +73,7 @@ public class SortTableOperation implements TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return String.format("Sort: (order: %s, offset: [%d], fetch: [%d])", order, offset, fetch) +
-			TableOperationUtils.indent(this.child.asSummaryString());
+		return formatWithChildren("Sort: (order: %s, offset: [%d], fetch: [%d])", order, offset, fetch);
 	}
 
 	@Override
