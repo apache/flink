@@ -26,7 +26,8 @@ import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.hive.HMSClientFactory;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -37,7 +38,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -187,9 +187,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		StorageDescriptor jobSD = hiveTablePartition.getStorageDescriptor();
 		Path stagingDir = new Path(jobSD.getLocation());
 		FileSystem fs = stagingDir.getFileSystem(jobConf);
-		IMetaStoreClient client = null;
-		try {
-			client = HMSClientFactory.create(new HiveConf(jobConf, HiveConf.class));
+		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class))) {
 			Table table = client.getTable(dbName, tableName);
 			if (!isDynamicPartition) {
 				commitJob(stagingDir.toString());
@@ -202,9 +200,6 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} finally {
-			if (client != null) {
-				client.close();
-			}
 			fs.delete(stagingDir, true);
 		}
 	}
