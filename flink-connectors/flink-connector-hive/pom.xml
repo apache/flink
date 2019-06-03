@@ -118,10 +118,6 @@ under the License.
 					<artifactId>HikariCP</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.jdo</groupId>
-					<artifactId>jdo-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>co.cask.tephra</groupId>
 					<artifactId>tephra-api</artifactId>
 				</exclusion>
