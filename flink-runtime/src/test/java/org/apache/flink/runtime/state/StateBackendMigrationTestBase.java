@@ -364,9 +364,14 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		final String stateName = "test-name";
 
 		try {
-			testKeyedMapStateUpgrade(new MapStateDescriptor<>(stateName,
+			testKeyedMapStateUpgrade(
+				new MapStateDescriptor<>(
+				stateName,
 				IntSerializer.INSTANCE,
-				new TestType.V1TestTypeSerializer()), new MapStateDescriptor<>(stateName, IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+				new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
 				// restore with a V2 serializer that has a different schema
 				new TestType.IncompatibleTestTypeSerializer()));
 			fail("should have failed");

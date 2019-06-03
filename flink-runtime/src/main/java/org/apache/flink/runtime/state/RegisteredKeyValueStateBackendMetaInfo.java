@@ -147,6 +147,11 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	}
 
 	@Nonnull
+	public StateSerializerProvider<S> getStateSerializerProvider() {
+		return stateSerializerProvider;
+	}
+
+	@Nonnull
 	public StateSnapshotTransformFactory<S> getStateSnapshotTransformFactory() {
 		return stateSnapshotTransformFactory;
 	}
