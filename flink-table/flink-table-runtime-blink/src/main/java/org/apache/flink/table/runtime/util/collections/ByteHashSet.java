@@ -20,37 +20,32 @@ package org.apache.flink.table.runtime.util.collections;
 /**
  * Byte hash set.
  */
-public class ByteHashSet extends OptimizableHashSet {
+public class ByteHashSet {
 
-	private final byte min = Byte.MIN_VALUE;
-	private final byte max = Byte.MAX_VALUE;
+	protected boolean containsNull;
 
-	public ByteHashSet(final int expected, final float f) {
-		super(expected, f);
-		used = new boolean[max - min + 1];
-	}
-
-	public ByteHashSet(final int expected) {
-		this(expected, DEFAULT_LOAD_FACTOR);
-	}
+	protected boolean[] used;
 
 	public ByteHashSet() {
-		this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
+		used = new boolean[Byte.MAX_VALUE - Byte.MIN_VALUE + 1];
 	}
 
 	public boolean add(final byte k) {
-		if (used[k - min]) {
-			return false;
-		} else {
-			return used[k - min] = true;
-		}
+		return !used[k - Byte.MIN_VALUE] && (used[k - Byte.MIN_VALUE] = true);
+	}
+
+	public void addNull() {
+		this.containsNull = true;
 	}
 
 	public boolean contains(final byte k) {
-		return used[k - min];
+		return used[k - Byte.MIN_VALUE];
 	}
 
-	@Override
+	public boolean containsNull() {
+		return containsNull;
+	}
+
 	public void optimize() {
 	}
 }
