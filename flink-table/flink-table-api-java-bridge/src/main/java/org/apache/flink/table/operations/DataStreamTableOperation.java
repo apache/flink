@@ -22,9 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
@@ -65,9 +66,11 @@ public class DataStreamTableOperation<E> extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren(
-			"DataStream(id: [%s], fields: %s)",
-			dataStream.getId(), Arrays.toString(tableSchema.getFieldNames()));
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("id", dataStream.getId());
+		args.put("fields", tableSchema.getFieldNames());
+
+		return formatWithChildren("DataStream", args);
 	}
 
 	@Override

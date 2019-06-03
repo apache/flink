@@ -24,7 +24,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Table operation that joins two relational operations based on given condition.
@@ -107,7 +109,12 @@ public class JoinTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("Join: (joinType: [%s], condition: [%s], correlated: [%s])", joinType, condition, correlated);
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("joinType", joinType);
+		args.put("condition", condition);
+		args.put("correlated", correlated);
+
+		return formatWithChildren("Join", args);
 	}
 
 	@Override

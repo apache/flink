@@ -28,7 +28,9 @@ import org.apache.flink.util.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.operations.WindowAggregateTableOperation.ResolvedGroupWindow.WindowType.SESSION;
@@ -73,11 +75,13 @@ public class WindowAggregateTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("WindowAggregate: (group: %s, agg: %s, windowProperties: %s, window: [%s])",
-			groupingExpressions,
-			aggregateExpressions,
-			windowPropertiesExpressions,
-			groupWindow.asSummaryString());
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("group", groupingExpressions);
+		args.put("agg", aggregateExpressions);
+		args.put("windowProperties", windowPropertiesExpressions);
+		args.put("window", groupWindow.asSummaryString());
+
+		return formatWithChildren("WindowAggregate", args);
 	}
 
 	public List<Expression> getGroupingExpressions() {

@@ -22,7 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A set operation on two relations. It provides a way to union, intersect or subtract underlying
@@ -69,7 +71,10 @@ public class SetTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("%s: (all: [%s])", typeToString(), all);
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("all", all);
+
+		return formatWithChildren(typeToString(), args);
 	}
 
 	private String typeToString() {

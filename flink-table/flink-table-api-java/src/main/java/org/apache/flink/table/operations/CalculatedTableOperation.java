@@ -25,7 +25,9 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes a relational operation that was created from applying a {@link TableFunction}.
@@ -68,7 +70,11 @@ public class CalculatedTableOperation<T> extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("CalculatedTable(function: [%s], parameters: %s)", tableFunction, parameters);
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("function", tableFunction);
+		args.put("parameters", parameters);
+
+		return formatWithChildren("CalculatedTable", args);
 	}
 
 	@Override

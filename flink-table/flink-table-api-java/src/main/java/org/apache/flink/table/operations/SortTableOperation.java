@@ -23,7 +23,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Expresses sort operation of rows of the underlying relational operation with given order.
@@ -73,7 +75,12 @@ public class SortTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("Sort: (order: %s, offset: [%d], fetch: [%d])", order, offset, fetch);
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("order", order);
+		args.put("offset", offset);
+		args.put("fetch", fetch);
+
+		return formatWithChildren("Sort", args);
 	}
 
 	@Override

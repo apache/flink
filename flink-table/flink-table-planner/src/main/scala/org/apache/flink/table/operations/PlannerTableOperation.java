@@ -61,7 +61,7 @@ public class PlannerTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return "PlannerNode()";
+		return formatWithChildren("PlannerNode", Collections.emptyMap());
 	}
 
 	@Override

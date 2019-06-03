@@ -43,7 +43,7 @@ public class DistinctTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("Distinct()");
+		return formatWithChildren("Distinct", Collections.emptyMap());
 	}
 
 	@Override

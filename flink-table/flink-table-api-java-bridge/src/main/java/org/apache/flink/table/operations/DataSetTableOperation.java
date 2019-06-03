@@ -22,9 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.table.api.TableSchema;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes a relational operation that reads from a {@link DataSet}.
@@ -37,21 +38,21 @@ import java.util.List;
 @Internal
 public class DataSetTableOperation<E> extends TableOperation {
 
-	private final DataSet<E> dataStream;
+	private final DataSet<E> dataSet;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
 
 	public DataSetTableOperation(
-			DataSet<E> dataStream,
+			DataSet<E> dataSet,
 			int[] fieldIndices,
 			TableSchema tableSchema) {
-		this.dataStream = dataStream;
+		this.dataSet = dataSet;
 		this.tableSchema = tableSchema;
 		this.fieldIndices = fieldIndices;
 	}
 
 	public DataSet<E> getDataSet() {
-		return dataStream;
+		return dataSet;
 	}
 
 	public int[] getFieldIndices() {
@@ -65,7 +66,10 @@ public class DataSetTableOperation<E> extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("DataSet(fields: %s)", Arrays.toString(tableSchema.getFieldNames()));
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("fields", tableSchema.getFieldNames());
+
+		return formatWithChildren("DataSet", args);
 	}
 
 	@Override

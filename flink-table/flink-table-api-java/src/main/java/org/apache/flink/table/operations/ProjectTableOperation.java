@@ -23,7 +23,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Table operation that computes new table using given {@link Expression}s
@@ -56,7 +58,10 @@ public class ProjectTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("Project: (projections: %s)", projectList);
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("projections", projectList);
+
+		return formatWithChildren("Project", args);
 	}
 
 	@Override

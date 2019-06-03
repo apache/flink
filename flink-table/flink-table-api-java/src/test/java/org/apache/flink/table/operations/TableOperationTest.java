@@ -57,9 +57,9 @@ public class TableOperationTest {
 
 		assertEquals("Union: (all: [true])\n" +
 			"    Project: (projections: [a])\n" +
-			"        CatalogTable(path: [cat1, db1, tab1], fields: [a])\n" +
+			"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])\n" +
 			"    Project: (projections: [a])\n" +
-			"        CatalogTable(path: [cat1, db1, tab1], fields: [a])",
+			"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
 			unionTableOperation.asSummaryString());
 	}
 
@@ -69,7 +69,8 @@ public class TableOperationTest {
 		FieldReferenceExpression field = new FieldReferenceExpression("a", Types.INT, 0, 0);
 		WindowAggregateTableOperation tableOperation = new WindowAggregateTableOperation(
 			Collections.singletonList(field),
-			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM, Arrays.asList(field))),
+			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM,
+				Collections.singletonList(field))),
 			Collections.emptyList(),
 			WindowAggregateTableOperation.ResolvedGroupWindow.sessionWindow("w", field, ApiExpressionUtils.valueLiteral(
 				10,
@@ -80,11 +81,14 @@ public class TableOperationTest {
 			schema
 		);
 
+		DistinctTableOperation distinctTableOperation = new DistinctTableOperation(tableOperation);
+
 		assertEquals(
-			"WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
+			"Distinct:\n" +
+			"    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
 				" window: [SessionWindow(field: [a], gap: [10.millis])])\n" +
-				"    CatalogTable(path: [cat1, db1, tab1], fields: [a])",
-			tableOperation.asSummaryString());
+				"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
+			distinctTableOperation.asSummaryString());
 	}
 
 	@Test

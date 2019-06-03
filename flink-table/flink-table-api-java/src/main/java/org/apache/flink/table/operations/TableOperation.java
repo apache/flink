@@ -21,8 +21,12 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.util.StringUtils;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -63,10 +67,38 @@ public abstract class TableOperation {
 		return visitor.visitOther(this);
 	}
 
-	protected final String formatWithChildren(String format, Object... args) {
-		return String.format(format, args) +
-			getChildren().stream()
-				.map(child -> TableOperationUtils.indent(child.asSummaryString()))
-				.collect(Collectors.joining());
+	protected final String formatWithChildren(String operationName, Map<String, Object> parameters) {
+		String description = parameters.entrySet()
+			.stream()
+			.map(entry -> formatParameter(entry.getKey(), entry.getValue()))
+			.collect(Collectors.joining(", "));
+
+		final StringBuilder stringBuilder = new StringBuilder();
+
+		stringBuilder.append(operationName).append(":");
+
+		if (!StringUtils.isNullOrWhitespaceOnly(description)) {
+			stringBuilder.append(" (").append(description).append(")");
+		}
+
+		String childrenDescription = getChildren().stream()
+			.map(child -> TableOperationUtils.indent(child.asSummaryString()))
+			.collect(Collectors.joining());
+
+		return stringBuilder.append(childrenDescription).toString();
+	}
+
+	private String formatParameter(String name, Object value) {
+		final StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append(name);
+		stringBuilder.append(": ");
+		if (value.getClass().isArray()) {
+			stringBuilder.append(Arrays.toString((Object[]) value));
+		} else if (value instanceof Collection) {
+			stringBuilder.append(value);
+		} else {
+			stringBuilder.append("[").append(value).append("]");
+		}
+		return stringBuilder.toString();
 	}
 }

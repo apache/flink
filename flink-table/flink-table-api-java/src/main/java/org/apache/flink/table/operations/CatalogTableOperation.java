@@ -21,9 +21,10 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Describes a relational operation that was created from a lookup to a catalog.
@@ -50,7 +51,11 @@ public class CatalogTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("CatalogTable(path: %s, fields: %s)", tablePath, Arrays.toString(tableSchema.getFieldNames()));
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("path", tablePath);
+		args.put("fields", tableSchema.getFieldNames());
+
+		return formatWithChildren("CatalogTable", args);
 	}
 
 	@Override

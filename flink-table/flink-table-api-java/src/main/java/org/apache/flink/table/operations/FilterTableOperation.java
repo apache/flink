@@ -23,7 +23,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Filters out rows of underlying relational operation that do not match given condition.
@@ -50,7 +52,10 @@ public class FilterTableOperation extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren("Filter: (condition: [%s])", condition);
+		Map<String, Object> args = new LinkedHashMap<>();
+		args.put("condition", condition);
+
+		return formatWithChildren("Filter", args);
 	}
 
 	@Override
