@@ -22,9 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.TableSource;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Inline scan of a {@link TableSource}. Used only when a {@link org.apache.flink.table.api.Table} was created
@@ -48,9 +49,10 @@ public class TableSourceTableOperation<T> extends TableOperation {
 
 	@Override
 	public String asSummaryString() {
-		return formatWithChildren(
-			"TableSource: (fields: %s)",
-			Arrays.toString(tableSource.getTableSchema().getFieldNames()));
+		Map<String, Object> args = new HashMap<>();
+		args.put("fields", tableSource.getTableSchema().getFieldNames());
+
+		return formatWithChildren("TableSource", args);
 	}
 
 	public TableSource<T> getTableSource() {

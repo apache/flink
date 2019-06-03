@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.operations.CatalogTableOperation;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.util.StringUtils;
 
@@ -303,7 +302,7 @@ public class CatalogManager {
 	 * </ol>
 	 *
 	 * @param tablePath table path to look for
-	 * @return {@link ResolvedTable} wrapping original table with additional iformation about table path and
+	 * @return {@link ResolvedTable} wrapping original table with additional information about table path and
 	 * unified access to {@link TableSchema}.
 	 */
 	public Optional<ResolvedTable> resolveTable(String... tablePath) {

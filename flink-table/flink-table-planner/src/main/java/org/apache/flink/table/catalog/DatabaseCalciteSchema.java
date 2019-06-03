@@ -76,7 +76,7 @@ class DatabaseCalciteSchema implements Schema {
 						tableSource,
 						!connectorTable.isBatch(),
 						FlinkStatistic.UNKNOWN()))
-					.orElseThrow(() -> new TableException("Querying sink only table unsupported."));
+					.orElseThrow(() -> new TableException("Cannot query a sink only table."));
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}
@@ -84,7 +84,7 @@ class DatabaseCalciteSchema implements Schema {
 			// TableNotExistException should never happen, because we are checking it exists
 			// via catalog.tableExists
 			throw new TableException(format(
-				"A failure occured when accesing table. Table path [%s, %s, %s]",
+				"A failure occurred when accessing table. Table path [%s, %s, %s]",
 				catalogName,
 				databaseName,
 				tableName), e);

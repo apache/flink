@@ -51,8 +51,6 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	private final TableSink<T2> tableSink;
 	private final boolean isBatch;
 
-	private static final String COMMENT = "A table sink or source backed table.";
-
 	public static <T1> ConnectorCatalogTable source(TableSource<T1> source, boolean isBatch) {
 		final TableSchema tableSchema = calculateSourceSchema(source, isBatch);
 		return new ConnectorCatalogTable<>(source, null, tableSchema, isBatch);
@@ -77,7 +75,7 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 			TableSink<T2> tableSink,
 			TableSchema tableSchema,
 			boolean isBatch) {
-		super(tableSchema, Collections.emptyMap(), COMMENT);
+		super(tableSchema, Collections.emptyMap(), "");
 		this.tableSource = tableSource;
 		this.tableSink = tableSink;
 		this.isBatch = isBatch;

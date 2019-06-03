@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.PlannerConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.calcite.CalciteConfigBuilder;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -69,6 +70,28 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		return Arrays.asList(new Object[][] {
 			{ TableProgramsTestBase.DEFAULT() }
 		});
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testIllegalEmptyName() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		Table t = tableEnv.fromDataSet(ds);
+		// Must fail. Table is empty
+		tableEnv.registerTable("", t);
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testIllegalWhitespaceOnlyName() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		Table t = tableEnv.fromDataSet(ds);
+		// Must fail. Table is empty
+		tableEnv.registerTable("     ", t);
 	}
 
 	@Test

@@ -35,7 +35,6 @@ abstract class PhysicalTableSourceScan(
     val selectedFields: Option[Array[Int]])
   extends TableScan(cluster, traitSet, table) {
 
-
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val streamingTable = tableSource.isInstanceOf[StreamTableSource[_]]

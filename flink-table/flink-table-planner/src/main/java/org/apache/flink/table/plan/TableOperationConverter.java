@@ -281,7 +281,10 @@ public class TableOperationConverter extends TableOperationDefaultVisitor<RelNod
 				FlinkStatistic.UNKNOWN());
 
 			CatalogReader catalogReader = (CatalogReader) relBuilder.getRelOptSchema();
-			String refId = Integer.toString(System.identityHashCode(tableSourceTable.getTableSource()));
+
+			// TableSourceScan requires a unique name of a Table for computing a digest.
+			// We are using the identity hash of the TableSource object.
+			String refId = "unregistered_" + System.identityHashCode(tableSourceTable.getTableSource());
 			return new FlinkLogicalTableSourceScan(
 				relBuilder.getCluster(),
 				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),

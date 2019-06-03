@@ -22,7 +22,6 @@ import _root_.java.util.Optional
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan._
@@ -36,7 +35,6 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.table.calcite._
-import org.apache.flink.table.catalog.CatalogManager.ResolvedTable
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
@@ -54,10 +52,9 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
+import org.apache.flink.util.StringUtils
 
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable
-import _root_.scala.util.Try
 
 /**
   * The abstract base class for the implementation of batch and stream TableEnvironments.
@@ -548,7 +545,14 @@ abstract class TableEnvImpl(
     }
   }
 
+  private def checkValidTableName(name: String) = {
+    if (StringUtils.isNullOrWhitespaceOnly(name)) {
+      throw new ValidationException("A table name cannot be null or consist of only whitespaces.")
+    }
+  }
+
   protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    checkValidTableName(name)
     val path = new ObjectPath(defaultDatabaseName, name)
     JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
       case Some(catalog) =>
@@ -561,6 +565,7 @@ abstract class TableEnvImpl(
   }
 
   protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    checkValidTableName(name)
     val path = new ObjectPath(defaultDatabaseName, name)
     JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
       case Some(catalog) =>

@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.java.StreamTableEnvImpl;
-import org.apache.flink.table.operations.CatalogTableOperation;
 import org.apache.flink.table.utils.StreamTableTestUtil;
 import org.apache.flink.util.Preconditions;
 
