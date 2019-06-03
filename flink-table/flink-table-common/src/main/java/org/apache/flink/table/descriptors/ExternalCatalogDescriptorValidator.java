@@ -22,7 +22,10 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * Validator for {@link ExternalCatalogDescriptor}.
+ *
+ * @deprecated use {@link CatalogDescriptorValidator} instead.
  */
+@Deprecated
 @Internal
 public abstract class ExternalCatalogDescriptorValidator implements DescriptorValidator {
 

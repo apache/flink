@@ -34,6 +34,7 @@ public class TableFactoryUtil {
 	/**
 	 * Returns an external catalog.
 	 */
+	@Deprecated
 	public static ExternalCatalog findAndCreateExternalCatalog(Descriptor descriptor) {
 		Map<String, String> properties = descriptor.toProperties();
 		return TableFactoryService
