@@ -36,7 +36,6 @@ import static org.apache.flink.table.descriptors.ExternalCatalogDescriptorValida
  * Tests for the {@link ExternalCatalogDescriptor} descriptor and
  * {@link ExternalCatalogDescriptorValidator} validator.
  */
-@Deprecated
 public class ExternalCatalogDescriptorTest extends DescriptorTestBase {
 
 	private static final String CATALOG_TYPE_VALUE = "ExternalCatalogDescriptorTest";
