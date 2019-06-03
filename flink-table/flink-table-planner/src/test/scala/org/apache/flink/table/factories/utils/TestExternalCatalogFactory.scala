@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.utils.CommonTestData
   * The catalog produces tables intended for either a streaming or batch environment,
   * based on the descriptor property {{{ is-streaming }}}.
   */
+@Deprecated
 class TestExternalCatalogFactory extends ExternalCatalogFactory {
 
   override def requiredContext: util.Map[String, String] = {

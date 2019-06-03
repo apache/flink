@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.descriptors;
 
-import org.apache.flink.annotation.Internal;
-
 /**
  * Validator for {@link ExternalCatalogDescriptor}.
+ *
+ * @deprecated use {@link CatalogDescriptorValidator} instead.
  */
-@Internal
+@Deprecated
 public abstract class ExternalCatalogDescriptorValidator implements DescriptorValidator {
 
 	/**

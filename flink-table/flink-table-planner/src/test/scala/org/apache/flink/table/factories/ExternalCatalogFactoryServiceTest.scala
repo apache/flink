@@ -31,6 +31,7 @@ import org.junit.Test
   * Tests for testing external catalog discovery using [[TableFactoryService]]. The tests assume the
   * external catalog factory [[TestExternalCatalogFactory]] is registered.
   */
+@Deprecated
 class ExternalCatalogFactoryServiceTest {
 
   @Test

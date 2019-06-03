@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ExternalCatalog;
 
 import java.util.Map;
@@ -26,8 +25,10 @@ import java.util.Map;
 /**
  * A factory to create configured external catalog instances based on string-based properties. See
  * also {@link TableFactory} for more information.
+ *
+ * @deprecated use {@link CatalogFactory} instead.
  */
-@PublicEvolving
+@Deprecated
 public interface ExternalCatalogFactory extends TableFactory {
 
 	/**
