@@ -84,6 +84,6 @@ public class CalculatedQueryOperation<T> implements QueryOperation {
 
 	@Override
 	public <U> U accept(QueryOperationVisitor<U> visitor) {
-		return visitor.visitCalculatedTable(this);
+		return visitor.visit(this);
 	}
 }

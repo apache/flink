@@ -90,6 +90,6 @@ public class SortQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitSort(this);
+		return visitor.visit(this);
 	}
 }

@@ -27,27 +27,27 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface QueryOperationVisitor<T> {
 
-	T visitProject(ProjectQueryOperation projection);
+	T visit(ProjectQueryOperation projection);
 
-	T visitAggregate(AggregateQueryOperation aggregation);
+	T visit(AggregateQueryOperation aggregation);
 
-	T visitWindowAggregate(WindowAggregateQueryOperation windowAggregate);
+	T visit(WindowAggregateQueryOperation windowAggregate);
 
-	T visitJoin(JoinQueryOperation join);
+	T visit(JoinQueryOperation join);
 
-	T visitSetOperation(SetQueryOperation setOperation);
+	T visit(SetQueryOperation setOperation);
 
-	T visitFilter(FilterQueryOperation filter);
+	T visit(FilterQueryOperation filter);
 
-	T visitDistinct(DistinctQueryOperation distinct);
+	T visit(DistinctQueryOperation distinct);
 
-	T visitSort(SortQueryOperation sort);
+	T visit(SortQueryOperation sort);
 
-	<U> T visitCalculatedTable(CalculatedQueryOperation<U> calculatedTable);
+	<U> T visit(CalculatedQueryOperation<U> calculatedTable);
 
-	T visitCatalogTable(CatalogQueryOperation catalogTable);
+	T visit(CatalogQueryOperation catalogTable);
 
-	<U> T visitTableSourceTable(TableSourceQueryOperation<U> tableSourceTable);
+	<U> T visit(TableSourceQueryOperation<U> tableSourceTable);
 
-	T visitOther(QueryOperation other);
+	T visit(QueryOperation other);
 }

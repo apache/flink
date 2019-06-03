@@ -79,6 +79,6 @@ public class AggregateQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitAggregate(this);
+		return visitor.visit(this);
 	}
 }

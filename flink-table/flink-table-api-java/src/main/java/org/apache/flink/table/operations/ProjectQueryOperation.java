@@ -71,6 +71,6 @@ public class ProjectQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitProject(this);
+		return visitor.visit(this);
 	}
 }

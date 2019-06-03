@@ -126,14 +126,14 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	private class SingleRelVisitor implements QueryOperationVisitor<RelNode> {
 
 		@Override
-		public RelNode visitProject(ProjectQueryOperation projection) {
+		public RelNode visit(ProjectQueryOperation projection) {
 			List<RexNode> rexNodes = convertToRexNodes(projection.getProjectList());
 
 			return relBuilder.project(rexNodes, asList(projection.getTableSchema().getFieldNames()), true).build();
 		}
 
 		@Override
-		public RelNode visitAggregate(AggregateQueryOperation aggregate) {
+		public RelNode visit(AggregateQueryOperation aggregate) {
 			List<AggCall> aggregations = aggregate.getAggregateExpressions()
 				.stream()
 				.map(this::getAggCall)
@@ -145,7 +145,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitWindowAggregate(WindowAggregateQueryOperation windowAggregate) {
+		public RelNode visit(WindowAggregateQueryOperation windowAggregate) {
 			List<AggCall> aggregations = windowAggregate.getAggregateExpressions()
 				.stream()
 				.map(this::getAggCall)
@@ -173,7 +173,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitJoin(JoinQueryOperation join) {
+		public RelNode visit(JoinQueryOperation join) {
 			final Set<CorrelationId> corSet;
 			if (join.isCorrelated()) {
 				corSet = Collections.singleton(relBuilder.peek().getCluster().createCorrel());
@@ -189,7 +189,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitSetOperation(SetQueryOperation setOperation) {
+		public RelNode visit(SetQueryOperation setOperation) {
 			switch (setOperation.getType()) {
 				case INTERSECT:
 					relBuilder.intersect(setOperation.isAll());
@@ -205,25 +205,25 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitFilter(FilterQueryOperation filter) {
+		public RelNode visit(FilterQueryOperation filter) {
 			RexNode rexNode = convertToRexNode(filter.getCondition());
 			return relBuilder.filter(rexNode).build();
 		}
 
 		@Override
-		public RelNode visitDistinct(DistinctQueryOperation distinct) {
+		public RelNode visit(DistinctQueryOperation distinct) {
 			return relBuilder.distinct().build();
 		}
 
 		@Override
-		public RelNode visitSort(SortQueryOperation sort) {
+		public RelNode visit(SortQueryOperation sort) {
 			List<RexNode> rexNodes = convertToRexNodes(sort.getOrder());
 			return relBuilder.sortLimit(sort.getOffset(), sort.getFetch(), rexNodes)
 				.build();
 		}
 
 		@Override
-		public <U> RelNode visitCalculatedTable(CalculatedQueryOperation<U> calculatedTable) {
+		public <U> RelNode visit(CalculatedQueryOperation<U> calculatedTable) {
 			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
 			int[] fieldIndices = IntStream.range(0, fieldNames.length).toArray();
 			TypeInformation<U> resultType = calculatedTable.getResultType();
@@ -255,12 +255,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RelNode visitCatalogTable(CatalogQueryOperation catalogTable) {
+		public RelNode visit(CatalogQueryOperation catalogTable) {
 			return relBuilder.scan(catalogTable.getTablePath()).build();
 		}
 
 		@Override
-		public RelNode visitOther(QueryOperation other) {
+		public RelNode visit(QueryOperation other) {
 			if (other instanceof PlannerQueryOperation) {
 				return ((PlannerQueryOperation) other).getCalciteTree();
 			} else if (other instanceof DataStreamQueryOperation) {
@@ -273,7 +273,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public <U> RelNode visitTableSourceTable(TableSourceQueryOperation<U> tableSourceTable) {
+		public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceTable) {
 			final Table relTable = new TableSourceTable<>(
 				tableSourceTable.getTableSource(),
 				!tableSourceTable.isBatch(),

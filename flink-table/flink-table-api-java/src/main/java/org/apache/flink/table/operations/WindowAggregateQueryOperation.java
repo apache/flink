@@ -107,7 +107,7 @@ public class WindowAggregateQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitWindowAggregate(this);
+		return visitor.visit(this);
 	}
 
 	/**

@@ -65,7 +65,7 @@ public class FilterQueryOperation implements QueryOperation {
 
 	@Override
 	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visitFilter(this);
+		return visitor.visit(this);
 	}
 
 }
