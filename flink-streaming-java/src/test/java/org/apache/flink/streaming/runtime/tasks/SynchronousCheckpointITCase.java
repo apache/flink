@@ -90,6 +90,7 @@ public class SynchronousCheckpointITCase {
 	private static OneShotLatch cancellationLatch;
 	private static OneShotLatch checkpointCompletionLatch;
 	private static OneShotLatch notifyLatch;
+	private static OneShotLatch checkpointTriggered = new OneShotLatch();
 
 	private static MultiShotLatch checkpointLatch;
 
@@ -125,15 +126,23 @@ public class SynchronousCheckpointITCase {
 			assertEquals(ExecutionState.RUNNING, task.getExecutionState());
 			assertEquals(CheckpointingState.NONE, synchronousCheckpointPhase.getState());
 
+			// Hack: we are triggering a checkpoint with advanceToEndOfEventTime = true, to be sure that
+			// triggerCheckpointBarrier has reached the sync checkpoint latch (by verifying in
+			// SynchronousCheckpointTestingTask.advanceToEndOfEventTime) and only then proceeding to
+			// notifyCheckpointComplete.
+			// Without such synchronization, the notifyCheckpointComplete execution may be executed first and leave this
+			// test in a deadlock.
 			task.triggerCheckpointBarrier(
 					42,
 					156865867234L,
 					new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-					false);
+					true);
 			checkpointLatch.await();
 
 			assertNull(error.get());
 			assertEquals(CheckpointingState.PERFORMING_CHECKPOINT, synchronousCheckpointPhase.getState());
+
+			checkpointTriggered.await();
 
 			task.notifyCheckpointComplete(42);
 
@@ -213,6 +222,13 @@ public class SynchronousCheckpointITCase {
 		@Override
 		protected void cleanup() {
 
+		}
+
+		@Override
+		protected void advanceToEndOfEventTime() throws Exception {
+			// Wake up the test thread that we have actually entered the checkpoint invocation and the sync checkpoint
+			// latch is set.
+			checkpointTriggered.trigger();
 		}
 	}
 
