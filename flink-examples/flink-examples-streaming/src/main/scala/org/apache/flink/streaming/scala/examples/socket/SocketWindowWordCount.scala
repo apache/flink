@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
  * The easiest way to try this out is to open a text sever (at port 12345) 
  * using the ''netcat'' tool via
  * {{{
- * nc -l 12345
+ * nc -l 12345 on Linux or nc -l -p 12345 on Windows
  * }}}
  * and run this example with the hostname and the port as arguments..
  */
