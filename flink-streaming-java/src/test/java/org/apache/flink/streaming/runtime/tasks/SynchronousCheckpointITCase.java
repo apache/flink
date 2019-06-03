@@ -66,7 +66,9 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.Collections;
 import java.util.concurrent.Executor;
@@ -107,6 +109,9 @@ public class SynchronousCheckpointITCase {
 		synchronousCheckpointPhase.setState(CheckpointingState.NONE);
 		error.set(null);
 	}
+
+	@Rule
+	public final Timeout timeoutPerTest = Timeout.seconds(10);
 
 	@Test
 	public void taskCachedThreadPoolAllowsForSynchronousCheckpoints() throws Exception {
