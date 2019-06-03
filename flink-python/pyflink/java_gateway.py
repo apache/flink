@@ -28,6 +28,7 @@ from threading import RLock
 
 from py4j.java_gateway import java_import, JavaGateway, GatewayParameters
 from pyflink.find_flink_home import _find_flink_home
+from pyflink.util.exceptions import install_exception_handler
 
 _gateway = None
 _lock = RLock()
@@ -49,6 +50,7 @@ def get_gateway():
 
             # import the flink view
             import_flink_view(_gateway)
+            install_exception_handler()
     return _gateway
 
 
@@ -115,9 +117,10 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
+    java_import(gateway.jvm, "org.apache.flink.table.catalog.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
-    java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
+    java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.types.*")
     java_import(gateway.jvm, "org.apache.flink.table.types.logical.*")
     java_import(gateway.jvm, "org.apache.flink.table.util.python.*")

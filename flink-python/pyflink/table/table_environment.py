@@ -20,6 +20,7 @@ import tempfile
 from abc import ABCMeta, abstractmethod
 
 from pyflink.serializers import BatchedSerializer, PickleSerializer
+from pyflink.table.catalog import Catalog
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDescriptor,
@@ -57,6 +58,30 @@ class TableEnvironment(object):
         :return: The result table.
         """
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source))
+
+    def register_catalog(self, catalog_name, catalog):
+        """
+        Registers a :class:`Catalog` under a unique name.
+        All tables registered in the :class:`Catalog` can be accessed.
+
+        :param catalog_name: The name under which the catalog will be registered.
+        :param catalog: The catalog :class:`Catalog` to register.
+        """
+        self._j_tenv.registerCatalog(catalog_name, catalog._j_catalog)
+
+    def get_catalog(self, catalog_name):
+        """
+        Gets a registered :class:`Catalog` by name.
+
+        :param catalog_name: The name to look up the :class:`Catalog`.
+        :return: The requested catalog :class:`Catalog`, None if there is no registered catalog
+                 with given name.
+        """
+        catalog = self._j_tenv.getCatalog(catalog_name)
+        if catalog.isPresent():
+            return Catalog._get(catalog.get())
+        else:
+            return None
 
     def register_table(self, name, table):
         """
@@ -100,7 +125,10 @@ class TableEnvironment(object):
         """
         Scans a registered table and returns the resulting :class:`Table`.
         A table to scan must be registered in the TableEnvironment. It can be either directly
-        registered as TableSource or Table.
+        registered or be an external member of a :class:`Catalog`.
+
+        See the documentation of :func:`~pyflink.table.TableEnvironment.use_database` or
+        :func:`~pyflink.table.TableEnvironment.use_catalog` for the rules on the path resolution.
 
         Examples:
 

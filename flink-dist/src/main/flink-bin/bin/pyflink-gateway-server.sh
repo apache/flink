@@ -56,7 +56,18 @@ PYTHON_JAR_PATH=`echo "$FLINK_HOME"/opt/flink-python*java-binding.jar`
 FLINK_TEST_CLASSPATH=""
 if [[ -n "$FLINK_TESTING" ]]; then
   bin=`dirname "$0"`
-  FLINK_SOURCE_ROOT_DIR=`cd "$bin/../../"; pwd -P`
+  CURRENT_DIR=`pwd -P`
+  cd "$bin/../../"
+  FLINK_SOURCE_ROOT_DIR=`pwd -P`
+
+  # Downloads avro as it is needed by the unit test
+  AVRO_VERSION=`mvn help:evaluate -Dexpression=avro.version | grep --invert-match -E '\[|Download*'`
+  if [[ ! -f ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-avro/target/avro-"$AVRO_VERSION".jar ]]; then
+      mvn org.apache.maven.plugins:maven-dependency-plugin:2.10:copy -Dartifact=org.apache.avro:avro:"$AVRO_VERSION":jar -DoutputDirectory=$FLINK_SOURCE_ROOT_DIR/flink-formats/flink-avro/target > /dev/null 2>&1
+      if [[ ! -f ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-avro/target/avro-"$AVRO_VERSION".jar ]]; then
+          echo "Download avro-$AVRO_VERSION.jar failed."
+      fi
+  fi
 
   FIND_EXPRESSION=""
   FIND_EXPRESSION="$FIND_EXPRESSION -o -path ${FLINK_SOURCE_ROOT_DIR}/flink-formats/flink-csv/target/flink-csv*.jar"
@@ -76,6 +87,8 @@ if [[ -n "$FLINK_TESTING" ]]; then
     fi
   done < <(find "$FLINK_SOURCE_ROOT_DIR" ! -type d \( -name 'flink-*-tests.jar'${FIND_EXPRESSION} \) -print0 | sort -z)
   set +f
+
+  cd $CURRENT_DIR
 fi
 
 ARGS_COUNT=${#ARGS[@]}

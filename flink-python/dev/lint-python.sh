@@ -411,23 +411,6 @@ function check_stage() {
     echo "All the checks are finished, the detailed information can be found in: $LOG_FILE"
 }
 
-function download_java_dependencies() {
-    INITIAL_DIR=`pwd`
-    cd "$CURRENT_DIR/../../"
-    AVRO_VERSION=`mvn help:evaluate -Dexpression=avro.version | grep --invert-match -E '\[|Download*'`
-    if [ ! -f `pwd`/flink-formats/flink-avro/target/avro-"$AVRO_VERSION".jar ]; then
-        echo "Downloading avro-$AVRO_VERSION.jar..."
-        mvn org.apache.maven.plugins:maven-dependency-plugin:2.10:copy -Dartifact=org.apache.avro:avro:"$AVRO_VERSION":jar -DoutputDirectory=`pwd`/flink-formats/flink-avro/target
-        if [ ! -f `pwd`/flink-formats/flink-avro/target/avro-"$AVRO_VERSION".jar ]; then
-            echo "Download avro-$AVRO_VERSION.jar failed."
-        else
-            echo "avro-$AVRO_VERSION.jar downloaded."
-        fi
-    else
-        echo "avro-$AVRO_VERSION.jar already exists, no need to download."
-    fi
-    cd "$INITIAL_DIR"
-}
 
 ###############################################################All Checks Definitions###############################################################
 #########################
@@ -597,8 +580,6 @@ fi
 
 # install environment
 install_environment
-
-download_java_dependencies
 
 # exec all selected checks
 check_stage

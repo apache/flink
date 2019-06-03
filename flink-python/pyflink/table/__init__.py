@@ -32,6 +32,11 @@ Important classes of Flink Table API:
     - :class:`pyflink.table.TableSink`
       Specifies how to emit a table to an external system or location.
 """
+from pyflink.table.catalog import (Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition,
+                                   CatalogFunction, ObjectPath, CatalogPartitionSpec,
+                                   CatalogTableStatistics, CatalogColumnStatistics, HiveCatalog,
+                                   HiveCatalogDatabase, HiveCatalogFunction, HiveCatalogPartition,
+                                   HiveCatalogTable, HiveCatalogView)
 from pyflink.table.table import Table
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
@@ -70,5 +75,22 @@ __all__ = [
     'Row',
     'Kafka',
     'Elasticsearch',
-    'TableSchema'
+    'TableSchema',
+
+    # Catalog APIs
+    'Catalog',
+    'CatalogDatabase',
+    'CatalogBaseTable',
+    'CatalogPartition',
+    'CatalogFunction',
+    'ObjectPath',
+    'CatalogPartitionSpec',
+    'CatalogTableStatistics',
+    'CatalogColumnStatistics',
+    'HiveCatalog',
+    'HiveCatalogDatabase',
+    'HiveCatalogFunction',
+    'HiveCatalogPartition',
+    'HiveCatalogTable',
+    'HiveCatalogView'
 ]

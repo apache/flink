@@ -193,7 +193,7 @@ class PythonAPICompletenessTestCase(object):
         to the lists you should give a good reason in a comment.
         :return:
         """
-        return {}
+        return {"equals", "hashCode", "toString"}
 
     def test_completeness(self):
         self.check_methods()
