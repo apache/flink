@@ -24,7 +24,6 @@ import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
-@deprecated
 class InMemoryExternalCatalogTest {
 
   private val databaseName = "db1"

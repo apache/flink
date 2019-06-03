@@ -27,7 +27,6 @@ import org.junit.Test
 /**
   * Test for external catalog query plan.
   */
-@deprecated
 class ExternalCatalogTest extends TableTestBase {
   private val table1Path: Array[String] = Array("test", "db1", "tb1")
   private val table1TopLevelPath: Array[String] = Array("test", "tb1")

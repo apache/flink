@@ -29,7 +29,6 @@ import org.junit.Test
 /**
   * Test for inserting into tables from external catalog.
   */
-@deprecated
 class ExternalCatalogInsertTest extends TableTestBase {
   private val tableBatchEnv = BatchTableEnvironment.create(
     ExecutionEnvironment.getExecutionEnvironment)
