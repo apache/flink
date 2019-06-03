@@ -385,6 +385,8 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
             .as_batch_execution()\
             .set_timezone("Asia/Shanghai")\
             .set_max_generated_code_length(64000)\
+            .set_built_in_catalog_name("test_catalog") \
+            .set_built_in_database_name("test_database") \
             .set_null_check(True)\
             .set_parallelism(4).build()
 
@@ -393,13 +395,17 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         assert table_config.max_generated_code_length() == 64000
         assert table_config.timezone() == "Asia/Shanghai"
         assert table_config.is_stream() is False
+        assert table_config.get_built_in_catalog_name() == "test_catalog"
+        assert table_config.get_built_in_database_name() == "test_database"
 
     def test_create_table_environment(self):
         table_config = TableConfig.Builder()\
             .set_parallelism(2)\
             .set_max_generated_code_length(32000)\
             .set_null_check(False)\
-            .set_timezone("Asia/Shanghai")\
+            .set_timezone("Asia/Shanghai") \
+            .set_built_in_catalog_name("test_catalog") \
+            .set_built_in_database_name("test_database") \
             .as_batch_execution()\
             .build()
 
@@ -411,3 +417,5 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         assert readed_table_config.max_generated_code_length() == 32000
         assert readed_table_config.timezone() == "Asia/Shanghai"
         assert readed_table_config.is_stream() is False
+        assert readed_table_config.get_built_in_catalog_name() == "test_catalog"
+        assert readed_table_config.get_built_in_database_name() == "test_database"
