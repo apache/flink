@@ -36,7 +36,6 @@ import org.junit.{Before, Test}
 
 import scala.collection.JavaConverters._
 
-@deprecated
 class ExternalCatalogSchemaTest extends TableTestBase {
 
   private val schemaName: String = "test"
