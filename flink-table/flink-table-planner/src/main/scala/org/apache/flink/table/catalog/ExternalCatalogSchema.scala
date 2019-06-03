@@ -37,7 +37,10 @@ import scala.collection.JavaConverters._
   *
   * @param catalogIdentifier external catalog name
   * @param catalog           external catalog
+  *
+  * @deprecated use [[CatalogCalciteSchema]] instead.
   */
+@deprecated
 class ExternalCatalogSchema(
     isBatch: Boolean,
     catalogIdentifier: String,
