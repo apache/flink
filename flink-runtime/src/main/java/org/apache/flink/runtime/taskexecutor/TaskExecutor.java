@@ -392,6 +392,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		ExceptionUtils.tryRethrowException(exception);
 	}
 
+	public final void shutDown() {
+		this.getRpcService().stopServer(this.rpcServer);
+	}
+
 	// ======================================================================
 	//  RPC methods
 	// ======================================================================

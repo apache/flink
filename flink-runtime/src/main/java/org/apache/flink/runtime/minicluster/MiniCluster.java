@@ -459,6 +459,25 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	@Override
+	public void close(){
+		try {
+			this.closeAsync();
+			Thread.sleep(8000);
+
+			if (taskManagers != null) {
+				for (TaskExecutor tm : taskManagers) {
+					if (tm != null) {
+						tm.shutDown();
+					}
+				}
+			}
+		} catch (Exception var2) {
+			System.out.println("mini cluster close error:"+ var2.getMessage());
+		}
+	}
+
+
 	private CompletableFuture<Void> closeMetricSystem() {
 		synchronized (lock) {
 			final ArrayList<CompletableFuture<Void>> terminationFutures = new ArrayList<>(2);
@@ -525,7 +544,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	protected CompletableFuture<Void> terminateTaskExecutor(int index) {
 		synchronized (lock) {
 			final TaskExecutor taskExecutor = taskManagers.get(index);
-			return taskExecutor.closeAsync();
+			return taskExecutor.getTerminationFuture();
 		}
 	}
 
