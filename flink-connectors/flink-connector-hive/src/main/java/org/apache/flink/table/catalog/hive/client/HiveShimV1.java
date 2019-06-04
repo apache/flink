@@ -20,6 +20,10 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
@@ -30,6 +34,8 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.thrift.TException;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,6 +83,16 @@ public class HiveShimV1 implements HiveShim {
 				throw (NoSuchObjectException) e.getCause();
 			}
 			throw e;
+		}
+	}
+
+	@Override
+	public boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException {
+		try {
+			Method method = FileUtils.class.getDeclaredMethod("moveToTrash", FileSystem.class, Path.class, Configuration.class);
+			return (boolean) method.invoke(null, fs, path, conf);
+		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+			throw new IOException("Failed to move " + path + " to trash", e);
 		}
 	}
 }

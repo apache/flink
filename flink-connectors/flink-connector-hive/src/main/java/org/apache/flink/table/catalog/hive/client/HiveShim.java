@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Function;
@@ -25,10 +28,11 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.thrift.TException;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
- * A shim layer to support different versions of HMS.
+ * A shim layer to support different versions of Hive.
  */
 public interface HiveShim {
 
@@ -62,4 +66,21 @@ public interface HiveShim {
 	 * @throws TException            for any other generic exceptions caused by Thrift
 	 */
 	Function getFunction(IMetaStoreClient client, String dbName, String functionName) throws NoSuchObjectException, TException;
+
+	/**
+	 * Moves a particular file or directory to trash.
+	 * The file/directory can potentially be deleted (w/o going to trash) if purge is set to true, or if it cannot
+	 * be moved properly.
+	 *
+	 * <p>This interface is here because FileUtils.moveToTrash in different Hive versions have different signatures.
+	 *
+	 * @param fs    the FileSystem to use
+	 * @param path  the path of the file or directory to be moved to trash.
+	 * @param conf  the Configuration to use
+	 * @param purge whether try to skip trash and directly delete the file/directory. This flag may be ignored by
+	 *              old Hive versions prior to 2.3.0.
+	 * @return true if the move is successful, and false otherwise
+	 * @throws IOException if the file/directory cannot be properly moved or deleted
+	 */
+	boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException;
 }
