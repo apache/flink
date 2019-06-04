@@ -61,6 +61,24 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 		return Optional.of(schedulingResultPartitions.get(intermediateResultPartitionId));
 	}
 
+	@Override
+	public SchedulingResultPartition getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId) {
+		final SchedulingResultPartition schedulingResultPartition = schedulingResultPartitions.get(intermediateResultPartitionId);
+		if (schedulingResultPartition == null) {
+			throw new IllegalStateException("can not find scheduling result partition for " + intermediateResultPartitionId);
+		}
+		return schedulingResultPartition;
+	}
+
+	@Override
+	public SchedulingExecutionVertex getVertexOrThrow(ExecutionVertexID executionVertexId) {
+		final SchedulingExecutionVertex schedulingExecutionVertex = schedulingExecutionVertices.get(executionVertexId);
+		if (schedulingExecutionVertex == null) {
+			throw new IllegalStateException("can not find scheduling vertex for " + executionVertexId);
+		}
+		return schedulingExecutionVertex;
+	}
+
 	void addSchedulingExecutionVertex(SchedulingExecutionVertex schedulingExecutionVertex) {
 		schedulingExecutionVertices.put(schedulingExecutionVertex.getId(), schedulingExecutionVertex);
 		addSchedulingResultPartitions(schedulingExecutionVertex.getConsumedResultPartitions());
@@ -210,8 +228,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 				for (TestingSchedulingExecutionVertex consumer : consumers) {
 					consumer.addConsumedPartition(resultPartition);
 					resultPartition.addConsumer(consumer);
-					resultPartitions.add(resultPartition);
 				}
+				resultPartitions.add(resultPartition);
 			}
 
 			return resultPartitions;

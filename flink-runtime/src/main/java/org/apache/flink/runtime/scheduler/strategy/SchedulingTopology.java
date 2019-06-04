@@ -44,10 +44,26 @@ public interface SchedulingTopology {
 	Optional<SchedulingExecutionVertex> getVertex(ExecutionVertexID executionVertexId);
 
 	/**
+	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
+	 *
+	 * @param executionVertexId identifying the respective scheduling vertex
+	 * @return The respective scheduling vertex or throw {@link Exception} if the vertex does not exist
+	 */
+	SchedulingExecutionVertex getVertexOrThrow(ExecutionVertexID executionVertexId);
+
+	/**
 	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
 	 *
 	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
 	 * @return Optional containing the respective scheduling result partition or none if the partition does not exist
 	 */
 	Optional<SchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId);
+
+	/**
+	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
+	 *
+	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
+	 * @return The respective scheduling result partition or throw {@link Exception} if the partition does not exist
+	 */
+	SchedulingResultPartition getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId);
 }

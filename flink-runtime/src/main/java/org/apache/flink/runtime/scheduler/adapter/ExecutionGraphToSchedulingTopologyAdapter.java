@@ -83,8 +83,26 @@ public class ExecutionGraphToSchedulingTopologyAdapter implements SchedulingTopo
 	}
 
 	@Override
+	public SchedulingExecutionVertex getVertexOrThrow(ExecutionVertexID executionVertexId) {
+		final SchedulingExecutionVertex schedulingExecutionVertex = executionVerticesById.get(executionVertexId);
+		if (schedulingExecutionVertex == null) {
+			throw new IllegalStateException("can not find scheduling vertex for " + executionVertexId);
+		}
+		return schedulingExecutionVertex;
+	}
+
+	@Override
 	public Optional<SchedulingResultPartition> getResultPartition(IntermediateResultPartitionID intermediateResultPartitionId) {
 		return Optional.ofNullable(resultPartitionsById.get(intermediateResultPartitionId));
+	}
+
+	@Override
+	public SchedulingResultPartition getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId) {
+		final SchedulingResultPartition schedulingResultPartition = resultPartitionsById.get(intermediateResultPartitionId);
+		if (schedulingResultPartition == null) {
+			throw new IllegalStateException("can not find scheduling result partition for " + intermediateResultPartitionId);
+		}
+		return schedulingResultPartition;
 	}
 
 	private static List<DefaultSchedulingResultPartition> generateProducedSchedulingResultPartition(

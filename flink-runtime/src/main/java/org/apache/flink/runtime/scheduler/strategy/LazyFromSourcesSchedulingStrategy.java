@@ -86,7 +86,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		// increase counter of the dataset first
 		verticesToRestart
 			.stream()
-			.map(this::getSchedulingVertex)
+			.map(schedulingTopology::getVertexOrThrow)
 			.flatMap(vertex -> vertex.getProducedResultPartitions().stream())
 			.forEach(inputConstraintChecker::resetSchedulingResultPartition);
 
@@ -99,7 +99,7 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 			return;
 		}
 
-		final Set<SchedulingExecutionVertex> verticesToSchedule = getSchedulingVertex(executionVertexId)
+		final Set<SchedulingExecutionVertex> verticesToSchedule = schedulingTopology.getVertexOrThrow(executionVertexId)
 			.getProducedResultPartitions()
 			.stream()
 			.flatMap(partition -> inputConstraintChecker.markSchedulingResultPartitionFinished(partition).stream())
@@ -112,15 +112,13 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 	@Override
 	public void onPartitionConsumable(ExecutionVertexID executionVertexId, ResultPartitionID resultPartitionId) {
 		final SchedulingResultPartition resultPartition = schedulingTopology
-				.getResultPartition(resultPartitionId.getPartitionId())
-				.orElseThrow(() -> new IllegalStateException("can not find scheduling result partition for "
-						+ resultPartitionId));
+			.getResultPartitionOrThrow(resultPartitionId.getPartitionId());
 
 		if (!resultPartition.getPartitionType().isPipelined()) {
 			return;
 		}
 
-		final SchedulingExecutionVertex producerVertex = getSchedulingVertex(executionVertexId);
+		final SchedulingExecutionVertex producerVertex = schedulingTopology.getVertexOrThrow(executionVertexId);
 		if (!producerVertex.getProducedResultPartitions().contains(resultPartition)) {
 			throw new IllegalStateException("partition " + resultPartitionId
 					+ " is not the produced partition of " + executionVertexId);
@@ -129,16 +127,11 @@ public class LazyFromSourcesSchedulingStrategy implements SchedulingStrategy {
 		allocateSlotsAndDeployExecutionVertices(resultPartition.getConsumers());
 	}
 
-	private SchedulingExecutionVertex getSchedulingVertex(final ExecutionVertexID executionVertexId) {
-		return schedulingTopology.getVertex(executionVertexId)
-			.orElseThrow(() -> new IllegalStateException("can not find scheduling vertex for " + executionVertexId));
-	}
-
 	private void allocateSlotsAndDeployExecutionVertexIds(Set<ExecutionVertexID> verticesToSchedule) {
 		allocateSlotsAndDeployExecutionVertices(
 			verticesToSchedule
 				.stream()
-				.map(this::getSchedulingVertex)
+				.map(schedulingTopology::getVertexOrThrow)
 				.collect(Collectors.toList()));
 	}
 
