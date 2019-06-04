@@ -70,6 +70,7 @@ import org.junit.rules.Timeout;
 
 import java.util.Collections;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.hamcrest.Matchers.is;
@@ -151,11 +152,16 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
-			eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
-			boolean result = super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
-			eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
-			return result;
+		public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+			try {
+				eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
+				Future<Boolean> result = super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+				eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
+				return result;
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
 		}
 
 		@Override

@@ -30,6 +30,7 @@ import org.apache.flink.util.FlinkException;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -85,7 +86,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
 					try {
-						SourceStreamTask.super.triggerCheckpoint(checkpointMetaData, checkpointOptions, false);
+						SourceStreamTask.super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, false)
+							.get();
 					}
 					catch (RuntimeException e) {
 						throw e;
@@ -151,14 +153,14 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
+	public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 		if (!externallyInducedCheckpoints) {
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+			return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 		else {
 			// we do not trigger checkpoints here, we simply state whether we can trigger them
 			synchronized (getCheckpointLock()) {
-				return isRunning();
+				return CompletableFuture.completedFuture(isRunning());
 			}
 		}
 	}
@@ -167,6 +169,14 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void declineCheckpoint(long checkpointId) {
 		if (!externallyInducedCheckpoints) {
 			super.declineCheckpoint(checkpointId);
+		}
+	}
+
+	@Override
+	protected void handleCheckpointException(Exception exception) {
+		// For externally induced checkpoints, the exception would be passed via triggerCheckpointAsync future.
+		if (!externallyInducedCheckpoints) {
+			super.handleCheckpointException(exception);
 		}
 	}
 
