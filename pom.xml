@@ -102,7 +102,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
-		<flink.shaded.version>6.0</flink.shaded.version>
+		<flink.shaded.version>7.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<java.version>1.8</java.version>
@@ -121,7 +121,7 @@ under the License.
 		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
-		<jackson.version>2.7.9</jackson.version>
+		<jackson.version>2.9.8</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
