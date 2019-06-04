@@ -18,17 +18,24 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +120,44 @@ public class HiveTableUtil {
 		properties.setProperty(serdeConstants.SERIALIZATION_NULL_FORMAT, "NULL");
 		properties.putAll(parameters);
 		return properties;
+	}
+
+	/**
+	 * Creates a Hive partition instance.
+	 */
+	public static Partition createHivePartition(String dbName, String tableName, List<String> values,
+			StorageDescriptor sd, Map<String, String> parameters) {
+		Partition partition = new Partition();
+		partition.setDbName(dbName);
+		partition.setTableName(tableName);
+		partition.setValues(values);
+		partition.setParameters(parameters);
+		partition.setSd(sd);
+		int currentTime = (int) (System.currentTimeMillis() / 1000);
+		partition.setCreateTime(currentTime);
+		partition.setLastAccessTime(currentTime);
+		return partition;
+	}
+
+	/**
+	 * Get Hive {@link ObjectInspector} for a Flink {@link TypeInformation}.
+	 */
+	public static ObjectInspector getObjectInspector(DataType flinkType) throws IOException {
+		return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType));
+	}
+
+	// TODO: reuse Hive's TypeInfoUtils?
+	private static ObjectInspector getObjectInspector(TypeInfo type) throws IOException {
+		switch (type.getCategory()) {
+
+			case PRIMITIVE:
+				PrimitiveTypeInfo primitiveType = (PrimitiveTypeInfo) type;
+				return PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(primitiveType);
+
+			// TODO: support complex types
+			default:
+				throw new IOException("Unsupported Hive type category " + type.getCategory());
+		}
 	}
 
 }

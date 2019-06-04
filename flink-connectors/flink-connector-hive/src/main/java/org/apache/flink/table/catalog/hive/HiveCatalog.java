@@ -784,7 +784,6 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private Partition instantiateHivePartition(Table hiveTable, CatalogPartitionSpec partitionSpec, CatalogPartition catalogPartition)
 			throws PartitionSpecInvalidException {
-		Partition partition = new Partition();
 		List<String> partCols = getFieldNames(hiveTable.getPartitionKeys());
 		List<String> partValues = getOrderedFullPartitionValues(
 			partitionSpec, partCols, new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()));
@@ -797,15 +796,10 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 		// TODO: handle GenericCatalogPartition
 		HiveCatalogPartition hiveCatalogPartition = (HiveCatalogPartition) catalogPartition;
-		partition.setValues(partValues);
-		partition.setDbName(hiveTable.getDbName());
-		partition.setTableName(hiveTable.getTableName());
-		partition.setCreateTime((int) (System.currentTimeMillis() / 1000));
-		partition.setParameters(hiveCatalogPartition.getProperties());
-		partition.setSd(hiveTable.getSd().deepCopy());
-		partition.getSd().setLocation(hiveCatalogPartition.getLocation());
-
-		return partition;
+		StorageDescriptor sd = hiveTable.getSd().deepCopy();
+		sd.setLocation(hiveCatalogPartition.getLocation());
+		return HiveTableUtil.createHivePartition(hiveTable.getDbName(), hiveTable.getTableName(), partValues,
+				sd, hiveCatalogPartition.getProperties());
 	}
 
 	private static CatalogPartition instantiateCatalogPartition(Partition hivePartition) {
@@ -822,7 +816,7 @@ public class HiveCatalog extends AbstractCatalog {
 	/**
 	 * Get field names from field schemas.
 	 */
-	private static List<String> getFieldNames(List<FieldSchema> fieldSchemas) {
+	public static List<String> getFieldNames(List<FieldSchema> fieldSchemas) {
 		List<String> names = new ArrayList<>(fieldSchemas.size());
 		for (FieldSchema fs : fieldSchemas) {
 			names.add(fs.getName());

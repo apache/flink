@@ -26,13 +26,12 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
@@ -87,7 +86,7 @@ public class HiveInputFormatTest {
 		);
 		//Now we used metaStore client to create hive table instead of using hiveCatalog for it doesn't support set
 		//serDe temporarily.
-		IMetaStoreClient client = RetryingMetaStoreClient.getProxy(hiveConf, null, null, HiveMetaStoreClient.class.getName(), true);
+		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf);
 		org.apache.hadoop.hive.metastore.api.Table tbl = new org.apache.hadoop.hive.metastore.api.Table();
 		tbl.setDbName(dbName);
 		tbl.setTableName(tblName);
