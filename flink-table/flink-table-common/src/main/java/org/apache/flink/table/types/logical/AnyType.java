@@ -141,7 +141,7 @@ public final class AnyType<T> extends LogicalType {
 		if (serializerString == null) {
 			final DataOutputSerializer outputSerializer = new DataOutputSerializer(128);
 			try {
-				serializer.snapshotConfiguration().writeSnapshot(outputSerializer);
+				TypeSerializerSnapshot.writeVersionedSnapshot(outputSerializer, serializer.snapshotConfiguration());
 				serializerString = EncodingUtils.encodeBytesToBase64(outputSerializer.getCopyOfBuffer());
 				return serializerString;
 			} catch (Exception e) {
@@ -149,7 +149,7 @@ public final class AnyType<T> extends LogicalType {
 					"Unable to generate a string representation of the serializer snapshot of '%s' " +
 						"describing the class '%s' for the ANY type.",
 					serializer.getClass().getName(),
-					clazz.toString()));
+					clazz.toString()), e);
 			}
 		}
 		return serializerString;
