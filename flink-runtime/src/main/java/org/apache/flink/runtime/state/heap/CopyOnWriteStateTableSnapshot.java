@@ -20,15 +20,9 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import java.io.IOException;
 
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing.
@@ -40,8 +34,7 @@ import java.io.IOException;
  */
 @Internal
 public class CopyOnWriteStateTableSnapshot<K, N, S>
-		extends AbstractStateTableSnapshot<K, N, S, CopyOnWriteStateTable<K, N, S>>
-		implements StateSnapshot.StateKeyGroupWriter {
+		extends AbstractStateTableSnapshot<K, N, S, CopyOnWriteStateTable<K, N, S>> {
 
 	/**
 	 * The offset to the contiguous key groups.
@@ -55,81 +48,34 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	private final CopyOnWriteStateMapSnapshot<K, N, S>[] snapshotStateMap;
 
 	/**
-	 * A local duplicate of the table's key serializer.
-	 */
-	@Nonnull
-	private final TypeSerializer<K> localKeySerializer;
-
-	/**
-	 * A local duplicate of the table's namespace serializer.
-	 */
-	@Nonnull
-	private final TypeSerializer<N> localNamespaceSerializer;
-
-	/**
-	 * A local duplicate of the table's state serializer.
-	 */
-	@Nonnull
-	private final TypeSerializer<S> localStateSerializer;
-
-	@Nullable
-	private final StateSnapshotTransformer<S> stateSnapshotTransformer;
-
-	/**
 	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
 	 *
 	 * @param owningStateTable the {@link CopyOnWriteStateTable} for which this object represents a snapshot.
 	 */
-	CopyOnWriteStateTableSnapshot(CopyOnWriteStateTable<K, N, S> owningStateTable) {
+	CopyOnWriteStateTableSnapshot(
+		CopyOnWriteStateTable<K, N, S> owningStateTable,
+		TypeSerializer<K> localKeySerializer,
+		TypeSerializer<N> localNamespaceSerializer,
+		TypeSerializer<S> localStateSerializer,
+		StateSnapshotTransformer<S> stateSnapshotTransformer) {
+		super(owningStateTable,
+			localKeySerializer,
+			localNamespaceSerializer,
+			localStateSerializer,
+			stateSnapshotTransformer);
 
-		super(owningStateTable);
 		this.keyGroupOffset = owningStateTable.getKeyGroupOffset();
 		this.snapshotStateMap = owningStateTable.getStateMapSnapshotArray();
-
-		// We create duplicates of the serializers for the async snapshot, because TypeSerializer
-		// might be stateful and shared with the event processing thread.
-		this.localKeySerializer = owningStateTable.keySerializer.duplicate();
-		this.localNamespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer().duplicate();
-		this.localStateSerializer = owningStateTable.metaInfo.getStateSerializer().duplicate();
-
-		this.stateSnapshotTransformer = owningStateTable.metaInfo.
-			getStateSnapshotTransformFactory().createForDeserializedState().orElse(null);
 	}
 
 	@Override
-	public StateKeyGroupWriter getKeyGroupWriter() {
-		return this;
-	}
-
-	@Override
-	public void writeStateInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
-		int indexOffset = keyGroupId - keyGroupOffset;
+	protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(int keyGroup) {
+		int indexOffset = keyGroup - keyGroupOffset;
 		CopyOnWriteStateMapSnapshot<K, N, S> stateMapSnapshot = null;
 		if (indexOffset >= 0 && indexOffset < snapshotStateMap.length) {
 			stateMapSnapshot = snapshotStateMap[indexOffset];
 		}
 
-		if (stateMapSnapshot == null) {
-			dov.writeInt(0);
-			return;
-		}
-
-		CopyOnWriteStateMapSnapshot.SnapshotIterator<K, N, S> snapshotIterator =
-			stateMapSnapshot.getSnapshotIterator(stateSnapshotTransformer);
-		dov.writeInt(snapshotIterator.size());
-
-		while (snapshotIterator.hasNext()) {
-			CopyOnWriteStateMap.StateMapEntry<K, N, S> entry = snapshotIterator.next();
-			localNamespaceSerializer.serialize(entry.namespace, dov);
-			localKeySerializer.serialize(entry.key, dov);
-			localStateSerializer.serialize(entry.state, dov);
-		}
-		stateMapSnapshot.release();
-	}
-
-	@Nonnull
-	@Override
-	public StateMetaInfoSnapshot getMetaInfoSnapshot() {
-		return owningStateTable.metaInfo.snapshot();
+		return stateMapSnapshot;
 	}
 }

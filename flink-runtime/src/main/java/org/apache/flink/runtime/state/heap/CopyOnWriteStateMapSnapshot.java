@@ -46,12 +46,8 @@ import java.util.Objects;
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public class CopyOnWriteStateMapSnapshot<K, N, S> {
-
-	/**
-	 * The {@link StateMap} from which this snapshot was created.
-	 */
-	final CopyOnWriteStateMap<K, N, S> owningStateMap;
+public class CopyOnWriteStateMapSnapshot<K, N, S>
+	extends StateMapSnapshot<K, N, S, CopyOnWriteStateMap<K, N, S>> {
 
 	/**
 	 * Version of the {@link CopyOnWriteStateMap} when this snapshot was created. This can be used to release the snapshot.
@@ -76,22 +72,16 @@ public class CopyOnWriteStateMapSnapshot<K, N, S> {
 	 * @param owningStateMap the {@link CopyOnWriteStateMap} for which this object represents a snapshot.
 	 */
 	CopyOnWriteStateMapSnapshot(CopyOnWriteStateMap<K, N, S> owningStateMap) {
+		super(owningStateMap);
 
-		this.owningStateMap = Preconditions.checkNotNull(owningStateMap);
 		this.snapshotData = owningStateMap.snapshotMapArrays();
 		this.snapshotVersion = owningStateMap.getStateMapVersion();
 		this.numberOfEntriesInSnapshotData = owningStateMap.size();
 	}
 
-	void release() {
+	@Override
+	public void release() {
 		owningStateMap.releaseSnapshot(this);
-	}
-
-	/**
-	 * Returns true iff the given state map is the owner of this snapshot object.
-	 */
-	boolean isOwner(CopyOnWriteStateMap<K, N, S> stateMap) {
-		return stateMap == owningStateMap;
 	}
 
 	/**
@@ -102,7 +92,8 @@ public class CopyOnWriteStateMapSnapshot<K, N, S> {
 		return snapshotVersion;
 	}
 
-	SnapshotIterator<K, N, S> getSnapshotIterator(StateSnapshotTransformer<S> stateSnapshotTransformer) {
+	@Override
+	public SnapshotIterator<K, N, S> getStateMapSnapshotIterator(StateSnapshotTransformer<S> stateSnapshotTransformer) {
 		return stateSnapshotTransformer == null ?
 			new NonTransformSnapshotIterator<>(numberOfEntriesInSnapshotData, snapshotData) :
 			new TransformedSnapshotIterator<>(numberOfEntriesInSnapshotData, snapshotData, stateSnapshotTransformer);
@@ -111,7 +102,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S> {
 	/**
 	 * Iterator over state entries in a {@link CopyOnWriteStateMapSnapshot}.
 	 */
-	abstract static class SnapshotIterator<K, N, S> implements Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> {
+	abstract static class SnapshotIterator<K, N, S> implements StateMapSnapshotIterator<K, N, S> {
 
 		int numberOfEntriesInSnapshotData;
 
@@ -151,11 +142,6 @@ public class CopyOnWriteStateMapSnapshot<K, N, S> {
 		abstract Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getEntryIterator(
 			CopyOnWriteStateMap.StateMapEntry<K, N, S> stateMapEntry);
 
-		/**
-		 * Return the number of state entries in this snapshot after transform.
-		 */
-		abstract int size();
-
 		@Override
 		public boolean hasNext() {
 			return entryIterator.hasNext() || chainIterator.hasNext();
@@ -189,7 +175,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S> {
 		}
 
 		@Override
-		int size() {
+		public int size() {
 			return numberOfEntriesInSnapshotData;
 		}
 
@@ -290,7 +276,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S> {
 		}
 
 		@Override
-		int size() {
+		public int size() {
 			return numberOfEntriesInSnapshotData;
 		}
 

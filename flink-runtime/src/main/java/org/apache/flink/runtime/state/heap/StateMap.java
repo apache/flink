@@ -20,9 +20,12 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.stream.Stream;
 
@@ -33,7 +36,7 @@ import java.util.stream.Stream;
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public abstract class StateMap<K, N, S> {
+public abstract class StateMap<K, N, S> implements Iterable<StateEntry<K, N, S>> {
 
 	/**
 	 * The serializer of the state.
@@ -156,6 +159,23 @@ public abstract class StateMap<K, N, S> {
 
 	public TypeSerializer<S> getStateSerializer() {
 		return stateSerializer;
+	}
+
+	/**
+	 * Creates a snapshot of this {@link StateMap}, to be written in checkpointing. Users should call
+	 * {@link #releaseSnapshot(StateMapSnapshot)} after using the returned object.
+	 *
+	 * @return a snapshot from this {@link StateMap}, for checkpointing.
+	 */
+	@Nonnull
+	public abstract StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> stateSnapshot();
+
+	/**
+	 * Releases a snapshot for this {@link StateMap}. This method should be called once a snapshot is no more needed.
+	 *
+	 * @param snapshotToRelease the snapshot to release, which was previously created by this state map.
+	 */
+	public void releaseSnapshot(StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> snapshotToRelease) {
 	}
 
 	// For testing --------------------------------------------------------------------------------

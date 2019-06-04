@@ -98,7 +98,7 @@ import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
  * @param <N> type of namespace.
  * @param <S> type of value.
  */
-public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> implements Iterable<StateEntry<K, N, S>> {
+public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
 	/**
 	 * The logger.
@@ -256,7 +256,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> implements I
 		primaryTable = makeTable(capacity);
 	}
 
-	// Public API from AbstractStateMap ------------------------------------------------------------------------------
+	// Public API from StateMap ------------------------------------------------------------------------------
 
 	/**
 	 * Returns the total number of entries in this {@link CopyOnWriteStateMap}. This is the sum of both sub-maps.
@@ -455,7 +455,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> implements I
 	// Private utility functions for StateMap management -------------------------------------------------------------
 
 	/**
-	 * @see #releaseSnapshot(CopyOnWriteStateMapSnapshot)
+	 * @see #releaseSnapshot(StateMapSnapshot)
 	 */
 	@VisibleForTesting
 	void releaseSnapshot(int snapshotVersion) {
@@ -751,11 +751,12 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> implements I
 	/**
 	 * Creates a snapshot of this {@link CopyOnWriteStateMap}, to be written in checkpointing. The snapshot integrity
 	 * is protected through copy-on-write from the {@link CopyOnWriteStateMap}. Users should call
-	 * {@link #releaseSnapshot(CopyOnWriteStateMapSnapshot)} after using the returned object.
+	 * {@link #releaseSnapshot(StateMapSnapshot)} after using the returned object.
 	 *
 	 * @return a snapshot from this {@link CopyOnWriteStateMap}, for checkpointing.
 	 */
 	@Nonnull
+	@Override
 	public CopyOnWriteStateMapSnapshot<K, N, S> stateSnapshot() {
 		return new CopyOnWriteStateMapSnapshot<>(this);
 	}
@@ -767,12 +768,15 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> implements I
 	 *
 	 * @param snapshotToRelease the snapshot to release, which was previously created by this state map.
 	 */
-	void releaseSnapshot(CopyOnWriteStateMapSnapshot<K, N, S> snapshotToRelease) {
+	@Override
+	public void releaseSnapshot(StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> snapshotToRelease) {
 
-		Preconditions.checkArgument(snapshotToRelease.isOwner(this),
+		CopyOnWriteStateMapSnapshot<K, N, S> copyOnWriteStateMapSnapshot = (CopyOnWriteStateMapSnapshot<K, N, S>) snapshotToRelease;
+
+			Preconditions.checkArgument(copyOnWriteStateMapSnapshot.isOwner(this),
 			"Cannot release snapshot which is owned by a different state map.");
 
-		releaseSnapshot(snapshotToRelease.getSnapshotVersion());
+		releaseSnapshot(copyOnWriteStateMapSnapshot.getSnapshotVersion());
 	}
 
 	// StateMapEntry -------------------------------------------------------------------------------------------------
