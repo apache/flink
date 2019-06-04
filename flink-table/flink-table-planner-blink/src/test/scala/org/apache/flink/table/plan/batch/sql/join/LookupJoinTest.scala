@@ -123,7 +123,7 @@ class LookupJoinTest extends TableTestBase {
     testUtil.tableEnv.getConfig.setCalciteConfig(calciteConfig)
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("VARCHAR(65536) and INTEGER does not have common type now")
+    thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
 
     testUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN temporalTest "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")

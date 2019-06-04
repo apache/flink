@@ -18,25 +18,29 @@
 
 package org.apache.flink.table.expressions.utils
 
-import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan}
-import org.apache.calcite.rel.rules._
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
 import org.apache.flink.api.common.TaskInfo
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.`type`.{InternalTypes, RowType, TypeConverters}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.{RowType, VarCharType}
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
+
+import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan}
+import org.apache.calcite.rel.rules._
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
@@ -86,14 +90,15 @@ abstract class ExpressionTestBase {
   @After
   def evaluateExprs(): Unit = {
     val ctx = CodeGeneratorContext(config)
-    val inputType = TypeConverters.createInternalTypeFromTypeInfo(typeInfo)
+    val inputType = fromTypeInfoToLogicalType(typeInfo)
     val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false).bindInput(inputType)
 
     // cast expressions to String
     val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._2, VARCHAR))
 
     // generate code
-    val resultType = new RowType(Seq.fill(testExprs.size)(InternalTypes.STRING): _*)
+    val resultType = RowType.of(Seq.fill(testExprs.size)(
+      new VarCharType(VarCharType.MAX_LENGTH)): _*)
 
     val exprs = stringTestExprs.map(exprGenerator.generateExpression)
     val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRow])
@@ -131,7 +136,7 @@ abstract class ExpressionTestBase {
     }
 
     val converter = DataFormatConverters
-      .getConverterForTypeInfo(typeInfo)
+      .getConverterForDataType(dataType)
       .asInstanceOf[DataFormatConverters.DataFormatConverter[BaseRow, Row]]
     val testRow = converter.toInternal(testData)
     val result = mapper.map(testRow)
@@ -199,5 +204,7 @@ abstract class ExpressionTestBase {
   def testData: Row
 
   def typeInfo: RowTypeInfo
+
+  def dataType: DataType = TypeConversions.fromLegacyInfoToDataType(typeInfo)
 
 }

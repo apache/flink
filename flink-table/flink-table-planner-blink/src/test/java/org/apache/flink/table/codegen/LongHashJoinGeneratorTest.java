@@ -24,8 +24,8 @@ import org.apache.flink.table.generated.GeneratedJoinCondition;
 import org.apache.flink.table.generated.JoinCondition;
 import org.apache.flink.table.runtime.join.HashJoinType;
 import org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,13 +37,13 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 
 	@Override
 	public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
-		RowType keyType = new RowType(InternalTypes.INT);
+		RowType keyType = RowType.of(new IntType());
 		Assert.assertTrue(LongHashJoinGenerator.support(type, keyType, new boolean[] {true}));
 		return LongHashJoinGenerator.gen(
 				new TableConfig(), type,
 				keyType,
-				new RowType(InternalTypes.INT, InternalTypes.INT),
-				new RowType(InternalTypes.INT, InternalTypes.INT),
+				RowType.of(new IntType(), new IntType()),
+				RowType.of(new IntType(), new IntType()),
 				new int[]{0},
 				new int[]{0},
 				memorySize, memorySize, 0, 20, 10000,

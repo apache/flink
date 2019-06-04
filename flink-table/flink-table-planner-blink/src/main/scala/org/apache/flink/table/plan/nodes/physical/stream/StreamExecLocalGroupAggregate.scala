@@ -30,6 +30,7 @@ import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.aggregate.MiniBatchLocalGroupAggFunction
 import org.apache.flink.table.runtime.bundle.MapBundleOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
@@ -119,7 +120,7 @@ class StreamExecLocalGroupAggregate(
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(tableEnv.getConfig),
       tableEnv.getRelBuilder,
-      inRowType.getFieldTypes,
+      inRowType.getChildren,
       // the local aggregate result will be buffered, so need copy
       copyInputField = true)
 
@@ -146,7 +147,7 @@ class StreamExecLocalGroupAggregate(
       inputTransformation,
       "LocalGroupAggregate",
       operator,
-      outRowType.toTypeInfo,
+      BaseRowTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     transformation

@@ -47,7 +47,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)]), rowType=[RecordType(DOUBLE EXPR$0)]
 +- LogicalProject($f0=[CAST($0):DOUBLE]), rowType=[RecordType(DOUBLE $f0)]
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c)]
+   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -56,7 +56,7 @@ GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordT
 +- Exchange(distribution=[single]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
    +- LocalGroupAggregate(select=[AVG($f0) AS (sum$0, count$1)]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
       +- Calc(select=[CAST(a) AS $f0]), rowType=[RecordType(DOUBLE $f0)]
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c)]
+         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
   </TestCase>

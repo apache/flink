@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.typeutils
 
-import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, TimestampType}
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, FloatType, IntType, LogicalType, SmallIntType, TinyIntType}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 /**
@@ -26,29 +27,30 @@ import org.apache.flink.table.typeutils.TypeCheckUtils._
   */
 object TypeCoercion {
 
-  val numericWideningPrecedence: IndexedSeq[InternalType] =
+  val numericWideningPrecedence: IndexedSeq[LogicalType] =
     IndexedSeq(
-      InternalTypes.BYTE,
-      InternalTypes.SHORT,
-      InternalTypes.INT,
-      InternalTypes.LONG,
-      InternalTypes.FLOAT,
-      InternalTypes.DOUBLE)
+      new TinyIntType(),
+      new SmallIntType(),
+      new IntType(),
+      new BigIntType(),
+      new FloatType(),
+      new DoubleType())
 
-  def widerTypeOf(tp1: InternalType, tp2: InternalType): Option[InternalType] = {
-    (tp1, tp2) match {
-      case (ti1, ti2) if ti1 == ti2 => Some(ti1)
+  def widerTypeOf(tp1: LogicalType, tp2: LogicalType): Option[LogicalType] = {
+    (tp1.getTypeRoot, tp2.getTypeRoot) match {
+      case (_, _) if tp1 == tp2 => Some(tp1)
 
-      case (_, InternalTypes.STRING) => Some(InternalTypes.STRING)
-      case (InternalTypes.STRING, _) => Some(InternalTypes.STRING)
+      case (_, VARCHAR) => Some(tp2)
+      case (VARCHAR, _) => Some(tp1)
 
-      case (_, dt: DecimalType) => Some(dt)
-      case (dt: DecimalType, _) => Some(dt)
+      case (_, DECIMAL) => Some(tp2)
+      case (DECIMAL, _) => Some(tp1)
 
-      case (a, b) if isTimePoint(a) && isTimeInterval(b) => Some(a)
-      case (a, b) if isTimeInterval(a) && isTimePoint(b) => Some(b)
+      case (_, _) if isTimePoint(tp1) && isTimeInterval(tp2) => Some(tp1)
+      case (_, _) if isTimeInterval(tp1) && isTimePoint(tp2) => Some(tp2)
 
-      case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
+      case (_, _) if numericWideningPrecedence.contains(tp1) &&
+          numericWideningPrecedence.contains(tp2) =>
         val higherIndex = numericWideningPrecedence.lastIndexWhere(t => t == tp1 || t == tp2)
         Some(numericWideningPrecedence(higherIndex))
 
@@ -59,12 +61,14 @@ object TypeCoercion {
   /**
     * Test if we can do cast safely without lose of type.
     */
-  def canSafelyCast(from: InternalType, to: InternalType): Boolean = (from, to) match {
-    case (_, InternalTypes.STRING) => true
+  def canSafelyCast(
+      from: LogicalType, to: LogicalType): Boolean = (from.getTypeRoot, to.getTypeRoot) match {
+    case (_, VARCHAR) => true
 
-    case (a, _: DecimalType) if isNumeric(a) => true
+    case (_, DECIMAL) if isNumeric(from) => true
 
-    case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
+    case (_, _) if numericWideningPrecedence.contains(from) &&
+        numericWideningPrecedence.contains(to) =>
       if (numericWideningPrecedence.indexOf(from) < numericWideningPrecedence.indexOf(to)) {
         true
       } else {
@@ -81,52 +85,53 @@ object TypeCoercion {
     * Note: This is a subset of SqlTypeAssignmentRule
     * Note: This may lose type during the cast.
     */
-  def canCast(from: InternalType, to: InternalType): Boolean = (from, to) match {
-    case (fromTp, toTp) if fromTp == toTp => true
+  def canCast(
+      from: LogicalType, to: LogicalType): Boolean = (from.getTypeRoot, to.getTypeRoot) match {
+    case (_, _) if from == to => true
 
-    case (_, InternalTypes.STRING) => true
+    case (_, VARCHAR) => true
 
-    case (InternalTypes.STRING, b) if isNumeric(b) => true
-    case (InternalTypes.STRING, InternalTypes.BOOLEAN) => true
-    case (InternalTypes.STRING, _: DecimalType) => true
-    case (InternalTypes.STRING, InternalTypes.DATE) => true
-    case (InternalTypes.STRING, InternalTypes.TIME) => true
-    case (InternalTypes.STRING, _: TimestampType) => true
+    case (VARCHAR, _) if isNumeric(to) => true
+    case (VARCHAR, BOOLEAN) => true
+    case (VARCHAR, DECIMAL) => true
+    case (VARCHAR, DATE) => true
+    case (VARCHAR, TIME_WITHOUT_TIME_ZONE) => true
+    case (VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE) => true
 
-    case (InternalTypes.BOOLEAN, b) if isNumeric(b) => true
-    case (InternalTypes.BOOLEAN, _: DecimalType) => true
-    case (a, InternalTypes.BOOLEAN) if isNumeric(a) => true
-    case (_: DecimalType, InternalTypes.BOOLEAN) => true
+    case (BOOLEAN, _) if isNumeric(to) => true
+    case (BOOLEAN, DECIMAL) => true
+    case (_, BOOLEAN) if isNumeric(from) => true
+    case (DECIMAL, BOOLEAN) => true
 
-    case (a, b) if isNumeric(a) && isNumeric(b) => true
-    case (a, _: DecimalType) if isNumeric(a) => true
-    case (_: DecimalType, b) if isNumeric(b) => true
-    case (_: DecimalType, _: DecimalType) => true
-    case (InternalTypes.INT, InternalTypes.DATE) => true
-    case (InternalTypes.INT, InternalTypes.TIME) => true
-    case (InternalTypes.BYTE, _: TimestampType) => true
-    case (InternalTypes.SHORT, _: TimestampType) => true
-    case (InternalTypes.INT, _: TimestampType) => true
-    case (InternalTypes.LONG, _: TimestampType) => true
-    case (InternalTypes.DOUBLE, _: TimestampType) => true
-    case (InternalTypes.FLOAT, _: TimestampType) => true
-    case (InternalTypes.INT, InternalTypes.INTERVAL_MONTHS) => true
-    case (InternalTypes.LONG, InternalTypes.INTERVAL_MILLIS) => true
+    case (_, _) if isNumeric(from) && isNumeric(to) => true
+    case (_, DECIMAL) if isNumeric(from) => true
+    case (DECIMAL, _) if isNumeric(to) => true
+    case (DECIMAL, DECIMAL) => true
+    case (INTEGER, DATE) => true
+    case (INTEGER, TIME_WITHOUT_TIME_ZONE) => true
+    case (TINYINT, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (SMALLINT, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (INTEGER, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (DOUBLE, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (FLOAT, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (INTEGER, INTERVAL_YEAR_MONTH) => true
+    case (BIGINT, INTERVAL_DAY_TIME) => true
 
-    case (InternalTypes.DATE, InternalTypes.TIME) => false
-    case (InternalTypes.TIME, InternalTypes.DATE) => false
-    case (a, b) if isTimePoint(a) && isTimePoint(b) => true
-    case (InternalTypes.DATE, InternalTypes.INT) => true
-    case (InternalTypes.TIME, InternalTypes.INT) => true
-    case (_: TimestampType, InternalTypes.BYTE) => true
-    case (_: TimestampType, InternalTypes.INT) => true
-    case (_: TimestampType, InternalTypes.SHORT) => true
-    case (_: TimestampType, InternalTypes.LONG) => true
-    case (_: TimestampType, InternalTypes.DOUBLE) => true
-    case (_: TimestampType, InternalTypes.FLOAT) => true
+    case (DATE, TIME_WITHOUT_TIME_ZONE) => false
+    case (TIME_WITHOUT_TIME_ZONE, DATE) => false
+    case (_, _) if isTimePoint(from) && isTimePoint(to) => true
+    case (DATE, INTEGER) => true
+    case (TIME_WITHOUT_TIME_ZONE, INTEGER) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, TINYINT) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, SMALLINT) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, DOUBLE) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, FLOAT) => true
 
-    case (InternalTypes.INTERVAL_MONTHS, InternalTypes.INT) => true
-    case (InternalTypes.INTERVAL_MILLIS, InternalTypes.LONG) => true
+    case (INTERVAL_YEAR_MONTH, INTEGER) => true
+    case (INTERVAL_DAY_TIME, BIGINT) => true
 
     case _ => false
   }
@@ -134,23 +139,24 @@ object TypeCoercion {
   /**
     * All the supported reinterpret types in flink-table.
     */
-  def canReinterpret(from: InternalType, to: InternalType): Boolean = (from, to) match {
-    case (fromTp, toTp) if fromTp == toTp => true
+  def canReinterpret(
+      from: LogicalType, to: LogicalType): Boolean = (from.getTypeRoot, to.getTypeRoot) match {
+    case (_, _) if from == to => true
 
-    case (InternalTypes.DATE, InternalTypes.INT) => true
-    case (InternalTypes.TIME, InternalTypes.INT) => true
-    case (_: TimestampType, InternalTypes.LONG) => true
-    case (InternalTypes.INT, InternalTypes.DATE) => true
-    case (InternalTypes.INT, InternalTypes.TIME) => true
-    case (InternalTypes.LONG, _: TimestampType) => true
-    case (InternalTypes.INT, InternalTypes.INTERVAL_MONTHS) => true
-    case (InternalTypes.LONG, InternalTypes.INTERVAL_MILLIS) => true
-    case (InternalTypes.INTERVAL_MONTHS, InternalTypes.INT) => true
-    case (InternalTypes.INTERVAL_MILLIS, InternalTypes.LONG) => true
+    case (DATE, INTEGER) => true
+    case (TIME_WITHOUT_TIME_ZONE, INTEGER) => true
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, BIGINT) => true
+    case (INTEGER, DATE) => true
+    case (INTEGER, TIME_WITHOUT_TIME_ZONE) => true
+    case (BIGINT, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (INTEGER, INTERVAL_YEAR_MONTH) => true
+    case (BIGINT, INTERVAL_DAY_TIME) => true
+    case (INTERVAL_YEAR_MONTH, INTEGER) => true
+    case (INTERVAL_DAY_TIME, BIGINT) => true
 
-    case (InternalTypes.DATE, InternalTypes.LONG) => true
-    case (InternalTypes.TIME, InternalTypes.LONG) => true
-    case (InternalTypes.INTERVAL_MONTHS, InternalTypes.LONG) => true
+    case (DATE, BIGINT) => true
+    case (TIME_WITHOUT_TIME_ZONE, BIGINT) => true
+    case (INTERVAL_YEAR_MONTH, BIGINT) => true
 
     case _ => false
   }

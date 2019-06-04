@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.codegen.agg.batch
 
-import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.IntegralAvgAggFunction
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.junit.Test
@@ -34,12 +34,12 @@ import org.powermock.api.mockito.PowerMockito.{mock, when}
   */
 class HashAggCodeGeneratorTest extends BatchAggTestBase {
 
-  val localOutputType = new RowType(
-    Array[InternalType](
-      InternalTypes.STRING, InternalTypes.STRING,
-      InternalTypes.LONG, InternalTypes.LONG,
-      InternalTypes.DOUBLE, InternalTypes.LONG,
-      InternalTypes.LONG, InternalTypes.LONG),
+  val localOutputType = RowType.of(
+    Array[LogicalType](
+      new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
+      new BigIntType(), new BigIntType(),
+      new DoubleType(), new BigIntType(),
+      new BigIntType(), new BigIntType()),
     Array(
       "f0", "f4",
       "agg1Buffer1", "agg1Buffer2",
@@ -53,7 +53,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
     when(aggInfo, "agg").thenReturn(call)
     when(call, "getName").thenReturn("avg3")
     when(aggInfo, "function").thenReturn(new IntegralAvgAggFunction)
-    when(aggInfo, "externalAccTypes").thenReturn(Array(Types.LONG, Types.LONG))
+    when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(3))
     when(aggInfo, "aggIndex").thenReturn(2)
     aggInfo

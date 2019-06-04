@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
@@ -32,6 +31,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository}
 import org.apache.flink.types.Row
 
@@ -426,7 +426,7 @@ object BatchTestBase {
     row
   }
 
-  def binaryRow(types: Array[InternalType], fields: Any*): BinaryRow = {
+  def binaryRow(types: Array[LogicalType], fields: Any*): BinaryRow = {
     assertEquals(
       "Filed count inconsistent with type information",
       fields.length,

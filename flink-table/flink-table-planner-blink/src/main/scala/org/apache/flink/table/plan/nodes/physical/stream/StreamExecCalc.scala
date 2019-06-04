@@ -27,6 +27,7 @@ import org.apache.flink.table.plan.nodes.common.CommonCalc
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil
 import org.apache.flink.table.runtime.AbstractProcessStreamOperator
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -119,7 +120,7 @@ class StreamExecCalc(
       inputTransform,
       RelExplainUtil.calcToString(calcProgram, getExpressionString),
       substituteStreamOperator,
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       inputTransform.getParallelism)
   }
 }

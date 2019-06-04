@@ -33,7 +33,8 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.BaseRowTestUtil
 import org.apache.flink.types.Row
@@ -216,8 +217,9 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
       wrapRow.setField(0, d._1)
       wrapRow.setField(1, d._2)
       val converter =
-        DataFormatConverters.getConverterForTypeInfo(
-          new TupleTypeInfo(Types.BOOLEAN, new RowTypeInfo(fieldTypes: _*)))
+        DataFormatConverters.getConverterForDataType(
+          TypeConversions.fromLegacyInfoToDataType(
+            new TupleTypeInfo(Types.BOOLEAN, new RowTypeInfo(fieldTypes: _*))))
           .asInstanceOf[DataFormatConverters.DataFormatConverter[BaseRow, JTuple2[JBoolean, Row]]]
       val v = converter.toExternal(wrapRow)
       val rowString = TestSinkUtil.rowToString(v.f1, tz)
@@ -268,7 +270,7 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   }
 
   override def getRecordType: TypeInformation[BaseRow] =
-    new BaseRowTypeInfo(fTypes.map(createInternalTypeFromTypeInfo(_)), fNames)
+    new BaseRowTypeInfo(fTypes.map(TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType), fNames)
 
   override def getFieldNames: Array[String] = fNames
 

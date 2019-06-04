@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
+import org.apache.flink.table.types.logical.{DoubleType, IntType, LogicalType}
 
 /**
   * Generates a random function call.
@@ -31,7 +31,7 @@ class RandCallGen(isRandInteger: Boolean, hasSeed: Boolean) extends CallGenerato
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     val randField = if (hasSeed) {
       if (operands.head.literal) {
         ctx.addReusableRandom(Some(operands.head))
@@ -43,11 +43,11 @@ class RandCallGen(isRandInteger: Boolean, hasSeed: Boolean) extends CallGenerato
     }
 
     if (isRandInteger) {
-      generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) { terms =>
+      generateCallIfArgsNotNull(ctx, new IntType(), operands) { terms =>
         s"$randField.nextInt(${terms.last})"
       }
     } else {
-      generateCallIfArgsNotNull(ctx, InternalTypes.DOUBLE, operands) { _ =>
+      generateCallIfArgsNotNull(ctx, new DoubleType(), operands) { _ =>
         s"$randField.nextDouble()"
       }
     }

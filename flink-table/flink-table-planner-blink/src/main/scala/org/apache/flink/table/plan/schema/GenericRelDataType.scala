@@ -20,18 +20,17 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.GenericType
+import org.apache.flink.table.types.logical.TypeInformationAnyType
 
 /**
-  * Generic type for encapsulating Flink's [[TypeInformation]].
+  * Generic type for encapsulating Flink's [[TypeInformationAnyType]].
   *
-  * @param genericType InternalType to encapsulate
+  * @param genericType LogicalType to encapsulate
   * @param nullable flag if type can be nullable
   * @param typeSystem Flink's type system
   */
 class GenericRelDataType(
-    val genericType: GenericType[_],
+    val genericType: TypeInformationAnyType[_],
     val nullable: Boolean,
     typeSystem: RelDataTypeSystem)
   extends BasicSqlType(

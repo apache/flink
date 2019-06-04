@@ -26,7 +26,7 @@ import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
 
 import java.util.ArrayDeque;
@@ -67,8 +67,8 @@ public abstract class SlidingOverFrame implements OverWindowFrame {
 	@Override
 	public void open(ExecutionContext ctx) throws Exception {
 		ExecutionConfig conf = ctx.getRuntimeContext().getExecutionConfig();
-		this.inputSer = new BaseRowSerializer(conf, inputType.getFieldTypes());
-		this.valueSer = new BaseRowSerializer(conf, valueType.getFieldTypes());
+		this.inputSer = new BaseRowSerializer(conf, inputType);
+		this.valueSer = new BaseRowSerializer(conf, valueType);
 
 		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
 		processor = aggsHandleFunction.newInstance(cl);

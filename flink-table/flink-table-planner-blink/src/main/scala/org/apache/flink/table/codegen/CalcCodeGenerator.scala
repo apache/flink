@@ -18,14 +18,16 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.`type`.{RowType, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.types.logical.RowType
+
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.table.generated.GeneratedFunction
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import scala.collection.JavaConversions._
 
@@ -41,8 +43,7 @@ object CalcCodeGenerator {
       condition: Option[RexNode],
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[BaseRow] = {
-    val inputType = TypeConverters.createInternalTypeFromTypeInfo(
-      inputTransform.getOutputType).asInstanceOf[RowType]
+    val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
     // filter out time attributes
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val processCode = generateProcessCode(
@@ -126,7 +127,7 @@ object CalcCodeGenerator {
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(inputType, inputTerm = inputTerm)
 
-    val onlyFilter = projection.lengthCompare(inputType.getArity) == 0 &&
+    val onlyFilter = projection.lengthCompare(inputType.getFieldCount) == 0 &&
       projection.zipWithIndex.forall { case (rexNode, index) =>
         rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
       }

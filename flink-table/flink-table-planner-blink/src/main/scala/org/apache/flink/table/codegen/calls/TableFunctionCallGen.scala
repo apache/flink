@@ -19,13 +19,14 @@
 package org.apache.flink.table.codegen.calls
 
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
 import org.apache.flink.table.codegen.CodeGenUtils.genToExternalIfNeeded
 import org.apache.flink.table.codegen.GeneratedExpression.NEVER_NULL
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.utils.TypeConversions
 
 /**
   * Generates a call to user-defined [[TableFunction]].
@@ -37,7 +38,7 @@ class TableFunctionCallGen(tableFunction: TableFunction[_]) extends CallGenerato
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     // convert parameters for function (output boxing)
     val parameters = prepareUDFArgs(ctx, operands, tableFunction)
 
@@ -72,9 +73,9 @@ class TableFunctionCallGen(tableFunction: TableFunction[_]) extends CallGenerato
           case (t, i) =>
             // we don't trust GenericType.
             if (t.isInstanceOf[GenericTypeInfo[_]]) {
-              createExternalTypeInfoFromInternalType(operands(i).resultType)
+              fromLogicalTypeToDataType(operands(i).resultType)
             } else {
-              t
+              TypeConversions.fromLegacyInfoToDataType(t)
             }
         }
 

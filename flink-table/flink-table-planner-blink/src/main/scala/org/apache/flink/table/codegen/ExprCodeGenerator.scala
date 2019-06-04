@@ -22,7 +22,6 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RexAggLocalVariable, RexDistinctKeyVariable}
 import org.apache.flink.table.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
@@ -33,6 +32,9 @@ import org.apache.flink.table.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{VARBINARY, VARCHAR}
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
@@ -58,14 +60,14 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   /**
     * information of the first input
     */
-  var input1Type: InternalType = _
+  var input1Type: LogicalType = _
   var input1Term: String = _
   var input1FieldMapping: Option[Array[Int]] = None
 
   /**
     * information of the optional second input
     */
-  var input2Type: Option[InternalType] = None
+  var input2Type: Option[LogicalType] = None
   var input2Term: Option[String] = None
   var input2FieldMapping: Option[Array[Int]] = None
 
@@ -73,7 +75,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     * Bind the input information, should be called before generating expression.
     */
   def bindInput(
-      inputType: InternalType,
+      inputType: LogicalType,
       inputTerm: String = DEFAULT_INPUT1_TERM,
       inputFieldMapping: Option[Array[Int]] = None): ExprCodeGenerator = {
     input1Type = inputType
@@ -87,7 +89,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     * bind second input information before use.
     */
   def bindSecondInput(
-      inputType: InternalType,
+      inputType: LogicalType,
       inputTerm: String = DEFAULT_INPUT2_TERM,
       inputFieldMapping: Option[Array[Int]] = None): ExprCodeGenerator = {
     input2Type = Some(inputType)
@@ -109,8 +111,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     }
   }
   
-  private def fieldIndices(t: InternalType): Array[Int] = t match {
-    case rt: RowType => (0 until rt.getArity).toArray
+  private def fieldIndices(t: LogicalType): Array[Int] = t match {
+    case rt: RowType => (0 until rt.getFieldCount).toArray
     case _ => Array(0)
   }
  
@@ -158,7 +160,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
         // attribute is proctime indicator.
         // we use a null literal and generate a timestamp when we need it.
-        generateNullLiteral(InternalTypes.PROCTIME_INDICATOR, ctx.nullCheck)
+        generateNullLiteral(
+          new TimestampType(true, TimestampKind.PROCTIME, 3),
+          ctx.nullCheck)
       case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
         // attribute is proctime field in a batch query.
         // it is initialized with the current time.
@@ -248,29 +252,29 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     outRowAlreadyExists: Boolean)
   : GeneratedExpression = {
     // initial type check
-    if (returnType.getArity != fieldExprs.length) {
+    if (returnType.getFieldCount != fieldExprs.length) {
       throw new CodeGenException(
-        s"Arity [${returnType.getArity}] of result type [$returnType] does not match " +
+        s"Arity [${returnType.getFieldCount}] of result type [$returnType] does not match " +
           s"number [${fieldExprs.length}] of expressions [$fieldExprs].")
     }
     if (fieldExprIdxToOutputRowPosMap.size != fieldExprs.length) {
       throw new CodeGenException(
-        s"Size [${returnType.getArity}] of fieldExprIdxToOutputRowPosMap does not match " +
+        s"Size [${returnType.getFieldCount}] of fieldExprIdxToOutputRowPosMap does not match " +
           s"number [${fieldExprs.length}] of expressions [$fieldExprs].")
     }
     // type check
     fieldExprs.zipWithIndex foreach {
       // timestamp type(Include TimeIndicator) and generic type can compatible with each other.
       case (fieldExpr, i)
-        if fieldExpr.resultType.isInstanceOf[GenericType[_]] ||
+        if fieldExpr.resultType.isInstanceOf[TypeInformationAnyType[_]] ||
           fieldExpr.resultType.isInstanceOf[TimestampType] =>
         if (returnType.getTypeAt(i).getClass != fieldExpr.resultType.getClass
-          && !returnType.getTypeAt(i).isInstanceOf[GenericType[_]]) {
+          && !returnType.getTypeAt(i).isInstanceOf[TypeInformationAnyType[_]]) {
           throw new CodeGenException(
             s"Incompatible types of expression and result type, Expression[$fieldExpr] type is " +
               s"[${fieldExpr.resultType}], result type is [${returnType.getTypeAt(i)}]")
         }
-      case (fieldExpr, i) if fieldExpr.resultType != returnType.getTypeAt(i) =>
+      case (fieldExpr, i) if !isInteroperable(fieldExpr.resultType, returnType.getTypeAt(i)) =>
         throw new CodeGenException(
           s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
             s"[${fieldExpr.resultType}], result type is [${returnType.getTypeAt(i)}]")
@@ -315,8 +319,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
+    val input1Arity = input1Type match {
+      case r: RowType => r.getFieldCount
+      case _ => 1
+    }
     // if inputRef index is within size of input1 we work with input1, input2 otherwise
-    val input = if (inputRef.getIndex < InternalTypeUtils.getArity(input1Type)) {
+    val input = if (inputRef.getIndex < input1Arity) {
       (input1Type, input1Term)
     } else {
       (input2Type.getOrElse(throw new CodeGenException("Invalid input access.")),
@@ -326,7 +334,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     val index = if (input._2 == input1Term) {
       inputRef.getIndex
     } else {
-      inputRef.getIndex - InternalTypeUtils.getArity(input1Type)
+      inputRef.getIndex - input1Arity
     }
 
     generateInputAccess(ctx, input._1, input._2, index, nullableInput, ctx.nullCheck)
@@ -375,7 +383,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
-    val resultType = FlinkTypeFactory.toInternalType(literal.getType)
+    val resultType = FlinkTypeFactory.toLogicalType(literal.getType)
     val value = literal.getValue3
     generateLiteral(ctx, resultType, value)
   }
@@ -421,7 +429,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   override def visitCall(call: RexCall): GeneratedExpression = {
 
-    val resultType = FlinkTypeFactory.toInternalType(call.getType)
+    val resultType = FlinkTypeFactory.toLogicalType(call.getType)
 
     // convert operands and help giving untyped NULL literals a type
     val operands = call.getOperands.zipWithIndex.map {
@@ -454,7 +462,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       ctx: CodeGeneratorContext,
       operator: SqlOperator,
       operands: Seq[GeneratedExpression],
-      resultType: InternalType): GeneratedExpression = {
+      resultType: LogicalType): GeneratedExpression = {
     operator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
@@ -661,13 +669,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case ITEM =>
         operands.head.resultType match {
-          case t: InternalType if TypeCheckUtils.isArray(t) =>
+          case t: LogicalType if TypeCheckUtils.isArray(t) =>
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
             generateArrayElementAt(ctx, array, index)
 
-          case t: InternalType if TypeCheckUtils.isMap(t) =>
+          case t: LogicalType if TypeCheckUtils.isMap(t) =>
             val key = operands(1)
             generateMapGet(ctx, operands.head, key)
 
@@ -676,11 +684,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case CARDINALITY =>
         operands.head.resultType match {
-          case t: InternalType if TypeCheckUtils.isArray(t) =>
+          case t: LogicalType if TypeCheckUtils.isArray(t) =>
             val array = operands.head
             generateArrayCardinality(ctx, array)
 
-          case t: InternalType if TypeCheckUtils.isMap(t) =>
+          case t: LogicalType if TypeCheckUtils.isMap(t) =>
             val map = operands.head
             generateMapCardinality(ctx, map)
 
@@ -698,7 +706,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case PROCTIME =>
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
-        generateNullLiteral(InternalTypes.PROCTIME_INDICATOR, ctx.nullCheck)
+        generateNullLiteral(
+          new TimestampType(true, TimestampKind.PROCTIME, 3),
+          ctx.nullCheck)
 
       case PROCTIME_MATERIALIZE =>
         generateProctimeTimestamp(ctx, contextTerm)

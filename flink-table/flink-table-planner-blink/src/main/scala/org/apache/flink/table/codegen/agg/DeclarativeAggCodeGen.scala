@@ -17,15 +17,16 @@
  */
 package org.apache.flink.table.codegen.agg
 
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveTypeTermForType
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.expressions.{ResolvedDistinctKeyReference, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfo
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.LogicalType
+
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 
 import scala.collection.JavaConverters._
 
@@ -51,14 +52,14 @@ class DeclarativeAggCodeGen(
     mergedAccOffset: Int,
     aggBufferOffset: Int,
     aggBufferSize: Int,
-    inputTypes: Seq[InternalType],
+    inputTypes: Seq[LogicalType],
     constantExprs: Seq[GeneratedExpression],
     relBuilder: RelBuilder)
   extends AggCodeGen {
 
   private val function = aggInfo.function.asInstanceOf[DeclarativeAggregateFunction]
 
-  private val bufferTypes = aggInfo.externalAccTypes.map(createInternalTypeFromTypeInfo)
+  private val bufferTypes = aggInfo.externalAccTypes.map(fromDataTypeToLogicalType)
   private val bufferIndexes = Array.range(aggBufferOffset, aggBufferOffset + bufferTypes.length)
   private val bufferTerms = function.aggBufferAttributes
       .map(a => s"agg${aggInfo.aggIndex}_${a.getName}")

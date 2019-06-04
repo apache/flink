@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_STRING, qualifyMethod}
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.LogicalType
 
 import java.lang.reflect.Method
 import java.util.TimeZone
@@ -31,7 +31,7 @@ class MethodCallGen(method: Method) extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, returnType, operands, !method.getReturnType.isPrimitive) {
       originalTerms => {
         val terms = originalTerms.zip(method.getParameterTypes).map { case (term, clazz) =>

@@ -24,8 +24,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.TypeConverters;
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -116,8 +116,8 @@ public class BaseRowHarnessAssertor {
 				GenericRow actualRow = BaseRowUtil.toGenericRow(
 						actualOutput,
 						Arrays.stream(typeInfos)
-								.map(TypeConverters::createInternalTypeFromTypeInfo)
-								.toArray(InternalType[]::new));
+								.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
+								.toArray(LogicalType[]::new));
 				actualRecords.add(actualRow);
 			}
 		}

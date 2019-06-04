@@ -31,6 +31,7 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType}
 import org.apache.flink.table.runtime.sort.RankOperator
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
@@ -286,7 +287,7 @@ class BatchExecRank(
       input,
       getOperatorName,
       operator,
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       input.getParallelism)
   }
 

@@ -21,8 +21,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.DecimalType
 import org.apache.flink.table.api.{TableConfigOptions, TableException, Types}
+import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -305,7 +305,8 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   val (b1, b2, b3) = (big(1), big(2), big(3))
 
   // with default scale for BigDecimal.class
-  def bigX(i: Int): java.math.BigDecimal = big(i).setScale(DecimalType.SYSTEM_DEFAULT.scale())
+  def bigX(i: Int): java.math.BigDecimal = big(i).setScale(
+    Decimal.DECIMAL_SYSTEM_DEFAULT.getScale)
 
   val (b1x, b2x, b3x) = (bigX(1), bigX(2), bigX(3))
 

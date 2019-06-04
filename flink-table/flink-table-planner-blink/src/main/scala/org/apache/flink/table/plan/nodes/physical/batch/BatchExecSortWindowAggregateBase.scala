@@ -31,6 +31,7 @@ import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -138,7 +139,7 @@ abstract class BatchExecSortWindowAggregateBase(
       input,
       getOperatorName,
       operator,
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       getParallelism(input, tableEnv.config))
   }
 }

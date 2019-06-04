@@ -239,27 +239,27 @@ WHERE  t3c IN (SELECT t4b
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(t3a=[$0], t3b=[$1]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b)]
+LogicalProject(t3a=[$0], t3b=[$1]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b)]
 +- LogicalFilter(condition=[IN($2, {
 LogicalProject(t4b=[$1])
   LogicalFilter(condition=[OR(=($cor0.t3a, $0), >($cor0.t3b, $1))])
     LogicalTableScan(table=[[T4, source: [TestTableSource(t4a, t4b, t4c)]]])
-})], variablesSet=[[$cor0]]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b, INTEGER t3c)]
-   +- LogicalTableScan(table=[[T3, source: [TestTableSource(t3a, t3b, t3c)]]]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b, INTEGER t3c)]
+})], variablesSet=[[$cor0]]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b, INTEGER t3c)]
+   +- LogicalTableScan(table=[[T3, source: [TestTableSource(t3a, t3b, t3c)]]]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b, INTEGER t3c)]
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalProject(t3a=[$0], t3b=[$1]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b)]
-+- LogicalJoin(condition=[AND(=($0, $4), =($1, $5), =($2, CAST($3):INTEGER))], joinType=[inner]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b, INTEGER t3c, SMALLINT t4b, VARCHAR(65536) t3a0, SMALLINT t3b0)]
-   :- LogicalTableScan(table=[[T3, source: [TestTableSource(t3a, t3b, t3c)]]]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b, INTEGER t3c)]
-   +- LogicalAggregate(group=[{0, 1, 2}]), rowType=[RecordType(SMALLINT t4b, VARCHAR(65536) t3a, SMALLINT t3b)]
-      +- LogicalProject(t4b=[$1], t3a=[$3], t3b=[$4]), rowType=[RecordType(SMALLINT t4b, VARCHAR(65536) t3a, SMALLINT t3b)]
-         +- LogicalJoin(condition=[OR(=($3, $0), >($4, $1))], joinType=[inner]), rowType=[RecordType(VARCHAR(65536) t4a, SMALLINT t4b, INTEGER t4c, VARCHAR(65536) t3a, SMALLINT t3b)]
-            :- LogicalTableScan(table=[[T4, source: [TestTableSource(t4a, t4b, t4c)]]]), rowType=[RecordType(VARCHAR(65536) t4a, SMALLINT t4b, INTEGER t4c)]
-            +- LogicalAggregate(group=[{0, 1}]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b)]
-               +- LogicalProject(t3a=[$0], t3b=[$1]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b)]
-                  +- LogicalTableScan(table=[[T3, source: [TestTableSource(t3a, t3b, t3c)]]]), rowType=[RecordType(VARCHAR(65536) t3a, SMALLINT t3b, INTEGER t3c)]
+LogicalProject(t3a=[$0], t3b=[$1]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b)]
++- LogicalJoin(condition=[AND(=($0, $4), =($1, $5), =($2, CAST($3):INTEGER))], joinType=[inner]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b, INTEGER t3c, SMALLINT t4b, VARCHAR(2147483647) t3a0, SMALLINT t3b0)]
+   :- LogicalTableScan(table=[[T3, source: [TestTableSource(t3a, t3b, t3c)]]]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b, INTEGER t3c)]
+   +- LogicalAggregate(group=[{0, 1, 2}]), rowType=[RecordType(SMALLINT t4b, VARCHAR(2147483647) t3a, SMALLINT t3b)]
+      +- LogicalProject(t4b=[$1], t3a=[$3], t3b=[$4]), rowType=[RecordType(SMALLINT t4b, VARCHAR(2147483647) t3a, SMALLINT t3b)]
+         +- LogicalJoin(condition=[OR(=($3, $0), >($4, $1))], joinType=[inner]), rowType=[RecordType(VARCHAR(2147483647) t4a, SMALLINT t4b, INTEGER t4c, VARCHAR(2147483647) t3a, SMALLINT t3b)]
+            :- LogicalTableScan(table=[[T4, source: [TestTableSource(t4a, t4b, t4c)]]]), rowType=[RecordType(VARCHAR(2147483647) t4a, SMALLINT t4b, INTEGER t4c)]
+            +- LogicalAggregate(group=[{0, 1}]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b)]
+               +- LogicalProject(t3a=[$0], t3b=[$1]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b)]
+                  +- LogicalTableScan(table=[[T3, source: [TestTableSource(t3a, t3b, t3c)]]]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b, INTEGER t3c)]
 ]]>
     </Resource>
   </TestCase>

@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.generated.{GeneratedProjection, Projection}
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import scala.collection.mutable
 
@@ -56,7 +56,7 @@ object ProjectionCodeGenerator {
     // instead of generating separated code for each field.
     // when the number of fields of the same type is large, this can improve performance.
     def generateLoop(
-        fieldType: InternalType,
+        fieldType: LogicalType,
         inIdxs: mutable.ArrayBuffer[Int],
         outIdxs: mutable.ArrayBuffer[Int]): String = {
       // this array contains the indices of the fields
@@ -88,14 +88,14 @@ object ProjectionCodeGenerator {
        """.stripMargin
     }
 
-    val outFieldTypes = outType.getFieldTypes
+    val outFieldTypes = outType.getChildren
     val typeIdxs = new mutable.HashMap[
-      InternalType,
+      LogicalType,
       (mutable.ArrayBuffer[Int], mutable.ArrayBuffer[Int])]()
 
-    for (i <- outFieldTypes.indices) {
+    for (i <- 0 until outFieldTypes.size()) {
       val (inIdxs, outIdxs) = typeIdxs.getOrElseUpdate(
-        outFieldTypes(i), (mutable.ArrayBuffer.empty[Int], mutable.ArrayBuffer.empty[Int]))
+        outFieldTypes.get(i), (mutable.ArrayBuffer.empty[Int], mutable.ArrayBuffer.empty[Int]))
       inIdxs.append(inputMapping(i))
       outIdxs.append(i)
     }

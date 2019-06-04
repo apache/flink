@@ -18,15 +18,12 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.calcite.FlinkTypeSystem;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.TypeConverters;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
@@ -54,10 +51,10 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	}
 
 	@Override
-	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] {
-				TypeConverters.createInternalTypeFromTypeInfo(getResultType()),
-				InternalTypes.LONG };
+	public DataType[] getAggBufferTypes() {
+		return new DataType[] {
+				getResultType(),
+				DataTypes.BIGINT() };
 	}
 
 	@Override
@@ -114,8 +111,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	public static class IntSumWithRetractAggFunction extends SumWithRetractAggFunction {
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.INT;
+		public DataType getResultType() {
+			return DataTypes.INT();
 		}
 
 		@Override
@@ -129,8 +126,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 */
 	public static class ByteSumWithRetractAggFunction extends SumWithRetractAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.BYTE;
+		public DataType getResultType() {
+			return DataTypes.TINYINT();
 		}
 
 		@Override
@@ -144,8 +141,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 */
 	public static class ShortSumWithRetractAggFunction extends SumWithRetractAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SHORT;
+		public DataType getResultType() {
+			return DataTypes.SMALLINT();
 		}
 
 		@Override
@@ -159,8 +156,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 */
 	public static class LongSumWithRetractAggFunction extends SumWithRetractAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.LONG;
+		public DataType getResultType() {
+			return DataTypes.BIGINT();
 		}
 
 		@Override
@@ -174,8 +171,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 */
 	public static class FloatSumWithRetractAggFunction extends SumWithRetractAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.FLOAT;
+		public DataType getResultType() {
+			return DataTypes.FLOAT();
 		}
 
 		@Override
@@ -189,8 +186,8 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 */
 	public static class DoubleSumWithRetractAggFunction extends SumWithRetractAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.DOUBLE;
+		public DataType getResultType() {
+			return DataTypes.DOUBLE();
 		}
 
 		@Override
@@ -203,16 +200,16 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 	 * Built-in Decimal Sum with retract aggregate function.
 	 */
 	public static class DecimalSumWithRetractAggFunction extends SumWithRetractAggFunction {
-		private DecimalTypeInfo decimalType;
+		private DecimalType decimalType;
 
-		public DecimalSumWithRetractAggFunction(DecimalTypeInfo decimalType) {
+		public DecimalSumWithRetractAggFunction(DecimalType decimalType) {
 			this.decimalType = decimalType;
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			DecimalType sumType = DecimalType.inferAggSumType(decimalType.scale());
-			return new DecimalTypeInfo(sumType.precision(), sumType.scale());
+		public DataType getResultType() {
+			DecimalType sumType = FlinkTypeSystem.inferAggSumType(decimalType.getScale());
+			return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
 		}
 
 		@Override

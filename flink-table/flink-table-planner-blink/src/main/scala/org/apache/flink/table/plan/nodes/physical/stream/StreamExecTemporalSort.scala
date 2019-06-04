@@ -27,6 +27,7 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
 import org.apache.flink.table.runtime.sort.{ProcTimeSortOperator, RowTimeSortOperator}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
@@ -142,8 +143,8 @@ class StreamExecTemporalSort(
       val keyTypes = keys.map(inputType.getTypeAt)
       val rowComparator = ComparatorCodeGenerator.gen(tableConfig, "ProcTimeSortComparator",
         keys, keyTypes, orders, nullsIsLast)
-      val sortOperator = new ProcTimeSortOperator(inputType.toTypeInfo, rowComparator)
-      val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+      val sortOperator = new ProcTimeSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
+      val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType))
 
       // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
       val ret = new OneInputTransformation(
@@ -183,8 +184,9 @@ class StreamExecTemporalSort(
     } else {
       null
     }
-    val sortOperator = new RowTimeSortOperator(inputType.toTypeInfo, rowTimeIdx, rowComparator)
-    val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+    val sortOperator = new RowTimeSortOperator(
+      BaseRowTypeInfo.of(inputType), rowTimeIdx, rowComparator)
+    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType))
 
     // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
     val ret = new OneInputTransformation(

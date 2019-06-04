@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
 import org.apache.flink.table.plan.stats._
 import org.apache.flink.table.plan.util.ColumnIntervalUtil
+import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.table.{JBoolean, JDouble}
 
 import org.apache.calcite.rel.RelDistributions
@@ -263,7 +263,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     // TODO add tests for IF
     val rowType = typeFactory.buildLogicalRowType(
       Array("f0", "f1", "f2", "f3"),
-      Array(InternalTypes.INT, InternalTypes.INT, InternalTypes.INT, InternalTypes.INT))
+      Array(new IntType(), new IntType(), new IntType(), new IntType()))
     val calc8 = createLogicalCalc(
       studentLogicalScan, rowType, List(expr8, expr9, expr10, expr11), List())
 

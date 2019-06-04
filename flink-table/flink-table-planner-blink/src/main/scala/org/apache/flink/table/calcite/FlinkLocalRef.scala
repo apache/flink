@@ -19,7 +19,7 @@ package org.apache.flink.table.calcite
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexLocalRef
-import org.apache.flink.table.`type`.InternalType
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * Special reference which represent a local filed, such as aggregate buffers or constants.
@@ -32,7 +32,7 @@ case class RexAggLocalVariable(
     fieldTerm: String,
     nullTerm: String,
     dataType: RelDataType,
-    internalType: InternalType)
+    internalType: LogicalType)
   extends RexLocalRef(0, dataType)
 
 /**
@@ -44,5 +44,5 @@ case class RexAggLocalVariable(
 case class RexDistinctKeyVariable(
     keyTerm: String,
     dataType: RelDataType,
-    internalType: InternalType)
+    internalType: LogicalType)
   extends RexLocalRef(0, dataType)

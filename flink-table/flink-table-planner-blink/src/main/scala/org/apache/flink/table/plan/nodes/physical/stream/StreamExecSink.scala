@@ -18,13 +18,8 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import java.util
-
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.SinkCodeGenerator.{extractTableSinkTypeClass, generateRowConverterOperator}
@@ -35,8 +30,14 @@ import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -167,9 +168,9 @@ class StreamExecSink[T](
           s"DataStream by casting all other fields to TIMESTAMP.")
     } else if (rowtimeFields.size == 1) {
       val origRowType = parTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo]
-      val convFieldTypes = origRowType.getInternalTypes.map { t =>
-        if (t == InternalTypes.ROWTIME_INDICATOR) {
-          InternalTypes.TIMESTAMP
+      val convFieldTypes = origRowType.getLogicalTypes.map { t =>
+        if (TypeCheckUtils.isRowTime(t)) {
+          new TimestampType(3)
         } else {
           t
         }
@@ -178,9 +179,10 @@ class StreamExecSink[T](
     } else {
       parTransformation.getOutputType
     }
-    val resultType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+    val resultDataType = sink.getConsumedDataType
+    val resultType = fromDataTypeToLegacyInfo(resultDataType)
     val typeClass = extractTableSinkTypeClass(sink)
-    if (CodeGenUtils.isInternalClass(typeClass, resultType)) {
+    if (CodeGenUtils.isInternalClass(typeClass, resultDataType)) {
       parTransformation.asInstanceOf[StreamTransformation[T]]
     } else {
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](

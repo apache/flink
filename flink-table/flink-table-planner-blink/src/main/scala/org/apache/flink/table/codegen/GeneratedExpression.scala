@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForType, newName}
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.typeutils.TypeCheckUtils
 
 /**
@@ -36,7 +36,7 @@ case class GeneratedExpression(
   resultTerm: String,
   nullTerm: String,
   code: String,
-  resultType: InternalType,
+  resultType: LogicalType,
   literalValue: Option[Any] = None) {
 
   /**

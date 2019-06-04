@@ -253,21 +253,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3], a0=[$4], b0=[$5], c0=[$6], v0=[$7
       :- LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3])
       :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :     :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :     +- LogicalTableFunctionScan(invocation=[str_split($cor0.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+      :     +- LogicalTableFunctionScan(invocation=[str_split($cor0.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3])
          +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[str_split($cor1.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[str_split($cor1.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Join(joinType=[InnerJoin], where=[=(f0, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
 :- Exchange(distribution=[hash[f0]])
-:  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+:  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
 :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f0]])
-   +- Correlate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+   +- Correlate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,_UTF-16LE'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
       +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -287,21 +287,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7
       :- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
       :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :     :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
          +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Join(joinType=[InnerJoin], where=[=(c, f00)], select=[a, b, c, f0, a0, b0, c0, f00])
 :- Exchange(distribution=[hash[c]])
-:  +- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+:  +- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
 :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f0]])
-   +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
+   +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
       +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -347,7 +347,7 @@ Union(all=[true], union=[a, b, c, d, e, f])
 +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
    :- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[d]])
-      +- Calc(select=[d, e, f], where=[<>(f, _UTF-16LE'':VARCHAR(65536) CHARACTER SET "UTF-16LE")])
+      +- Calc(select=[d, e, f], where=[<>(f, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
          +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>

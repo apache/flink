@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.codegen.agg
 
-import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.generated.AggsHandleFunction
+import org.apache.flink.table.types.utils.TypeConversions
+
 import org.junit.{Assert, Test}
 
 import java.lang
@@ -87,8 +89,9 @@ class AggsHandlerCodeGeneratorTest extends AggTestBase {
       generator.needRetract()
     }
     if (needMerge) {
-      generator.needMerge(1, mergedAccOnHeap = true, Array(Types.LONG, Types.LONG,
-        Types.DOUBLE, Types.LONG, imperativeAggFunc.getAccumulatorType))
+      generator.needMerge(1, mergedAccOnHeap = true,
+        Array(DataTypes.BIGINT, DataTypes.BIGINT, DataTypes.DOUBLE, DataTypes.BIGINT,
+          TypeConversions.fromLegacyInfoToDataType(imperativeAggFunc.getAccumulatorType)))
     }
     val handler = generator
       .needAccumulate()

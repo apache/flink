@@ -523,7 +523,7 @@ object FlinkRelMdUtil {
     val mq = rel.getCluster.getMetadataQuery
     val columnSizes = mq.getAverageColumnSizes(rel)
     var length = 0d
-    columnSizes.zip(binaryType.getFieldTypes).foreach {
+    columnSizes.zip(binaryType.getChildren).foreach {
       case (columnSize, internalType) =>
         if (BinaryRow.isInFixedLengthPart(internalType)) {
           length += 8

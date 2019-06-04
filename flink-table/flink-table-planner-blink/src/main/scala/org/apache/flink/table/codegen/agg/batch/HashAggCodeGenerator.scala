@@ -19,7 +19,6 @@
 package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -28,6 +27,7 @@ import org.apache.flink.table.generated.GeneratedOperator
 import org.apache.flink.table.plan.util.AggregateInfoList
 import org.apache.flink.table.runtime.TableStreamOperator
 import org.apache.flink.table.runtime.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.tools.RelBuilder
 
@@ -58,7 +58,7 @@ class HashAggCodeGenerator(
   private lazy val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggregates)
   private lazy val aggBufferTypes =
     AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggregates)
-  private lazy val aggBufferRowType = new RowType(aggBufferTypes.flatten, aggBufferNames.flatten)
+  private lazy val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
 
   def genWithKeys(
       reservedManagedMemory: Long, maxManagedMemory: Long)

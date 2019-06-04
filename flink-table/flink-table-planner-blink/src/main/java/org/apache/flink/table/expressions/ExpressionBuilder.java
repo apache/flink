@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,14 +41,13 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.expressions.InternalFunctionDefinitions.THROW_EXCEPTION;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Builder for {@link Expression}s.
  */
 public class ExpressionBuilder {
 
-	public static Expression nullOf(TypeInformation type) {
+	public static Expression nullOf(DataType type) {
 		return literal(null, type);
 	}
 
@@ -56,8 +55,8 @@ public class ExpressionBuilder {
 		return new ValueLiteralExpression(value);
 	}
 
-	public static Expression literal(Object value, TypeInformation<?> type) {
-		return new ValueLiteralExpression(value, fromLegacyInfoToDataType(type));
+	public static Expression literal(Object value, DataType type) {
+		return new ValueLiteralExpression(value, type);
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, Expression... args) {
@@ -130,15 +129,15 @@ public class ExpressionBuilder {
 		return call(REINTERPRET_CAST, child, type, literal(checkOverflow));
 	}
 
-	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
-		return new TypeLiteralExpression(fromLegacyInfoToDataType(type));
+	public static TypeLiteralExpression typeLiteral(DataType type) {
+		return new TypeLiteralExpression(type);
 	}
 
 	public static Expression concat(Expression input1, Expression input2) {
 		return call(CONCAT, input1, input2);
 	}
 
-	public static Expression throwException(String msg, TypeInformation<?> type) {
+	public static Expression throwException(String msg, DataType type) {
 		return call(THROW_EXCEPTION, typeLiteral(type));
 	}
 }

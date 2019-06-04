@@ -27,7 +27,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalFilter(condition=[=($cor1.a, $0)])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
     LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })], variablesSet=[[$cor1]])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -41,7 +41,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalFilter(condition=[true])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -840,7 +840,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
   LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -855,7 +855,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
          +- LogicalProject(i=[true])
             +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
                :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -872,7 +872,7 @@ LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 })])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
     LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -888,7 +888,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
             +- LogicalJoin(condition=[$4], joinType=[semi])
                :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
                :  :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-               :  +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+               :  +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
                +- LogicalProject($f0=[IS NOT NULL($0)])
                   +- LogicalAggregate(group=[{}], m=[MIN($0)])
                      +- LogicalProject(i=[true])
@@ -910,7 +910,7 @@ LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
 LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 })])
       LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -931,7 +931,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
                :        +- LogicalAggregate(group=[{}], m=[MIN($0)])
                :           +- LogicalProject(i=[true])
                :              +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
-               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -945,7 +945,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
   LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -960,7 +960,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
          +- LogicalProject(i=[true])
             +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
                :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -1355,7 +1355,7 @@ LogicalProject(f1=[$3])
   LogicalFilter(condition=[=($cor1.a, $0)])
     LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })], variablesSet=[[$cor1]])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -1369,7 +1369,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalFilter(condition=[true])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -2822,7 +2822,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalProject(f1=[$3])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
     LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -2835,7 +2835,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalProject(f1=[$3])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
          :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -2854,7 +2854,7 @@ LogicalProject(i=[$0])
 })])
     LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -2868,7 +2868,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalJoin(condition=[=($0, $4)], joinType=[semi])
          :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
          :  :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-         :  +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+         :  +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
          +- LogicalProject(i=[$0])
             +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 ]]>
@@ -2890,7 +2890,7 @@ LogicalProject(i=[$0])
   LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 })])
         LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -2907,7 +2907,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
          :     :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
          :     +- LogicalProject(i=[$0])
          :        +- LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
-         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>
@@ -2922,7 +2922,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalProject(f1=[$3])
   LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
     LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -2935,7 +2935,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalProject(f1=[$3])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
          :- LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>

@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.codegen.sort
 
-import org.apache.flink.table.`type`.{DateType, DecimalType, InternalType, InternalTypes, PrimitiveType, TimeType, TimestampType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, SEGMENT, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.{BinaryRow, Decimal}
 import org.apache.flink.table.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.sort.SortUtil
+import org.apache.flink.table.types.PlannerTypeUtils
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
 import scala.collection.mutable
 
@@ -39,7 +41,7 @@ import scala.collection.mutable
 class SortCodeGenerator(
     conf: TableConfig,
     val keys: Array[Int],
-    val keyTypes: Array[InternalType],
+    val keyTypes: Array[LogicalType],
     val orders: Array[Boolean],
     val nullsIsLast: Array[Boolean]) {
 
@@ -382,11 +384,11 @@ class SortCodeGenerator(
     ComparatorCodeGenerator.gen(conf, name, keys, keyTypes, orders, nullsIsLast)
   }
 
-  def getter(t: InternalType, index: Int): String = {
+  def getter(t: LogicalType, index: Int): String = {
     val prefix = prefixGetFromBinaryRow(t)
     t match {
       case dt: DecimalType =>
-        s"get$prefix($index, ${dt.precision()}, ${dt.scale()})"
+        s"get$prefix($index, ${dt.getPrecision}, ${dt.getScale})"
       case _ =>
         s"get$prefix($index)"
     }
@@ -395,25 +397,27 @@ class SortCodeGenerator(
   /**
     * For put${prefix}NormalizedKey() and compare$prefix() of [[SortUtil]].
     */
-  def prefixPutNormalizedKey(t: InternalType): String = prefixGetFromBinaryRow(t)
+  def prefixPutNormalizedKey(t: LogicalType): String = prefixGetFromBinaryRow(t)
 
   /**
     * For get$prefix() of [[org.apache.flink.table.dataformat.TypeGetterSetters]].
     */
-  def prefixGetFromBinaryRow(t: InternalType): String = t match {
-    case InternalTypes.INT => "Int"
-    case InternalTypes.LONG => "Long"
-    case InternalTypes.SHORT => "Short"
-    case InternalTypes.BYTE => "Byte"
-    case InternalTypes.FLOAT => "Float"
-    case InternalTypes.DOUBLE => "Double"
-    case InternalTypes.BOOLEAN => "Boolean"
-    case InternalTypes.STRING => "String"
-    case InternalTypes.BINARY => "Binary"
-    case _: DecimalType => "Decimal"
-    case _: DateType => "Int"
-    case InternalTypes.TIME => "Int"
-    case _: TimestampType => "Long"
+  def prefixGetFromBinaryRow(t: LogicalType): String = t.getTypeRoot match {
+    case INTEGER => "Int"
+    case BIGINT => "Long"
+    case SMALLINT => "Short"
+    case TINYINT => "Byte"
+    case FLOAT => "Float"
+    case DOUBLE => "Double"
+    case BOOLEAN => "Boolean"
+    case VARCHAR => "String"
+    case VARBINARY => "Binary"
+    case DECIMAL => "Decimal"
+    case DATE => "Int"
+    case TIME_WITHOUT_TIME_ZONE => "Int"
+    case TIMESTAMP_WITHOUT_TIME_ZONE => "Long"
+    case INTERVAL_YEAR_MONTH => "Int"
+    case INTERVAL_DAY_TIME => "Long"
     case _ => null
   }
 
@@ -429,29 +433,32 @@ class SortCodeGenerator(
     }
   }
 
-  def supportNormalizedKey(t: InternalType): Boolean = {
-    t match {
-      case _: PrimitiveType | InternalTypes.STRING | InternalTypes.BINARY |
-           _: DateType | _: TimeType | _: TimestampType => true
-      case dt: DecimalType => Decimal.isCompact(dt.precision())
+  def supportNormalizedKey(t: LogicalType): Boolean = {
+    t.getTypeRoot match {
+      case _ if PlannerTypeUtils.isPrimitive(t) => true
+      case VARCHAR | VARBINARY |
+           DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE => true
+      case DECIMAL => Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision)
       case _ => false
     }
   }
 
-  def getNormalizeKeyLen(t: InternalType): Int = {
-    t match {
-      case InternalTypes.BOOLEAN => 1
-      case InternalTypes.BYTE => 1
-      case InternalTypes.SHORT => 2
-      case InternalTypes.INT => 4
-      case InternalTypes.FLOAT => 4
-      case InternalTypes.DOUBLE => 8
-      case InternalTypes.LONG => 8
-      case _: TimestampType => 8
-      case _: DateType => 4
-      case InternalTypes.TIME => 4
-      case dt: DecimalType if Decimal.isCompact(dt.precision()) => 8
-      case InternalTypes.STRING | InternalTypes.BINARY => Int.MaxValue
+  def getNormalizeKeyLen(t: LogicalType): Int = {
+    t.getTypeRoot match {
+      case BOOLEAN => 1
+      case TINYINT => 1
+      case SMALLINT => 2
+      case INTEGER => 4
+      case FLOAT => 4
+      case DOUBLE => 8
+      case BIGINT => 8
+      case TIMESTAMP_WITHOUT_TIME_ZONE => 8
+      case INTERVAL_YEAR_MONTH => 4
+      case INTERVAL_DAY_TIME => 8
+      case DATE => 4
+      case TIME_WITHOUT_TIME_ZONE => 4
+      case DECIMAL if Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
+      case VARCHAR | VARBINARY => Int.MaxValue
     }
   }
 }

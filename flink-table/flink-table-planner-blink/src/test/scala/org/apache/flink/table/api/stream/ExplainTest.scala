@@ -19,8 +19,8 @@
 package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.InternalTypes.{INT, LONG, STRING}
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -34,6 +34,10 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
   util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
+
+  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
   @Test
   def testExplainTableSourceScan(): Unit = {

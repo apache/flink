@@ -218,7 +218,7 @@ LogicalTableScan(table=[[t, source: [TestTableSource(i, j, k)]]])
 })])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
     LogicalTableScan(table=[[r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 })])
    +- LogicalTableScan(table=[[l, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -235,7 +235,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[a, b, c], build=[ri
                +- Calc(select=[true AS i])
                   +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[$f0], select=[d], build=[right], singleRowJoin=[true])
                      :- Calc(select=[d])
-                     :  +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(65536) f, VARCHAR(65536) f0)], joinType=[INNER])
+                     :  +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,f0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) f0)], joinType=[INNER])
                      :     +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
                      +- Exchange(distribution=[broadcast])
                         +- Calc(select=[IS NOT NULL(m) AS $f0])
@@ -1483,7 +1483,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[AND(=(b, j), =(a, i))], select=[a, b, c
 :        +- Calc(select=[d, f])
 :           +- TableSourceScan(table=[[r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[j, i]])
-   +- Calc(select=[j, i], where=[<>(k, _UTF-16LE'test':VARCHAR(65536) CHARACTER SET "UTF-16LE")])
+   +- Calc(select=[j, i], where=[<>(k, _UTF-16LE'test':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
       +- TableSourceScan(table=[[t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
 ]]>
     </Resource>

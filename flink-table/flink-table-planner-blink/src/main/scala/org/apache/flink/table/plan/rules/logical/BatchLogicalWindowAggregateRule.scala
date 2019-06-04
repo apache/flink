@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType
+import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
@@ -59,8 +59,7 @@ class BatchLogicalWindowAggregateRule
         FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
         new FieldReferenceExpression(
           rowType.getFieldList.get(windowExprIdx).getName,
-          fromLegacyInfoToDataType(
-            createExternalTypeInfoFromInternalType(toInternalType(c.getType))),
+          fromLogicalTypeToDataType(toLogicalType(c.getType)),
           0, // only one input, should always be 0
           windowExprIdx)
       case ref: RexInputRef =>
@@ -69,8 +68,7 @@ class BatchLogicalWindowAggregateRule
         val fieldType = rowType.getFieldList.get(ref.getIndex).getType
         new FieldReferenceExpression(
           fieldName,
-          fromLegacyInfoToDataType(
-            createExternalTypeInfoFromInternalType(toInternalType(fieldType))),
+          fromLogicalTypeToDataType(toLogicalType(fieldType)),
           0, // only one input, should always be 0
           ref.getIndex)
     }

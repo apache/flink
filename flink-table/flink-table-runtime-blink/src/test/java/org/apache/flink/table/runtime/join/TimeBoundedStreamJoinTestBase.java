@@ -22,17 +22,18 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
  * Base Test for all subclass of {@link TimeBoundedStreamJoin}.
  */
 abstract class TimeBoundedStreamJoinTestBase {
-	BaseRowTypeInfo rowType = new BaseRowTypeInfo(InternalTypes.LONG, InternalTypes.STRING);
+	BaseRowTypeInfo rowType = new BaseRowTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
 
-	private BaseRowTypeInfo outputRowType = new BaseRowTypeInfo(InternalTypes.LONG, InternalTypes.STRING,
-			InternalTypes.LONG, InternalTypes.STRING);
+	private BaseRowTypeInfo outputRowType = new BaseRowTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH),
+			new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
 	BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(outputRowType.getFieldTypes());
 
 	private String funcCode =

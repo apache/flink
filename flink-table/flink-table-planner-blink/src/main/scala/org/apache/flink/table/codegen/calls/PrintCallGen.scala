@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.codegen.CodeGenUtils.{newNames, primitiveTypeTermForType}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 
 /**
   * Generates PRINT function call.
@@ -30,7 +30,7 @@ class PrintCallGen extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
     val resultTypeTerm = primitiveTypeTermForType(returnType)
 
@@ -39,7 +39,7 @@ class PrintCallGen extends CallGenerator {
     val logTerm = "logger$"
     ctx.addReusableLogger(logTerm, "_Print$_")
 
-    val outputCode = if (returnType == InternalTypes.BINARY) {
+    val outputCode = if (returnType.getTypeRoot == LogicalTypeRoot.VARBINARY) {
       s"new String($resultTerm, java.nio.charset.Charset.defaultCharset())"
     } else {
       s"String.valueOf(${operands(1).resultTerm})"

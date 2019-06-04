@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.utils.TypeConversions
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
@@ -34,17 +35,17 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
   */
 class DeferredTypeFlinkTableFunction(
     val tableFunction: TableFunction[_],
-    val implicitResultType: TypeInformation[_])
+    val implicitResultType: DataType)
   extends FlinkTableFunction(tableFunction) {
 
   override def getExternalResultType(
       arguments: Array[AnyRef],
-      argTypes: Array[Class[_]]): TypeInformation[_] = {
+      argTypes: Array[Class[_]]): DataType = {
     // TODO
 //    val resultType = tableFunction.getResultType(arguments, argTypes)
     val resultType = tableFunction.getResultType
     if (resultType != null) {
-      resultType
+      TypeConversions.fromLegacyInfoToDataType(resultType)
     } else {
       // if user don't specific the result type, using the implicit type
       implicitResultType
@@ -58,6 +59,6 @@ class DeferredTypeFlinkTableFunction(
     val resultType = getExternalResultType(arguments, argTypes)
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
     UserDefinedFunctionUtils.buildRelDataType(
-      typeFactory, createInternalTypeFromTypeInfo(resultType), fieldNames, fieldIndexes)
+      typeFactory, fromDataTypeToLogicalType(resultType), fieldNames, fieldIndexes)
   }
 }

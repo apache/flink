@@ -35,7 +35,7 @@ import org.apache.flink.table.runtime.window.triggers.ElementTriggers;
 import org.apache.flink.table.runtime.window.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.window.triggers.ProcessingTimeTriggers;
 import org.apache.flink.table.runtime.window.triggers.Trigger;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.time.Duration;
 
@@ -57,16 +57,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </pre>
  */
 public class WindowOperatorBuilder {
-	private InternalType[] inputFieldTypes;
+	private LogicalType[] inputFieldTypes;
 	private WindowAssigner<?> windowAssigner;
 	private Trigger<?> trigger;
 	private NamespaceAggsHandleFunction<?> aggregateFunction;
 	private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
 	private RecordEqualiser equaliser;
 	private GeneratedRecordEqualiser generatedEqualiser;
-	private InternalType[] accumulatorTypes;
-	private InternalType[] aggResultTypes;
-	private InternalType[] windowPropertyTypes;
+	private LogicalType[] accumulatorTypes;
+	private LogicalType[] aggResultTypes;
+	private LogicalType[] windowPropertyTypes;
 	private long allowedLateness = 0L;
 	private boolean sendRetraction = false;
 	private int rowtimeIndex = -1;
@@ -75,7 +75,7 @@ public class WindowOperatorBuilder {
 		return new WindowOperatorBuilder();
 	}
 
-	public WindowOperatorBuilder withInputFields(InternalType[] inputFieldTypes) {
+	public WindowOperatorBuilder withInputFields(LogicalType[] inputFieldTypes) {
 		this.inputFieldTypes = inputFieldTypes;
 		return this;
 	}
@@ -165,9 +165,9 @@ public class WindowOperatorBuilder {
 	public WindowOperatorBuilder aggregate(
 			NamespaceAggsHandleFunction<?> aggregateFunction,
 			RecordEqualiser equaliser,
-			InternalType[] accumulatorTypes,
-			InternalType[] aggResultTypes,
-			InternalType[] windowPropertyTypes) {
+			LogicalType[] accumulatorTypes,
+			LogicalType[] aggResultTypes,
+			LogicalType[] windowPropertyTypes) {
 		ClosureCleaner.clean(aggregateFunction, true);
 		this.accumulatorTypes = accumulatorTypes;
 		this.aggResultTypes = aggResultTypes;
@@ -180,9 +180,9 @@ public class WindowOperatorBuilder {
 	public WindowOperatorBuilder aggregate(
 			GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction,
 			GeneratedRecordEqualiser generatedEqualiser,
-			InternalType[] accumulatorTypes,
-			InternalType[] aggResultTypes,
-			InternalType[] windowPropertyTypes) {
+			LogicalType[] accumulatorTypes,
+			LogicalType[] aggResultTypes,
+			LogicalType[] windowPropertyTypes) {
 		this.accumulatorTypes = accumulatorTypes;
 		this.aggResultTypes = aggResultTypes;
 		this.windowPropertyTypes = windowPropertyTypes;

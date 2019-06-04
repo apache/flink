@@ -28,6 +28,8 @@ import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironmen
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.CollectTableSink
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.AbstractID
 import _root_.java.util.{ArrayList => JArrayList}
 
@@ -149,7 +151,7 @@ object BatchTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val (typeFieldNames, fieldIdxs) =
-      tEnv.getFieldInfo(boundedStream.getTransformation.getOutputType)
+      tEnv.getFieldInfo(fromLegacyInfoToDataType(boundedStream.getTransformation.getOutputType))
     val boundedStreamTable = new DataStreamTable[T](
       boundedStream, fieldIdxs, fieldNames.getOrElse(typeFieldNames), fieldNullables)
     val withStatistic = boundedStreamTable.copy(statistic.getOrElse(FlinkStatistic.UNKNOWN))

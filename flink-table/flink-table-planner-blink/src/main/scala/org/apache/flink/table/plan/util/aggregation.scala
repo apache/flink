@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.rel.core.AggregateCall
 
@@ -44,9 +43,9 @@ case class AggregateInfo(
     function: UserDefinedFunction,
     aggIndex: Int,
     argIndexes: Array[Int],
-    externalAccTypes: Array[TypeInformation[_]],
+    externalAccTypes: Array[DataType],
     viewSpecs: Array[DataViewSpec],
-    externalResultType: TypeInformation[_],
+    externalResultType: DataType,
     consumeRetraction: Boolean)
 
 /**
@@ -66,8 +65,8 @@ case class AggregateInfo(
   */
 case class DistinctInfo(
     argIndexes: Array[Int],
-    keyType: TypeInformation[_],
-    accType: TypeInformation[_],
+    keyType: DataType,
+    accType: DataType,
     excludeAcc: Boolean,
     dataViewSpec: Option[DataViewSpec],
     consumeRetraction: Boolean,
@@ -93,7 +92,7 @@ case class AggregateInfoList(
 
   def getAggNames: Array[String] = aggInfos.map(_.agg.getName)
 
-  def getAccTypes: Array[TypeInformation[_]] = {
+  def getAccTypes: Array[DataType] = {
     aggInfos.flatMap(_.externalAccTypes) ++ distinctInfos.filter(!_.excludeAcc).map(_.accType)
   }
 
@@ -105,7 +104,7 @@ case class AggregateInfoList(
     getActualAggregateInfos.map(_.function)
   }
 
-  def getActualValueTypes: Array[TypeInformation[_]] = {
+  def getActualValueTypes: Array[DataType] = {
     getActualAggregateInfos.map(_.externalResultType)
   }
 

@@ -268,7 +268,7 @@ LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(65536) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
+Calc(select=[deptno, gender, min_name], where=[OR(>($f5, 2), AND(=(gender, _UTF-16LE'M':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), =(deptno, 10)))])
 +- GroupAggregate(groupBy=[deptno, deptno0, gender, $e], select=[deptno, deptno0, gender, $e, MIN(ename) AS min_name, COUNT(*) AS $f5])
    +- Exchange(distribution=[hash[deptno, deptno0, gender, $e]])
       +- Expand(projects=[{deptno=[$0], deptno0=[$1], gender=[$2], ename=[$3], $e=[0]}, {deptno=[$0], deptno0=[$1], gender=[null], ename=[$3], $e=[1]}, {deptno=[$0], deptno0=[null], gender=[$2], ename=[$3], $e=[2]}, {deptno=[$0], deptno0=[null], gender=[null], ename=[$3], $e=[3]}, {deptno=[null], deptno0=[$1], gender=[$2], ename=[$3], $e=[4]}, {deptno=[null], deptno0=[$1], gender=[null], ename=[$3], $e=[5]}, {deptno=[null], deptno0=[null], gender=[$2], ename=[$3], $e=[6]}, {deptno=[null], deptno0=[null], gender=[null], ename=[$3], $e=[7]}])
@@ -384,7 +384,7 @@ from scott_emp
     <Resource name="planBefore">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
-+- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE")])
++- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
    +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2, 3}, {0, 1}, {0}, {}]], sumsal=[SUM($4)], agg#1=[GROUPING_ID($0, $1, $2)])
       +- LogicalProject(deptno=[$7], job=[$2], empno=[$0], ename=[$1], sal=[$5])
          +- LogicalTableScan(table=[[scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]])
@@ -392,7 +392,7 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(65536) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(65536) CHARACTER SET "UTF-16LE", null:VARCHAR(65536) CHARACTER SET "UTF-16LE") AS gr_text])
+Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS gr_text])
 +- Sort(orderBy=[deptno ASC, job ASC, empno ASC])
    +- Exchange(distribution=[single])
       +- GroupAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, SUM(sal) AS sumsal])

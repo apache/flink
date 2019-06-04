@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.DataType;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
@@ -46,13 +44,13 @@ public class RowNumberAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] { InternalTypes.LONG };
+	public DataType[] getAggBufferTypes() {
+		return new DataType[] { DataTypes.BIGINT() };
 	}
 
 	@Override
-	public TypeInformation getResultType() {
-		return Types.LONG;
+	public DataType getResultType() {
+		return DataTypes.BIGINT();
 	}
 
 	@Override

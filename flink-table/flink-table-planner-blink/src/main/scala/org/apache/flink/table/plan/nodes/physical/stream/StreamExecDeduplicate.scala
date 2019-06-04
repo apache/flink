@@ -23,16 +23,16 @@ import org.apache.flink.streaming.api.transformations.{OneInputTransformation, S
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.KeySelectorUtil
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
-import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
 import java.util
 

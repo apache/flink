@@ -105,7 +105,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3], f=[$4], cnt=[$5])
             :- LogicalAggregate(group=[{0}], cnt=[COUNT($0)])
             :  +- LogicalProject(f=[$2])
             :     +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -114,7 +114,7 @@ HashJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f1, f, cnt], bu
 :- Exchange(distribution=[hash[c]])
 :  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[f0 AS f1, f, cnt])
-   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(65536) f, BIGINT cnt, VARCHAR(65536) f0)], joinType=[INNER])
+   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
       +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
          +- Exchange(distribution=[hash[f]])
             +- LocalHashAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
@@ -142,7 +142,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f=[$3], f1=[$4])
             :- LogicalAggregate(group=[{0}], cnt=[COUNT($0)])
             :  +- LogicalProject(f=[$2])
             :     +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -151,7 +151,7 @@ HashJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f, f1], build=[
 :- Exchange(distribution=[hash[c]])
 :  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[f, f0 AS f1])
-   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(65536) f, BIGINT cnt, VARCHAR(65536) f0)], joinType=[INNER])
+   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
       +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
          +- Exchange(distribution=[hash[f]])
             +- LocalHashAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
@@ -179,7 +179,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3])
             :- LogicalAggregate(group=[{0}], cnt=[COUNT($0)])
             :  +- LogicalProject(f=[$2])
             :     +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
-            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -189,7 +189,7 @@ HashJoin(joinType=[InnerJoin], where=[=(c, f1)], select=[a, b, c, f1], build=[ri
 :  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1]])
    +- Calc(select=[f0 AS f1])
-      +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(65536) f, BIGINT cnt, VARCHAR(65536) f0)], joinType=[INNER])
+      +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
          +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
             +- Exchange(distribution=[hash[f]])
                +- LocalHashAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])

@@ -18,16 +18,10 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import java.util
-
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException, Types}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -35,8 +29,14 @@ import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
 import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
-import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rex.RexNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -91,7 +91,6 @@ class BatchExecTableSourceScan(
 
     val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
     val producedDataType = tableSource.getProducedDataType
-    val producedTypeInfo = fromDataTypeToLegacyInfo(producedDataType)
 
     // check that declared and actual type of table source DataStream are identical
     if (inputDataType != producedDataType) {
@@ -106,15 +105,14 @@ class BatchExecTableSourceScan(
       tableSource,
       None,
       cluster,
-      tableEnv.getRelBuilder,
-      Types.SQL_TIMESTAMP
+      tableEnv.getRelBuilder
     )
     if (needInternalConversion) {
       ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[StreamTransformation[Any]],
         fieldIndexes,
-        producedTypeInfo,
+        producedDataType,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -132,7 +130,7 @@ class BatchExecTableSourceScan(
       None)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(
-        fromDataTypeToLegacyInfo(tableSource.getProducedDataType),
+        tableSource.getProducedDataType,
         TypeExtractor.createTypeInfo(
           tableSource, classOf[BatchTableSource[_]], tableSource.getClass, 0)
           .getTypeClass.asInstanceOf[Class[_]])

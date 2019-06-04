@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
-import org.apache.flink.table.`type`.{InternalType, TypeConverters}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
@@ -34,11 +33,15 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable}
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, CollectRowTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
+import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
 
@@ -130,7 +133,8 @@ abstract class TableTestUtil(test: TableTestBase) {
       case _ => throw new TableException(s"Unsupported type info: $typeInfo")
     }
     val tableEnv = getTableEnv
-    val (fieldNames, _) = tableEnv.getFieldInfo(typeInfo, fields.map(_.name).toArray)
+    val (fieldNames, _) = tableEnv.getFieldInfo(
+      fromLegacyInfoToDataType(typeInfo), fields.map(_.name).toArray)
     val schema = new TableSchema(fieldNames, fieldTypes)
     val tableSource = new TestTableSource(schema)
     tableEnv.registerTableSource(name, tableSource)
@@ -536,26 +540,26 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
 
   def createAppendTableSink(
       fieldNames: Array[String],
-      fieldTypes: Array[InternalType]): AppendStreamTableSink[Row] = {
+      fieldTypes: Array[LogicalType]): AppendStreamTableSink[Row] = {
     require(fieldNames.length == fieldTypes.length)
-    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new TestingAppendTableSink().configure(fieldNames, typeInfos)
   }
 
   def createUpsertTableSink(
       keys: Array[Int],
       fieldNames: Array[String],
-      fieldTypes: Array[InternalType]): UpsertStreamTableSink[BaseRow] = {
+      fieldTypes: Array[LogicalType]): UpsertStreamTableSink[BaseRow] = {
     require(fieldNames.length == fieldTypes.length)
-    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new TestingUpsertTableSink(keys).configure(fieldNames, typeInfos)
   }
 
   def createRetractTableSink(
       fieldNames: Array[String],
-      fieldTypes: Array[InternalType]): RetractStreamTableSink[Row] = {
+      fieldTypes: Array[LogicalType]): RetractStreamTableSink[Row] = {
     require(fieldNames.length == fieldTypes.length)
-    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new TestingRetractTableSink().configure(fieldNames, typeInfos)
   }
 }
@@ -617,9 +621,9 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
 
   def createCollectTableSink(
       fieldNames: Array[String],
-      fieldTypes: Array[InternalType]): TableSink[Row] = {
+      fieldTypes: Array[LogicalType]): TableSink[Row] = {
     require(fieldNames.length == fieldTypes.length)
-    val typeInfos = fieldTypes.map(TypeConverters.createInternalTypeInfoFromInternalType)
+    val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new CollectRowTableSink().configure(fieldNames, typeInfos)
   }
 }
@@ -642,8 +646,9 @@ class TestTableSource(schema: TableSchema)
   }
 
   override def getReturnType: TypeInformation[BaseRow] = {
-    val internalTypes = schema.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo)
-    new BaseRowTypeInfo(internalTypes, schema.getFieldNames)
+    val LogicalTypes = schema.getFieldTypes.map(
+      TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType)
+    new BaseRowTypeInfo(LogicalTypes, schema.getFieldNames)
   }
 
   override def getTableSchema: TableSchema = schema

@@ -37,10 +37,9 @@ import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.type.GenericType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.TypeConverters;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TypeInformationAnyType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringSerializer;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
@@ -52,6 +51,8 @@ import org.apache.flink.table.typeutils.MapViewTypeInfo;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import static org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 
 /**
  * built-in FirstValue with retraction aggregate function.
@@ -187,11 +188,11 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 
 	@Override
 	public TypeInformation<GenericRow> getAccumulatorType() {
-		InternalType[] fieldTypes = new InternalType[] {
-				TypeConverters.createInternalTypeFromTypeInfo(getResultType()),
-				InternalTypes.LONG,
-				new GenericType<>(new MapViewTypeInfo<>(getResultType(), new ListTypeInfo<>(Types.LONG), false, false)),
-				new GenericType<>(new MapViewTypeInfo<>(Types.LONG, new ListTypeInfo<>(getResultType()), false, false))
+		LogicalType[] fieldTypes = new LogicalType[] {
+				fromTypeInfoToLogicalType(getResultType()),
+				new BigIntType(),
+				new TypeInformationAnyType<>(new MapViewTypeInfo<>(getResultType(), new ListTypeInfo<>(Types.LONG), false, false)),
+				new TypeInformationAnyType<>(new MapViewTypeInfo<>(Types.LONG, new ListTypeInfo<>(getResultType()), false, false))
 		};
 
 		String[] fieldNames = new String[] {

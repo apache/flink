@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -33,9 +33,9 @@ public class ResolvedAggInputReference implements Expression {
 
 	private final String name;
 	private final int index;
-	private final InternalType resultType;
+	private final LogicalType resultType;
 
-	public ResolvedAggInputReference(String name, int index, InternalType resultType) {
+	public ResolvedAggInputReference(String name, int index, LogicalType resultType) {
 		this.name = Preconditions.checkNotNull(name);
 		this.index = index;
 		this.resultType = resultType;
@@ -49,7 +49,7 @@ public class ResolvedAggInputReference implements Expression {
 		return index;
 	}
 
-	public InternalType getResultType() {
+	public LogicalType getResultType() {
 		return resultType;
 	}
 

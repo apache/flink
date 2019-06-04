@@ -29,7 +29,7 @@ import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -57,7 +57,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	/**
 	 * The accumulator types.
 	 */
-	private final InternalType[] accTypes;
+	private final LogicalType[] accTypes;
 
 	/**
 	 * Used to count the number of added and retracted input records.
@@ -101,7 +101,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,
 			GeneratedRecordEqualiser genRecordEqualiser,
-			InternalType[] accTypes,
+			LogicalType[] accTypes,
 			int indexOfCountStar,
 			boolean generateRetraction) {
 		super(minRetentionTime, maxRetentionTime);

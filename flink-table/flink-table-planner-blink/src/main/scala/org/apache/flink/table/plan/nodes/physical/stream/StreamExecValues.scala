@@ -24,13 +24,12 @@ import org.apache.flink.table.codegen.ValuesCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
-
-import com.google.common.collect.ImmutableList
 
 import java.util
 

@@ -33,8 +33,7 @@ import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -153,19 +152,23 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 
 		// initialize rankEndFetcher
 		if (!isConstantRankEnd) {
-			InternalType rankEndIdxType = inputRowType.getInternalTypes()[rankEndIndex];
-			if (rankEndIdxType.equals(InternalTypes.LONG)) {
-				rankEndFetcher = (BaseRow row) -> row.getLong(rankEndIndex);
-			} else if (rankEndIdxType.equals(InternalTypes.INT)) {
-				rankEndFetcher = (BaseRow row) -> (long) row.getInt(rankEndIndex);
-			} else if (rankEndIdxType.equals(InternalTypes.SHORT)) {
-				rankEndFetcher = (BaseRow row) -> (long) row.getShort(rankEndIndex);
-			} else {
-				LOG.error("variable rank index column must be long, short or int type, while input type is {}",
-						rankEndIdxType.getClass().getName());
-				throw new UnsupportedOperationException(
-						"variable rank index column must be long type, while input type is " +
-								rankEndIdxType.getClass().getName());
+			LogicalType rankEndIdxType = inputRowType.getLogicalTypes()[rankEndIndex];
+			switch (rankEndIdxType.getTypeRoot()) {
+				case BIGINT:
+					rankEndFetcher = (BaseRow row) -> row.getLong(rankEndIndex);
+					break;
+				case INTEGER:
+					rankEndFetcher = (BaseRow row) -> (long) row.getInt(rankEndIndex);
+					break;
+				case SMALLINT:
+					rankEndFetcher = (BaseRow row) -> (long) row.getShort(rankEndIndex);
+					break;
+				default:
+					LOG.error("variable rank index column must be long, short or int type, while input type is {}",
+							rankEndIdxType.getClass().getName());
+					throw new UnsupportedOperationException(
+							"variable rank index column must be long type, while input type is " +
+									rankEndIdxType.getClass().getName());
 			}
 		}
 	}

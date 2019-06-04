@@ -33,7 +33,7 @@ import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -63,8 +63,8 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeRangeBoundedPrecedingFunction.class);
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
-	private final InternalType[] accTypes;
-	private final InternalType[] inputFieldTypes;
+	private final LogicalType[] accTypes;
+	private final LogicalType[] inputFieldTypes;
 	private final long precedingTimeBoundary;
 
 	private transient ValueState<BaseRow> accState;
@@ -77,8 +77,8 @@ public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFuncti
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,
-			InternalType[] accTypes,
-			InternalType[] inputFieldTypes,
+			LogicalType[] accTypes,
+			LogicalType[] inputFieldTypes,
 			long precedingTimeBoundary) {
 		super(minRetentionTime, maxRetentionTime);
 		this.genAggsHandler = genAggsHandler;
