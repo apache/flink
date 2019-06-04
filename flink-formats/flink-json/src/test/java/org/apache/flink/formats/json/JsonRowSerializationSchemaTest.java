@@ -136,7 +136,7 @@ public class JsonRowSerializationSchemaTest {
 			"}");
 
 		final Row row = new Row(11);
-		row.setField(0, BigDecimal.valueOf(-333));
+		row.setField(0, -333);
 		row.setField(1, BigDecimal.valueOf(12.2222));
 		row.setField(2, null);
 		row.setField(3, "");
@@ -144,11 +144,11 @@ public class JsonRowSerializationSchemaTest {
 		row.setField(5, Time.valueOf("12:12:43"));
 		row.setField(6, Timestamp.valueOf("1990-10-14 12:12:43"));
 
-		final byte[] bytes = new byte[1024];
+		final byte[] bytes = new byte[2];
 		ThreadLocalRandom.current().nextBytes(bytes);
 		row.setField(7, bytes);
-		final BigDecimal[] numbers = new BigDecimal[] {
-			BigDecimal.valueOf(1), BigDecimal.valueOf(2), BigDecimal.valueOf(3)};
+		final Integer[] numbers = new Integer[] {
+			1, 2, 3};
 		row.setField(8, numbers);
 		final String[] strings = new String[] {"one", "two", "three"};
 		row.setField(9, strings);

@@ -165,9 +165,7 @@ public final class JsonRowSchemaConverter {
 						typeSet.add(Types.BIG_DEC);
 						break;
 					case TYPE_INTEGER:
-						// use BigDecimal for easier interoperability
-						// without affecting the correctness of the result
-						typeSet.add(Types.BIG_DEC);
+						typeSet.add(Types.INT);
 						break;
 					case TYPE_OBJECT:
 						typeSet.add(convertObject(location, node, root));

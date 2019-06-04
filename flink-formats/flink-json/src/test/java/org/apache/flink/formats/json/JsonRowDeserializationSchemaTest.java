@@ -78,19 +78,20 @@ public class JsonRowDeserializationSchemaTest {
 
 	@Test
 	public void testSchemaDeserialization() throws Exception {
-		final BigDecimal id = BigDecimal.valueOf(1238123899121L);
+		//final BigDecimal id = BigDecimal.valueOf(1238123899121L);
+		final int id = 12345678;
 		final String name = "asdlkjasjkdla998y1122";
-		final byte[] bytes = new byte[1024];
+		final byte[] bytes = new byte[2];
 		ThreadLocalRandom.current().nextBytes(bytes);
-		final BigDecimal[] numbers = new BigDecimal[] {
-			BigDecimal.valueOf(1), BigDecimal.valueOf(2), BigDecimal.valueOf(3)};
+		final Integer[] numbers = new Integer[] {
+			1, 2, 3};
 		final String[] strings = new String[] {"one", "two", "three"};
 
 		final ObjectMapper objectMapper = new ObjectMapper();
 
 		// Root
 		ObjectNode root = objectMapper.createObjectNode();
-		root.put("id", id.longValue());
+		root.put("id", id);
 		root.putNull("idOrNull");
 		root.put("name", name);
 		root.put("date", "1990-10-14");
