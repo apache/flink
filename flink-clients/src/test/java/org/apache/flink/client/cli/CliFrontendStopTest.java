@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -48,7 +49,7 @@ import static org.powermock.api.mockito.PowerMockito.doThrow;
 /**
  * Tests for the STOP command.
  */
-public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
+public class CliFrontendStopTest extends CliFrontendTestBase {
 
 	@BeforeClass
 	public static void setup() {
@@ -103,6 +104,19 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 	}
 
 	@Test
+	public void testStopWithCheckpoint() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-k", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+			.stopWithCheckpoint(eq(jid), eq(false));
+	}
+
+	@Test
 	public void testStopOnlyWithMaxWM() throws Exception {
 		JobID jid = new JobID();
 
@@ -129,6 +143,19 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 	}
 
 	@Test
+	public void testStopWithCheckpointWithMaxWM() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-k", "-d", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+			.stopWithCheckpoint(eq(jid), eq(true));
+	}
+
+	@Test
 	public void testStopWithMaxWMAndExplicitSavepointDir() throws Exception {
 		JobID jid = new JobID();
 
@@ -139,6 +166,22 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 
 		Mockito.verify(clusterClient, times(1))
 				.stopWithSavepoint(eq(jid), eq(true), eq("test-target-dir"));
+	}
+
+	@Test
+	public void testStopWithCheckpointAndSavepoint() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-k", "-s", "test-target-dir", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		try {
+			testFrontend.stop(parameters);
+			fail("Should fail stop.");
+		} catch (Exception e) {
+			assertTrue(e instanceof IllegalStateException);
+			assertEquals("Can only stop with checkpoint or savepoint, can't set both.", e.getMessage());
+		}
 	}
 
 	@Test(expected = CliArgsException.class)

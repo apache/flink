@@ -21,7 +21,9 @@ package org.apache.flink.client.cli;
 import org.apache.commons.cli.CommandLine;
 
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_AND_DRAIN;
+import static org.apache.flink.client.cli.CliFrontendParser.STOP_WITH_CHECKPOINT;
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_WITH_SAVEPOINT;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Command line options for the STOP command.
@@ -31,6 +33,8 @@ class StopOptions extends CommandLineOptions {
 	private final String[] args;
 
 	private final boolean savepointFlag;
+
+	private final boolean checkpointFlag;
 
 	/** Optional target directory for the savepoint. Overwrites cluster default. */
 	private final String targetDirectory;
@@ -43,6 +47,10 @@ class StopOptions extends CommandLineOptions {
 
 		this.savepointFlag = line.hasOption(STOP_WITH_SAVEPOINT.getOpt());
 		this.targetDirectory = line.getOptionValue(STOP_WITH_SAVEPOINT.getOpt());
+
+		this.checkpointFlag = line.hasOption(STOP_WITH_CHECKPOINT.getOpt());
+
+		checkState(!(this.savepointFlag && this.checkpointFlag), "Can only stop with checkpoint or savepoint, can't set both.");
 
 		this.advanceToEndOfEventTime = line.hasOption(STOP_AND_DRAIN.getOpt());
 	}
@@ -57,6 +65,10 @@ class StopOptions extends CommandLineOptions {
 
 	String getTargetDirectory() {
 		return targetDirectory;
+	}
+
+	boolean hasCheckpointFlag() {
+		return checkpointFlag;
 	}
 
 	boolean shouldAdvanceToEndOfEventTime() {

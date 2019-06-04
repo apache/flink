@@ -30,7 +30,10 @@ public enum CheckpointType {
 	SAVEPOINT(true, false),
 
 	/** A savepoint taken while suspending/terminating the job. */
-	SYNC_SAVEPOINT(true, true);
+	SYNC_SAVEPOINT(true, true),
+
+	/** A checkpoint taken while suspending/terminating the job. */
+	SYNC_CHECKPOINT(false, true);
 
 	private final boolean isSavepoint;
 

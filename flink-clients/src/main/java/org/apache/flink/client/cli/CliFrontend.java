@@ -500,8 +500,6 @@ public class CliFrontend {
 	 * @param args Command line arguments for the stop action.
 	 */
 	protected void stop(String[] args) throws Exception {
-		LOG.info("Running 'stop-with-savepoint' command.");
-
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
 		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
 		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
@@ -510,6 +508,12 @@ public class CliFrontend {
 		if (stopOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForStop(customCommandLines);
 			return;
+		}
+
+		if (stopOptions.hasCheckpointFlag()) {
+			LOG.info("Running 'stop-with-savepoint' command.");
+		} else {
+			LOG.info("Running 'stop-with-savepoint' command.");
 		}
 
 		final String[] cleanedArgs = stopOptions.getArgs();
@@ -532,13 +536,17 @@ public class CliFrontend {
 			commandLine,
 			clusterClient -> {
 				try {
-					clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
+					if (stopOptions.hasCheckpointFlag()) {
+						clusterClient.stopWithCheckpoint(jobId, advanceToEndOfEventTime);
+					} else {
+						clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
+					}
 				} catch (Exception e) {
-					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
+					throw new FlinkException("Could not stop with a checkpoint/savepoint job \"" + jobId + "\".", e);
 				}
 			});
 
-		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a savepoint.");
+		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a checkpiont/savepoint.");
 	}
 
 	/**

@@ -78,6 +78,11 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
+	public String stopWithCheckpoint(JobID jobID, boolean advanceToEndOfEventTime) throws Exception {
+		throw new UnsupportedOperationException("Not needed in test.");
+	}
+
 	public void stop(final JobID jobId) {
 		// no op
 	}

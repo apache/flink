@@ -190,7 +190,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
 
-	private final SynchronousSavepointLatch syncSavepointLatch;
+	private final SynchronousCheckpointLatch syncLatch;
 
 	protected final Mailbox mailbox;
 
@@ -225,7 +225,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriters = createRecordWriters(configuration, environment);
-		this.syncSavepointLatch = new SynchronousSavepointLatch();
+		this.syncLatch = new SynchronousCheckpointLatch();
 		this.mailbox = new MailboxImpl();
 	}
 
@@ -307,8 +307,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@VisibleForTesting
-	SynchronousSavepointLatch getSynchronousSavepointLatch() {
-		return syncSavepointLatch;
+	SynchronousCheckpointLatch getSynchronousSavepointLatch() {
+		return syncLatch;
 	}
 
 	@Override
@@ -474,7 +474,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// the "cancel task" call must come first, but the cancelables must be
 		// closed no matter what
 		try {
-			syncSavepointLatch.cancelCheckpointLatch();
+			syncLatch.cancelCheckpointLatch();
 			cancelTask();
 		}
 		finally {
@@ -717,7 +717,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (isRunning) {
 
 				if (checkpointOptions.getCheckpointType().isSynchronous()) {
-					syncSavepointLatch.setCheckpointId(checkpointId);
+					syncLatch.setCheckpointId(checkpointId);
 
 					if (advanceToEndOfTime) {
 						advanceToEndOfEventTime();
@@ -772,10 +772,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
-		if (isRunning && syncSavepointLatch.isSet()) {
+		if (isRunning && syncLatch.isSet()) {
 
 			final boolean checkpointWasAcked =
-					syncSavepointLatch.blockUntilCheckpointIsAcknowledged();
+					syncLatch.blockUntilCheckpointIsAcknowledged();
 
 			if (checkpointWasAcked) {
 				finishTask();
@@ -801,7 +801,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					}
 				}
 
-				syncSavepointLatch.acknowledgeCheckpointAndTrigger(checkpointId);
+				syncLatch.acknowledgeCheckpointAndTrigger(checkpointId);
 			}
 			else {
 				LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());

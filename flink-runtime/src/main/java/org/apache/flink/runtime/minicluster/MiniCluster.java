@@ -563,6 +563,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.disposeSavepoint(savepointPath, rpcTimeout));
 	}
 
+	public CompletableFuture<String> stopWithCheckpoint(JobID jobId, boolean advanceToEndOfEventTime) {
+		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.stopWithCheckpoint(jobId, advanceToEndOfEventTime, rpcTimeout));
+	}
+
 	public CompletableFuture<? extends AccessExecutionGraph> getExecutionGraph(JobID jobId) {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.requestJob(jobId, rpcTimeout));
 	}

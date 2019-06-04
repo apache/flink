@@ -132,6 +132,11 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
+	public String stopWithCheckpoint(JobID jobId, boolean advanceToEndOfEventTime) throws Exception {
+		return miniCluster.stopWithCheckpoint(jobId, advanceToEndOfEventTime).get();
+	}
+
+	@Override
 	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
 		return miniCluster.listJobs();
 	}

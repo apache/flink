@@ -389,6 +389,21 @@ public abstract class ClusterClient<T> {
 	public abstract CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException;
 
 	/**
+	 * Stops a program on Flink cluster whose job-manager is configured in this client's configuration.
+	 * Stopping works only for streaming programs. Be aware, that the program might continue to run for
+	 * a while after sending the stop command, because after sources stopped to emit data ll operators
+	 * need to finish processing.
+	 *
+	 * @param jobID the job ID of the streaming program to stop
+	 * @param advanceToEndOfEventTime flag indicating if the source should inject a @{@code MAX_WATERMARK} in the pipeline
+	 * @return a {@link CompletableFuture} containing the path where the checkpoint is located
+	 * @throws Exception
+	 * 				If the job ID is invalid (ie, is unknown or refers to a batch job) or if sending the stop signal
+	 * 				failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
+	 */
+	public abstract String stopWithCheckpoint(final JobID jobID, final boolean advanceToEndOfEventTime) throws Exception;
+
+	/**
 	 * Lists the currently running and finished jobs on the cluster.
 	 *
 	 * @return future collection of running and finished jobs

@@ -132,6 +132,9 @@ public class CliFrontendParser {
 		"Python module with the program entry point. " +
 			"This option must be used in conjunction with `--pyFiles`.");
 
+	public static final Option STOP_WITH_CHECKPOINT = new Option("k", "withCheckpoint", false,
+		"Stop the job with checkpoint, The checkpoint will be stored in (\"" + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key() + "\").");
+
 	static {
 		HELP_OPTION.setRequired(false);
 
@@ -188,6 +191,8 @@ public class CliFrontendParser {
 
 		PYMODULE_OPTION.setRequired(false);
 		PYMODULE_OPTION.setArgName("pyModule");
+
+		STOP_WITH_CHECKPOINT.setRequired(false);
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -255,6 +260,7 @@ public class CliFrontendParser {
 	static Options getStopCommandOptions() {
 		return buildGeneralOptions(new Options())
 				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_CHECKPOINT)
 				.addOption(STOP_AND_DRAIN);
 	}
 

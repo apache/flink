@@ -33,9 +33,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link SynchronousSavepointLatch}.
+ * Tests for the {@link SynchronousCheckpointLatch}.
  */
-public class SynchronousSavepointSyncLatchTest {
+public class SynchronousCheckpointSyncLatchTest {
 
 	private ExecutorService executors;
 
@@ -54,7 +54,7 @@ public class SynchronousSavepointSyncLatchTest {
 
 	@Test
 	public void waitAndThenTriggerWorks() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+		final SynchronousCheckpointLatch latchUnderTest = new SynchronousCheckpointLatch();
 		final WaitingOnLatchCallable callable = new WaitingOnLatchCallable(latchUnderTest, 1L);
 
 		executors.submit(callable);
@@ -73,7 +73,7 @@ public class SynchronousSavepointSyncLatchTest {
 
 	@Test
 	public void waitAndThenCancelWorks() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+		final SynchronousCheckpointLatch latchUnderTest = new SynchronousCheckpointLatch();
 		final WaitingOnLatchCallable callable = new WaitingOnLatchCallable(latchUnderTest, 1L);
 
 		final Future<Boolean> resultFuture = executors.submit(callable);
@@ -92,7 +92,7 @@ public class SynchronousSavepointSyncLatchTest {
 
 	@Test
 	public void triggeringReturnsTrueAtMostOnce() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+		final SynchronousCheckpointLatch latchUnderTest = new SynchronousCheckpointLatch();
 
 		final WaitingOnLatchCallable firstCallable = new WaitingOnLatchCallable(latchUnderTest, 1L);
 		final WaitingOnLatchCallable secondCallable = new WaitingOnLatchCallable(latchUnderTest, 1L);
@@ -115,7 +115,7 @@ public class SynchronousSavepointSyncLatchTest {
 
 	@Test
 	public void waitAfterTriggerReturnsTrueImmediately() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+		final SynchronousCheckpointLatch latchUnderTest = new SynchronousCheckpointLatch();
 		latchUnderTest.setCheckpointId(1L);
 		latchUnderTest.acknowledgeCheckpointAndTrigger(1L);
 		final boolean triggerred = latchUnderTest.blockUntilCheckpointIsAcknowledged();
@@ -124,7 +124,7 @@ public class SynchronousSavepointSyncLatchTest {
 
 	@Test
 	public void waitAfterCancelDoesNothing() throws Exception {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+		final SynchronousCheckpointLatch latchUnderTest = new SynchronousCheckpointLatch();
 		latchUnderTest.setCheckpointId(1L);
 		latchUnderTest.cancelCheckpointLatch();
 		latchUnderTest.blockUntilCheckpointIsAcknowledged();
@@ -132,7 +132,7 @@ public class SynchronousSavepointSyncLatchTest {
 
 	@Test
 	public void checkpointIdIsSetOnlyOnce() throws InterruptedException {
-		final SynchronousSavepointLatch latchUnderTest = new SynchronousSavepointLatch();
+		final SynchronousCheckpointLatch latchUnderTest = new SynchronousCheckpointLatch();
 
 		final WaitingOnLatchCallable firstCallable = new WaitingOnLatchCallable(latchUnderTest, 1L);
 		executors.submit(firstCallable);
@@ -153,11 +153,11 @@ public class SynchronousSavepointSyncLatchTest {
 
 	private static final class WaitingOnLatchCallable implements Callable<Boolean> {
 
-		private final SynchronousSavepointLatch latch;
+		private final SynchronousCheckpointLatch latch;
 		private final long checkpointId;
 
 		WaitingOnLatchCallable(
-				final SynchronousSavepointLatch latch,
+				final SynchronousCheckpointLatch latch,
 				final long checkpointId) {
 			this.latch = checkNotNull(latch);
 			this.checkpointId = checkpointId;

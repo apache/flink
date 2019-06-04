@@ -66,9 +66,17 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Rule;
 import org.junit.Test;
+<<<<<<< HEAD
 import org.junit.rules.Timeout;
 
 import java.util.Arrays;
+=======
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
+>>>>>>> [FLINK-12619][StateBackend]Support TERMINATE/SUSPEND Job with Checkpoint
 import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -86,6 +94,7 @@ import static org.mockito.Mockito.when;
  * Tests that the cached thread pool used by the {@link Task} allows
  * synchronous checkpoints to complete successfully.
  */
+@RunWith(Parameterized.class)
 public class SynchronousCheckpointITCase {
 
 	private static OneShotLatch checkpointTriggered = new OneShotLatch();
@@ -96,6 +105,31 @@ public class SynchronousCheckpointITCase {
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(10);
+
+	private static AtomicReference<Throwable> error = new AtomicReference<>();
+
+	private static volatile CheckpointingStateHolder synchronousCheckpointPhase = new CheckpointingStateHolder();
+
+	@Parameterized.Parameters(name = "checkpointType = {0}")
+	public static Collection<CheckpointType> parameters () {
+		return Arrays.asList(CheckpointType.SYNC_CHECKPOINT, CheckpointType.SYNC_SAVEPOINT);
+	}
+
+	@Parameterized.Parameter
+	public CheckpointType checkpointType;
+
+	@Before
+	public void initializeLatchesAndError() {
+		executionLatch = new OneShotLatch();
+		cancellationLatch = new OneShotLatch();
+		checkpointCompletionLatch = new OneShotLatch();
+		notifyLatch = new OneShotLatch();
+
+		checkpointLatch = new MultiShotLatch();
+
+		synchronousCheckpointPhase.setState(CheckpointingState.NONE);
+		error.set(null);
+	}
 
 	@Test
 	public void taskCachedThreadPoolAllowsForSynchronousCheckpoints() throws Exception {
@@ -118,8 +152,9 @@ public class SynchronousCheckpointITCase {
 			task.triggerCheckpointBarrier(
 					42,
 					156865867234L,
-					new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-					true);
+					new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault()),
+					false);
+			checkpointLatch.await();
 
 			assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));
 			assertTrue(eventQueue.isEmpty());

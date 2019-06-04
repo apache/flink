@@ -24,9 +24,13 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,35 +38,27 @@ import static org.junit.Assert.assertFalse;
 /**
  * Tests the {@link EventSerializer} functionality for serializing {@link CheckpointBarrier checkpoint barriers}.
  */
+@RunWith(Parameterized.class)
 public class CheckpointSerializationTest {
 
 	private static final byte[] STORAGE_LOCATION_REF = new byte[] { 15, 52, 52, 11, 0, 0, 0, 0, -1, -23, -19, 35 };
 
+	@Parameterized.Parameters(name = "checkpointOptions = {0}")
+	public static Collection<CheckpointOptions> parameters () {
+		return Arrays.asList(
+			new CheckpointOptions(CheckpointType.SYNC_CHECKPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF)),
+			new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF)),
+			new CheckpointOptions(CheckpointType.CHECKPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF)),
+			new CheckpointOptions(CheckpointType.SAVEPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF)),
+			CheckpointOptions.forCheckpointWithDefaultLocation());
+	}
+
+	@Parameterized.Parameter
+	public CheckpointOptions checkpointOptions;
+
 	@Test
 	public void testSuspendingCheckpointBarrierSerialization() throws Exception {
-		CheckpointOptions suspendSavepointToSerialize = new CheckpointOptions(
-				CheckpointType.SYNC_SAVEPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
-		testCheckpointBarrierSerialization(suspendSavepointToSerialize);
-	}
-
-	@Test
-	public void testSavepointBarrierSerialization() throws Exception {
-		CheckpointOptions savepointToSerialize = new CheckpointOptions(
-				CheckpointType.SAVEPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
-		testCheckpointBarrierSerialization(savepointToSerialize);
-	}
-
-	@Test
-	public void testCheckpointBarrierSerialization() throws Exception {
-		CheckpointOptions checkpointToSerialize = new CheckpointOptions(
-				CheckpointType.CHECKPOINT, new CheckpointStorageLocationReference(STORAGE_LOCATION_REF));
-		testCheckpointBarrierSerialization(checkpointToSerialize);
-	}
-
-	@Test
-	public void testCheckpointWithDefaultLocationSerialization() throws Exception {
-		CheckpointOptions checkpointToSerialize = CheckpointOptions.forCheckpointWithDefaultLocation();
-		testCheckpointBarrierSerialization(checkpointToSerialize);
+		testCheckpointBarrierSerialization(checkpointOptions);
 	}
 
 	private void testCheckpointBarrierSerialization(CheckpointOptions options) throws IOException {

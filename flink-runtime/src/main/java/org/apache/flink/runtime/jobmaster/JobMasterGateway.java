@@ -245,6 +245,18 @@ public interface JobMasterGateway extends
 		@RpcTimeout final Time timeout);
 
 	/**
+	 * Stops the job with a checkpoint.
+	 *
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                                to fire any registered event-time timer
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the savepoint path once completed
+	 */
+	CompletableFuture<String> stopWithCheckpoint(
+		final boolean advanceToEndOfEventTime,
+		@RpcTimeout final Time timeout);
+
+	/**
 	 * Requests the statistics on operator back pressure.
 	 *
 	 * @param jobVertexId JobVertex for which the stats are requested.

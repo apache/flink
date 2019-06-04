@@ -29,7 +29,11 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -40,6 +44,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests the synchronous checkpoint execution at the {@link StreamTask}.
  */
+@RunWith(Parameterized.class)
 public class SynchronousCheckpointTest {
 
 	private OneShotLatch execLatch;
@@ -49,6 +54,14 @@ public class SynchronousCheckpointTest {
 	private StreamTask streamTaskUnderTest;
 	private Thread mainThreadExecutingTaskUnderTest;
 	private Thread checkpointingThread;
+
+	@Parameterized.Parameters(name = "checkpointType = {0}")
+	public static Collection<CheckpointType> parameters () {
+		return Arrays.asList(CheckpointType.SYNC_CHECKPOINT, CheckpointType.SYNC_SAVEPOINT);
+	}
+
+	@Parameterized.Parameter
+	public CheckpointType checkpointType;
 
 	@Before
 	public void setupTestEnvironment() throws InterruptedException {
@@ -71,7 +84,7 @@ public class SynchronousCheckpointTest {
 
 	@Test(timeout = 1000)
 	public void synchronousCheckpointBlocksUntilNotificationForCorrectCheckpointComes() throws Exception {
-		final SynchronousSavepointLatch syncSavepointLatch = launchSynchronousSavepointAndGetTheLatch();
+		final SynchronousCheckpointLatch syncSavepointLatch = launchSynchronousCheckpointAndGetTheLatch();
 		assertFalse(syncSavepointLatch.isCompleted());
 
 		streamTaskUnderTest.notifyCheckpointComplete(41);
@@ -89,7 +102,7 @@ public class SynchronousCheckpointTest {
 
 	@Test(timeout = 1000)
 	public void cancelShouldAlsoCancelPendingSynchronousCheckpoint() throws Throwable {
-		final SynchronousSavepointLatch syncSavepointLatch = launchSynchronousSavepointAndGetTheLatch();
+		final SynchronousCheckpointLatch syncSavepointLatch = launchSynchronousCheckpointAndGetTheLatch();
 		assertFalse(syncSavepointLatch.isCompleted());
 
 		allowTaskToExitTheRunLoop();
@@ -104,12 +117,12 @@ public class SynchronousCheckpointTest {
 		assertTrue(streamTaskUnderTest.isCanceled());
 	}
 
-	private SynchronousSavepointLatch launchSynchronousSavepointAndGetTheLatch() throws InterruptedException {
+	private SynchronousCheckpointLatch launchSynchronousCheckpointAndGetTheLatch() throws InterruptedException {
 		checkpointingThread = launchOnSeparateThread(() -> {
 			try {
 				streamTaskUnderTest.triggerCheckpoint(
 						new CheckpointMetaData(42, System.currentTimeMillis()),
-						new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
+						new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault()),
 						false
 				);
 			} catch (Exception e) {
@@ -131,9 +144,9 @@ public class SynchronousCheckpointTest {
 		execLatch.trigger();
 	}
 
-	private SynchronousSavepointLatch waitForSyncSavepointLatchToBeSet(final StreamTask streamTaskUnderTest) throws InterruptedException {
+	private SynchronousCheckpointLatch waitForSyncSavepointLatchToBeSet(final StreamTask streamTaskUnderTest) throws InterruptedException {
 
-		SynchronousSavepointLatch syncSavepointFuture = streamTaskUnderTest.getSynchronousSavepointLatch();
+		SynchronousCheckpointLatch syncSavepointFuture = streamTaskUnderTest.getSynchronousSavepointLatch();
 		while (!syncSavepointFuture.isSet()) {
 			Thread.sleep(10L);
 

@@ -636,6 +636,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
+	public CompletableFuture<String> stopWithCheckpoint(
+		final boolean advanceToEndOfEventTime,
+		final Time timeout) {
+		return schedulerNG.stopWithCheckpoint(advanceToEndOfEventTime);
+	}
+
+	@Override
 	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(final JobVertexID jobVertexId) {
 		try {
 			final Optional<OperatorBackPressureStats> operatorBackPressureStats = schedulerNG.requestOperatorBackPressureStats(jobVertexId);

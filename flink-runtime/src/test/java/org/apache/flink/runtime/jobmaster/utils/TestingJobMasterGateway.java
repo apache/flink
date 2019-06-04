@@ -129,6 +129,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction;
 
 	@Nonnull
+	private final Function<Boolean, CompletableFuture<String>> stopWithCheckpointFunction;
+
+	@Nonnull
 	private final Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
 
 	@Nonnull
@@ -175,6 +178,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier,
 			@Nonnull BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
 			@Nonnull BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction,
+			@Nonnull Function<Boolean, CompletableFuture<String>> stopWithCheckpointFunction,
 			@Nonnull Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
 			@Nonnull BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer,
 			@Nonnull Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer,
@@ -203,6 +207,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.requestJobSupplier = requestJobSupplier;
 		this.triggerSavepointFunction = triggerSavepointFunction;
 		this.stopWithSavepointFunction = stopWithSavepointFunction;
+		this.stopWithCheckpointFunction = stopWithCheckpointFunction;
 		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
 		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
 		this.acknowledgeCheckpointConsumer = acknowledgeCheckpointConsumer;
@@ -297,6 +302,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Override
 	public CompletableFuture<String> stopWithSavepoint(@Nullable final String targetDirectory, final boolean advanceToEndOfEventTime, final Time timeout) {
 		return stopWithSavepointFunction.apply(targetDirectory, advanceToEndOfEventTime);
+	}
+
+	@Override
+	public CompletableFuture<String> stopWithCheckpoint(
+		boolean advanceToEndOfEventTime, Time timeout) {
+		return stopWithCheckpointFunction.apply(advanceToEndOfEventTime);
 	}
 
 	@Override

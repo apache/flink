@@ -284,6 +284,14 @@ public class CheckpointProperties implements Serializable {
 			false,  // Retain on failure
 			false); // Retain on suspension
 
+	private static final CheckpointProperties SYNC_CHECKPOINT = new CheckpointProperties(
+		true,
+		CheckpointType.SYNC_CHECKPOINT,
+		false,
+		false,
+		false,
+		false,
+		false);
 
 	/**
 	 * Creates the checkpoint properties for a (manually triggered) savepoint.
@@ -299,6 +307,10 @@ public class CheckpointProperties implements Serializable {
 
 	public static CheckpointProperties forSyncSavepoint() {
 		return SYNC_SAVEPOINT;
+	}
+
+	public static CheckpointProperties forSyncCheckpoint() {
+		return SYNC_CHECKPOINT;
 	}
 
 	/**

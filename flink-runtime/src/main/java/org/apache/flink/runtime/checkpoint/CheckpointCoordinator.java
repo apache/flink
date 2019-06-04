@@ -424,6 +424,27 @@ public class CheckpointCoordinator {
 		}
 	}
 
+	public CompletableFuture<CompletedCheckpoint> triggerSynchronousCheckpoint(
+		final long timestamp,
+		final boolean advanceToEndOfEventTime) {
+
+		final CheckpointProperties properties = CheckpointProperties.forSyncCheckpoint();
+
+		try {
+			PendingCheckpoint pendingCheckpoint = triggerCheckpoint(
+				timestamp,
+				properties,
+				null,
+				false,
+				advanceToEndOfEventTime);
+
+			return pendingCheckpoint.getCompletionFuture();
+		} catch (CheckpointException e) {
+			Throwable cause = new CheckpointException("Failed to trigger sync checkpoint.", e.getCheckpointFailureReason());
+			return FutureUtils.completedExceptionally(cause);
+		}
+	}
+
 	/**
 	 * Triggers a new standard checkpoint and uses the given timestamp as the checkpoint
 	 * timestamp.
@@ -451,8 +472,8 @@ public class CheckpointCoordinator {
 			boolean isPeriodic,
 			boolean advanceToEndOfTime) throws CheckpointException {
 
-		if (advanceToEndOfTime && !(props.isSynchronous() && props.isSavepoint())) {
-			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+		if (advanceToEndOfTime && !props.isSynchronous()) {
+			throw new IllegalArgumentException("Only synchronous checkpoints/savepoints are allowed to advance the watermark to MAX.");
 		}
 
 		// make some eager pre-checks
@@ -679,7 +700,8 @@ public class CheckpointCoordinator {
 				// send the messages to the tasks that trigger their checkpoint
 				for (Execution execution: executions) {
 					if (props.isSynchronous()) {
-						execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
+						// trigger sync checkpoint/savepoint.
+						execution.triggerSynchronousChecpoint(checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
 					} else {
 						execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
 					}

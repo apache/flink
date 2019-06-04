@@ -37,7 +37,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -50,6 +54,7 @@ import static org.junit.Assert.fail;
  * A test verifying the termination process
  * (synchronous checkpoint and task termination) at the {@link SourceStreamTask}.
  */
+@RunWith(Parameterized.class)
 public class SourceTaskTerminationTest {
 
 	private static OneShotLatch ready;
@@ -57,6 +62,14 @@ public class SourceTaskTerminationTest {
 	private static MultiShotLatch runLoopEnd;
 
 	private static AtomicReference<Throwable> error;
+
+	@Parameterized.Parameters(name = "expectedMaxWatermark = {1}")
+	public static Collection<Boolean> parameters () {
+		return Arrays.asList(true, false);
+	}
+
+	@Parameterized.Parameter
+	public Boolean expectedMaxWatermak;
 
 	@Before
 	public void initialize() {
@@ -75,12 +88,7 @@ public class SourceTaskTerminationTest {
 
 	@Test
 	public void terminateShouldBlockDuringCheckpointingAndEmitMaxWatermark() throws Exception {
-		stopWithSavepointStreamTaskTestHelper(true);
-	}
-
-	@Test
-	public void suspendShouldBlockDuringCheckpointingAndNotEmitMaxWatermark() throws Exception {
-		stopWithSavepointStreamTaskTestHelper(false);
+		stopWithSavepointStreamTaskTestHelper(expectedMaxWatermak);
 	}
 
 	private void stopWithSavepointStreamTaskTestHelper(final boolean expectMaxWatermark) throws Exception {
@@ -102,7 +110,7 @@ public class SourceTaskTerminationTest {
 
 		final Thread syncSavepointThread = triggerSynchronousSavepointFromDifferentThread(srcTask, expectMaxWatermark, syncSavepointId);
 
-		final SynchronousSavepointLatch syncSavepointFuture = waitForSyncSavepointFutureToBeSet(srcTask);
+		final SynchronousCheckpointLatch syncSavepointFuture = waitForSyncCheckpointFutureToBeSet(srcTask);
 
 		if (expectMaxWatermark) {
 			// if we are in TERMINATE mode, we expect the source task
@@ -177,8 +185,8 @@ public class SourceTaskTerminationTest {
 		return testHarness;
 	}
 
-	private SynchronousSavepointLatch waitForSyncSavepointFutureToBeSet(final StreamTask streamTaskUnderTest) throws InterruptedException {
-		final SynchronousSavepointLatch syncSavepointFuture = streamTaskUnderTest.getSynchronousSavepointLatch();
+	private SynchronousCheckpointLatch waitForSyncCheckpointFutureToBeSet(final StreamTask streamTaskUnderTest) throws InterruptedException {
+		final SynchronousCheckpointLatch syncSavepointFuture = streamTaskUnderTest.getSynchronousSavepointLatch();
 		while (!syncSavepointFuture.isWaiting()) {
 			Thread.sleep(10L);
 

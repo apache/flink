@@ -157,6 +157,13 @@ public interface RestfulGateway extends RpcGateway {
 		throw new UnsupportedOperationException();
 	}
 
+	default CompletableFuture<String> stopWithCheckpoint(
+		final JobID jobId,
+		final boolean advanceToEndOfEventTime,
+		@RpcTimeout final Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
 	/**
 	 * Request the {@link JobStatus} of the given job.
 	 *

@@ -118,4 +118,6 @@ public interface SchedulerNG {
 	void declineCheckpoint(DeclineCheckpoint decline);
 
 	CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean advanceToEndOfEventTime);
+
+	CompletableFuture<String> stopWithCheckpoint(boolean advanceToEndOfEventTime);
 }

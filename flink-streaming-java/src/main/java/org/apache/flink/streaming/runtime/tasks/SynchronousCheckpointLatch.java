@@ -23,9 +23,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 
 /**
  * A synchronization primitive used by the {@link StreamTask} to wait
- * for the completion of a {@link CheckpointType#SYNC_SAVEPOINT}.
+ * for the completion of a {@link CheckpointType#SYNC_SAVEPOINT} or {@link CheckpointType#SYNC_CHECKPOINT}.
  */
-class SynchronousSavepointLatch {
+class SynchronousCheckpointLatch {
 
 	private static final long NOT_SET_CHECKPOINT_ID = -1L;
 
@@ -40,7 +40,7 @@ class SynchronousSavepointLatch {
 
 	private volatile long checkpointId;
 
-	SynchronousSavepointLatch() {
+	SynchronousCheckpointLatch() {
 		this.synchronizationPoint = new Object();
 
 		this.waiting = false;

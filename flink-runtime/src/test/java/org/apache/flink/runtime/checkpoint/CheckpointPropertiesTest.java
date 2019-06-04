@@ -70,6 +70,21 @@ public class CheckpointPropertiesTest {
 	}
 
 	/**
+	 * Test for sync checkpoint.
+	 **/
+	@Test
+	public void testSyncCheckpoint() {
+		CheckpointProperties props = CheckpointProperties.forSyncCheckpoint();
+		assertFalse(props.isSavepoint());
+		assertTrue(props.forceCheckpoint());
+		assertFalse(props.discardOnSubsumed());
+		assertFalse(props.discardOnJobFinished());
+		assertFalse(props.discardOnJobCancelled());
+		assertFalse(props.discardOnJobFailed());
+		assertFalse(props.discardOnJobSuspended());
+	}
+
+	/**
 	 * Tests the isSavepoint utility works as expected.
 	 */
 	@Test

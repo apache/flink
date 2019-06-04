@@ -508,6 +508,11 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
+	public String stopWithCheckpoint(JobID jobId, boolean advanceToEndOfEventTime) {
+		throw new UnsupportedOperationException("Current stop with checkpoint can only be triggered by flink client, will support restful api in the future.");
+	}
+
+	@Override
 	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
 		return sendRequest(JobsOverviewHeaders.getInstance())
 			.thenApply(

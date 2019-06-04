@@ -584,6 +584,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
+	public CompletableFuture<String> stopWithCheckpoint(
+		final JobID jobId,
+		final boolean advanceToEndOfEventTime,
+		final Time timeout) {
+
+		final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = getJobMasterGatewayFuture(jobId);
+
+		return jobMasterGatewayFuture.thenCompose(
+			(JobMasterGateway jobMasterGateway) ->
+				jobMasterGateway.stopWithCheckpoint(advanceToEndOfEventTime, timeout));
+	}
+
+	@Override
 	public CompletableFuture<Acknowledge> shutDownCluster() {
 		closeAsync();
 		return CompletableFuture.completedFuture(Acknowledge.get());
