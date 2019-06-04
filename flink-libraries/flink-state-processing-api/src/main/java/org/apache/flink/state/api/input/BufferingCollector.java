@@ -16,36 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.runtime;
+package org.apache.flink.state.api.input;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.util.Collector;
+
+import java.util.ArrayDeque;
+import java.util.Iterator;
+import java.util.Queue;
 
 /**
- * A minimally implemented {@link TaskManagerRuntimeInfo} that provides the functionality required
- * to run the {@code state-processor-api}.
+ * A collector that buffers elements in memory to be pulled later by downstream operators.
+ *
+ * @param <T> The type of the records being collected.
  */
-class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
-	private final IOManager ioManager;
+final class BufferingCollector<T> implements Collector<T>, Iterator<T> {
+	private final Queue<T> buffer;
 
-	SavepointTaskManagerRuntimeInfo(IOManager ioManager) {
-		this.ioManager = ioManager;
+	BufferingCollector() {
+		this.buffer = new ArrayDeque<>(1);
 	}
 
 	@Override
-	public Configuration getConfiguration() {
-		return new Configuration();
+	public boolean hasNext() {
+		return !buffer.isEmpty();
 	}
 
 	@Override
-	public String[] getTmpDirectories() {
-		return ioManager.getSpillingDirectoriesPaths();
+	public T next() {
+		return buffer.poll();
 	}
 
 	@Override
-	public boolean shouldExitJvmOnOutOfMemoryError() {
-		return false;
+	public void collect(T record) {
+		buffer.add(record);
 	}
+
+	@Override
+	public void close() {}
 }
-

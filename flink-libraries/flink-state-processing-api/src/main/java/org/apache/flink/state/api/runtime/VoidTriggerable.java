@@ -18,34 +18,28 @@
 
 package org.apache.flink.state.api.runtime;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.Triggerable;
 
 /**
- * A minimally implemented {@link TaskManagerRuntimeInfo} that provides the functionality required
- * to run the {@code state-processor-api}.
+ * A {@link Triggerable} that does nothing.
+ *
+ * @param <K> Type of the keys to which timers are scoped.
+ * @param <N> Type of the namespace to which timers are scoped.
  */
-class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
-	private final IOManager ioManager;
-
-	SavepointTaskManagerRuntimeInfo(IOManager ioManager) {
-		this.ioManager = ioManager;
+@Internal
+public final class VoidTriggerable<K, N> implements Triggerable<K, N> {
+	public static <K, N> VoidTriggerable<K, N> instance() {
+		return new VoidTriggerable<>();
 	}
 
-	@Override
-	public Configuration getConfiguration() {
-		return new Configuration();
-	}
+	private VoidTriggerable() {}
 
 	@Override
-	public String[] getTmpDirectories() {
-		return ioManager.getSpillingDirectoriesPaths();
-	}
+	public void onEventTime(InternalTimer<K, N> timer) {}
 
 	@Override
-	public boolean shouldExitJvmOnOutOfMemoryError() {
-		return false;
-	}
+	public void onProcessingTime(InternalTimer<K, N> timer) {}
 }
 

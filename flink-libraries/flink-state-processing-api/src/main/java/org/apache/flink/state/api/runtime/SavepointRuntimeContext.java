@@ -54,11 +54,11 @@ import java.util.Map;
  * A streaming {@link RuntimeContext} which delegates to the underlying batch {@code RuntimeContext}
  * along with a specified {@link KeyedStateStore}.
  *
- * <p>This {@code RuntimeContext} may has the ability to force eager state registration by by
+ * <p>This {@code RuntimeContext} has the ability to force eager state registration by
  * throwing an exception if state is registered outside of open.
  */
 @Internal
-public final class SavepointRuntimeContext implements RuntimeContext, AutoCloseable {
+public final class SavepointRuntimeContext implements RuntimeContext {
 	private static final String REGISTRATION_EXCEPTION_MSG =
 		"State Descriptors may only be registered inside of open";
 
@@ -68,12 +68,12 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 
 	private final List<StateDescriptor<?, ?>> registeredDescriptors;
 
-	private boolean inOpen;
+	private boolean stateRegistrationAllowed;
 
 	public SavepointRuntimeContext(RuntimeContext ctx, KeyedStateStore keyedStateStore) {
 		this.ctx = ctx;
 		this.keyedStateStore = keyedStateStore;
-		this.inOpen = true;
+		this.stateRegistrationAllowed = true;
 
 		this.registeredDescriptors = new ArrayList<>();
 	}
@@ -183,7 +183,7 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 
 	@Override
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-		if (!inOpen) {
+		if (!stateRegistrationAllowed) {
 			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
 		}
 
@@ -193,7 +193,7 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 
 	@Override
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-		if (!inOpen) {
+		if (!stateRegistrationAllowed) {
 			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
 		}
 
@@ -203,7 +203,7 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-		if (!inOpen) {
+		if (!stateRegistrationAllowed) {
 			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
 		}
 
@@ -213,7 +213,7 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 
 	@Override
 	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		if (!inOpen) {
+		if (!stateRegistrationAllowed) {
 			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
 		}
 
@@ -224,7 +224,7 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 	@Override
 	@Deprecated
 	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-		if (!inOpen) {
+		if (!stateRegistrationAllowed) {
 			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
 		}
 
@@ -234,7 +234,7 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 
 	@Override
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
-		if (!inOpen) {
+		if (!stateRegistrationAllowed) {
 			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
 		}
 
@@ -249,9 +249,8 @@ public final class SavepointRuntimeContext implements RuntimeContext, AutoClosea
 		return new ArrayList<>(registeredDescriptors);
 	}
 
-	@Override
-	public void close() throws Exception {
-		inOpen = false;
+	public void disableStateRegistration() throws Exception {
+		stateRegistrationAllowed = false;
 	}
 }
 
