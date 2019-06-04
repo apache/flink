@@ -77,6 +77,11 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,27 +114,51 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, String hivemetastoreURI) {
-		this(catalogName, DEFAULT_DB, getHiveConf(hivemetastoreURI));
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveSiteFilePath) {
+		this(catalogName,
+			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
+			getHiveConf(loadHiveSiteUrl(hiveSiteFilePath)));
 	}
 
-	public HiveCatalog(String catalogName, HiveConf hiveConf) {
-		this(catalogName, DEFAULT_DB, hiveConf);
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl) {
+		this(catalogName,
+			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
+			getHiveConf(hiveSiteUrl));
 	}
 
-	public HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
-		super(catalogName, defaultDatabase);
-		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable HiveConf hiveConf) {
+		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
+
+		this.hiveConf = hiveConf == null ? getHiveConf(null) : hiveConf;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	private static HiveConf getHiveConf(String hiveMetastoreURI) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveMetastoreURI), "hiveMetastoreURI cannot be null or empty");
+	private static URL loadHiveSiteUrl(String filePath) {
 
-		HiveConf hiveConf = new HiveConf();
-		hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hiveMetastoreURI);
-		return hiveConf;
+		URL url = null;
+
+		if (!StringUtils.isNullOrWhitespaceOnly(filePath)) {
+			try {
+				url = new File(filePath).toURI().toURL();
+
+				LOG.info("Successfully loaded '{}'", filePath);
+
+			} catch (MalformedURLException e) {
+				throw new CatalogException(
+					String.format("Failed to get hive-site.xml from the given path '%s'", filePath), e);
+			}
+		}
+
+		return url;
+	}
+
+	private static HiveConf getHiveConf(URL hiveSiteUrl) {
+		LOG.info("Setting hive-site location as {}", hiveSiteUrl);
+
+		HiveConf.setHiveSiteLocation(hiveSiteUrl);
+
+		return new HiveConf();
 	}
 
 	@Override

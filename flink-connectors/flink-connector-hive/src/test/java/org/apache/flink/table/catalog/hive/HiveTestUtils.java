@@ -37,11 +37,11 @@ public class HiveTestUtils {
 	 * Create a HiveCatalog with an embedded Hive Metastore.
 	 */
 	public static HiveCatalog createHiveCatalog() throws IOException {
-		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, getHiveConf());
+		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, getHiveConf());
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
-		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, hiveConf);
+		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf);
 	}
 
 	public static HiveConf getHiveConf() throws IOException {
