@@ -77,6 +77,9 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,8 +112,20 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, String hivemetastoreURI) {
-		this(catalogName, DEFAULT_DB, getHiveConf(hivemetastoreURI));
+	public HiveCatalog(String catalogName, String hiveSiteFilePath) {
+		this(catalogName, DEFAULT_DB, hiveSiteFilePath);
+	}
+
+	public HiveCatalog(String catalogName, String defaultDatabase, String hiveSiteFilePath) {
+		this(catalogName, defaultDatabase, getHiveSiteUrl(hiveSiteFilePath));
+	}
+
+	public HiveCatalog(String catalogName, URL hiveSiteUrl) {
+		this(catalogName, DEFAULT_DB, hiveSiteUrl);
+	}
+
+	public HiveCatalog(String catalogName, String defaultDatabase, URL hiveSiteUrl) {
+		this(catalogName, defaultDatabase, getHiveConf(hiveSiteUrl));
 	}
 
 	public HiveCatalog(String catalogName, HiveConf hiveConf) {
@@ -124,12 +139,23 @@ public class HiveCatalog extends AbstractCatalog {
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	private static HiveConf getHiveConf(String hiveMetastoreURI) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveMetastoreURI), "hiveMetastoreURI cannot be null or empty");
+	private static URL getHiveSiteUrl(String filePath) {
+		try {
+			URL url = new File(filePath).toURI().toURL();
 
-		HiveConf hiveConf = new HiveConf();
-		hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hiveMetastoreURI);
-		return hiveConf;
+			LOG.info("Successfully loaded '{}'", filePath);
+
+			return url;
+		} catch (MalformedURLException e) {
+			throw new CatalogException(
+				String.format("Failed to get hive-site.xml from the given path '%s'", filePath), e);
+		}
+	}
+
+	private static HiveConf getHiveConf(URL hiveSiteUrl) {
+		HiveConf.setHiveSiteLocation(hiveSiteUrl);
+
+		return new HiveConf();
 	}
 
 	@Override
