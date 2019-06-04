@@ -229,7 +229,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+		task.triggerCheckpointAsync(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation(), false)
+			.get();
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -343,10 +344,11 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			}
 		}
 
-		task.triggerCheckpoint(
+		task.triggerCheckpointAsync(
 			new CheckpointMetaData(42, 17),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			false);
+			false)
+			.get();
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		blockerCheckpointStreamFactory.getWaiterLatch().await();

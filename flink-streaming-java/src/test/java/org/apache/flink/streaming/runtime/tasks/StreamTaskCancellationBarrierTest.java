@@ -21,8 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -35,10 +33,11 @@ import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase;
 import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.eq;
@@ -52,32 +51,8 @@ import static org.mockito.hamcrest.MockitoHamcrest.argThat;
  */
 public class StreamTaskCancellationBarrierTest {
 
-	/**
-	 * This test checks that tasks emit a proper cancel checkpoint barrier, if a "trigger checkpoint" message
-	 * comes before they are ready.
-	 */
-	@Test
-	public void testEmitCancellationBarrierWhenNotReady() throws Exception {
-		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
-				InitBlockingTask::new, BasicTypeInfo.STRING_TYPE_INFO);
-		testHarness.setupOutputForSingletonOperatorChain();
-
-		// start the test - this cannot succeed across the 'init()' method
-		testHarness.invoke();
-
-		StreamTask<String, ?> task = testHarness.getTask();
-
-		// tell the task to commence a checkpoint
-		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
-			CheckpointOptions.forCheckpointWithDefaultLocation(), false);
-		assertFalse("task triggered checkpoint though not ready", result);
-
-		// a cancellation barrier should be downstream
-		Object emitted = testHarness.getOutput().poll();
-		assertNotNull("nothing emitted", emitted);
-		assertTrue("wrong type emitted", emitted instanceof CancelCheckpointMarker);
-		assertEquals("wrong checkpoint id", 41L, ((CancelCheckpointMarker) emitted).getCheckpointId());
-	}
+	@Rule
+	public final Timeout timeoutPerTest = Timeout.seconds(10);
 
 	/**
 	 * This test verifies (for onw input tasks) that the Stream tasks react the following way to

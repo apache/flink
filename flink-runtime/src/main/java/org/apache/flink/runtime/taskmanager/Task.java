@@ -1151,7 +1151,13 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 					FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
 					try {
-						invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+						invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+					}
+					catch (RejectedExecutionException ex) {
+						// This may happen if the mailbox is closed. It means that the task is shutting down, so we just ignore it.
+						LOG.debug(
+							"Triggering checkpoint {} for {} ({}) was rejected by the mailbox",
+							checkpointID, taskNameWithSubtask, executionId);
 					}
 					catch (Throwable t) {
 						if (getExecutionState() == ExecutionState.RUNNING) {

@@ -89,10 +89,11 @@ public class SourceTaskTerminationTest extends TestLogger {
 		emitAndVerifyWatermarkAndElement(srcTaskTestHarness, 1L);
 		emitAndVerifyWatermarkAndElement(srcTaskTestHarness, 2L);
 
-		srcTask.triggerCheckpoint(
+		srcTask.triggerCheckpointAsync(
 				new CheckpointMetaData(31L, 900),
 				CheckpointOptions.forCheckpointWithDefaultLocation(),
-				false);
+				false)
+				.get();
 
 		assertFalse(syncSavepointLatch.isSet());
 		assertFalse(syncSavepointLatch.isCompleted());
@@ -102,10 +103,11 @@ public class SourceTaskTerminationTest extends TestLogger {
 
 		emitAndVerifyWatermarkAndElement(srcTaskTestHarness, 3L);
 
-		srcTask.triggerCheckpoint(
+		srcTask.triggerCheckpointAsync(
 				new CheckpointMetaData(syncSavepointId, 900),
 				new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-				withMaxWatermark);
+				withMaxWatermark)
+				.get();
 
 		assertTrue(syncSavepointLatch.isSet());
 		assertFalse(syncSavepointLatch.isCompleted());
