@@ -40,7 +40,11 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
+import org.apache.hadoop.hive.common.HiveStatsUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.Warehouse;
+import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -81,6 +85,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -120,6 +125,9 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient Map<String, HivePartitionWriter> partitionToWriter;
 	// Writer for non-partitioned and static partitioned table
 	private transient HivePartitionWriter staticWriter;
+
+	// the offset of dynamic partition columns within a row
+	private transient int dynPartOffset;
 
 	public HiveTableOutputFormat(JobConf jobConf, String dbName, String tableName, List<String> partitionCols,
 								RowTypeInfo rowTypeInfo, HiveTablePartition hiveTablePartition,
@@ -196,7 +204,22 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 				commitJob(stagingDir.toString());
 			}
 			if (isPartitioned) {
-				// TODO: to be implemented
+				if (isDynamicPartition) {
+					FileStatus[] generatedParts = HiveStatsUtils.getFileStatusRecurse(stagingDir,
+						partitionCols.size() - hiveTablePartition.getPartitionSpec().size(), fs);
+					for (FileStatus part : generatedParts) {
+						commitJob(part.getPath().toString());
+						LinkedHashMap<String, String> fullPartSpec = new LinkedHashMap<>();
+						Warehouse.makeSpecFromName(fullPartSpec, part.getPath());
+						loadPartition(part.getPath(), table, fullPartSpec, client);
+					}
+				} else {
+					LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
+					for (String partCol : hiveTablePartition.getPartitionSpec().keySet()) {
+						partSpec.put(partCol, hiveTablePartition.getPartitionSpec().get(partCol).toString());
+					}
+					loadPartition(stagingDir, table, partSpec, client);
+				}
 			} else {
 				moveFiles(stagingDir, new Path(table.getSd().getLocation()));
 			}
@@ -243,6 +266,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 
 		if (!isDynamicPartition) {
 			staticWriter = writerForLocation(hiveTablePartition.getStorageDescriptor().getLocation());
+		} else {
+			dynPartOffset = rowTypeInfo.getArity() - partitionCols.size() + hiveTablePartition.getPartitionSpec().size();
 		}
 
 		List<ObjectInspector> objectInspectors = new ArrayList<>();
@@ -268,11 +293,52 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		try {
 			HivePartitionWriter partitionWriter = staticWriter;
 			if (isDynamicPartition) {
-				// TODO: to be implemented
+				LinkedHashMap<String, String> dynPartSpec = new LinkedHashMap<>();
+				// only need to check the dynamic partitions
+				final int numStaticPart = hiveTablePartition.getPartitionSpec().size();
+				for (int i = dynPartOffset; i < record.getArity(); i++) {
+					// TODO: seems Hive also just calls toString(), need further investigation to confirm
+					// TODO: validate partition value
+					String partVal = record.getField(i).toString();
+					dynPartSpec.put(partitionCols.get(i - dynPartOffset + numStaticPart), partVal);
+				}
+				String partName = Warehouse.makePartPath(dynPartSpec);
+				partitionWriter = partitionToWriter.get(partName);
+				if (partitionWriter == null) {
+					String stagingDir = hiveTablePartition.getStorageDescriptor().getLocation();
+					partitionWriter = writerForLocation(stagingDir + Path.SEPARATOR + partName);
+					partitionToWriter.put(partName, partitionWriter);
+				}
 			}
 			partitionWriter.recordWriter.write(serializer.serialize(getConvertedRow(record), rowObjectInspector));
 		} catch (IOException | SerDeException e) {
 			throw new IOException("Could not write Record.", e);
+		} catch (MetaException e) {
+			throw new CatalogException(e);
+		}
+	}
+
+	// load a single partition
+	private void loadPartition(Path srcDir, Table table, Map<String, String> partSpec, HiveMetastoreClientWrapper client)
+			throws TException, IOException {
+		Path tblLocation = new Path(table.getSd().getLocation());
+		List<Partition> existingPart = client.listPartitions(dbName, tableName,
+				new ArrayList<>(partSpec.values()), (short) 1);
+		Path destDir = existingPart.isEmpty() ? new Path(tblLocation, Warehouse.makePartPath(partSpec)) :
+				new Path(existingPart.get(0).getSd().getLocation());
+		moveFiles(srcDir, destDir);
+		// register new partition if it doesn't exist
+		if (existingPart.isEmpty()) {
+			Partition partition = new Partition();
+			partition.setValues(new ArrayList<>(partSpec.values()));
+			StorageDescriptor sd = new StorageDescriptor(hiveTablePartition.getStorageDescriptor());
+			sd.setLocation(destDir.toString());
+			partition.setSd(sd);
+			partition.setDbName(dbName);
+			partition.setTableName(tableName);
+			partition.setCreateTime((int) System.currentTimeMillis());
+			partition.setLastAccessTime((int) System.currentTimeMillis());
+			client.add_partition(partition);
 		}
 	}
 
