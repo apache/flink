@@ -27,10 +27,11 @@ import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.sources._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
+import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
 
@@ -190,7 +191,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
   def testJoinOnDifferentKeyTypes(): Unit = {
     // Will do implicit type coercion.
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("VARCHAR(65536) and INTEGER does not have common type now")
+    thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
     streamUtil.verifyPlan("SELECT * FROM MyTable AS T JOIN temporalTest "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }
@@ -322,12 +323,12 @@ class LookupJoinTest extends TableTestBase with Serializable {
       fail(s"Expected a $clazz, but no exception is thrown.")
     } catch {
       case e if e.getClass == clazz =>
-        if (keywords != null) {
-          assertTrue(
-            s"The actual exception message \n${e.getMessage}\n" +
-              s"doesn't contain expected keyword \n$keywords\n",
-            e.getMessage.contains(keywords))
-        }
+              if (keywords != null) {
+                assertTrue(
+                  s"The actual exception message \n${e.getMessage}\n" +
+                    s"doesn't contain expected keyword \n$keywords\n",
+                  e.getMessage.contains(keywords))
+              }
       case e: Throwable =>
         e.printStackTrace()
         fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
@@ -363,8 +364,7 @@ class TestTemporalTable
 
   override def getReturnType: TypeInformation[BaseRow] = {
     new BaseRowTypeInfo(
-      Array(InternalTypes.INT, InternalTypes.STRING, InternalTypes.INT)
-        .asInstanceOf[Array[InternalType]],
+      Array(new IntType(), new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
       fieldNames)
   }
 
@@ -415,8 +415,8 @@ class TestInvalidTemporalTable private(
 
   override def getReturnType: TypeInformation[BaseRow] = {
     new BaseRowTypeInfo(
-      Array(InternalTypes.INT, InternalTypes.STRING, InternalTypes.INT, InternalTypes.TIMESTAMP)
-        .asInstanceOf[Array[InternalType]],
+      Array(new IntType(), new VarCharType(VarCharType.MAX_LENGTH),
+        new IntType(), new TimestampType(3)),
       fieldNames)
   }
 

@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecLocalSortAggregate, BatchExecSortAggregate}
-import org.apache.flink.table.plan.util.{AggregateUtil, FlinkRelOptUtil}
+import org.apache.flink.table.plan.util.AggregateUtil
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -95,7 +95,7 @@ class BatchExecSortAggRule
         groupSet,
         auxGroupSet,
         aggFunctions,
-        aggBufferTypes.map(_.map(TypeConverters.createInternalTypeFromTypeInfo)))
+        aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
       // create BatchExecLocalSortAggregate
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       if (agg.getGroupCount != 0) {

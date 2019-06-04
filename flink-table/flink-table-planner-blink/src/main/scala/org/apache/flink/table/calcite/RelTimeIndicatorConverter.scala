@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.nodes.calcite._
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.types.logical.TimestampType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
@@ -47,7 +47,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = isNullable)
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   val materializerUtils = new RexTimeIndicatorMaterializerUtils(rexBuilder)
 
@@ -510,7 +510,7 @@ class RexTimeIndicatorMaterializer(
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = isNullable)
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     // reference is interesting
@@ -602,7 +602,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = isNullable)
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   def projectAndMaterializeFields(input: RelNode, indicesToMaterialize: Set[Int]): RelNode = {
     val projects = input.getRowType.getFieldList.map { field =>

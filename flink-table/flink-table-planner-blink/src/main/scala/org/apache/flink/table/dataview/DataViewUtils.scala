@@ -20,11 +20,14 @@ package org.apache.flink.table.dataview
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.LegacyTypeInformationType
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils._
 
 import java.util
@@ -46,67 +49,71 @@ object DataViewUtils {
   def useNullSerializerForStateViewFieldsFromAccType(
       index: Int,
       aggFun: AggregateFunction[_, _],
-      externalAccType: TypeInformation[_],
-      isStateBackedDataViews: Boolean): (TypeInformation[_], Array[DataViewSpec]) = {
+      externalAccType: DataType,
+      isStateBackedDataViews: Boolean): (DataType, Array[DataViewSpec]) = {
 
     val acc = aggFun.createAccumulator()
     val accumulatorSpecs = new mutable.ArrayBuffer[DataViewSpec]
 
-    externalAccType match {
-      case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
-        val arity = pojoType.getArity
-        val newPojoFields = new util.ArrayList[PojoField]()
+    externalAccType.getLogicalType match {
+      case t: LegacyTypeInformationType[_] =>
+        t.getTypeInformation match {
+          case pojoType: PojoTypeInfo[_] if pojoType.getArity > 0 =>
+            val arity = pojoType.getArity
+            val newPojoFields = new util.ArrayList[PojoField]()
 
-        for (i <- 0 until arity) {
-          val pojoField = pojoType.getPojoFieldAt(i)
-          val field = pojoField.getField
-          val fieldName = field.getName
-          field.setAccessible(true)
-          val instance = field.get(acc)
-          val (newTypeInfo: TypeInformation[_], spec: Option[DataViewSpec]) =
-            decorateDataViewTypeInfo(
-              pojoField.getTypeInformation,
-              instance,
-              isStateBackedDataViews,
-              index,
-              i,
-              fieldName)
+            for (i <- 0 until arity) {
+              val pojoField = pojoType.getPojoFieldAt(i)
+              val field = pojoField.getField
+              val fieldName = field.getName
+              field.setAccessible(true)
+              val instance = field.get(acc)
+              val (newTypeInfo: TypeInformation[_], spec: Option[DataViewSpec]) =
+                decorateDataViewTypeInfo(
+                  pojoField.getTypeInformation,
+                  instance,
+                  isStateBackedDataViews,
+                  index,
+                  i,
+                  fieldName)
 
-          newPojoFields.add(new PojoField(field, newTypeInfo))
-          if (spec.isDefined) {
-            accumulatorSpecs += spec.get
-          }
+              newPojoFields.add(new PojoField(field, newTypeInfo))
+              if (spec.isDefined) {
+                accumulatorSpecs += spec.get
+              }
+            }
+            val pojoTypeInfo = new PojoTypeInfo(pojoType.getTypeClass, newPojoFields)
+            (fromLegacyInfoToDataType(pojoTypeInfo), accumulatorSpecs.toArray)
+
+          // so we add another check => acc.isInstanceOf[GenericRow]
+          case t: BaseRowTypeInfo if acc.isInstanceOf[GenericRow] =>
+            val accInstance = acc.asInstanceOf[GenericRow]
+            val (arity, fieldNames, fieldTypes) = (t.getArity, t.getFieldNames, t.getFieldTypes)
+            val newFieldTypes = for (i <- 0 until arity) yield {
+              val fieldName = fieldNames(i)
+              val fieldInstance = accInstance.getField(i)
+              val (newTypeInfo: TypeInformation[_], spec: Option[DataViewSpec]) =
+                decorateDataViewTypeInfo(
+                  fieldTypes(i),
+                  fieldInstance,
+                  isStateBackedDataViews,
+                  index,
+                  i,
+                  fieldName)
+              if (spec.isDefined) {
+                accumulatorSpecs += spec.get
+              }
+              fromTypeInfoToLogicalType(newTypeInfo)
+            }
+
+            val newType = new BaseRowTypeInfo(newFieldTypes.toArray, fieldNames)
+            (fromLegacyInfoToDataType(newType), accumulatorSpecs.toArray)
+
+          case ct: CompositeType[_] if includesDataView(ct) =>
+            throw new TableException(
+              "MapView, SortedMapView and ListView only supported in accumulators of POJO type.")
+          case _ => (externalAccType, Array.empty)
         }
-        val pojoTypeInfo = new PojoTypeInfo(externalAccType.getTypeClass, newPojoFields)
-        (pojoTypeInfo, accumulatorSpecs.toArray)
-
-      // so we add another check => acc.isInstanceOf[GenericRow]
-      case t: BaseRowTypeInfo if acc.isInstanceOf[GenericRow] =>
-        val accInstance = acc.asInstanceOf[GenericRow]
-        val (arity, fieldNames, fieldTypes) = (t.getArity, t.getFieldNames, t.getFieldTypes)
-        val newFieldTypes = for (i <- 0 until arity) yield {
-          val fieldName = fieldNames(i)
-          val fieldInstance = accInstance.getField(i)
-          val (newTypeInfo: TypeInformation[_], spec: Option[DataViewSpec]) =
-            decorateDataViewTypeInfo(
-              fieldTypes(i),
-              fieldInstance,
-              isStateBackedDataViews,
-              index,
-              i,
-              fieldName)
-          if (spec.isDefined) {
-            accumulatorSpecs += spec.get
-          }
-          TypeConverters.createInternalTypeFromTypeInfo(newTypeInfo)
-        }
-
-        val newType = new BaseRowTypeInfo(newFieldTypes.toArray, fieldNames)
-        (newType, accumulatorSpecs.toArray)
-
-      case ct: CompositeType[_] if includesDataView(ct) =>
-        throw new TableException(
-          "MapView, SortedMapView and ListView only supported in accumulators of POJO type.")
       case _ => (externalAccType, Array.empty)
     }
   }

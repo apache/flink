@@ -25,7 +25,8 @@ import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Test;
@@ -41,8 +42,8 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 public class StreamSortOperatorTest {
 
 	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
-			InternalTypes.STRING,
-			InternalTypes.INT);
+			new VarCharType(VarCharType.MAX_LENGTH),
+			new IntType());
 
 	private GeneratedRecordComparator sortKeyComparator = new GeneratedRecordComparator("", "", new Object[0]) {
 

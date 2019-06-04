@@ -18,10 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import java.util
-
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
@@ -34,6 +30,11 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.sinks.{BatchTableSink, DataStreamTableSink, TableSink}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -98,15 +99,16 @@ class BatchExecSink[T](
   private def translateToStreamTransformation(
       withChangeFlag: Boolean,
       tableEnv: BatchTableEnvironment): StreamTransformation[T] = {
-    val resultType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-    TableEnvironment.validateType(resultType)
+    val resultDataType = sink.getConsumedDataType
+    val resultType = fromDataTypeToLegacyInfo(resultDataType)
+    TableEnvironment.validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {
       // Sink's input must be BatchExecNode[BaseRow] now.
       case node: BatchExecNode[BaseRow] =>
         val plan = node.translateToPlan(tableEnv)
         val typeClass = extractTableSinkTypeClass(sink)
-        if (CodeGenUtils.isInternalClass(typeClass, resultType)) {
+        if (CodeGenUtils.isInternalClass(typeClass, resultDataType)) {
           plan.asInstanceOf[StreamTransformation[T]]
         } else {
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](

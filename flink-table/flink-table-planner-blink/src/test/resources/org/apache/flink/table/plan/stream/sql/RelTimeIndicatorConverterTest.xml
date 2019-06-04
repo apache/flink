@@ -207,13 +207,13 @@ FROM MyTable, LATERAL TABLE(tableFunc(rowtime, proctime, '')) AS T(s)
 LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[MyTable]])
-   +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+   +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
-+- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3) NOT NULL, PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) f0)], joinType=[INNER])
++- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3) NOT NULL, PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>

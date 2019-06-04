@@ -92,7 +92,7 @@ class BatchExecBoundedStreamScan(
         CodeGeneratorContext(config),
         batchTransform,
         boundedStreamTable.fieldIndexes,
-        boundedStreamTable.typeInfo,
+        boundedStreamTable.dataType,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -105,7 +105,7 @@ class BatchExecBoundedStreamScan(
   def needInternalConversion: Boolean = {
     ScanUtil.hasTimeAttributeField(boundedStreamTable.fieldIndexes) ||
         ScanUtil.needsConversion(
-          boundedStreamTable.typeInfo,
+          boundedStreamTable.dataType,
           boundedStreamTable.dataStream.getType.getTypeClass)
   }
 

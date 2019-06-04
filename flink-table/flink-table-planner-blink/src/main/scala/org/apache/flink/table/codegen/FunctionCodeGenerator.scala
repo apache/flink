@@ -21,10 +21,10 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.async.{AsyncFunction, RichAsyncFunction}
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.generated.{GeneratedFunction, GeneratedJoinCondition, JoinCondition}
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -58,10 +58,10 @@ object FunctionCodeGenerator {
     name: String,
     clazz: Class[F],
     bodyCode: String,
-    returnType: InternalType,
-    input1Type: InternalType,
+    returnType: LogicalType,
+    input1Type: LogicalType,
     input1Term: String = DEFAULT_INPUT1_TERM,
-    input2Type: Option[InternalType] = None,
+    input2Type: Option[LogicalType] = None,
     input2Term: Option[String] = Some(DEFAULT_INPUT2_TERM),
     collectorTerm: String = DEFAULT_COLLECTOR_TERM,
     contextTerm: String = DEFAULT_CONTEXT_TERM)

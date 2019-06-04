@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.codegen.agg
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, _}
 import org.apache.flink.table.codegen.Indenter.toISC
@@ -32,6 +29,13 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.plan.util.AggregateInfoList
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.{DataType, LogicalTypeDataTypeConverter}
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
@@ -44,10 +48,10 @@ import org.apache.calcite.tools.RelBuilder
 class AggsHandlerCodeGenerator(
     ctx: CodeGeneratorContext,
     relBuilder: RelBuilder,
-    inputFieldTypes: Seq[InternalType],
+    inputFieldTypes: Seq[LogicalType],
     copyInputField: Boolean) {
 
-  private val inputType = new RowType(inputFieldTypes: _*)
+  private val inputType = RowType.of(inputFieldTypes: _*)
 
   /** constant expressions that act like a second input in the parameter indices. */
   private var constantExprs: Seq[GeneratedExpression] = Seq()
@@ -61,7 +65,7 @@ class AggsHandlerCodeGenerator(
   private var accTypeInfo: RowType = _
   private var aggBufferSize: Int = _
 
-  private var mergedAccExternalTypes: Array[TypeInformation[_]] = _
+  private var mergedAccExternalTypes: Array[DataType] = _
   private var mergedAccOffset: Int = 0
   private var mergedAccOnHeap: Boolean = false
 
@@ -166,7 +170,7 @@ class AggsHandlerCodeGenerator(
   def needMerge(
       mergedAccOffset: Int,
       mergedAccOnHeap: Boolean,
-      mergedAccExternalTypes: Array[TypeInformation[_]] = null): AggsHandlerCodeGenerator = {
+      mergedAccExternalTypes: Array[DataType] = null): AggsHandlerCodeGenerator = {
     this.mergedAccOffset = mergedAccOffset
     this.mergedAccOnHeap = mergedAccOnHeap
     this.mergedAccExternalTypes = mergedAccExternalTypes
@@ -190,9 +194,9 @@ class AggsHandlerCodeGenerator(
     */
   private def initialAggregateInformation(aggInfoList: AggregateInfoList): Unit = {
 
-    this.accTypeInfo = new RowType(
-      aggInfoList.getAccTypes.map(createInternalTypeFromTypeInfo): _*)
-    this.aggBufferSize = accTypeInfo.getArity
+    this.accTypeInfo = RowType.of(
+      aggInfoList.getAccTypes.map(fromDataTypeToLogicalType): _*)
+    this.aggBufferSize = accTypeInfo.getFieldCount
     var aggBufferOffset: Int = 0
 
     if (mergedAccExternalTypes == null) {
@@ -292,7 +296,7 @@ class AggsHandlerCodeGenerator(
     if (filterArg > 0) {
       val name = s"agg_${aggIndex}_filter"
       val filterType = inputFieldTypes(filterArg)
-      if (filterType != InternalTypes.BOOLEAN) {
+      if (!filterType.isInstanceOf[BooleanType]) {
         throw new TableException(s"filter arg must be boolean, but is $filterType, " +
             s"the aggregate is $aggName.")
       }
@@ -617,14 +621,14 @@ class AggsHandlerCodeGenerator(
       ctx.startNewLocalVariableStatement(methodName)
 
       // the mergedAcc is partial of mergedInput, such as <key, acc> in local-global, ignore keys
-      val internalAccTypes = mergedAccExternalTypes.map(createInternalTypeFromTypeInfo)
+      val internalAccTypes = mergedAccExternalTypes.map(fromDataTypeToLogicalType)
       val mergedAccType = if (mergedAccOffset > 0) {
         // concat padding types and acc types, use int type as padding
         // the padding types will be ignored
-        val padding = Array.range(0, mergedAccOffset).map(_ => InternalTypes.INT)
-        new RowType(padding ++ internalAccTypes: _*)
+        val padding = Array.range(0, mergedAccOffset).map(_ => new IntType())
+        RowType.of(padding ++ internalAccTypes: _*)
       } else {
-        new RowType(internalAccTypes: _*)
+        RowType.of(internalAccTypes: _*)
       }
 
       // bind input1 as otherAcc
@@ -679,7 +683,7 @@ class AggsHandlerCodeGenerator(
     }
 
     val aggValueTerm = newName("aggValue")
-    valueType = new RowType(valueExprs.map(_.resultType): _*)
+    valueType = RowType.of(valueExprs.map(_.resultType): _*)
 
     // always create a new result row
     val resultExpr = exprGenerator.generateResultExpression(
@@ -783,7 +787,8 @@ object AggsHandlerCodeGenerator {
       val openCode =
         s"""
            |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-           |$viewFieldInternalTerm = ${genToInternal(ctx, spec.dataViewTypeInfo, viewFieldTerm)};
+           |$viewFieldInternalTerm = ${genToInternal(
+                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), viewFieldTerm)};
          """.stripMargin
       ctx.addReusableOpenStatement(openCode)
 
@@ -811,7 +816,7 @@ object AggsHandlerCodeGenerator {
           s"""
              |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
              |$backupViewInternalTerm = ${genToInternal(
-                ctx, spec.dataViewTypeInfo, backupViewTerm)};
+                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), backupViewTerm)};
            """.stripMargin
         ctx.addReusableOpenStatement(backupOpenCode)
       }

@@ -17,26 +17,29 @@
  */
 package org.apache.flink.table.codegen
 
-import org.apache.calcite.rex.{RexNode, RexProgram}
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
-import org.apache.flink.table.`type`.{InternalType, RowType, TypeConverters}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.dataformat.DataFormatConverters.RowConverter
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
+import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter
+import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow, JoinedRow}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
 import org.apache.flink.table.plan.util.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
+import org.apache.calcite.rex.{RexNode, RexProgram}
 
 import java.util
 
@@ -50,8 +53,8 @@ object LookupJoinCodeGenerator {
   def generateLookupFunction(
       config: TableConfig,
       typeFactory: FlinkTypeFactory,
-      inputType: InternalType,
-      returnType: InternalType,
+      inputType: LogicalType,
+      returnType: LogicalType,
       tableReturnTypeInfo: TypeInformation[_],
       lookupKeyInOrder: Array[Int],
       // index field position -> lookup key
@@ -105,8 +108,8 @@ object LookupJoinCodeGenerator {
   def generateAsyncLookupFunction(
       config: TableConfig,
       typeFactory: FlinkTypeFactory,
-      inputType: InternalType,
-      returnType: InternalType,
+      inputType: LogicalType,
+      returnType: LogicalType,
       tableReturnTypeInfo: TypeInformation[_],
       lookupKeyInOrder: Array[Int],
       allLookupFields: Map[Int, LookupKey],
@@ -146,7 +149,7 @@ object LookupJoinCodeGenerator {
   private def prepareParameters(
       ctx: CodeGeneratorContext,
       typeFactory: FlinkTypeFactory,
-      inputType: InternalType,
+      inputType: LogicalType,
       lookupKeyInOrder: Array[Int],
       allLookupFields: Map[Int, LookupKey],
       isExternalArgs: Boolean,
@@ -170,14 +173,14 @@ object LookupJoinCodeGenerator {
     }
     val codeAndArg = inputFieldExprs
       .map { e =>
-        val externalTypeInfo = TypeConverters.createExternalTypeInfoFromInternalType(e.resultType)
+        val dataType = fromLogicalTypeToDataType(e.resultType)
         val bType = if (isExternalArgs) {
-          boxedTypeTermForExternalType(externalTypeInfo)
+          boxedTypeTermForExternalType(dataType)
         } else {
           boxedTypeTermForType(e.resultType)
         }
         val assign = if (isExternalArgs) {
-          CodeGenUtils.genToExternal(ctx, externalTypeInfo, e.resultTerm)
+          CodeGenUtils.genToExternal(ctx, dataType, e.resultTerm)
         } else {
           e.resultTerm
         }
@@ -423,7 +426,7 @@ object LookupJoinCodeGenerator {
     CalcCodeGenerator.generateFunction(
       tableSourceRowType,
       "TableCalcMapFunction",
-      FlinkTypeFactory.toInternalRowType(program.getOutputRowType),
+      FlinkTypeFactory.toLogicalRowType(program.getOutputRowType),
       classOf[GenericRow],
       program,
       condition,
@@ -438,7 +441,9 @@ object LookupJoinCodeGenerator {
   class RowToBaseRowCollector(rowTypeInfo: RowTypeInfo)
     extends TableFunctionCollector[Row] with Serializable {
 
-    private val converter = new RowConverter(rowTypeInfo)
+    private val converter = DataFormatConverters.getConverterForDataType(
+      TypeConversions.fromLegacyInfoToDataType(rowTypeInfo))
+        .asInstanceOf[DataFormatConverter[BaseRow, Row]]
 
     override def collect(record: Row): Unit = {
       val result = converter.toInternal(record)

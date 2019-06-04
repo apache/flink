@@ -18,18 +18,22 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.RexAggLocalVariable;
 import org.apache.flink.table.calcite.RexDistinctKeyVariable;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -52,20 +56,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
-import static org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType;
-import static org.apache.flink.table.type.TypeConverters.createInternalTypeFromTypeInfo;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasLength;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasPrecision;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasScale;
-import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
-import static org.apache.flink.table.typeutils.TypeCheckUtils.isString;
+import static org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTemporal;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval;
+import static org.apache.flink.table.typeutils.TypeCheckUtils.isVarchar;
 
 /**
  * Visit expression to generator {@link RexNode}.
@@ -102,20 +97,16 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			RexNode child = call.getChildren().get(0).accept(this);
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
 			return relBuilder.getRexBuilder().makeAbstractCast(
-					typeFactory.createTypeFromInternalType(
-							createInternalTypeFromTypeInfo(
-								fromDataTypeToLegacyInfo(type.getOutputDataType())),
-							child.getType().isNullable()),
+					typeFactory.createFieldTypeFromLogicalType(
+							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
 					child);
 		} else if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
 			RexNode child = call.getChildren().get(0).accept(this);
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
 			RexNode checkOverflow = call.getChildren().get(2).accept(this);
 			return relBuilder.getRexBuilder().makeReinterpretCast(
-					typeFactory.createTypeFromInternalType(
-							createInternalTypeFromTypeInfo(
-								fromDataTypeToLegacyInfo(type.getOutputDataType())),
-							child.getType().isNullable()),
+					typeFactory.createFieldTypeFromLogicalType(
+							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
 					child,
 					checkOverflow);
 		}
@@ -126,26 +117,26 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.IS_NULL.equals(def)) {
 			return relBuilder.isNull(child.get(0));
 		} else if (BuiltInFunctionDefinitions.PLUS.equals(def)) {
-			if (isString(toInternalType(child.get(0).getType()))) {
+			if (isVarchar(toLogicalType(child.get(0).getType()))) {
 				return relBuilder.call(
 						FlinkSqlOperatorTable.CONCAT,
 						child.get(0),
 						relBuilder.cast(child.get(1), VARCHAR));
-			} else if (isString(toInternalType(child.get(1).getType()))) {
+			} else if (isVarchar(toLogicalType(child.get(1).getType()))) {
 				return relBuilder.call(
 						FlinkSqlOperatorTable.CONCAT,
 						relBuilder.cast(child.get(0), VARCHAR),
 						child.get(1));
-			} else if (isTimeInterval(toInternalType(child.get(0).getType())) &&
+			} else if (isTimeInterval(toLogicalType(child.get(0).getType())) &&
 					child.get(0).getType() == child.get(1).getType()) {
 				return relBuilder.call(FlinkSqlOperatorTable.PLUS, child);
-			} else if (isTimeInterval(toInternalType(child.get(0).getType()))
-					&& isTemporal(toInternalType(child.get(1).getType()))) {
+			} else if (isTimeInterval(toLogicalType(child.get(0).getType()))
+					&& isTemporal(toLogicalType(child.get(1).getType()))) {
 				// Calcite has a bug that can't apply INTERVAL + DATETIME (INTERVAL at left)
 				// we manually switch them here
 				return relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, child);
-			} else if (isTemporal(toInternalType(child.get(0).getType())) &&
-					isTemporal(toInternalType(child.get(1).getType()))) {
+			} else if (isTemporal(toLogicalType(child.get(0).getType())) &&
+					isTemporal(toLogicalType(child.get(1).getType()))) {
 				return relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, child);
 			} else {
 				return relBuilder.call(FlinkSqlOperatorTable.PLUS, child);
@@ -181,13 +172,13 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitValueLiteral(ValueLiteralExpression expr) {
-		InternalType type = createInternalTypeFromTypeInfo(getLiteralTypeInfo(expr));
+		LogicalType type = fromDataTypeToLogicalType(expr.getOutputDataType());
 		RexBuilder rexBuilder = relBuilder.getRexBuilder();
 		FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
 		if (expr.isNull()) {
 			return relBuilder.getRexBuilder()
 					.makeCast(
-							typeFactory.createTypeFromInternalType(type, true),
+							typeFactory.createFieldTypeFromLogicalType(type),
 							relBuilder.getRexBuilder().constantNull());
 		}
 
@@ -195,37 +186,37 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			DecimalType dt = (DecimalType) type;
 			BigDecimal bigDecimal = extractValue(expr, BigDecimal.class);
 			RelDataType decType = relBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
-					dt.precision(), dt.scale());
+					dt.getPrecision(), dt.getScale());
 			return relBuilder.getRexBuilder().makeExactLiteral(bigDecimal, decType);
-		} else if (InternalTypes.LONG.equals(type)) {
+		} else if (type instanceof BigIntType) {
 			// create BIGINT literals for long type
 			BigDecimal bigint = extractValue(expr, BigDecimal.class);
 			return relBuilder.getRexBuilder().makeBigintLiteral(bigint);
-		} else if (InternalTypes.FLOAT.equals(type)) {
+		} else if (type instanceof FloatType) {
 			//Float/Double type should be liked as java type here.
 			return relBuilder.getRexBuilder().makeApproxLiteral(
 					extractValue(expr, BigDecimal.class),
 					relBuilder.getTypeFactory().createSqlType(SqlTypeName.FLOAT));
-		} else if (InternalTypes.DOUBLE.equals(type)) {
+		} else if (type instanceof DoubleType) {
 			//Float/Double type should be liked as java type here.
 			return rexBuilder.makeApproxLiteral(
 					extractValue(expr, BigDecimal.class),
 					relBuilder.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
-		} else if (InternalTypes.DATE.equals(type)) {
+		} else if (type instanceof DateType) {
 			return relBuilder.getRexBuilder().makeDateLiteral(
 					DateString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Date.class))));
-		} else if (InternalTypes.TIME.equals(type)) {
+		} else if (type instanceof TimeType) {
 			return relBuilder.getRexBuilder().makeTimeLiteral(
 					TimeString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Time.class))), 0);
-		} else if (InternalTypes.TIMESTAMP.equals(type)) {
+		} else if (type instanceof TimestampType) {
 			return relBuilder.getRexBuilder().makeTimestampLiteral(
 					TimestampString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Timestamp.class))), 3);
-		} else if (InternalTypes.INTERVAL_MONTHS.equals(type)) {
+		} else if (type instanceof YearMonthIntervalType) {
 			BigDecimal interval = BigDecimal.valueOf(extractValue(expr, Integer.class));
 			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
 					TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO);
 			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
-		} else if (InternalTypes.TIMESTAMP.equals(type)) {
+		} else if (type instanceof DayTimeIntervalType) {
 			BigDecimal interval = BigDecimal.valueOf(extractValue(expr, Long.class));
 			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
 					TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO);
@@ -233,41 +224,6 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else {
 			return relBuilder.literal(extractValue(expr, Object.class));
 		}
-	}
-
-	/**
-	 * This method makes the planner more lenient for new data types defined for literals.
-	 */
-	private static TypeInformation<?> getLiteralTypeInfo(ValueLiteralExpression literal) {
-		final LogicalType logicalType = literal.getOutputDataType().getLogicalType();
-
-		if (hasRoot(logicalType, DECIMAL)) {
-			if (literal.isNull()) {
-				return Types.BIG_DEC;
-			}
-			final BigDecimal value = extractValue(literal, BigDecimal.class);
-			if (hasPrecision(logicalType, value.precision()) && hasScale(logicalType, value.scale())) {
-				return Types.BIG_DEC;
-			}
-		}
-
-		else if (hasRoot(logicalType, CHAR)) {
-			if (literal.isNull()) {
-				return Types.STRING;
-			}
-			final String value = extractValue(literal, String.class);
-			if (hasLength(logicalType, value.length())) {
-				return Types.STRING;
-			}
-		}
-
-		else if (hasRoot(logicalType, TIMESTAMP_WITHOUT_TIME_ZONE)) {
-			if (getPrecision(logicalType) <= 3) {
-				return Types.SQL_TIMESTAMP;
-			}
-		}
-
-		return fromDataTypeToLegacyInfo(literal.getOutputDataType());
 	}
 
 	/**
@@ -342,23 +298,23 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		// using index to resolve field directly, name used in toString only
 		return new RexInputRef(
 				reference.getIndex(),
-				typeFactory.createTypeFromInternalType(reference.getResultType(), true));
+				typeFactory.createFieldTypeFromLogicalType(reference.getResultType()));
 	}
 
 	private RexNode visitResolvedAggLocalReference(ResolvedAggLocalReference reference) {
-		InternalType type = reference.getResultType();
+		LogicalType type = reference.getResultType();
 		return new RexAggLocalVariable(
 				reference.getFieldTerm(),
 				reference.getNullTerm(),
-				typeFactory.createTypeFromInternalType(type, true),
+				typeFactory.createFieldTypeFromLogicalType(type),
 				type);
 	}
 
 	private RexNode visitResolvedDistinctKeyReference(ResolvedDistinctKeyReference reference) {
-		InternalType type = reference.getResultType();
+		LogicalType type = reference.getResultType();
 		return new RexDistinctKeyVariable(
 				reference.getName(),
-				typeFactory.createTypeFromInternalType(type, true),
+				typeFactory.createFieldTypeFromLogicalType(type),
 				type);
 	}
 }

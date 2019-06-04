@@ -33,6 +33,7 @@ import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateI
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.aggregate.BytesHashMap
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -119,8 +120,8 @@ abstract class BatchExecHashWindowAggregateBase(
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
         .asInstanceOf[StreamTransformation[BaseRow]]
     val ctx = CodeGeneratorContext(tableEnv.getConfig)
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toInternalRowType(inputRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)
@@ -146,7 +147,7 @@ abstract class BatchExecHashWindowAggregateBase(
       input,
       getOperatorName,
       operator,
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 }

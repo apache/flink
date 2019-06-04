@@ -28,6 +28,7 @@ import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistri
 import org.apache.flink.table.plan.nodes.common.CommonCalc
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -141,7 +142,7 @@ class BatchExecCalc(
     } else {
       None
     }
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val ctx = CodeGeneratorContext(config)
     val operator = CalcCodeGenerator.generateCalcOperator(
       ctx,
@@ -158,7 +159,7 @@ class BatchExecCalc(
       inputTransform,
       RelExplainUtil.calcToString(calcProgram, getExpressionString),
       operator,
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       config.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 }

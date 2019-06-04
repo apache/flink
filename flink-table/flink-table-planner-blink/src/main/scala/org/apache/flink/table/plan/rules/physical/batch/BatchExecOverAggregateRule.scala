@@ -54,11 +54,11 @@ class BatchExecOverAggregateRule
     val typeFactory = logicWindow.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
     val constants = logicWindow.constants.asScala
-    val constantTypes = constants.map(c => FlinkTypeFactory.toInternalType(c.getType))
+    val constantTypes = constants.map(c => FlinkTypeFactory.toLogicalType(c.getType))
     val inputNamesWithConstants = inputRowType.getFieldNames ++ constants.indices.map(i => s"TMP$i")
     val inputTypesWithConstants = inputRowType.getFieldList
-      .map(i => FlinkTypeFactory.toInternalType(i.getType)) ++ constantTypes
-    val inputTypeWithConstants = typeFactory.buildLogicalRowType(
+      .map(i => FlinkTypeFactory.toLogicalType(i.getType)) ++ constantTypes
+    val inputTypeWithConstants = typeFactory.buildRelNodeRowType(
       inputNamesWithConstants, inputTypesWithConstants)
 
     var overWindowAgg: BatchExecOverAggregate = null

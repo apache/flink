@@ -19,12 +19,14 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.java.typeutils.MapTypeInfo
-import org.apache.flink.table.`type`.{InternalTypes, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.plan.schema.{ArrayRelDataType, MapRelDataType, MultisetRelDataType}
 import org.apache.flink.table.plan.util.ExplodeFunctionUtil
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
+import org.apache.flink.table.types.logical.RowType
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -34,7 +36,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType, StructKind}
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
-import org.apache.calcite.sql.`type`.AbstractSqlType
+import org.apache.calcite.sql.`type`.{AbstractSqlType, ArraySqlType, MapSqlType, MultisetSqlType}
 
 import java.util.Collections
 
@@ -94,27 +96,28 @@ class LogicalUnnestRule(
           val cluster = correlate.getCluster
           val dataType = uc.getInput.getRowType.getFieldList.get(0).getValue
           val (componentType, explodeTableFunc) = dataType match {
-            case arrayType: ArrayRelDataType =>
+            case arrayType: ArraySqlType =>
               (arrayType.getComponentType,
                 ExplodeFunctionUtil.explodeTableFuncFromType(
-                  TypeConverters.createExternalTypeInfoFromInternalType(arrayType.arrayType)))
+                  fromLogicalTypeToTypeInfo(toLogicalType(arrayType))))
 
-            case map: MapRelDataType =>
-              val rowInternalType = InternalTypes.createRowType(
-                map.mapType.getKeyType, map.mapType.getValueType)
+            case map: MapSqlType =>
+              val keyType = toLogicalType(map.getKeyType)
+              val valueType = toLogicalType(map.getValueType)
+              val rowInternalType = RowType.of(keyType, valueType)
               val componentType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-                  .createTypeFromInternalType(rowInternalType, isNullable = true)
+                  .createFieldTypeFromLogicalType(rowInternalType)
               val mapTypeInfo = new MapTypeInfo(
-                TypeConverters.createExternalTypeInfoFromInternalType(map.mapType.getKeyType),
-                TypeConverters.createExternalTypeInfoFromInternalType(map.mapType.getValueType)
+                fromLogicalTypeToTypeInfo(keyType),
+                fromLogicalTypeToTypeInfo(valueType)
               )
               val explodeFunction = ExplodeFunctionUtil.explodeTableFuncFromType(mapTypeInfo)
               (componentType, explodeFunction)
 
-            case mt: MultisetRelDataType =>
+            case mt: MultisetSqlType =>
               (mt.getComponentType,
                 ExplodeFunctionUtil.explodeTableFuncFromType(
-                  TypeConverters.createExternalTypeInfoFromInternalType(mt.multisetType)))
+                  fromLogicalTypeToTypeInfo(toLogicalType(mt))))
             case _ => throw new TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
           }
 
@@ -123,8 +126,7 @@ class LogicalUnnestRule(
             "explode",
             "explode",
             explodeTableFunc,
-            TypeConverters.createExternalTypeInfoFromInternalType(
-              FlinkTypeFactory.toInternalType(componentType)),
+            fromLogicalTypeToDataType(toLogicalType(componentType)),
             cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
           // create table function call

@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.TableStreamOperator;
 import org.apache.flink.table.runtime.hashtable.BinaryHashTable;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.typeutils.AbstractRowSerializer;
 import org.apache.flink.util.Collector;
 

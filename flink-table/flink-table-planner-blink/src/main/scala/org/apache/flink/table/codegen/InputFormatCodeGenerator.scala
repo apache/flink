@@ -22,7 +22,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.generated.GeneratedInput
-import org.apache.flink.table.`type`.InternalType
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * A code generator for generating Flink [[GenericInputFormat]]s.
@@ -45,7 +45,7 @@ object InputFormatCodeGenerator {
       ctx: CodeGeneratorContext,
       name: String,
       records: Seq[String],
-      returnType: InternalType,
+      returnType: LogicalType,
       outRecordTerm: String = CodeGenUtils.DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = CodeGenUtils.DEFAULT_OUT_RECORD_WRITER_TERM)
     : GeneratedInput[GenericInputFormat[T]] = {

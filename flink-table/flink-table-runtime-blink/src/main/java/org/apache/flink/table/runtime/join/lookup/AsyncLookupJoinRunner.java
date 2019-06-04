@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+
 /**
  * The async join runner to lookup the dimension table.
  */
@@ -101,7 +103,8 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 		// row converter is stateless which is thread-safe
 		RowConverter rowConverter;
 		if (fetcherReturnType instanceof RowTypeInfo) {
-			rowConverter = (RowConverter) DataFormatConverters.getConverterForTypeInfo(fetcherReturnType);
+			rowConverter = (RowConverter) DataFormatConverters.getConverterForDataType(
+					fromLegacyInfoToDataType(fetcherReturnType));
 		} else if (fetcherReturnType instanceof BaseRowTypeInfo) {
 			rowConverter = null;
 		} else {

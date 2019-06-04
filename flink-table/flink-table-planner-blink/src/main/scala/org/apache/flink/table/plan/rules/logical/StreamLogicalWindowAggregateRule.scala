@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.calcite.FlinkTypeFactory.toInternalType
+import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
@@ -70,15 +70,13 @@ class StreamLogicalWindowAggregateRule
         FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
         new FieldReferenceExpression(
           rowType.getFieldList.get(windowExprIdx).getName,
-          fromLegacyInfoToDataType(
-            createExternalTypeInfoFromInternalType(toInternalType(c.getType))),
+          fromLogicalTypeToDataType(toLogicalType(c.getType)),
           0, // only one input, should always be 0
           windowExprIdx)
       case v: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(v.getType) =>
         new FieldReferenceExpression(
           rowType.getFieldList.get(v.getIndex).getName,
-          fromLegacyInfoToDataType(
-            createExternalTypeInfoFromInternalType(toInternalType(v.getType))),
+          fromLogicalTypeToDataType(toLogicalType(v.getType)),
           0, // only one input, should always be 0
           v.getIndex)
       case _ =>

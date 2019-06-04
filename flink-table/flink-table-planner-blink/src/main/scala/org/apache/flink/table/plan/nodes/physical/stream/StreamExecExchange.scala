@@ -19,13 +19,13 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM
-import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, StreamTransformation}
 import org.apache.flink.streaming.runtime.partitioner.{GlobalPartitioner, KeyGroupStreamPartitioner, StreamPartitioner}
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.KeySelectorUtil
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
@@ -82,7 +82,8 @@ class StreamExecExchange(
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
     val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outputTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+    val outputTypeInfo = BaseRowTypeInfo.of(
+      FlinkTypeFactory.toLogicalRowType(getRowType))
     relDistribution.getType match {
       case RelDistribution.Type.SINGLETON =>
         val partitioner = new GlobalPartitioner[BaseRow]

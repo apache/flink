@@ -22,10 +22,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestData, TestSinkUtil, TestingAppendBaseRowSink, TestingAppendSink, TestingAppendTableSink}
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
 
@@ -47,9 +47,9 @@ class CalcITCase extends StreamingTestBase {
 
     implicit val tpe: TypeInformation[GenericRow] =
       new BaseRowTypeInfo(
-        InternalTypes.INT,
-        InternalTypes.INT,
-        InternalTypes.LONG).asInstanceOf[TypeInformation[GenericRow]]
+        new IntType(),
+        new IntType(),
+        new BigIntType()).asInstanceOf[TypeInformation[GenericRow]]
 
     val ds = env.fromCollection(data)
 
@@ -57,9 +57,9 @@ class CalcITCase extends StreamingTestBase {
     tEnv.registerTable("MyTableRow", t)
 
     val outputType = new BaseRowTypeInfo(
-      InternalTypes.INT,
-      InternalTypes.INT,
-      InternalTypes.LONG)
+      new IntType(),
+      new IntType(),
+      new BigIntType())
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[BaseRow]
     val sink = new TestingAppendBaseRowSink(outputType)
@@ -90,9 +90,9 @@ class CalcITCase extends StreamingTestBase {
     tEnv.registerTable("MyTableRow", t)
 
     val outputType = new BaseRowTypeInfo(
-      InternalTypes.STRING,
-      InternalTypes.STRING,
-      InternalTypes.INT)
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new IntType())
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[BaseRow]
     val sink = new TestingAppendBaseRowSink(outputType)
@@ -116,9 +116,9 @@ class CalcITCase extends StreamingTestBase {
 
     implicit val tpe: TypeInformation[GenericRow] =
       new BaseRowTypeInfo(
-        InternalTypes.INT,
-        InternalTypes.INT,
-        InternalTypes.LONG).asInstanceOf[TypeInformation[GenericRow]]
+        new IntType(),
+        new IntType(),
+        new BigIntType()).asInstanceOf[TypeInformation[GenericRow]]
 
     val ds = env.fromCollection(data)
 

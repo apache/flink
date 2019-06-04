@@ -18,15 +18,13 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBuilder;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -45,9 +43,9 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFunction {
 	protected UnresolvedReferenceExpression sequence = new UnresolvedReferenceExpression("sequence");
 	protected UnresolvedReferenceExpression[] lastValues;
-	protected InternalType[] orderKeyTypes;
+	protected LogicalType[] orderKeyTypes;
 
-	public RankLikeAggFunctionBase(InternalType[] orderKeyTypes) {
+	public RankLikeAggFunctionBase(LogicalType[] orderKeyTypes) {
 		this.orderKeyTypes = orderKeyTypes;
 		lastValues = new UnresolvedReferenceExpression[orderKeyTypes.length];
 		for (int i = 0; i < orderKeyTypes.length; ++i) {
@@ -61,8 +59,8 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 	}
 
 	@Override
-	public TypeInformation getResultType() {
-		return Types.LONG;
+	public DataType getResultType() {
+		return DataTypes.BIGINT();
 	}
 
 	@Override
@@ -98,33 +96,34 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 		return ret.orElseGet(() -> literal(true));
 	}
 
-	protected Expression generateInitLiteral(InternalType orderType) {
-		if (orderType.equals(InternalTypes.BOOLEAN)) {
-			return literal(false);
-		} else if (orderType.equals(InternalTypes.BYTE)) {
-			return literal((byte) 0);
-		} else if (orderType.equals(InternalTypes.SHORT)) {
-			return literal((short) 0);
-		} else if (orderType.equals(InternalTypes.INT)) {
-			return literal(0);
-		} else if (orderType.equals(InternalTypes.LONG)) {
-			return literal(0L);
-		} else if (orderType.equals(InternalTypes.FLOAT)) {
-			return literal(0.0f);
-		} else if (orderType.equals(InternalTypes.DOUBLE)) {
-			return literal(0.0d);
-		} else if (orderType instanceof DecimalType) {
-			return literal(java.math.BigDecimal.ZERO);
-		} else if (orderType.equals(InternalTypes.STRING)) {
-			return literal("");
-		} else if (orderType.equals(InternalTypes.DATE)) {
-			return literal(new Date(0));
-		} else if (orderType.equals(InternalTypes.TIME)) {
-			return literal(new Time(0));
-		} else if (orderType.equals(InternalTypes.TIMESTAMP)) {
-			return literal(new Timestamp(0));
-		} else {
-			throw new TableException("Unsupported type: " + orderType);
+	protected Expression generateInitLiteral(LogicalType orderType) {
+		switch (orderType.getTypeRoot()) {
+			case BOOLEAN:
+				return literal(false);
+			case TINYINT:
+				return literal((byte) 0);
+			case SMALLINT:
+				return literal((short) 0);
+			case INTEGER:
+				return literal(0);
+			case BIGINT:
+				return literal(0L);
+			case FLOAT:
+				return literal(0.0f);
+			case DOUBLE:
+				return literal(0.0d);
+			case DECIMAL:
+				return literal(java.math.BigDecimal.ZERO);
+			case VARCHAR:
+				return literal("");
+			case DATE:
+				return literal(new Date(0));
+			case TIME_WITHOUT_TIME_ZONE:
+				return literal(new Time(0));
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return literal(new Timestamp(0));
+			default:
+				throw new TableException("Unsupported type: " + orderType);
 		}
 	}
 }

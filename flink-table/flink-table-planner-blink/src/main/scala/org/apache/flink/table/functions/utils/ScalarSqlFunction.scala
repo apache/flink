@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.functions.utils
 
-import org.apache.flink.table.`type`.{InternalTypeUtils, TypeConverters}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
+import org.apache.flink.table.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
@@ -80,15 +82,14 @@ object ScalarSqlFunction {
             null
           } else if (opBinding.isOperandLiteral(i, false)) {
             opBinding.getOperandLiteralValue(
-              i, InternalTypeUtils.getExternalClassForType(parameters(i))).asInstanceOf[AnyRef]
+              i, getDefaultExternalClassForType(parameters(i))).asInstanceOf[AnyRef]
           } else {
             null
           }
         ).toArray
         val resultType = getResultTypeOfScalarFunction(scalarFunction, arguments, parameters)
-        typeFactory.createTypeFromInternalType(
-          TypeConverters.createInternalTypeFromTypeInfo(resultType),
-          isNullable = true)
+        typeFactory.createFieldTypeFromLogicalType(
+          fromDataTypeToLogicalType(resultType))
       }
     }
   }
@@ -123,8 +124,8 @@ object ScalarSqlFunction {
       throwValidationException(name, func, parameters)
     }
     func.getParameterTypes(getEvalMethodSignature(func, parameters))
-        .map(TypeConverters.createInternalTypeFromTypeInfo)
-        .map(typeFactory.createTypeFromInternalType(_, isNullable = true))
+        .map(fromTypeInfoToLogicalType)
+        .map(typeFactory.createFieldTypeFromLogicalType)
         .zipWithIndex
         .foreach {
           case (t, i) => operandTypes(i) = t

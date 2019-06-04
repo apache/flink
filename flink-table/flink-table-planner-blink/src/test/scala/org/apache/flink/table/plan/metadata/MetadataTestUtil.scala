@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, TypeConverters}
 import org.apache.flink.table.api.{TableConfig, TableSchema}
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkContextImpl, FlinkTypeSystem}
 import org.apache.flink.table.dataformat.BaseRow
@@ -28,6 +27,8 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty, Lex}
@@ -217,12 +218,12 @@ object MetadataTestUtil {
 
   private def createTemporalTable1(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
-    val fieldTypes = Array[InternalType](
-      InternalTypes.LONG,
-      InternalTypes.STRING,
-      InternalTypes.INT,
-      InternalTypes.PROCTIME_INDICATOR,
-      InternalTypes.ROWTIME_INDICATOR)
+    val fieldTypes = Array[LogicalType](
+      new BigIntType(),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new IntType(),
+      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3))
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(30L, 0L, 4D, 4, 45, 5),
@@ -237,12 +238,12 @@ object MetadataTestUtil {
 
   private def createTemporalTable2(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
-    val fieldTypes = Array[InternalType](
-      InternalTypes.LONG,
-      InternalTypes.STRING,
-      InternalTypes.INT,
-      InternalTypes.PROCTIME_INDICATOR,
-      InternalTypes.ROWTIME_INDICATOR)
+    val fieldTypes = Array[LogicalType](
+      new BigIntType(),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new IntType(),
+      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3))
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(50L, 0L, 8D, 8, 55, 5),
@@ -258,12 +259,12 @@ object MetadataTestUtil {
 
   private def createTemporalTable3(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
-    val fieldTypes = Array[InternalType](
-      InternalTypes.INT,
-      InternalTypes.LONG,
-      InternalTypes.STRING,
-      InternalTypes.PROCTIME_INDICATOR,
-      InternalTypes.ROWTIME_INDICATOR)
+    val fieldTypes = Array[LogicalType](
+      new IntType(),
+      new BigIntType(),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3))
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(3740000000L, 0L, 4D, 4, null, null),
@@ -281,13 +282,13 @@ object MetadataTestUtil {
       statistic: FlinkStatistic,
       producesUpdates: Boolean = false,
       isAccRetract: Boolean = false): DataStreamTable[BaseRow] = {
-    val types = tableSchema.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo)
+    val types = tableSchema.getFieldTypes.map(fromTypeInfoToLogicalType)
     getDataStreamTable(tableSchema.getFieldNames, types, statistic, producesUpdates, isAccRetract)
   }
 
   private def getDataStreamTable(
       fieldNames: Array[String],
-      fieldTypes: Array[InternalType],
+      fieldTypes: Array[LogicalType],
       statistic: FlinkStatistic,
       producesUpdates: Boolean,
       isAccRetract: Boolean): DataStreamTable[BaseRow] = {

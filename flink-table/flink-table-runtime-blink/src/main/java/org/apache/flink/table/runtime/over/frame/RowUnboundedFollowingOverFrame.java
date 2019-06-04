@@ -22,7 +22,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.RowType;
 
 /**
  * The row unboundedFollowing window frame calculates frames with the following SQL form:

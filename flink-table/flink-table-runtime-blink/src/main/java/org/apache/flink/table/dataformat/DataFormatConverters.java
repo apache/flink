@@ -19,33 +19,29 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.TypeConverters;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
-import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
-import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
-import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 
 import java.io.Serializable;
@@ -57,8 +53,13 @@ import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import scala.Product;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Converters between internal data format and java format.
@@ -73,91 +74,189 @@ import scala.Product;
  */
 public class DataFormatConverters {
 
-	private static final Map<TypeInformation, DataFormatConverter> TYPE_INFO_TO_CONVERTER;
+	private static final Map<DataType, DataFormatConverter> TYPE_TO_CONVERTER;
 	static {
-		Map<TypeInformation, DataFormatConverter> t2C = new HashMap<>();
-		t2C.put(BasicTypeInfo.STRING_TYPE_INFO, StringConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.BOOLEAN_TYPE_INFO, BooleanConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.INT_TYPE_INFO, IntConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.LONG_TYPE_INFO, LongConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.FLOAT_TYPE_INFO, FloatConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.DOUBLE_TYPE_INFO, DoubleConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.SHORT_TYPE_INFO, ShortConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.BYTE_TYPE_INFO, ByteConverter.INSTANCE);
-		t2C.put(BasicTypeInfo.BIG_DEC_TYPE_INFO, new BigDecimalConverter(
-				DecimalType.SYSTEM_DEFAULT.precision(),
-				DecimalType.SYSTEM_DEFAULT.scale()));
+		Map<DataType, DataFormatConverter> t2C = new HashMap<>();
 
-		t2C.put(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveBooleanArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveIntArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveLongArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveFloatArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveDoubleArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveShortArrayConverter.INSTANCE);
-		t2C.put(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveByteArrayConverter.INSTANCE);
+		t2C.put(DataTypes.BOOLEAN().bridgedTo(Boolean.class), BooleanConverter.INSTANCE);
+		t2C.put(DataTypes.BOOLEAN().bridgedTo(boolean.class), BooleanConverter.INSTANCE);
 
-		t2C.put(SqlTimeTypeInfo.DATE, DateConverter.INSTANCE);
-		t2C.put(SqlTimeTypeInfo.TIME, TimeConverter.INSTANCE);
-		t2C.put(SqlTimeTypeInfo.TIMESTAMP, TimestampConverter.INSTANCE);
+		t2C.put(DataTypes.INT().bridgedTo(Integer.class), IntConverter.INSTANCE);
+		t2C.put(DataTypes.INT().bridgedTo(int.class), IntConverter.INSTANCE);
 
-		t2C.put(TimeIntervalTypeInfo.INTERVAL_MONTHS, IntConverter.INSTANCE);
-		t2C.put(TimeIntervalTypeInfo.INTERVAL_MILLIS, LongConverter.INSTANCE);
+		t2C.put(DataTypes.BIGINT().bridgedTo(Long.class), LongConverter.INSTANCE);
+		t2C.put(DataTypes.BIGINT().bridgedTo(long.class), LongConverter.INSTANCE);
 
-		t2C.put(BinaryStringTypeInfo.INSTANCE, BinaryStringConverter.INSTANCE);
+		t2C.put(DataTypes.SMALLINT().bridgedTo(Short.class), ShortConverter.INSTANCE);
+		t2C.put(DataTypes.SMALLINT().bridgedTo(short.class), ShortConverter.INSTANCE);
 
-		TYPE_INFO_TO_CONVERTER = Collections.unmodifiableMap(t2C);
+		t2C.put(DataTypes.FLOAT().bridgedTo(Float.class), FloatConverter.INSTANCE);
+		t2C.put(DataTypes.FLOAT().bridgedTo(float.class), FloatConverter.INSTANCE);
+
+		t2C.put(DataTypes.DOUBLE().bridgedTo(Double.class), DoubleConverter.INSTANCE);
+		t2C.put(DataTypes.DOUBLE().bridgedTo(double.class), DoubleConverter.INSTANCE);
+
+		t2C.put(DataTypes.TINYINT().bridgedTo(Byte.class), ByteConverter.INSTANCE);
+		t2C.put(DataTypes.TINYINT().bridgedTo(byte.class), ByteConverter.INSTANCE);
+
+		t2C.put(DataTypes.DATE().bridgedTo(Date.class), DateConverter.INSTANCE);
+		t2C.put(DataTypes.DATE().bridgedTo(Integer.class), IntConverter.INSTANCE);
+		t2C.put(DataTypes.DATE().bridgedTo(int.class), IntConverter.INSTANCE);
+
+		t2C.put(DataTypes.TIME().bridgedTo(Time.class), TimeConverter.INSTANCE);
+		t2C.put(DataTypes.TIME().bridgedTo(Integer.class), IntConverter.INSTANCE);
+		t2C.put(DataTypes.TIME().bridgedTo(int.class), IntConverter.INSTANCE);
+
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), TimestampConverter.INSTANCE);
+
+		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
+		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
+
+		t2C.put(DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(Long.class), LongConverter.INSTANCE);
+		t2C.put(DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(long.class), LongConverter.INSTANCE);
+
+		TYPE_TO_CONVERTER = Collections.unmodifiableMap(t2C);
 	}
 
 	/**
-	 * Get {@link DataFormatConverter} for {@link TypeInformation}.
+	 * Get {@link DataFormatConverter} for {@link DataType}.
 	 *
-	 * @param typeInfo DataFormatConverter is oriented to Java format, while InternalType has
-	 *                   lost its specific Java format. Only TypeInformation retains all its
+	 * @param originDataType DataFormatConverter is oriented to Java format, while LogicalType has
+	 *                   lost its specific Java format. Only DataType retains all its
 	 *                   Java format information.
 	 */
 	@SuppressWarnings("unchecked")
-	public static DataFormatConverter getConverterForTypeInfo(TypeInformation typeInfo) {
-		DataFormatConverter converter = TYPE_INFO_TO_CONVERTER.get(typeInfo);
+	public static DataFormatConverter getConverterForDataType(DataType originDataType) {
+		DataType dataType = originDataType.nullable();
+		DataFormatConverter converter = TYPE_TO_CONVERTER.get(dataType);
 		if (converter != null) {
 			return converter;
 		}
 
-		if (typeInfo instanceof BasicArrayTypeInfo) {
-			BasicArrayTypeInfo arrayType = (BasicArrayTypeInfo) typeInfo;
-			return new ObjectArrayConverter(arrayType.getTypeClass(), arrayType.getComponentInfo());
-		} else if (typeInfo instanceof ObjectArrayTypeInfo) {
-			ObjectArrayTypeInfo arrayType = (ObjectArrayTypeInfo) typeInfo;
-			return new ObjectArrayConverter(arrayType.getTypeClass(), arrayType.getComponentInfo());
-		} else if (typeInfo instanceof MapTypeInfo) {
-			MapTypeInfo mapType = (MapTypeInfo) typeInfo;
-			return new MapConverter(mapType.getKeyTypeInfo(), mapType.getValueTypeInfo());
-		} else if (typeInfo instanceof RowTypeInfo) {
-			return new RowConverter((RowTypeInfo) typeInfo);
-		} else if (typeInfo instanceof PojoTypeInfo) {
-			return new PojoConverter((PojoTypeInfo) typeInfo);
-		} else if (typeInfo instanceof TupleTypeInfo) {
-			return new TupleConverter((TupleTypeInfo) typeInfo);
-		} else if (typeInfo instanceof TupleTypeInfoBase && Product.class.isAssignableFrom(typeInfo.getTypeClass())) {
-			return new CaseClassConverter((TupleTypeInfoBase) typeInfo);
-		} else if (typeInfo instanceof BinaryArrayTypeInfo) {
-			return BinaryArrayConverter.INSTANCE;
-		} else if (typeInfo instanceof BinaryMapTypeInfo) {
-			return BinaryMapConverter.INSTANCE;
-		} else if (typeInfo instanceof BaseRowTypeInfo) {
-			return new BaseRowConverter(typeInfo.getArity());
-		} else if (typeInfo.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
-			return new BaseRowConverter(typeInfo.getArity());
-		} else if (typeInfo instanceof DecimalTypeInfo) {
-			DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
-			return new DecimalConverter(decimalType.precision(), decimalType.scale());
-		} else if (typeInfo instanceof BigDecimalTypeInfo) {
-			BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
-			return new BigDecimalConverter(decimalType.precision(), decimalType.scale());
-		} else if (typeInfo instanceof BinaryGenericTypeInfo) {
-			return BinaryGenericConverter.INSTANCE;
-		} else {
-			return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+		Class<?> clazz = dataType.getConversionClass();
+		LogicalType logicalType = dataType.getLogicalType();
+		switch (logicalType.getTypeRoot()) {
+			case VARCHAR:
+				if (clazz == String.class) {
+					return StringConverter.INSTANCE;
+				} else if (clazz == BinaryString.class) {
+					return BinaryStringConverter.INSTANCE;
+				} else {
+					throw new RuntimeException("Not support class for VARCHAR: " + clazz);
+				}
+			case VARBINARY:
+				return PrimitiveByteArrayConverter.INSTANCE;
+			case DECIMAL:
+				Tuple2<Integer, Integer> ps = getPrecision(logicalType);
+				if (clazz == BigDecimal.class) {
+					return new BigDecimalConverter(ps.f0, ps.f1);
+				} else {
+					return new DecimalConverter(ps.f0, ps.f1);
+				}
+			case ARRAY:
+				if (clazz == BinaryArray.class) {
+					return BinaryArrayConverter.INSTANCE;
+				} else if (clazz == boolean[].class) {
+					return PrimitiveBooleanArrayConverter.INSTANCE;
+				} else if (clazz == short[].class) {
+					return PrimitiveShortArrayConverter.INSTANCE;
+				} else if (clazz == int[].class) {
+					return PrimitiveIntArrayConverter.INSTANCE;
+				} else if (clazz == long[].class) {
+					return PrimitiveLongArrayConverter.INSTANCE;
+				} else if (clazz == float[].class) {
+					return PrimitiveFloatArrayConverter.INSTANCE;
+				} else if (clazz == double[].class) {
+					return PrimitiveDoubleArrayConverter.INSTANCE;
+				}
+				if (dataType instanceof CollectionDataType) {
+					return new ObjectArrayConverter(
+							((CollectionDataType) dataType).getElementDataType().bridgedTo(clazz.getComponentType()));
+				} else {
+					BasicArrayTypeInfo typeInfo =
+							(BasicArrayTypeInfo) ((LegacyTypeInformationType) dataType.getLogicalType()).getTypeInformation();
+					return new ObjectArrayConverter(
+							fromLegacyInfoToDataType(typeInfo.getComponentInfo())
+									.bridgedTo(clazz.getComponentType()));
+				}
+			case MAP:
+				if (clazz == BinaryMap.class) {
+					return BinaryMapConverter.INSTANCE;
+				}
+				KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;
+				return new MapConverter(keyValueDataType.getKeyDataType(), keyValueDataType.getValueDataType());
+			case MULTISET:
+				if (clazz == BinaryMap.class) {
+					return BinaryMapConverter.INSTANCE;
+				}
+				CollectionDataType collectionDataType = (CollectionDataType) dataType;
+				return new MapConverter(
+						collectionDataType.getElementDataType(),
+						DataTypes.INT().bridgedTo(Integer.class));
+			case ROW:
+			case STRUCTURED_TYPE:
+				CompositeType compositeType = (CompositeType) fromDataTypeToLegacyInfo(dataType);
+				DataType[] fieldTypes = Stream.iterate(0, x -> x + 1).limit(compositeType.getArity())
+						.map((Function<Integer, TypeInformation>) compositeType::getTypeAt)
+						.map(TypeConversions::fromLegacyInfoToDataType).toArray(DataType[]::new);
+				if (clazz == BaseRow.class) {
+					return new BaseRowConverter(compositeType.getArity());
+				} else if (clazz == Row.class) {
+					return new RowConverter(fieldTypes);
+				} else if (Tuple.class.isAssignableFrom(clazz)) {
+					return new TupleConverter((Class<Tuple>) clazz, fieldTypes);
+				} else if (Product.class.isAssignableFrom(clazz)) {
+					return new CaseClassConverter((TupleTypeInfoBase) compositeType, fieldTypes);
+				} else {
+					return new PojoConverter((PojoTypeInfo) compositeType, fieldTypes);
+				}
+			case ANY:
+				TypeInformation typeInfo = logicalType instanceof LegacyTypeInformationType ?
+						((LegacyTypeInformationType) logicalType).getTypeInformation() :
+						((TypeInformationAnyType) logicalType).getTypeInformation();
+
+				// planner type info
+				if (typeInfo instanceof BinaryStringTypeInfo) {
+					return BinaryStringConverter.INSTANCE;
+				} else if (typeInfo instanceof DecimalTypeInfo) {
+					DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
+					return new DecimalConverter(decimalType.precision(), decimalType.scale());
+				} else if (typeInfo instanceof BigDecimalTypeInfo) {
+					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
+					return new BigDecimalConverter(decimalType.precision(), decimalType.scale());
+				}
+
+				if (clazz == BinaryGeneric.class) {
+					return BinaryGenericConverter.INSTANCE;
+				}
+				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+			default:
+				throw new RuntimeException("Not support dataType: " + originDataType);
 		}
+	}
+
+	private static Tuple2<Integer, Integer> getPrecision(LogicalType logicalType) {
+		Tuple2<Integer, Integer> ps = new Tuple2<>();
+		if (logicalType instanceof DecimalType) {
+			DecimalType decimalType = (DecimalType) logicalType;
+			ps.f0 = decimalType.getPrecision();
+			ps.f1 = decimalType.getScale();
+		} else {
+			TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
+			if (typeInfo instanceof BigDecimalTypeInfo) {
+				BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
+				ps.f0 = decimalType.precision();
+				ps.f1 = decimalType.scale();
+			} else if (typeInfo instanceof DecimalTypeInfo) {
+				DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
+				ps.f0 = decimalType.precision();
+				ps.f1 = decimalType.scale();
+			} else {
+				ps.f0 = Decimal.DECIMAL_SYSTEM_DEFAULT.getPrecision();
+				ps.f1 = Decimal.DECIMAL_SYSTEM_DEFAULT.getScale();
+			}
+		}
+		return ps;
 	}
 
 	/**
@@ -788,18 +887,16 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -7434682160639380078L;
 
-		private final Class<T[]> arrayClass;
-		private final InternalType elementType;
-		private final DataFormatConverter<Object, T> elementConverter;
 		private final Class<T> componentClass;
+		private final LogicalType elementType;
+		private final DataFormatConverter<Object, T> elementConverter;
 		private final int elementSize;
 
-		public ObjectArrayConverter(Class<T[]> arrayClass, TypeInformation<T> elementTypeInfo) {
-			this.arrayClass = arrayClass;
-			this.elementType = TypeConverters.createInternalTypeFromTypeInfo(elementTypeInfo);
-			this.elementConverter = DataFormatConverters.getConverterForTypeInfo(elementTypeInfo);
-			this.componentClass = elementTypeInfo.getTypeClass();
-			this.elementSize = BinaryArray.calculateFixLengthPartSize(elementType);
+		public ObjectArrayConverter(DataType elementType) {
+			this.componentClass = (Class) elementType.getConversionClass();
+			this.elementType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(elementType);
+			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
+			this.elementSize = BinaryArray.calculateFixLengthPartSize(elementType.getLogicalType());
 		}
 
 		@Override
@@ -829,7 +926,7 @@ public class DataFormatConverters {
 		}
 	}
 
-	private static  <T> T[] binaryArrayToJavaArray(BinaryArray value, InternalType elementType,
+	private static <T> T[] binaryArrayToJavaArray(BinaryArray value, LogicalType elementType,
 			Class<T> componentClass, DataFormatConverter<Object, T> elementConverter) {
 		int size = value.numElements();
 		T[] values = (T[]) Array.newInstance(componentClass, size);
@@ -851,8 +948,8 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -916429669828309919L;
 
-		private final InternalType keyType;
-		private final InternalType valueType;
+		private final LogicalType keyType;
+		private final LogicalType valueType;
 
 		private final DataFormatConverter keyConverter;
 		private final DataFormatConverter valueConverter;
@@ -863,15 +960,15 @@ public class DataFormatConverters {
 		private final Class keyComponentClass;
 		private final Class valueComponentClass;
 
-		public MapConverter(TypeInformation keyTypeInfo, TypeInformation valueTypeInfo) {
-			this.keyType = TypeConverters.createInternalTypeFromTypeInfo(keyTypeInfo);
-			this.valueType = TypeConverters.createInternalTypeFromTypeInfo(valueTypeInfo);
-			this.keyConverter = DataFormatConverters.getConverterForTypeInfo(keyTypeInfo);
-			this.valueConverter = DataFormatConverters.getConverterForTypeInfo(valueTypeInfo);
+		public MapConverter(DataType keyTypeInfo, DataType valueTypeInfo) {
+			this.keyType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(keyTypeInfo);
+			this.valueType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(valueTypeInfo);
+			this.keyConverter = DataFormatConverters.getConverterForDataType(keyTypeInfo);
+			this.valueConverter = DataFormatConverters.getConverterForDataType(valueTypeInfo);
 			this.keyElementSize = BinaryArray.calculateFixLengthPartSize(keyType);
 			this.valueElementSize = BinaryArray.calculateFixLengthPartSize(valueType);
-			this.keyComponentClass = keyTypeInfo.getTypeClass();
-			this.valueComponentClass = valueTypeInfo.getTypeClass();
+			this.keyComponentClass = keyTypeInfo.getConversionClass();
+			this.valueComponentClass = valueTypeInfo.getConversionClass();
 		}
 
 		@Override
@@ -928,10 +1025,10 @@ public class DataFormatConverters {
 
 		protected final DataFormatConverter[] converters;
 
-		public AbstractBaseRowConverter(CompositeType t) {
-			converters = new DataFormatConverter[t.getArity()];
-			for (int i = 0; i < t.getArity(); i++) {
-				converters[i] = getConverterForTypeInfo(t.getTypeAt(i));
+		public AbstractBaseRowConverter(DataType[] fieldTypes) {
+			converters = new DataFormatConverter[fieldTypes.length];
+			for (int i = 0; i < converters.length; i++) {
+				converters[i] = getConverterForDataType(fieldTypes[i]);
 			}
 		}
 
@@ -967,8 +1064,8 @@ public class DataFormatConverters {
 		private final PojoTypeInfo<T> t;
 		private final PojoField[] fields;
 
-		public PojoConverter(PojoTypeInfo<T> t) {
-			super(t);
+		public PojoConverter(PojoTypeInfo<T> t, DataType[] fieldTypes) {
+			super(fieldTypes);
 			this.fields = new PojoField[t.getArity()];
 			for (int i = 0; i < t.getArity(); i++) {
 				fields[i] = t.getPojoFieldAt(i);
@@ -1012,17 +1109,14 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -56553502075225785L;
 
-		private final RowTypeInfo t;
-
-		public RowConverter(RowTypeInfo t) {
-			super(t);
-			this.t = t;
+		public RowConverter(DataType[] fieldTypes) {
+			super(fieldTypes);
 		}
 
 		@Override
 		BaseRow toInternalImpl(Row value) {
-			GenericRow genericRow = new GenericRow(t.getArity());
-			for (int i = 0; i < t.getArity(); i++) {
+			GenericRow genericRow = new GenericRow(converters.length);
+			for (int i = 0; i < converters.length; i++) {
 				genericRow.setField(i, converters[i].toInternal(value.getField(i)));
 			}
 			return genericRow;
@@ -1030,8 +1124,8 @@ public class DataFormatConverters {
 
 		@Override
 		Row toExternalImpl(BaseRow value) {
-			Row row = new Row(t.getArity());
-			for (int i = 0; i < t.getArity(); i++) {
+			Row row = new Row(converters.length);
+			for (int i = 0; i < converters.length; i++) {
 				row.setField(i, converters[i].toExternal(value, i));
 			}
 			return row;
@@ -1045,17 +1139,17 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = 2794892691010934194L;
 
-		private final TupleTypeInfo t;
+		private final Class<Tuple> clazz;
 
-		public TupleConverter(TupleTypeInfo t) {
-			super(t);
-			this.t = t;
+		public TupleConverter(Class<Tuple> clazz, DataType[] fieldTypes) {
+			super(fieldTypes);
+			this.clazz = clazz;
 		}
 
 		@Override
 		BaseRow toInternalImpl(Tuple value) {
-			GenericRow genericRow = new GenericRow(t.getArity());
-			for (int i = 0; i < t.getArity(); i++) {
+			GenericRow genericRow = new GenericRow(converters.length);
+			for (int i = 0; i < converters.length; i++) {
 				genericRow.setField(i, converters[i].toInternal(value.getField(i)));
 			}
 			return genericRow;
@@ -1064,8 +1158,8 @@ public class DataFormatConverters {
 		@Override
 		Tuple toExternalImpl(BaseRow value) {
 			try {
-				Tuple tuple = (Tuple) t.getTypeClass().newInstance();
-				for (int i = 0; i < t.getArity(); i++) {
+				Tuple tuple = clazz.newInstance();
+				for (int i = 0; i < converters.length; i++) {
 					tuple.setField(converters[i].toExternal(value, i), i);
 				}
 				return tuple;
@@ -1086,8 +1180,8 @@ public class DataFormatConverters {
 		private final TupleTypeInfoBase t;
 		private final TupleSerializerBase serializer;
 
-		public CaseClassConverter(TupleTypeInfoBase t) {
-			super(t);
+		public CaseClassConverter(TupleTypeInfoBase t, DataType[] fieldTypes) {
+			super(fieldTypes);
 			this.t = t;
 			this.serializer = (TupleSerializerBase) t.createSerializer(new ExecutionConfig());
 		}

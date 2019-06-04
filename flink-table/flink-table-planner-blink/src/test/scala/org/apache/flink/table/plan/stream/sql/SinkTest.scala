@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.InternalTypes.{INT, LONG, STRING}
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, TimestampType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -28,6 +28,10 @@ class SinkTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
   @Test
   def testAppendSink(): Unit = {

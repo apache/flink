@@ -20,7 +20,6 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
@@ -29,7 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
@@ -40,6 +38,9 @@ import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sinks.DataStreamTableSink
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.types.{DataType, LogicalTypeDataTypeConverter}
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.util.PlanUtil
 
@@ -305,7 +306,7 @@ abstract class StreamTableEnvironment(
     name: String,
     dataStream: DataStream[T]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](fromLegacyInfoToDataType(dataStream.getType))
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
       fieldIndexes,
@@ -329,11 +330,13 @@ abstract class StreamTableEnvironment(
       fields: Array[String]): Unit = {
 
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo(dataStream.getType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo(
+      fromLegacyInfoToDataType(dataStream.getType), fields)
 
     // TODO: validate and extract time attributes after we introduce [Expression],
     //  return None currently
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(dataStream.getType, fields)
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(
+      fromLegacyInfoToDataType(dataStream.getType), fields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
@@ -362,14 +365,17 @@ abstract class StreamTableEnvironment(
     */
   // TODO: we should support Expression fields after we introduce [Expression]
   private[flink] def validateAndExtractTimeAttributes(
-      streamType: TypeInformation[_],
+      streamType: DataType,
       fields: Array[String]): (Option[(Int, String)], Option[(Int, String)]) = {
 
-    val (isRefByPos, fieldTypes) = streamType match {
-      case c: CompositeType[_] =>
+    val streamLogicalType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(streamType)
+
+    val (isRefByPos, fieldTypes) = streamLogicalType match {
+      case c: RowType =>
         // determine schema definition mode (by position or by name)
-        (isReferenceByPosition(c, fields), (0 until c.getArity).map(i => c.getTypeAt(i)).toArray)
-      case t: TypeInformation[_] =>
+        (isReferenceByPosition(c, fields),
+            (0 until c.getFieldCount).map(i => c.getTypeAt(i)).toArray)
+      case t =>
         (false, Array(t))
     }
 
@@ -377,12 +383,11 @@ abstract class StreamTableEnvironment(
     var rowtime: Option[(Int, String)] = None
     var proctime: Option[(Int, String)] = None
 
-    def checkRowtimeType(typeInfo: TypeInformation[_]): Unit = {
-      val t = TypeConverters.createInternalTypeFromTypeInfo(typeInfo)
+    def checkRowtimeType(t: LogicalType): Unit = {
       if (!(TypeCheckUtils.isLong(t) || TypeCheckUtils.isTimePoint(t))) {
         throw new TableException(
           s"The rowtime attribute can only replace a field with a valid time type, " +
-            s"such as Timestamp or Long. But was: $typeInfo")
+            s"such as Timestamp or Long. But was: $t")
       }
     }
 
@@ -407,9 +412,9 @@ abstract class StreamTableEnvironment(
         // check reference-by-name
         else {
           val aliasOrName = origName.getOrElse(name)
-          streamType match {
+          streamLogicalType match {
             // both alias and reference must have a valid type if they replace a field
-            case ct: CompositeType[_] if ct.hasField(aliasOrName) =>
+            case ct: RowType if ct.getFieldIndex(aliasOrName) != -1 =>
               val t = ct.getTypeAt(ct.getFieldIndex(aliasOrName))
               checkRowtimeType(t)
             // alias could not be found
@@ -441,9 +446,9 @@ abstract class StreamTableEnvironment(
         }
         // check reference-by-name
         else {
-          streamType match {
+          streamLogicalType match {
             // proctime attribute must not replace a field
-            case ct: CompositeType[_] if ct.hasField(name) =>
+            case ct: RowType if ct.getFieldIndex(name) != -1 =>
               throw new TableException(
                 s"The proctime attribute '$name' must not replace an existing field.")
             case _ => // ok

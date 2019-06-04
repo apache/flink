@@ -18,28 +18,6 @@
 
 package org.apache.flink.table.plan.metadata
 
-import java.math.BigDecimal
-import java.util
-
-import com.google.common.collect.{ImmutableList, Lists}
-import org.apache.calcite.plan._
-import org.apache.calcite.rel._
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core._
-import org.apache.calcite.rel.logical._
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
-import org.apache.calcite.rex._
-import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.SqlWindow
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.tools.FrameworkConfig
-import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
-import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkRelBuilder, FlinkTypeFactory}
@@ -60,9 +38,31 @@ import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.types.AtomicDataType
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.util.CountAggFunction
+
+import com.google.common.collect.{ImmutableList, Lists}
+import org.apache.calcite.plan._
+import org.apache.calcite.rel._
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
+import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.logical._
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rex._
+import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.sql.SqlWindow
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.tools.FrameworkConfig
+import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
+
+import java.math.BigDecimal
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -102,17 +102,17 @@ class FlinkRelMdHandlerTestBase {
     streamPhysicalTraits = cluster.traitSetOf(FlinkConventions.STREAM_PHYSICAL)
   }
 
-  protected val intType: RelDataType = typeFactory.createTypeFromInternalType(
-    InternalTypes.INT, isNullable = false)
+  protected val intType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
+    new IntType(false))
 
-  protected val doubleType: RelDataType = typeFactory.createTypeFromInternalType(
-    InternalTypes.DOUBLE, isNullable = false)
+  protected val doubleType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
+    new DoubleType(false))
 
-  protected val longType: RelDataType = typeFactory.createTypeFromInternalType(
-    InternalTypes.LONG, isNullable = false)
+  protected val longType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
+    new BigIntType(false))
 
-  protected val stringType: RelDataType = typeFactory.createTypeFromInternalType(
-    InternalTypes.STRING, isNullable = false)
+  protected val stringType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
+    new VarCharType(false, VarCharType.MAX_LENGTH))
 
   protected lazy val testRel = new TestRel(
     cluster, logicalTraits, createDataStreamScan(ImmutableList.of("student"), logicalTraits))
@@ -946,15 +946,14 @@ class FlinkRelMdHandlerTestBase {
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
   private lazy val windowRef: WindowReference =
-  WindowReference.apply("w$", Some(InternalTypes.TIMESTAMP))
+  WindowReference.apply("w$", Some(new TimestampType(3)))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
       windowRef,
       new FieldReferenceExpression(
         "rowtime",
-        fromLegacyInfoToDataType(
-          createExternalTypeInfoFromInternalType(InternalTypes.ROWTIME_INDICATOR)),
+        new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3)),
         0,
         4),
       intervalOfMillis(900000)
@@ -1521,10 +1520,10 @@ class FlinkRelMdHandlerTestBase {
       Seq((overAggGroups(1), Seq(
         (AggregateCall.create(SqlStdOperatorTable.RANK, false, ImmutableList.of(), -1, longType,
           "rk"),
-          new RankAggFunction(Array(InternalTypes.STRING))),
+          new RankAggFunction(Array(new VarCharType(VarCharType.MAX_LENGTH)))),
         (AggregateCall.create(SqlStdOperatorTable.DENSE_RANK, false, ImmutableList.of(), -1,
           longType, "drk"),
-          new DenseRankAggFunction(Array(InternalTypes.STRING))),
+          new DenseRankAggFunction(Array(new VarCharType(VarCharType.MAX_LENGTH)))),
         (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
           ImmutableList.of(Integer.valueOf(2)), -1, longType, "count$0_socre"),
           new CountAggFunction()),
@@ -2099,12 +2098,12 @@ class FlinkRelMdHandlerTestBase {
 
   protected def makeLiteral(
       value: Any,
-      internalType: InternalType,
+      internalType: LogicalType,
       isNullable: Boolean = false,
       allowCast: Boolean = true): RexNode = {
     rexBuilder.makeLiteral(
       value,
-      typeFactory.createTypeFromInternalType(internalType, isNullable),
+      typeFactory.createFieldTypeFromLogicalType(internalType.copy(isNullable)),
       allowCast
     )
   }

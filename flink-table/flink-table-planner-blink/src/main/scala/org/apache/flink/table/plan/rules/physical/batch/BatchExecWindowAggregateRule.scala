@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
@@ -31,6 +29,8 @@ import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
 import org.apache.flink.table.plan.util.AggregateUtil
 import org.apache.flink.table.plan.util.AggregateUtil.hasTimeIntervalType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -100,7 +100,7 @@ class BatchExecWindowAggregateRule
     val (_, aggBufferTypes, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
       aggCallsWithoutAuxGroupCalls, input.getRowType)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
-    val internalAggBufferTypes = aggBufferTypes.map(_.map(createInternalTypeFromTypeInfo))
+    val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
 
     window match {
@@ -146,7 +146,7 @@ class BatchExecWindowAggregateRule
       window: LogicalWindow,
       auxGroupSet: Array[Int],
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      aggBufferTypes: Array[Array[InternalType]],
+      aggBufferTypes: Array[Array[LogicalType]],
       preferHashExec: Boolean,
       enableAssignPane: Boolean,
       supportLocalAgg: Boolean): Unit = {
@@ -164,7 +164,7 @@ class BatchExecWindowAggregateRule
 
     val config = input.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     if (!isEnforceOnePhaseAgg(config) && supportLocalAgg) {
-      val windowType = if (inputTimeIsDate) InternalTypes.INT else InternalTypes.LONG
+      val windowType = if (inputTimeIsDate) new IntType() else new BigIntType()
       // local
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       // local win-agg output order: groupSet + assignTs + auxGroupSet + aggCalls
@@ -388,9 +388,9 @@ class BatchExecWindowAggregateRule
       agg: Aggregate,
       groupSet: Array[Int],
       auxGroupSet: Array[Int],
-      windowType: InternalType,
+      windowType: LogicalType,
       aggregates: Array[UserDefinedFunction],
-      aggBufferTypes: Array[Array[InternalType]]): RelDataType = {
+      aggBufferTypes: Array[Array[LogicalType]]): RelDataType = {
     val aggNames = agg.getNamedAggCalls.map(_.right)
 
     val aggBufferFieldNames = new Array[Array[String]](aggregates.length)
@@ -413,13 +413,13 @@ class BatchExecWindowAggregateRule
     val typeFactory = agg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val aggBufferSqlTypes = aggBufferTypes.flatten.map { t =>
       val nullable = !FlinkTypeFactory.isTimeIndicatorType(t)
-      typeFactory.createTypeFromInternalType(t, nullable)
+      typeFactory.createFieldTypeFromLogicalType(t)
     }
 
     val localAggFieldTypes = (
       groupSet.map(inputType.getFieldList.get(_).getType) ++ // groupSet
         // assignTs
-        Array(typeFactory.createTypeFromInternalType(windowType, isNullable = true)) ++
+        Array(typeFactory.createFieldTypeFromLogicalType(windowType)) ++
         auxGroupSet.map(inputType.getFieldList.get(_).getType) ++ // auxGroupSet
         aggBufferSqlTypes // aggCalls
       ).toList

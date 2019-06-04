@@ -19,22 +19,22 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
+import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.AggregateUtil.{isProctimeAttribute, hasRowIntervalType, isRowtimeAttribute, hasTimeIntervalType, toDuration, toLong, transformToStreamAggregateInfoList}
 import org.apache.flink.table.plan.util.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.window.{WindowOperator, WindowOperatorBuilder}
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -141,7 +141,7 @@ class StreamExecGroupWindowAggregate(
       .asInstanceOf[StreamTransformation[BaseRow]]
 
     val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType).toTypeInfo
+    val outRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(outputRowType))
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
 
@@ -201,16 +201,16 @@ class StreamExecGroupWindowAggregate(
       aggInfoList,
       config,
       tableEnv.getRelBuilder,
-      inputRowTypeInfo.getInternalTypes,
+      inputRowTypeInfo.getLogicalTypes,
       needRetraction)
 
-    val aggResultTypes = aggInfoList.getActualValueTypes.map(createInternalTypeFromTypeInfo)
+    val aggResultTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
     val windowPropertyTypes = namedProperties.map(_.property.resultType).toArray
     val generator = new EqualiserCodeGenerator(aggResultTypes ++ windowPropertyTypes)
     val equaliser = generator.generateRecordEqualiser("WindowValueEqualiser")
 
-    val aggValueTypes = aggInfoList.getActualValueTypes.map(createInternalTypeFromTypeInfo)
-    val accTypes = aggInfoList.getAccTypes.map(createInternalTypeFromTypeInfo)
+    val aggValueTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
+    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
     val operator = createWindowOperator(
       config,
       aggsHandler,
@@ -218,7 +218,7 @@ class StreamExecGroupWindowAggregate(
       accTypes,
       windowPropertyTypes,
       aggValueTypes,
-      inputRowTypeInfo.getInternalTypes,
+      inputRowTypeInfo.getLogicalTypes,
       timeIdx)
 
     val operatorName = if (grouping.nonEmpty) {
@@ -253,7 +253,7 @@ class StreamExecGroupWindowAggregate(
       aggInfoList: AggregateInfoList,
       config: TableConfig,
       relBuilder: RelBuilder,
-      fieldTypeInfos: Seq[InternalType],
+      fieldTypeInfos: Seq[LogicalType],
       needRetraction: Boolean): GeneratedNamespaceAggsHandleFunction[_] = {
 
     val needMerge = window match {
@@ -294,10 +294,10 @@ class StreamExecGroupWindowAggregate(
       config: TableConfig,
       aggsHandler: GeneratedNamespaceAggsHandleFunction[_],
       recordEqualiser: GeneratedRecordEqualiser,
-      accTypes: Array[InternalType],
-      windowPropertyTypes: Array[InternalType],
-      aggValueTypes: Array[InternalType],
-      inputFields: Seq[InternalType],
+      accTypes: Array[LogicalType],
+      windowPropertyTypes: Array[LogicalType],
+      aggValueTypes: Array[LogicalType],
+      inputFields: Seq[LogicalType],
       timeIdx: Int): WindowOperator[_, _] = {
 
     val builder = WindowOperatorBuilder

@@ -22,10 +22,10 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.runtime.values.ValuesInputFormat
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexLiteral
-
 import com.google.common.collect.ImmutableList
 
 import scala.collection.JavaConversions._
@@ -38,7 +38,7 @@ object ValuesCodeGenerator {
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     description: String): ValuesInputFormat = {
     val config = tableEnv.getConfig
-    val outputType = FlinkTypeFactory.toInternalRowType(rowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(rowType)
 
     val ctx = CodeGeneratorContext(config)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
@@ -55,7 +55,7 @@ object ValuesCodeGenerator {
       generatedRecords.map(_.code),
       outputType)
 
-    new ValuesInputFormat(generatedFunction, outputType.toTypeInfo)
+    new ValuesInputFormat(generatedFunction, BaseRowTypeInfo.of(outputType))
   }
 
 }

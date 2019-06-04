@@ -22,12 +22,9 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.Function
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, InternalTypeUtils, RowType}
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -41,6 +38,10 @@ import org.apache.flink.table.plan.util.RelExplainUtil
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
 import org.apache.flink.table.runtime.util.StreamRecordCollector
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.{DataType, PlannerTypeUtils}
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import scala.collection.JavaConversions._
 
@@ -70,13 +71,13 @@ object CorrelateCodeGenerator {
       sqlFunction.getTableFunction,
       rexCall.operands
         .map(_.getType)
-        .map(FlinkTypeFactory.toInternalType).toArray)
+        .map(FlinkTypeFactory.toLogicalType).toArray)
     val udtfExternalType = sqlFunction
         .getFunction
         .asInstanceOf[FlinkTableFunction]
         .getExternalResultType(arguments, argTypes)
     val pojoFieldMapping = Some(UserDefinedFunctionUtils.getFieldInfo(udtfExternalType)._2)
-    val inputType = FlinkTypeFactory.toInternalRowType(inputRelType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRelType)
     val (returnType, swallowInputOnly ) = if (projectProgram.isDefined) {
       val program = projectProgram.get
       val selects = program.getProjectList.map(_.getIndex)
@@ -84,10 +85,10 @@ object CorrelateCodeGenerator {
       val swallowInputOnly = selects.head > inputFieldCnt &&
         (inputFieldCnt - outDataType.getFieldCount == inputRelType.getFieldCount)
       // partial output or output right only
-      (FlinkTypeFactory.toInternalRowType(outDataType), swallowInputOnly)
+      (FlinkTypeFactory.toLogicalRowType(outDataType), swallowInputOnly)
     } else {
       // completely output left input + right
-      (FlinkTypeFactory.toInternalRowType(outDataType), false)
+      (FlinkTypeFactory.toLogicalRowType(outDataType), false)
     }
     // adjust indicies of InputRefs to adhere to schema expected by generator
     val changeInputRefIndexShuttle = new RexShuttle {
@@ -116,7 +117,7 @@ object CorrelateCodeGenerator {
       inputType,
       projectProgram,
       swallowInputOnly,
-      createInternalTypeFromTypeInfo(udtfExternalType),
+      fromDataTypeToLogicalType(udtfExternalType),
       returnType,
       joinType,
       rexCall,
@@ -135,7 +136,7 @@ object CorrelateCodeGenerator {
         outDataType,
         expression),
       substituteStreamOperator,
-      returnType.toTypeInfo,
+      BaseRowTypeInfo.of(returnType),
       parallelism)
   }
 
@@ -149,7 +150,7 @@ object CorrelateCodeGenerator {
       inputType: RowType,
       projectProgram: Option[RexProgram],
       swallowInputOnly: Boolean = false,
-      udtfType: InternalType,
+      udtfType: LogicalType,
       returnType: RowType,
       joinType: SemiJoinType,
       rexCall: RexCall,
@@ -195,8 +196,8 @@ object CorrelateCodeGenerator {
         // and the returned row table function is empty, collect a null
         val nullRowTerm = CodeGenUtils.newName("nullRow")
         ctx.addReusableOutputRecord(
-          InternalTypeUtils.toRowType(udtfType), classOf[GenericRow], nullRowTerm)
-        ctx.addReusableNullRow(nullRowTerm, InternalTypeUtils.getArity(udtfType))
+          PlannerTypeUtils.toRowType(udtfType), classOf[GenericRow], nullRowTerm)
+        ctx.addReusableNullRow(nullRowTerm, PlannerTypeUtils.getArity(udtfType))
         val header = if (retainHeader) {
           s"$nullRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
         } else {
@@ -248,7 +249,7 @@ object CorrelateCodeGenerator {
         val joinedRowTerm = CodeGenUtils.newName("joinedRow")
         val nullRowTerm = CodeGenUtils.newName("nullRow")
         ctx.addReusableOutputRecord(returnType, classOf[JoinedRow], joinedRowTerm)
-        ctx.addReusableNullRow(nullRowTerm, InternalTypeUtils.getArity(udtfType))
+        ctx.addReusableNullRow(nullRowTerm, PlannerTypeUtils.getArity(udtfType))
         val header = if (retainHeader) {
           s"$joinedRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
         } else {
@@ -283,7 +284,7 @@ object CorrelateCodeGenerator {
       ctx: CodeGeneratorContext,
       config: TableConfig,
       input1Type: RowType,
-      udtfType: InternalType,
+      udtfType: LogicalType,
       udtfPojoFieldMapping: Option[Array[Int]],
       udtfAlwaysNull: Boolean,
       returnType: RowType,
@@ -293,10 +294,10 @@ object CorrelateCodeGenerator {
       .bindInput(input1Type, CodeGenUtils.DEFAULT_INPUT1_TERM)
     if (udtfAlwaysNull) {
       val udtfNullRow = CodeGenUtils.newName("udtfNullRow")
-      ctx.addReusableNullRow(udtfNullRow, InternalTypeUtils.getArity(udtfType))
+      ctx.addReusableNullRow(udtfNullRow, PlannerTypeUtils.getArity(udtfType))
 
       projectExprGenerator.bindSecondInput(
-        InternalTypeUtils.toRowType(udtfType),
+        PlannerTypeUtils.toRowType(udtfType),
         udtfNullRow,
         inputFieldMapping = udtfPojoFieldMapping)
     } else {
@@ -319,7 +320,7 @@ object CorrelateCodeGenerator {
       inputType: RowType,
       projectProgram: Option[RexProgram],
       swallowInputOnly: Boolean,
-      udtfExternalType: TypeInformation[_],
+      udtfExternalType: DataType,
       resultType: RowType,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]],
@@ -327,11 +328,11 @@ object CorrelateCodeGenerator {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val udtfType = createInternalTypeFromTypeInfo(udtfExternalType)
+    val udtfType = fromDataTypeToLogicalType(udtfExternalType)
     val exprGenerator = new ExprCodeGenerator(ctx, false).bindInput(
       udtfType, inputTerm = udtfInputTerm, inputFieldMapping = pojoFieldMapping)
 
-    val udtfBaseRowType = InternalTypeUtils.toRowType(udtfType)
+    val udtfBaseRowType = PlannerTypeUtils.toRowType(udtfType)
     val udtfResultExpr = exprGenerator.generateConverterResultExpression(
       udtfBaseRowType, classOf[GenericRow])
 

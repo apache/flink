@@ -19,8 +19,8 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.sources.{DefinedIndexes, DefinedPrimaryKey, TableIndex, TableSource}
+import org.apache.flink.table.types.logical.LogicalType
 
 import scala.collection.JavaConverters._
 
@@ -39,7 +39,7 @@ object LookupJoinUtil {
     * @param dataType the field type in TableSource
     * @param literal the literal value
     */
-  case class ConstantLookupKey(dataType: InternalType, literal: RexLiteral) extends LookupKey
+  case class ConstantLookupKey(dataType: LogicalType, literal: RexLiteral) extends LookupKey
 
   /**
     * A [[LookupKey]] whose value comes from left table field.

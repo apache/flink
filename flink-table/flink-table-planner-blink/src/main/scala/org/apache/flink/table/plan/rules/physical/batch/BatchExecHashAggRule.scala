@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
@@ -25,6 +24,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecHashAggregate, BatchExecLocalHashAggregate}
 import org.apache.flink.table.plan.util.AggregateUtil
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -99,7 +99,7 @@ class BatchExecHashAggRule
         groupSet,
         auxGroupSet,
         aggFunctions,
-        aggBufferTypes.map(_.map(TypeConverters.createInternalTypeFromTypeInfo)))
+        aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
       val localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       val newInput = RelOptRule.convert(input, localRequiredTraitSet)
       val providedTraitSet = localRequiredTraitSet

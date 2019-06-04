@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamTableScan
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -78,8 +78,8 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       relBuilder.field(0),
       relBuilder.field(1),
       relBuilder.literal(true),
-      makeLiteral(2.1, InternalTypes.DOUBLE, isNullable = false, allowCast = true),
-      makeLiteral(2L, InternalTypes.LONG, isNullable = false, allowCast = true))
+      makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
+      makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true))
     val outputRowType = relBuilder.project(projects1).build().getRowType
     relBuilder.push(scan2)
     val expr1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2))
@@ -92,10 +92,10 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
     val projects2 = List(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
-      makeLiteral(2.1, InternalTypes.DOUBLE, isNullable = false, allowCast = true),
+      makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
       relBuilder.literal(true),
-      makeLiteral(2.1, InternalTypes.DOUBLE, isNullable = false, allowCast = true),
-      makeLiteral(2L, InternalTypes.LONG, isNullable = false, allowCast = true))
+      makeLiteral(2.1, new DoubleType(), isNullable = false, allowCast = true),
+      makeLiteral(2L, new BigIntType(), isNullable = false, allowCast = true))
     val calc2 = createLogicalCalc(scan2, outputRowType, projects2, List())
     assertEquals(FlinkRelDistribution.ANY, mq.flinkDistribution(calc2))
   }

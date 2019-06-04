@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.UserDefinedFunction;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
@@ -62,12 +61,12 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 	/**
 	 * All types of the aggregate buffer.
 	 */
-	public abstract InternalType[] getAggBufferTypes();
+	public abstract DataType[] getAggBufferTypes();
 
 	/**
 	 * The result type of the function.
 	 */
-	public abstract TypeInformation getResultType();
+	public abstract DataType getResultType();
 
 	/**
 	 * Expressions for initializing empty aggregation buffers.

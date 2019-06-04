@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, MapFunction}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap, TwoInputStreamOperator}
@@ -33,11 +32,13 @@ import org.apache.flink.table.plan.util.{JoinTypeUtil, KeySelectorUtil, RelExpla
 import org.apache.flink.table.runtime.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Collector
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+
 import java.util
 
 import scala.collection.JavaConversions._
@@ -138,9 +139,10 @@ class StreamExecWindowJoin(
            FlinkJoinType.LEFT |
            FlinkJoinType.RIGHT |
            FlinkJoinType.FULL =>
-        val leftRowType = FlinkTypeFactory.toInternalRowType(getLeft.getRowType)
-        val rightRowType = FlinkTypeFactory.toInternalRowType(getRight.getRowType)
-        val returnType = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+        val leftRowType = FlinkTypeFactory.toLogicalRowType(getLeft.getRowType)
+        val rightRowType = FlinkTypeFactory.toLogicalRowType(getRight.getRowType)
+        val returnType = BaseRowTypeInfo.of(
+          FlinkTypeFactory.toLogicalRowType(getRowType))
 
         val relativeWindowSize = leftUpperBound - leftLowerBound
         if (relativeWindowSize < 0) {
@@ -149,8 +151,8 @@ class StreamExecWindowJoin(
           createNegativeWindowSizeJoin(
             leftPlan,
             rightPlan,
-            leftRowType.getArity,
-            rightRowType.getArity,
+            leftRowType.getFieldCount,
+            rightRowType.getFieldCount,
             returnType)
         } else {
           // get the equi-keys and other conditions
@@ -207,7 +209,7 @@ class StreamExecWindowJoin(
     val allFilter = new FlatMapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
       override def flatMap(value: BaseRow, out: Collector[BaseRow]): Unit = {}
 
-      override def getProducedType: TypeInformation[BaseRow] = returnTypeInfo
+      override def getProducedType: BaseRowTypeInfo = returnTypeInfo
     }
 
     val leftPadder = new MapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
@@ -215,7 +217,7 @@ class StreamExecWindowJoin(
 
       override def map(value: BaseRow): BaseRow = paddingUtil.padLeft(value)
 
-      override def getProducedType: TypeInformation[BaseRow] = returnTypeInfo
+      override def getProducedType: BaseRowTypeInfo = returnTypeInfo
     }
 
     val rightPadder = new MapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
@@ -223,7 +225,7 @@ class StreamExecWindowJoin(
 
       override def map(value: BaseRow): BaseRow = paddingUtil.padRight(value)
 
-      override def getProducedType: TypeInformation[BaseRow] = returnTypeInfo
+      override def getProducedType: BaseRowTypeInfo = returnTypeInfo
     }
 
     val leftParallelism = leftPlan.getParallelism

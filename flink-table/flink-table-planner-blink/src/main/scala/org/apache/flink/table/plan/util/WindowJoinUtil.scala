@@ -19,13 +19,13 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, ExpressionReducer, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.generated.GeneratedFunction
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
@@ -109,7 +109,7 @@ object WindowJoinUtil {
     val ctx = CodeGeneratorContext(config)
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
 
-    val returnTypeInfo = FlinkTypeFactory.toInternalRowType(returnType)
+    val returnTypeInfo = FlinkTypeFactory.toLogicalRowType(returnType)
     val joinedRow = "joinedRow"
     ctx.addReusableOutputRecord(returnTypeInfo, classOf[JoinedRow], joinedRow)
 

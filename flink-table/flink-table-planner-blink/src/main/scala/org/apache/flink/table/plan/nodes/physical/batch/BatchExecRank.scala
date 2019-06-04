@@ -31,6 +31,7 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType}
 import org.apache.flink.table.runtime.sort.RankOperator
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
@@ -248,7 +249,7 @@ class BatchExecRank(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
         .asInstanceOf[StreamTransformation[BaseRow]]
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val partitionBySortingKeys = partitionKey.toArray
     // The collation for the partition-by fields is inessential here, we only use the
     // comparator to distinguish different groups.
@@ -261,7 +262,7 @@ class BatchExecRank(
     val orderByCollation = orderKey.getFieldCollations.map(_ => (true, true)).toArray
     val orderByKeys = orderKey.getFieldCollations.map(_.getFieldIndex).toArray
 
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     //operator needn't cache data
     val operator = new RankOperator(
       ComparatorCodeGenerator.gen(
@@ -286,7 +287,7 @@ class BatchExecRank(
       input,
       getOperatorName,
       operator,
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       input.getParallelism)
   }
 

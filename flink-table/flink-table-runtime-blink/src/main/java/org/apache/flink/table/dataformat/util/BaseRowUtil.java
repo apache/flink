@@ -21,7 +21,7 @@ package org.apache.flink.table.dataformat.util;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 /**
  * Util for base row.
@@ -54,7 +54,7 @@ public final class BaseRowUtil {
 
 	public static GenericRow toGenericRow(
 			BaseRow baseRow,
-			InternalType[] types) {
+			LogicalType[] types) {
 		if (baseRow instanceof GenericRow) {
 			return (GenericRow) baseRow;
 		} else {

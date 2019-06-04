@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.{DecimalType, InternalType}
-import org.apache.flink.table.codegen.CodeGenUtils.DECIMAL
+import org.apache.flink.table.codegen.CodeGenUtils.DECIMAL_TERM
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isNumeric
 
 // DIV(T1, T2) - return integral part of the division; fractional truncated.
@@ -34,14 +34,14 @@ class DivCallGen extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
 
     val (arg1, type1) = (operands.head.resultTerm, operands.head.resultType)
     val (arg2, type2) = (operands(1).resultTerm, operands(1).resultType)
-    def toDec(arg: String) = s"$DECIMAL.castFrom($arg, 19, 0)"
+    def toDec(arg: String) = s"$DECIMAL_TERM.castFrom($arg, 19, 0)"
     def decDiv(arg1: String, arg2: String) = {
       val dt = returnType.asInstanceOf[DecimalType]
-      s"$DECIMAL.divideToIntegralValue($arg1, $arg2, ${dt.precision}, ${dt.scale})"
+      s"$DECIMAL_TERM.divideToIntegralValue($arg1, $arg2, ${dt.getPrecision}, ${dt.getScale})"
     }
 
     val code = (type1, type2) match {

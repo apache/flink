@@ -34,8 +34,9 @@ import org.apache.flink.table.dataformat.util.BinaryRowUtil;
 import org.apache.flink.table.runtime.sort.BufferedKVExternalSorter;
 import org.apache.flink.table.runtime.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.sort.IntRecordComparator;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
@@ -49,8 +50,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow> {
 
 	private final long memorySize;
-	private final InternalType[] keyTypes = new InternalType[] {InternalTypes.INT};
-	private final InternalType[] aggBufferTypes = new InternalType[] {InternalTypes.INT, InternalTypes.LONG};
+	private final LogicalType[] keyTypes = new LogicalType[] {new IntType()};
+	private final LogicalType[] aggBufferTypes = new LogicalType[] {new IntType(), new BigIntType()};
 
 	private transient BinaryRow currentKey;
 	private transient BinaryRowWriter currentKeyWriter;

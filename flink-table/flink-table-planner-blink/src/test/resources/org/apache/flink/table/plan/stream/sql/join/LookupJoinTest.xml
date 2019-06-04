@@ -88,28 +88,6 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinOnDifferentKeyTypes">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalFilter(condition=[=($1, $5)])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
-      :- LogicalTableScan(table=[[MyTable]])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[temporalTest, source: [TestTemporalTable(id, name, age)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[b=id], select=[a, b, c, proctime, rowtime, id, name, age])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testJoinTemporalTable">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
@@ -183,8 +161,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(65536) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age])
-+- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(65536) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age])
++- LookupJoin(table=[TestTemporalTable(id, name, age)], joinType=[InnerJoin], async=[false], on=[a=id], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
 ]]>

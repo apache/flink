@@ -21,7 +21,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.CalcitePair
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -32,6 +31,7 @@ import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRul
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.over._
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -208,16 +208,16 @@ class StreamExecOverAggregate(
     val aggregateCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
     val isRowsClause = overWindow.isRows
     val constants = logicWindow.constants.asScala
-    val constantTypes = constants.map(c => FlinkTypeFactory.toInternalType(c.getType))
+    val constantTypes = constants.map(c => FlinkTypeFactory.toLogicalType(c.getType))
 
     val fieldNames = inputRowType.getFieldNames.asScala
     val fieldTypes = inputRowType.getFieldList.asScala
-      .map(c => FlinkTypeFactory.toInternalType(c.getType))
+      .map(c => FlinkTypeFactory.toLogicalType(c.getType))
 
-    val inRowType = FlinkTypeFactory.toInternalRowType(inputRel.getRowType)
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
+    val inRowType = FlinkTypeFactory.toLogicalRowType(inputRel.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
-    val aggInputType = tableEnv.getTypeFactory.buildRelDataType(
+    val aggInputType = tableEnv.getTypeFactory.buildRelNodeRowType(
       fieldNames ++ constants.indices.map(i => "TMP" + i),
       fieldTypes ++ constantTypes)
 
@@ -268,11 +268,11 @@ class StreamExecOverAggregate(
     }
 
     val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val inputTypeInfo = inRowType.toTypeInfo
+    val inputTypeInfo = BaseRowTypeInfo.of(inRowType)
 
     val selector = KeySelectorUtil.getBaseRowSelector(partitionKeys, inputTypeInfo)
 
-    val returnTypeInfo = outRowType.toTypeInfo
+    val returnTypeInfo = BaseRowTypeInfo.of(outRowType)
       .asInstanceOf[BaseRowTypeInfo]
     // partitioned aggregation
 
@@ -327,7 +327,7 @@ class StreamExecOverAggregate(
       isStateBackendDataViews = true)
 
     val fieldTypes = inputRowType.getFieldList.asScala.
-      map(c => FlinkTypeFactory.toInternalType(c.getType)).toArray
+      map(c => FlinkTypeFactory.toLogicalType(c.getType)).toArray
 
     val generator = new AggsHandlerCodeGenerator(
       ctx,
@@ -342,7 +342,7 @@ class StreamExecOverAggregate(
       .generateAggsHandler("UnboundedOverAggregateHelper", aggInfoList)
 
     val flattenAccTypes = aggInfoList.getAccTypes.map(
-      TypeConverters.createInternalTypeFromTypeInfo)
+      LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
@@ -406,7 +406,7 @@ class StreamExecOverAggregate(
       isStateBackendDataViews = true)
 
     val fieldTypes = inputRowType.getFieldList.asScala.
-      map(c => FlinkTypeFactory.toInternalType(c.getType)).toArray
+      map(c => FlinkTypeFactory.toLogicalType(c.getType)).toArray
 
     val generator = new AggsHandlerCodeGenerator(
       ctx,
@@ -423,7 +423,7 @@ class StreamExecOverAggregate(
       .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
 
     val flattenAccTypes = aggInfoList.getAccTypes.map(
-      TypeConverters.createInternalTypeFromTypeInfo)
+      LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
 
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {

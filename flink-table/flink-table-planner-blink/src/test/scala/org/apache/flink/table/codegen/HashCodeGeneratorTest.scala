@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.{InternalTypes, RowType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType, VarBinaryType}
 
 import org.junit.{Assert, Test}
 
@@ -35,14 +35,14 @@ class HashCodeGeneratorTest {
   def testHash(): Unit = {
     val hashFunc1 = HashCodeGenerator.generateRowHash(
       new CodeGeneratorContext(new TableConfig),
-      new RowType(InternalTypes.INT, InternalTypes.LONG, InternalTypes.BINARY),
+      RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
       "name",
       Array(1, 0)
     ).newInstance(classLoader)
 
     val hashFunc2 = HashCodeGenerator.generateRowHash(
       new CodeGeneratorContext(new TableConfig),
-      new RowType(InternalTypes.INT, InternalTypes.LONG, InternalTypes.BINARY),
+      RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
       "name",
       Array(1, 2, 0)
     ).newInstance(classLoader)

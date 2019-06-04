@@ -25,7 +25,7 @@ import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.RowType;
 
 /**
  * The range unboundedFollowing window frame calculates frames with the following SQL form:

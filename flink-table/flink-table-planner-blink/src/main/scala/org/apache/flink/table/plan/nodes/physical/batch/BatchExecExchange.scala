@@ -23,7 +23,6 @@ import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, StreamTransformation}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
-import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, HashCodeGenerator}
@@ -31,6 +30,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.runtime.BinaryHashPartitioner
+import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -161,7 +161,7 @@ class BatchExecExchange(
     }
 
     val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outputRowType = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+    val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // TODO supports DataExchangeMode.BATCH in runtime
     if (requiredExchangeMode.contains(DataExchangeMode.BATCH)) {
@@ -203,7 +203,7 @@ class BatchExecExchange(
         val partitioner = new BinaryHashPartitioner(
           HashCodeGenerator.generateRowHash(
             CodeGeneratorContext(tableEnv.config),
-            new RowType(inputType.getInternalTypes: _*),
+            RowType.of(inputType.getLogicalTypes: _*),
             "HashPartitioner",
             keys.map(_.intValue()).toArray),
           keys.map(getInput.getRowType.getFieldNames.get(_)).toArray

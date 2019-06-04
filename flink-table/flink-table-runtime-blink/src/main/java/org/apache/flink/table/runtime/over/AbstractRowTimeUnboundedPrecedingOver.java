@@ -32,7 +32,7 @@ import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -54,8 +54,8 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRowTimeUnboundedPrecedingOver.class);
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
-	private final InternalType[] accTypes;
-	private final InternalType[] inputFieldTypes;
+	private final LogicalType[] accTypes;
+	private final LogicalType[] inputFieldTypes;
 	private final int rowTimeIdx;
 
 	protected transient JoinedRow output;
@@ -72,8 +72,8 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,
-			InternalType[] accTypes,
-			InternalType[] inputFieldTypes,
+			LogicalType[] accTypes,
+			LogicalType[] inputFieldTypes,
 			int rowTimeIdx) {
 		super(minRetentionTime, maxRetentionTime);
 		this.genAggsHandler = genAggsHandler;

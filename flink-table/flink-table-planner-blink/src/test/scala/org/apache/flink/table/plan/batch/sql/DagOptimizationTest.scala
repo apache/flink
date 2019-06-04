@@ -18,9 +18,9 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.InternalTypes.{DOUBLE, INT, LONG, STRING, TIMESTAMP}
 import org.apache.flink.table.api.PlannerConfigOptions
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.util.{TableFunc1, TableTestBase}
 
 import org.junit.Test
@@ -31,6 +31,12 @@ class DagOptimizationTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, String)]("MyTable1", 'd, 'e, 'f)
+
+  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val LONG = new BigIntType()
+  val INT = new IntType()
+  val DOUBLE = new DoubleType()
+  val TIMESTAMP = new TimestampType(3)
 
   @Test
   def testSingleSink1(): Unit = {

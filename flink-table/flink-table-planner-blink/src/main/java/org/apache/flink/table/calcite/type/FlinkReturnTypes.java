@@ -19,12 +19,12 @@
 package org.apache.flink.table.calcite.type;
 
 import org.apache.flink.table.calcite.FlinkTypeFactory;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.calcite.FlinkTypeSystem;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.OrdinalReturnTypeInference;
 import org.apache.calcite.sql.type.ReturnTypes;
@@ -65,9 +65,9 @@ public class FlinkReturnTypes {
 			final int p = numType.getPrecision();
 			final int s = numType.getScale();
 			final int r = lenVal.intValueExact();
-			DecimalType dt = DecimalType.inferRoundType(p, s, r);
+			DecimalType dt = FlinkTypeSystem.inferRoundType(p, s, r);
 			return opBinding.getTypeFactory().createSqlType(
-				SqlTypeName.DECIMAL, dt.precision(), dt.scale());
+				SqlTypeName.DECIMAL, dt.getPrecision(), dt.getScale());
 		}
 
 		private BigDecimal getArg1Literal(SqlOperatorBinding opBinding) {
@@ -102,41 +102,35 @@ public class FlinkReturnTypes {
 		}
 	};
 
-	public static final SqlReturnTypeInference FLINK_QUOTIENT_NULLABLE = new SqlReturnTypeInference() {
-		@Override
-		public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-			RelDataType type1 = opBinding.getOperandType(0);
-			RelDataType type2 = opBinding.getOperandType(1);
-			if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
-				return ReturnTypes.QUOTIENT_NULLABLE.inferReturnType(opBinding);
+	public static final SqlReturnTypeInference FLINK_QUOTIENT_NULLABLE = opBinding -> {
+		RelDataType type1 = opBinding.getOperandType(0);
+		RelDataType type2 = opBinding.getOperandType(1);
+		if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
+			return ReturnTypes.QUOTIENT_NULLABLE.inferReturnType(opBinding);
+		} else {
+			RelDataType doubleType = opBinding.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
+			if (type1.isNullable() || type2.isNullable()) {
+				return opBinding.getTypeFactory().createTypeWithNullability(doubleType, true);
 			} else {
-				RelDataType doubleType = opBinding.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
-				if (type1.isNullable() || type2.isNullable()) {
-					return opBinding.getTypeFactory().createTypeWithNullability(doubleType, true);
-				} else {
-					return doubleType;
-				}
+				return doubleType;
 			}
 		}
 	};
 
-	public static final SqlReturnTypeInference FLINK_DIV_NULLABLE = new SqlReturnTypeInference() {
-
-		@Override
-		public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-			RelDataType type1 = opBinding.getOperandType(0);
-			RelDataType type2 = opBinding.getOperandType(1);
-			RelDataType returnType;
-			if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
-				DecimalType dt = DecimalType.inferIntDivType(type1.getPrecision(), type1.getScale(), type2.getScale());
-				returnType = opBinding.getTypeFactory().createSqlType(
-					SqlTypeName.DECIMAL, dt.precision(), dt.scale());
-			} else { // both are primitive
-				returnType = type1;
-			}
-			return opBinding.getTypeFactory().createTypeWithNullability(returnType,
-				type1.isNullable() || type2.isNullable());
+	public static final SqlReturnTypeInference FLINK_DIV_NULLABLE = opBinding -> {
+		RelDataType type1 = opBinding.getOperandType(0);
+		RelDataType type2 = opBinding.getOperandType(1);
+		RelDataType returnType;
+		if (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2)) {
+			DecimalType dt = FlinkTypeSystem.inferIntDivType(
+					type1.getPrecision(), type1.getScale(), type2.getScale());
+			returnType = opBinding.getTypeFactory().createSqlType(
+				SqlTypeName.DECIMAL, dt.getPrecision(), dt.getScale());
+		} else { // both are primitive
+			returnType = type1;
 		}
+		return opBinding.getTypeFactory().createTypeWithNullability(returnType,
+			type1.isNullable() || type2.isNullable());
 	};
 
 	/**
@@ -154,14 +148,7 @@ public class FlinkReturnTypes {
 	public static final SqlReturnTypeInference NUMERIC_FROM_ARG1_DEFAULT1_NULLABLE =
 		ReturnTypes.cascade(NUMERIC_FROM_ARG1_DEFAULT1, SqlTypeTransforms.TO_NULLABLE);
 
-	public static final SqlReturnTypeInference STR_MAP_NULLABLE = ReturnTypes.explicit(new RelProtoDataType() {
-		@Override
-		public RelDataType apply(RelDataTypeFactory factory) {
-			return ((FlinkTypeFactory) factory).createTypeFromInternalType(
-				InternalTypes.createMapType(InternalTypes.STRING, InternalTypes.STRING),
-				true
-			);
-		}
-	});
-
+	public static final SqlReturnTypeInference STR_MAP_NULLABLE = ReturnTypes.explicit(
+			factory -> ((FlinkTypeFactory) factory).createFieldTypeFromLogicalType(
+		new MapType(new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH))));
 }

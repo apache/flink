@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.plan.rules.physical.stream
 
-import org.apache.calcite.plan.RelOptRule
-import org.apache.calcite.rex.{RexNode, RexProgram}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
@@ -26,6 +24,10 @@ import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecLookupJoin
 import org.apache.flink.table.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+
+import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.rex.RexProgram
 
 /**
   * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]]
@@ -74,8 +76,10 @@ object StreamExecLookupJoinRule {
 
     val cluster = join.getCluster
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val tableRowType = typeFactory.buildLogicalRowType(
-      tableSource.getTableSchema, isStreaming = Option.apply(true))
+    val tableRowType = typeFactory.buildRelNodeRowType(
+      tableSource.getTableSchema.getFieldNames,
+      tableSource.getTableSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
+    )
 
     val providedTrait = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     var requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)

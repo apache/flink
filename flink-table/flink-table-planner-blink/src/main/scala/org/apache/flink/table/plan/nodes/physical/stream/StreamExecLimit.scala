@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
@@ -28,9 +27,10 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.RelExplainUtil._
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
 import org.apache.flink.table.runtime.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -108,7 +108,8 @@ class StreamExecLimit(
       throw new TableException(
         "FETCH is missed, which on streaming table is not supported currently.")
     }
-    val inputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getInput.getRowType).toTypeInfo
+    val inputRowTypeInfo = BaseRowTypeInfo.of(
+      FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val tableConfig = tableEnv.getConfig
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
@@ -137,7 +138,7 @@ class StreamExecLimit(
         outputRankNumber,
         cacheSize)
     } else {
-      val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
+      val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
       val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("LimitValueEqualiser")
       new RetractableTopNFunction(
         minIdleStateRetentionTime,
@@ -157,7 +158,8 @@ class StreamExecLimit(
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
 
-    val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+    val outputRowTypeInfo = BaseRowTypeInfo.of(
+      FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // sets parallelism to 1 since StreamExecLimit could only work in global mode.
     val ret = new OneInputTransformation(

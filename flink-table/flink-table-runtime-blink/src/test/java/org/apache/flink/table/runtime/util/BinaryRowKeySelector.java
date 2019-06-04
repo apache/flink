@@ -24,7 +24,7 @@ import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
@@ -35,13 +35,13 @@ public class BinaryRowKeySelector implements BaseRowKeySelector {
 	private static final long serialVersionUID = -2327761762415377059L;
 
 	private final int[] keyFields;
-	private final InternalType[] inputFieldTypes;
-	private final InternalType[] keyFieldTypes;
+	private final LogicalType[] inputFieldTypes;
+	private final LogicalType[] keyFieldTypes;
 
-	public BinaryRowKeySelector(int[] keyFields, InternalType[] inputFieldTypes) {
+	public BinaryRowKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
 		this.keyFields = keyFields;
 		this.inputFieldTypes = inputFieldTypes;
-		this.keyFieldTypes = new InternalType[keyFields.length];
+		this.keyFieldTypes = new LogicalType[keyFields.length];
 		for (int i = 0; i < keyFields.length; ++i) {
 			keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
 		}

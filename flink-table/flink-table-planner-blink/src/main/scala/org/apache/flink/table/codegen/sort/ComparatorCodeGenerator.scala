@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.codegen.sort
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GenerateUtils}
 import org.apache.flink.table.generated.{GeneratedRecordComparator, RecordComparator}
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * A code generator for generating [[RecordComparator]].
@@ -46,7 +46,7 @@ object ComparatorCodeGenerator {
       conf: TableConfig,
       name: String,
       keys: Array[Int],
-      keyTypes: Array[InternalType],
+      keyTypes: Array[LogicalType],
       orders: Array[Boolean],
       nullsIsLast: Array[Boolean]): GeneratedRecordComparator = {
     val className = newName(name)

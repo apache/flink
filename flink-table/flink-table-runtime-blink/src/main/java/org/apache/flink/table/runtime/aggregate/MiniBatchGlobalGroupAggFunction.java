@@ -29,7 +29,7 @@ import org.apache.flink.table.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.context.ExecutionContext;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -66,7 +66,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 	/**
 	 * The accumulator types.
 	 */
-	private final InternalType[] accTypes;
+	private final LogicalType[] accTypes;
 
 	/**
 	 * Used to count the number of added and retracted input records.
@@ -112,7 +112,7 @@ public class MiniBatchGlobalGroupAggFunction extends MapBundleFunction<BaseRow, 
 			GeneratedAggsHandleFunction genLocalAggsHandler,
 			GeneratedAggsHandleFunction genGlobalAggsHandler,
 			GeneratedRecordEqualiser genRecordEqualiser,
-			InternalType[] accTypes,
+			LogicalType[] accTypes,
 			int indexOfCountStar,
 			boolean generateRetraction) {
 		this.genLocalAggsHandler = genLocalAggsHandler;

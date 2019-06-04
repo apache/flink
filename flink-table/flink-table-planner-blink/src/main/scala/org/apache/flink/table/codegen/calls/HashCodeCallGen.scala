@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.LogicalType
 
 class HashCodeCallGen extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     val inputTerm = operands.head.resultTerm
     val inputType = operands.head.resultType
     val code = CodeGenUtils.hashCodeForType(ctx, inputType, inputTerm)

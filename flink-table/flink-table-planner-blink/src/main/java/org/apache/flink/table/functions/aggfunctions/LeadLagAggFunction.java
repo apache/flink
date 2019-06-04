@@ -18,15 +18,13 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.runtime.over.frame.OffsetOverFrame;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.TypeConverters;
-import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.TimeType;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
@@ -76,8 +74,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] {TypeConverters.createInternalTypeFromTypeInfo(getResultType())};
+	public DataType[] getAggBufferTypes() {
+		return new DataType[] {getResultType()};
 	}
 
 	@Override
@@ -117,8 +115,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.INT;
+		public DataType getResultType() {
+			return DataTypes.INT();
 		}
 	}
 
@@ -132,8 +130,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.BYTE;
+		public DataType getResultType() {
+			return DataTypes.TINYINT();
 		}
 	}
 
@@ -147,8 +145,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SHORT;
+		public DataType getResultType() {
+			return DataTypes.SMALLINT();
 		}
 	}
 
@@ -162,8 +160,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.LONG;
+		public DataType getResultType() {
+			return DataTypes.BIGINT();
 		}
 	}
 
@@ -177,8 +175,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.FLOAT;
+		public DataType getResultType() {
+			return DataTypes.FLOAT();
 		}
 	}
 
@@ -192,8 +190,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.DOUBLE;
+		public DataType getResultType() {
+			return DataTypes.DOUBLE();
 		}
 	}
 
@@ -207,8 +205,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.BOOLEAN;
+		public DataType getResultType() {
+			return DataTypes.BOOLEAN();
 		}
 	}
 
@@ -225,8 +223,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return BigDecimalTypeInfo.of(decimalType.precision(), decimalType.scale());
+		public DataType getResultType() {
+			return DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
 		}
 	}
 
@@ -240,8 +238,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.STRING;
+		public DataType getResultType() {
+			return DataTypes.STRING();
 		}
 	}
 
@@ -255,8 +253,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SQL_DATE;
+		public DataType getResultType() {
+			return DataTypes.DATE();
 		}
 	}
 
@@ -270,8 +268,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SQL_TIME;
+		public DataType getResultType() {
+			return DataTypes.TIME(TimeType.DEFAULT_PRECISION);
 		}
 	}
 
@@ -285,8 +283,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SQL_TIMESTAMP;
+		public DataType getResultType() {
+			return DataTypes.TIMESTAMP(3);
 		}
 	}
 }

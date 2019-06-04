@@ -18,11 +18,11 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.generated.GeneratedCollector
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * A code generator for generating [[org.apache.flink.util.Collector]]s.
@@ -46,8 +46,8 @@ object CollectorCodeGenerator {
       ctx: CodeGeneratorContext,
       name: String,
       bodyCode: String,
-      inputType: InternalType,
-      collectedType: InternalType,
+      inputType: LogicalType,
+      collectedType: LogicalType,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
       converter: String => String = (a) => a): GeneratedCollector[TableFunctionCollector[_]] = {

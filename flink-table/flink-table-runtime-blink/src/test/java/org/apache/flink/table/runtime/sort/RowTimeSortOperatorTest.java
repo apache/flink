@@ -27,7 +27,9 @@ import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Test;
@@ -45,10 +47,10 @@ public class RowTimeSortOperatorTest {
 	@Test
 	public void testSortOnTwoFields() throws Exception {
 		BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
-				InternalTypes.INT,
-				InternalTypes.LONG,
-				InternalTypes.STRING,
-				InternalTypes.INT);
+				new IntType(),
+				new BigIntType(),
+				new VarCharType(VarCharType.MAX_LENGTH),
+				new IntType());
 
 		// Note: RowTimeIdx must be 0 in product environment, the value is 1 here just for simplify the testing
 		int rowTimeIdx = 1;
@@ -128,10 +130,10 @@ public class RowTimeSortOperatorTest {
 	@Test
 	public void testOnlySortOnRowTime() throws Exception {
 		BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
-				InternalTypes.LONG,
-				InternalTypes.LONG,
-				InternalTypes.STRING,
-				InternalTypes.INT);
+				new BigIntType(),
+				new BigIntType(),
+				new VarCharType(VarCharType.MAX_LENGTH),
+				new IntType());
 		int rowTimeIdx = 0;
 		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, null);

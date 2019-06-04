@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
@@ -35,9 +35,8 @@ class TableSinkTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val fieldTypes = tableSink.getTableSchema.getFieldTypes
-      .map(TypeConverters.createInternalTypeFromTypeInfo)
-    flinkTypeFactory.buildRelDataType(tableSink.getTableSchema.getFieldNames, fieldTypes)
+    val fieldTypes = tableSink.getTableSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
+    flinkTypeFactory.buildRelNodeRowType(tableSink.getTableSchema.getFieldNames, fieldTypes)
   }
 
   /**

@@ -26,9 +26,15 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -49,29 +55,29 @@ public class BytesHashMapTest {
 	private static final int NUM_ENTRIES = 10000;
 	private static final int NUM_REWRITES = 10;
 
-	private final InternalType[] keyTypes;
-	private final InternalType[] valueTypes;
+	private final LogicalType[] keyTypes;
+	private final LogicalType[] valueTypes;
 	private final BinaryRow defaultValue;
 	private final BinaryRowSerializer keySerializer;
 	private final BinaryRowSerializer valueSerializer;
 
 	public BytesHashMapTest() {
 
-		this.keyTypes = new InternalType[] {
-				InternalTypes.INT,
-				InternalTypes.STRING,
-				InternalTypes.DOUBLE,
-				InternalTypes.LONG,
-				InternalTypes.BOOLEAN,
-				InternalTypes.FLOAT,
-				InternalTypes.SHORT
+		this.keyTypes = new LogicalType[] {
+				new IntType(),
+				new VarCharType(VarCharType.MAX_LENGTH),
+				new DoubleType(),
+				new BigIntType(),
+				new BooleanType(),
+				new FloatType(),
+				new SmallIntType()
 		};
-		this.valueTypes = new InternalType[] {
-				InternalTypes.DOUBLE,
-				InternalTypes.LONG,
-				InternalTypes.BOOLEAN,
-				InternalTypes.FLOAT,
-				InternalTypes.SHORT
+		this.valueTypes = new LogicalType[] {
+				new DoubleType(),
+				new BigIntType(),
+				new BooleanType(),
+				new FloatType(),
+				new SmallIntType()
 		};
 
 		this.keySerializer = new BinaryRowSerializer(keyTypes.length);
@@ -85,14 +91,14 @@ public class BytesHashMapTest {
 	public void testHashSetMode() throws IOException {
 		final int numMemSegments = needNumMemSegments(
 				NUM_ENTRIES,
-				rowLength(new RowType(valueTypes)),
-				rowLength(new RowType(keyTypes)),
+				rowLength(RowType.of(valueTypes)),
+				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 		int memorySize = numMemSegments * PAGE_SIZE;
 		MemoryManager memoryManager = new MemoryManager(numMemSegments * PAGE_SIZE, 32);
 
 		BytesHashMap table = new BytesHashMap(this, memoryManager,
-				memorySize, keyTypes, new InternalType[]{});
+				memorySize, keyTypes, new LogicalType[]{});
 		Assert.assertTrue(table.isHashSetMode());
 
 		final Random rnd = new Random(RANDOM_SEED);
@@ -107,8 +113,8 @@ public class BytesHashMapTest {
 
 		final int numMemSegments = needNumMemSegments(
 				NUM_ENTRIES,
-				rowLength(new RowType(valueTypes)),
-				rowLength(new RowType(keyTypes)),
+				rowLength(RowType.of(valueTypes)),
+				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 		int memorySize = numMemSegments * PAGE_SIZE;
 		MemoryManager memoryManager = new MemoryManager(memorySize, 32);
@@ -130,8 +136,8 @@ public class BytesHashMapTest {
 		final BinaryRow[] rows = getRandomizedInput(NUM_ENTRIES, rnd, true);
 		final int numMemSegments = needNumMemSegments(
 				NUM_ENTRIES,
-				rowLength(new RowType(valueTypes)),
-				rowLength(new RowType(keyTypes)),
+				rowLength(RowType.of(valueTypes)),
+				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 		int memorySize = numMemSegments * PAGE_SIZE;
 
@@ -153,8 +159,8 @@ public class BytesHashMapTest {
 
 		final int numMemSegments = needNumMemSegments(
 				NUM_ENTRIES,
-				rowLength(new RowType(valueTypes)),
-				rowLength(new RowType(keyTypes)),
+				rowLength(RowType.of(valueTypes)),
+				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 
 		int memorySize = numMemSegments * PAGE_SIZE;
@@ -254,8 +260,8 @@ public class BytesHashMapTest {
 	public void testSingleKeyMultipleOps() throws Exception {
 		final int numMemSegments = needNumMemSegments(
 				NUM_ENTRIES,
-				rowLength(new RowType(valueTypes)),
-				rowLength(new RowType(keyTypes)),
+				rowLength(RowType.of(valueTypes)),
+				rowLength(RowType.of(keyTypes)),
 				PAGE_SIZE);
 
 		int memorySize = numMemSegments * PAGE_SIZE;
@@ -478,8 +484,8 @@ public class BytesHashMapTest {
 	}
 
 	private int rowLength(RowType tpe) {
-		return BinaryRow.calculateFixPartSizeInBytes(tpe.getArity())
-				+ BytesHashMap.getVariableLength(tpe.getFieldTypes());
+		return BinaryRow.calculateFixPartSizeInBytes(tpe.getFieldCount())
+				+ BytesHashMap.getVariableLength(tpe.getChildren().toArray(new LogicalType[0]));
 	}
 
 }

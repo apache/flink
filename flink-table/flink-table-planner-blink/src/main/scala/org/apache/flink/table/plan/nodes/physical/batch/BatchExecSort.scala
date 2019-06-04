@@ -28,6 +28,7 @@ import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.sort.SortOperator
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -105,8 +106,8 @@ class BatchExecSort(
         .asInstanceOf[StreamTransformation[BaseRow]]
 
     val conf = tableEnv.getConfig
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     // sort code gen
     val keyTypes = keys.map(inputType.getTypeAt)
@@ -131,7 +132,7 @@ class BatchExecSort(
       input,
       s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
       operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
-      outputType.toTypeInfo,
+      BaseRowTypeInfo.of(outputType),
       input.getParallelism)
   }
 }

@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{StreamTransformation, TwoInputTransformation}
-import org.apache.flink.table.`type`.{RowType, TypeConverters}
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -32,6 +31,8 @@ import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.runtime.join.{FlinkJoinType, SortMergeJoinOperator}
+import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -219,12 +220,10 @@ class BatchExecSortMergeJoin(
     val rightInput = getInputNodes.get(1).translateToPlan(tableEnv)
         .asInstanceOf[StreamTransformation[BaseRow]]
 
-    val leftType = TypeConverters.createInternalTypeFromTypeInfo(
-      leftInput.getOutputType).asInstanceOf[RowType]
-    val rightType = TypeConverters.createInternalTypeFromTypeInfo(
-      rightInput.getOutputType).asInstanceOf[RowType]
+    val leftType = leftInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val rightType = rightInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
 
-    val keyType = new RowType(leftAllKey.map(leftType.getFieldTypes()(_)): _*)
+    val keyType = RowType.of(leftAllKey.map(leftType.getChildren.get(_)): _*)
 
     val condFunc = generateCondition(config, leftType, rightType)
 
@@ -270,7 +269,7 @@ class BatchExecSortMergeJoin(
       rightInput,
       getOperatorName,
       operator,
-      FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo,
+      BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 

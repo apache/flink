@@ -41,7 +41,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 
 	private int keyIdx = 1;
 	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { keyIdx },
-			rowType.getInternalTypes());
+			rowType.getLogicalTypes());
 	private TypeInformation<BaseRow> keyType = new BaseRowTypeInfo();
 
 	/** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. **/

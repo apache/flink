@@ -25,6 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.{TestingRetractTableSink, TestingUpsertTableSink, _}
+import org.apache.flink.table.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -128,7 +129,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -189,7 +191,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -250,7 +253,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -294,7 +298,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -346,7 +351,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -389,7 +395,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -522,7 +529,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -579,7 +587,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -637,7 +646,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql2)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -699,7 +709,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -768,7 +779,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -830,7 +842,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 3)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -908,7 +921,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -979,7 +993,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -1044,7 +1059,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 2)).
-      configure(schema.getFieldNames, schema.getFieldTypes)
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table, sink)
     tEnv.execute()
 
@@ -1172,7 +1188,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema1 = table1.getSchema
     val sink1 = new TestingUpsertTableSink(Array(0, 3)).
       configure(schema1.getFieldNames, schema1
-      .getFieldTypes)
+      .getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table1, sink1)
 
     val table2 = tEnv.sqlQuery(
@@ -1187,7 +1203,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema2 = table2.getSchema
     val sink2 = new TestingUpsertTableSink(Array(0, 3)).
       configure(schema2.getFieldNames, schema2
-      .getFieldTypes)
+      .getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table2, sink2)
     tEnv.execute()
 
@@ -1242,7 +1258,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin)
     val schema1 = table1.getSchema
     val sink1 = new TestingRetractTableSink().
-      configure(schema1.getFieldNames, schema1.getFieldTypes)
+      configure(schema1.getFieldNames,
+        schema1.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table1, sink1)
 
     val table2 = tEnv.sqlQuery(
@@ -1256,7 +1273,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin)
     val schema2 = table2.getSchema
     val sink2 = new TestingRetractTableSink().
-      configure(schema2.getFieldNames, schema2.getFieldTypes)
+      configure(schema2.getFieldNames,
+        schema2.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
     tEnv.writeToSink(table2, sink2)
     tEnv.execute()
 

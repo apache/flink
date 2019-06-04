@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions}
 import org.apache.flink.table.dataformat.BinaryString.fromString
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.{binaryRow, row}
 import org.apache.flink.table.runtime.utils.TestData._
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.junit._
@@ -33,13 +33,13 @@ import scala.collection.Seq
 class UnionITCase extends BatchTestBase {
 
   val type6 = new BaseRowTypeInfo(
-    InternalTypes.INT, InternalTypes.LONG, InternalTypes.STRING)
+    new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
 
   val data6 = Seq(
-    binaryRow(type6.getInternalTypes, 1, 1L, fromString("Hi")),
-    binaryRow(type6.getInternalTypes, 2, 2L, fromString("Hello")),
-    binaryRow(type6.getInternalTypes, 3, 2L, fromString("Hello world")),
-    binaryRow(type6.getInternalTypes, 4, 3L, fromString("Hello world, how are you?"))
+    binaryRow(type6.getLogicalTypes, 1, 1L, fromString("Hi")),
+    binaryRow(type6.getLogicalTypes, 2, 2L, fromString("Hello")),
+    binaryRow(type6.getLogicalTypes, 3, 2L, fromString("Hello world")),
+    binaryRow(type6.getLogicalTypes, 4, 3L, fromString("Hello world, how are you?"))
   )
 
   @Before

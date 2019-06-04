@@ -176,7 +176,7 @@ object RelExplainUtil {
               offset = offset + 1
               argList
             case daf: DeclarativeAggregateFunction =>
-              val aggBufferTypes = daf.getAggBufferTypes
+              val aggBufferTypes = daf.getAggBufferTypes.map(_.getLogicalType)
               val argList = aggBufferTypes.indices.map(offset + _).toList
               offset = offset + aggBufferTypes.length
               argList
@@ -215,7 +215,7 @@ object RelExplainUtil {
             offset = offset + 1
             name
           case daf: DeclarativeAggregateFunction =>
-            val aggBufferTypes = daf.getAggBufferTypes
+            val aggBufferTypes = daf.getAggBufferTypes.map(_.getLogicalType)
             val name = aggBufferTypes.indices
               .map(i => outputFieldNames(offset + i))
               .mkString(", ")
@@ -411,7 +411,7 @@ object RelExplainUtil {
           offset = offset + 1
           name
         case daf: DeclarativeAggregateFunction =>
-          val aggBufferTypes = daf.getAggBufferTypes
+          val aggBufferTypes = daf.getAggBufferTypes.map(_.getLogicalType)
           val name = aggBufferTypes.indices
             .map(i => accNames(offset + i))
             .mkString(", ")

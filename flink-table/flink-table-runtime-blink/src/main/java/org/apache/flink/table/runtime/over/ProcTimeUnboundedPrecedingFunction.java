@@ -28,7 +28,7 @@ import org.apache.flink.table.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.generated.AggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
@@ -47,7 +47,7 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 	private static final long serialVersionUID = 1L;
 
 	private final GeneratedAggsHandleFunction genAggsHandler;
-	private final InternalType[] accTypes;
+	private final LogicalType[] accTypes;
 
 	private transient AggsHandleFunction function;
 	private transient ValueState<BaseRow> accState;
@@ -57,7 +57,7 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 			long minRetentionTime,
 			long maxRetentionTime,
 			GeneratedAggsHandleFunction genAggsHandler,
-			InternalType[] accTypes) {
+			LogicalType[] accTypes) {
 		super(minRetentionTime, maxRetentionTime);
 		this.genAggsHandler = genAggsHandler;
 		this.accTypes = accTypes;

@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.sort.StreamSortOperator
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -117,16 +118,16 @@ class StreamExecSort(
       throw new TableException("Sort on a non-time-attribute field is not supported.")
     }
 
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(sortCollation.getFieldCollations)
     // sort code gen
     val keyTypes = keys.map(inputType.getTypeAt)
     val rowComparator = ComparatorCodeGenerator.gen(conf, "StreamExecSortComparator",
       keys, keyTypes, orders, nullsIsLast)
-    val sortOperator = new StreamSortOperator(inputType.toTypeInfo, rowComparator)
+    val sortOperator = new StreamSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
-    val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // sets parallelism to 1 since StreamExecSort could only work in global mode.
     val ret = new OneInputTransformation(

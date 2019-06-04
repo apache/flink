@@ -186,7 +186,7 @@ GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
 :  +- LogicalTableScan(table=[[A, source: [TestTableSource(a, b, c)]]])
-+- LogicalProject(EXPR$0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(65536) CHARACTER SET "UTF-16LE" _2))])
++- LogicalProject(EXPR$0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
    +- LogicalTableScan(table=[[A, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -195,7 +195,7 @@ LogicalUnion(all=[true])
 Union(all=[true], union=[a])
 :- Calc(select=[a])
 :  +- TableSourceScan(table=[[A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
-+- Calc(select=[CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(65536) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
++- Calc(select=[CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

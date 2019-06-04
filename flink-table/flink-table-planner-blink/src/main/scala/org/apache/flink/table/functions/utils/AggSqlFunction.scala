@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.functions.utils
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
@@ -51,13 +51,13 @@ class AggSqlFunction(
     name: String,
     displayName: String,
     aggregateFunction: AggregateFunction[_, _],
-    val externalResultType: TypeInformation[_],
-    val externalAccType: TypeInformation[_],
+    val externalResultType: DataType,
+    val externalAccType: DataType,
     typeFactory: FlinkTypeFactory,
     requiresOver: Boolean)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
-    createReturnTypeInference(createInternalTypeFromTypeInfo(externalResultType), typeFactory),
+    createReturnTypeInference(fromDataTypeToLogicalType(externalResultType), typeFactory),
     createOperandTypeInference(name, aggregateFunction, typeFactory),
     createOperandTypeChecker(name, aggregateFunction),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
@@ -84,8 +84,8 @@ object AggSqlFunction {
       name: String,
       displayName: String,
       aggregateFunction: AggregateFunction[_, _],
-      externalResultType: TypeInformation[_],
-      externalAccType: TypeInformation[_],
+      externalResultType: DataType,
+      externalAccType: DataType,
       typeFactory: FlinkTypeFactory,
       requiresOver: Boolean): AggSqlFunction = {
 
@@ -122,7 +122,7 @@ object AggSqlFunction {
                     s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
-            .map(typeFactory.createTypeFromInternalType(_, isNullable = true))
+            .map(typeFactory.createFieldTypeFromLogicalType)
 
         for (i <- operandTypes.indices) {
           if (i < inferredTypes.length - 1) {
@@ -139,12 +139,12 @@ object AggSqlFunction {
   }
 
   private[flink] def createReturnTypeInference(
-      resultType: InternalType,
+      resultType: LogicalType,
       typeFactory: FlinkTypeFactory): SqlReturnTypeInference = {
 
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        typeFactory.createTypeFromInternalType(resultType, isNullable = true)
+        typeFactory.createFieldTypeFromLogicalType(resultType)
       }
     }
   }
