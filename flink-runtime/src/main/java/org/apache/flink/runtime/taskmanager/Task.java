@@ -27,7 +27,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.SafetyNetCloseableRegistry;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -1139,17 +1138,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 
-			// build a local closure
-			final SafetyNetCloseableRegistry safetyNetCloseableRegistry =
-				FileSystemSafetyNet.getSafetyNetCloseableRegistryForThread();
-
 			Runnable runnable = new Runnable() {
 				@Override
 				public void run() {
-					// set safety net from the task's context for checkpointing thread
-					LOG.debug("Creating FileSystem stream leak safety net for {}", Thread.currentThread().getName());
-					FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
-
 					try {
 						invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 					}
@@ -1169,8 +1160,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 								"{} ({}) while being not in state running.", checkpointID,
 								taskNameWithSubtask, executionId, t);
 						}
-					} finally {
-						FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(null);
 					}
 				}
 			};
