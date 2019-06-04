@@ -113,7 +113,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                        DataTypes.STRING(), DataTypes.DATE(),
                        DataTypes.TIME(),
                        DataTypes.TIMESTAMP(),
-                       DataTypes.ARRAY(DataTypes.DOUBLE()),
+                       DataTypes.ARRAY(DataTypes.DOUBLE().not_null()),
                        DataTypes.ARRAY(DataTypes.STRING()),
                        DataTypes.ARRAY(DataTypes.DATE()),
                        DataTypes.DECIMAL(),

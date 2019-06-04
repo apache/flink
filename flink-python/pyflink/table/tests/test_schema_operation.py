@@ -15,9 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-import os
-
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
@@ -52,7 +49,7 @@ class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
         result = t.group_by("c").select("a.sum as a, c as b")
         schema = result.get_schema()
 
-        assert schema == TableSchema(["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
+        assert schema == TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()])
 
 
 if __name__ == '__main__':
