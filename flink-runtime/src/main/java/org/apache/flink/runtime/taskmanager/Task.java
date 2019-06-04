@@ -1192,7 +1192,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				public void run() {
 					try {
 						invokable.notifyCheckpointComplete(checkpointID);
-						taskStateManager.notifyCheckpointComplete(checkpointID);
 					} catch (Throwable t) {
 						if (getExecutionState() == ExecutionState.RUNNING) {
 							// fail task if checkpoint confirmation failed.
@@ -1205,8 +1204,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			};
 			executeAsyncCallRunnable(
 					runnable,
-					"Checkpoint Confirmation for " + taskNameWithSubtask
-			);
+					"Checkpoint Confirmation for " + taskNameWithSubtask);
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
