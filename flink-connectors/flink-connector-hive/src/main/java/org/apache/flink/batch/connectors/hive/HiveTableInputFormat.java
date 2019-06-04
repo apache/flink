@@ -75,7 +75,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	protected transient boolean fetched = false;
 	protected transient boolean hasNext;
 
-	private Boolean isPartitioned;
+	private boolean isPartitioned;
 	private RowTypeInfo rowTypeInfo;
 
 	//Necessary info to init deserializer
@@ -92,14 +92,14 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
-			Boolean isPartitioned,
+			boolean isPartitioned,
 			String[] partitionColNames,
 			List<HiveTablePartition> partitions,
 			RowTypeInfo rowTypeInfo) {
 		super(jobConf.getCredentials());
 		this.rowTypeInfo = checkNotNull(rowTypeInfo, "rowTypeInfo can not be null.");
 		this.jobConf = new JobConf(jobConf);
-		this.isPartitioned = checkNotNull(isPartitioned, "isPartitioned can not be null.");
+		this.isPartitioned = isPartitioned;
 		this.partitionColNames = partitionColNames;
 		this.partitions = checkNotNull(partitions, "partitions can not be null.");
 	}
@@ -207,10 +207,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 
 	@Override
 	public Row nextRecord(Row ignore) throws IOException {
-		if (!this.fetched) {
-			fetchNext();
-		}
-		if (!this.hasNext) {
+		if (reachedEnd()) {
 			return null;
 		}
 		Row row = new Row(rowTypeInfo.getArity());
@@ -226,7 +223,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			}
 			if (isPartitioned) {
 				for (String partition : partitionColNames){
-					row.setField(index++, hiveTablePartition.getPartitionValues().get(partition));
+					row.setField(index++, hiveTablePartition.getPartitionSpec().get(partition));
 				}
 			}
 		} catch (Exception e){
@@ -267,7 +264,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
 		}
-		isPartitioned = (Boolean) in.readObject();
+		isPartitioned = (boolean) in.readObject();
 		rowTypeInfo = (RowTypeInfo) in.readObject();
 		partitionColNames = (String[]) in.readObject();
 		partitions = (List<HiveTablePartition>) in.readObject();
