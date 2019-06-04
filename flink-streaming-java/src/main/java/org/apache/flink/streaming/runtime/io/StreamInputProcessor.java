@@ -74,9 +74,6 @@ public class StreamInputProcessor<IN> {
 	/** Valve that controls how watermarks and stream statuses are forwarded. */
 	private StatusWatermarkValve statusWatermarkValve;
 
-	/** Number of input channels the valve needs to handle. */
-	private final int numInputChannels;
-
 	private final StreamStatusMaintainer streamStatusMaintainer;
 
 	private final OneInputStreamOperator<IN, ?> streamOperator;
@@ -114,14 +111,12 @@ public class StreamInputProcessor<IN> {
 
 		this.lock = checkNotNull(lock);
 
-		this.numInputChannels = inputGate.getNumberOfInputChannels();
-
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve = new StatusWatermarkValve(
-				numInputChannels,
-				new ForwardingValveOutputHandler(streamOperator, lock));
+			inputGate.getNumberOfInputChannels(),
+			new ForwardingValveOutputHandler(streamOperator, lock));
 
 		this.watermarkGauge = watermarkGauge;
 		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
