@@ -257,10 +257,9 @@ public abstract class AbstractInvokable {
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
 	 * the notification from all participating tasks.
 	 *
-	 * @param checkpointId The ID of the checkpoint that is complete..
-	 * @throws Exception The notification method may forward its exceptions.
+	 * @param checkpointId The ID of the checkpoint that is complete.
 	 */
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+	public void notifyCheckpointComplete(long checkpointId) {
 		throw new UnsupportedOperationException(String.format("notifyCheckpointComplete not supported by %s", this.getClass().getName()));
 	}
 }

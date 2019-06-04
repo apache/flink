@@ -159,10 +159,15 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			eventQueue.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
-			super.notifyCheckpointComplete(checkpointId);
-			eventQueue.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+		public void notifyCheckpointComplete(long checkpointId) {
+			try {
+				eventQueue.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
+				super.notifyCheckpointComplete(checkpointId);
+				eventQueue.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
 		}
 
 		@Override
