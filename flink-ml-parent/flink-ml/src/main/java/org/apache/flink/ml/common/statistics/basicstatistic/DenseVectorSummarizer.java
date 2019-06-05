@@ -24,7 +24,8 @@ import org.apache.flink.ml.common.matrix.DenseVector;
 import org.apache.flink.ml.common.matrix.Vector;
 
 /**
- * Dense Vector Summarizer.
+ * It is summarizer of dense vector.
+ * It uses DenseVector to store median result.
  */
 public class DenseVectorSummarizer extends BaseVectorSummarizer {
 

@@ -22,7 +22,8 @@ package org.apache.flink.ml.common.statistics.basicstatistic;
 import org.apache.flink.ml.common.matrix.Vector;
 
 /**
- * Base class of vector summary result.
+ * It is the base class which is used to store vector summarizer result.
+ * You can get vectorSize, sum, mean, variance, standardDeviation, and so on.
  */
 public abstract class BaseVectorSummary extends BaseSummary {
 

@@ -20,7 +20,8 @@
 package org.apache.flink.ml.common.statistics.basicstatistic;
 
 /**
- * Base class of summary result.
+ * Summarizer is the base class which used to store summarizer result.
+ * It will calculate basic statistics inclue mean, variance and so on.
  */
 public abstract class BaseSummary {
 

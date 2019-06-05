@@ -24,6 +24,10 @@ import org.apache.flink.ml.common.matrix.DenseVector;
 
 /**
  * Util of vector operations.
+ *
+ * <p>- DenseVector extension.
+ *
+ * <p>- DenseMatrix extension.
  */
 public class VectorUtil {
 

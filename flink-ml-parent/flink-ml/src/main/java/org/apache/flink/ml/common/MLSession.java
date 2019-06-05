@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.ml.common.utils.JsonConverter;
 import org.apache.flink.ml.common.utils.RowTypeDataSet;
 import org.apache.flink.ml.common.utils.RowTypeDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -33,9 +34,6 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import java.util.List;
 
 /**
@@ -43,7 +41,8 @@ import java.util.List;
  */
 public class MLSession {
 
-	public static Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().create();
+	public static JsonConverter jsonConverter = new JsonConverter();
+
 	private static ExecutionEnvironment env;
 	private static StreamExecutionEnvironment streamEnv;
 	private static BatchTableEnvironment batchTableEnv;
@@ -121,5 +120,6 @@ public class MLSession {
 		DataStream<Row> dataSet = getStreamExecutionEnvironment().fromCollection(rows);
 		return RowTypeDataStream.toTable(dataSet, colNames, types);
 	}
+
 }
 

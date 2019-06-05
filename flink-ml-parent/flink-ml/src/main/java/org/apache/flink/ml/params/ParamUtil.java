@@ -21,9 +21,8 @@ package org.apache.flink.ml.params;
 
 import org.apache.flink.ml.api.misc.param.ParamInfo;
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.MLSession;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -96,14 +95,12 @@ public class ParamUtil {
 	 * @param cls the class of operator
 	 */
 	public static void help(Class cls) {
-		Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-
 		List <String[]> g = getParametersByOperator(cls).stream()
 			.map(x -> new String[] {
 				x.getName(),
 				x.getDescription(),
 				x.isOptional() ? "optional" : "required",
-				x.getDefaultValue() == null ? "null" : gson.toJson(x.getDefaultValue())
+				x.getDefaultValue() == null ? "null" : MLSession.jsonConverter.toJson(x.getDefaultValue())
 			})
 			.collect(Collectors.toList());
 

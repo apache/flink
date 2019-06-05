@@ -24,7 +24,8 @@ import org.apache.flink.ml.common.matrix.DenseVector;
 import org.apache.flink.types.Row;
 
 /**
- * Table Summarizer.
+ * It is summarizer of table， it can handle multiple data types.
+ * It uses DenseVector to store median result.
  */
 public class TableSummarizer extends BaseSummarizer {
 

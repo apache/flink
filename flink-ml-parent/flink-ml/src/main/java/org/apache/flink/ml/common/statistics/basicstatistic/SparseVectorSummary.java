@@ -32,7 +32,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Summary result of sparse vector.
+ * It is summarizer result of sparse vector.
+ * You can get vectorSize, mean, variance, and other statistics from this class,
+ *  and It will return sparse vector when get statistics.
  */
 public class SparseVectorSummary extends BaseVectorSummary {
 

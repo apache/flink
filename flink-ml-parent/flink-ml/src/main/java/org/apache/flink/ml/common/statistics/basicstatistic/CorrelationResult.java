@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Correlation Result.
+ * It is correlation result, which has colNames and correlation values.
  */
 public class CorrelationResult {
 

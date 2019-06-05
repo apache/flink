@@ -24,7 +24,7 @@ import org.apache.flink.ml.common.matrix.Vector;
 import org.apache.flink.util.Collector;
 
 /**
- * MapPartitionFunction of VectorSummarizer .
+ * It is vector summarizer partition of one worker, will merge result later.
  */
 public class VectorSummarizerPartition implements MapPartitionFunction <Vector, BaseVectorSummarizer> {
 	private boolean bCov;

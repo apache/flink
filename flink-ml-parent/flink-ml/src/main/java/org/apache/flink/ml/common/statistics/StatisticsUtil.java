@@ -25,14 +25,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.ml.batchoperator.BatchOperator;
-import org.apache.flink.ml.common.MLSession;
 import org.apache.flink.ml.common.matrix.DenseVector;
 import org.apache.flink.ml.common.matrix.Vector;
-import org.apache.flink.ml.common.statistics.basicstatistic.BaseSummary;
 import org.apache.flink.ml.common.statistics.basicstatistic.BaseVectorSummarizer;
 import org.apache.flink.ml.common.statistics.basicstatistic.BaseVectorSummary;
-import org.apache.flink.ml.common.statistics.basicstatistic.DenseVectorSummary;
-import org.apache.flink.ml.common.statistics.basicstatistic.SparseVectorSummary;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummarizer;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummarizerPartiiton;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummary;
@@ -42,9 +38,6 @@ import org.apache.flink.ml.common.utils.TableUtil;
 import org.apache.flink.ml.common.utils.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
-
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import java.math.BigDecimal;
 import java.security.InvalidParameterException;
@@ -398,25 +391,6 @@ public class StatisticsUtil {
 			);
 	}
 
-	public static BaseSummary collectSummaryResult(BatchOperator in) {
-		List <Row> rows = in.collect();
-		if (rows.size() != 1) {
-			throw new RuntimeException("collect rows must be one line.");
-		}
-
-		Row row = rows.get(0);
-		if (row.getArity() != 1) {
-			throw new RuntimeException("row must have one arity.");
-		}
-
-		Object obj = row.getField(0);
-		if (!(obj instanceof String)) {
-			throw new RuntimeException("json must be String type.");
-		}
-		return fromJson((String) obj);
-
-	}
-
 	public static String getJson(List <Row> rows) {
 		if (rows.size() != 1) {
 			throw new RuntimeException("row size must be 1.");
@@ -430,18 +404,6 @@ public class StatisticsUtil {
 			return (String) obj;
 		} else {
 			throw new RuntimeException("row arity must be string.");
-		}
-	}
-
-	public static BaseSummary fromJson(String json) {
-		JsonObject jsonObject = new JsonParser().parse(json).getAsJsonObject();
-
-		if (jsonObject.has("cols")) {
-			return MLSession.gson.fromJson(json, SparseVectorSummary.class);
-		} else if (jsonObject.has("numMissingValue")) {
-			return MLSession.gson.fromJson(json, TableSummary.class);
-		} else {
-			return MLSession.gson.fromJson(json, DenseVectorSummary.class);
 		}
 	}
 

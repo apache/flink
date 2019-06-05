@@ -28,7 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Summary result of dense vector.
+ * It is result of DenseVectorSummarizer.
+ * You can get vectorSize, mean, variance, and other statistics from this class.
  */
 public class DenseVectorSummary extends BaseVectorSummary {
 

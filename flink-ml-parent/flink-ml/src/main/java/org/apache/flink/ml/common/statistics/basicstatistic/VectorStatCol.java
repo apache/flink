@@ -20,7 +20,7 @@
 package org.apache.flink.ml.common.statistics.basicstatistic;
 
 /**
- * Vector Statistics for Column.
+ * It is median result of sparse vector summarizer.
  */
 public class VectorStatCol {
 	public long numNonZero = 0;

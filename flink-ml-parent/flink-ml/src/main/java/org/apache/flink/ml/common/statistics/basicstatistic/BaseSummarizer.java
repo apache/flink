@@ -22,7 +22,8 @@ package org.apache.flink.ml.common.statistics.basicstatistic;
 import org.apache.flink.ml.common.matrix.DenseMatrix;
 
 /**
- * Base class of summarizer.
+ * Summarizer is the base class which used to calculate summary.
+ * It will calculate count, sum, sum2, min, max.
  */
 public abstract class BaseSummarizer {
 

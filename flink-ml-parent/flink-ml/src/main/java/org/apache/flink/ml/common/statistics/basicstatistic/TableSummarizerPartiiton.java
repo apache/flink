@@ -24,7 +24,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 /**
- * MapPartitionFunction of TableSummarizer.
+ * It is table summarizer partition of one worker, will merge result later.
  */
 public class TableSummarizerPartiiton implements MapPartitionFunction <Row, TableSummarizer> {
 	private boolean bCov;

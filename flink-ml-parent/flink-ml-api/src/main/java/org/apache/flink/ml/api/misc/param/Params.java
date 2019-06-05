@@ -19,6 +19,7 @@
 package org.apache.flink.ml.api.misc.param;
 
 import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 

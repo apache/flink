@@ -22,6 +22,7 @@ package org.apache.flink.ml.pipeline.statistics;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.batchoperator.statistics.SummarizerBatchOp;
+import org.apache.flink.ml.common.MLSession;
 import org.apache.flink.ml.common.statistics.StatisticsUtil;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummary;
 import org.apache.flink.ml.params.statistics.SummarizerParams;
@@ -51,6 +52,9 @@ public class Summarizer extends ResultCollector <Summarizer, TableSummary>
 		SummarizerBatchOp stat = new SummarizerBatchOp(params);
 		stat.linkFrom(bin);
 
-		return (TableSummary) StatisticsUtil.collectSummaryResult(stat);
+		return MLSession.jsonConverter.fromJson(
+			StatisticsUtil.getJson(stat.collect()),
+			TableSummary.class
+		);
 	}
 }

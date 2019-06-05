@@ -119,28 +119,4 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements BaseWi
 		}
 		return select(sbd.toString());
 	}
-
-	public AlgoOperator filter(String param) throws Exception {
-		if (this instanceof BatchOperator) {
-			return ((BatchOperator) this).filter(param);
-		} else {
-			return ((StreamOperator) this).filter(param);
-		}
-	}
-
-	public AlgoOperator as(String param) throws Exception {
-		if (this instanceof BatchOperator) {
-			return ((BatchOperator) this).as(param);
-		} else {
-			return ((StreamOperator) this).as(param);
-		}
-	}
-
-	public AlgoOperator where(String param) throws Exception {
-		if (this instanceof BatchOperator) {
-			return ((BatchOperator) this).where(param);
-		} else {
-			return ((StreamOperator) this).where(param);
-		}
-	}
 }

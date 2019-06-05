@@ -60,7 +60,7 @@ public class SummarizerBatchOp extends BatchOperator <SummarizerBatchOp>
 				@Override
 				public Row map(TableSummary srt) throws Exception {
 					Row row = new Row(1);
-					row.setField(0, MLSession.gson.toJson(srt));
+					row.setField(0, MLSession.jsonConverter.toJson(srt));
 					return row;
 				}
 			});

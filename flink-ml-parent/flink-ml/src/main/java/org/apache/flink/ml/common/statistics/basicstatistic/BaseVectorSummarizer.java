@@ -23,7 +23,8 @@ import org.apache.flink.ml.common.matrix.DenseMatrix;
 import org.apache.flink.ml.common.matrix.Vector;
 
 /**
- * Base class of vector summarizer.
+ * It is the base class of vector summarizer, which will calculate count, sum, sum2, min, max.
+ * If sparse vector， it will calculate numNonZero of sparse vector.
  */
 public abstract class BaseVectorSummarizer extends BaseSummarizer {
 

@@ -28,7 +28,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Sparse Vector Summarizer.
+ * It is summarizer of sparse vector.
+ * It uses Map to store median result.
  */
 public class SparseVectorSummarizer extends BaseVectorSummarizer {
 

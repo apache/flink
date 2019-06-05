@@ -28,7 +28,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Summary result of table.
+ * It is summarizer result of sparse vector.
+ * You can get vectorSize, mean, variance, and other statistics from this class,
+ * and get statistics with colName.
  */
 public class TableSummary extends BaseSummary {
 

@@ -571,10 +571,6 @@ public class DenseMatrix implements Serializable {
 		return true;
 	}
 
-	public boolean isNonSingular() {
-		return rank() == Math.min(m, n);
-	}
-
     /* ---------------------------------------------------
      * Methods of matrix operations
      * --------------------------------------------------- */
@@ -606,43 +602,6 @@ public class DenseMatrix implements Serializable {
 	 */
 	public double sumSquare() {
 		return DenseMatrix.applySum(this, x -> x * x);
-	}
-
-	/**
-	 * Return two norm of the matrix.
-	 *
-	 * @return
-	 */
-	public double norm2() {
-		return new SingularValueDecomposition(this).norm2();
-	}
-
-	/**
-	 * Return condition number of this matrix.
-	 *
-	 * @return
-	 */
-	public double cond() {
-		return new SingularValueDecomposition(this).cond();
-	}
-
-	/**
-	 * Get determinant of this matrix.
-	 *
-	 * @return
-	 */
-	public double det() {
-		assert (this.isSquared());
-		return MatVecOp.det(this);
-	}
-
-	/**
-	 * Get rank of this matrix.
-	 *
-	 * @return
-	 */
-	public int rank() {
-		return MatVecOp.rank(this);
 	}
 
 	/**
@@ -728,117 +687,6 @@ public class DenseMatrix implements Serializable {
 		return this;
 	}
 
-	/**
-	 * Linear algebraic matrix multiplication, A * B  .
-	 *
-	 * @param matB another matrix
-	 * @return Matrix product, A * B
-	 * @throws IllegalArgumentException Matrix inner dimensions must agree.
-	 */
-	public DenseMatrix times(DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(this.m, matB.n);
-		MatVecOp.gemm(1.0, this, false, matB, false, 0., matC);
-		return matC;
-	}
-
-	/**
-	 * Matrix vector multiplication: A * x  .
-	 */
-	public DenseVector times(DenseVector x) {
-		DenseVector y = new DenseVector(this.numRows());
-		MatVecOp.gemv(1.0, this, false, x, 0.0, y);
-		return y;
-	}
-
-	/**
-	 * Matrix vector multiplication: A * x  .
-	 */
-	public DenseVector times(SparseVector x) {
-		DenseVector y = new DenseVector(this.numRows());
-		for (int i = 0; i < this.numRows(); i++) {
-			double s = 0.;
-			for (int j = 0; j < x.indices.length; j++) {
-				int index = x.indices[j];
-				if (index >= this.numCols()) {
-					throw new RuntimeException("vector index out of bound:" + index);
-				}
-				s += this.get(i, index) * x.values[j];
-			}
-			y.set(i, s);
-		}
-		return y;
-	}
-
-	/**
-	 * Solve A*X = B  .
-	 * When A is square matrix, linear system of equations A*X=B is solved.
-	 * When m > n, least square problem min||A*X-B||^2 is solved.
-	 * When m < n, find X with minimum L2 norm that satisfies A*X=B.
-	 * 'A' should not be rank deficient, otherwise the solution process will fail, and
-	 * exception would be raised.
-	 *
-	 * @param matB right hand side
-	 */
-	public DenseMatrix solve(DenseMatrix matB) {
-		assert (this.numRows() == matB.numRows());
-
-		if (this.m == this.n) {
-			if (this.isSymmetric()) {
-				DenseMatrix matA = this.copy();
-				DenseMatrix x = matB.copy();
-				LinearSolver.symmetricIndefiniteSolve(matA, x);
-				return x;
-			} else {
-				DenseMatrix matA = this.copy();
-				DenseMatrix x = matB.copy();
-				LinearSolver.nonSymmetricSolve(matA, x);
-				return x;
-			}
-		} else if (this.m > this.n) {
-			DenseMatrix matA = this.copy();
-			DenseMatrix x = matB.copy();
-			LeastSquareSolver.solve(matA, x);
-			return x.getSubMatrix(0, this.n, 0, matB.numCols());
-		} else { // this.m < this.n, indicates an under determined linear system of equations.
-			DenseMatrix matA = this.copy();
-			DenseMatrix x = new DenseMatrix(matA.numCols(), matB.numCols());
-			x.setSubMatrix(matB, 0, matB.numRows(), 0, matB.numCols());
-			LinearSolver.underDeterminedSolve(matA, x);
-			return x;
-		}
-	}
-
-    /* ---------------------------------------------------
-     * Methods of customized element wise operations
-     * ---------------------------------------------------
-     */
-
-	public DenseVector solve(DenseVector b) {
-		DenseMatrix matB = DenseMatrix.fromDataBuffer(b.size(), 1, b.getData());
-		DenseMatrix matX = this.solve(matB);
-		DenseVector vector = new DenseVector();
-		vector.setData(matX.data);
-		return vector;
-	}
-
-	/**
-	 * Solve least square problem A*X = B, where A is m x n matrix, m >= n .
-	 * A solution will be returned even when A is rank deficient.
-	 *
-	 * @param matB
-	 * @return
-	 */
-	public DenseMatrix solveLS(DenseMatrix matB) {
-		return LinearSolver.roubustSolve(this, matB);
-	}
-
-	public DenseVector solveLS(DenseVector b) {
-		DenseMatrix matB = DenseMatrix.fromDataBuffer(b.size(), 1, b.getData());
-		DenseMatrix matX = this.solveLS(matB);
-		DenseVector vector = new DenseVector();
-		vector.setData(matX.data);
-		return vector;
-	}
 
 	/**
 	 * Create a new matrix by transposing current matrix.
@@ -868,15 +716,6 @@ public class DenseMatrix implements Serializable {
 			}
 		}
 		return matA;
-	}
-
-	/**
-	 * Matrix inverse or pseudoinverse.
-	 *
-	 * @return inverse(A) if A is square, pseudoinverse otherwise.
-	 */
-	public DenseMatrix inverse() {
-		return MatVecOp.inverse(this);
 	}
 
 	@Override
