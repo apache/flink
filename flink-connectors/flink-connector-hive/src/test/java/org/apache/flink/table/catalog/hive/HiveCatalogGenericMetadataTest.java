@@ -18,10 +18,7 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -33,6 +30,7 @@ import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -57,32 +55,36 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	public void testDataTypes() throws Exception {
 		// TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
 		//	  [FLINK-12386] Support complete mapping between Flink and Hive data types
-		TypeInformation[] types = new TypeInformation[] {
-			BasicTypeInfo.BYTE_TYPE_INFO,
-			BasicTypeInfo.SHORT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.LONG_TYPE_INFO,
-			BasicTypeInfo.FLOAT_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO,
-			BasicTypeInfo.BOOLEAN_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO,
-			PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
-			SqlTimeTypeInfo.DATE,
-			SqlTimeTypeInfo.TIMESTAMP
+		DataType[] types = new DataType[] {
+			DataTypes.TINYINT(),
+			DataTypes.SMALLINT(),
+			DataTypes.INT(),
+			DataTypes.BIGINT(),
+			DataTypes.FLOAT(),
+			DataTypes.DOUBLE(),
+			DataTypes.BOOLEAN(),
+			DataTypes.STRING(),
+			DataTypes.BYTES(),
+			DataTypes.DATE(),
+			DataTypes.TIMESTAMP()
 		};
 
 		verifyDataTypes(types);
 	}
 
-	private void verifyDataTypes(TypeInformation[] types) throws Exception {
+	private void verifyDataTypes(DataType[] types) throws Exception {
 		String[] colNames = new String[types.length];
 
 		for (int i = 0; i < types.length; i++) {
 			colNames[i] = types[i].toString().toLowerCase() + "_col";
 		}
 
+		TableSchema schema = TableSchema.builder()
+			.fields(colNames, types)
+			.build();
+
 		CatalogTable table = new GenericCatalogTable(
-			new TableSchema(colNames, types),
+			schema,
 			getBatchTableProperties(),
 			TEST_COMMENT
 		);

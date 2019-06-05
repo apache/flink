@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -52,7 +52,7 @@ public class HiveTableUtil {
 		allCols.addAll(partitionKeys);
 
 		String[] colNames = new String[allCols.size()];
-		TypeInformation[] colTypes = new TypeInformation[allCols.size()];
+		DataType[] colTypes = new DataType[allCols.size()];
 
 		for (int i = 0; i < allCols.size(); i++) {
 			FieldSchema fs = allCols.get(i);
@@ -61,7 +61,9 @@ public class HiveTableUtil {
 			colTypes[i] = HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(fs.getType()));
 		}
 
-		return new TableSchema(colNames, colTypes);
+		return TableSchema.builder()
+				.fields(colNames, colTypes)
+				.build();
 	}
 
 	/**
@@ -69,13 +71,13 @@ public class HiveTableUtil {
 	 */
 	public static List<FieldSchema> createHiveColumns(TableSchema schema) {
 		String[] fieldNames = schema.getFieldNames();
-		TypeInformation[] fieldTypes = schema.getFieldTypes();
+		DataType[] fieldTypes = schema.getFieldDataTypes();
 
 		List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
 
 		for (int i = 0; i < fieldNames.length; i++) {
 			columns.add(
-				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveType(fieldTypes[i]), null));
+				new FieldSchema(fieldNames[i], HiveTypeUtil.toHiveTypeName(fieldTypes[i]), null));
 		}
 
 		return columns;
