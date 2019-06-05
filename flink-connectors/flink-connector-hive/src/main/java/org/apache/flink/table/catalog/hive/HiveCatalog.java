@@ -105,9 +105,9 @@ public class HiveCatalog extends AbstractCatalog {
 	// because Hive's Function object doesn't have properties or other place to store the flag for Flink functions.
 	private static final String FLINK_FUNCTION_PREFIX = "flink:";
 
-	protected final HiveConf hiveConf;
+	private final HiveConf hiveConf;
 
-	protected HiveMetastoreClientWrapper client;
+	private HiveMetastoreClientWrapper client;
 
 	public HiveCatalog(String catalogName, String hivemetastoreURI) {
 		this(catalogName, DEFAULT_DB, getHiveConf(hivemetastoreURI));
