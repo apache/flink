@@ -344,7 +344,7 @@ class TableImpl(
   }
 
   override def insertInto(tablePath: String, tablePathContinued: String*): Unit = {
-    insertInto(tableEnv.queryConfig, tablePath, tablePathContinued: _*)
+    tableEnv.insertInto(this, tablePath, tablePathContinued: _*)
   }
 
   override def insertInto(tableName: String, conf: QueryConfig): Unit = {
@@ -356,7 +356,7 @@ class TableImpl(
       tablePath: String,
       tablePathContinued: String*)
     : Unit = {
-    tableEnv.insertInto(this, conf, tablePath +: tablePathContinued:_*)
+    tableEnv.insertInto(this, conf, tablePath, tablePathContinued: _*)
   }
 
   override def window(window: GroupWindow): GroupWindowedTable = {

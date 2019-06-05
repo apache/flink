@@ -82,4 +82,15 @@ class MockTableEnvironment extends TableEnvironment {
   override def useCatalog(catalogName: String): Unit = ???
 
   override def useDatabase(databaseName: String): Unit = ???
+
+  override def insertInto(
+    table: Table,
+    queryConfig: QueryConfig,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit = ???
+
+  override def insertInto(
+    table: Table,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit = ???
 }

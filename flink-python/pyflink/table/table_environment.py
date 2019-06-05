@@ -121,6 +121,28 @@ class TableEnvironment(object):
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table)
 
+    def insert_into(self, table, table_path, *table_path_continued):
+        """
+        Writes the :class:`Table` to a :class:`TableSink` that was registered under
+        the specified name. For the path resolution algorithm see
+        :func:`~TableEnvironment.useDatabase`.
+
+        Example:
+        ::
+            >>> tab = t_env.scan("tableName")
+            >>> t_env.insert_into(tab, "print")
+
+        :param table The :class:`Table` to write to the sink.
+        :param table_path: The first part of the path of the registered :class:`TableSink` to which
+               the :class:`Table` is written. This is to ensure at least the name of the
+               :class:`Table` is provided.
+        :param table_path_continued: The remaining part of the path of the registered
+                :class:`TableSink` to which the :class:`Table`  is written.
+        """
+        gateway = get_gateway()
+        j_table_path = utils.to_jarray(gateway.jvm.String, table_path_continued)
+        self._j_tenv.insertInto(table._j_table, table_path, j_table_path)
+
     def list_tables(self):
         """
         Gets the names of all tables registered in this environment.
