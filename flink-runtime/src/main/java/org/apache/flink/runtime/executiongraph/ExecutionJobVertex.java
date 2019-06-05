@@ -56,6 +56,7 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -359,6 +360,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return splitAssigner;
 	}
 
+	@Nullable
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
 	}
