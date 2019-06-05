@@ -50,7 +50,7 @@ class StreamTableEnvImpl(
   with org.apache.flink.table.api.java.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    new TableImpl(this, asQueryOperation(dataStream, None))
+    createTable(asQueryOperation(dataStream, None))
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
@@ -58,7 +58,7 @@ class StreamTableEnvImpl(
       .parseExpressionList(fields).asScala
       .toArray
 
-    new TableImpl(this, asQueryOperation(dataStream, Some(exprs)))
+    createTable(asQueryOperation(dataStream, Some(exprs)))
   }
 
   override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
