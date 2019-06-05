@@ -154,12 +154,6 @@ public abstract class KafkaTestEnvironment {
 														KeyedSerializationSchema<T> serSchema, Properties props,
 														FlinkKafkaPartitioner<T> partitioner);
 
-	public abstract <T> DataStreamSink<T> writeToKafkaWithTimestamps(
-			DataStream<T> stream,
-			String topic,
-			KeyedSerializationSchema<T> serSchema,
-			Properties props);
-
 	// -- offset handlers
 
 	/**
