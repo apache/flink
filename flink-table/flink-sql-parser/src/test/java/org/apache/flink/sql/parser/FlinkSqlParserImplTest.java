@@ -19,25 +19,56 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.error.SqlParseException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
+import org.apache.calcite.avatica.util.Casing;
+import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.calcite.sql.validate.SqlConformance;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.io.Reader;
 
 import static org.junit.Assert.assertEquals;
 
 
 /** FlinkSqlParserImpl tests. **/
 public class FlinkSqlParserImplTest extends SqlParserTest {
+	private SqlConformance conformance0;
 
+	@Override
 	protected SqlParserImplFactory parserImplFactory() {
 		return FlinkSqlParserImpl.FACTORY;
+	}
+
+	protected SqlParser getSqlParser(Reader source) {
+		if (conformance0 == null) {
+			return super.getSqlParser(source);
+		} else {
+			// overwrite the default sql conformance.
+			return SqlParser.create(source,
+				SqlParser.configBuilder()
+					.setParserFactory(parserImplFactory())
+					.setQuoting(Quoting.DOUBLE_QUOTE)
+					.setUnquotedCasing(Casing.TO_UPPER)
+					.setQuotedCasing(Casing.UNCHANGED)
+					.setConformance(conformance0)
+					.build());
+		}
+	}
+
+	@Before
+	public void before() {
+		// clear the custom sql conformance.
+		conformance0 = null;
 	}
 
 	@Test
@@ -457,6 +488,77 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		check(sql, "DROP TABLE IF EXISTS `CATALOG1`.`DB1`.`TBL1`");
 	}
 
+	@Test
+	public void testInsertPartitionSpecs() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		final String sql1 = "insert into emps(x,y) partition (x='ab', y='bc') select * from emps";
+		final String expected = "INSERT INTO `EMPS` (`X`, `Y`)\n"
+			+ "PARTITION (`X` = 'ab', `Y` = 'bc')\n"
+			+ "(SELECT *\n"
+			+ "FROM `EMPS`)";
+		sql(sql1).ok(expected);
+		final String sql2 = "insert into emp (empno, ename, job, mgr, hiredate,\n"
+			+ "  sal, comm, deptno, slacker)\n"
+			+ "partition(empno='1', job='job')\n"
+			+ "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
+			+ "  1, 1, 1, false\n"
+			+ "from (values 'a')";
+		sql(sql2).node(new ValidationMatcher());
+		final String sql3 = "insert into empnullables (empno, ename)\n"
+			+ "partition(ename='b')\n"
+			+ "select 1 from (values 'a')";
+		sql(sql3).node(new ValidationMatcher());
+	}
+
+	@Test
+	public void testInsertCaseSensitivePartitionSpecs() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		final String expected = "INSERT INTO `emps` (`x`, `y`)\n"
+			+ "PARTITION (`x` = 'ab', `y` = 'bc')\n"
+			+ "(SELECT *\n"
+			+ "FROM `EMPS`)";
+		sql("insert into \"emps\"(\"x\",\"y\") "
+			+ "partition (\"x\"='ab', \"y\"='bc') select * from emps")
+			.ok(expected);
+	}
+
+	@Test
+	public void testInsertExtendedColumnAsStaticPartition1() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		String expected = "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) (`X`, `Y`)\n"
+			+ "PARTITION (`Z` = 'ab')\n"
+			+ "(SELECT *\n"
+			+ "FROM `EMPS`)";
+		sql("insert into emps(z boolean)(x,y) partition (z='ab') select * from emps")
+			.ok(expected);
+	}
+
+	@Test(expected = java.lang.RuntimeException.class)
+	public void testInsertExtendedColumnAsStaticPartition2() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
+			.node(new ValidationMatcher()
+				.fails("Extended columns not allowed under the current SQL conformance level"));
+	}
+
+	@Test
+	public void testInsertWithInvalidPartitionColumns() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		final String sql2 = "insert into emp (empno, ename, job, mgr, hiredate,\n"
+			+ "  sal, comm, deptno, slacker)\n"
+			+ "partition(^xxx^='1', job='job')\n"
+			+ "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
+			+ "  1, 1, 1, false\n"
+			+ "from (values 'a')";
+		sql(sql2).node(new ValidationMatcher().fails("Unknown target column 'XXX'"));
+		final String sql3 = "insert into ^empnullables^ (ename, empno, deptno)\n"
+			+ "partition(empno='1')\n"
+			+ "values ('Pat', null)";
+		sql(sql3).node(new ValidationMatcher().fails(
+			"\"Number of INSERT target columns \\\\(3\\\\) does not \"\n"
+				+ "\t\t\t\t+ \"equal number of source items \\\\(2\\\\)\""));
+	}
+
 	/** Matcher that invokes the #validate() of the produced SqlNode. **/
 	private static class ValidationMatcher extends BaseMatcher<SqlNode> {
 		private String expectedColumnSql;
@@ -479,15 +581,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 		@Override
 		public boolean matches(Object item) {
-			if (item instanceof SqlCreateTable) {
-				SqlCreateTable createTable = (SqlCreateTable) item;
+			if (item instanceof ExtendedSqlNode) {
+				ExtendedSqlNode createTable = (ExtendedSqlNode) item;
 				try {
 					createTable.validate();
-				} catch (SqlParseException e) {
+				} catch (Exception e) {
 					assertEquals(failMsg, e.getMessage());
 				}
-				if (expectedColumnSql != null) {
-					assertEquals(expectedColumnSql, createTable.getColumnSqlString());
+				if (expectedColumnSql != null && item instanceof SqlCreateTable) {
+					assertEquals(expectedColumnSql,
+						((SqlCreateTable) createTable).getColumnSqlString());
 				}
 				return true;
 			} else {

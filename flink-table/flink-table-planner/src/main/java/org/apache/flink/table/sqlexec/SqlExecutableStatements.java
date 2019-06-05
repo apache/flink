@@ -30,11 +30,11 @@ import org.apache.calcite.util.ReflectiveVisitor;
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be
  * executed directly.
  *
- * <p>For every kind of {@link SqlNode}, there needs to have a corresponding
- * method #execute(type) method, the 'type' argument should be the subclass
+ * <p>For every kind of {@link SqlNode}, there needs a method named
+ * #execute(type), the 'type' argument should be the subclass
  * type for the supported {@link SqlNode}.
  */
-public class SqlExecutableStatement implements ReflectiveVisitor {
+public class SqlExecutableStatements implements ReflectiveVisitor {
 	private TableEnvironment tableEnv;
 
 	private final ReflectUtil.MethodDispatcher<Void> dispatcher =
@@ -45,7 +45,7 @@ public class SqlExecutableStatement implements ReflectiveVisitor {
 
 	//~ Constructors -----------------------------------------------------------
 
-	private SqlExecutableStatement(TableEnvironment tableEnvironment) {
+	private SqlExecutableStatements(TableEnvironment tableEnvironment) {
 		this.tableEnv = tableEnvironment;
 	}
 
@@ -60,7 +60,7 @@ public class SqlExecutableStatement implements ReflectiveVisitor {
 	 * @param sqlNode          SqlNode to execute on
 	 */
 	public static void executeSqlNode(TableEnvironment tableEnvironment, SqlNode sqlNode) {
-		SqlExecutableStatement statement = new SqlExecutableStatement(tableEnvironment);
+		SqlExecutableStatements statement = new SqlExecutableStatements(tableEnvironment);
 		statement.dispatcher.invoke(sqlNode);
 	}
 

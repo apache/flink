@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.ExtendedSqlNode;
+
 import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -33,7 +35,7 @@ import java.util.List;
 /**
  * DROP TABLE DDL sql call.
  */
-public class SqlDropTable extends SqlDrop {
+public class SqlDropTable extends SqlDrop implements ExtendedSqlNode {
 	private static final SqlOperator OPERATOR =
 		new SqlSpecialOperator("DROP TABLE", SqlKind.DROP_TABLE);
 

@@ -26,10 +26,12 @@
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
-    "org.apache.flink.sql.parser.ddl.SqlArrayType",
-    "org.apache.flink.sql.parser.ddl.SqlMapType",
-    "org.apache.flink.sql.parser.ddl.SqlRowType",
+    "org.apache.flink.sql.parser.dml.RichSqlInsert",
+    "org.apache.flink.sql.parser.type.SqlArrayType",
+    "org.apache.flink.sql.parser.type.SqlMapType",
+    "org.apache.flink.sql.parser.type.SqlRowType",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
+    "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
     "org.apache.flink.sql.parser.SqlProperty",
     "org.apache.calcite.sql.SqlDrop",
     "org.apache.calcite.sql.SqlCreate",
@@ -47,7 +49,10 @@
     "ASCENDING",
     "FROM_SOURCE",
     "BOUNDED",
-    "DELAY"
+    "DELAY",
+    "JSON_PRETTY",
+    "JSON_TYPE",
+    "JSON_DEPTH"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -355,7 +360,10 @@
     "WORK"
     "WRITE"
     "XML"
-    "ZONE"
+    "ZONE",
+    "JSON_PRETTY",
+    "JSON_TYPE",
+    "JSON_DEPTH",
 
     # not in core, added in Flink
     "PARTITIONED",
@@ -370,6 +378,7 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
+    "RichSqlInsert()"
   ]
 
   # List of methods for parsing custom literals.

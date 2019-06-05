@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.type;
 
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -25,25 +25,33 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Parse column of ArrayType.
+ * Parse column of Map type.
  */
-public class SqlArrayType extends SqlIdentifier implements ExtendedSqlType {
+public class SqlMapType extends SqlIdentifier implements ExtendedSqlType {
 
-	private final SqlDataTypeSpec elementType;
+	private final SqlDataTypeSpec keyType;
+	private final SqlDataTypeSpec valType;
 
-	public SqlArrayType(SqlParserPos pos, SqlDataTypeSpec elementType) {
-		super(SqlTypeName.ARRAY.getName(), pos);
-		this.elementType = elementType;
+	public SqlMapType(SqlParserPos pos, SqlDataTypeSpec keyType, SqlDataTypeSpec valType) {
+		super(SqlTypeName.MAP.getName(), pos);
+		this.keyType = keyType;
+		this.valType = valType;
 	}
 
-	public SqlDataTypeSpec getElementType() {
-		return elementType;
+	public SqlDataTypeSpec getKeyType() {
+		return keyType;
+	}
+
+	public SqlDataTypeSpec getValType() {
+		return valType;
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ARRAY<");
-		ExtendedSqlType.unparseType(this.elementType, writer, leftPrec, rightPrec);
+		writer.keyword("MAP<");
+		ExtendedSqlType.unparseType(keyType, writer, leftPrec, rightPrec);
+		writer.sep(",");
+		ExtendedSqlType.unparseType(valType, writer, leftPrec, rightPrec);
 		writer.keyword(">");
 	}
 }

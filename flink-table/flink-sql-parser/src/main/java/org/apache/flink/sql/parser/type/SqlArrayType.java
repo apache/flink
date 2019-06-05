@@ -16,27 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.type;
 
 import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-/** An remark interface which should be inherited by supported sql types which are not supported
- * by Calcite default parser.
- *
- * <p>Caution that the subclass must override the method
- * {@link org.apache.calcite.sql.SqlNode#unparse(SqlWriter, int, int)}.
+/**
+ * Parse column of ArrayType.
  */
-public interface ExtendedSqlType {
+public class SqlArrayType extends SqlIdentifier implements ExtendedSqlType {
 
-	static void unparseType(SqlDataTypeSpec type,
-			SqlWriter writer,
-			int leftPrec,
-			int rightPrec) {
-		if (type.getTypeName() instanceof ExtendedSqlType) {
-			type.getTypeName().unparse(writer, leftPrec, rightPrec);
-		} else {
-			type.unparse(writer, leftPrec, rightPrec);
-		}
+	private final SqlDataTypeSpec elementType;
+
+	public SqlArrayType(SqlParserPos pos, SqlDataTypeSpec elementType) {
+		super(SqlTypeName.ARRAY.getName(), pos);
+		this.elementType = elementType;
+	}
+
+	public SqlDataTypeSpec getElementType() {
+		return elementType;
+	}
+
+	@Override
+	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+		writer.keyword("ARRAY<");
+		ExtendedSqlType.unparseType(this.elementType, writer, leftPrec, rightPrec);
+		writer.keyword(">");
 	}
 }

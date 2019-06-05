@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.error.SqlParseException;
 
 import org.apache.calcite.sql.SqlBasicCall;
@@ -34,6 +35,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -45,7 +47,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * CREATE TABLE DDL sql call.
  */
-public class SqlCreateTable extends SqlCreate {
+public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
 
@@ -89,7 +91,8 @@ public class SqlCreateTable extends SqlCreate {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return null;
+		return ImmutableNullableList.of(tableName, columnList, primaryKeyList,
+			propertyList, partitionKeyList, comment);
 	}
 
 	public SqlIdentifier getTableName() {
