@@ -271,7 +271,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
 		return CompletableFuture.completedFuture(
-			taskExecutorServices.getNetworkEnvironment().getResultPartitionManager().areAllPartitionsReleased());
+			taskExecutorServices.getNetworkEnvironment().getUnreleasedPartitions().isEmpty());
 	}
 
 	// ------------------------------------------------------------------------
