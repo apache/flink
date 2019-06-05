@@ -20,7 +20,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment, asScalaStream}
-import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableImpl}
+import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig}
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
@@ -43,12 +43,12 @@ class StreamTableEnvImpl(
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
     val tableOperation = asQueryOperation(dataStream.javaStream, None)
-    new TableImpl(this, tableOperation)
+    createTable(tableOperation)
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
     val tableOperation = asQueryOperation(dataStream.javaStream, Some(fields.toArray))
-    new TableImpl(this, tableOperation)
+    createTable(tableOperation)
   }
 
   override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
