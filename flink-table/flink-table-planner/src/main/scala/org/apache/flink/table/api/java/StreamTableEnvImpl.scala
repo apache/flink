@@ -87,7 +87,11 @@ class StreamTableEnvImpl(
       queryConfig: StreamQueryConfig): DataStream[T] = {
     val typeInfo = TypeExtractor.createTypeInfo(clazz)
     FieldInfoUtils.validateInputTypeInfo(typeInfo)
-    translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
+    translate[T](
+      table.getTableOperation,
+      queryConfig,
+      updatesAsRetraction = false,
+      withChangeFlag = false)(typeInfo)
   }
 
   override def toAppendStream[T](
@@ -95,7 +99,11 @@ class StreamTableEnvImpl(
       typeInfo: TypeInformation[T],
       queryConfig: StreamQueryConfig): DataStream[T] = {
     FieldInfoUtils.validateInputTypeInfo(typeInfo)
-    translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
+    translate[T](
+      table.getTableOperation,
+      queryConfig,
+      updatesAsRetraction = false,
+      withChangeFlag = false)(typeInfo)
   }
 
   override def toRetractStream[T](
@@ -121,7 +129,7 @@ class StreamTableEnvImpl(
     FieldInfoUtils.validateInputTypeInfo(typeInfo)
     val resultType = new TupleTypeInfo[JTuple2[JBool, T]](Types.BOOLEAN, typeInfo)
     translate[JTuple2[JBool, T]](
-      table,
+      table.getTableOperation,
       queryConfig,
       updatesAsRetraction = true,
       withChangeFlag = true)(resultType)
@@ -138,7 +146,7 @@ class StreamTableEnvImpl(
       typeInfo
     )
     translate[JTuple2[JBool, T]](
-      table,
+      table.getTableOperation,
       queryConfig,
       updatesAsRetraction = true,
       withChangeFlag = true)(resultTypeInfo)

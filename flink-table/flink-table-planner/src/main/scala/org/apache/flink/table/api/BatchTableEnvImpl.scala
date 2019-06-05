@@ -160,7 +160,7 @@ abstract class BatchTableEnvImpl(
     * @param extended Flag to include detailed optimizer estimates.
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
-    val ast = table.asInstanceOf[TableImpl].getRelNode
+    val ast = getRelBuilder.tableOperation(table.getTableOperation).build()
     val optimizedPlan = optimize(ast)
     val dataSet = translate[Row](optimizedPlan, ast.getRowType, queryConfig) (
       new GenericTypeInfo (classOf[Row]))
@@ -247,7 +247,7 @@ abstract class BatchTableEnvImpl(
   protected def translate[A](
       table: Table,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = getRelBuilder.tableOperation(table.getTableOperation).build()
     val dataSetPlan = optimize(relNode)
     translate(dataSetPlan, relNode.getRowType, queryConfig)
   }
