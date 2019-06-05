@@ -35,6 +35,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
+
 /**
  * Logical type of a sequence of fields. A field consists of a field name, field type, and an optional
  * description. The most specific type of a row of a table is a row type. In this case, each column

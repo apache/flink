@@ -51,6 +51,18 @@ public abstract class EncodingUtils {
 		// do not instantiate
 	}
 
+	public static String escapeBackticks(String s) {
+		return s.replace("`", "``");
+	}
+
+	public static String escapeSingleQuotes(String s) {
+		return s.replace("'", "''");
+	}
+
+	public static String escapeIdentifier(String s) {
+		return "`" + escapeBackticks(s) + "`";
+	}
+
 	public static String encodeObjectToString(Serializable obj) {
 		try {
 			final byte[] bytes = InstantiationUtil.serializeObject(obj);

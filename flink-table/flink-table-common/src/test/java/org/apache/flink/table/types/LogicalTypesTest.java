@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.logical.AnyType;
@@ -53,7 +54,6 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
-import org.apache.flink.table.types.logical.UserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -695,7 +695,7 @@ public class LogicalTypesTest {
 
 	private DistinctType createDistinctType(String typeName) {
 		return new DistinctType.Builder(
-				new UserDefinedType.TypeIdentifier("cat", "db", typeName),
+				ObjectIdentifier.of("cat", "db", typeName),
 				new DecimalType(10, 2))
 			.setDescription("Money type desc.")
 			.build();
@@ -707,7 +707,7 @@ public class LogicalTypesTest {
 
 	private StructuredType createHumanType(boolean useDifferentImplementation) {
 		return new StructuredType.Builder(
-				new UserDefinedType.TypeIdentifier("cat", "db", "Human"),
+				ObjectIdentifier.of("cat", "db", "Human"),
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("name", UDT_NAME_TYPE, "Description.")))
 			.setDescription("Human type desc.")
@@ -719,7 +719,7 @@ public class LogicalTypesTest {
 
 	private StructuredType createUserType(boolean isFinal) {
 		return new StructuredType.Builder(
-				new UserDefinedType.TypeIdentifier("cat", "db", "User"),
+				ObjectIdentifier.of("cat", "db", "User"),
 				Collections.singletonList(
 					new StructuredType.StructuredAttribute("setting", UDT_SETTING_TYPE)))
 			.setDescription("User type desc.")

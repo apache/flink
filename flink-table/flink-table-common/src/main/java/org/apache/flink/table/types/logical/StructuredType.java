@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -133,7 +134,7 @@ public final class StructuredType extends UserDefinedType {
 	 */
 	public static class Builder {
 
-		private final TypeIdentifier typeIdentifier;
+		private final ObjectIdentifier objectIdentifier;
 
 		private final List<StructuredAttribute> attributes;
 
@@ -151,8 +152,8 @@ public final class StructuredType extends UserDefinedType {
 
 		private @Nullable Class<?> implementationClass;
 
-		public Builder(TypeIdentifier typeIdentifier, List<StructuredAttribute> attributes) {
-			this.typeIdentifier = Preconditions.checkNotNull(typeIdentifier, "Type identifier must not be null.");
+		public Builder(ObjectIdentifier objectIdentifier, List<StructuredAttribute> attributes) {
+			this.objectIdentifier = Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
 			this.attributes = Collections.unmodifiableList(
 				new ArrayList<>(
 					Preconditions.checkNotNull(attributes, "Attributes must not be null.")));
@@ -200,7 +201,7 @@ public final class StructuredType extends UserDefinedType {
 		public StructuredType build() {
 			return new StructuredType(
 				isNullable,
-				typeIdentifier,
+				objectIdentifier,
 				attributes,
 				isFinal,
 				isInstantiable,
@@ -223,7 +224,7 @@ public final class StructuredType extends UserDefinedType {
 
 	private StructuredType(
 			boolean isNullable,
-			TypeIdentifier typeIdentifier,
+			ObjectIdentifier objectIdentifier,
 			List<StructuredAttribute> attributes,
 			boolean isFinal,
 			boolean isInstantiable,
@@ -234,7 +235,7 @@ public final class StructuredType extends UserDefinedType {
 		super(
 			isNullable,
 			LogicalTypeRoot.STRUCTURED_TYPE,
-			typeIdentifier,
+			objectIdentifier,
 			isFinal,
 			description);
 
@@ -269,7 +270,7 @@ public final class StructuredType extends UserDefinedType {
 	public LogicalType copy(boolean isNullable) {
 		return new StructuredType(
 			isNullable,
-			getTypeIdentifier(),
+			getObjectIdentifier(),
 			attributes.stream().map(StructuredAttribute::copy).collect(Collectors.toList()),
 			isFinal(),
 			isInstantiable,
