@@ -559,6 +559,30 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				+ "\t\t\t\t+ \"equal number of source items \\\\(2\\\\)\""));
 	}
 
+	@Test
+	public void testInsertOverwrite() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		// non-partitioned
+		check("INSERT OVERWRITE myDB.myTbl SELECT * FROM src",
+			"INSERT OVERWRITE `MYDB`.`MYTBL`\n"
+				+ "(SELECT *\n"
+				+ "FROM `SRC`)");
+
+		// partitioned
+		check("INSERT OVERWRITE myTbl PARTITION (p1='v1',p2='v2') SELECT * FROM src",
+			"INSERT OVERWRITE `MYTBL`\n"
+				+ "PARTITION (`P1` = 'v1', `P2` = 'v2')\n"
+				+ "(SELECT *\n"
+				+ "FROM `SRC`)");
+	}
+
+	@Test
+	public void testInvalidUpsertOverwrite() {
+		conformance0 = FlinkSqlConformance.HIVE;
+		checkFails("UPSERT OVERWRITE myDB.myTbl SELECT * FROM src",
+			"OVERWRITE expression is only used with INSERT mode");
+	}
+
 	/** Matcher that invokes the #validate() of the produced SqlNode. **/
 	private static class ValidationMatcher extends BaseMatcher<SqlNode> {
 		private String expectedColumnSql;

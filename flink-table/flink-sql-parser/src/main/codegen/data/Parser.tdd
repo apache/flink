@@ -27,6 +27,7 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
+    "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.type.SqlArrayType",
     "org.apache.flink.sql.parser.type.SqlMapType",
     "org.apache.flink.sql.parser.type.SqlRowType",
@@ -50,6 +51,7 @@
     "FROM_SOURCE",
     "BOUNDED",
     "DELAY",
+    "OVERWRITE",
     "JSON_PRETTY",
     "JSON_TYPE",
     "JSON_DEPTH"
@@ -371,7 +373,8 @@
     "ASCENDING",
     "FROM_SOURCE",
     "BOUNDED",
-    "DELAY"
+    "DELAY",
+    "OVERWRITE"
   ]
 
   # List of methods for parsing custom SQL statements.

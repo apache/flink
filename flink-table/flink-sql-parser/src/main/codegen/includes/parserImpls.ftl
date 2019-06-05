@@ -243,6 +243,8 @@ SqlNode RichSqlInsert() :
 {
     final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
     final SqlNodeList keywordList;
+    final List<SqlLiteral> extendedKeywords = new ArrayList<SqlLiteral>();
+    final SqlNodeList extendedKeywordList;
     SqlNode table;
     SqlNodeList extendList = null;
     SqlNode source;
@@ -256,11 +258,24 @@ SqlNode RichSqlInsert() :
     |
         <UPSERT> { keywords.add(SqlInsertKeyword.UPSERT.symbol(getPos())); }
     )
+    (
+        <INTO>
+    |
+        <OVERWRITE> {
+            if (!((FlinkSqlConformance) this.conformance).allowInsertOverwrite()) {
+                throw new ParseException("OVERWRITE expression is only allowed for HIVE dialect");
+            } else if (RichSqlInsert.isUpsert(keywords)) {
+                throw new ParseException("OVERWRITE expression is only used with INSERT mode");
+            }
+            extendedKeywords.add(RichSqlInsertKeyword.OVERWRITE.symbol(getPos()));
+        }
+    )
     { s = span(); }
     SqlInsertKeywords(keywords) {
         keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
+        extendedKeywordList = new SqlNodeList(extendedKeywords, s.addAll(extendedKeywords).pos());
     }
-    <INTO> table = CompoundIdentifier()
+    table = CompoundIdentifier()
     [
         LOOKAHEAD(5)
         [ <EXTEND> ]
@@ -288,7 +303,7 @@ SqlNode RichSqlInsert() :
         }
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
-        return new RichSqlInsert(s.end(source), keywordList, table, source,
+        return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
             columnList, partitionList);
     }
 }
