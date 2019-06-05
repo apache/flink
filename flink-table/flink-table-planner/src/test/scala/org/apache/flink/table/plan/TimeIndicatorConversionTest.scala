@@ -110,9 +110,9 @@ class TimeIndicatorConversionTest extends TableTestBase {
           term("select", "CAST(rowtime) AS rowtime", "long")
         ),
         term("groupBy", "rowtime"),
-        term("select", "rowtime", "COUNT(long) AS TMP_0")
+        term("select", "rowtime", "COUNT(long) AS EXPR$0")
       ),
-      term("select", "TMP_0")
+      term("select", "EXPR$0")
     )
 
     util.verifyTable(result, expected)
@@ -137,9 +137,9 @@ class TimeIndicatorConversionTest extends TableTestBase {
           term("select", "CAST(rowtime) AS rowtime", "long")
         ),
         term("groupBy", "long"),
-        term("select", "long", "MIN(rowtime) AS TMP_0")
+        term("select", "long", "MIN(rowtime) AS EXPR$0")
       ),
-      term("select", "TMP_0")
+      term("select", "EXPR$0")
     )
 
     util.verifyTable(result, expected)
@@ -189,9 +189,9 @@ class TimeIndicatorConversionTest extends TableTestBase {
         streamTableNode(t),
         term("groupBy", "long"),
         term("window", "TumblingGroupWindow('w, 'rowtime, 100.millis)"),
-        term("select", "long", "SUM(int) AS TMP_1", "end('w) AS TMP_0")
+        term("select", "long", "SUM(int) AS EXPR$1", "end('w) AS EXPR$0")
       ),
-      term("select", "TMP_0 AS rowtime", "long", "TMP_1")
+      term("select", "EXPR$0 AS rowtime", "long", "EXPR$1")
     )
 
     util.verifyTable(result, expected)
@@ -247,15 +247,15 @@ class TimeIndicatorConversionTest extends TableTestBase {
             streamTableNode(t),
             term("groupBy", "long"),
             term("window", "TumblingGroupWindow('w, 'rowtime, 100.millis)"),
-            term("select", "long", "SUM(int) AS TMP_1", "rowtime('w) AS TMP_0")
+            term("select", "long", "SUM(int) AS EXPR$1", "rowtime('w) AS EXPR$0")
           ),
-          term("select", "TMP_0 AS newrowtime", "long", "TMP_1 AS int")
+          term("select", "EXPR$0 AS newrowtime", "long", "EXPR$1 AS int")
         ),
         term("groupBy", "long"),
         term("window", "TumblingGroupWindow('w2, 'newrowtime, 1000.millis)"),
-        term("select", "long", "SUM(int) AS TMP_3", "end('w2) AS TMP_2")
+        term("select", "long", "SUM(int) AS EXPR$1", "end('w2) AS EXPR$0")
       ),
-      term("select", "TMP_2", "long", "TMP_3")
+      term("select", "EXPR$0", "long", "EXPR$1")
     )
 
     util.verifyTable(result, expected)

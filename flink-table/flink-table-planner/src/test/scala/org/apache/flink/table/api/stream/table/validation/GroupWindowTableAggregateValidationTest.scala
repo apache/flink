@@ -49,7 +49,7 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   def testInvalidRowTimeRef(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Cannot resolve field [int], input field list:[string, TMP_0].")
+      "Cannot resolve field [int], input field list:[string, EXPR$0].")
 
     table
       .window(Tumble over 5.milli on 'rowtime as 'w)

@@ -114,9 +114,9 @@ class TableSourceTest extends TableTestBase {
           ),
           term("groupBy", "name"),
           term("window", "TumblingGroupWindow('w, 'rowtime, 600000.millis)"),
-          term("select", "name", "AVG(val) AS TMP_1", "end('w) AS TMP_0")
+          term("select", "name", "AVG(val) AS EXPR$1", "end('w) AS EXPR$0")
         ),
-        term("select", "name", "TMP_0", "TMP_1")
+        term("select", "name", "EXPR$0", "EXPR$1")
       )
     util.verifyTable(t, expected)
   }

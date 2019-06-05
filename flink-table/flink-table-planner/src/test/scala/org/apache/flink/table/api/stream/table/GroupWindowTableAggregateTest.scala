@@ -58,14 +58,14 @@ class GroupWindowTableAggregateTest extends TableTestBase {
             ),
             term("groupBy", "c"),
             term("window", "TumblingGroupWindow('w1, 'e, 50.millis)"),
-            term("select", "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "proctime('w1) AS TMP_0")
+            term("select", "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "proctime('w1) AS EXPR$0")
           ),
-          term("select", "TMP_0 AS proctime", "f0")
+          term("select", "EXPR$0 AS proctime", "f0")
         ),
         term("window", "SlidingGroupWindow('w2, 'proctime, 20.millis, 10.millis)"),
-        term("select", "EmptyTableAggFunc(f0) AS (f0, f1)", "start('w2) AS TMP_1")
+        term("select", "EmptyTableAggFunc(f0) AS (f0, f1)", "start('w2) AS EXPR$0")
       ),
-      term("select", "TMP_1", "f1")
+      term("select", "EXPR$0", "f1")
     )
     util.verifyTable(windowedTable, expected)
   }
@@ -91,9 +91,9 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           ),
           term("groupBy", "bb"),
           term("window", "TumblingGroupWindow('w1, 'e, 50.millis)"),
-          term("select", "bb", "EmptyTableAggFunc(a, b) AS (f0, f1)", "proctime('w1) AS TMP_0")
+          term("select", "bb", "EmptyTableAggFunc(a, b) AS (f0, f1)", "proctime('w1) AS EXPR$0")
         ),
-        term("select", "PROCTIME(TMP_0) AS proctime", "bb", "+(f0, 1) AS _c2", "f1 AS y")
+        term("select", "PROCTIME(EXPR$0) AS proctime", "bb", "+(f0, 1) AS _c2", "f1 AS y")
       )
     util.verifyTable(windowedTable, expected)
   }
@@ -166,9 +166,9 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           ),
           term("groupBy", "c"),
           term("window", "SlidingGroupWindow('w, 'e, 50.millis, 50.millis)"),
-          term("select",  "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "proctime('w) AS TMP_0")
+          term("select",  "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "proctime('w) AS EXPR$0")
         ),
-        term("select", "PROCTIME(TMP_0) AS proctime", "c", "f0", "+(f1, 1) AS _c3")
+        term("select", "PROCTIME(EXPR$0) AS proctime", "c", "f0", "+(f1, 1) AS _c3")
       )
 
     util.verifyTable(windowedTable, expected)
@@ -452,9 +452,9 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           term("groupBy", "c"),
           term("window", "TumblingGroupWindow('w, 'd, 5.millis)"),
           term("select",
-            "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "start('w) AS TMP_0", "end('w) AS TMP_1")
+            "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "start('w) AS EXPR$0", "end('w) AS EXPR$1")
         ),
-        term("select", "f0", "+(f1, 1) AS _c1", "TMP_0", "TMP_1")
+        term("select", "f0", "+(f1, 1) AS _c1", "EXPR$0", "EXPR$1")
       )
 
     util.verifyTable(windowedTable, expected)
@@ -481,9 +481,9 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           term("groupBy", "c"),
           term("window", "SlidingGroupWindow('w, 'd, 10.millis, 5.millis)"),
           term("select",
-            "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "start('w) AS TMP_0", "end('w) AS TMP_1")
+            "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "start('w) AS EXPR$0", "end('w) AS EXPR$1")
         ),
-        term("select", "f0", "+(f1, 1) AS _c1", "TMP_0", "TMP_1")
+        term("select", "f0", "+(f1, 1) AS _c1", "EXPR$0", "EXPR$1")
       )
 
     util.verifyTable(windowedTable, expected)
@@ -510,9 +510,9 @@ class GroupWindowTableAggregateTest extends TableTestBase {
           term("groupBy", "c"),
           term("window", "SessionGroupWindow('w, 'd, 3.millis)"),
           term("select",
-            "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "end('w) AS TMP_0", "start('w) AS TMP_1")
+            "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "end('w) AS EXPR$0", "start('w) AS EXPR$1")
         ),
-        term("select", "TMP_0 AS we1", "f0", "+(f1, 1) AS _c2", "TMP_1", "TMP_0")
+        term("select", "EXPR$0 AS we1", "f0", "+(f1, 1) AS _c2", "EXPR$1", "EXPR$0")
       )
 
     util.verifyTable(windowedTable, expected)

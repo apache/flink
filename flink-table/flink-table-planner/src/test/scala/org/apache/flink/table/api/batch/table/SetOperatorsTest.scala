@@ -170,9 +170,9 @@ class SetOperatorsTest extends TableTestBase {
           term("union", "a", "b", "c")
         ),
         term("groupBy", "b"),
-        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+        term("select", "b", "SUM(a) AS EXPR$0", "COUNT(c) AS EXPR$1")
       ),
-      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+      term("select", "EXPR$0 AS a", "b", "EXPR$1 AS c")
     )
 
     util.verifyTable(result, expected)
@@ -210,9 +210,9 @@ class SetOperatorsTest extends TableTestBase {
           term("minus", "a", "b", "c")
         ),
         term("groupBy", "b"),
-        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+        term("select", "b", "SUM(a) AS EXPR$0", "COUNT(c) AS EXPR$1")
       ),
-      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+      term("select", "EXPR$0 AS a", "b", "EXPR$1 AS c")
     )
 
     util.verifyTable(result, expected)

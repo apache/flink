@@ -219,7 +219,7 @@ class ColumnFunctionsTest extends TableTestBase {
           term("select", "a", "b", "c")
         ),
         term("groupBy", "a", "b"),
-        term("select", "a", "b", "COUNT(c) AS TMP_0")
+        term("select", "a", "b", "COUNT(c) AS EXPR$0")
       )
 
     verifyAll(tab1, tab2, expected)
@@ -251,9 +251,9 @@ class ColumnFunctionsTest extends TableTestBase {
           ),
           term("groupBy", "a", "b"),
           term("window", "SlidingGroupWindow('w, 'b, 3.millis, 10.millis)"),
-          term("select", "a", "b", "COUNT(c) AS TMP_0")
+          term("select", "a", "b", "COUNT(c) AS EXPR$0")
         ),
-        term("select", "a", "b", "TMP_0 AS c")
+        term("select", "a", "b", "EXPR$0 AS c")
       )
 
     verifyAll(tab1, tab2, expected)
