@@ -180,6 +180,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
 
+	private final List<Task> submittedTasks;
+
 	// --------- job manager connections -----------
 
 	private final Map<ResourceID, JobManagerConnection> jobManagerConnections;
@@ -255,6 +257,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.kvStateService = taskExecutorServices.getKvStateService();
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
+		this.submittedTasks = new ArrayList<>();
 		this.jobManagerConnections = new HashMap<>(4);
 
 		this.hardwareDescription = HardwareDescription.extractFromSystem(
@@ -310,8 +313,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void handleStartTaskExecutorServicesException(Exception e) throws Exception {
 		try {
-			stopServicesBeforeTasksCompletion();
-			stopServicesAfterTasksCompletion();
+			stopTaskExecutorServices();
 		} catch (Exception inner) {
 			e.addSuppressed(inner);
 		}
@@ -332,29 +334,32 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerConnection.close();
 		}
 
-		List<CompletableFuture<ExecutionState>> taskCompletionFutures = new ArrayList<>();
+		FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
 		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
 			try {
-				FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
-				taskCompletionFutures.addAll(failTasks(jobManagerConnection.getJobID(), cause));
 				disassociateFromJobManager(jobManagerConnection, cause);
 			} catch (Throwable t) {
 				throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 			}
 		}
 
-		try {
-			stopServicesBeforeTasksCompletion();
-		} catch (Exception e) {
-			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
-		}
+		jobManagerHeartbeatManager.stop();
+
+		resourceManagerHeartbeatManager.stop();
+
+		List<CompletableFuture<ExecutionState>> taskCompletionFutures = failSubmittedTasks();
 
 		if (throwable != null) {
+			try {
+				stopTaskExecutorServices();
+			} catch (Exception e) {
+				throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
+			}
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
 			return FutureUtils.waitForAll(taskCompletionFutures).thenRun(() -> {
 				try {
-					stopServicesAfterTasksCompletion();
+					stopTaskExecutorServices();
 				} catch (Exception e) {
 					throw new FlinkRuntimeException("Error while shutting the TaskExecutor down.", e);
 				}
@@ -363,22 +368,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private List<CompletableFuture<ExecutionState>> failTasks(JobID jobID, Throwable cause) {
-		List<CompletableFuture<ExecutionState>> taskCompletionFutures = new ArrayList<>();
-		Iterator<Task> tasks = taskSlotTable.getTasks(jobID);
-		while (tasks.hasNext()) {
+	private List<CompletableFuture<ExecutionState>> failSubmittedTasks() {
+		List<CompletableFuture<ExecutionState>> taskCompletionFutures = new ArrayList<>(submittedTasks.size());
+		FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
+		for (Task task : submittedTasks) {
 			try {
-				Task task = tasks.next();
 				task.failExternally(cause);
 				taskCompletionFutures.add(task.getTerminationFuture());
 			} catch (Throwable t) {
 				taskCompletionFutures.add(FutureUtils.completedExceptionally(t));
 			}
-        }
+		}
         return taskCompletionFutures;
 	}
 
-	private void stopServicesBeforeTasksCompletion() throws Exception {
+	private void stopTaskExecutorServices() throws Exception {
 		Exception exception = null;
 
 		try {
@@ -394,12 +398,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
-
-		ExceptionUtils.tryRethrowException(exception);
-	}
-
-	private void stopServicesAfterTasksCompletion() throws Exception {
-		Exception exception = null;
 
 		try {
 			taskExecutorServices.shutDown();
@@ -618,6 +616,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 
 			if (taskAdded) {
+				submittedTasks.add(task);
 				task.startTaskThread();
 
 				return CompletableFuture.completedFuture(Acknowledge.get());

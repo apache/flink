@@ -267,7 +267,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	private long taskCancellationTimeout;
 
 	/** Future which is completed once the Task#run method is completed */
-	private CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
+	private final CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
 
 	/**
 	 * This class loader should be set as the context class loader of the threads in
