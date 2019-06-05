@@ -36,7 +36,7 @@ class OverWindowValidationTest extends TableTestBase {
     */
   def optimizeTable(table: Table, updatesAsRetraction: Boolean): Unit = {
     streamUtil.tableEnv
-      .optimize(table.asInstanceOf[TableImpl].getRelNode, updatesAsRetraction = true)
+      .optimize(streamUtil.toRelNode(table), updatesAsRetraction = true)
   }
 
   /**

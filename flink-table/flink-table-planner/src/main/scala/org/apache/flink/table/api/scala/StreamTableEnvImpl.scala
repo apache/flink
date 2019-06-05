@@ -72,7 +72,8 @@ class StreamTableEnvImpl(
     queryConfig: StreamQueryConfig): DataStream[T] = {
     val returnType = createTypeInformation[T]
     asScalaStream(translate(
-      table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(returnType))
+      table.getTableOperation, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(
+      returnType))
   }
 
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
@@ -84,7 +85,11 @@ class StreamTableEnvImpl(
       queryConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
     asScalaStream(
-      translate(table, queryConfig, updatesAsRetraction = true, withChangeFlag = true)(returnType))
+      translate(
+        table.getTableOperation,
+        queryConfig,
+        updatesAsRetraction = true,
+        withChangeFlag = true)(returnType))
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {

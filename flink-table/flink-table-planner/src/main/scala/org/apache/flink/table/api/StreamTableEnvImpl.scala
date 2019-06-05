@@ -40,7 +40,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.operations.DataStreamTableOperation
+import org.apache.flink.table.operations.{DataStreamTableOperation, TableOperation}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -51,8 +51,8 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
-import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, isReferenceByPosition}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, isReferenceByPosition}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
 import _root_.scala.collection.JavaConverters._
@@ -128,7 +128,8 @@ abstract class StreamTableEnvImpl(
       sink: TableSink[T],
       queryConfig: QueryConfig): Unit = {
 
-    val table = inputTable.asInstanceOf[TableImpl]
+    val tableOperation = inputTable.getTableOperation
+    val relNode = getRelBuilder.tableOperation(tableOperation).build()
     // Check query configuration
     val streamQueryConfig = queryConfig match {
       case streamConfig: StreamQueryConfig => streamConfig
@@ -145,7 +146,7 @@ abstract class StreamTableEnvImpl(
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
-            table,
+            tableOperation,
             streamQueryConfig,
             updatesAsRetraction = true,
             withChangeFlag = true)(outputType)
@@ -155,7 +156,7 @@ abstract class StreamTableEnvImpl(
 
       case upsertSink: UpsertStreamTableSink[_] =>
         // optimize plan
-        val optimizedPlan = optimize(table.getRelNode, updatesAsRetraction = false)
+        val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
         // check for append only table
         val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
         upsertSink.setIsAppendOnly(isAppendOnlyTable)
@@ -170,7 +171,7 @@ abstract class StreamTableEnvImpl(
         }
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
-        val resultType = getResultType(table.getRelNode, optimizedPlan)
+        val resultType = getResultType(relNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
@@ -184,7 +185,7 @@ abstract class StreamTableEnvImpl(
 
       case appendSink: AppendStreamTableSink[_] =>
         // optimize plan
-        val optimizedPlan = optimize(table.getRelNode, updatesAsRetraction = false)
+        val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
         // verify table is an insert-only (append-only) table
         if (!UpdatingPlanChecker.isAppendOnly(optimizedPlan)) {
           throw new TableException(
@@ -192,7 +193,7 @@ abstract class StreamTableEnvImpl(
         }
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
-        val resultType = getResultType(table.getRelNode, optimizedPlan)
+        val resultType = getResultType(relNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
@@ -635,7 +636,7 @@ abstract class StreamTableEnvImpl(
     * The transformation involves optimizing the relational expression tree as defined by
     * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
     *
-    * @param table The root node of the relational expression tree.
+    * @param tableOperation The root node of the relational expression tree.
     * @param queryConfig The configuration for the query to generate.
     * @param updatesAsRetraction Set to true to encode updates as retraction messages.
     * @param withChangeFlag Set to true to emit records with change flags.
@@ -644,11 +645,11 @@ abstract class StreamTableEnvImpl(
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](
-      table: Table,
+      tableOperation: TableOperation,
       queryConfig: StreamQueryConfig,
       updatesAsRetraction: Boolean,
       withChangeFlag: Boolean)(implicit tpe: TypeInformation[A]): DataStream[A] = {
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = getRelBuilder.tableOperation(tableOperation).build()
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
 
     val rowType = getResultType(relNode, dataStreamPlan)
@@ -783,7 +784,7 @@ abstract class StreamTableEnvImpl(
   }
 
   def explain(table: Table): String = {
-    val ast = table.asInstanceOf[TableImpl].getRelNode
+    val ast = getRelBuilder.tableOperation(table.getTableOperation).build()
     val optimizedPlan = optimize(ast, updatesAsRetraction = false)
     val dataStream = translateToCRow(optimizedPlan, queryConfig)
 

@@ -19,7 +19,6 @@ package org.apache.flink.table.api
 
 import _root_.java.util.Collections.emptyList
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.JoinTableOperation.JoinType
@@ -52,8 +51,6 @@ class TableImpl(
   private lazy val tableSchema: TableSchema = operationTree.getTableSchema
 
   var tableName: String = _
-
-  def getRelNode: RelNode = tableEnv.getRelBuilder.tableOperation(operationTree).build()
 
   /**
     * Returns the [[TableEnvironment]] of this table.
