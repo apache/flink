@@ -180,7 +180,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	 */
 	@Test
 	public void testConcurrentRequestAndReleaseMemory() throws Exception {
-		final ExecutorService executor = Executors.newSingleThreadExecutor();
+		final ExecutorService executor = Executors.newFixedThreadPool(2);
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		try {
 			final CountDownLatch blockLatch = new CountDownLatch(1);
@@ -219,7 +219,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			});
 
 			final CompletableFuture<?> firstCallFuture = partition.getFirstCallFuture();
-			firstCallFuture.thenRun(() -> {
+			firstCallFuture.thenRunAsync(() -> {
 				try {
 					// There are no available buffers in pool, so trigger release memory in SpillableSubpartition.
 					// Occupies the lock in LocalBufferPool, and trying to get the lock in SpillableSubpartition.
@@ -229,7 +229,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 				} catch (IOException | InterruptedException ex) {
 					fail("Should not throw any exceptions!");
 				}
-			});
+			}, executor);
 
 			future.get();
 		} finally {
