@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelTrait
+import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.{Programs, RuleSet}
 
@@ -51,8 +52,11 @@ class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgra
     }
 
     val targetTraits = root.getTraitSet.plusAll(requiredOutputTraits.get).simplify()
-    // reuse VolcanoPlanner instance defined in context
-    val planner = Preconditions.checkNotNull(context.getVolcanoPlanner)
+    // VolcanoPlanner limits that the planer a RelNode tree belongs to and
+    // the VolcanoPlanner used to optimize the RelNode tree should be same instance.
+    // see: VolcanoPlanner#registerImpl
+    // here, use the planner in cluster directly
+    val planner = root.getCluster.getPlanner.asInstanceOf[VolcanoPlanner]
     val optProgram = Programs.ofRules(rules)
 
     try {

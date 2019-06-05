@@ -24,7 +24,6 @@ import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, Flink
 import org.apache.flink.table.plan.schema.IntermediateRelTable
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelNode
 
 /**
@@ -35,7 +34,7 @@ class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv)
+    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv.getConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks
@@ -82,8 +81,6 @@ class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
 
     programs.optimize(relNode, new BatchOptimizeContext {
       override def getTableConfig: TableConfig = config
-
-      override def getVolcanoPlanner: VolcanoPlanner = tEnv.getPlanner.asInstanceOf[VolcanoPlanner]
     })
   }
 
