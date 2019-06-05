@@ -71,8 +71,12 @@ public interface KubeClient extends AutoCloseable {
 
 	/**
 	 *  For a FlinkService, get its port mappings.
-	 * @param service
 	 */
 	Map<ConfigOption<Integer>, Endpoint> extractEndpoints(FlinkService service);
+
+	/**
+	 * Create task manager pod.
+	 * */
+	String createTaskManagerPod(TaskManagerPodParameter parameter);
 
 }

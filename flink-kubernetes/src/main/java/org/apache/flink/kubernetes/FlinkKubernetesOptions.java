@@ -27,11 +27,42 @@ public class FlinkKubernetesOptions {
 
 	private Configuration configuration;
 
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+	private String clusterId;
+
+	private String imageName;
+
+	private String serviceUUID;
 
 	public FlinkKubernetesOptions(Configuration configuration) {
 		this.configuration = configuration;
 	}
+
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	public String getServiceUUID() {
+		return serviceUUID;
+	}
+
+	public void setServiceUUID(String serviceUUID) {
+		this.serviceUUID = serviceUUID;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
+
+	public String getImageName(){
+		return this.imageName;
+	}
+
+	public void setImageName(String imageName) {
+		this.imageName = imageName;
+	}
+
 }
