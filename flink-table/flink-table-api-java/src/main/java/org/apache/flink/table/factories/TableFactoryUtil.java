@@ -48,21 +48,27 @@ public class TableFactoryUtil {
 	public static <T> TableSource<T> findAndCreateTableSource(Descriptor descriptor) {
 		Map<String, String> properties = descriptor.toProperties();
 
-		TableSource tableSource;
+		return findAndCreateTableSource(properties);
+	}
+
+	/**
+	 * Returns a table source matching the properties.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> TableSource<T> findAndCreateTableSource(Map<String, String> properties) {
 		try {
-			tableSource = TableFactoryService
+			return TableFactoryService
 				.find(TableSourceFactory.class, properties)
 				.createTableSource(properties);
 		} catch (Throwable t) {
 			throw new TableException("findAndCreateTableSource failed.", t);
 		}
-
-		return tableSource;
 	}
 
 	/**
 	 * Returns a table sink matching the descriptor.
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> TableSink<T> findAndCreateTableSink(Descriptor descriptor) {
 		Map<String, String> properties = descriptor.toProperties();
 

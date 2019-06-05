@@ -62,7 +62,10 @@ public class TestExternalTableSourceFactory implements TableSourceFactory<Row> {
 		return new TestExternalTableSource();
 	}
 
-	private static class TestExternalTableSource implements StreamTableSource<Row>, BatchTableSource<Row> {
+	/**
+	 * Dummy table source for tests.
+	 */
+	public static class TestExternalTableSource implements StreamTableSource<Row>, BatchTableSource<Row> {
 		private final TableSchema tableSchema = new TableSchema(new String[0], new TypeInformation[0]);
 
 		@Override
