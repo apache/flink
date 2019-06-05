@@ -35,17 +35,23 @@ public class HiveTypeUtil {
 	}
 
 	/**
-	 * Convert Flink data type to Hive data type.
+	 * Convert Flink data type to Hive data type name.
 	 * TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
 	 * 		[FLINK-12386] Support complete mapping between Flink and Hive data types
 	 *
 	 * @param type a Flink data type
-	 * @return the corresponding Hive data type
+	 * @return the corresponding Hive data type name
 	 */
 	public static String toHiveTypeName(DataType type) {
 		return toHiveTypeInfo(type).getTypeName();
 	}
 
+	/**
+	 * Convert Flink data type to Hive data type.
+	 *
+	 * @param type a Flink data type
+	 * @return the corresponding Hive data type
+	 */
 	public static TypeInfo toHiveTypeInfo(DataType type) {
 		if (type.equals(DataTypes.BOOLEAN())) {
 			return TypeInfoFactory.booleanTypeInfo;
