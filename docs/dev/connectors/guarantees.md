@@ -104,8 +104,8 @@ state updates) of Flink coupled with bundled sinks:
     </tr>
     <tr>
         <td>Kafka producer</td>
-        <td>at least once</td>
-        <td></td>
+        <td>at least once / exactly once</td>
+        <td>exactly once with transactional producers (v 0.11+)</td>
     </tr>
     <tr>
         <td>Cassandra sink</td>
