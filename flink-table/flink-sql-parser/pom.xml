@@ -241,6 +241,7 @@ under the License.
 				</executions>
 			</plugin>
 			<plugin>
+				<!-- This must be run AFTER the fmpp-maven-plugin -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javacc-maven-plugin</artifactId>
 				<version>2.4</version>
