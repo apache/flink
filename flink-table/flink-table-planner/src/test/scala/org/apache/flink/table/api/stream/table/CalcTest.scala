@@ -52,7 +52,7 @@ class CalcTest extends TableTestBase {
           term("select", "a", "rowtime", "UPPER(c) AS $f5")
         ),
         term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
-        term("select", "COUNT($f5) AS TMP_0", "SUM(a) AS TMP_1")
+        term("select", "COUNT($f5) AS EXPR$0", "SUM(a) AS EXPR$1")
       )
 
     util.verifyTable(resultTable, expected)
@@ -79,9 +79,9 @@ class CalcTest extends TableTestBase {
           ),
           term("groupBy", "b"),
           term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
-          term("select", "b", "COUNT($f5) AS TMP_0", "SUM(a) AS TMP_1")
+          term("select", "b", "COUNT($f5) AS EXPR$0", "SUM(a) AS EXPR$1")
         ),
-        term("select", "TMP_0", "TMP_1", "b")
+        term("select", "EXPR$0", "EXPR$1", "b")
     )
 
     util.verifyTable(resultTable, expected)

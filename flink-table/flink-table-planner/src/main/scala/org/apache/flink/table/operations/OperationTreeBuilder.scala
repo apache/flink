@@ -39,7 +39,6 @@ import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
-import _root_.java.util.function.Supplier
 
 /**
   * Builder for [[[Operation]] tree.
@@ -119,11 +118,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
     val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
     val expressionsWithResolvedCalls = projectList.map(_.accept(callResolver)).asJava
-    val extracted = extractAggregationsAndProperties(
-      expressionsWithResolvedCalls,
-      new Supplier[String] {
-        override def get(): String = tableEnv.createUniqueAttributeName()
-      })
+    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
     if (!extracted.getWindowProperties.isEmpty) {
       throw new ValidationException("Window properties can only be used on windowed tables.")
     }

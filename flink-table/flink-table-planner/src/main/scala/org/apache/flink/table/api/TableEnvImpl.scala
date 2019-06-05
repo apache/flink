@@ -741,11 +741,6 @@ abstract class TableEnvImpl(
       .flatMap(t => JavaScalaConversionUtil.toScala(t.getCatalogTable))
   }
 
-  /** Returns a unique temporary attribute name. */
-  private[flink] def createUniqueAttributeName(): String = {
-    "TMP_" + attrNameCntr.getAndIncrement()
-  }
-
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
     val currentCatalogName = catalogManager.getCurrentCatalog

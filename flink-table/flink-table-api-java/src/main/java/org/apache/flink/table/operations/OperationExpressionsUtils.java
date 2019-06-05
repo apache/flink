@@ -32,7 +32,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
@@ -87,14 +86,11 @@ public class OperationExpressionsUtils {
 	 * from the given expressions.
 	 *
 	 * @param expressions a list of expressions to extract
-	 * @param uniqueAttributeGenerator a supplier that every time returns a unique attribute
 	 * @return a Tuple2, the first field contains the extracted and deduplicated aggregations,
 	 * and the second field contains the extracted and deduplicated window properties.
 	 */
-	public static CategorizedExpressions extractAggregationsAndProperties(
-			List<Expression> expressions,
-			Supplier<String> uniqueAttributeGenerator) {
-		AggregationAndPropertiesSplitter splitter = new AggregationAndPropertiesSplitter(uniqueAttributeGenerator);
+	public static CategorizedExpressions extractAggregationsAndProperties(List<Expression> expressions) {
+		AggregationAndPropertiesSplitter splitter = new AggregationAndPropertiesSplitter();
 		expressions.forEach(expr -> expr.accept(splitter));
 
 		List<Expression> projections = expressions.stream()
@@ -149,13 +145,9 @@ public class OperationExpressionsUtils {
 
 	private static class AggregationAndPropertiesSplitter extends ApiExpressionDefaultVisitor<Void> {
 
+		private int uniqueId = 0;
 		private final Map<Expression, String> aggregates = new LinkedHashMap<>();
 		private final Map<Expression, String> properties = new LinkedHashMap<>();
-		private final Supplier<String> uniqueAttributeGenerator;
-
-		private AggregationAndPropertiesSplitter(Supplier<String> uniqueAttributeGenerator) {
-			this.uniqueAttributeGenerator = uniqueAttributeGenerator;
-		}
 
 		@Override
 		public Void visitLookupCall(LookupCallExpression unresolvedCall) {
@@ -166,9 +158,9 @@ public class OperationExpressionsUtils {
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
 			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
-				aggregates.computeIfAbsent(call, expr -> uniqueAttributeGenerator.get());
+				aggregates.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);
 			} else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
-				properties.computeIfAbsent(call, expr -> uniqueAttributeGenerator.get());
+				properties.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);
 			} else {
 				call.getChildren().forEach(c -> c.accept(this));
 			}

@@ -143,7 +143,7 @@ class CalcTest extends TableTestBase {
         batchTableNode(sourceTable),
         term("select", "a", "b")
       ),
-      term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
+      term("select", "SUM(a) AS EXPR$0", "MAX(b) AS EXPR$1")
     )
 
     util.verifyTable(resultTable, expected)
@@ -226,9 +226,9 @@ class CalcTest extends TableTestBase {
             term("select", "a", "c")
           ),
           term("groupBy", "c"),
-          term("select", "c", "SUM(a) AS TMP_0")
+          term("select", "c", "SUM(a) AS EXPR$0")
         ),
-        term("select", "TMP_0")
+        term("select", "EXPR$0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -253,9 +253,9 @@ class CalcTest extends TableTestBase {
             term("select", "a", "UPPER(c) AS k")
           ),
           term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("select", "k", "SUM(a) AS EXPR$0")
         ),
-        term("select", "TMP_0")
+        term("select", "EXPR$0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -280,9 +280,9 @@ class CalcTest extends TableTestBase {
             term("select", "a", "MyHashCode$(c) AS k")
           ),
           term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("select", "k", "SUM(a) AS EXPR$0")
         ),
-        term("select", "TMP_0")
+        term("select", "EXPR$0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -303,10 +303,10 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           batchTableNode(sourceTable),
           term("groupBy", "word"),
-          term("select", "word", "SUM(frequency) AS TMP_0")
+          term("select", "word", "SUM(frequency) AS EXPR$0")
         ),
-        term("select", "word, TMP_0 AS frequency"),
-        term("where", "=(TMP_0, 2)")
+        term("select", "word, EXPR$0 AS frequency"),
+        term("where", "=(EXPR$0, 2)")
       )
 
     util.verifyTable(resultTable, expected)
