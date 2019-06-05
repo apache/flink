@@ -19,9 +19,7 @@
 package org.apache.flink.table.calcite
 
 import java.util
-
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
@@ -99,12 +97,14 @@ class FlinkPlannerImpl(
   }
 
   def validate(sqlNode: SqlNode): SqlNode = {
+    val catalogReader = catalogReaderSupplier.apply(false)
     validator = new FlinkCalciteSqlValidator(
       operatorTable,
-      catalogReaderSupplier.apply(false),
+      catalogReader,
       typeFactory)
     validator.setIdentifierExpansion(true)
     try {
+      sqlNode.accept(new PreValidateReWriter(catalogReader, typeFactory))
       validator.validate(sqlNode)
     }
     catch {

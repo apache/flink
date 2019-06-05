@@ -236,6 +236,89 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
     }
 }
 
+/**
+* Parses an INSERT statement.
+*/
+SqlNode RichSqlInsert() :
+{
+    final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
+    final SqlNodeList keywordList;
+    SqlNode table;
+    SqlNodeList extendList = null;
+    SqlNode source;
+    final SqlNodeList partitionList = new SqlNodeList(getPos());
+    SqlNodeList columnList = null;
+    final Span s;
+}
+{
+    (
+        <INSERT>
+    |
+        <UPSERT> { keywords.add(SqlInsertKeyword.UPSERT.symbol(getPos())); }
+    )
+    { s = span(); }
+    SqlInsertKeywords(keywords) {
+        keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
+    }
+    <INTO> table = CompoundIdentifier()
+    [
+        LOOKAHEAD(5)
+        [ <EXTEND> ]
+        extendList = ExtendList() {
+            table = extend(table, extendList);
+        }
+    ]
+    [
+        LOOKAHEAD(2)
+        { final Pair<SqlNodeList, SqlNodeList> p; }
+        p = ParenthesizedCompoundIdentifierList() {
+            if (p.right.size() > 0) {
+                table = extend(table, p.right);
+            }
+            if (p.left.size() > 0) {
+                columnList = p.left;
+            }
+        }
+    ]
+    [
+        <PARTITION> PartitionSpecCommaList(partitionList) {
+            if (!((FlinkSqlConformance) this.conformance).allowInsertIntoPartition()) {
+                throw new ParseException("PARTITION expression is only allowed for HIVE dialect");
+            }
+        }
+    ]
+    source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
+        return new RichSqlInsert(s.end(source), keywordList, table, source,
+            columnList, partitionList);
+    }
+}
+
+/**
+* Parses a partition specifications statement,
+* e.g. insert into tbl1 partition(col1='val1', col2='val2') select col3 from tbl.
+*/
+void PartitionSpecCommaList(SqlNodeList list) :
+{
+    SqlIdentifier key;
+    SqlNode value;
+    SqlParserPos pos;
+}
+{
+    <LPAREN>
+    key = SimpleIdentifier()
+    { pos = getPos(); }
+    <EQ> value = Literal() {
+        list.add(new SqlProperty(key, value, pos));
+    }
+    (
+        <COMMA> key = SimpleIdentifier() { pos = getPos(); }
+        <EQ> value = Literal() {
+            list.add(new SqlProperty(key, value, pos));
+        }
+    )*
+    <RPAREN>
+}
+
 SqlIdentifier SqlArrayType() :
 {
     SqlParserPos pos;

@@ -34,7 +34,8 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Properties of a DDL, consist of key value pairs.
+ * Properties of a DDL, a key-value pair
+ * with key as component identifier and value as string literal.
  */
 public class SqlProperty extends SqlCall {
 

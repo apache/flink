@@ -35,7 +35,7 @@ under the License.
 	<properties>
 		<!-- override parent pom -->
 		<test.excludedGroups/>
-		<calcite.version>1.19.0</calcite.version>
+		<calcite.version>1.18.0</calcite.version>
 	</properties>
 
 	<dependencies>
@@ -54,9 +54,9 @@ under the License.
 
 				Dependencies that are not needed for how we use Calcite right now.
 
-				"mvn dependency:tree" as of Calcite 1.19:
+				"mvn dependency:tree" as of Calcite 1.18.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.19.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.18.0:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.13.0:compile
 				[INFO] |  \- com.google.guava:guava:jar:19.0:compile
 
