@@ -39,7 +39,7 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/** Implements [[org.apache.calcite.sql.util.SqlShuttle]]
+/** Implements [[org.apache.calcite.sql.util.SqlVisitor]]
   * interface to do some rewrite work before sql node validation. */
 class PreValidateReWriter(
     val catalogReader: CatalogReader,
