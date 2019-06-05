@@ -60,7 +60,7 @@ public class HiveTableOutputFormatTest {
 
 	@BeforeClass
 	public static void createCatalog() throws IOException {
-		hiveConf = HiveTestUtils.getHiveConf();
+		hiveConf = HiveTestUtils.createHiveConf();
 		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveConf);
 		hiveCatalog.open();
 	}

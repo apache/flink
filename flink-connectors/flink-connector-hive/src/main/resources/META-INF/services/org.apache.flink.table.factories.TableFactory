@@ -13,7 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.table.client.gateway.utils.DummyTableSinkFactory
-org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory
-org.apache.flink.table.client.gateway.local.DependencyTest$TestCatalogFactory
-org.apache.flink.table.client.gateway.local.DependencyTest$TestHiveCatalogFactory
+org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory
