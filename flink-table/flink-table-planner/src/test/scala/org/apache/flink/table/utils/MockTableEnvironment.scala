@@ -96,4 +96,6 @@ class MockTableEnvironment extends TableEnvironment {
     sinkPathContinued: String*): Unit = ???
 
   override def execute(jobName: String): JobExecutionResult = ???
+
+  override def sql(statement: String): Table = ???
 }

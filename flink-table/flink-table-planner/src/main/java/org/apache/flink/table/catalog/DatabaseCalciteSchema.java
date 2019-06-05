@@ -126,7 +126,7 @@ class DatabaseCalciteSchema implements Schema {
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
 			// itself to determine if it is a streaming or batch source.
-			true,
+			!((StreamTableSource<?>) tableSource).isBounded(),
 			FlinkStatistic.UNKNOWN()
 		);
 	}

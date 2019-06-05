@@ -52,7 +52,10 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 	@Override
 	public CatalogBaseTable copy() {
 		return new CatalogTableImpl(
-			getSchema().copy(), new ArrayList<>(getPartitionKeys()), new HashMap<>(getProperties()), getComment());
+			getSchema().copy(),
+			new ArrayList<>(getPartitionKeys()),
+			new HashMap<>(getProperties()),
+			getComment());
 	}
 
 	@Override

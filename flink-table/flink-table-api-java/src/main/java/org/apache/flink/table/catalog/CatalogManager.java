@@ -387,4 +387,39 @@ public class CatalogManager {
 			return tableSink.getTableSchema();
 		}
 	}
+
+	/**
+	 * Returns the full name of the given table path, this name may be padded
+	 * with current catalog/database name based on the {@code paths} length.
+	 *
+	 * @param paths Table paths whose format can be "catalog.db.table", "db.table" or "table"
+	 * @return An array of complete table path
+	 */
+	public String[] getFullTablePath(List<String> paths) {
+		checkNotNull(paths, "Table paths can not be null");
+		checkArgument(paths.size() >= 1 && paths.size() <= 3,
+			"Table paths length must be between 1(inclusive) and 3(inclusive)");
+		checkArgument(paths.stream().noneMatch(StringUtils::isNullOrWhitespaceOnly),
+			"Table paths contain null or while-space-only string");
+
+		if (paths.size() == 3) {
+			return new String[] {paths.get(0), paths.get(1), paths.get(2)};
+		}
+
+		String catalogName;
+		String dbName;
+		String tableName;
+
+		if (paths.size() == 1) {
+			catalogName = getCurrentCatalog();
+			dbName = getCurrentDatabase();
+			tableName = paths.get(0);
+		} else {
+			catalogName = getCurrentCatalog();
+			dbName = paths.get(0);
+			tableName = paths.get(1);
+		}
+
+		return new String[]{ catalogName, dbName, tableName };
+	}
 }
