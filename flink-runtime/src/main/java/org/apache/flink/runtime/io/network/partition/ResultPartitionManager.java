@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -120,14 +121,9 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 		}
 	}
 
-	public boolean areAllPartitionsReleased() {
+	public Collection<ResultPartitionID> getUnreleasedPartitions() {
 		synchronized (registeredPartitions) {
-			for (ResultPartition partition : registeredPartitions.values()) {
-				if (!partition.isReleased()) {
-					return false;
-				}
-			}
-			return true;
+			return registeredPartitions.keySet();
 		}
 	}
 }

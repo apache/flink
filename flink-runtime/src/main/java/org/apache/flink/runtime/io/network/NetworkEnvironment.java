@@ -174,6 +174,7 @@ public class NetworkEnvironment {
 	//  Properties
 	// --------------------------------------------------------------------------------------------
 
+	@VisibleForTesting
 	public ResultPartitionManager getResultPartitionManager() {
 		return resultPartitionManager;
 	}
@@ -207,6 +208,16 @@ public class NetworkEnvironment {
 		for (ResultPartitionID partitionId : partitionIds) {
 			resultPartitionManager.releasePartition(partitionId, null);
 		}
+	}
+
+	/**
+	 * Report unreleased partitions.
+	 *
+	 * @return collection of partitions which still occupy some resources locally on this task executor
+	 * and have been not released yet.
+	 */
+	public Collection<ResultPartitionID> getUnreleasedPartitions() {
+		return resultPartitionManager.getUnreleasedPartitions();
 	}
 
 	// --------------------------------------------------------------------------------------------
