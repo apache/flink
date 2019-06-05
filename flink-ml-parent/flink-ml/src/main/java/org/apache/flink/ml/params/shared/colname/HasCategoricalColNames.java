@@ -31,7 +31,6 @@ public interface HasCategoricalColNames<T> extends BaseWithParam <T> {
 	ParamInfo <String[]> CATEGORICAL_COL_NAMES = ParamInfoFactory
 		.createParamInfo("categoricalColNames", String[].class)
 		.setDescription("Names of the categorical columns used for training in the input table")
-		.setHasDefaultValue(new String[] {})
 		.build();
 
 	default String[] getCategoricalColNames() {

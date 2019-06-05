@@ -27,7 +27,8 @@ under the License.
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-ml</artifactId>
+	<artifactId>flink-ml-lib_${scala.binary.version}</artifactId>
+	<name>flink-ml-lib</name>
 
 	<build>
 		<plugins>
@@ -50,11 +51,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

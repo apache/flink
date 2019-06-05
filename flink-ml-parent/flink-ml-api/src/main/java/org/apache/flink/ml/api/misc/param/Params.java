@@ -71,7 +71,7 @@ public class Params implements Serializable, Cloneable {
 	 *                          param is not optional but has no default value in the {@code info}
 	 */
 	public <V> V get(ParamInfo<V> info) {
-		Stream<V> stream = getParamNameAndAlias(info)
+		Stream<V> paramValue = getParamNameAndAlias(info)
 			.filter(this.params::containsKey)
 			.map(x -> this.params.get(x))
 			.map(x -> valueFromJson(x, info.getValueClass()))
@@ -79,9 +79,9 @@ public class Params implements Serializable, Cloneable {
 
 		if (info.isOptional()) {
 			if (info.hasDefaultValue()) {
-				return stream.reduce(info.getDefaultValue(), (a, b) -> b);
+				return paramValue.reduce(info.getDefaultValue(), (a, b) -> b);
 			} else {
-				return stream.collect(Collectors.collectingAndThen(Collectors.toList(),
+				return paramValue.collect(Collectors.collectingAndThen(Collectors.toList(),
 					a -> {
 						if (a.isEmpty()) {
 							throw new RuntimeException("Not have defaultValue for parameter: " + info.getName());
@@ -90,7 +90,7 @@ public class Params implements Serializable, Cloneable {
 					}));
 			}
 		}
-		return stream.collect(Collectors.collectingAndThen(Collectors.toList(),
+		return paramValue.collect(Collectors.collectingAndThen(Collectors.toList(),
 			a -> {
 				if (a.isEmpty()) {
 					throw new RuntimeException("Not have parameter: " + info.getName());
@@ -221,10 +221,10 @@ public class Params implements Serializable, Cloneable {
 
 	private <V> Stream <String> getParamNameAndAlias(
 		ParamInfo <V> paramInfo) {
-		Stream <String> stream = Stream.of(paramInfo.getName());
+		Stream <String> paramNames = Stream.of(paramInfo.getName());
 		if (null != paramInfo.getAlias() && paramInfo.getAlias().length > 0) {
-			stream = Stream.concat(stream, Arrays.stream(paramInfo.getAlias())).sequential();
+			paramNames = Stream.concat(paramNames, Arrays.stream(paramInfo.getAlias())).sequential();
 		}
-		return stream;
+		return paramNames;
 	}
 }

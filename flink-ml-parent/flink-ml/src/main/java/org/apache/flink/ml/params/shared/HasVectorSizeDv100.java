@@ -27,9 +27,7 @@ import org.apache.flink.ml.params.BaseWithParam;
  * Vector size of embedding.
  */
 public interface HasVectorSizeDv100<T> extends BaseWithParam <T> {
-	/**
-	 * @cn embedding的向量长度
-	 */
+
 	ParamInfo <Integer> VECTOR_SIZE = ParamInfoFactory
 		.createParamInfo("vectorSize", Integer.class)
 		.setDescription("Vector size of embedding")
