@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -51,14 +52,14 @@ public final class DistinctType extends UserDefinedType {
 	 */
 	public static final class Builder {
 
-		private final TypeIdentifier typeIdentifier;
+		private final ObjectIdentifier objectIdentifier;
 
 		private final LogicalType sourceType;
 
 		private @Nullable String description;
 
-		public Builder(TypeIdentifier typeIdentifier, LogicalType sourceType) {
-			this.typeIdentifier = Preconditions.checkNotNull(typeIdentifier, "Type identifier must not be null.");
+		public Builder(ObjectIdentifier objectIdentifier, LogicalType sourceType) {
+			this.objectIdentifier = Preconditions.checkNotNull(objectIdentifier, "Object identifier must not be null.");
 			this.sourceType = Preconditions.checkNotNull(sourceType, "Source type must not be null.");
 
 			Preconditions.checkArgument(
@@ -72,20 +73,20 @@ public final class DistinctType extends UserDefinedType {
 		}
 
 		public DistinctType build() {
-			return new DistinctType(typeIdentifier, sourceType, description);
+			return new DistinctType(objectIdentifier, sourceType, description);
 		}
 	}
 
 	private final LogicalType sourceType;
 
 	private DistinctType(
-			TypeIdentifier typeIdentifier,
+			ObjectIdentifier objectIdentifier,
 			LogicalType sourceType,
 			@Nullable String description) {
 		super(
 			sourceType.isNullable(),
 			LogicalTypeRoot.DISTINCT_TYPE,
-			typeIdentifier,
+			objectIdentifier,
 			true,
 			description);
 		this.sourceType = Preconditions.checkNotNull(sourceType, "Source type must not be null.");
@@ -98,7 +99,7 @@ public final class DistinctType extends UserDefinedType {
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new DistinctType(
-			getTypeIdentifier(),
+			getObjectIdentifier(),
 			sourceType.copy(isNullable),
 			getDescription().orElse(null));
 	}
