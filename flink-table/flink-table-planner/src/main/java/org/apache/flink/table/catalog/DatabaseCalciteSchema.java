@@ -22,8 +22,11 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -36,6 +39,7 @@ import org.apache.calcite.schema.Table;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -70,13 +74,9 @@ class DatabaseCalciteSchema implements Schema {
 			if (table instanceof QueryOperationCatalogView) {
 				return QueryOperationCatalogViewTable.createCalciteTable(((QueryOperationCatalogView) table));
 			} else if (table instanceof ConnectorCatalogTable) {
-				ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
-				return connectorTable.getTableSource()
-					.map(tableSource -> new TableSourceTable<>(
-						tableSource,
-						!connectorTable.isBatch(),
-						FlinkStatistic.of(tableSource.getTableStats().orElse(null))))
-					.orElseThrow(() -> new TableException("Cannot query a sink only table."));
+				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
+			} else if (table instanceof CatalogTable) {
+				return convertCatalogTable((CatalogTable) table);
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}
@@ -89,6 +89,32 @@ class DatabaseCalciteSchema implements Schema {
 				databaseName,
 				tableName), e);
 		}
+	}
+
+	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
+		return table.getTableSource()
+			.map(tableSource -> new TableSourceTable<>(
+				tableSource,
+				!table.isBatch(),
+				tableSource.getTableStats().map(FlinkStatistic::of).orElse(FlinkStatistic.UNKNOWN())))
+			.orElseThrow(() -> new TableException("Cannot query a sink only table."));
+	}
+
+	private Table convertCatalogTable(CatalogTable table) {
+		Map<String, String> properties = table.toProperties();
+		TableSource<?> tableSource = TableFactoryUtil.findAndCreateTableSource(properties);
+		if (!(tableSource instanceof StreamTableSource)) {
+			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
+		}
+
+		return new TableSourceTable<>(
+			tableSource,
+			// this means the TableSource extends from StreamTableSource, this is needed for the
+			// legacy Planner. Blink Planner should use the information that comes from the TableSource
+			// itself to determine if it is a streaming or batch source.
+			true,
+			tableSource.getTableStats().map(FlinkStatistic::of).orElse(FlinkStatistic.UNKNOWN())
+		);
 	}
 
 	@Override
