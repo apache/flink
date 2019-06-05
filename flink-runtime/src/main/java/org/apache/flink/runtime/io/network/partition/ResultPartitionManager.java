@@ -106,19 +106,17 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	// ------------------------------------------------------------------------
 
 	void onConsumedPartition(ResultPartition partition) {
-		final ResultPartition previous;
-
 		LOG.debug("Received consume notification from {}.", partition);
 
 		synchronized (registeredPartitions) {
-			previous = registeredPartitions.remove(partition.getPartitionId());
-		}
-
-		// Release the partition if it was successfully removed
-		if (partition == previous) {
-			partition.release();
-
-			LOG.debug("Released {}.", partition);
+			final ResultPartition previous = registeredPartitions.remove(partition.getPartitionId());
+			// Release the partition if it was successfully removed
+			if (partition == previous) {
+				partition.release();
+				ResultPartitionID partitionId = partition.getPartitionId();
+				LOG.debug("Released partition {} produced by {}.",
+					partitionId.getPartitionId(), partitionId.getProducerId());
+			}
 		}
 	}
 
