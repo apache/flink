@@ -70,11 +70,11 @@ class DefaultFailoverVertex implements FailoverVertex {
 		return outputEdges;
 	}
 
-	public void addInputEdge(DefaultFailoverEdge edge) {
+	void addInputEdge(DefaultFailoverEdge edge) {
 		inputEdges.add(edge);
 	}
 
-	public void addOutputEdge(DefaultFailoverEdge edge) {
+	void addOutputEdge(DefaultFailoverEdge edge) {
 		outputEdges.add(edge);
 	}
 }

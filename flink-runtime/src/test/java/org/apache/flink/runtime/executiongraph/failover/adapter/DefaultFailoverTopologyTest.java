@@ -29,8 +29,9 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverVertex;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.TestLogger;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -47,6 +48,7 @@ import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -58,12 +60,41 @@ public class DefaultFailoverTopologyTest extends TestLogger {
 
 	private final TestRestartStrategy triggeredRestartStrategy = TestRestartStrategy.manuallyTriggered();
 
-	private ExecutionGraph executionGraph;
+	/**
+	 * Tests that the generated failover topology is strictly matched with the given ExecutionGraph.
+	 */
+	@Test
+	public void testTopology() throws Exception {
+		ExecutionGraph executionGraph = createExecutionGraph();
+		DefaultFailoverTopology adapter = new DefaultFailoverTopology(executionGraph);
+		assertGraphEquals(executionGraph, adapter);
+	}
 
-	private DefaultFailoverTopology adapter;
+	/**
+	 * Tests the case that the graph has collocation constraints.
+	 */
+	@Test
+	public void testWithCollocationConstraints() throws Exception {
+		ExecutionGraph executionGraph = createExecutionGraph(true);
+		DefaultFailoverTopology adapter = new DefaultFailoverTopology(executionGraph);
+		assertTrue(adapter.containsCoLocationConstraints());
+	}
 
-	@Before
-	public void setUp() throws Exception {
+	/**
+	 * Tests the case that the graph has no collocation constraint.
+	 */
+	@Test
+	public void testWithoutCollocationConstraints() throws Exception {
+		ExecutionGraph executionGraph = createExecutionGraph(false);
+		DefaultFailoverTopology adapter = new DefaultFailoverTopology(executionGraph);
+		assertFalse(adapter.containsCoLocationConstraints());
+	}
+
+	private ExecutionGraph createExecutionGraph() throws Exception {
+		return createExecutionGraph(false);
+	}
+
+	private ExecutionGraph createExecutionGraph(boolean addCollocationConstraints) throws Exception {
 		JobVertex[] jobVertices = new JobVertex[3];
 		int parallelism = 3;
 		jobVertices[0] = createNoOpVertex("v1", parallelism);
@@ -71,17 +102,24 @@ public class DefaultFailoverTopologyTest extends TestLogger {
 		jobVertices[2] = createNoOpVertex("v3", parallelism);
 		jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, BLOCKING);
 		jobVertices[2].connectNewDataSetAsInput(jobVertices[1], POINTWISE, PIPELINED);
-		executionGraph = createSimpleTestGraph(
+
+		if (addCollocationConstraints) {
+			SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+			jobVertices[1].setSlotSharingGroup(slotSharingGroup);
+			jobVertices[2].setSlotSharingGroup(slotSharingGroup);
+
+			CoLocationGroup coLocationGroup = new CoLocationGroup();
+			coLocationGroup.addVertex(jobVertices[1]);
+			coLocationGroup.addVertex(jobVertices[2]);
+			jobVertices[1].updateCoLocationGroup(coLocationGroup);
+			jobVertices[2].updateCoLocationGroup(coLocationGroup);
+		}
+
+		return createSimpleTestGraph(
 			new JobID(),
 			taskManagerGateway,
 			triggeredRestartStrategy,
 			jobVertices);
-		adapter = new DefaultFailoverTopology(executionGraph);
-	}
-
-	@Test
-	public void testConstructor() {
-		assertGraphEquals(executionGraph, adapter);
 	}
 
 	private static void assertGraphEquals(ExecutionGraph originalGraph, FailoverTopology adaptedTopology) {

@@ -46,8 +46,8 @@ class DefaultFailoverEdge implements FailoverEdge {
 
 		this.resultPartitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
-		this.sourceVertex = sourceVertex;
-		this.targetVertex = targetVertex;
+		this.sourceVertex = checkNotNull(sourceVertex);
+		this.targetVertex = checkNotNull(targetVertex);
 	}
 
 	@Override
