@@ -274,21 +274,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
-		FlinkKafkaProducer<T> prod = new FlinkKafkaProducer<T>(
-			topic,
-			serSchema,
-			props,
-			Optional.of(new FlinkFixedPartitioner<>()),
-			producerSemantic,
-			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
-
-		prod.setWriteTimestampToKafka(true);
-
-		return stream.addSink(prod);
-	}
-
-	@Override
 	public KafkaOffsetHandler createOffsetHandler() {
 		return new KafkaOffsetHandlerImpl();
 	}
