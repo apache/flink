@@ -112,16 +112,8 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, String hiveSiteFilePath) {
-		this(catalogName, DEFAULT_DB, hiveSiteFilePath);
-	}
-
 	public HiveCatalog(String catalogName, String defaultDatabase, String hiveSiteFilePath) {
 		this(catalogName, defaultDatabase, getHiveSiteUrl(hiveSiteFilePath));
-	}
-
-	public HiveCatalog(String catalogName, URL hiveSiteUrl) {
-		this(catalogName, DEFAULT_DB, hiveSiteUrl);
 	}
 
 	public HiveCatalog(String catalogName, String defaultDatabase, URL hiveSiteUrl) {
@@ -140,6 +132,8 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	private static URL getHiveSiteUrl(String filePath) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(filePath), "filePath cannot be null or empty");
+
 		try {
 			URL url = new File(filePath).toURI().toURL();
 
