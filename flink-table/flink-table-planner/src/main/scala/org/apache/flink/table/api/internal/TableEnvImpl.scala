@@ -20,6 +20,7 @@ package org.apache.flink.table.api.internal
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.sql.parser.ddl.SqlCreateTable
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
@@ -27,11 +28,13 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.{TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.StringUtils
 
@@ -43,6 +46,7 @@ import org.apache.calcite.tools.FrameworkConfig
 import _root_.java.util.Optional
 
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConversions._
 
 /**
   * The abstract base class for the implementation of batch TableEnvironment.
@@ -188,7 +192,7 @@ abstract class TableEnvImpl(
     }
 
     val tableTable = new QueryOperationCatalogView(table.getQueryOperation)
-    registerTableInternal(name, tableTable)
+    registerTableInternal(Array[String](name), tableTable, ignoreIfExists = false)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
@@ -274,7 +278,8 @@ abstract class TableEnvImpl(
 
       // no table is registered
       case _ =>
-        registerTableInternal(name, ConnectorCatalogTable.source(tableSource, isBatch))
+        registerTableInternal(Array[String](name),
+          ConnectorCatalogTable.source(tableSource, isBatch), ignoreIfExists = false)
     }
   }
 
@@ -301,7 +306,8 @@ abstract class TableEnvImpl(
 
       // no table is registered
       case _ =>
-        registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, isBatch))
+        registerTableInternal(Array[String](name),
+          ConnectorCatalogTable.sink(tableSink, isBatch), ignoreIfExists = false)
     }
   }
 
@@ -311,17 +317,33 @@ abstract class TableEnvImpl(
     }
   }
 
-  protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
-    checkValidTableName(name)
-    val path = new ObjectPath(defaultDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
-      case Some(catalog) =>
-        catalog.createTable(
-          path,
-          table,
-          false)
-      case None => throw new TableException("The default catalog does not exist.")
-    }
+  /**
+    * Registers a [[CatalogTable]] under a given object path. The `path` could be
+    * 3 formats:
+    * <ol>
+    * <li>`catalog.db.table`: A full table path including the catalog name,
+    * the database name and table name.</li>
+    * <li>`db.table`: database name following table name, with the current catalog name.</li>
+    * <li>`table`: Only the table name, with the current catalog name and database  name.</li>
+    * </ol>
+    * The registered tables then can be referenced in Sql queries.
+    *
+    * @param path           The path under which the table will be registered
+    * @param catalogTable   The table to register
+    * @param ignoreIfExists If true, do nothing if there is already same table name under
+    *                       the { @code path}. If false, a TableAlreadyExistException throws.
+    */
+  private def registerTableInternal(
+      path: Array[String],
+      catalogTable: CatalogBaseTable,
+      ignoreIfExists: Boolean): Unit = {
+    val fullName = catalogManager.getFullTablePath(path.toList)
+    val catalog = getCatalog(fullName(0)).orElseThrow(
+      new _root_.java.util.function.Supplier[TableException] {
+        override def get = new TableException(s"Catalog ${fullName(0)} does not exist")
+      })
+    val objectPath = new ObjectPath(fullName(1), fullName(2))
+    catalog.createTable(objectPath, catalogTable, ignoreIfExists)
   }
 
   protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
@@ -378,6 +400,45 @@ abstract class TableEnvImpl(
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
     val planner = getFlinkPlanner
     planner.getCompletionHints(statement, position)
+  }
+
+  override def sql(statement: String): Table = {
+    val planner = getFlinkPlanner
+    // parse the sql query
+    val parsed = planner.parse(statement)
+    if (null != parsed) {
+      parsed match {
+        case insert: SqlInsert =>
+          val query = insert.getSource
+          val tableOperation = SqlToOperationConverter
+            .convert(planner, query)
+            .asInstanceOf[QueryOperation]
+          // get query result as Table
+          val queryResult = createTable(tableOperation)
+
+          // get name of sink table
+          val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
+
+          // insert query result into sink table
+          insertInto(queryResult, targetTablePath.asScala:_*)
+          // returns null for SQL INSERT statement now
+          null
+        case createTable: SqlCreateTable =>
+          val operation = SqlToOperationConverter
+            .convert(planner, createTable)
+            .asInstanceOf[CreateTableOperation]
+          registerTableInternal(operation.getTablePath,
+            operation.getCatalogTable,
+            operation.isIgnoreIfExists)
+          // returns null for DDL statement now
+          null
+        case query: SqlNode if query.getKind.belongsTo(SqlKind.QUERY) =>
+          createTable(SqlToOperationConverter.convert(planner, query)
+            .asInstanceOf[PlannerQueryOperation])
+      }
+    } else {
+      throw new TableException("Unsupported SQL query!")
+    }
   }
 
   override def sqlQuery(query: String): Table = {

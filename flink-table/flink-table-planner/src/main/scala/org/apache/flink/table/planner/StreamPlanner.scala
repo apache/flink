@@ -23,16 +23,6 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-
-import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlKind, SqlNode}
-
-import _root_.java.lang.{Boolean => JBool}
-import _root_.java.util.{Objects, List => JList}
-import java.util
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
@@ -48,8 +38,19 @@ import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
+import org.apache.calcite.jdbc.CalciteSchema
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlKind}
+
+import _root_.java.lang.{Boolean => JBool}
+import _root_.java.util
+import _root_.java.util.{Objects, List => JList}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -104,18 +105,21 @@ class StreamPlanner(
         if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
           throw new ValidationException("Partial inserts are not supported")
         }
-
         // get name of sink table
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
 
-        List(new CatalogSinkModifyOperation(targetTablePath, toRel(planner, insert.getSource))
+        List(new CatalogSinkModifyOperation(targetTablePath,
+          SqlToOperationConverter.convert(planner,
+            insert.getSource).asInstanceOf[PlannerQueryOperation])
           .asInstanceOf[Operation]).asJava
-      case node if node.getKind.belongsTo(SqlKind.QUERY) =>
-        List(toRel(planner, parsed).asInstanceOf[Operation]).asJava
+      case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
+        List(SqlToOperationConverter.convert(planner, parsed)).asJava
       case _ =>
         throw new TableException(
           "Unsupported SQL query! parse() only accepts SQL queries of type " +
-            "SELECT, UNION, INTERSECT, EXCEPT, VALUES, ORDER_BY or INSERT.")
+            "SELECT, UNION, INTERSECT, EXCEPT, VALUES, ORDER_BY or INSERT;" +
+            "and SQL DDLs of type " +
+            "CREATE TABLE")
     }
   }
 
@@ -139,17 +143,6 @@ class StreamPlanner(
     : Array[String] = {
     val planner = getFlinkPlanner
     planner.getCompletionHints(statement, position)
-  }
-
-  private def toRel(
-      planner: FlinkPlannerImpl,
-      parsed: SqlNode)
-    : PlannerQueryOperation = {
-    // validate the sql query
-    val validated = planner.validate(parsed)
-    // transform to a relational tree
-    val relational = planner.rel(validated)
-    new PlannerQueryOperation(relational.rel)
   }
 
   private def translate(tableOperation: ModifyOperation)

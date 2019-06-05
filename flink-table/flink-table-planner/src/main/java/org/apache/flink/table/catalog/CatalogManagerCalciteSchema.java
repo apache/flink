@@ -93,7 +93,7 @@ public class CatalogManagerCalciteSchema implements Schema {
 
 		return externalSchema.orElseGet(() ->
 			catalogManager.getCatalog(name)
-				.map(catalog -> new CatalogCalciteSchema(name, catalog))
+				.map(catalog -> new CatalogCalciteSchema(isBatch, name, catalog))
 				.orElse(null)
 		);
 	}

@@ -51,11 +51,17 @@ import static java.lang.String.format;
  * Tables are registered as tables in the schema.
  */
 class DatabaseCalciteSchema implements Schema {
+	private final boolean isBatch;
 	private final String databaseName;
 	private final String catalogName;
 	private final Catalog catalog;
 
-	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog) {
+	public DatabaseCalciteSchema(
+			boolean isBatch,
+			String databaseName,
+			String catalogName,
+			Catalog catalog) {
+		this.isBatch = isBatch;
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
@@ -126,7 +132,7 @@ class DatabaseCalciteSchema implements Schema {
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
 			// itself to determine if it is a streaming or batch source.
-			true,
+			!isBatch,
 			FlinkStatistic.UNKNOWN()
 		);
 	}
