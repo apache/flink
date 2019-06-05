@@ -19,19 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * The smoothing factor.
  */
 public interface HasSmoothing<T> extends BaseWithParam <T> {
-	ParamInfo <Double> SMOOTHING = new ParamInfo <>(
-		"smoothing",
-		"The smoothing factor",
-		true, 1.0,
-		Double.class
-	);
+	ParamInfo <Double> SMOOTHING = ParamInfoFactory
+		.createParamInfo("smoothing", Double.class)
+		.setDescription("The smoothing factor")
+		.setHasDefaultValue(1.0)
+		.build();
 
 	default Double getSmoothing() {
 		return getParams().get(SMOOTHING);

@@ -19,21 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Names of the columns to be retained in the output table.
  */
 public interface HasKeepColNames<T> extends BaseWithParam <T> {
 
-	ParamInfo <String[]> KEEP_COL_NAMES = new ParamInfo <>(
-		"keepColNames",
-		"Names of the columns to be retained in the output table",
-		true,
-		null,
-		String[].class
-	);
+	ParamInfo <String[]> KEEP_COL_NAMES = ParamInfoFactory
+		.createParamInfo("keepColNames", String[].class)
+		.setDescription("Names of the columns to be retained in the output table")
+		.setHasDefaultValue(null)
+		.build();
 
 	default String[] getKeepColNames() {
 		return getParams().get(KEEP_COL_NAMES);

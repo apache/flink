@@ -19,21 +19,21 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Name of a vector column.
  */
 public interface HasVectorColName<T> extends BaseWithParam <T> {
 
-	ParamInfo <String> VECTOR_COL_NAME = new ParamInfo <>(
-		"vectorColName",
-		new String[] {"tensorColName", "vecColName"},
-		"Name of a vector column",
-		false,
-		String.class
-	);
+	ParamInfo <String> VECTOR_COL_NAME = ParamInfoFactory
+		.createParamInfo("vectorColName", String.class)
+		.setDescription("Name of a vector column")
+		.setRequired()
+		.setAlias(new String[] {"tensorColName", "vecColName"})
+		.build();
 
 	default String getVectorColName() {
 		return getParams().get(VECTOR_COL_NAME);

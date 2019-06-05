@@ -19,7 +19,8 @@
 
 package org.apache.flink.ml.params.statistics.analysis;
 
-import org.apache.flink.ml.params.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.shared.colname.HasSelectedColNamesDvNull;
 import org.apache.flink.ml.params.shared.colname.HasVectorColNameDvNull;
 
@@ -30,13 +31,18 @@ public interface PcaTrainParams<T> extends
 	HasSelectedColNamesDvNull <T>,
 	HasVectorColNameDvNull <T> {
 
-	ParamInfo <Integer> K = new ParamInfo <>(
-		"k",
-		new String[] {"p"},
-		"the value of K.",
-		false,
-		Integer.class
-	);
+	ParamInfo <Integer> K = ParamInfoFactory
+		.createParamInfo("k", Integer.class)
+		.setDescription("the value of K.")
+		.setRequired()
+		.setAlias(new String[] {"p"})
+		.build();
+	ParamInfo <String> CALCULATION_TYPE = ParamInfoFactory
+		.createParamInfo("calculationType", String.class)
+		.setDescription("compute type, be CORR, COV_SAMPLE, COVAR_POP.")
+		.setHasDefaultValue("CORR")
+		.setAlias(new String[] {"calcType", "pcaType"})
+		.build();
 
 	default Integer getK() {
 		return getParams().get(K);
@@ -45,14 +51,6 @@ public interface PcaTrainParams<T> extends
 	default T setK(Integer value) {
 		return set(K, value);
 	}
-
-	ParamInfo <String> CALCULATION_TYPE = new ParamInfo <>(
-		"calculationType",
-		new String[] {"calcType", "pcaType"},
-		"compute type, be CORR, COV_SAMPLE, COVAR_POP.",
-		true, "CORR",
-		String.class
-	);
 
 	default String getCalculationType() {
 		return getParams().get(CALCULATION_TYPE);

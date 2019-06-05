@@ -20,9 +20,10 @@
 package org.apache.flink.ml.streamoperator.dataproc;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.utils.RowTypeDataStream;
-import org.apache.flink.ml.params.ParamInfo;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.params.shared.HasRandomSeed;
 import org.apache.flink.ml.params.validators.RangeValidator;
 import org.apache.flink.ml.streamoperator.StreamOperator;
@@ -37,21 +38,20 @@ import java.util.Random;
  */
 public class SampleStreamOp extends StreamOperator <SampleStreamOp> implements HasRandomSeed <SampleStreamOp> {
 
-	public static final ParamInfo <Double> RATIO = new ParamInfo <>(
-		"ratio", new String[] {"sampleRate"},
-		"sampling ratio, it should be in range of [0, 1]",
-		false,
-		Double.class,
-		new RangeValidator <>(0.0, 1.0)
-	);
+	public static final ParamInfo <Double> RATIO = ParamInfoFactory
+		.createParamInfo("ratio", Double.class)
+		.setDescription("sampling ratio, it should be in range of [0, 1]")
+		.setRequired()
+		.setValidator(new RangeValidator <>(0.0, 1.0))
+		.setAlias(new String[] {"sampleRate"})
+		.build();
 
-	public static final ParamInfo <Long> MAX_SAMPLES = new ParamInfo <>(
-		"maxSamples",
-		"the max records to sampled, default +inf",
-		true, Long.MAX_VALUE,
-		Long.class,
-		new RangeValidator<>(0L, Long.MAX_VALUE)
-	);
+	public static final ParamInfo <Long> MAX_SAMPLES = ParamInfoFactory
+		.createParamInfo("maxSamples", Long.class)
+		.setDescription("the max records to sampled, default +inf")
+		.setHasDefaultValue(Long.MAX_VALUE)
+		.setValidator(new RangeValidator <>(0L, Long.MAX_VALUE))
+		.build();
 
 	public SampleStreamOp(double ratio) {
 		super(new Params().set(RATIO, ratio));
@@ -65,20 +65,20 @@ public class SampleStreamOp extends StreamOperator <SampleStreamOp> implements H
 		super(params);
 	}
 
-	public SampleStreamOp setRatio(Double value) {
-		return set(RATIO, value);
-	}
-
 	public Double getRatio() {
 		return getParams().get(RATIO);
 	}
 
-	public SampleStreamOp setMaxSamples(Long value) {
-		return set(MAX_SAMPLES, value);
+	public SampleStreamOp setRatio(Double value) {
+		return set(RATIO, value);
 	}
 
 	public Long getMaxSamples() {
 		return getParams().get(MAX_SAMPLES);
+	}
+
+	public SampleStreamOp setMaxSamples(Long value) {
+		return set(MAX_SAMPLES, value);
 	}
 
 	@Override

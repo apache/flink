@@ -20,8 +20,8 @@
 package org.apache.flink.ml.streamoperator.utils;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.utils.RowTypeDataStream;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.streamoperator.StreamOperator;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -34,16 +34,16 @@ import java.io.PrintStream;
  */
 public class PrintStreamOp extends StreamOperator {
 
-	public static void setStreamPrintStream(PrintStream printStream) {
-		System.setErr(printStream);
-	}
-
 	public PrintStreamOp() {
 		super(null);
 	}
 
 	public PrintStreamOp(Params params) {
 		super(params);
+	}
+
+	public static void setStreamPrintStream(PrintStream printStream) {
+		System.setErr(printStream);
 	}
 
 	@Override

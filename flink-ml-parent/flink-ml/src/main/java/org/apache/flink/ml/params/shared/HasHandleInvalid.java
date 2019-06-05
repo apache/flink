@@ -19,19 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * The handle method of invalid value. include： error, skip, optimistic.
  */
 public interface HasHandleInvalid<T> extends BaseWithParam <T> {
-	ParamInfo <String> HANDLE_INVALID = new ParamInfo <>(
-		"handleInvalidMethod",
-		"The handle method of invalid value. include： error, skip, optimistic",
-		true, "error",
-		String.class
-	);
+	ParamInfo <String> HANDLE_INVALID = ParamInfoFactory
+		.createParamInfo("handleInvalidMethod", String.class)
+		.setDescription("The handle method of invalid value. include： error, skip, optimistic")
+		.setHasDefaultValue("error")
+		.build();
 
 	default String getHandleInvalid() {
 		return getParams().get(HANDLE_INVALID);

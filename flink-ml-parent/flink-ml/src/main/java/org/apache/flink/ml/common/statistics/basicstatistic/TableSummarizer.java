@@ -50,6 +50,16 @@ public class TableSummarizer extends BaseSummarizer {
 		this.numberIdxs = numberIdxs;
 	}
 
+	public static TableSummarizer merge(TableSummarizer left, TableSummarizer right) {
+		try {
+			TableSummarizer result = left.clone();
+			result = result.merge(right);
+			return result;
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+
 	public BaseSummarizer visit(Row row) {
 		int n = row.getArity();
 		int numberN = numberIdxs.length;
@@ -155,16 +165,6 @@ public class TableSummarizer extends BaseSummarizer {
 			return this;
 		} else {
 			throw new RuntimeException("It must be TableSummarizer class.");
-		}
-	}
-
-	public static TableSummarizer merge(TableSummarizer left, TableSummarizer right) {
-		try {
-			TableSummarizer result = left.clone();
-			result = result.merge(right);
-			return result;
-		} catch (Exception ex) {
-			throw new RuntimeException(ex);
 		}
 	}
 

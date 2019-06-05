@@ -65,23 +65,6 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * Construct a matrix with provided data buffer.
-	 * This is for internal use only, so it is package private.
-	 *
-	 * @param m    Number of rows.
-	 * @param n    Number of cols.
-	 * @param data One-dimensional array of doubles.
-	 */
-	public static DenseMatrix fromDataBuffer(int m, int n, double[] data) {
-		assert m * n == data.length;
-		DenseMatrix matA = new DenseMatrix();
-		matA.m = m;
-		matA.n = n;
-		matA.data = data;
-		return matA;
-	}
-
-	/**
 	 * Construct a matrix from a 1-D array. The data in the array should organize
 	 * in row major.
 	 *
@@ -140,8 +123,25 @@ public class DenseMatrix implements Serializable {
 		}
 	}
 
+	/**
+	 * Construct a matrix with provided data buffer.
+	 * This is for internal use only, so it is package private.
+	 *
+	 * @param m    Number of rows.
+	 * @param n    Number of cols.
+	 * @param data One-dimensional array of doubles.
+	 */
+	public static DenseMatrix fromDataBuffer(int m, int n, double[] data) {
+		assert m * n == data.length;
+		DenseMatrix matA = new DenseMatrix();
+		matA.m = m;
+		matA.n = n;
+		matA.data = data;
+		return matA;
+	}
+
     /* ---------------------------------------------------
-     * Handy methods for creating matrix
+	 * Handy methods for creating matrix
      * --------------------------------------------------- */
 
 	/**
@@ -236,6 +236,123 @@ public class DenseMatrix implements Serializable {
      * --------------------------------------------------- */
 
 	/**
+	 * C := A .* B    .
+	 */
+	public static DenseMatrix elementWiseProduct(DenseMatrix matA, DenseMatrix matB) {
+		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
+		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a * b));
+		return matC;
+	}
+
+	/**
+	 * C := A ./ B   .
+	 */
+	public static DenseMatrix elementWiseDivide(DenseMatrix matA, DenseMatrix matB) {
+		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
+		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a / b));
+		return matC;
+	}
+
+	public static DenseMatrix sumByRow(DenseMatrix dm) {
+		double[][] rowSums = new double[1][dm.m];
+		for (int i = 0; i < dm.m; i++) {
+			rowSums[0][i] = 0;
+			for (int j = 0; j < dm.n; j++) {
+				rowSums[0][i] += dm.get(i, j);
+			}
+		}
+		return new DenseMatrix(rowSums);
+	}
+
+	public static DenseMatrix sumByCol(DenseMatrix dm) {
+		double[][] rowSums = new double[1][dm.n];
+		for (int j = 0; j < dm.n; j++) {
+			rowSums[0][j] = 0;
+		}
+
+		for (int i = 0; i < dm.m; i++) {
+			for (int j = 0; j < dm.n; j++) {
+				rowSums[0][j] += dm.get(i, j);
+			}
+		}
+		return new DenseMatrix(rowSums);
+	}
+
+	/**
+	 * y = func(x).
+	 */
+	public static void apply(DenseMatrix x, DenseMatrix y, UnaryOp func) {
+		assert (x.m == y.m && x.n == y.n);
+		double[] xdata = x.data;
+		double[] ydata = y.data;
+		assert (xdata.length == ydata.length);
+		for (int i = 0; i < xdata.length; i++) {
+			ydata[i] = func.f(xdata[i]);
+		}
+	}
+
+	/**
+	 * y = func(x1, x2).
+	 */
+	public static void apply(DenseMatrix x1, DenseMatrix x2, DenseMatrix y, BinaryOp func) {
+		assert (x1.m == y.m && x1.n == y.n);
+		assert (x2.m == y.m && x2.n == y.n);
+		double[] x1data = x1.data;
+		double[] x2data = x2.data;
+		double[] ydata = y.data;
+		assert (x1data.length == ydata.length);
+		assert (x2data.length == ydata.length);
+		for (int i = 0; i < ydata.length; i++) {
+			ydata[i] = func.f(x1data[i], x2data[i]);
+		}
+	}
+
+	/**
+	 * y = func(x, alpha).
+	 */
+	public static void apply(DenseMatrix x, double alpha, DenseMatrix y, BinaryOp func) {
+		assert (x.m == y.m && x.n == y.n);
+		double[] xdata = x.data;
+		double[] ydata = y.data;
+		assert (xdata.length == ydata.length);
+		for (int i = 0; i < xdata.length; i++) {
+			ydata[i] = func.f(xdata[i], alpha);
+		}
+	}
+
+	/**
+	 * Compute element wise sum.
+	 * \sum_ij func(x_ij)
+	 */
+	public static double applySum(DenseMatrix x, UnaryOp func) {
+		double[] xdata = x.data;
+		double s = 0.;
+		for (int i = 0; i < xdata.length; i++) {
+			s += func.f(xdata[i]);
+		}
+		return s;
+	}
+
+	/**
+	 * Compute element wise sum.
+	 * \sum_ij func(x1_ij, x2_ij)
+	 */
+	public static double applySum(DenseMatrix x1, DenseMatrix x2, BinaryOp func) {
+		assert (x1.m == x2.m && x1.n == x2.n);
+		double[] x1data = x1.data;
+		double[] x2data = x2.data;
+		double s = 0.;
+		for (int i = 0; i < x1data.length; i++) {
+			s += func.f(x1data[i], x2data[i]);
+		}
+		return s;
+	}
+
+    /* ---------------------------------------------------
+     * Methods for setting matrix data
+     * --------------------------------------------------- */
+
+	/**
 	 * Get a single element.
 	 *
 	 * @param i Row index.
@@ -318,6 +435,10 @@ public class DenseMatrix implements Serializable {
 		return c;
 	}
 
+    /* ---------------------------------------------------
+     * Methods for accessing matrix properties
+     * --------------------------------------------------- */
+
 	/**
 	 * Clone the Matrix object.
 	 */
@@ -361,10 +482,6 @@ public class DenseMatrix implements Serializable {
 		}
 		return sub;
 	}
-
-    /* ---------------------------------------------------
-     * Methods for setting matrix data
-     * --------------------------------------------------- */
 
 	/**
 	 * Set all matrix elements to 'val'.
@@ -436,10 +553,6 @@ public class DenseMatrix implements Serializable {
 		return this;
 	}
 
-    /* ---------------------------------------------------
-     * Methods for accessing matrix properties
-     * --------------------------------------------------- */
-
 	public boolean isSquared() {
 		return m == n;
 	}
@@ -461,6 +574,10 @@ public class DenseMatrix implements Serializable {
 	public boolean isNonSingular() {
 		return rank() == Math.min(m, n);
 	}
+
+    /* ---------------------------------------------------
+     * Methods of matrix operations
+     * --------------------------------------------------- */
 
 	public int numRows() {
 		return m;
@@ -527,10 +644,6 @@ public class DenseMatrix implements Serializable {
 	public int rank() {
 		return MatVecOp.rank(this);
 	}
-
-    /* ---------------------------------------------------
-     * Methods of matrix operations
-     * --------------------------------------------------- */
 
 	/**
 	 * C = A + B  .
@@ -657,24 +770,6 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * C := A .* B    .
-	 */
-	public static DenseMatrix elementWiseProduct(DenseMatrix matA, DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
-		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a * b));
-		return matC;
-	}
-
-	/**
-	 * C := A ./ B   .
-	 */
-	public static DenseMatrix elementWiseDivide(DenseMatrix matA, DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
-		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a / b));
-		return matC;
-	}
-
-	/**
 	 * Solve A*X = B  .
 	 * When A is square matrix, linear system of equations A*X=B is solved.
 	 * When m > n, least square problem min||A*X-B||^2 is solved.
@@ -712,6 +807,11 @@ public class DenseMatrix implements Serializable {
 			return x;
 		}
 	}
+
+    /* ---------------------------------------------------
+     * Methods of customized element wise operations
+     * ---------------------------------------------------
+     */
 
 	public DenseVector solve(DenseVector b) {
 		DenseMatrix matB = DenseMatrix.fromDataBuffer(b.size(), 1, b.getData());
@@ -779,120 +879,6 @@ public class DenseMatrix implements Serializable {
 		return MatVecOp.inverse(this);
 	}
 
-	public static DenseMatrix sumByRow(DenseMatrix dm) {
-		double[][] rowSums = new double[1][dm.m];
-		for (int i = 0; i < dm.m; i++) {
-			rowSums[0][i] = 0;
-			for (int j = 0; j < dm.n; j++) {
-				rowSums[0][i] += dm.get(i, j);
-			}
-		}
-		return new DenseMatrix(rowSums);
-	}
-
-	public static DenseMatrix sumByCol(DenseMatrix dm) {
-		double[][] rowSums = new double[1][dm.n];
-		for (int j = 0; j < dm.n; j++) {
-			rowSums[0][j] = 0;
-		}
-
-		for (int i = 0; i < dm.m; i++) {
-			for (int j = 0; j < dm.n; j++) {
-				rowSums[0][j] += dm.get(i, j);
-			}
-		}
-		return new DenseMatrix(rowSums);
-	}
-
-    /* ---------------------------------------------------
-     * Methods of customized element wise operations
-     * ---------------------------------------------------
-     */
-
-	/**
-	 * Unary method.
-	 */
-	public interface UnaryOp {
-		double f(double x);
-	}
-
-	/**
-	 * Binary method.
-	 */
-	public interface BinaryOp {
-		double f(double x, double y);
-	}
-
-	/**
-	 * y = func(x).
-	 */
-	public static void apply(DenseMatrix x, DenseMatrix y, UnaryOp func) {
-		assert (x.m == y.m && x.n == y.n);
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i]);
-		}
-	}
-
-	/**
-	 * y = func(x1, x2).
-	 */
-	public static void apply(DenseMatrix x1, DenseMatrix x2, DenseMatrix y, BinaryOp func) {
-		assert (x1.m == y.m && x1.n == y.n);
-		assert (x2.m == y.m && x2.n == y.n);
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double[] ydata = y.data;
-		assert (x1data.length == ydata.length);
-		assert (x2data.length == ydata.length);
-		for (int i = 0; i < ydata.length; i++) {
-			ydata[i] = func.f(x1data[i], x2data[i]);
-		}
-	}
-
-	/**
-	 * y = func(x, alpha).
-	 */
-	public static void apply(DenseMatrix x, double alpha, DenseMatrix y, BinaryOp func) {
-		assert (x.m == y.m && x.n == y.n);
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i], alpha);
-		}
-	}
-
-	/**
-	 * Compute element wise sum.
-	 * \sum_ij func(x_ij)
-	 */
-	public static double applySum(DenseMatrix x, UnaryOp func) {
-		double[] xdata = x.data;
-		double s = 0.;
-		for (int i = 0; i < xdata.length; i++) {
-			s += func.f(xdata[i]);
-		}
-		return s;
-	}
-
-	/**
-	 * Compute element wise sum.
-	 * \sum_ij func(x1_ij, x2_ij)
-	 */
-	public static double applySum(DenseMatrix x1, DenseMatrix x2, BinaryOp func) {
-		assert (x1.m == x2.m && x1.n == x2.n);
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double s = 0.;
-		for (int i = 0; i < x1data.length; i++) {
-			s += func.f(x1data[i], x2data[i]);
-		}
-		return s;
-	}
-
 	@Override
 	public String toString() {
 		StringBuilder sbd = new StringBuilder();
@@ -908,5 +894,19 @@ public class DenseMatrix implements Serializable {
 			sbd.append("\n");
 		}
 		return sbd.toString();
+	}
+
+	/**
+	 * Unary method.
+	 */
+	public interface UnaryOp {
+		double f(double x);
+	}
+
+	/**
+	 * Binary method.
+	 */
+	public interface BinaryOp {
+		double f(double x, double y);
 	}
 }

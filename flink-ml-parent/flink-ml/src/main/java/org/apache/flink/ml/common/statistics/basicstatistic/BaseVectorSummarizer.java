@@ -29,14 +29,6 @@ public abstract class BaseVectorSummarizer extends BaseSummarizer {
 
 	protected double sumWeight = 0;
 
-	public abstract BaseVectorSummarizer visit(Vector vec);
-
-	public BaseVectorSummarizer visit(Vector vec, double weight) {
-		throw new RuntimeException("It is support yet.");
-	}
-
-	public abstract BaseVectorSummarizer merge(BaseVectorSummarizer vsrt);
-
 	public static BaseVectorSummarizer merge(BaseVectorSummarizer left, BaseVectorSummarizer right) {
 		try {
 			BaseVectorSummarizer result = left.clone();
@@ -46,6 +38,14 @@ public abstract class BaseVectorSummarizer extends BaseSummarizer {
 			throw new RuntimeException(ex);
 		}
 	}
+
+	public abstract BaseVectorSummarizer visit(Vector vec);
+
+	public BaseVectorSummarizer visit(Vector vec, double weight) {
+		throw new RuntimeException("It is support yet.");
+	}
+
+	public abstract BaseVectorSummarizer merge(BaseVectorSummarizer vsrt);
 
 	public abstract BaseVectorSummary toSummary();
 

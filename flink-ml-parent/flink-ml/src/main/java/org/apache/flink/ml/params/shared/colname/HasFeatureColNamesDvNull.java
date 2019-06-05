@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Names of the feature columns used for training in the input table.
  */
 public interface HasFeatureColNamesDvNull<T> extends BaseWithParam <T> {
 
-	ParamInfo <String[]> FEATURE_COL_NAMES = new ParamInfo <>(
-		"featureColNames",
-		"Names of the feature columns used for training in the input table",
-		true, null,
-		String[].class
-	);
+	ParamInfo <String[]> FEATURE_COL_NAMES = ParamInfoFactory
+		.createParamInfo("featureColNames", String[].class)
+		.setDescription("Names of the feature columns used for training in the input table")
+		.setHasDefaultValue(null)
+		.build();
 
 	default String[] getFeatureColNames() {
 		return getParams().get(FEATURE_COL_NAMES);

@@ -45,13 +45,6 @@ public class DenseVector extends Vector {
 		this.data = data.clone();
 	}
 
-	@Override
-	public DenseVector clone() {
-		DenseVector c = new DenseVector();
-		c.setData(this.data.clone());
-		return c;
-	}
-
 	public static DenseVector ones(int n) {
 		DenseVector r = new DenseVector(n);
 		for (int i = 0; i < r.data.length; i++) {
@@ -75,6 +68,83 @@ public class DenseVector extends Vector {
 			v.set(i, random.nextDouble());
 		}
 		return v;
+	}
+
+	public static DenseVector deserialize(String str) {
+		try {
+			str = StringUtils.trim(str);
+
+			if (str.isEmpty()) {
+				return new DenseVector();
+			}
+
+			int numValues = StringUtils.countMatches(str, ",") + 1;
+			double[] data = new double[numValues];
+
+			int startPos = 0;
+			int endPos;
+			for (int i = 0; i < numValues; i++) {
+				// extract the value string
+				endPos = StringUtils.indexOf(str, ",", startPos);
+				if (endPos == -1) {
+					endPos = str.length();
+				}
+				String valueStr = StringUtils.substring(str, startPos, endPos);
+				startPos = endPos + 1;
+				data[i] = Double.valueOf(valueStr);
+			}
+			DenseVector vector = new DenseVector();
+			vector.setData(data);
+			return vector;
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RuntimeException("fail to parse vector \"" + str + "\"");
+		}
+	}
+
+	/**
+	 * y = func(x).
+	 */
+	public static void apply(DenseVector x, DenseVector y, UnaryOp func) {
+		double[] xdata = x.data;
+		double[] ydata = y.data;
+		assert (xdata.length == ydata.length);
+		for (int i = 0; i < xdata.length; i++) {
+			ydata[i] = func.f(xdata[i]);
+		}
+	}
+
+	/**
+	 * y = func(x1, x2).
+	 */
+	public static void apply(DenseVector x1, DenseVector x2, DenseVector y, BinaryOp func) {
+		double[] x1data = x1.data;
+		double[] x2data = x2.data;
+		double[] ydata = y.data;
+		assert (x1data.length == ydata.length);
+		assert (x2data.length == ydata.length);
+		for (int i = 0; i < ydata.length; i++) {
+			ydata[i] = func.f(x1data[i], x2data[i]);
+		}
+	}
+
+	/**
+	 * y = func(x, alpha).
+	 */
+	public static void apply(DenseVector x, double alpha, DenseVector y, BinaryOp func) {
+		double[] xdata = x.data;
+		double[] ydata = y.data;
+		assert (xdata.length == ydata.length);
+		for (int i = 0; i < xdata.length; i++) {
+			ydata[i] = func.f(xdata[i], alpha);
+		}
+	}
+
+	@Override
+	public DenseVector clone() {
+		DenseVector c = new DenseVector();
+		c.setData(this.data.clone());
+		return c;
 	}
 
 	@Override
@@ -339,36 +409,6 @@ public class DenseVector extends Vector {
 		this.data = data;
 	}
 
-	private class DenseVectorIterator implements VectorIterator {
-		private int cursor = 0;
-
-		@Override
-		public boolean hasNext() {
-			return cursor < data.length;
-		}
-
-		@Override
-		public void next() {
-			cursor++;
-		}
-
-		@Override
-		public int getIndex() {
-			if (cursor >= data.length) {
-				throw new RuntimeException("iterator out of bound");
-			}
-			return cursor;
-		}
-
-		@Override
-		public double getValue() {
-			if (cursor >= data.length) {
-				throw new RuntimeException("iterator out of bound");
-			}
-			return data[cursor];
-		}
-	}
-
 	@Override
 	public String serialize() {
 		StringBuilder sbd = new StringBuilder();
@@ -380,38 +420,6 @@ public class DenseVector extends Vector {
 			}
 		}
 		return sbd.toString();
-	}
-
-	public static DenseVector deserialize(String str) {
-		try {
-			str = StringUtils.trim(str);
-
-			if (str.isEmpty()) {
-				return new DenseVector();
-			}
-
-			int numValues = StringUtils.countMatches(str, ",") + 1;
-			double[] data = new double[numValues];
-
-			int startPos = 0;
-			int endPos;
-			for (int i = 0; i < numValues; i++) {
-				// extract the value string
-				endPos = StringUtils.indexOf(str, ",", startPos);
-				if (endPos == -1) {
-					endPos = str.length();
-				}
-				String valueStr = StringUtils.substring(str, startPos, endPos);
-				startPos = endPos + 1;
-				data[i] = Double.valueOf(valueStr);
-			}
-			DenseVector vector = new DenseVector();
-			vector.setData(data);
-			return vector;
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException("fail to parse vector \"" + str + "\"");
-		}
 	}
 
 	@Override
@@ -454,6 +462,11 @@ public class DenseVector extends Vector {
 		return this;
 	}
 
+
+    /* ---------------------------------------------------
+	 * Methods of customized element wise operations
+     * --------------------------------------------------- */
+
 	public DenseVector power(double p) {
 		double[] outData = new double[data.length];
 		for (int i = 0; i < outData.length; i++) {
@@ -466,11 +479,6 @@ public class DenseVector extends Vector {
 	public VectorIterator iterator() {
 		return new DenseVectorIterator();
 	}
-
-
-    /* ---------------------------------------------------
-	 * Methods of customized element wise operations
-     * --------------------------------------------------- */
 
 	/**
 	 * Unary method.
@@ -486,41 +494,33 @@ public class DenseVector extends Vector {
 		double f(double x, double y);
 	}
 
-	/**
-	 * y = func(x).
-	 */
-	public static void apply(DenseVector x, DenseVector y, UnaryOp func) {
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i]);
-		}
-	}
+	private class DenseVectorIterator implements VectorIterator {
+		private int cursor = 0;
 
-	/**
-	 * y = func(x1, x2).
-	 */
-	public static void apply(DenseVector x1, DenseVector x2, DenseVector y, BinaryOp func) {
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double[] ydata = y.data;
-		assert (x1data.length == ydata.length);
-		assert (x2data.length == ydata.length);
-		for (int i = 0; i < ydata.length; i++) {
-			ydata[i] = func.f(x1data[i], x2data[i]);
+		@Override
+		public boolean hasNext() {
+			return cursor < data.length;
 		}
-	}
 
-	/**
-	 * y = func(x, alpha).
-	 */
-	public static void apply(DenseVector x, double alpha, DenseVector y, BinaryOp func) {
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i], alpha);
+		@Override
+		public void next() {
+			cursor++;
+		}
+
+		@Override
+		public int getIndex() {
+			if (cursor >= data.length) {
+				throw new RuntimeException("iterator out of bound");
+			}
+			return cursor;
+		}
+
+		@Override
+		public double getValue() {
+			if (cursor >= data.length) {
+				throw new RuntimeException("iterator out of bound");
+			}
+			return data[cursor];
 		}
 	}
 }

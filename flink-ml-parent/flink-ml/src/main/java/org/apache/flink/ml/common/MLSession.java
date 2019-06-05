@@ -19,14 +19,24 @@
 
 package org.apache.flink.ml.common;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.ml.common.utils.RowTypeDataSet;
+import org.apache.flink.ml.common.utils.RowTypeDataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
+import java.util.List;
 
 /**
  * Session of Machine Learning algorithms.
@@ -76,5 +86,40 @@ public class MLSession {
 		return streamTableEnv;
 	}
 
+	public static Table createBatchTable(List<Row> rows, String[] colNames) {
+		if (rows == null || rows.size() < 1) {
+			throw new IllegalArgumentException("Values can not be empty.");
+		}
+
+		Row first = rows.iterator().next();
+		int arity = first.getArity();
+
+		TypeInformation<?>[] types = new TypeInformation[arity];
+
+		for (int i = 0; i < arity; ++i) {
+			types[i] = TypeExtractor.getForObject(first.getField(i));
+		}
+
+		DataSet<Row> dataSet = getExecutionEnvironment().fromCollection(rows);
+		return RowTypeDataSet.toTable(dataSet, colNames, types);
+	}
+
+	public static Table createStreamTable(List<Row> rows, String[] colNames) {
+		if (rows == null || rows.size() < 1) {
+			throw new IllegalArgumentException("Values can not be empty.");
+		}
+
+		Row first = rows.iterator().next();
+		int arity = first.getArity();
+
+		TypeInformation<?>[] types = new TypeInformation[arity];
+
+		for (int i = 0; i < arity; ++i) {
+			types[i] = TypeExtractor.getForObject(first.getField(i));
+		}
+
+		DataStream<Row> dataSet = getStreamExecutionEnvironment().fromCollection(rows);
+		return RowTypeDataStream.toTable(dataSet, colNames, types);
+	}
 }
 

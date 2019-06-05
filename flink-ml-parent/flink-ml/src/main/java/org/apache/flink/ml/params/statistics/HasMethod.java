@@ -19,21 +19,20 @@
 
 package org.apache.flink.ml.params.statistics;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Method: pearson, spearman. default pearson.
  */
 public interface HasMethod<T> extends BaseWithParam <T> {
 
-	ParamInfo <String> METHOD = new ParamInfo <>(
-		"method",
-		"Method: pearson, spearman. default pearson",
-		true,
-		"pearson",
-		String.class
-	);
+	ParamInfo <String> METHOD = ParamInfoFactory
+		.createParamInfo("method", String.class)
+		.setDescription("Method: pearson, spearman. default pearson")
+		.setHasDefaultValue("pearson")
+		.build();
 
 	default String getMethod() {
 		return getParams().get(METHOD);

@@ -22,12 +22,12 @@ package org.apache.flink.ml.batchoperator.statistics;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.common.MLSession;
 import org.apache.flink.ml.common.statistics.StatisticsUtil;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummary;
 import org.apache.flink.ml.common.utils.Types;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.params.statistics.SummarizerParams;
 import org.apache.flink.types.Row;
 

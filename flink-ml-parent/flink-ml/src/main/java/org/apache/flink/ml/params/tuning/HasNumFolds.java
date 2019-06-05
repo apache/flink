@@ -19,21 +19,20 @@
 
 package org.apache.flink.ml.params.tuning;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Number of folds for cross validation (>= 2).
  */
 public interface HasNumFolds<T> extends BaseWithParam <T> {
 
-	ParamInfo <Integer> NUM_FOLDS = new ParamInfo <>(
-		"NumFolds",
-		"Number of folds for cross validation (>= 2)",
-		true,
-		10,
-		Integer.class
-	);
+	ParamInfo <Integer> NUM_FOLDS = ParamInfoFactory
+		.createParamInfo("NumFolds", Integer.class)
+		.setDescription("Number of folds for cross validation (>= 2)")
+		.setHasDefaultValue(10)
+		.build();
 
 	default Integer getNumFolds() {
 		return getParams().get(NUM_FOLDS);

@@ -49,6 +49,15 @@ public class TableSummary extends BaseSummary {
 
 	}
 
+	private static int findIdx(int[] numberIdxs, int idx) {
+		for (int i = 0; i < numberIdxs.length; i++) {
+			if (idx == numberIdxs[i]) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 	@Override
 	public TableSummary clone() {
 		TableSummary vsrt = new TableSummary();
@@ -199,14 +208,5 @@ public class TableSummary extends BaseSummary {
 			throw new RuntimeException(colName + " is not exist.");
 		}
 		return findIdx(numberIdxs, idx);
-	}
-
-	private static int findIdx(int[] numberIdxs, int idx) {
-		for (int i = 0; i < numberIdxs.length; i++) {
-			if (idx == numberIdxs[i]) {
-				return i;
-			}
-		}
-		return -1;
 	}
 }

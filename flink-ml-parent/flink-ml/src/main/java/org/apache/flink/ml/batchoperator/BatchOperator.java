@@ -21,6 +21,7 @@ package org.apache.flink.ml.batchoperator;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.dataproc.CrossBatchOp;
 import org.apache.flink.ml.batchoperator.dataproc.FirstN;
 import org.apache.flink.ml.batchoperator.dataproc.SampleBatchOp;
@@ -30,7 +31,6 @@ import org.apache.flink.ml.batchoperator.utils.PrintBatchOp;
 import org.apache.flink.ml.common.AlgoOperator;
 import org.apache.flink.ml.common.MLSession;
 import org.apache.flink.ml.common.utils.RowTypeDataSet;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
@@ -53,11 +53,16 @@ public abstract class BatchOperator<T extends BatchOperator <T>> extends AlgoOpe
 		super(params);
 	}
 
-	protected void putParamValue(String paramName, Object paramValue) {
-		if (null == this.params) {
-			this.params = new Params();
-		}
-		this.params.set(paramName, paramValue);
+	public static void execute() throws Exception {
+		MLSession.getExecutionEnvironment().execute();
+	}
+
+	public static void setParallelism(int parallelism) {
+		MLSession.getExecutionEnvironment().setParallelism(parallelism);
+	}
+
+	public static BatchOperator sourceFrom(Table table) {
+		return new TableSourceBatchOp(table);
 	}
 
 	public long count() throws Exception {
@@ -218,17 +223,5 @@ public abstract class BatchOperator<T extends BatchOperator <T>> extends AlgoOpe
 	public BatchOperator crossWithHuge(BatchOperator batchOp) {
 		CrossBatchOp crs = new CrossBatchOp(CrossBatchOp.Type.WithHuge);
 		return crs.linkFrom(this, batchOp);
-	}
-
-	public static void execute() throws Exception {
-		MLSession.getExecutionEnvironment().execute();
-	}
-
-	public static void setParallelism(int parallelism) {
-		MLSession.getExecutionEnvironment().setParallelism(parallelism);
-	}
-
-	public static BatchOperator sourceFrom(Table table) {
-		return new TableSourceBatchOp(table);
 	}
 }

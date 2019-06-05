@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Name of the label column in the input table.
  */
 public interface HasLabelColName<T> extends BaseWithParam <T> {
 
-	ParamInfo <String> LABEL_COL_NAME = new ParamInfo <>(
-		"labelColName",
-		"Name of the label column in the input table",
-		false,
-		String.class
-	);
+	ParamInfo <String> LABEL_COL_NAME = ParamInfoFactory
+		.createParamInfo("labelColName", String.class)
+		.setDescription("Name of the label column in the input table")
+		.setRequired()
+		.build();
 
 	default String getLabelColName() {
 		return getParams().get(LABEL_COL_NAME);

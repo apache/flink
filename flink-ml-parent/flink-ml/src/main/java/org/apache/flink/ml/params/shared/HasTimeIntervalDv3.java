@@ -19,20 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Time interval, unit is second.
  */
 public interface HasTimeIntervalDv3<T> extends BaseWithParam <T> {
-	ParamInfo <Integer> TIME_INTERVAL = new ParamInfo <>(
-		"timeInterval",
-		"Time interval, unit is second.",
-		true,
-		3,
-		Integer.class
-	);
+	ParamInfo <Integer> TIME_INTERVAL = ParamInfoFactory
+		.createParamInfo("timeInterval", Integer.class)
+		.setDescription("Time interval, unit is second.")
+		.setHasDefaultValue(3)
+		.build();
 
 	default Integer getTimeInterval() {
 		return getParams().get(TIME_INTERVAL);

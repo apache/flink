@@ -38,9 +38,7 @@ public class ParamInfo<V> {
 	private final ParamValidator<V> validator;
 	private final Class<V> valueClass;
 
-	ParamInfo(String name, String[] alias, String description, boolean isOptional,
-			boolean hasDefaultValue, V defaultValue,
-			ParamValidator<V> validator, Class<V> valueClass) {
+	ParamInfo(String name, String[] alias, String description, boolean isOptional, boolean hasDefaultValue, V defaultValue, ParamValidator<V> validator, Class<V> valueClass) {
 		this.name = name;
 		this.alias = alias;
 		this.description = description;
@@ -52,8 +50,8 @@ public class ParamInfo<V> {
 	}
 
 	/**
-	 * Returns the name of the parameter. The name must be unique in the stage the ParamInfo
-	 * belongs to.
+	 * Returns the name of the parameter. The name must be unique in the stage the ParamInfo belongs
+	 * to.
 	 *
 	 * @return the name of the parameter
 	 */
@@ -67,7 +65,7 @@ public class ParamInfo<V> {
 	 * @return the aliases of the parameter
 	 */
 	public String[] getAlias() {
-		return alias;
+		return alias == null ? new String[0] : alias;
 	}
 
 	/**

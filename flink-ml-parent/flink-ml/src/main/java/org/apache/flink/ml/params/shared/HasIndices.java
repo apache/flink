@@ -19,19 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Indices of a vector to be sliced.
  */
 public interface HasIndices<T> extends BaseWithParam <T> {
-	ParamInfo <int[]> INDICES = new ParamInfo <>(
-		"indices",
-		"Indices of a vector to be sliced",
-		true, null,
-		int[].class
-	);
+	ParamInfo <int[]> INDICES = ParamInfoFactory
+		.createParamInfo("indices", int[].class)
+		.setDescription("Indices of a vector to be sliced")
+		.setHasDefaultValue(null)
+		.build();
 
 	default int[] getIndices() {
 		return getParams().get(INDICES);

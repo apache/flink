@@ -433,6 +433,69 @@ public class StatisticsUtil {
 		}
 	}
 
+	public static BaseSummary fromJson(String json) {
+		JsonObject jsonObject = new JsonParser().parse(json).getAsJsonObject();
+
+		if (jsonObject.has("cols")) {
+			return MLSession.gson.fromJson(json, SparseVectorSummary.class);
+		} else if (jsonObject.has("numMissingValue")) {
+			return MLSession.gson.fromJson(json, TableSummary.class);
+		} else {
+			return MLSession.gson.fromJson(json, DenseVectorSummary.class);
+		}
+	}
+
+	public static String toString(String[] colNames, List <Row> data) {
+		StringBuilder sbd = new StringBuilder();
+		sbd.append(RowUtil.formatTitle(colNames));
+
+		for (Row row : data) {
+			sbd.append("\n")
+				.append(formatRows(row));
+
+		}
+
+		return sbd.toString();
+	}
+
+	private static String formatRows(Row row) {
+		StringBuilder sb = new StringBuilder();
+
+		for (int i = 0; i < row.getArity(); ++i) {
+			if (i > 0) {
+				sb.append("|");
+			}
+			Object obj = row.getField(i);
+			if (obj == null) {
+				sb.append("null");
+			} else {
+				if (obj instanceof Double || obj instanceof Float) {
+					double val = (double) obj;
+					if (Double.isNaN(val)) {
+						sb.append("NaN");
+					} else {
+						sb.append(round(val, 4));
+					}
+				} else {
+					sb.append(obj);
+				}
+
+			}
+		}
+
+		return sb.toString();
+	}
+
+	protected static double round(double v, int scale) {
+		if (scale < 0) {
+			throw new IllegalArgumentException(
+				"The scale must be a positive integer or zero");
+		}
+		BigDecimal b = new BigDecimal(Double.toString(v));
+		BigDecimal one = new BigDecimal("1");
+		return b.divide(one, scale, BigDecimal.ROUND_HALF_UP).doubleValue();
+	}
+
 	private static class TransferToDenseVector implements MapFunction <Row, Tuple2 <Vector, Row>> {
 		private int[] featureIdxs;
 		private int[] keepColIdxs;
@@ -597,69 +660,6 @@ public class StatisticsUtil {
 			}
 			return out;
 		}
-	}
-
-	public static BaseSummary fromJson(String json) {
-		JsonObject jsonObject = new JsonParser().parse(json).getAsJsonObject();
-
-		if (jsonObject.has("cols")) {
-			return MLSession.gson.fromJson(json, SparseVectorSummary.class);
-		} else if (jsonObject.has("numMissingValue")) {
-			return MLSession.gson.fromJson(json, TableSummary.class);
-		} else {
-			return MLSession.gson.fromJson(json, DenseVectorSummary.class);
-		}
-	}
-
-	public static String toString(String[] colNames, List <Row> data) {
-		StringBuilder sbd = new StringBuilder();
-		sbd.append(RowUtil.formatTitle(colNames));
-
-		for (Row row : data) {
-			sbd.append("\n")
-				.append(formatRows(row));
-
-		}
-
-		return sbd.toString();
-	}
-
-	private static String formatRows(Row row) {
-		StringBuilder sb = new StringBuilder();
-
-		for (int i = 0; i < row.getArity(); ++i) {
-			if (i > 0) {
-				sb.append("|");
-			}
-			Object obj = row.getField(i);
-			if (obj == null) {
-				sb.append("null");
-			} else {
-				if (obj instanceof Double || obj instanceof Float) {
-					double val = (double) obj;
-					if (Double.isNaN(val)) {
-						sb.append("NaN");
-					} else {
-						sb.append(round(val, 4));
-					}
-				} else {
-					sb.append(obj);
-				}
-
-			}
-		}
-
-		return sb.toString();
-	}
-
-	private static double round(double v, int scale) {
-		if (scale < 0) {
-			throw new IllegalArgumentException(
-				"The scale must be a positive integer or zero");
-		}
-		BigDecimal b = new BigDecimal(Double.toString(v));
-		BigDecimal one = new BigDecimal("1");
-		return b.divide(one, scale, BigDecimal.ROUND_HALF_UP).doubleValue();
 	}
 
 }

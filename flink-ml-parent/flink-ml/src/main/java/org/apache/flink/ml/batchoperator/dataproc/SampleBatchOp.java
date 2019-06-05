@@ -22,10 +22,11 @@ package org.apache.flink.ml.batchoperator.dataproc;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.SampleWithFraction;
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.common.utils.RowTypeDataSet;
-import org.apache.flink.ml.params.ParamInfo;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.params.shared.HasRandomSeed;
 import org.apache.flink.ml.params.validators.RangeValidator;
 import org.apache.flink.types.Row;
@@ -35,21 +36,18 @@ import org.apache.flink.types.Row;
  */
 public final class SampleBatchOp extends BatchOperator <SampleBatchOp> implements HasRandomSeed <SampleBatchOp> {
 
-	public static final ParamInfo <Double> RATIO = new ParamInfo <>(
-		"ratio",
-		"sampling ratio, it should be in range of [0, 1]",
-		false,
-		Double.class,
-		new RangeValidator<>(0.0, 1.0)
-	);
+	public static final ParamInfo <Double> RATIO = ParamInfoFactory
+		.createParamInfo("ratio", Double.class)
+		.setDescription("sampling ratio, it should be in range of [0, 1]")
+		.setRequired()
+		.setValidator(new RangeValidator <>(0.0, 1.0))
+		.build();
 
-	public static final ParamInfo <Boolean> WITH_REPLACEMENT = new ParamInfo <>(
-		"withReplacement",
-		"Indicates whether to enable sampling with replacement, default is without replcement",
-		true,
-		false,
-		Boolean.class
-	);
+	public static final ParamInfo <Boolean> WITH_REPLACEMENT = ParamInfoFactory
+		.createParamInfo("withReplacement", Boolean.class)
+		.setDescription("Indicates whether to enable sampling with replacement, default is without replcement")
+		.setHasDefaultValue(false)
+		.build();
 
 	public SampleBatchOp() {
 		super(null);
@@ -80,20 +78,20 @@ public final class SampleBatchOp extends BatchOperator <SampleBatchOp> implement
 		);
 	}
 
-	public SampleBatchOp setRatio(Double value) {
-		return set(RATIO, value);
-	}
-
 	public Double getRatio() {
 		return getParams().get(RATIO);
 	}
 
-	public SampleBatchOp setWithReplacement(Boolean value) {
-		return set(WITH_REPLACEMENT, value);
+	public SampleBatchOp setRatio(Double value) {
+		return set(RATIO, value);
 	}
 
 	public Boolean getWithReplacement() {
 		return getParams().get(WITH_REPLACEMENT);
+	}
+
+	public SampleBatchOp setWithReplacement(Boolean value) {
+		return set(WITH_REPLACEMENT, value);
 	}
 
 	@Override

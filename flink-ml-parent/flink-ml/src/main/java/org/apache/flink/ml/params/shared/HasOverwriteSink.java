@@ -19,19 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * If this parameter is true, it will remove the old data before write new data.
  */
 public interface HasOverwriteSink<T> extends BaseWithParam <T> {
-	ParamInfo <Boolean> OVERWRITE_SINK = new ParamInfo <>(
-		"overwriteSink",
-		"If this parameter is true, it will remove the old data before write new data",
-		true, false,
-		Boolean.class
-	);
+	ParamInfo <Boolean> OVERWRITE_SINK = ParamInfoFactory
+		.createParamInfo("overwriteSink", Boolean.class)
+		.setDescription("If this parameter is true, it will remove the old data before write new data")
+		.setHasDefaultValue(false)
+		.build();
 
 	default Boolean getOverwriteSink() {
 		return getParams().get(OVERWRITE_SINK);

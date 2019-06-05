@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Name of the column indicating weight.
  */
 public interface HasWeightColName<T> extends BaseWithParam <T> {
 
-	ParamInfo <String> WEIGHT_COL_NAME = new ParamInfo <>(
-		"weightColName",
-		"Name of the column indicating weight",
-		false,
-		String.class
-	);
+	ParamInfo <String> WEIGHT_COL_NAME = ParamInfoFactory
+		.createParamInfo("weightColName", String.class)
+		.setDescription("Name of the column indicating weight")
+		.setRequired()
+		.build();
 
 	default String getWeightColName() {
 		return getParams().get(WEIGHT_COL_NAME);

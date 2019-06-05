@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Random seed, it should be positive integer.
  */
 public interface HasRandomSeed<T> extends BaseWithParam <T> {
-	ParamInfo <Long> RANDOM_SEED = new ParamInfo <>(
-		"randomSeed",
-		new String[] {"seed"},
-		"Random seed, it should be positive integer",
-		true, 772209414L,
-		Long.class
-	);
+	ParamInfo <Long> RANDOM_SEED = ParamInfoFactory
+		.createParamInfo("randomSeed", Long.class)
+		.setDescription("Random seed, it should be positive integer")
+		.setHasDefaultValue(772209414L)
+		.setAlias(new String[] {"seed"})
+		.build();
 
 	default Long getRandomSeed() {
 		return getParams().get(RANDOM_SEED);

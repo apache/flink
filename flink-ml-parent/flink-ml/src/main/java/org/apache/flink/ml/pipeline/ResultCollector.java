@@ -19,10 +19,10 @@
 
 package org.apache.flink.ml.pipeline;
 
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.common.AlgoOperator;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.table.api.Table;
 
 /**
@@ -37,23 +37,19 @@ public abstract class ResultCollector<T extends ResultCollector <T, R>, R>
 	protected AlgoOperator in;
 
 	public ResultCollector(Table in) {
-		this(AlgoOperator.sourceFrom(in), null);
-	}
-
-	public ResultCollector(AlgoOperator in) {
 		this(in, null);
 	}
 
-	public ResultCollector(AlgoOperator in, Params params) {
-		if (in instanceof BatchOperator) {
-			this.in = in;
+	public ResultCollector(Table in, Params params) {
+		this.in = AlgoOperator.sourceFrom(in);
+		if (this.in instanceof BatchOperator) {
 			if (null == params) {
 				this.params = new Params();
 			} else {
 				this.params = params.clone();
 			}
 		} else {
-			throw new RuntimeException("Only support BatchOperator." + in.getClass().getName());
+			throw new RuntimeException("Only support Batch Data." + in.getClass().getName());
 		}
 	}
 

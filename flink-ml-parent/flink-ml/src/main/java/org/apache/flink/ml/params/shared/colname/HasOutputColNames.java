@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Names of the output columns.
  */
 public interface HasOutputColNames<T> extends BaseWithParam <T> {
 
-	ParamInfo <String[]> OUTPUT_COL_NAMES = new ParamInfo <>(
-		"outputColNames",
-		"Names of the output columns",
-		false,
-		String[].class
-	);
+	ParamInfo <String[]> OUTPUT_COL_NAMES = ParamInfoFactory
+		.createParamInfo("outputColNames", String[].class)
+		.setDescription("Names of the output columns")
+		.setRequired()
+		.build();
 
 	default String[] getOutputColNames() {
 		return getParams().get(OUTPUT_COL_NAMES);

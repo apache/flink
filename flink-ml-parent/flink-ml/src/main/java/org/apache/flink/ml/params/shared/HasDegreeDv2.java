@@ -19,19 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Degree of polynomial expand.
  */
 public interface HasDegreeDv2<T> extends BaseWithParam <T> {
-	ParamInfo <Integer> DEGREE = new ParamInfo <>(
-		"degree",
-		"Degree of polynomial expand.",
-		true, 2,
-		Integer.class
-	);
+	ParamInfo <Integer> DEGREE = ParamInfoFactory
+		.createParamInfo("degree", Integer.class)
+		.setDescription("Degree of polynomial expand.")
+		.setHasDefaultValue(2)
+		.build();
 
 	default Integer getDegree() {
 		return getParams().get(DEGREE);

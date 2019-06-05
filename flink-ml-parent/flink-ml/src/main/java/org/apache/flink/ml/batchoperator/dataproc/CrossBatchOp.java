@@ -34,16 +34,6 @@ import java.util.List;
  */
 public final class CrossBatchOp extends BatchOperator <CrossBatchOp> {
 
-	/**
-	 * Type of cross operation.
-	 */
-	public enum Type {
-
-		Auto,
-		WithTiny,
-		WithHuge
-	}
-
 	private Type type = Type.Auto;
 
 	public CrossBatchOp() {
@@ -78,6 +68,21 @@ public final class CrossBatchOp extends BatchOperator <CrossBatchOp> {
 		return this;
 	}
 
+	@Override
+	public CrossBatchOp linkFrom(BatchOperator in) {
+		throw new RuntimeException("Need 2 inputs!");
+	}
+
+	/**
+	 * Type of cross operation.
+	 */
+	public enum Type {
+
+		Auto,
+		WithTiny,
+		WithHuge
+	}
+
 	private static class MyCrossFunc implements CrossFunction <Row, Row, Row> {
 
 		@Override
@@ -93,11 +98,6 @@ public final class CrossBatchOp extends BatchOperator <CrossBatchOp> {
 			}
 			return r;
 		}
-	}
-
-	@Override
-	public CrossBatchOp linkFrom(BatchOperator in) {
-		throw new RuntimeException("Need 2 inputs!");
 	}
 
 }

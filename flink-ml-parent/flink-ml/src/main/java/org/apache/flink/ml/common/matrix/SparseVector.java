@@ -81,73 +81,6 @@ public class SparseVector extends Vector {
 		initialize(n, indices, values);
 	}
 
-	private void initialize(int n, int[] indices, double[] values) {
-		if (indices.length != values.length) {
-			throw new RuntimeException("indices size and values size should be the same.");
-		}
-		for (int i = 0; i < indices.length; i++) {
-			if (n >= 0) {
-				if (indices[i] < 0 || indices[i] >= n) {
-					throw new RuntimeException("Invalid index. n = " + n + " and index = " + indices[i]);
-				}
-			}
-		}
-
-		boolean outOfOrder = false;
-		for (int i = 0; i < indices.length - 1; i++) {
-			if (indices[i] >= indices[i + 1]) {
-				outOfOrder = true;
-				break;
-			}
-		}
-
-		if (outOfOrder) {
-			// sort
-			Integer[] order = new Integer[indices.length];
-			for (int i = 0; i < order.length; i++) {
-				order[i] = i;
-			}
-
-			Arrays.sort(order, new Comparator <Integer>() {
-				@Override
-				public int compare(Integer o1, Integer o2) {
-					if (indices[o1] < indices[o2]) {
-						return -1;
-					} else if (indices[o1] > indices[o2]) {
-						return 1;
-					} else {
-						return 0;
-					}
-				}
-			});
-
-			this.n = n;
-			this.nnz = indices.length;
-			this.indices = new int[this.nnz];
-			this.values = new double[this.nnz];
-
-			for (int i = 0; i < order.length; i++) {
-				this.values[i] = values[order[i]];
-				this.indices[i] = indices[order[i]];
-			}
-
-		} else {
-			this.n = n;
-			this.nnz = indices.length;
-			this.indices = indices.clone();
-			this.values = values.clone();
-		}
-	}
-
-	@Override
-	public SparseVector clone() {
-		SparseVector vec = new SparseVector(this.n);
-		vec.indices = this.indices.clone();
-		vec.values = this.values.clone();
-		vec.nnz = this.nnz;
-		return vec;
-	}
-
 	public static SparseVector parseKV(String kvString, String colDelimiter, String valDelimiter) {
 		return parseKV(kvString, -1, colDelimiter, valDelimiter);
 	}
@@ -232,6 +165,127 @@ public class SparseVector extends Vector {
 
 			return new SparseVector(n, Arrays.copyOf(indices, kvMap.size()), Arrays.copyOf(values, kvMap.size()));
 		}
+	}
+
+	public static SparseVector deserialize(String str) {
+		try {
+			if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
+				return new SparseVector();
+			}
+
+			str = StringUtils.trim(str);
+			int length = -1;
+			if (str.charAt(0) == '$') {
+				int lastPos = StringUtils.lastIndexOf(str, '$');
+				String lengthStr = StringUtils.substring(str, 1, lastPos);
+
+				length = Integer.valueOf(lengthStr);
+				str = StringUtils.substring(str, lastPos + 1);
+				str = StringUtils.trim(str);
+				if (str.isEmpty()) {
+					return new SparseVector(length);
+				}
+			}
+
+			int numValues = StringUtils.countMatches(str, ",") + 1;
+
+			double[] data = new double[numValues];
+			int[] indices = null;
+			int startPos = 0;
+			int endPos = -1;
+			for (int i = 0; i < numValues; i++) {
+				// extract the value string
+				endPos = StringUtils.indexOf(str, ",", startPos);
+				if (endPos == -1) {
+					endPos = str.length();
+				}
+				String valueStr = StringUtils.substring(str, startPos, endPos);
+				startPos = endPos + 1;
+
+				if (indices == null) {
+					indices = new int[numValues];
+				}
+
+				String[] kvStr = StringUtils.split(valueStr, ':');
+				if (kvStr.length != 2) {
+					throw new IllegalArgumentException("mismatched size of kv.");
+				}
+				indices[i] = Integer.valueOf(kvStr[0].trim());
+				data[i] = Double.valueOf(kvStr[1].trim());
+			}
+			return new SparseVector(length, indices, data);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RuntimeException("fail to parse tensor \"" + str + "\"");
+		}
+	}
+
+	private void initialize(int n, int[] indices, double[] values) {
+		if (indices.length != values.length) {
+			throw new RuntimeException("indices size and values size should be the same.");
+		}
+		for (int i = 0; i < indices.length; i++) {
+			if (n >= 0) {
+				if (indices[i] < 0 || indices[i] >= n) {
+					throw new RuntimeException("Invalid index. n = " + n + " and index = " + indices[i]);
+				}
+			}
+		}
+
+		boolean outOfOrder = false;
+		for (int i = 0; i < indices.length - 1; i++) {
+			if (indices[i] >= indices[i + 1]) {
+				outOfOrder = true;
+				break;
+			}
+		}
+
+		if (outOfOrder) {
+			// sort
+			Integer[] order = new Integer[indices.length];
+			for (int i = 0; i < order.length; i++) {
+				order[i] = i;
+			}
+
+			Arrays.sort(order, new Comparator <Integer>() {
+				@Override
+				public int compare(Integer o1, Integer o2) {
+					if (indices[o1] < indices[o2]) {
+						return -1;
+					} else if (indices[o1] > indices[o2]) {
+						return 1;
+					} else {
+						return 0;
+					}
+				}
+			});
+
+			this.n = n;
+			this.nnz = indices.length;
+			this.indices = new int[this.nnz];
+			this.values = new double[this.nnz];
+
+			for (int i = 0; i < order.length; i++) {
+				this.values[i] = values[order[i]];
+				this.indices[i] = indices[order[i]];
+			}
+
+		} else {
+			this.n = n;
+			this.nnz = indices.length;
+			this.indices = indices.clone();
+			this.values = values.clone();
+		}
+	}
+
+	@Override
+	public SparseVector clone() {
+		SparseVector vec = new SparseVector(this.n);
+		vec.indices = this.indices.clone();
+		vec.values = this.values.clone();
+		vec.nnz = this.nnz;
+		return vec;
 	}
 
 	public SparseVector prefix(double d) {
@@ -673,36 +727,6 @@ public class SparseVector extends Vector {
 		return new DenseVector();
 	}
 
-	private class SparseVectorVectorIterator implements VectorIterator {
-		private int cursor = 0;
-
-		@Override
-		public boolean hasNext() {
-			return cursor < nnz;
-		}
-
-		@Override
-		public void next() {
-			cursor++;
-		}
-
-		@Override
-		public int getIndex() {
-			if (cursor >= nnz) {
-				throw new RuntimeException("iterator out of bound");
-			}
-			return indices[cursor];
-		}
-
-		@Override
-		public double getValue() {
-			if (cursor >= nnz) {
-				throw new RuntimeException("iterator out of bound");
-			}
-			return values[cursor];
-		}
-	}
-
 	@Override
 	public String serialize() {
 		StringBuilder sbd = new StringBuilder();
@@ -724,60 +748,6 @@ public class SparseVector extends Vector {
 		}
 
 		return sbd.toString();
-	}
-
-	public static SparseVector deserialize(String str) {
-		try {
-			if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
-				return new SparseVector();
-			}
-
-			str = StringUtils.trim(str);
-			int length = -1;
-			if (str.charAt(0) == '$') {
-				int lastPos = StringUtils.lastIndexOf(str, '$');
-				String lengthStr = StringUtils.substring(str, 1, lastPos);
-
-				length = Integer.valueOf(lengthStr);
-				str = StringUtils.substring(str, lastPos + 1);
-				str = StringUtils.trim(str);
-				if (str.isEmpty()) {
-					return new SparseVector(length);
-				}
-			}
-
-			int numValues = StringUtils.countMatches(str, ",") + 1;
-
-			double[] data = new double[numValues];
-			int[] indices = null;
-			int startPos = 0;
-			int endPos = -1;
-			for (int i = 0; i < numValues; i++) {
-				// extract the value string
-				endPos = StringUtils.indexOf(str, ",", startPos);
-				if (endPos == -1) {
-					endPos = str.length();
-				}
-				String valueStr = StringUtils.substring(str, startPos, endPos);
-				startPos = endPos + 1;
-
-				if (indices == null) {
-					indices = new int[numValues];
-				}
-
-				String[] kvStr = StringUtils.split(valueStr, ':');
-				if (kvStr.length != 2) {
-					throw new IllegalArgumentException("mismatched size of kv.");
-				}
-				indices[i] = Integer.valueOf(kvStr[0].trim());
-				data[i] = Double.valueOf(kvStr[1].trim());
-			}
-			return new SparseVector(length, indices, data);
-
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException("fail to parse tensor \"" + str + "\"");
-		}
 	}
 
 	@Override
@@ -822,5 +792,35 @@ public class SparseVector extends Vector {
 	@Override
 	public VectorIterator iterator() {
 		return new SparseVectorVectorIterator();
+	}
+
+	private class SparseVectorVectorIterator implements VectorIterator {
+		private int cursor = 0;
+
+		@Override
+		public boolean hasNext() {
+			return cursor < nnz;
+		}
+
+		@Override
+		public void next() {
+			cursor++;
+		}
+
+		@Override
+		public int getIndex() {
+			if (cursor >= nnz) {
+				throw new RuntimeException("iterator out of bound");
+			}
+			return indices[cursor];
+		}
+
+		@Override
+		public double getValue() {
+			if (cursor >= nnz) {
+				throw new RuntimeException("iterator out of bound");
+			}
+			return values[cursor];
+		}
 	}
 }

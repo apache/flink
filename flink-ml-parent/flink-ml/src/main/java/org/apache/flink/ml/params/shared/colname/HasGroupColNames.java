@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Names of grouping columns.
  */
 public interface HasGroupColNames<T> extends BaseWithParam <T> {
 
-	ParamInfo <String[]> GROUP_COL_NAMES = new ParamInfo <>(
-		"groupColNames",
-		"Names of grouping columns",
-		false,
-		String[].class
-	);
+	ParamInfo <String[]> GROUP_COL_NAMES = ParamInfoFactory
+		.createParamInfo("groupColNames", String[].class)
+		.setDescription("Names of grouping columns")
+		.setRequired()
+		.build();
 
 	default String[] getGroupColNames() {
 		return getParams().get(GROUP_COL_NAMES);

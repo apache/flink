@@ -19,10 +19,12 @@
 
 package org.apache.flink.ml.params.validators;
 
+import org.apache.flink.ml.api.misc.param.ParamValidator;
+
 /**
  * Range Validtor.
  */
-public class RangeValidator<T extends Comparable <T>> extends Validator <T> {
+public class RangeValidator<T extends Comparable <T>> implements ParamValidator <T> {
 	T minVal;
 	T maxVal;
 	boolean leftInclusive = true;

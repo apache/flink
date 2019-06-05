@@ -27,10 +27,9 @@ import org.junit.Test;
  * Test cases for SparseVector.
  */
 public class SparseVectorTest {
+	private static final double TOL = 1.0e-6;
 	private SparseVector v1 = null;
 	private SparseVector v2 = null;
-
-	private static final double TOL = 1.0e-6;
 
 	@Before
 	public void setUp() throws Exception {

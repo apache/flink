@@ -19,7 +19,8 @@
 
 package org.apache.flink.ml.params.statistics.analysis;
 
-import org.apache.flink.ml.params.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.shared.colname.HasKeepColNames;
 import org.apache.flink.ml.params.shared.colname.HasPredResultColName;
 import org.apache.flink.ml.params.shared.colname.HasVectorColNameDvNull;
@@ -32,12 +33,11 @@ public interface PcaPredictParams<T> extends
 	HasPredResultColName <T>,
 	HasVectorColNameDvNull <T> {
 
-	ParamInfo <String> TRANSFORM_TYPE = new ParamInfo <>(
-		"transformType",
-		"'SIMPLE' or 'SUBMEAN', SIMPLE is data * model, SUBMEAN is (data - mean) * model",
-		true, "SIMPLE",
-		String.class
-	);
+	ParamInfo <String> TRANSFORM_TYPE = ParamInfoFactory
+		.createParamInfo("transformType", String.class)
+		.setDescription("'SIMPLE' or 'SUBMEAN', SIMPLE is data * model, SUBMEAN is (data - mean) * model")
+		.setHasDefaultValue("SIMPLE")
+		.build();
 
 	default String getTransformType() {
 		return get(TRANSFORM_TYPE);

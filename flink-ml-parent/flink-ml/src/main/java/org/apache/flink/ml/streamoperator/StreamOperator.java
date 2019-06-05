@@ -21,10 +21,10 @@ package org.apache.flink.ml.streamoperator;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.AlgoOperator;
 import org.apache.flink.ml.common.MLSession;
 import org.apache.flink.ml.common.utils.RowTypeDataStream;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.streamoperator.dataproc.SampleStreamOp;
 import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
 import org.apache.flink.ml.streamoperator.utils.PrintStreamOp;
@@ -49,6 +49,22 @@ public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoO
 
 	public StreamOperator(Params params) {
 		super(params);
+	}
+
+	public static JobExecutionResult execute() throws Exception {
+		return MLSession.getStreamExecutionEnvironment().execute();
+	}
+
+	public static JobExecutionResult execute(String string) throws Exception {
+		return MLSession.getStreamExecutionEnvironment().execute(string);
+	}
+
+	public static void setParallelism(int parallelism) {
+		MLSession.getStreamExecutionEnvironment().setParallelism(parallelism);
+	}
+
+	public static StreamOperator sourceFrom(Table table) {
+		return new TableSourceStreamOp(table);
 	}
 
 	public DataStream <Row> getDataStream() {
@@ -169,22 +185,6 @@ public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoO
 			sbd.append("`").append(colNames[i]).append("`");
 		}
 		return select(sbd.toString());
-	}
-
-	public static JobExecutionResult execute() throws Exception {
-		return MLSession.getStreamExecutionEnvironment().execute();
-	}
-
-	public static JobExecutionResult execute(String string) throws Exception {
-		return MLSession.getStreamExecutionEnvironment().execute(string);
-	}
-
-	public static void setParallelism(int parallelism) {
-		MLSession.getStreamExecutionEnvironment().setParallelism(parallelism);
-	}
-
-	public static StreamOperator sourceFrom(Table table) {
-		return new TableSourceStreamOp(table);
 	}
 
 }

@@ -19,22 +19,44 @@
 package org.apache.flink.ml.api.misc.param;
 
 import org.apache.flink.annotation.PublicEvolving;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The map-like container class for parameter. This class is provided to unify the interaction with
  * parameters.
  */
 @PublicEvolving
-public class Params implements Serializable {
-	private final Map<String, Object> paramMap = new HashMap<>();
+public class Params implements Serializable, Cloneable {
+	private static final long serialVersionUID = 1L;
+
+	private final Map<String, String> params;
+
+	private transient ObjectMapper mapper;
+
+	public Params() {
+		this.params = new HashMap<>();
+	}
+
+	public int size() {
+		return params.size();
+	}
+
+	public void clear() {
+		params.clear();
+	}
+
+	public boolean isEmpty() {
+		return params.isEmpty();
+	}
 
 	/**
 	 * Returns the value of the specific parameter, or default value defined in the {@code info} if
@@ -47,14 +69,33 @@ public class Params implements Serializable {
 	 * @throws RuntimeException if the Params doesn't contains the specific parameter, while the
 	 *                          param is not optional but has no default value in the {@code info}
 	 */
-	@SuppressWarnings("unchecked")
 	public <V> V get(ParamInfo<V> info) {
-		V value = (V) paramMap.getOrDefault(info.getName(), info.getDefaultValue());
-		if (value == null && !info.isOptional() && !info.hasDefaultValue()) {
-			throw new RuntimeException(info.getName() +
-				" not exist which is not optional and don't have a default value");
+		Stream<V> stream = getParamNameAndAlias(info)
+			.filter(this.params::containsKey)
+			.map(x -> this.params.get(x))
+			.map(x -> valueFromJson(x, info.getValueClass()))
+			.limit(1);
+
+		if (info.isOptional()) {
+			if (info.hasDefaultValue()) {
+				return stream.reduce(info.getDefaultValue(), (a, b) -> b);
+			} else {
+				return stream.collect(Collectors.collectingAndThen(Collectors.toList(),
+					a -> {
+						if (a.isEmpty()) {
+							throw new RuntimeException("Not have defaultValue for parameter: " + info.getName());
+						}
+						return a.get(0);
+					}));
+			}
 		}
-		return value;
+		return stream.collect(Collectors.collectingAndThen(Collectors.toList(),
+			a -> {
+				if (a.isEmpty()) {
+					throw new RuntimeException("Not have parameter: " + info.getName());
+				}
+				return a.get(0);
+			}));
 	}
 
 	/**
@@ -69,20 +110,11 @@ public class Params implements Serializable {
 	 *                          evaluated as illegal by the validator
 	 */
 	public <V> Params set(ParamInfo<V> info, V value) {
-		if (!info.isOptional() && value == null) {
-			throw new RuntimeException(
-				"Setting " + info.getName() + " as null while it's not a optional param");
-		}
-		if (value == null) {
-			remove(info);
-			return this;
-		}
-
 		if (info.getValidator() != null && !info.getValidator().validate(value)) {
 			throw new RuntimeException(
 				"Setting " + info.getName() + " as a invalid value:" + value);
 		}
-		paramMap.put(info.getName(), value);
+		params.put(info.getName(), valueToJson(value));
 		return this;
 	}
 
@@ -93,34 +125,25 @@ public class Params implements Serializable {
 	 * @param <V>  the type of the specific parameter
 	 */
 	public <V> void remove(ParamInfo<V> info) {
-		paramMap.remove(info.getName());
+		params.remove(info.getName());
+		for (String a : info.getAlias()) {
+			params.remove(a);
+		}
+	}
+
+	public <V> boolean contains(ParamInfo<V> paramInfo) {
+		return params.containsKey(paramInfo.getName()) ||
+			Arrays.stream(paramInfo.getAlias()).anyMatch(params::containsKey);
 	}
 
 	/**
 	 * Creates and returns a deep clone of this Params.
 	 *
-	 * @return a deep clone of this Params
-	 */
-	public Params clone() {
-		Params newParams = new Params();
-		newParams.paramMap.putAll(this.paramMap);
-		return newParams;
-	}
-
-	/**
-	 * Returns a json containing all parameters in this Params. The json should be human-readable if
-	 * possible.
-	 *
 	 * @return a json containing all parameters in this Params
 	 */
 	public String toJson() {
-		ObjectMapper mapper = new ObjectMapper();
-		Map<String, String> stringMap = new HashMap<>();
 		try {
-			for (Map.Entry<String, Object> e : paramMap.entrySet()) {
-				stringMap.put(e.getKey(), mapper.writeValueAsString(e.getValue()));
-			}
-			return mapper.writeValueAsString(stringMap);
+			return mapper.writeValueAsString(params);
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException("Failed to serialize params to json", e);
 		}
@@ -128,24 +151,79 @@ public class Params implements Serializable {
 
 	/**
 	 * Restores the parameters from the given json. The parameters should be exactly the same with
-	 * the one who was serialized to the input json after the restoration. The class mapping of the
-	 * parameters in the json is required because it is hard to directly restore a param of a user
-	 * defined type. Params will be treated as String if it doesn't exist in the {@code classMap}.
+	 * the one who was serialized to the input json after the restoration.
 	 *
-	 * @param json     the json String to restore from
-	 * @param classMap the classes of the parameters contained in the json
+	 * @param json the json String to restore from
 	 */
 	@SuppressWarnings("unchecked")
-	public void loadJson(String json, Map<String, Class<?>> classMap) {
+	public void loadJson(String json) {
 		ObjectMapper mapper = new ObjectMapper();
+		Map<String, String> params;
 		try {
-			Map<String, String> m = mapper.readValue(json, Map.class);
-			for (Map.Entry<String, String> e : m.entrySet()) {
-				Class<?> valueClass = classMap.getOrDefault(e.getKey(), String.class);
-				paramMap.put(e.getKey(), mapper.readValue(e.getValue(), valueClass));
-			}
+			params = mapper.readValue(json, Map.class);
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to deserialize json:" + json, e);
 		}
+		this.params.clear();
+		this.params.putAll(params);
+	}
+
+	public static Params fromJson(String json) {
+		Params params = new Params();
+		params.loadJson(json);
+		return params;
+	}
+
+	public Params merge(Params otherParams) {
+		if (otherParams != null) {
+			this.params.putAll(otherParams.params);
+		}
+		return this;
+	}
+
+	@Override
+	public Params clone() {
+		Params newParams = new Params();
+		newParams.params.putAll(this.params);
+		return newParams;
+	}
+
+	private void assertMapperInited() {
+		if (mapper == null) {
+			mapper = new ObjectMapper();
+		}
+	}
+
+	private String valueToJson(Object value) {
+		assertMapperInited();
+		try {
+			if (value == null) {
+				return null;
+			}
+			return mapper.writeValueAsString(value);
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("Failed to serialize to json:" + value, e);
+		}
+	}
+
+	private <T> T valueFromJson(String json, Class<T> clazz) {
+		assertMapperInited();
+		try {
+			if (json == null) {
+				return null;
+			}
+			return mapper.readValue(json, clazz);
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to deserialize json:" + json, e);
+		}
+	}
+
+	private <V> Stream <String> getParamNameAndAlias(
+		ParamInfo <V> paramInfo) {
+		Stream <String> stream = Stream.of(paramInfo.getName());
+		if (null != paramInfo.getAlias() && paramInfo.getAlias().length > 0) {
+			stream = Stream.concat(stream, Arrays.stream(paramInfo.getAlias())).sequential();
+		}
+		return stream;
 	}
 }

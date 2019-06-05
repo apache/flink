@@ -19,48 +19,19 @@
 
 package org.apache.flink.ml.pipeline.statistics;
 
-import org.apache.flink.ml.batchoperator.BatchOperator;
-import org.apache.flink.ml.batchoperator.GenerateData;
-import org.apache.flink.ml.batchoperator.source.MemSourceBatchOp;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummary;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.types.Row;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- *
+ * Test for Summarizer.
  */
 public class SummarizerTest {
 	@Test
-	public void test() throws Exception {
-
-		String[] colNames = new String[] {"id", "height", "weight"};
-
-		Row[] data = new Row[] {
-			Row.of(1, 168, 48.1),
-			Row.of(2, 165, 45.8),
-			Row.of(3, 160, 45.3),
-			Row.of(4, 163, 41.9),
-			Row.of(5, 149, 40.5),
-		};
-
-		Table input = new MemSourceBatchOp(data, colNames).getTable();
-
-		TableSummary summary = new Summarizer(input).collectResult();
-
-		System.out.println(summary.mean("height"));  // print the mean of the column(Name: “age”)
-
-		System.out.println(summary);
-
-		Assert.assertEquals(summary.mean("height"), 161.0, 1e-4);
-
-	}
-
-	@Test
-	public void test2() {
-		BatchOperator data = GenerateData.getMultiTypeTable();
+	public void test() {
+		Table data = GenerateData.getMultiTypeBatchTable();
 
 		Summarizer summarizer = new Summarizer(data)
 			.setSelectedColNames(new String[] {"f_double", "f_int"});
@@ -81,4 +52,5 @@ public class SummarizerTest {
 		Assert.assertEquals(srt.normL1("f_double"), 7.0, 10e-4);
 		Assert.assertEquals(srt.normL2("f_double"), 4.123105625617661, 10e-4);
 	}
+
 }

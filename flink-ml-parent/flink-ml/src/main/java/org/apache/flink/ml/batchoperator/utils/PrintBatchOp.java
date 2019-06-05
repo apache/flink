@@ -19,10 +19,10 @@
 
 package org.apache.flink.ml.batchoperator.utils;
 
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.common.utils.RowTypeDataSet;
 import org.apache.flink.ml.common.utils.RowUtil;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.types.Row;
 
 import java.io.PrintStream;
@@ -35,16 +35,16 @@ public class PrintBatchOp extends BatchOperator {
 
 	private static PrintStream batchPrintStream = System.err;
 
-	public static void setBatchPrintStream(PrintStream printStream) {
-		batchPrintStream = printStream;
-	}
-
 	public PrintBatchOp() {
 		super(null);
 	}
 
 	public PrintBatchOp(Params params) {
 		super(params);
+	}
+
+	public static void setBatchPrintStream(PrintStream printStream) {
+		batchPrintStream = printStream;
 	}
 
 	@Override

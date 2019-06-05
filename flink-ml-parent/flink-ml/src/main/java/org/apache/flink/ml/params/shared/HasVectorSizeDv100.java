@@ -19,8 +19,9 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Vector size of embedding.
@@ -29,12 +30,12 @@ public interface HasVectorSizeDv100<T> extends BaseWithParam <T> {
 	/**
 	 * @cn embedding的向量长度
 	 */
-	ParamInfo <Integer> VECTOR_SIZE = new ParamInfo <>(
-		"vectorSize", new String[] {"dim"},
-		"Vector size of embedding",
-		true, 100,
-		Integer.class
-	);
+	ParamInfo <Integer> VECTOR_SIZE = ParamInfoFactory
+		.createParamInfo("vectorSize", Integer.class)
+		.setDescription("Vector size of embedding")
+		.setHasDefaultValue(100)
+		.setAlias(new String[] {"dim"})
+		.build();
 
 	default Integer getVectorSize() {
 		return getParams().get(VECTOR_SIZE);

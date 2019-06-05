@@ -19,21 +19,21 @@
 
 package org.apache.flink.ml.params.dataproc;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 import org.apache.flink.ml.params.validators.RangeValidator;
 
 /**
  * Proportion of data allocated to left output after splitting.
  */
 public interface HasFraction<T> extends BaseWithParam <T> {
-	ParamInfo <Double> FRACTION = new ParamInfo <>(
-		"fraction",
-		"Proportion of data allocated to left output after splitting",
-		false,
-		Double.class,
-		new RangeValidator <>(0.0, 1.0)
-	);
+	ParamInfo <Double> FRACTION = ParamInfoFactory
+		.createParamInfo("fraction", Double.class)
+		.setDescription("Proportion of data allocated to left output after splitting")
+		.setRequired()
+		.setValidator(new RangeValidator <>(0.0, 1.0))
+		.build();
 
 	default Double getFraction() {
 		return getParams().get(FRACTION);

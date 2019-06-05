@@ -19,21 +19,21 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Column name of predicted result.
  */
 public interface HasPredResultColName<T> extends BaseWithParam <T> {
 
-	ParamInfo <String> PRED_RESULT_COL_NAME = new ParamInfo <>(
-		"predResultColName",
-		new String[] {"predColName", "outputColName"},
-		"Column name of predicted result.",
-		false,
-		String.class
-	);
+	ParamInfo <String> PRED_RESULT_COL_NAME = ParamInfoFactory
+		.createParamInfo("predResultColName", String.class)
+		.setDescription("Column name of predicted result.")
+		.setRequired()
+		.setAlias(new String[] {"predColName", "outputColName"})
+		.build();
 
 	default String getPredResultColName() {
 		return getParams().get(PRED_RESULT_COL_NAME);

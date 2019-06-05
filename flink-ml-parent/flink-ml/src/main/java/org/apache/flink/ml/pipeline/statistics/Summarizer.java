@@ -19,12 +19,11 @@
 
 package org.apache.flink.ml.pipeline.statistics;
 
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.batchoperator.statistics.SummarizerBatchOp;
-import org.apache.flink.ml.common.AlgoOperator;
 import org.apache.flink.ml.common.statistics.StatisticsUtil;
 import org.apache.flink.ml.common.statistics.basicstatistic.TableSummary;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.params.statistics.SummarizerParams;
 import org.apache.flink.ml.pipeline.ResultCollector;
 import org.apache.flink.table.api.Table;
@@ -41,11 +40,7 @@ public class Summarizer extends ResultCollector <Summarizer, TableSummary>
 		super(in);
 	}
 
-	public Summarizer(AlgoOperator in) {
-		super(in);
-	}
-
-	public Summarizer(AlgoOperator in, Params params) {
+	public Summarizer(Table in, Params params) {
 		super(in, params);
 	}
 

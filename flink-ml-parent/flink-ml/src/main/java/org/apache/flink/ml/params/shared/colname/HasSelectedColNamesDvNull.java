@@ -19,20 +19,20 @@
 
 package org.apache.flink.ml.params.shared.colname;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Names of the columns used for processing.
  */
 public interface HasSelectedColNamesDvNull<T> extends BaseWithParam <T> {
 
-	ParamInfo <String[]> SELECTED_COL_NAMES = new ParamInfo <>(
-		"selectedColNames",
-		"Names of the columns used for processing",
-		true, null,
-		String[].class
-	);
+	ParamInfo <String[]> SELECTED_COL_NAMES = ParamInfoFactory
+		.createParamInfo("selectedColNames", String[].class)
+		.setDescription("Names of the columns used for processing")
+		.setHasDefaultValue(null)
+		.build();
 
 	default String[] getSelectedColNames() {
 		return getParams().get(SELECTED_COL_NAMES);

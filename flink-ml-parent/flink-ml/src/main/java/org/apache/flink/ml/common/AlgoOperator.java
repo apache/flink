@@ -20,10 +20,10 @@
 package org.apache.flink.ml.common;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.batchoperator.source.TableSourceBatchOp;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.Params;
 import org.apache.flink.ml.streamoperator.StreamOperator;
 import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
@@ -56,6 +56,15 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements BaseWi
 		}
 	}
 
+	public static AlgoOperator sourceFrom(Table table) {
+		TableImpl tableImpl = (TableImpl) table;
+		if (tableImpl.getTableEnvironment() instanceof StreamTableEnvironment) {
+			return new TableSourceStreamOp(table);
+		} else {
+			return new TableSourceBatchOp(table);
+		}
+	}
+
 	@Override
 	public Params getParams() {
 		if (null == this.params) {
@@ -68,12 +77,12 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements BaseWi
 		return this.table;
 	}
 
-	public Table[] getSideTables() {
-		return this.sideTables;
-	}
-
 	protected void setTable(Table table) {
 		this.table = table;
+	}
+
+	public Table[] getSideTables() {
+		return this.sideTables;
 	}
 
 	public String[] getColNames() {
@@ -132,15 +141,6 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements BaseWi
 			return ((BatchOperator) this).where(param);
 		} else {
 			return ((StreamOperator) this).where(param);
-		}
-	}
-
-	public static AlgoOperator sourceFrom(Table table) {
-		TableImpl tableImpl = (TableImpl) table;
-		if (tableImpl.getTableEnvironment() instanceof StreamTableEnvironment) {
-			return new TableSourceStreamOp(table);
-		} else {
-			return new TableSourceBatchOp(table);
 		}
 	}
 }

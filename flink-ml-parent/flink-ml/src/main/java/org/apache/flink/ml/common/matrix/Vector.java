@@ -34,50 +34,12 @@ public abstract class Vector implements Serializable {
 	public Vector() {
 	}
 
-	public abstract int size();
-
-	public abstract double get(int i);
-
-	public abstract void set(int i, double val);
-
-	public abstract void add(int i, double val);
-
-	public abstract double normL1();
-
-	public abstract double normInf();
-
-	public abstract double normL2();
-
-	public abstract double normL2Square();
-
-	public abstract Vector scale(double d);
-
-	public abstract Vector scaleEqual(double d);
-
-	public abstract VectorIterator iterator();
-
-	public abstract String serialize();
-
-	public abstract Vector normalize(double exp);
-
-	public abstract Vector standard(double mean, double stdvar);
-
-	public abstract Vector slice(int[] indexes);
-
 	public static DenseVector dense(String str) {
 		return DenseVector.deserialize(str);
 	}
 
 	public static SparseVector sparse(String str) {
 		return SparseVector.deserialize(str);
-	}
-
-	public DenseVector toDenseVector() {
-		if (this instanceof DenseVector) {
-			return (DenseVector) this;
-		} else {
-			return ((SparseVector) this).toDenseVector();
-		}
 	}
 
 	public static Tuple2 <int[], float[]> parseSparseTensor(String str) {
@@ -199,25 +161,6 @@ public abstract class Vector implements Serializable {
 		}
 	}
 
-
-    /* ---------------------------------------------------
-	 * Methods of customized element wise operations
-     * --------------------------------------------------- */
-
-	/**
-	 * Unary method.
-	 */
-	public interface UnaryOp {
-		double f(double x);
-	}
-
-	/**
-	 * Binary method.
-	 */
-	public interface BinaryOp {
-		double f(double x, double y);
-	}
-
 	/**
 	 * Compute element wise sum.
 	 * \sum_i func(x1_i, x2_i)
@@ -293,6 +236,63 @@ public abstract class Vector implements Serializable {
 			}
 		}
 		return s;
+	}
+
+	public abstract int size();
+
+	public abstract double get(int i);
+
+	public abstract void set(int i, double val);
+
+	public abstract void add(int i, double val);
+
+	public abstract double normL1();
+
+	public abstract double normInf();
+
+	public abstract double normL2();
+
+	public abstract double normL2Square();
+
+	public abstract Vector scale(double d);
+
+	public abstract Vector scaleEqual(double d);
+
+	public abstract VectorIterator iterator();
+
+	public abstract String serialize();
+
+
+    /* ---------------------------------------------------
+	 * Methods of customized element wise operations
+     * --------------------------------------------------- */
+
+	public abstract Vector normalize(double exp);
+
+	public abstract Vector standard(double mean, double stdvar);
+
+	public abstract Vector slice(int[] indexes);
+
+	public DenseVector toDenseVector() {
+		if (this instanceof DenseVector) {
+			return (DenseVector) this;
+		} else {
+			return ((SparseVector) this).toDenseVector();
+		}
+	}
+
+	/**
+	 * Unary method.
+	 */
+	public interface UnaryOp {
+		double f(double x);
+	}
+
+	/**
+	 * Binary method.
+	 */
+	public interface BinaryOp {
+		double f(double x, double y);
 	}
 
 }

@@ -19,19 +19,19 @@
 
 package org.apache.flink.ml.params.shared;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.params.BaseWithParam;
-import org.apache.flink.ml.params.ParamInfo;
 
 /**
  * Size of some thing.
  */
 public interface HasSize<T> extends BaseWithParam <T> {
-	ParamInfo <Integer> SIZE = new ParamInfo <>(
-		"size",
-		"Size of some thing.",
-		false,
-		Integer.class
-	);
+	ParamInfo <Integer> SIZE = ParamInfoFactory
+		.createParamInfo("size", Integer.class)
+		.setDescription("Size of some thing.")
+		.setRequired()
+		.build();
 
 	default Integer getSize() {
 		return getParams().get(SIZE);

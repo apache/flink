@@ -19,6 +19,9 @@
 
 package org.apache.flink.ml.params;
 
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.Params;
+
 /**
  * Interface for the object, which need set/get parameters.
  *
