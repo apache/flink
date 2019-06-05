@@ -54,12 +54,12 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
 
-	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> predicate) {
-		submitConsumer = predicate;
+	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
+		this.submitConsumer = submitConsumer;
 	}
 
-	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
-		cancelConsumer = predicate;
+	public void setCancelConsumer(Consumer<ExecutionAttemptID> cancelConsumer) {
+		this.cancelConsumer = cancelConsumer;
 	}
 
 	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
