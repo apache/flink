@@ -140,6 +140,8 @@ under the License.
 		-->
 		<minikdc.version>2.7.2</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
+		<hive.version>2.3.4</hive.version>
+		<hivemetastore.hadoop.version>2.7.2</hivemetastore.hadoop.version>
 	</properties>
 
 	<dependencies>

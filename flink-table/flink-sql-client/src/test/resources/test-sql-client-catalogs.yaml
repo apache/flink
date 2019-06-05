@@ -127,3 +127,6 @@ catalogs:
   - name: inmemorycatalog
     type: generic_in_memory
     default-database: mydatabase
+  - name: mycatalog
+    type: hive
+    test: test

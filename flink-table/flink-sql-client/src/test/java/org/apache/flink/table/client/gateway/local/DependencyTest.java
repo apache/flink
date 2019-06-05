@@ -24,6 +24,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
@@ -32,6 +35,7 @@ import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Test;
 
 import java.net.URL;
@@ -112,7 +116,7 @@ public class DependencyTest {
 	}
 
 	/**
-	 * External catalog that can be discovered if classloading is correct.
+	 * Catalog that can be discovered if classloading is correct.
 	 */
 	public static class TestCatalogFactory implements CatalogFactory {
 
@@ -126,7 +130,6 @@ public class DependencyTest {
 		@Override
 		public List<String> supportedProperties() {
 			final List<String> properties = new ArrayList<>();
-			properties.add(TEST_PROPERTY);
 			properties.add(CATALOG_DEFAULT_DATABASE);
 			return properties;
 		}
@@ -148,6 +151,30 @@ public class DependencyTest {
 	public static class TestCatalog extends GenericInMemoryCatalog {
 		public TestCatalog(String name, String defaultDatabase) {
 			super(name, defaultDatabase);
+		}
+	}
+
+	/**
+	 * A test factory that is the same as {@link HiveCatalogFactory}
+	 * except returning a {@link HiveCatalog} always with an embedded Hive metastore
+	 * to test logic of {@link HiveCatalogFactory}.
+	 */
+	public static class TestHiveCatalogFactory extends HiveCatalogFactory {
+		@Override
+		public Map<String, String> requiredContext() {
+			Map<String, String> context = super.requiredContext();
+
+			// For factory discovery service to distinguish TestHiveCatalogFactory from HiveCatalogFactory
+			context.put("test", "test");
+			return context;
+		}
+
+		@Override
+		protected HiveConf getHiveConf() {
+			// Developers may already have their own production/testing hive-site.xml set in their environment,
+			// and Flink tests should avoid using those hive-site.xml.
+			// Thus, explicitly create a testing HiveConf for unit tests here
+			return HiveTestUtils.getHiveConf();
 		}
 	}
 }
