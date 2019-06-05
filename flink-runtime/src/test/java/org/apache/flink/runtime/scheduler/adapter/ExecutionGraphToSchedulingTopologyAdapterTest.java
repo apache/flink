@@ -110,7 +110,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 		try {
 			adapter.getVertexOrThrow(new ExecutionVertexID(new JobVertexID(), 0));
 			fail("get not exist vertex");
-		} catch (IllegalStateException exception) {
+		} catch (IllegalArgumentException exception) {
 			// expected
 		}
 	}
@@ -120,7 +120,7 @@ public class ExecutionGraphToSchedulingTopologyAdapterTest extends TestLogger {
 		try {
 			adapter.getResultPartitionOrThrow(new IntermediateResultPartitionID());
 			fail("get not exist result partition");
-		} catch (IllegalStateException exception) {
+		} catch (IllegalArgumentException exception) {
 			// expected
 		}
 	}
