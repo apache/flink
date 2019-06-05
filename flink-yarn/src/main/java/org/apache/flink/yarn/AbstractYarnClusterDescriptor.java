@@ -932,6 +932,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		amContainer.setLocalResources(localResources);
 		fs.close();
 
+		Utils.setAclsFor(amContainer, flinkConfiguration);
+
 		// Setup CLASSPATH and environment variables for ApplicationMaster
 		final Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -40,6 +41,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -228,6 +230,13 @@ public final class Utils {
 		localResource.setType(LocalResourceType.FILE);
 		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
 		return localResource;
+	}
+
+	public static void setAclsFor(ContainerLaunchContext amContainer, org.apache.flink.configuration.Configuration flinkConfig) {
+		amContainer.setApplicationACLs(new HashMap<ApplicationAccessType, String>(){{
+			put(ApplicationAccessType.VIEW_APP, flinkConfig.getString(YarnConfigOptions.APPLICATION_VIEW_ACLS));
+			put(ApplicationAccessType.MODIFY_APP, flinkConfig.getString(YarnConfigOptions.APPLICATION_ADMIN_ACLS));
+		}});
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -549,6 +558,8 @@ public final class Utils {
 		}
 
 		ctx.setEnvironment(containerEnv);
+
+		setAclsFor(ctx, flinkConfig);
 
 		// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local file.
 		// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login

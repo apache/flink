@@ -188,6 +188,25 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	/**
+	 * Users and groups to give VIEW access.
+	 * https://www.cloudera.com/documentation/enterprise/latest/topics/cm_mc_yarn_acl.html
+	 */
+	public static final ConfigOption<String> APPLICATION_VIEW_ACLS =
+		key("yarn.view.acls")
+		.defaultValue("")
+		.withDescription("Users and groups to give VIEW acess. The ACLs are of for" +
+			" comma-separated-usersspacecomma-separated-groups");
+
+	/**
+	 * Users and groups to give MODIFY access.
+	 */
+	public static final ConfigOption<String> APPLICATION_ADMIN_ACLS =
+		key("yarn.admin.acls")
+		.defaultValue("")
+		.withDescription("Users and groups to give MODIFY acess. The ACLs are of for" +
+			" comma-separated-usersspacecomma-separated-groups");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
