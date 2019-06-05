@@ -32,7 +32,7 @@ import java.sql.Timestamp
   */
 abstract class UnnestTestBase extends TableTestBase {
 
-  private val util = getTableTestUtil
+  protected val util: TableTestUtil = getTableTestUtil
 
   protected def getTableTestUtil: TableTestUtil
 
@@ -117,6 +117,12 @@ abstract class UnnestTestBase extends TableTestBase {
         |WHERE x > a
       """.stripMargin
     util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnnestObjectArrayWithoutAlias(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    util.verifyPlan("SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1")
   }
 
 }

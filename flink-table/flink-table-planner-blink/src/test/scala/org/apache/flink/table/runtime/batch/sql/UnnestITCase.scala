@@ -232,4 +232,25 @@ class UnnestITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testUnnestObjectArrayWithoutAlias(): Unit = {
+    val data = List(
+      row(1, Array(row(12, "45.6"), row(12, "45.612"))),
+      row(2, Array(row(13, "41.6"), row(14, "45.2136"))),
+      row(3, Array(row(18, "42.6")))
+    )
+    registerCollection("T", data,
+      new RowTypeInfo(
+        Types.INT,
+        ObjectArrayTypeInfo.getInfoFor(classOf[Array[Row]],
+          new RowTypeInfo(Types.INT, Types.STRING))),
+      "a, b")
+
+    checkResult(
+      "SELECT a, b, A.f0, A.f1 FROM T, UNNEST(T.b) AS A where A.f0 > 13",
+      Seq(row(2, Array(row(13, 41.6), row(14, 45.2136)), 14, 45.2136),
+        row(3, Array(row(18, 42.6)), 18, 42.6))
+    )
+  }
+
 }

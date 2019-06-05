@@ -29,7 +29,7 @@ import org.apache.flink.table.plan.rules.FlinkStreamRuleSets
 object FlinkStreamProgram {
 
   val SUBQUERY_REWRITE = "subquery_rewrite"
-  val CORRELATE_REWRITE = "correlate_rewrite"
+  val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
   val DECORRELATE = "decorrelate"
   val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
@@ -71,8 +71,9 @@ object FlinkStreamProgram {
         .build())
 
     // rewrite special temporal join plan
+    // TODO remove this program after upgraded to CALCITE-1.20.0 (CALCITE-2004 is fixed)
     chainedProgram.addLast(
-      CORRELATE_REWRITE,
+      TEMPORAL_JOIN_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder

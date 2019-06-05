@@ -85,7 +85,7 @@ class FlinkDecorrelateProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeP
       override def visit(other: RelNode): RelNode = {
         other match {
           // ignore Uncollect's inputs due to the correlate variables are from UNNEST directly,
-          // not from cases which RelDecorrelator handles
+          // not from cases (project, filter and join) which RelDecorrelator handles
           case r: Uncollect => r
           case _ => super.visit(other)
         }

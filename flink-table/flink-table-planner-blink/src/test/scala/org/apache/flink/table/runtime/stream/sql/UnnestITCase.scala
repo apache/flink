@@ -300,4 +300,26 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testUnnestObjectArrayWithoutAlias(): Unit = {
+    val data = List(
+      (1, Array((12, "45.6"), (12, "45.612"))),
+      (2, Array((13, "41.6"), (14, "45.2136"))),
+      (3, Array((18, "42.6")))
+    )
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("T", t)
+
+    val sqlQuery = "SELECT a, b, A._1, A._2 FROM T, UNNEST(T.b) AS A where A._1 > 13"
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "2,[13,41.6, 14,45.2136],14,45.2136",
+      "3,[18,42.6],18,42.6")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
 }

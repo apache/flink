@@ -272,4 +272,26 @@ Correlate(invocation=[explode($cor0.b)], correlate=[table(explode($cor0.b))], se
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestObjectArrayWithoutAlias">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, A._1, A._2 FROM MyTable, UNNEST(MyTable.b) AS A where A._1 > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
++- LogicalFilter(condition=[>($2, 1)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+      :- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b)]]])
+      +- Uncollect
+         +- LogicalProject(b=[$cor0.b])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[explode($cor0.b)], correlate=[table(explode($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, ARRAY(ArrayType{elementType=RowType{types=[IntType, StringType], fieldNames=[_1, _2]}}) b, INTEGER _1, VARCHAR(65536) _2)], joinType=[INNER], condition=[>($0, 1)])
++- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
 </Root>
