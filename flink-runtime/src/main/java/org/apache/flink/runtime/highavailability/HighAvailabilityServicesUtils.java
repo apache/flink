@@ -26,6 +26,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.highavailability.filesystem.FileSystemHAServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
@@ -51,14 +52,23 @@ public class HighAvailabilityServicesUtils {
 	public static HighAvailabilityServices createAvailableOrEmbeddedServices(
 		Configuration config,
 		Executor executor) throws Exception {
+
 		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+		BlobStoreService blobStoreService;
 
 		switch (highAvailabilityMode) {
 			case NONE:
 				return new EmbeddedHaServices(executor);
 
+			case FILESYSTEM:
+				blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+				return new FileSystemHAServices(
+					executor,
+					config,
+					blobStoreService);
+
 			case ZOOKEEPER:
-				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+				blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 				return new ZooKeeperHaServices(
 					ZooKeeperUtils.startCuratorFramework(config),
@@ -83,41 +93,82 @@ public class HighAvailabilityServicesUtils {
 
 		switch (highAvailabilityMode) {
 			case NONE:
-				final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
+				Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
 
-				final String jobManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+				String jobManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
 					JobMaster.JOB_MANAGER_NAME,
 					addressResolution,
 					configuration);
-				final String resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+				String resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
 					ResourceManager.RESOURCE_MANAGER_NAME,
 					addressResolution,
 					configuration);
-				final String dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+				String dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
 					Dispatcher.DISPATCHER_NAME,
 					addressResolution,
 					configuration);
 
-				final String address = checkNotNull(configuration.getString(RestOptions.ADDRESS),
+				String address = checkNotNull(configuration.getString(RestOptions.ADDRESS),
 					"%s must be set",
 					RestOptions.ADDRESS.key());
-				final int port = configuration.getInteger(RestOptions.PORT);
-				final boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
-				final String protocol = enableSSL ? "https://" : "http://";
+				int port = configuration.getInteger(RestOptions.PORT);
+				boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
+				String protocol = enableSSL ? "https://" : "http://";
 
 				return new StandaloneHaServices(
 					resourceManagerRpcUrl,
 					dispatcherRpcUrl,
 					jobManagerRpcUrl,
 					String.format("%s%s:%s", protocol, address, port));
-			case ZOOKEEPER:
+
+			case FILESYSTEM:
+				hostnamePort = getJobManagerAddress(configuration);
+
+				jobManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+					hostnamePort.f0,
+					hostnamePort.f1,
+					JobMaster.JOB_MANAGER_NAME,
+					addressResolution,
+					configuration);
+				resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+					hostnamePort.f0,
+					hostnamePort.f1,
+					ResourceManager.RESOURCE_MANAGER_NAME,
+					addressResolution,
+					configuration);
+				dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+					hostnamePort.f0,
+					hostnamePort.f1,
+					Dispatcher.DISPATCHER_NAME,
+					addressResolution,
+					configuration);
+
+				address = checkNotNull(configuration.getString(RestOptions.ADDRESS),
+					"%s must be set",
+					RestOptions.ADDRESS.key());
+				port = configuration.getInteger(RestOptions.PORT);
+				enableSSL = SSLUtils.isRestSSLEnabled(configuration);
+				protocol = enableSSL ? "https://" : "http://";
+
 				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
+
+				return new FileSystemHAServices(
+					resourceManagerRpcUrl,
+					dispatcherRpcUrl,
+					jobManagerRpcUrl,
+					String.format("%s%s:%s", protocol, address, port),
+					executor,
+					configuration,
+					blobStoreService);
+
+			case ZOOKEEPER:
+				blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
 
 				return new ZooKeeperHaServices(
 					ZooKeeperUtils.startCuratorFramework(configuration),

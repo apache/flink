@@ -30,13 +30,15 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
  * ZooKeeper is used to select a leader among a group of JobManager. This JobManager
  * is responsible for the job execution. Upon failure of the leader a new leader is elected
  * which will take over the responsibilities of the old leader
+ * - FILESYSTEM is used to mange graph/checkpoint information on the file system
  * - FACTORY_CLASS: Use implementation of {@link org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory}
  * specified in configuration property high-availability
  */
 public enum HighAvailabilityMode {
 	NONE(false),
 	ZOOKEEPER(true),
-	FACTORY_CLASS(true);
+	FACTORY_CLASS(true),
+	FILESYSTEM(true);
 
 	private final boolean haActive;
 
