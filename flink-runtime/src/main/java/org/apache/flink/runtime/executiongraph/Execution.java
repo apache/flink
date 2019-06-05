@@ -801,7 +801,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			else if (current == FINISHED || current == FAILED) {
-				// nothing to do any more. finished failed before it could be cancelled.
+				// nothing to do any more. finished/failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
 				sendReleaseIntermediateResultPartitionsRpcCall();
 
