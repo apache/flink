@@ -318,6 +318,20 @@ public class TableSchema {
 		}
 
 		/**
+		 * Add an array of fields with names and data types.
+		 *
+		 * <p>The call order of this method determines the order of fields in the schema.
+		 */
+		public Builder fields(String[] names, DataType[] dataTypes) {
+			Preconditions.checkNotNull(names);
+			Preconditions.checkNotNull(dataTypes);
+
+			fieldNames.addAll(Arrays.asList(names));
+			fieldDataTypes.addAll(Arrays.asList(dataTypes));
+			return this;
+		}
+
+		/**
 		 * @deprecated This method will be removed in future versions as it uses the old type system. It
 		 *             is recommended to use {@link #field(String, DataType)} instead which uses the new type
 		 *             system based on {@link DataTypes}. Please make sure to use either the old or the new

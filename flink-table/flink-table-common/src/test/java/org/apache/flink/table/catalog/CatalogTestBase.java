@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -1170,25 +1169,19 @@ public abstract class CatalogTestBase {
 	public abstract CatalogPartition createPartition();
 
 	protected TableSchema createTableSchema() {
-		return new TableSchema(
-			new String[] {"first", "second", "third"},
-			new TypeInformation[] {
-				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO,
-			}
-		);
+		return TableSchema.builder()
+			.field("first", DataTypes.STRING())
+			.field("second", DataTypes.INT())
+			.field("third", DataTypes.STRING())
+			.build();
 	}
 
 	protected TableSchema createAnotherTableSchema() {
-		return new TableSchema(
-			new String[] {"first2", "second", "third"},
-			new TypeInformation[] {
-				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO
-			}
-		);
+		return TableSchema.builder()
+			.field("first", DataTypes.STRING())
+			.field("second", DataTypes.STRING())
+			.field("third", DataTypes.STRING())
+			.build();
 	}
 
 	protected List<String> createPartitionKeys() {

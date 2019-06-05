@@ -20,6 +20,7 @@ package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
@@ -39,7 +40,7 @@ public class HiveTableUtil {
 	/**
 	 * Get Hive {@link ObjectInspector} for a Flink {@link TypeInformation}.
 	 */
-	public static ObjectInspector getObjectInspector(TypeInformation flinkType) throws IOException {
+	public static ObjectInspector getObjectInspector(DataType flinkType) throws IOException {
 		return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType));
 	}
 
