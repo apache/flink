@@ -141,11 +141,11 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   // symbols
 
   lazy val timeIntervalUnit: PackratParser[Expression] = TimeIntervalUnit.values map {
-    unit: TimeIntervalUnit => literal(unit.toString) ^^^ symbol(unit)
+    unit: TimeIntervalUnit => literal(unit.toString) ^^^ valueLiteral(unit)
   } reduceLeft(_ | _)
 
   lazy val timePointUnit: PackratParser[Expression] = TimePointUnit.values map {
-    unit: TimePointUnit => literal(unit.toString) ^^^ symbol(unit)
+    unit: TimePointUnit => literal(unit.toString) ^^^ valueLiteral(unit)
   } reduceLeft(_ | _)
 
   lazy val currentRange: PackratParser[Expression] = CURRENT_RANGE ^^ {

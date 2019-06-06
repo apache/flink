@@ -131,6 +131,16 @@ public class ExpressionTest {
 				.orElseThrow(AssertionError::new));
 	}
 
+	@Test
+	public void testSymbolValueLiteralExtraction() {
+		final TimeIntervalUnit intervalUnit = TimeIntervalUnit.DAY_TO_MINUTE;
+
+		assertEquals(
+			intervalUnit,
+			new ValueLiteralExpression(intervalUnit).getValueAs(TimeIntervalUnit.class)
+				.orElseThrow(AssertionError::new));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static Expression createExpressionTree(Integer nestedValue) {

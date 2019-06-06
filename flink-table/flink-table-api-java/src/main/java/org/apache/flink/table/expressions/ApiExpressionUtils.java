@@ -60,10 +60,6 @@ public final class ApiExpressionUtils {
 		return new TypeLiteralExpression(dataType);
 	}
 
-	public static SymbolExpression symbol(TableSymbol symbol) {
-		return new SymbolExpression(symbol);
-	}
-
 	public static UnresolvedReferenceExpression unresolvedRef(String name) {
 		return new UnresolvedReferenceExpression(name);
 	}

@@ -19,6 +19,8 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.types.Row;
 
@@ -85,6 +87,19 @@ public class ClassDataTypeConverterTest {
 					DataTypes.ARRAY(DataTypes.INT().nullable().bridgedTo(Integer.class))
 						.nullable()
 						.bridgedTo(Integer[].class)
+				},
+
+				{
+					int[].class,
+					DataTypes.ARRAY(DataTypes.INT().notNull().bridgedTo(int.class))
+						.nullable()
+						.bridgedTo(int[].class)
+				},
+
+				{
+					TimeIntervalUnit.class,
+					new AtomicDataType(new SymbolType<>(TimeIntervalUnit.class))
+						.bridgedTo(TimeIntervalUnit.class)
 				},
 
 				{Row.class, null}

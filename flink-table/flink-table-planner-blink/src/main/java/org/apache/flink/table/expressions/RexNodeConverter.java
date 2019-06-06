@@ -180,11 +180,6 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	@Override
-	public RexNode visitSymbol(SymbolExpression symbolExpression) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public RexNode visitValueLiteral(ValueLiteralExpression expr) {
 		InternalType type = createInternalTypeFromTypeInfo(getLiteralTypeInfo(expr));
 		RexBuilder rexBuilder = relBuilder.getRexBuilder();

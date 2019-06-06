@@ -20,7 +20,10 @@ package org.apache.flink.table.types.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.expressions.TableSymbol;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
@@ -81,15 +84,22 @@ public final class ClassDataTypeConverter {
 	 * as information about the fields is missing. Or {@link BigDecimal} needs to be mapped from a
 	 * variable precision/scale to constant ones.
 	 */
+	@SuppressWarnings("unchecked")
 	public static Optional<DataType> extractDataType(Class<?> clazz) {
 		// byte arrays have higher priority than regular arrays
 		if (clazz.equals(byte[].class)) {
-			return Optional.of(DataTypes.BYTES().nullable().bridgedTo(byte[].class));
+			return Optional.of(DataTypes.BYTES());
 		}
+
 		if (clazz.isArray()) {
 			return extractDataType(clazz.getComponentType())
-				.map(element -> DataTypes.ARRAY(element).nullable().bridgedTo(clazz));
+				.map(DataTypes::ARRAY);
 		}
+
+		if (TableSymbol.class.isAssignableFrom(clazz)) {
+			return Optional.of(new AtomicDataType(new SymbolType(clazz)));
+		}
+
 		return Optional.ofNullable(defaultDataTypes.get(clazz.getName()));
 	}
 

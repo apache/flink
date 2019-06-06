@@ -46,7 +46,7 @@ public final class ValueDataTypeConverter {
 	 * expressed as {@code DataTypes.BIGINT().notNull()}. However, for example, {@code null} could
 	 * be any type and is not supported.
 	 *
-	 * <p>All types of the {@link LogicalTypeFamily#PREDEFINED} family and arrays are supported.
+	 * <p>All types of the {@link LogicalTypeFamily#PREDEFINED} family, symbols, and arrays are supported.
 	 */
 	public static Optional<DataType> extractDataType(Object value) {
 		if (value == null) {
