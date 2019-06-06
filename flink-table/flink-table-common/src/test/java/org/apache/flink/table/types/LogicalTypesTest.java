@@ -24,6 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -45,6 +47,7 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -585,6 +588,21 @@ public class LogicalTypesTest {
 			new LogicalType[]{},
 			new AnyType<>(User.class, new KryoSerializer<>(User.class, new ExecutionConfig()))
 		);
+	}
+
+	@Test
+	public void testSymbolType() {
+		final SymbolType<?> symbolType = new SymbolType<>(TimeIntervalUnit.class);
+
+		testEquality(symbolType, new SymbolType<>(TimePointUnit.class));
+
+		testStringSummary(symbolType, "SYMBOL(" + TimeIntervalUnit.class.getName() + ")");
+
+		testNullability(symbolType);
+
+		testJavaSerializability(symbolType);
+
+		testConversions(symbolType, new Class[]{TimeIntervalUnit.class}, new Class[]{TimeIntervalUnit.class});
 	}
 
 	// --------------------------------------------------------------------------------------------
