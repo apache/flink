@@ -97,8 +97,6 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 	/** URL resolver */
 	private AbstractNonHaServices clusterURLResolver;
 
-	private final boolean local;
-
 	/**
 	 * Creates a new services class for local usage.
 	 *
@@ -118,7 +116,6 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 		this.configuration = configuration;
 		this.runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
-		local = true;
 		shutdown = false;
 	}
 
@@ -149,7 +146,6 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 		this.configuration = configuration;
 		this.runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
-		local = false;
 		shutdown = false;
 	}
 
