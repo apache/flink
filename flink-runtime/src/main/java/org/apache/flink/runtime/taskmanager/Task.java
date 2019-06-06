@@ -364,7 +364,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
 
-		ShuffleIOOwnerContext taskShuffleContext = shuffleEnvironment
+		final ShuffleIOOwnerContext taskShuffleContext = shuffleEnvironment
 			.createShuffleIOOwnerContext(taskNameWithSubtaskAndId, executionId, metrics.getIOMetricGroup());
 
 		// produced intermediate result partitions
