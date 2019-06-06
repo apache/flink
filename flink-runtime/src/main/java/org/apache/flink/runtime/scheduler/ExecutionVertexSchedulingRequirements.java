@@ -26,7 +26,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
+import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -59,13 +61,19 @@ public class ExecutionVertexSchedulingRequirements {
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.slotSharingGroupId = slotSharingGroupId;
 		this.coLocationConstraint = coLocationConstraint;
-		this.preferredLocations = preferredLocations;
+		this.preferredLocations = checkNotNull(preferredLocations);
 	}
 
+	/**
+	 * a {@link ExecutionVertex#MAX_DISTINCT_LOCATIONS_TO_CONSIDER} test.
+	 *
+	 * @return
+	 */
 	public ExecutionVertexID getExecutionVertexId() {
 		return executionVertexId;
 	}
 
+	@Nullable
 	public AllocationID getPreviousAllocationId() {
 		return previousAllocationId;
 	}
@@ -74,15 +82,75 @@ public class ExecutionVertexSchedulingRequirements {
 		return resourceProfile;
 	}
 
+	@Nullable
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
 	}
 
+	@Nullable
 	public CoLocationConstraint getCoLocationConstraint() {
 		return coLocationConstraint;
 	}
 
 	public Collection<TaskManagerLocation> getPreferredLocations() {
 		return preferredLocations;
+	}
+
+	/**
+	 * Builder for {@link ExecutionVertexSchedulingRequirements}.
+	 */
+	public static class Builder {
+
+		private ExecutionVertexID executionVertexId;
+
+		private AllocationID previousAllocationId;
+
+		private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
+
+		private SlotSharingGroupId slotSharingGroupId;
+
+		private CoLocationConstraint coLocationConstraint;
+
+		private Collection<TaskManagerLocation> preferredLocations = Collections.emptyList();
+
+		public Builder withExecutionVertexId(final ExecutionVertexID executionVertexId) {
+			this.executionVertexId = executionVertexId;
+			return this;
+		}
+
+		public Builder withPreviousAllocationId(final AllocationID previousAllocationId) {
+			this.previousAllocationId = previousAllocationId;
+			return this;
+		}
+
+		public Builder withResourceProfile(final ResourceProfile resourceProfile) {
+			this.resourceProfile = resourceProfile;
+			return this;
+		}
+
+		public Builder withSlotSharingGroupId(final SlotSharingGroupId slotSharingGroupId) {
+			this.slotSharingGroupId = slotSharingGroupId;
+			return this;
+		}
+
+		public Builder withCoLocationConstraint(final CoLocationConstraint coLocationConstraint) {
+			this.coLocationConstraint = coLocationConstraint;
+			return this;
+		}
+
+		public Builder withPreferredLocations(final Collection<TaskManagerLocation> preferredLocations) {
+			this.preferredLocations = preferredLocations;
+			return this;
+		}
+
+		public ExecutionVertexSchedulingRequirements build() {
+			return new ExecutionVertexSchedulingRequirements(
+					executionVertexId,
+					previousAllocationId,
+					resourceProfile,
+					slotSharingGroupId,
+					coLocationConstraint,
+					preferredLocations);
+		}
 	}
 }

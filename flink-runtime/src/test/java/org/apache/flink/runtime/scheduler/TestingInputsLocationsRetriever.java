@@ -18,97 +18,81 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * A simple inputs locations retriever for testing purposes.
  */
-public class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
+class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
 
-	private final Map<ExecutionVertexID, Collection<Collection<ExecutionVertexID>>> vertexToUpstreams;
+	private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByVertex;
 
-	private final Map<ExecutionVertexID, CompletableFuture<TaskManagerLocation>> vertexToTaskManagerLocations;
+	private final Map<ExecutionVertexID, CompletableFuture<TaskManagerLocation>> taskManagerLocationsByVertex = new HashMap<>();
 
-	public TestingInputsLocationsRetriever(JobVertex... jobVertices) {
-		this.vertexToUpstreams = new HashMap<>();
-		this.vertexToTaskManagerLocations = new HashMap<>();
-
-		initVertexToUpstreamsRelation(jobVertices);
-		initVertexTaskManagerLocationFutures(jobVertices);
+	TestingInputsLocationsRetriever(final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByVertex) {
+		this.producersByVertex = new HashMap<>(producersByVertex);
 	}
 
 	@Override
-	public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(ExecutionVertexID executionVertexId) {
-		return vertexToUpstreams.getOrDefault(executionVertexId, Collections.emptyList());
+	public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(final ExecutionVertexID executionVertexId) {
+		final Map<JobVertexID, List<ExecutionVertexID>> executionVerticesByJobVertex =
+				producersByVertex.getOrDefault(executionVertexId, Collections.emptyList())
+						.stream()
+						.collect(Collectors.groupingBy(ExecutionVertexID::getJobVertexId));
+
+		return new ArrayList<>(executionVerticesByJobVertex.values());
 	}
 
 	@Override
-	public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(ExecutionVertexID executionVertexId) {
-		return Optional.ofNullable(vertexToTaskManagerLocations.get(executionVertexId));
+	public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(final ExecutionVertexID executionVertexId) {
+		return Optional.ofNullable(taskManagerLocationsByVertex.get(executionVertexId));
 	}
 
-	public int getTotalNumberOfVertices() {
-		return vertexToTaskManagerLocations.size();
+	public void markScheduled(final ExecutionVertexID executionVertexId) {
+		taskManagerLocationsByVertex.put(executionVertexId, new CompletableFuture<>());
 	}
 
-	public Collection<ExecutionVertexID> getAllExecutionVertices() {
-		return  vertexToTaskManagerLocations.keySet();
-	}
-
-	private void initVertexToUpstreamsRelation(JobVertex... jobVertices) {
-
-		for (JobVertex jobVertex : jobVertices) {
-			for (JobEdge jobEdge : jobVertex.getInputs()) {
-				JobVertex upstream = jobEdge.getSource().getProducer();
-
-				Collection<ExecutionVertexID> upstreams = new ArrayList<>();
-				if (jobEdge.getDistributionPattern() == DistributionPattern.ALL_TO_ALL) {
-					for (int i = 0; i < upstream.getParallelism(); i++) {
-						upstreams.add(new ExecutionVertexID(upstream.getID(), i));
-					}
-				}
-
-				for (int i = 0; i < jobVertex.getParallelism(); i++) {
-					if (jobEdge.getDistributionPattern() == DistributionPattern.POINTWISE) {
-						upstreams = new ArrayList<>();
-						if (jobVertex.getParallelism() > upstream.getParallelism()) {
-							int times = (int) Math.ceil(jobVertex.getParallelism() / upstream.getParallelism());
-							upstreams.add(new ExecutionVertexID(upstream.getID(), i / times));
-						} else {
-							int times = (int) Math.ceil(upstream.getParallelism() / jobVertex.getParallelism());
-							for (int j = i * times; j < (i + 1) * times && j < upstream.getParallelism(); j++) {
-								upstreams.add(new ExecutionVertexID(upstream.getID(), j));
-							}
-						}
-					}
-					ExecutionVertexID executionVertexId = new ExecutionVertexID(jobVertex.getID(), i);
-					Collection<Collection<ExecutionVertexID>> existingUpstreams =
-							vertexToUpstreams.computeIfAbsent(executionVertexId, k -> new ArrayList<>());
-					existingUpstreams.add(upstreams);
-				}
+	public void assignTaskManagerLocation(final ExecutionVertexID executionVertexId) {
+		taskManagerLocationsByVertex.compute(executionVertexId, (key, future) -> {
+			if (future == null) {
+				return CompletableFuture.completedFuture(new LocalTaskManagerLocation());
 			}
-		}
+			future.complete(new LocalTaskManagerLocation());
+			return future;
+		});
 	}
 
-	private void initVertexTaskManagerLocationFutures(JobVertex... jobVertices) {
+	static class Builder {
 
-		for (JobVertex jobVertex : jobVertices) {
-			for (int i = 0; i < jobVertex.getParallelism(); i++) {
-				ExecutionVertexID executionVertexId = new ExecutionVertexID(jobVertex.getID(), i);
-				vertexToTaskManagerLocations.put(executionVertexId, new CompletableFuture<>());
-			}
+		private final Map<ExecutionVertexID, List<ExecutionVertexID>> consumerToProducers = new HashMap<>();
+
+		public Builder connectConsumerToProducer(final ExecutionVertexID consumer, final ExecutionVertexID producer) {
+			consumerToProducers.compute(consumer, (key, producers) -> {
+				if (producers == null) {
+					producers = new ArrayList<>();
+				}
+				producers.add(producer);
+				return producers;
+			});
+			return this;
 		}
+
+		public TestingInputsLocationsRetriever build() {
+			return new TestingInputsLocationsRetriever(consumerToProducers);
+		}
+
 	}
 }

@@ -27,7 +27,6 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -48,6 +47,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -56,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
-	static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionSlotAllocator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionSlotAllocator.class);
 
 	/**
 	 * Store the uncompleted slot assignments.
@@ -69,17 +69,13 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 	private final Time allocationTimeout;
 
-	private final Boolean isQueuedSchedulingAllowed;
-
 	public DefaultExecutionSlotAllocator(
 			SlotProvider slotProvider,
 			InputsLocationsRetriever inputsLocationsRetriever,
-			Time allocationTimeout,
-			boolean isQueuedSchedulingAllowed) {
+			Time allocationTimeout) {
 		this.slotProvider = checkNotNull(slotProvider);
 		this.inputsLocationsRetriever = checkNotNull(inputsLocationsRetriever);
 		this.allocationTimeout = checkNotNull(allocationTimeout);
-		this.isQueuedSchedulingAllowed = isQueuedSchedulingAllowed;
 
 		pendingSlotAssignments = new HashMap<>();
 	}
@@ -91,19 +87,15 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 		List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
 				new ArrayList<>(executionVertexSchedulingRequirements.size());
 
-		Set<AllocationID> allPreviousAllocationIds =
-				computeAllPriorAllocationIdsIfRequiredByScheduling(executionVertexSchedulingRequirements);
+		Set<AllocationID> allPreviousAllocationIds = computeAllPriorAllocationIds(executionVertexSchedulingRequirements);
 
 		for (ExecutionVertexSchedulingRequirements schedulingRequirements : executionVertexSchedulingRequirements) {
 			final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
 			final SlotRequestId slotRequestId = new SlotRequestId();
 			final SlotSharingGroupId slotSharingGroupId = schedulingRequirements.getSlotSharingGroupId();
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
-			}
+			LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
 
-			// TODO: the calculation of preferred location should be refined.
 			CompletableFuture<LogicalSlot> slotFuture = calculatePreferredLocations(
 					executionVertexId,
 					schedulingRequirements.getPreferredLocations(),
@@ -121,7 +113,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 													preferredLocations,
 													Arrays.asList(schedulingRequirements.getPreviousAllocationId()),
 													allPreviousAllocationIds),
-											isQueuedSchedulingAllowed,
+											true,
 											allocationTimeout));
 
 			SlotExecutionVertexAssignment slotExecutionVertexAssignment =
@@ -190,83 +182,46 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	static CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocationsBasedOnInputs(
 			ExecutionVertexID executionVertexId,
 			InputsLocationsRetriever inputsLocationsRetriever) {
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations = null;
+		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
+				CompletableFuture.completedFuture(Collections.emptyList());
 
 		Collection<CompletableFuture<TaskManagerLocation>> locationsFutures = new ArrayList<>();
 
 		Collection<Collection<ExecutionVertexID>> allProducers =
 				inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
 		for (Collection<ExecutionVertexID> producers : allProducers) {
-			Set<TaskManagerLocation> inputLocations = new HashSet<>();
-			List<CompletableFuture<TaskManagerLocation>> inputLocationsFutures = new ArrayList<>();
 
 			for (ExecutionVertexID producer : producers) {
 				Optional<CompletableFuture<TaskManagerLocation>> optionalLocationFuture =
 						inputsLocationsRetriever.getTaskManagerLocation(producer);
 				optionalLocationFuture.ifPresent(
-						(locationFuture) -> {
-							locationsFutures.add(locationFuture);
-							TaskManagerLocation taskManagerLocation = locationFuture.getNow(null);
-							if (taskManagerLocation != null) {
-								inputLocations.add(taskManagerLocation);
-							} else {
-								inputLocationsFutures.add(locationFuture);
-							}
-						}
-				);
-				// If the parallelism is large, wait for all futures coming back may cost a long time,
-				// so using the unfulfilled future number here to speed up it.
-				if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER ||
-						inputLocationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+						(locationFuture) -> locationsFutures.add(locationFuture));
+				// If the parallelism is large, wait for all futures coming back may cost a long time.
+				if (locationsFutures.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
 					locationsFutures.clear();
 					break;
 				}
 			}
 
-			if (!locationsFutures.isEmpty()) {
-				CompletableFuture<Collection<TaskManagerLocation>> uniqueLocationsFuture =
-						FutureUtils.combineAll(locationsFutures).thenApply(
-								(locations) -> {
-									Set<TaskManagerLocation> uniqueLocations = new HashSet<>(locations);
-									if (uniqueLocations.size() <= MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-										return uniqueLocations;
-									} else {
-										return Collections.emptySet();
-									}
-								});
-				if (preferredLocations == null) {
-					preferredLocations = uniqueLocationsFuture;
-				} else {
-					preferredLocations = preferredLocations.thenCombine(
-							uniqueLocationsFuture,
-							(locationsOnOneEdge, locationsOnAnotherEdge) -> {
-								if ((!locationsOnOneEdge.isEmpty() && locationsOnAnotherEdge.size() > locationsOnOneEdge.size())
-										|| locationsOnAnotherEdge.isEmpty()) {
-									return locationsOnOneEdge;
-								} else {
-									return locationsOnAnotherEdge;
-								}
+			CompletableFuture<Collection<TaskManagerLocation>> uniqueLocationsFuture =
+					FutureUtils.combineAll(locationsFutures).thenApply(
+							(locations) -> {
+								Set<TaskManagerLocation> uniqueLocations = new HashSet<>(locations);
+								return uniqueLocations;
 							});
-				}
-				locationsFutures.clear();
-			}
+			preferredLocations = preferredLocations.thenCombine(
+					uniqueLocationsFuture,
+					(locationsOnOneEdge, locationsOnAnotherEdge) -> {
+						if ((!locationsOnOneEdge.isEmpty() && locationsOnAnotherEdge.size() > locationsOnOneEdge.size())
+								|| locationsOnAnotherEdge.isEmpty()) {
+							return locationsOnOneEdge;
+						} else {
+							return locationsOnAnotherEdge;
+						}
+					});
+			locationsFutures.clear();
 		}
-		return preferredLocations == null ? CompletableFuture.completedFuture(Collections.emptyList()) : preferredLocations;
-	}
-
-	/**
-	 * Returns the result of {@link #computeAllPriorAllocationIds}, but only if the scheduling really requires it.
-	 * Otherwise this method simply returns an empty set.
-	 */
-	private Set<AllocationID> computeAllPriorAllocationIdsIfRequiredByScheduling(
-			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
-		// This is a temporary optimization to avoid computing all previous allocations if not required
-		// This can go away when we progress with the implementation of the Scheduler.
-		if (slotProvider instanceof Scheduler && ((Scheduler) slotProvider).requiresPreviousExecutionGraphAllocations()) {
-			return computeAllPriorAllocationIds(executionVertexSchedulingRequirements);
-		} else {
-			return Collections.emptySet();
-		}
+		return preferredLocations;
 	}
 
 	/**
@@ -277,7 +232,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	@VisibleForTesting
 	static Set<AllocationID> computeAllPriorAllocationIds(
 			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
-		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>(executionVertexSchedulingRequirements.size());
+		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>();
 		for (ExecutionVertexSchedulingRequirements schedulingRequirements : executionVertexSchedulingRequirements) {
 			AllocationID priorAllocation = schedulingRequirements.getPreviousAllocationId();
 			if (priorAllocation != null) {
