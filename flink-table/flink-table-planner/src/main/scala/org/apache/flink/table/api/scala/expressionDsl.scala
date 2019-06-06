@@ -719,7 +719,7 @@ trait ImplicitExpressionOperations {
     * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
     */
   def extract(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(EXTRACT, symbol(timeIntervalUnit), expr)
+    call(EXTRACT, valueLiteral(timeIntervalUnit), expr)
 
   /**
     * Rounds down a time point to the given unit.
@@ -727,7 +727,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
     */
   def floor(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(FLOOR, symbol(timeIntervalUnit), expr)
+    call(FLOOR, valueLiteral(timeIntervalUnit), expr)
 
   /**
     * Rounds up a time point to the given unit.
@@ -735,7 +735,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
     */
   def ceil(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(CEIL, symbol(timeIntervalUnit), expr)
+    call(CEIL, valueLiteral(timeIntervalUnit), expr)
 
   // Interval types
 
@@ -1144,7 +1144,7 @@ trait ImplicitExpressionConversions {
   }
 
   implicit def tableSymbolToExpression(sym: TableSymbol): Expression =
-    symbol(sym)
+    valueLiteral(sym)
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression =
     unresolvedRef(sym.name)

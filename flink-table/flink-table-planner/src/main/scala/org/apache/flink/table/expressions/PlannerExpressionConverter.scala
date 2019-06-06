@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE}
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL, TIMESTAMP_WITHOUT_TIME_ZONE}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
@@ -671,44 +671,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     }
   }
 
-  override def visitSymbol(symbolExpression: SymbolExpression): PlannerExpression = {
-    val plannerSymbol = symbolExpression.getSymbol match {
-      case TimeIntervalUnit.YEAR => PlannerTimeIntervalUnit.YEAR
-      case TimeIntervalUnit.YEAR_TO_MONTH => PlannerTimeIntervalUnit.YEAR_TO_MONTH
-      case TimeIntervalUnit.QUARTER => PlannerTimeIntervalUnit.QUARTER
-      case TimeIntervalUnit.MONTH => PlannerTimeIntervalUnit.MONTH
-      case TimeIntervalUnit.WEEK => PlannerTimeIntervalUnit.WEEK
-      case TimeIntervalUnit.DAY => PlannerTimeIntervalUnit.DAY
-      case TimeIntervalUnit.DAY_TO_HOUR => PlannerTimeIntervalUnit.DAY_TO_HOUR
-      case TimeIntervalUnit.DAY_TO_MINUTE => PlannerTimeIntervalUnit.DAY_TO_MINUTE
-      case TimeIntervalUnit.DAY_TO_SECOND => PlannerTimeIntervalUnit.DAY_TO_SECOND
-      case TimeIntervalUnit.HOUR => PlannerTimeIntervalUnit.HOUR
-      case TimeIntervalUnit.SECOND => PlannerTimeIntervalUnit.SECOND
-      case TimeIntervalUnit.HOUR_TO_MINUTE => PlannerTimeIntervalUnit.HOUR_TO_MINUTE
-      case TimeIntervalUnit.HOUR_TO_SECOND => PlannerTimeIntervalUnit.HOUR_TO_SECOND
-      case TimeIntervalUnit.MINUTE => PlannerTimeIntervalUnit.MINUTE
-      case TimeIntervalUnit.MINUTE_TO_SECOND => PlannerTimeIntervalUnit.MINUTE_TO_SECOND
-      case TimePointUnit.YEAR => PlannerTimePointUnit.YEAR
-      case TimePointUnit.MONTH => PlannerTimePointUnit.MONTH
-      case TimePointUnit.DAY => PlannerTimePointUnit.DAY
-      case TimePointUnit.HOUR => PlannerTimePointUnit.HOUR
-      case TimePointUnit.MINUTE => PlannerTimePointUnit.MINUTE
-      case TimePointUnit.SECOND => PlannerTimePointUnit.SECOND
-      case TimePointUnit.QUARTER => PlannerTimePointUnit.QUARTER
-      case TimePointUnit.WEEK => PlannerTimePointUnit.WEEK
-      case TimePointUnit.MILLISECOND => PlannerTimePointUnit.MILLISECOND
-      case TimePointUnit.MICROSECOND => PlannerTimePointUnit.MICROSECOND
-
-      case _ =>
-        throw new TableException("Unsupported symbol: " + symbolExpression.getSymbol)
+  override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
+    if (hasRoot(literal.getDataType.getLogicalType, SYMBOL)) {
+      val plannerSymbol = getSymbol(literal.getValueAs(classOf[TableSymbol]).get())
+      return SymbolPlannerExpression(plannerSymbol)
     }
 
-    SymbolPlannerExpression(plannerSymbol)
-  }
-
-  override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
     val typeInfo = getLiteralTypeInfo(literal)
-
     if (literal.isNull) {
       Null(typeInfo)
     } else {
@@ -751,6 +720,37 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     }
 
     fromDataTypeToLegacyInfo(literal.getDataType)
+  }
+
+  private def getSymbol(symbol: TableSymbol): PlannerSymbol = symbol match {
+    case TimeIntervalUnit.YEAR => PlannerTimeIntervalUnit.YEAR
+    case TimeIntervalUnit.YEAR_TO_MONTH => PlannerTimeIntervalUnit.YEAR_TO_MONTH
+    case TimeIntervalUnit.QUARTER => PlannerTimeIntervalUnit.QUARTER
+    case TimeIntervalUnit.MONTH => PlannerTimeIntervalUnit.MONTH
+    case TimeIntervalUnit.WEEK => PlannerTimeIntervalUnit.WEEK
+    case TimeIntervalUnit.DAY => PlannerTimeIntervalUnit.DAY
+    case TimeIntervalUnit.DAY_TO_HOUR => PlannerTimeIntervalUnit.DAY_TO_HOUR
+    case TimeIntervalUnit.DAY_TO_MINUTE => PlannerTimeIntervalUnit.DAY_TO_MINUTE
+    case TimeIntervalUnit.DAY_TO_SECOND => PlannerTimeIntervalUnit.DAY_TO_SECOND
+    case TimeIntervalUnit.HOUR => PlannerTimeIntervalUnit.HOUR
+    case TimeIntervalUnit.SECOND => PlannerTimeIntervalUnit.SECOND
+    case TimeIntervalUnit.HOUR_TO_MINUTE => PlannerTimeIntervalUnit.HOUR_TO_MINUTE
+    case TimeIntervalUnit.HOUR_TO_SECOND => PlannerTimeIntervalUnit.HOUR_TO_SECOND
+    case TimeIntervalUnit.MINUTE => PlannerTimeIntervalUnit.MINUTE
+    case TimeIntervalUnit.MINUTE_TO_SECOND => PlannerTimeIntervalUnit.MINUTE_TO_SECOND
+    case TimePointUnit.YEAR => PlannerTimePointUnit.YEAR
+    case TimePointUnit.MONTH => PlannerTimePointUnit.MONTH
+    case TimePointUnit.DAY => PlannerTimePointUnit.DAY
+    case TimePointUnit.HOUR => PlannerTimePointUnit.HOUR
+    case TimePointUnit.MINUTE => PlannerTimePointUnit.MINUTE
+    case TimePointUnit.SECOND => PlannerTimePointUnit.SECOND
+    case TimePointUnit.QUARTER => PlannerTimePointUnit.QUARTER
+    case TimePointUnit.WEEK => PlannerTimePointUnit.WEEK
+    case TimePointUnit.MILLISECOND => PlannerTimePointUnit.MILLISECOND
+    case TimePointUnit.MICROSECOND => PlannerTimePointUnit.MICROSECOND
+
+    case _ =>
+      throw new TableException("Unsupported symbol: " + symbol)
   }
 
   override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {

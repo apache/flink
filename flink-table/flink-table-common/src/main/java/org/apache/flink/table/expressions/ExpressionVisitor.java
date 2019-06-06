@@ -29,8 +29,6 @@ public interface ExpressionVisitor<R> {
 
 	R visitCall(CallExpression call);
 
-	R visitSymbol(SymbolExpression symbolExpression);
-
 	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
 
 	R visitFieldReference(FieldReferenceExpression fieldReference);
