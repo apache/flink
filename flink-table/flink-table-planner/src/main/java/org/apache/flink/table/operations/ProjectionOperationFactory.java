@@ -215,7 +215,7 @@ public final class ProjectionOperationFactory {
 			Expression child = call.getChildren().get(0);
 			ValueLiteralExpression key = (ValueLiteralExpression) call.getChildren().get(1);
 
-			final LogicalType keyType = key.getDataType().getLogicalType();
+			final LogicalType keyType = key.getOutputDataType().getLogicalType();
 
 			final String keySuffix;
 			if (hasRoot(keyType, INTEGER)) {

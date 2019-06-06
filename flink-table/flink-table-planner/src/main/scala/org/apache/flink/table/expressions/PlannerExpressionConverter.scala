@@ -722,7 +722,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     * This method makes the planner more lenient for new data types defined for literals.
     */
   private def getLiteralTypeInfo(literal: ValueLiteralExpression): TypeInformation[_] = {
-    val logicalType = literal.getDataType.getLogicalType
+    val logicalType = literal.getOutputDataType.getLogicalType
 
     if (hasRoot(logicalType, DECIMAL)) {
       if (literal.isNull) {
@@ -750,7 +750,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       }
     }
 
-    fromDataTypeToLegacyInfo(literal.getDataType)
+    fromDataTypeToLegacyInfo(literal.getOutputDataType)
   }
 
   override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {

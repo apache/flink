@@ -755,7 +755,7 @@ object WindowCodeGenerator {
 
   def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
     case literal: ValueLiteralExpression if
-      hasRoot(literal.getDataType.getLogicalType, INTERVAL_DAY_TIME) => true
+      hasRoot(literal.getOutputDataType.getLogicalType, INTERVAL_DAY_TIME) => true
     case _ => false
   }
 }

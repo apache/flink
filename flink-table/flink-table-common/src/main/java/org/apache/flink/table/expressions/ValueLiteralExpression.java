@@ -66,7 +66,7 @@ public final class ValueLiteralExpression implements Expression {
 		this.dataType = dataType;
 	}
 
-	public DataType getDataType() {
+	public DataType getOutputDataType() {
 		return dataType;
 	}
 

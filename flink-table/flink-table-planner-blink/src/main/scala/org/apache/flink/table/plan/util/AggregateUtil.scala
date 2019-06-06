@@ -711,11 +711,11 @@ object AggregateUtil extends Enumeration {
   }
 
   def hasTimeIntervalType(intervalType: ValueLiteralExpression): Boolean = {
-    hasRoot(intervalType.getDataType.getLogicalType, LogicalTypeRoot.INTERVAL_DAY_TIME)
+    hasRoot(intervalType.getOutputDataType.getLogicalType, LogicalTypeRoot.INTERVAL_DAY_TIME)
   }
 
   def hasRowIntervalType(intervalType: ValueLiteralExpression): Boolean = {
-    hasRoot(intervalType.getDataType.getLogicalType, LogicalTypeRoot.BIGINT)
+    hasRoot(intervalType.getOutputDataType.getLogicalType, LogicalTypeRoot.BIGINT)
   }
 
   def toLong(literalExpr: ValueLiteralExpression): JLong =

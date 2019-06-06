@@ -298,7 +298,7 @@ public class AggregateOperationFactory {
 			"A tumble window expects a size value literal.");
 
 		final LogicalType timeFieldType = timeField.getOutputDataType().getLogicalType();
-		final LogicalType windowSizeType = windowSize.getDataType().getLogicalType();
+		final LogicalType windowSizeType = windowSize.getOutputDataType().getLogicalType();
 
 		if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
 			throw new ValidationException(
@@ -323,8 +323,8 @@ public class AggregateOperationFactory {
 			"A sliding window expects a slide value literal.");
 
 		final LogicalType timeFieldType = timeField.getOutputDataType().getLogicalType();
-		final LogicalType windowSizeType = windowSize.getDataType().getLogicalType();
-		final LogicalType windowSlideType = windowSlide.getDataType().getLogicalType();
+		final LogicalType windowSizeType = windowSize.getOutputDataType().getLogicalType();
+		final LogicalType windowSlideType = windowSlide.getOutputDataType().getLogicalType();
 
 		if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
 			throw new ValidationException(
@@ -352,7 +352,7 @@ public class AggregateOperationFactory {
 			window.getGap(),
 			"A session window expects a gap value literal.");
 
-		final LogicalType windowGapType = windowGap.getDataType().getLogicalType();
+		final LogicalType windowGapType = windowGap.getOutputDataType().getLogicalType();
 
 		if (!hasRoot(windowGapType, INTERVAL_DAY_TIME)) {
 			throw new ValidationException("A session window expects a gap literal of a day-time interval type.");
