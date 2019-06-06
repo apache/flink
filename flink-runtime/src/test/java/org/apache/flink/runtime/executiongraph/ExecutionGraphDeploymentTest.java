@@ -60,6 +60,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -822,7 +823,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			blobWriter,
 			timeout,
-			LoggerFactory.getLogger(getClass()));
+			LoggerFactory.getLogger(getClass()),
+			NettyShuffleMaster.INSTANCE);
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

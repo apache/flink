@@ -303,7 +303,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private String jsonPlan;
 
 	/** Shuffle master to register partitions for task deployment. */
-	private final ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+	private final ShuffleMaster<?> shuffleMaster;
 
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -405,7 +405,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			slotProvider,
 			userClassLoader,
 			blobWriter,
-			allocationTimeout);
+			allocationTimeout,
+			NettyShuffleMaster.INSTANCE);
 	}
 
 	public ExecutionGraph(
@@ -419,7 +420,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
 			BlobWriter blobWriter,
-			Time allocationTimeout) throws IOException {
+			Time allocationTimeout,
+			ShuffleMaster<?> shuffleMaster) throws IOException {
 
 		checkNotNull(futureExecutor);
 
@@ -466,6 +468,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 				"ExecutionGraph is not initialized with proper main thread executor. " +
 					"Call to ExecutionGraph.start(...) required.");
+
+		this.shuffleMaster = checkNotNull(shuffleMaster);
 
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}

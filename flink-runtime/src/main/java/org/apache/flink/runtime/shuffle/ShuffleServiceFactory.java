@@ -18,18 +18,28 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 /**
  * Interface for shuffle service factory implementations.
  *
- * <p>This component is a light-weight factory for {@link ShuffleEnvironment}.
+ * <p>This component is a light-weight factory for {@link ShuffleMaster} and {@link ShuffleEnvironment}.
  *
+ * @param <SD> partition shuffle descriptor used for producer/consumer deployment and their data exchange.
  * @param <P> type of provided result partition writers
  * @param <G> type of provided input gates
  */
-public interface ShuffleServiceFactory<P extends ResultPartitionWriter, G extends InputGate> {
+public interface ShuffleServiceFactory<SD extends ShuffleDescriptor, P extends ResultPartitionWriter, G extends InputGate> {
+
+	/**
+	 * Factory method to create a specific {@link ShuffleMaster} implementation.
+	 *
+	 * @param configuration Flink configuration
+	 * @return shuffle manager implementation
+	 */
+	ShuffleMaster<SD> createShuffleMaster(Configuration configuration);
 
 	/**
 	 * Factory method to create a specific local {@link ShuffleEnvironment} implementation.

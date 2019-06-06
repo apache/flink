@@ -38,7 +38,7 @@ public class ShuffleServiceLoaderTest {
 	@Test
 	public void testLoadDefaultNettyShuffleServiceFactory() throws FlinkException {
 		Configuration configuration = new Configuration();
-		ShuffleServiceFactory<?, ?> shuffleServiceFactory = ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+		ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory = ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
 		assertThat(
 			"Loaded shuffle service factory is not the default netty implementation",
 			shuffleServiceFactory,
@@ -49,7 +49,7 @@ public class ShuffleServiceLoaderTest {
 	public void testLoadCustomShuffleServiceFactory() throws FlinkException {
 		Configuration configuration = new Configuration();
 		configuration.setString(SHUFFLE_SERVICE_FACTORY_CLASS, "org.apache.flink.runtime.shuffle.ShuffleServiceLoaderTest$CustomShuffleServiceFactory");
-		ShuffleServiceFactory<?, ?> shuffleServiceFactory = ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+		ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory = ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
 		assertThat(
 			"Loaded shuffle service factory is not the custom test implementation",
 			shuffleServiceFactory,
@@ -66,7 +66,12 @@ public class ShuffleServiceLoaderTest {
 	/**
 	 * Stub implementation of {@link ShuffleServiceFactory} to test {@link ShuffleServiceLoader} utility.
 	 */
-	public static class CustomShuffleServiceFactory implements ShuffleServiceFactory<ResultPartitionWriter, InputGate> {
+	public static class CustomShuffleServiceFactory implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, InputGate> {
+		@Override
+		public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(Configuration configuration) {
+			throw new UnsupportedOperationException();
+		}
+
 		@Override
 		public ShuffleEnvironment<ResultPartitionWriter, InputGate> createShuffleEnvironment(
 				ShuffleEnvironmentContext shuffleEnvironmentContext) {
