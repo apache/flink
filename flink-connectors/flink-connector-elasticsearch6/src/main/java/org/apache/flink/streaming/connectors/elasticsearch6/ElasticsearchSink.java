@@ -138,6 +138,22 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		}
 
 		/**
+		 * Sets the number of bulk concurrent requests.
+		 *
+		 * <p>NOTE: If the number of concurrentRequests is larger than 0, this makes flush() asynchronous. 
+		 * The Flink Elasticsearch Sink does NOT provide any strong guarantees for at-least-once delivery of action requests.
+		 *
+		 * @param concurrentRequests the number of bulkProcessor's concurrentRequests. default is 0.
+		 */
+		public void setBulkFlushConcurrentRequests(int concurrentRequests) {
+			Preconditions.checkArgument(
+					concurrentRequests >= 0,
+				"Max number of concurrentRequests must be larger than or equal to 0.");
+
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS, String.valueOf(concurrentRequests));
+		}
+		
+		/**
 		 * Sets whether or not to enable bulk flush backoff behaviour.
 		 *
 		 * @param enabled whether or not to enable backoffs.

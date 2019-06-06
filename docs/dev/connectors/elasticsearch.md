@@ -445,7 +445,14 @@ the provided `Map<String, String>`:
  * **bulk.flush.max.actions**: Maximum amount of actions to buffer before flushing.
  * **bulk.flush.max.size.mb**: Maximum size of data (in megabytes) to buffer before flushing.
  * **bulk.flush.interval.ms**: Interval at which to flush regardless of the amount or size of buffered actions.
- 
+ * **bulk.flush.concurrent.requests**: Number of bulk concurrent requests.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+<b>NOTE</b>: If the number of <b>bulk.flush.concurrent.requests</b> is larger than 0, 
+this makes bulk flush asynchronous. Be aware that this essentially means the sink will not provide 
+any strong delivery guarantees anymore, even with checkpoint for the topology enabled.
+</p>
+
 For versions 2.x and above, configuring how temporary request errors are
 retried is also supported:
  

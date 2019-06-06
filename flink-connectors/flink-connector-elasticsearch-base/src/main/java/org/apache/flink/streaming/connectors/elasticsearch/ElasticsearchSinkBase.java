@@ -79,6 +79,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
 	public static final String CONFIG_KEY_BULK_FLUSH_INTERVAL_MS = "bulk.flush.interval.ms";
+	public static final String CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS = "bulk.flush.concurrent.requests";
 	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE = "bulk.flush.backoff.enable";
 	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE = "bulk.flush.backoff.type";
 	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES = "bulk.flush.backoff.retries";
@@ -139,6 +140,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	private final Integer bulkProcessorFlushMaxActions;
 	private final Integer bulkProcessorFlushMaxSizeMb;
 	private final Long bulkProcessorFlushIntervalMillis;
+	private final Integer bulkProcessorConcurrentRequests;
 	private final BulkFlushBackoffPolicy bulkProcessorFlushBackoffPolicy;
 
 	// ------------------------------------------------------------------------
@@ -254,6 +256,13 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		} else {
 			bulkProcessorFlushIntervalMillis = null;
 		}
+		
+		if (params.has(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS)) {
+			bulkProcessorConcurrentRequests = params.getInt(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS);
+			userConfig.remove(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS);
+		} else {
+			bulkProcessorConcurrentRequests = 0;
+		}
 
 		boolean bulkProcessorFlushBackoffEnable = params.getBoolean(CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE, true);
 		userConfig.remove(CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE);
@@ -354,8 +363,9 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 		BulkProcessor.Builder bulkProcessorBuilder = callBridge.createBulkProcessorBuilder(client, listener);
 
-		// This makes flush() blocking
-		bulkProcessorBuilder.setConcurrentRequests(0);
+		if (bulkProcessorConcurrentRequests != null) {
+			bulkProcessorBuilder.setConcurrentRequests(bulkProcessorConcurrentRequests);
+		}
 
 		if (bulkProcessorFlushMaxActions != null) {
 			bulkProcessorBuilder.setBulkActions(bulkProcessorFlushMaxActions);
