@@ -63,7 +63,6 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -686,7 +685,7 @@ public class FailoverRegionTest extends TestLogger {
 					new CheckpointMetrics(),
 					taskOperatorSubtaskStates);
 
-				checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, new LocalTaskManagerLocation());
+				checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
 			}
 		}
 	}

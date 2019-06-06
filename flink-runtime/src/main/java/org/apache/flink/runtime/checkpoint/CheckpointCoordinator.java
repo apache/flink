@@ -42,7 +42,6 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -724,14 +723,12 @@ public class CheckpointCoordinator {
 	 * Receives a {@link DeclineCheckpoint} message for a pending checkpoint.
 	 *
 	 * @param message Checkpoint decline from the task manager
-	 * @param taskManagerLocation The location of the decline checkpoint message's sender
+	 * @param taskManagerLocationInfo The location info of the decline checkpoint message's sender
 	 */
-	public void receiveDeclineMessage(DeclineCheckpoint message, @Nullable TaskManagerLocation taskManagerLocation) {
+	public void receiveDeclineMessage(DeclineCheckpoint message, String taskManagerLocationInfo) {
 		if (shutdown || message == null) {
 			return;
 		}
-
-		final String taskManagerLocationInfo = (taskManagerLocation != null ? taskManagerLocation.toString() : "unknown location");
 
 		if (!job.equals(message.getJob())) {
 			throw new IllegalArgumentException("Received DeclineCheckpoint message for job " +
@@ -785,18 +782,16 @@ public class CheckpointCoordinator {
 	 *
 	 * @param message Checkpoint ack from the task manager
 	 *
-	 * @param taskManagerLocation The location of the acknowledge checkpoint message's sender
+	 * @param taskManagerLocationInfo The location of the acknowledge checkpoint message's sender
 	 * @return Flag indicating whether the ack'd checkpoint was associated
 	 * with a pending checkpoint.
 	 *
 	 * @throws CheckpointException If the checkpoint cannot be added to the completed checkpoint store.
 	 */
-	public boolean receiveAcknowledgeMessage(AcknowledgeCheckpoint message, @Nullable TaskManagerLocation taskManagerLocation) throws CheckpointException {
+	public boolean receiveAcknowledgeMessage(AcknowledgeCheckpoint message, String taskManagerLocationInfo) throws CheckpointException {
 		if (shutdown || message == null) {
 			return false;
 		}
-
-		final String taskManagerLocationInfo = (taskManagerLocation != null ? taskManagerLocation.toString() : "unknown location");
 
 		if (!job.equals(message.getJob())) {
 			LOG.error("Received wrong AcknowledgeCheckpoint message for job {} from {} : {}", job, taskManagerLocationInfo, message);

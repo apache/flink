@@ -528,13 +528,12 @@ public class LegacyScheduler implements SchedulerNG {
 			checkpointMetrics,
 			checkpointState);
 
-		final Optional<TaskManagerLocation> optionalLocation = tryRetrieveTaskManagerLocation(executionAttemptID);
-		final TaskManagerLocation taskManagerLocation = optionalLocation.isPresent() ? optionalLocation.get() : null;
+		final String taskManagerLocationInfo = retrieveTaskManagerLocation(executionAttemptID);
 
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
-					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocation);
+					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocationInfo);
 				} catch (Throwable t) {
 					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
@@ -554,13 +553,12 @@ public class LegacyScheduler implements SchedulerNG {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
-		final Optional<TaskManagerLocation> optionalLocation = tryRetrieveTaskManagerLocation(decline.getTaskExecutionId());
-		final TaskManagerLocation taskManagerLocation = optionalLocation.isPresent() ? optionalLocation.get() : null;
+		final String taskManagerLocationInfo = retrieveTaskManagerLocation(decline.getTaskExecutionId());
 
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
-					checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocation);
+					checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocationInfo);
 				} catch (Exception e) {
 					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
 				}
@@ -631,8 +629,12 @@ public class LegacyScheduler implements SchedulerNG {
 			terminationFuture.thenApply((jobStatus -> path)));
 	}
 
-	private Optional<TaskManagerLocation> tryRetrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
-		final Execution currentExecution = executionGraph.getRegisteredExecutions().get(executionAttemptID);
-		return currentExecution != null ? Optional.ofNullable(currentExecution.getAssignedResourceLocation()) : Optional.empty();
+	private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
+		final Optional<Execution> currentExecution = Optional.ofNullable(executionGraph.getRegisteredExecutions().get(executionAttemptID));
+
+		return currentExecution
+			.map(Execution::getAssignedResourceLocation)
+			.map(TaskManagerLocation::toString)
+			.orElse("Unknown location");
 	}
 }

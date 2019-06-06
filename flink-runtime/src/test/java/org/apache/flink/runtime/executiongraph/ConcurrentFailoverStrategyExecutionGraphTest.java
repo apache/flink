@@ -49,7 +49,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
@@ -448,7 +447,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 				graph.getJobID(),
 				vertex1.getCurrentExecutionAttempt().getAttemptId(),
 				checkpointToAcknowledge),
-				new LocalTaskManagerLocation());
+				"Unknown location");
 
 		Map<Long, PendingCheckpoint> oldPendingCheckpoints = new HashMap<>(3);
 
