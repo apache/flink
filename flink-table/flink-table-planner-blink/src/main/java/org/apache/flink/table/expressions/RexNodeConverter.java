@@ -104,7 +104,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return relBuilder.getRexBuilder().makeAbstractCast(
 					typeFactory.createTypeFromInternalType(
 							createInternalTypeFromTypeInfo(
-								fromDataTypeToLegacyInfo(type.getDataType())),
+								fromDataTypeToLegacyInfo(type.getOutputDataType())),
 							child.getType().isNullable()),
 					child);
 		} else if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
@@ -114,7 +114,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return relBuilder.getRexBuilder().makeReinterpretCast(
 					typeFactory.createTypeFromInternalType(
 							createInternalTypeFromTypeInfo(
-								fromDataTypeToLegacyInfo(type.getDataType())),
+								fromDataTypeToLegacyInfo(type.getOutputDataType())),
 							child.getType().isNullable()),
 					child,
 					checkOverflow);

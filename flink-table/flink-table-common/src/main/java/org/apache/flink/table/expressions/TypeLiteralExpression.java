@@ -42,7 +42,7 @@ public final class TypeLiteralExpression implements Expression {
 		this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
 	}
 
-	public DataType getDataType() {
+	public DataType getOutputDataType() {
 		return dataType;
 	}
 

@@ -43,7 +43,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         assert(children.size == 2)
         return Cast(
           children.head.accept(this),
-          fromDataTypeToLegacyInfo(children(1).asInstanceOf[TypeLiteralExpression].getDataType))
+          fromDataTypeToLegacyInfo(
+            children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
 
       case WINDOW_START =>
         assert(children.size == 1)
