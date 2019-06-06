@@ -150,7 +150,7 @@ public class PlanningConfigurationBuilder {
 			// and cases are preserved
 			SqlParser
 				.configBuilder()
-				.setLex(Lex.JAVA)
+				.setLex(Lex.MYSQL)
 				.build());
 	}
 
