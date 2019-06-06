@@ -672,7 +672,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
-    if (hasRoot(literal.getDataType.getLogicalType, SYMBOL)) {
+    if (hasRoot(literal.getOutputDataType.getLogicalType, SYMBOL)) {
       val plannerSymbol = getSymbol(literal.getValueAs(classOf[TableSymbol]).get())
       return SymbolPlannerExpression(plannerSymbol)
     }
@@ -691,7 +691,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     * This method makes the planner more lenient for new data types defined for literals.
     */
   private def getLiteralTypeInfo(literal: ValueLiteralExpression): TypeInformation[_] = {
-    val logicalType = literal.getDataType.getLogicalType
+    val logicalType = literal.getOutputDataType.getLogicalType
 
     if (hasRoot(logicalType, DECIMAL)) {
       if (literal.isNull) {
@@ -719,7 +719,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       }
     }
 
-    fromDataTypeToLegacyInfo(literal.getDataType)
+    fromDataTypeToLegacyInfo(literal.getOutputDataType)
   }
 
   private def getSymbol(symbol: TableSymbol): PlannerSymbol = symbol match {

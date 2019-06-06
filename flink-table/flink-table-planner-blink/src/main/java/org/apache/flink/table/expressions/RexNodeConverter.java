@@ -239,7 +239,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	 * This method makes the planner more lenient for new data types defined for literals.
 	 */
 	private static TypeInformation<?> getLiteralTypeInfo(ValueLiteralExpression literal) {
-		final LogicalType logicalType = literal.getDataType().getLogicalType();
+		final LogicalType logicalType = literal.getOutputDataType().getLogicalType();
 
 		if (hasRoot(logicalType, DECIMAL)) {
 			if (literal.isNull()) {
@@ -267,7 +267,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			}
 		}
 
-		return fromDataTypeToLegacyInfo(literal.getDataType());
+		return fromDataTypeToLegacyInfo(literal.getOutputDataType());
 	}
 
 	/**
