@@ -170,7 +170,7 @@ public class DependencyTest {
 		}
 
 		@Override
-		protected HiveConf getHiveConf() {
+		protected HiveConf getHiveConf(String hiveSitePath) {
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here

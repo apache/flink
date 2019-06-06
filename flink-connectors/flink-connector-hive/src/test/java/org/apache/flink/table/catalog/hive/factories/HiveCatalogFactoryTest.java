@@ -42,7 +42,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
 	public void test() {
 		final String catalogName = "mycatalog";
 
-		final HiveCatalog expectedCatalog = new HiveCatalog(catalogName, new HiveConf());
+		final HiveCatalog expectedCatalog = new HiveCatalog(catalogName, null, new HiveConf());
 
 		final CatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
 

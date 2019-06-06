@@ -138,7 +138,7 @@ public class HiveCatalog extends AbstractCatalog {
 		HiveConf.setHiveSiteLocation(null);
 	}
 
-	private static URL loadHiveSiteUrl(String filePath) {
+	public static URL loadHiveSiteUrl(String filePath) {
 
 		URL url = null;
 
@@ -157,7 +157,7 @@ public class HiveCatalog extends AbstractCatalog {
 		return url;
 	}
 
-	private static HiveConf getHiveConf(URL hiveSiteUrl) {
+	public static HiveConf getHiveConf(URL hiveSiteUrl) {
 		LOG.info("Setting hive-site location as {}", hiveSiteUrl);
 
 		HiveConf.setHiveSiteLocation(hiveSiteUrl);

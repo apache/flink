@@ -74,19 +74,12 @@ public class HiveCatalogFactory implements CatalogFactory {
 
 		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_SITE_PATH);
 
-		if (hiveSitePath.isPresent()) {
-			return new HiveCatalog(name, defaultDatabase, hiveSitePath.get());
-		} else {
-			HiveConf.setHiveSiteLocation(null);
-			// When hive-site is not set, system will first look for configs in environment if there's any,
-			// otherwise will create and use an embedded hive metastore
-			return new HiveCatalog(name, defaultDatabase, getHiveConf());
-		}
+		return new HiveCatalog(name, defaultDatabase, getHiveConf(hiveSitePath.orElse(null)));
 	}
 
 	@VisibleForTesting
-	protected HiveConf getHiveConf() {
-		return new HiveConf();
+	protected HiveConf getHiveConf(String hiveSitePath) {
+		return HiveCatalog.getHiveConf(HiveCatalog.loadHiveSiteUrl(hiveSitePath));
 	}
 
 	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
