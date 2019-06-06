@@ -19,12 +19,26 @@
 package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 
+import org.apache.hadoop.hive.common.type.HiveChar;
+import org.apache.hadoop.hive.common.type.HiveVarchar;
+import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utils to convert data types between Flink and Hive.
@@ -36,13 +50,14 @@ public class HiveTypeUtil {
 
 	/**
 	 * Convert Flink data type to Hive data type name.
-	 * TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
-	 * 		[FLINK-12386] Support complete mapping between Flink and Hive data types
+	 * TODO: the following Hive types are not supported in Flink yet, including MAP, STRUCT
 	 *
 	 * @param type a Flink data type
 	 * @return the corresponding Hive data type name
 	 */
 	public static String toHiveTypeName(DataType type) {
+		checkNotNull(type, "type cannot be null");
+
 		return toHiveTypeInfo(type).getTypeName();
 	}
 
@@ -53,6 +68,8 @@ public class HiveTypeUtil {
 	 * @return the corresponding Hive data type
 	 */
 	public static TypeInfo toHiveTypeInfo(DataType type) {
+		checkNotNull(type, "type cannot be null");
+
 		if (type.equals(DataTypes.BOOLEAN())) {
 			return TypeInfoFactory.booleanTypeInfo;
 		} else if (type.equals(DataTypes.TINYINT())) {
@@ -76,20 +93,61 @@ public class HiveTypeUtil {
 		} else if (type.equals(DataTypes.TIMESTAMP())) {
 			return TypeInfoFactory.timestampTypeInfo;
 		} else {
-			throw new UnsupportedOperationException(
-				String.format("Flink doesn't support converting type %s to Hive type yet.", type.toString()));
+			LogicalType logicalType = type.getLogicalType();
+			Class clazz = logicalType.getClass();
+
+			if (clazz == BinaryType.class || clazz == VarBinaryType.class) {
+				// Hive doesn't support variable-length binary string
+				return TypeInfoFactory.binaryTypeInfo;
+			} else if (clazz == CharType.class) {
+				CharType charType = (CharType) logicalType;
+
+				if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
+					throw new CatalogException(
+						String.format("HiveCatalog doesn't support char type with length of '%d'. " +
+							"The maximum length is %d",
+							charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
+				}
+
+				return TypeInfoFactory.getCharTypeInfo(charType.getLength());
+			} else if (clazz == VarCharType.class) {
+				VarCharType varCharType = (VarCharType) logicalType;
+
+				if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH) {
+					throw new CatalogException(
+						String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
+							"The maximum length is %d",
+							varCharType.getLength(), HiveVarchar.MAX_VARCHAR_LENGTH));
+				}
+
+				return TypeInfoFactory.getVarcharTypeInfo(varCharType.getLength());
+			} else if (clazz == DecimalType.class) {
+				DecimalType decimalType = (DecimalType) logicalType;
+
+				// Flink and Hive share the same precision and scale range
+				// Flink already validates the type so we don't need to validate again here
+				return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
+			}
+
+			// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
 		}
+
+		// TODO: convert CollectionDataType and KeyValueDataType
+
+		throw new UnsupportedOperationException(
+			String.format("Flink doesn't support converting type %s to Hive type yet.", type.toString()));
 	}
 
 	/**
 	 * Convert Hive data type to a Flink data type.
-	 * TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
-	 *      [FLINK-12386] Support complete mapping between Flink and Hive data types
+	 * TODO: the following Hive types are not supported in Flink yet, including MAP, STRUCT
 	 *
 	 * @param hiveType a Hive data type
 	 * @return the corresponding Flink data type
 	 */
 	public static DataType toFlinkType(TypeInfo hiveType) {
+		checkNotNull(hiveType, "hiveType cannot be null");
+
 		switch (hiveType.getCategory()) {
 			case PRIMITIVE:
 				return toFlinkPrimitiveType((PrimitiveTypeInfo) hiveType);
@@ -102,13 +160,14 @@ public class HiveTypeUtil {
 		}
 	}
 
-	// TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
-	//    [FLINK-12386] Support complete mapping between Flink and Hive data types
 	private static DataType toFlinkPrimitiveType(PrimitiveTypeInfo hiveType) {
+		checkNotNull(hiveType, "hiveType cannot be null");
+
 		switch (hiveType.getPrimitiveCategory()) {
-			// For CHAR(p) and VARCHAR(p) types, map them to String for now because Flink doesn't yet support them.
 			case CHAR:
+				return DataTypes.CHAR(((CharTypeInfo) hiveType).getLength());
 			case VARCHAR:
+				return DataTypes.VARCHAR(((VarcharTypeInfo) hiveType).getLength());
 			case STRING:
 				return DataTypes.STRING();
 			case BOOLEAN:
@@ -131,6 +190,9 @@ public class HiveTypeUtil {
 				return DataTypes.TIMESTAMP();
 			case BINARY:
 				return DataTypes.BYTES();
+			case DECIMAL:
+				DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) hiveType;
+				return DataTypes.DECIMAL(decimalTypeInfo.getPrecision(), decimalTypeInfo.getScale());
 			default:
 				throw new UnsupportedOperationException(
 					String.format("Flink doesn't support Hive primitive type %s yet", hiveType));
