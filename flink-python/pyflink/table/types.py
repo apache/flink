@@ -183,7 +183,6 @@ class CharType(AtomicType):
     def __init__(self, length=1, nullable=True):
         super(CharType, self).__init__(nullable)
         self.length = length
-        self.bridged_to("java.lang.String")
 
     def __repr__(self):
         return 'CharType(%d, %s)' % (self.length, str(self._nullable).lower())
@@ -203,7 +202,6 @@ class VarCharType(AtomicType):
     def __init__(self, length=1, nullable=True):
         super(VarCharType, self).__init__(nullable)
         self.length = length
-        self.bridged_to("java.lang.String")
 
     def __repr__(self):
         return "VarCharType(%d, %s)" % (self.length, str(self._nullable).lower())
@@ -223,7 +221,6 @@ class BinaryType(AtomicType):
     def __init__(self, length=1, nullable=True):
         super(BinaryType, self).__init__(nullable)
         self.length = length
-        self.bridged_to("[B")
 
     def __repr__(self):
         return "BinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
@@ -243,7 +240,6 @@ class VarBinaryType(AtomicType):
     def __init__(self, length=1, nullable=True):
         super(VarBinaryType, self).__init__(nullable)
         self.length = length
-        self.bridged_to("[B")
 
     def __repr__(self):
         return "VarBinaryType(%d, %s)" % (self.length, str(self._nullable).lower())
@@ -258,7 +254,6 @@ class BooleanType(AtomicType):
 
     def __init__(self, nullable=True):
         super(BooleanType, self).__init__(nullable)
-        self.bridged_to("java.lang.Boolean")
 
 
 class TinyIntType(IntegralType):
@@ -270,7 +265,6 @@ class TinyIntType(IntegralType):
 
     def __init__(self, nullable=True):
         super(TinyIntType, self).__init__(nullable)
-        self.bridged_to("java.lang.Byte")
 
 
 class SmallIntType(IntegralType):
@@ -282,7 +276,6 @@ class SmallIntType(IntegralType):
 
     def __init__(self, nullable=True):
         super(SmallIntType, self).__init__(nullable)
-        self.bridged_to("java.lang.Short")
 
 
 class IntType(IntegralType):
@@ -294,7 +287,6 @@ class IntType(IntegralType):
 
     def __init__(self, nullable=True):
         super(IntType, self).__init__(nullable)
-        self.bridged_to("java.lang.Integer")
 
 
 class BigIntType(IntegralType):
@@ -306,7 +298,6 @@ class BigIntType(IntegralType):
 
     def __init__(self, nullable=True):
         super(BigIntType, self).__init__(nullable)
-        self.bridged_to("java.lang.Long")
 
 
 class FloatType(FractionalType):
@@ -318,7 +309,6 @@ class FloatType(FractionalType):
 
     def __init__(self, nullable=True):
         super(FloatType, self).__init__(nullable)
-        self.bridged_to("java.lang.Float")
 
 
 class DoubleType(FractionalType):
@@ -330,7 +320,6 @@ class DoubleType(FractionalType):
 
     def __init__(self, nullable=True):
         super(DoubleType, self).__init__(nullable)
-        self.bridged_to("java.lang.Double")
 
 
 class DecimalType(FractionalType):
@@ -358,7 +347,6 @@ class DecimalType(FractionalType):
         self.precision = precision
         self.scale = scale
         self.has_precision_info = True  # this is public API
-        self.bridged_to("java.math.BigDecimal")
 
     def __repr__(self):
         return "DecimalType(%d, %d, %s)" % (self.precision, self.scale, str(self._nullable).lower())
@@ -373,7 +361,6 @@ class DateType(AtomicType):
 
     def __init__(self, nullable=True):
         super(DateType, self).__init__(nullable)
-        self.bridged_to("java.time.LocalDate")
 
     EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
 
@@ -405,7 +392,6 @@ class TimeType(AtomicType):
         super(TimeType, self).__init__(nullable)
         assert 0 <= precision <= 9
         self.precision = precision
-        self.bridged_to("java.time.LocalTime")
 
     def __repr__(self):
         return "TimeType(%s, %s)" % (self.precision, str(self._nullable).lower())
@@ -459,7 +445,6 @@ class TimestampType(AtomicType):
         assert 0 <= precision <= 9
         self.kind = kind
         self.precision = precision
-        self.bridged_to("java.time.LocalDateTime")
 
     def __repr__(self):
         return "TimestampType(%s, %s, %s)" % (
@@ -510,16 +495,6 @@ class ArrayType(DataType):
             "element_type %s should be an instance of %s" % (element_type, DataType)
         super(ArrayType, self).__init__(nullable)
         self.element_type = element_type
-        gateway = get_gateway()
-        if element_type._conversion_cls in _boxed_to_primitive_array_map \
-                and element_type._nullable is False:
-            # convention classes of primitive array types are different from boxed array types
-            self.bridged_to(_boxed_to_primitive_array_map[element_type._conversion_cls])
-        elif not isinstance(element_type, (NullType, UserDefinedType)):
-            array_conversion_cls = \
-                gateway.new_array(getattr(gateway.jvm, element_type._conversion_cls), 0)\
-                .getClass().getName()
-            self.bridged_to(array_conversion_cls)
 
     def __repr__(self):
         return "ArrayType(%s, %s)" % (repr(self.element_type), str(self._nullable).lower())
@@ -565,7 +540,6 @@ class MapType(DataType):
         super(MapType, self).__init__(nullable)
         self.key_type = key_type
         self.value_type = value_type
-        self.bridged_to("java.util.Map")
 
     def __repr__(self):
         return "MapType(%s, %s, %s)" % (
@@ -606,7 +580,6 @@ class MultisetType(DataType):
             "element_type %s should be an instance of %s" % (element_type, DataType)
         super(MultisetType, self).__init__(nullable)
         self.element_type = element_type
-        self.bridged_to("java.util.Map")
 
     def __repr__(self):
         return "MultisetType(%s, %s)" % (repr(self.element_type), str(self._nullable).lower())
@@ -717,7 +690,6 @@ class RowType(DataType):
         # from_sql_type/to_sql_type functions
         self._need_conversion = [f.need_conversion() for f in self]
         self._need_serialize_any_field = any(self._need_conversion)
-        self.bridged_to("org.apache.flink.types.Row")
 
     def add(self, field, data_type=None):
         """
@@ -1318,16 +1290,6 @@ def _to_java_type(data_type):
         raise TypeError("Not supported type: %s" % data_type)
 
 
-_primitive_to_boxed_map = {'int': 'java.lang.Integer',
-                           'long': 'java.lang.Long',
-                           'byte': 'java.lang.Byte',
-                           'short': 'java.lang.Short',
-                           'char': 'java.lang.Character',
-                           'boolean': 'java.lang.Boolean',
-                           'float': 'java.lang.Float',
-                           'double': 'java.lang.Double'}
-
-
 def _is_instance_of(java_data_type, java_class):
     gateway = get_gateway()
     if isinstance(java_class, basestring):
@@ -1362,7 +1324,6 @@ def _from_java_type(j_data_type):
     # Atomic Type with parameters.
     if _is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
         logical_type = java_data_type.getLogicalType()
-        conversion_clz = java_data_type.getConversionClass()
         if _is_instance_of(logical_type, gateway.jvm.CharType):
             data_type = DataTypes.CHAR(logical_type.getLength(), logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.VarCharType):
@@ -1389,8 +1350,7 @@ def _from_java_type(j_data_type):
             if kind is None:
                 raise Exception("Unsupported java timestamp kind %s" % j_kind)
             data_type = DataTypes.TIMESTAMP(kind,
-                                            logical_type.getPrecision(),
-                                            logical_type.isNullable())
+                                            nullable=logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.TinyIntType):
@@ -1438,18 +1398,12 @@ def _from_java_type(j_data_type):
             raise TypeError("Unsupported type: %s, it is not supported yet in current python type"
                             " system" % j_data_type)
 
-        if conversion_clz is not None:
-            type_class_name = conversion_clz.getName()
-            if type_class_name in _primitive_to_boxed_map:
-                type_class_name = _primitive_to_boxed_map[type_class_name]
-            data_type.bridged_to(type_class_name)
         return data_type
 
     # Array Type, MultiSet Type.
     elif _is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
         logical_type = java_data_type.getLogicalType()
         element_type = java_data_type.getElementDataType()
-        conversion_clz = java_data_type.getConversionClass()
         if _is_instance_of(logical_type, gateway.jvm.ArrayType):
             data_type = DataTypes.ARRAY(_from_java_type(element_type), logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.MultisetType):
@@ -1458,8 +1412,6 @@ def _from_java_type(j_data_type):
         else:
             raise TypeError("Unsupported collection data type: %s" % j_data_type)
 
-        if conversion_clz is not None:
-            data_type.bridged_to(conversion_clz.getName())
         return data_type
 
     # Map Type.
@@ -1467,7 +1419,6 @@ def _from_java_type(j_data_type):
         logical_type = java_data_type.getLogicalType()
         key_type = java_data_type.getKeyDataType()
         value_type = java_data_type.getValueDataType()
-        conversion_clz = java_data_type.getConversionClass()
         if _is_instance_of(logical_type, gateway.jvm.MapType):
             data_type = DataTypes.MAP(
                 _from_java_type(key_type),
@@ -1476,15 +1427,12 @@ def _from_java_type(j_data_type):
         else:
             raise TypeError("Unsupported map data type: %s" % j_data_type)
 
-        if conversion_clz is not None:
-            data_type.bridged_to(conversion_clz.getName())
         return data_type
 
     # Row Type.
     elif _is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
         logical_type = java_data_type.getLogicalType()
         field_data_types = java_data_type.getFieldDataTypes()
-        conversion_clz = java_data_type.getConversionClass()
         if _is_instance_of(logical_type, gateway.jvm.RowType):
             fields = [DataTypes.FIELD(item,
                                       _from_java_type(
@@ -1493,8 +1441,6 @@ def _from_java_type(j_data_type):
         else:
             raise TypeError("Unsupported row data type: %s" % j_data_type)
 
-        if conversion_clz is not None:
-            data_type.bridged_to(conversion_clz.getName())
         return data_type
 
     # Unrecognized type.
@@ -1966,15 +1912,15 @@ class DataTypes(object):
 
     @classmethod
     def DATE(cls, nullable=True):
-        return DateType(nullable).bridged_to("java.sql.Date")
+        return DateType(nullable)
 
     @classmethod
     def TIME(cls, precision=0, nullable=True):
-        return TimeType(precision, nullable).bridged_to("java.sql.Time")
+        return TimeType(precision, nullable)
 
     @classmethod
-    def TIMESTAMP(cls, kind=TimestampKind.REGULAR, precision=3, nullable=True):
-        return TimestampType(kind, precision, nullable).bridged_to("java.sql.Timestamp")
+    def TIMESTAMP(cls, kind=TimestampKind.REGULAR, precision=6, nullable=True):
+        return TimestampType(kind, precision, nullable)
 
     @classmethod
     def ARRAY(cls, element_type, nullable=True):

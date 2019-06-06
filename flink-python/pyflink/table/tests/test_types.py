@@ -769,7 +769,7 @@ class DataTypeConvertTests(unittest.TestCase):
         gateway = get_gateway()
         JDataTypes = gateway.jvm.DataTypes
         java_types = [JDataTypes.TIME(3).notNull(),
-                      JDataTypes.TIMESTAMP(5).notNull(),
+                      JDataTypes.TIMESTAMP().notNull(),
                       JDataTypes.VARBINARY(100).notNull(),
                       JDataTypes.BINARY(2).notNull(),
                       JDataTypes.VARCHAR(30).notNull(),
@@ -778,9 +778,8 @@ class DataTypeConvertTests(unittest.TestCase):
 
         converted_python_types = [_from_java_type(item) for item in java_types]
 
-        expected = [DataTypes.TIME(3, False).bridged_to("java.time.LocalTime"),
-                    DataTypes.TIMESTAMP(TimestampKind.REGULAR, 5, False)
-                             .bridged_to("java.time.LocalDateTime"),
+        expected = [DataTypes.TIME(3, False),
+                    DataTypes.TIMESTAMP(TimestampKind.REGULAR).not_null(),
                     DataTypes.VARBINARY(100, False),
                     DataTypes.BINARY(2, False),
                     DataTypes.VARCHAR(30, False),
