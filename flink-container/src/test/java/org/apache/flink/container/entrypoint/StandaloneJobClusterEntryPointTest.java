@@ -25,9 +25,9 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint.ExecutionMode;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
+import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Optional;
 
 import static org.apache.flink.container.entrypoint.StandaloneJobClusterEntryPoint.ZERO_JOB_ID;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -68,40 +68,93 @@ public class StandaloneJobClusterEntryPointTest extends TestLogger {
 
 	@Test
 	public void configuredJobIdTakesPrecedenceWithHA() {
-		Optional<JobID> jobId = Optional.of(JobID.generate());
+		JobID jobId = JobID.generate();
+		String jobIdSeed = null;
 
 		Configuration globalConfiguration = new Configuration();
 		enableHighAvailability(globalConfiguration);
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
 			jobId,
+			jobIdSeed,
 			globalConfiguration);
 
-		assertThat(jobIdForCluster, is(jobId.get()));
+		assertThat(jobIdForCluster, is(jobId));
 	}
 
 	@Test
 	public void configuredJobIdTakesPrecedenceWithoutHA() {
-		Optional<JobID> jobId = Optional.of(JobID.generate());
+		JobID jobId = JobID.generate();
+		String jobIdSeed = null;
 
 		Configuration globalConfiguration = new Configuration();
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
 			jobId,
+			jobIdSeed,
 			globalConfiguration);
 
-		assertThat(jobIdForCluster, is(jobId.get()));
+		assertThat(jobIdForCluster, is(jobId));
 	}
 
 	@Test
-	public void jobIdDefaultsToZeroWithHA() {
-		Optional<JobID> jobId = Optional.empty();
+	public void configuredJobIdSeedTakesPrecedenceWithoutHA() {
+		JobID jobId = null;
+		String jobIdSeed = "some-seed";
+
+		Configuration globalConfiguration = new Configuration();
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobId,
+			jobIdSeed,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(StandaloneJobClusterEntryPoint.createJobIdFromSeed(jobIdSeed)));
+	}
+
+	@Test
+	public void configuredJobIdSeedTakesPrecedenceWithHA() {
+		JobID jobId = null;
+		String jobIdSeed = "some-seed";
 
 		Configuration globalConfiguration = new Configuration();
 		enableHighAvailability(globalConfiguration);
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
 			jobId,
+			jobIdSeed,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(StandaloneJobClusterEntryPoint.createJobIdFromSeed(jobIdSeed)));
+	}
+
+	@Test
+	public void configuredJobIdTakesPrecedenceOverJobIdSeed() {
+		JobID jobId = JobID.generate();
+		String jobIdSeed = "some-seed";
+
+		Configuration globalConfiguration = new Configuration();
+		enableHighAvailability(globalConfiguration);
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobId,
+			jobIdSeed,
+			globalConfiguration);
+
+		assertThat(jobIdForCluster, is(jobId));
+	}
+
+	@Test
+	public void jobIdDefaultsToZeroWithHA() {
+		JobID jobId = null;
+		String jobIdSeed = null;
+
+		Configuration globalConfiguration = new Configuration();
+		enableHighAvailability(globalConfiguration);
+
+		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
+			jobId,
+			jobIdSeed,
 			globalConfiguration);
 
 		assertThat(jobIdForCluster, is(ZERO_JOB_ID));
@@ -109,15 +162,42 @@ public class StandaloneJobClusterEntryPointTest extends TestLogger {
 
 	@Test
 	public void jobIdDefaultsToRandomJobIdWithoutHA() {
-		Optional<JobID> jobId = Optional.empty();
+		JobID jobId = null;
+		String jobIdSeed = null;
 
 		Configuration globalConfiguration = new Configuration();
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
 			jobId,
+			jobIdSeed,
 			globalConfiguration);
 
 		assertThat(jobIdForCluster, is(not(ZERO_JOB_ID)));
+	}
+
+	@Test
+	public void jobIdsFromSeedAreStable() {
+		JobID jobId1 = StandaloneJobClusterEntryPoint.createJobIdFromSeed("a-great-seed");
+		JobID jobId2 = StandaloneJobClusterEntryPoint.createJobIdFromSeed("another-great-seed");
+
+		Assert.assertThat(jobId1, Matchers.is(JobID.fromHexString("3dbdcd612b64005c458307356c78cd6e")));
+		Assert.assertThat(jobId2, Matchers.is(JobID.fromHexString("036e277424b92cb9920e39b9eef5d453")));
+	}
+
+	@Test
+	public void jobIdsFromDifferentSeedsDiffer() {
+		JobID jobId1 = StandaloneJobClusterEntryPoint.createJobIdFromSeed("some-seed");
+		JobID jobId2 = StandaloneJobClusterEntryPoint.createJobIdFromSeed("some-other-seed");
+
+		Assert.assertThat(jobId1, Matchers.is(not(jobId2)));
+	}
+
+	@Test
+	public void jobIdFromSameSeedAreTheSame() {
+		JobID jobId1 = StandaloneJobClusterEntryPoint.createJobIdFromSeed("same-seed");
+		JobID jobId2 = StandaloneJobClusterEntryPoint.createJobIdFromSeed("same-seed");
+
+		Assert.assertThat(jobId1, Matchers.is(jobId2));
 	}
 
 	private static void setExecutionMode(Configuration configuration, ExecutionMode executionMode) {

@@ -139,6 +139,16 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 	}
 
 	@Test
+	public void testSetJobIdSeed() throws FlinkParseException {
+		final String jobIdSeed = "some-seed";
+		final String[] args = {"--configDir", confDirPath, "--job-classname", "foobar", "--job-id-seed", jobIdSeed};
+
+		final StandaloneJobClusterConfiguration standaloneJobClusterConfiguration = commandLineParser.parse(args);
+
+		assertThat(standaloneJobClusterConfiguration.getJobIdSeed(), is(equalTo(jobIdSeed)));
+	}
+
+	@Test
 	public void testInvalidJobIdThrows() {
 		final String invalidJobId = "0xINVALID";
 		final String[] args = {"--configDir", confDirPath, "--job-classname", "foobar", "--job-id", invalidJobId};
@@ -150,6 +160,27 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 			Optional<IllegalArgumentException> cause = ExceptionUtils.findThrowable(e, IllegalArgumentException.class);
 			assertTrue(cause.isPresent());
 			assertThat(cause.get().getMessage(), containsString(invalidJobId));
+		}
+	}
+
+	@Test
+	public void testJobIdAndJobIdSeedCanNotBothBeConfigured(){
+		final JobID jobId = new JobID();
+		final String jobIdSeed = "some-seed";
+
+		final String[] args = {
+				"-c", confDirPath,
+				"-jid", jobId.toString(),
+				"-jids", jobIdSeed,
+				};
+
+		try {
+			commandLineParser.parse(args);
+			fail("Did not throw expected FlinkParseException");
+		} catch (FlinkParseException e) {
+			Optional<IllegalArgumentException> cause = ExceptionUtils.findThrowable(e, IllegalArgumentException.class);
+			assertTrue(cause.isPresent());
+			assertThat(cause.get().getMessage(), containsString("can not be used in conjunction"));
 		}
 	}
 

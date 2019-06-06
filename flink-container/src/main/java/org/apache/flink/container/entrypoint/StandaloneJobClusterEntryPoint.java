@@ -32,11 +32,13 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.Optional;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import static java.util.Objects.requireNonNull;
 
@@ -102,7 +104,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(
 			configuration,
-			resolveJobIdForCluster(Optional.ofNullable(clusterConfiguration.getJobId()), configuration),
+			resolveJobIdForCluster(clusterConfiguration.getJobId(), clusterConfiguration.getJobIdSeed(), configuration),
 			clusterConfiguration.getSavepointRestoreSettings(),
 			clusterConfiguration.getArgs(),
 			clusterConfiguration.getJobClassName());
@@ -112,12 +114,35 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 	@VisibleForTesting
 	@Nonnull
-	static JobID resolveJobIdForCluster(Optional<JobID> optionalJobID, Configuration configuration) {
-		return optionalJobID.orElseGet(() -> createJobIdForCluster(configuration));
+	static JobID resolveJobIdForCluster(@Nullable JobID jobId, @Nullable String jobIdSeed, Configuration configuration) {
+
+		if (jobId != null) {
+			return jobId;
+		}
+
+		if (jobIdSeed != null) {
+			return createJobIdFromSeed(jobIdSeed);
+		}
+
+		return createDefaultJobIdForCluster(configuration);
+	}
+
+	@VisibleForTesting
+	static JobID createJobIdFromSeed(String seed) {
+		MessageDigest digest;
+		try {
+			digest = MessageDigest.getInstance("MD5");
+		} catch (NoSuchAlgorithmException e) {
+			throw new FlinkRuntimeException(e);
+		}
+
+		byte[] hashedBytes = digest.digest(seed.getBytes());
+
+		return JobID.fromByteArray(hashedBytes);
 	}
 
 	@Nonnull
-	private static JobID createJobIdForCluster(Configuration globalConfiguration) {
+	private static JobID createDefaultJobIdForCluster(Configuration globalConfiguration) {
 		if (HighAvailabilityMode.isHighAvailabilityModeActivated(globalConfiguration)) {
 			return ZERO_JOB_ID;
 		} else {

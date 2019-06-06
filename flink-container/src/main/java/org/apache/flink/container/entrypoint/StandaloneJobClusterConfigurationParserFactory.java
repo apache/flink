@@ -60,6 +60,17 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		.desc("Job ID of the job to run.")
 		.build();
 
+	private static final Option JOB_ID_SEED_OPTION = Option.builder("jids")
+		.longOpt("job-id-seed")
+		.required(false)
+		.hasArg(true)
+		.argName("job id seed")
+		.desc("a seed to generate the job id from")
+		.build();
+
+	public static final String JOB_ID_MISCONFIG_MSG = "'" + JOB_ID_SEED_OPTION.getLongOpt()
+		+ "' can not be used in conjunction with '" + JOB_ID_OPTION.getLongOpt() + "'.";
+
 	@Override
 	public Options getOptions() {
 		final Options options = new Options();
@@ -67,6 +78,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		options.addOption(REST_PORT_OPTION);
 		options.addOption(JOB_CLASS_NAME_OPTION);
 		options.addOption(JOB_ID_OPTION);
+		options.addOption(JOB_ID_SEED_OPTION);
 		options.addOption(DYNAMIC_PROPERTY_OPTION);
 		options.addOption(CliFrontendParser.SAVEPOINT_PATH_OPTION);
 		options.addOption(CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
@@ -82,6 +94,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
 		final SavepointRestoreSettings savepointRestoreSettings = CliFrontendParser.createSavepointRestoreSettings(commandLine);
 		final JobID jobId = getJobId(commandLine);
+		final String jobIdSeed = getJobIdSeed(commandLine);
 		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 
 		return new StandaloneJobClusterConfiguration(
@@ -92,7 +105,21 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 			restPort,
 			savepointRestoreSettings,
 			jobId,
+			jobIdSeed,
 			jobClassName);
+	}
+
+	private String getJobIdSeed(@Nonnull final CommandLine commandLine) throws FlinkParseException {
+
+		boolean isJobIdSeedConfigured = commandLine.hasOption(JOB_ID_SEED_OPTION.getOpt());
+		boolean isJobIdConfigured = commandLine.hasOption(JOB_ID_OPTION.getOpt());
+
+		if (isJobIdSeedConfigured && isJobIdConfigured) {
+			IllegalArgumentException cause = new IllegalArgumentException(JOB_ID_MISCONFIG_MSG);
+			throw createFlinkParseException(JOB_ID_SEED_OPTION, cause);
+		}
+
+		return commandLine.getOptionValue(JOB_ID_SEED_OPTION.getOpt());
 	}
 
 	private int getRestPort(CommandLine commandLine) throws FlinkParseException {
