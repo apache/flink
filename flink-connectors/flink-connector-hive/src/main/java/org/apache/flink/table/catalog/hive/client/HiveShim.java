@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * A shim layer to support different versions of HMS.
+ * A shim layer to support different versions of Hive.
  */
 public interface HiveShim {
 
@@ -77,7 +77,8 @@ public interface HiveShim {
 	 * @param fs    the FileSystem to use
 	 * @param path  the path of the file or directory to be moved to trash.
 	 * @param conf  the Configuration to use
-	 * @param purge whether try to skip trash and directly delete the file/directory
+	 * @param purge whether try to skip trash and directly delete the file/directory. This flag may be ignored by
+	 *              old Hive versions prior to 2.3.0.
 	 * @return true if the move is successful, and false otherwise
 	 * @throws IOException if the file/directory cannot be properly moved or deleted
 	 */
