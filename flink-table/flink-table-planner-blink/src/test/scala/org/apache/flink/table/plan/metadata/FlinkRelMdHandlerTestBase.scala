@@ -38,7 +38,8 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.FrameworkConfig
 import org.apache.calcite.util.{DateString, ImmutableBitSet, TimeString, TimestampString}
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, TypeConverters}
+import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
+import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkRelBuilder, FlinkTypeFactory}
@@ -59,6 +60,7 @@ import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, VariableRankRange}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.CountAggFunction
 import org.junit.{Before, BeforeClass}
 
@@ -951,7 +953,8 @@ class FlinkRelMdHandlerTestBase {
       windowRef,
       new FieldReferenceExpression(
         "rowtime",
-        TypeConverters.createExternalTypeInfoFromInternalType(InternalTypes.ROWTIME_INDICATOR),
+        fromLegacyInfoToDataType(
+          createExternalTypeInfoFromInternalType(InternalTypes.ROWTIME_INDICATOR)),
         0,
         4),
       intervalOfMillis(900000)

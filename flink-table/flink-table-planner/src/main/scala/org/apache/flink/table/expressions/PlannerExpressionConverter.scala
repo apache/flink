@@ -756,7 +756,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {
     PlannerResolvedFieldReference(
       fieldReference.getName,
-      fieldReference.getResultType)
+      fromDataTypeToLegacyInfo(fieldReference.getOutputDataType))
   }
 
   override def visitUnresolvedReference(fieldReference: UnresolvedReferenceExpression)
@@ -804,7 +804,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   private def translateWindowReference(reference: Expression): PlannerExpression = reference match {
     case expr : LocalReferenceExpression =>
-      WindowReference(expr.getName, Some(expr.getResultType))
+      WindowReference(expr.getName, Some(fromDataTypeToLegacyInfo(expr.getOutputDataType)))
     //just because how the datastream is converted to table
     case expr: UnresolvedReferenceExpression =>
       UnresolvedFieldReference(expr.getName)

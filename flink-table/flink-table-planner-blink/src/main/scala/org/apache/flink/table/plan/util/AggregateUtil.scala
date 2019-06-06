@@ -47,6 +47,7 @@ import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.types.logical.LogicalTypeRoot
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.typeutils._
 
@@ -701,14 +702,12 @@ object AggregateUtil extends Enumeration {
     (propPos._1, propPos._2, propPos._3)
   }
 
-  def isRowtimeIndicatorType(fieldType: TypeInformation[_]): Boolean = fieldType match {
-    case typeInfo: TimeIndicatorTypeInfo => typeInfo.isEventTime
-    case _ => false
+  def isRowtimeAttribute(field: FieldReferenceExpression): Boolean = {
+    LogicalTypeChecks.isRowtimeAttribute(field.getOutputDataType.getLogicalType)
   }
 
-  def isProctimeIndicatorType(fieldType: TypeInformation[_]): Boolean = fieldType match {
-    case typeInfo: TimeIndicatorTypeInfo => !typeInfo.isEventTime
-    case _ => false
+  def isProctimeAttribute(field: FieldReferenceExpression): Boolean = {
+    LogicalTypeChecks.isProctimeAttribute(field.getOutputDataType.getLogicalType)
   }
 
   def hasTimeIntervalType(intervalType: ValueLiteralExpression): Boolean = {

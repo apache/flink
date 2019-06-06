@@ -26,7 +26,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.plan.util.AggregateUtil.{isProctimeIndicatorType, hasRowIntervalType, isRowtimeIndicatorType, hasTimeIntervalType, toDuration, toLong, transformToStreamAggregateInfoList}
+import org.apache.flink.table.plan.util.AggregateUtil.{isProctimeAttribute, hasRowIntervalType, isRowtimeAttribute, hasTimeIntervalType, toDuration, toLong, transformToStreamAggregateInfoList}
 import org.apache.flink.table.plan.util.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
@@ -78,11 +78,11 @@ class StreamExecGroupWindowAggregate(
 
   override def requireWatermark: Boolean = window match {
     case TumblingGroupWindow(_, timeField, size)
-      if isRowtimeIndicatorType(timeField.getResultType) && hasTimeIntervalType(size) => true
+      if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) => true
     case SlidingGroupWindow(_, timeField, size, _)
-      if isRowtimeIndicatorType(timeField.getResultType) && hasTimeIntervalType(size) => true
+      if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) => true
     case SessionGroupWindow(_, timeField, _)
-      if isRowtimeIndicatorType(timeField.getResultType) => true
+      if isRowtimeAttribute(timeField) => true
     case _ => false
   }
 
@@ -176,7 +176,7 @@ class StreamExecGroupWindowAggregate(
       aggCalls,
       namedProperties)
 
-    val timeIdx = if (isRowtimeIndicatorType(window.timeAttribute.getResultType)) {
+    val timeIdx = if (isRowtimeAttribute(window.timeAttribute)) {
       if (inputTimeFieldIndex < 0) {
         throw new TableException(
           "Group window aggregate must defined on a time attribute, " +
@@ -307,15 +307,15 @@ class StreamExecGroupWindowAggregate(
 
     val newBuilder = window match {
       case TumblingGroupWindow(_, timeField, size)
-        if isProctimeIndicatorType(timeField.getResultType) && hasTimeIntervalType(size) =>
+          if isProctimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.tumble(toDuration(size), timeZoneOffset).withProcessingTime()
 
       case TumblingGroupWindow(_, timeField, size)
-        if isRowtimeIndicatorType(timeField.getResultType) && hasTimeIntervalType(size) =>
+          if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.tumble(toDuration(size), timeZoneOffset).withEventTime(timeIdx)
 
       case TumblingGroupWindow(_, timeField, size)
-        if isProctimeIndicatorType(timeField.getResultType) && hasRowIntervalType(size) =>
+          if isProctimeAttribute(timeField) && hasRowIntervalType(size) =>
         builder.countWindow(toLong(size))
 
       case TumblingGroupWindow(_, _, _) =>
@@ -326,17 +326,17 @@ class StreamExecGroupWindowAggregate(
           "Event-time grouping windows on row intervals are currently not supported.")
 
       case SlidingGroupWindow(_, timeField, size, slide)
-        if isProctimeIndicatorType(timeField.getResultType) && hasTimeIntervalType(size) =>
+          if isProctimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.sliding(toDuration(size), toDuration(slide), timeZoneOffset)
           .withProcessingTime()
 
       case SlidingGroupWindow(_, timeField, size, slide)
-        if isRowtimeIndicatorType(timeField.getResultType) && hasTimeIntervalType(size) =>
+          if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.sliding(toDuration(size), toDuration(slide), timeZoneOffset)
           .withEventTime(timeIdx)
 
       case SlidingGroupWindow(_, timeField, size, slide)
-        if isProctimeIndicatorType(timeField.getResultType) && hasRowIntervalType(size) =>
+          if isProctimeAttribute(timeField) && hasRowIntervalType(size) =>
         builder.countWindow(toLong(size), toLong(slide))
 
       case SlidingGroupWindow(_, _, _, _) =>
@@ -347,11 +347,11 @@ class StreamExecGroupWindowAggregate(
           "Event-time grouping windows on row intervals are currently not supported.")
 
       case SessionGroupWindow(_, timeField, gap)
-        if isProctimeIndicatorType(timeField.getResultType) =>
+          if isProctimeAttribute(timeField) =>
         builder.session(toDuration(gap)).withProcessingTime()
 
       case SessionGroupWindow(_, timeField, gap)
-        if isRowtimeIndicatorType(timeField.getResultType) =>
+          if isRowtimeAttribute(timeField) =>
         builder.session(toDuration(gap)).withEventTime(timeIdx)
     }
 

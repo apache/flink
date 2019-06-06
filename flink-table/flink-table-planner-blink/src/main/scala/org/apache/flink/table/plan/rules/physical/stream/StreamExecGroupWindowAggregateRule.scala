@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecGroupWindowAggregate
-import org.apache.flink.table.plan.util.AggregateUtil.{isRowtimeIndicatorType, timeFieldIndex}
+import org.apache.flink.table.plan.util.AggregateUtil.{isRowtimeAttribute, timeFieldIndex}
 import org.apache.flink.table.plan.util.WindowEmitStrategy
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -76,7 +76,7 @@ class StreamExecGroupWindowAggregateRule
     val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
 
     val timeField = agg.getWindow.timeAttribute
-    val inputTimestampIndex = if (isRowtimeIndicatorType(timeField.getResultType)) {
+    val inputTimestampIndex = if (isRowtimeAttribute(timeField)) {
       timeFieldIndex(inputRowType, relBuilderFactory.create(cluster, null), timeField)
     } else {
       -1

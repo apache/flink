@@ -22,10 +22,11 @@ import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin._
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
@@ -197,14 +198,14 @@ class TemporalTableJoinTest extends TableTestBase {
       proctime: Boolean = false): Unit = {
     val rates = inputRates.asInstanceOf[TemporalTableFunctionImpl]
     assertThat(rates.getPrimaryKey,
-      equalTo[Expression](new FieldReferenceExpression("currency", Types.STRING, 0, 0)))
+      equalTo[Expression](new FieldReferenceExpression("currency", DataTypes.STRING(), 0, 0)))
 
     val (timeFieldName, timeFieldType) =
       if (proctime) {
-        ("proctime", PROCTIME_INDICATOR)
+        ("proctime", fromLegacyInfoToDataType(PROCTIME_INDICATOR))
       }
       else {
-        ("rowtime", ROWTIME_INDICATOR)
+        ("rowtime", fromLegacyInfoToDataType(ROWTIME_INDICATOR))
       }
 
     assertThat(rates.getTimeAttribute,

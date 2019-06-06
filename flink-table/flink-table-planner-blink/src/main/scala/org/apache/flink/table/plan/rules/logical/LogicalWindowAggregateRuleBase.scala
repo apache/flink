@@ -36,6 +36,7 @@ import org.apache.flink.table.expressions.{FieldReferenceExpression, WindowRefer
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import _root_.scala.collection.JavaConversions._
 
@@ -174,7 +175,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       }
 
     val timeField = getTimeFieldReference(windowExpr.getOperands.get(0), windowExprIdx, rowType)
-    val resultType = Some(createInternalTypeFromTypeInfo(timeField.getResultType))
+    val resultType =
+      Some(createInternalTypeFromTypeInfo(fromDataTypeToLegacyInfo(timeField.getOutputDataType)))
     val windowRef = WindowReference("w$", resultType)
     windowExpr.getOperator match {
       case FlinkSqlOperatorTable.TUMBLE =>
