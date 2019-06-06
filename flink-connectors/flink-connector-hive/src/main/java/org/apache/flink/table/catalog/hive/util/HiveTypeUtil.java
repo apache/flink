@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -70,66 +71,68 @@ public class HiveTypeUtil {
 	public static TypeInfo toHiveTypeInfo(DataType type) {
 		checkNotNull(type, "type cannot be null");
 
-		if (type.equals(DataTypes.BOOLEAN())) {
-			return TypeInfoFactory.booleanTypeInfo;
-		} else if (type.equals(DataTypes.TINYINT())) {
-			return TypeInfoFactory.byteTypeInfo;
-		} else if (type.equals(DataTypes.SMALLINT())) {
-			return TypeInfoFactory.shortTypeInfo;
-		} else if (type.equals(DataTypes.INT())) {
-			return TypeInfoFactory.intTypeInfo;
-		} else if (type.equals(DataTypes.BIGINT())) {
-			return TypeInfoFactory.longTypeInfo;
-		} else if (type.equals(DataTypes.FLOAT())) {
-			return TypeInfoFactory.floatTypeInfo;
-		} else if (type.equals(DataTypes.DOUBLE())) {
-			return TypeInfoFactory.doubleTypeInfo;
-		} else if (type.equals(DataTypes.STRING())) {
-			return TypeInfoFactory.stringTypeInfo;
-		} else if (type.equals(DataTypes.DATE())) {
-			return TypeInfoFactory.dateTypeInfo;
-		} else if (type.equals(DataTypes.BYTES())) {
-			return TypeInfoFactory.binaryTypeInfo;
-		} else if (type.equals(DataTypes.TIMESTAMP())) {
-			return TypeInfoFactory.timestampTypeInfo;
-		} else {
-			LogicalType logicalType = type.getLogicalType();
-			Class clazz = logicalType.getClass();
-
-			if (clazz == BinaryType.class || clazz == VarBinaryType.class) {
-				// Hive doesn't support variable-length binary string
+		if (type instanceof AtomicDataType) {
+			if (type.equals(DataTypes.BOOLEAN())) {
+				return TypeInfoFactory.booleanTypeInfo;
+			} else if (type.equals(DataTypes.TINYINT())) {
+				return TypeInfoFactory.byteTypeInfo;
+			} else if (type.equals(DataTypes.SMALLINT())) {
+				return TypeInfoFactory.shortTypeInfo;
+			} else if (type.equals(DataTypes.INT())) {
+				return TypeInfoFactory.intTypeInfo;
+			} else if (type.equals(DataTypes.BIGINT())) {
+				return TypeInfoFactory.longTypeInfo;
+			} else if (type.equals(DataTypes.FLOAT())) {
+				return TypeInfoFactory.floatTypeInfo;
+			} else if (type.equals(DataTypes.DOUBLE())) {
+				return TypeInfoFactory.doubleTypeInfo;
+			} else if (type.equals(DataTypes.STRING())) {
+				return TypeInfoFactory.stringTypeInfo;
+			} else if (type.equals(DataTypes.DATE())) {
+				return TypeInfoFactory.dateTypeInfo;
+			} else if (type.equals(DataTypes.BYTES())) {
 				return TypeInfoFactory.binaryTypeInfo;
-			} else if (clazz == CharType.class) {
-				CharType charType = (CharType) logicalType;
+			} else if (type.equals(DataTypes.TIMESTAMP())) {
+				return TypeInfoFactory.timestampTypeInfo;
+			} else {
+				LogicalType logicalType = type.getLogicalType();
+				Class clazz = logicalType.getClass();
 
-				if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
-					throw new CatalogException(
-						String.format("HiveCatalog doesn't support char type with length of '%d'. " +
-							"The maximum length is %d",
-							charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
+				if (clazz == BinaryType.class || clazz == VarBinaryType.class) {
+					// Hive doesn't support variable-length binary string
+					return TypeInfoFactory.binaryTypeInfo;
+				} else if (clazz == CharType.class) {
+					CharType charType = (CharType) logicalType;
+
+					if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
+						throw new CatalogException(
+							String.format("HiveCatalog doesn't support char type with length of '%d'. " +
+									"The maximum length is %d",
+								charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
+					}
+
+					return TypeInfoFactory.getCharTypeInfo(charType.getLength());
+				} else if (clazz == VarCharType.class) {
+					VarCharType varCharType = (VarCharType) logicalType;
+
+					if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH) {
+						throw new CatalogException(
+							String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
+									"The maximum length is %d",
+								varCharType.getLength(), HiveVarchar.MAX_VARCHAR_LENGTH));
+					}
+
+					return TypeInfoFactory.getVarcharTypeInfo(varCharType.getLength());
+				} else if (clazz == DecimalType.class) {
+					DecimalType decimalType = (DecimalType) logicalType;
+
+					// Flink and Hive share the same precision and scale range
+					// Flink already validates the type so we don't need to validate again here
+					return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
 				}
 
-				return TypeInfoFactory.getCharTypeInfo(charType.getLength());
-			} else if (clazz == VarCharType.class) {
-				VarCharType varCharType = (VarCharType) logicalType;
-
-				if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH) {
-					throw new CatalogException(
-						String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
-							"The maximum length is %d",
-							varCharType.getLength(), HiveVarchar.MAX_VARCHAR_LENGTH));
-				}
-
-				return TypeInfoFactory.getVarcharTypeInfo(varCharType.getLength());
-			} else if (clazz == DecimalType.class) {
-				DecimalType decimalType = (DecimalType) logicalType;
-
-				// Flink and Hive share the same precision and scale range
-				// Flink already validates the type so we don't need to validate again here
-				return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
+				// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
 			}
-
-			// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
 		}
 
 		// TODO: convert CollectionDataType and KeyValueDataType
