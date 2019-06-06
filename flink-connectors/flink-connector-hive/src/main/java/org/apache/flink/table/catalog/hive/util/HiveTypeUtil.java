@@ -38,6 +38,8 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Utils to convert data types between Flink and Hive.
  */
@@ -54,6 +56,8 @@ public class HiveTypeUtil {
 	 * @return the corresponding Hive data type name
 	 */
 	public static String toHiveTypeName(DataType type) {
+		checkNotNull(type, "type cannot be null");
+
 		return toHiveTypeInfo(type).getTypeName();
 	}
 
@@ -64,6 +68,8 @@ public class HiveTypeUtil {
 	 * @return the corresponding Hive data type
 	 */
 	public static TypeInfo toHiveTypeInfo(DataType type) {
+		checkNotNull(type, "type cannot be null");
+
 		if (type.equals(DataTypes.BOOLEAN())) {
 			return TypeInfoFactory.booleanTypeInfo;
 		} else if (type.equals(DataTypes.TINYINT())) {
@@ -140,6 +146,8 @@ public class HiveTypeUtil {
 	 * @return the corresponding Flink data type
 	 */
 	public static DataType toFlinkType(TypeInfo hiveType) {
+		checkNotNull(hiveType, "hiveType cannot be null");
+
 		switch (hiveType.getCategory()) {
 			case PRIMITIVE:
 				return toFlinkPrimitiveType((PrimitiveTypeInfo) hiveType);
@@ -153,6 +161,8 @@ public class HiveTypeUtil {
 	}
 
 	private static DataType toFlinkPrimitiveType(PrimitiveTypeInfo hiveType) {
+		checkNotNull(hiveType, "hiveType cannot be null");
+
 		switch (hiveType.getPrimitiveCategory()) {
 			case CHAR:
 				return DataTypes.CHAR(((CharTypeInfo) hiveType).getLength());
