@@ -117,7 +117,7 @@ public class HiveCatalog extends AbstractCatalog {
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveSiteFilePath) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
-			getHiveConf(hiveSiteFilePath));
+			getHiveConf(loadHiveSiteUrl(hiveSiteFilePath)));
 	}
 
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl) {
@@ -129,12 +129,12 @@ public class HiveCatalog extends AbstractCatalog {
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable HiveConf hiveConf) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
-		this.hiveConf = hiveConf == null ? getHiveConf("") : hiveConf;
+		this.hiveConf = hiveConf == null ? getHiveConf(null) : hiveConf;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	private static HiveConf getHiveConf(String filePath) {
+	private static URL loadHiveSiteUrl(String filePath) {
 
 		URL url = null;
 
@@ -150,7 +150,7 @@ public class HiveCatalog extends AbstractCatalog {
 			}
 		}
 
-		return getHiveConf(url);
+		return url;
 	}
 
 	private static HiveConf getHiveConf(URL hiveSiteUrl) {
