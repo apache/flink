@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -171,7 +172,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	/**
 	 * Gets the location preferences of the execution, as determined by the locations
 	 * of the predecessors from which it receives input data.
-	 * If there are more than {@link MAX_DISTINCT_LOCATIONS_TO_CONSIDER} different locations of source data,
+	 * If there are more than {@link ExecutionVertex#MAX_DISTINCT_LOCATIONS_TO_CONSIDER} different locations of source data,
 	 * or neither the sources have not been started nor will be started with the execution together,
 	 * this method returns an empty collection to indicate no location preference.
 	 *
