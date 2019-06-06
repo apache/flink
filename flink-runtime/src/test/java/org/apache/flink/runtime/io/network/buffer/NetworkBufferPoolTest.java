@@ -61,7 +61,6 @@ public class NetworkBufferPoolTest extends TestLogger {
 			final int numBuffers = 10;
 
 			NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, bufferSize, 1);
-			assertEquals(bufferSize, globalPool.getMemorySegmentSize());
 			assertEquals(numBuffers, globalPool.getTotalNumberOfMemorySegments());
 			assertEquals(numBuffers, globalPool.getNumberOfAvailableMemorySegments());
 			assertEquals(0, globalPool.getNumberOfRegisteredBufferPools());
