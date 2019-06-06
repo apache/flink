@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
@@ -93,11 +94,8 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 	/** Executor */
 	private final Executor executor;
 
-	/** Used for Mini cluster (local == true) */
-	private EmbeddedHaServices miniclusterURLResolver;
-
-	/** Used for cluster (local == false) */
-	private StandaloneHaServices clusterURLResolver;
+	/** URL resolver */
+	private AbstractNonHaServices clusterURLResolver;
 
 	private final boolean local;
 
@@ -109,11 +107,11 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 	 * @param blobStoreService	Blob store service
 	 */
 	public FileSystemHAServices(
-			Executor executor,
-			Configuration configuration,
-			BlobStoreService blobStoreService) {
+		Executor executor,
+		Configuration configuration,
+		BlobStoreService blobStoreService) {
 
-		miniclusterURLResolver = new EmbeddedHaServices(executor);
+		clusterURLResolver = new EmbeddedHaServices(executor);
 
 		this.executor = checkNotNull(executor);
 		this.blobStoreService = checkNotNull(blobStoreService, "blobStoreService");
@@ -136,13 +134,13 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 	 * @param blobStoreService			Blob store service
 	 */
 	public FileSystemHAServices(
-			String resourceManagerAddress,
-			String dispatcherAddress,
-			String jobManagerAddress,
-			String webMonitorAddress,
-			Executor executor,
-			Configuration configuration,
-			BlobStoreService blobStoreService) {
+		String resourceManagerAddress,
+		String dispatcherAddress,
+		String jobManagerAddress,
+		String webMonitorAddress,
+		Executor executor,
+		Configuration configuration,
+		BlobStoreService blobStoreService) {
 
 		clusterURLResolver = new StandaloneHaServices(resourceManagerAddress, dispatcherAddress, jobManagerAddress, webMonitorAddress);
 
@@ -162,95 +160,48 @@ public class FileSystemHAServices implements HighAvailabilityServices {
 
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-		if (local) {
-			return miniclusterURLResolver.getResourceManagerLeaderRetriever();
-		}
-		else {
-			return clusterURLResolver.getResourceManagerLeaderRetriever();
-		}
+		return clusterURLResolver.getResourceManagerLeaderRetriever();
 	}
 
 	@Override
 	public LeaderRetrievalService getDispatcherLeaderRetriever() {
-		if(local) {
-			return miniclusterURLResolver.getDispatcherLeaderRetriever();
-		}
-		else {
-			return clusterURLResolver.getDispatcherLeaderRetriever();
-		}
+		return clusterURLResolver.getDispatcherLeaderRetriever();
 	}
 
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
-		if (local) {
-			return miniclusterURLResolver.getResourceManagerLeaderElectionService();
-		}
-		else {
-			return clusterURLResolver.getResourceManagerLeaderElectionService();
-		}
+		return clusterURLResolver.getResourceManagerLeaderElectionService();
 	}
 
 	@Override
 	public LeaderElectionService getDispatcherLeaderElectionService() {
-		if (local) {
-			return miniclusterURLResolver.getDispatcherLeaderElectionService();
-		}
-		else {
-			return clusterURLResolver.getDispatcherLeaderElectionService();
-		}
+		return clusterURLResolver.getDispatcherLeaderElectionService();
 	}
 
 	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-		checkNotNull(jobID);
-
-		if (local) {
-			return miniclusterURLResolver.getJobManagerLeaderRetriever(jobID);
-		}
-		else {
-			return clusterURLResolver.getJobManagerLeaderRetriever(jobID);
-		}
+		return clusterURLResolver.getJobManagerLeaderRetriever(jobID);
 	}
 
 	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress) {
-		if (local) {
-			return miniclusterURLResolver.getJobManagerLeaderRetriever(jobID,defaultJobManagerAddress);
-		}
-		else {
-			return clusterURLResolver.getJobManagerLeaderRetriever(jobID,defaultJobManagerAddress);
-		}
+		return clusterURLResolver.getJobManagerLeaderRetriever(jobID,defaultJobManagerAddress);
 	}
 
 	@Override
 	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
 
-		if (local) {
-			return miniclusterURLResolver.getJobManagerLeaderElectionService(jobID);
-		}
-		else {
-			return clusterURLResolver.getJobManagerLeaderElectionService(jobID);
-		}
+		return clusterURLResolver.getJobManagerLeaderElectionService(jobID);
 	}
 
 	@Override
 	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
-		if (local) {
-			return miniclusterURLResolver.getWebMonitorLeaderRetriever();
-		}
-		else {
-			return clusterURLResolver.getWebMonitorLeaderRetriever();
-		}
+		return clusterURLResolver.getWebMonitorLeaderRetriever();
 	}
 
 	@Override
 	public LeaderElectionService getWebMonitorLeaderElectionService() {
-		if (local) {
-			return miniclusterURLResolver.getWebMonitorLeaderElectionService();
-		}
-		else {
-			return clusterURLResolver.getWebMonitorLeaderElectionService();
-		}
+		return clusterURLResolver.getWebMonitorLeaderElectionService();
 	}
 
 	@Override
