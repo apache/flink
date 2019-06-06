@@ -230,10 +230,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		return isDestroyed;
 	}
 
-	public int getMemorySegmentSize() {
-		return memorySegmentSize;
-	}
-
 	public int getTotalNumberOfMemorySegments() {
 		return totalNumberOfMemorySegments;
 	}
