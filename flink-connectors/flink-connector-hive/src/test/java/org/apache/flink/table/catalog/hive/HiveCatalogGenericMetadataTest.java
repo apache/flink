@@ -30,13 +30,21 @@ import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 
+import org.apache.hadoop.hive.common.type.HiveChar;
+import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test for HiveCatalog on generic metadata.
@@ -49,12 +57,12 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 		catalog.open();
 	}
 
+	// ------ TODO: Move data types tests to its own test class as it's shared between generic metadata and hive metadata
 	// ------ data types ------
 
 	@Test
 	public void testDataTypes() throws Exception {
-		// TODO: the following Hive types are not supported in Flink yet, including CHAR, VARCHAR, DECIMAL, MAP, STRUCT
-		//	  [FLINK-12386] Support complete mapping between Flink and Hive data types
+		// TODO: the following Hive types are not supported in Flink yet, including MAP, STRUCT
 		DataType[] types = new DataType[] {
 			DataTypes.TINYINT(),
 			DataTypes.SMALLINT(),
@@ -66,33 +74,79 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 			DataTypes.STRING(),
 			DataTypes.BYTES(),
 			DataTypes.DATE(),
-			DataTypes.TIMESTAMP()
+			DataTypes.TIMESTAMP(),
+			DataTypes.CHAR(HiveChar.MAX_CHAR_LENGTH),
+			DataTypes.VARCHAR(HiveVarchar.MAX_VARCHAR_LENGTH),
+			DataTypes.DECIMAL(5, 3)
 		};
 
 		verifyDataTypes(types);
 	}
 
-	private void verifyDataTypes(DataType[] types) throws Exception {
+	@Test
+	public void testNonExactlyMatchedDataTypes() throws Exception {
+		DataType[] types = new DataType[] {
+			DataTypes.BINARY(BinaryType.MAX_LENGTH),
+			DataTypes.VARBINARY(VarBinaryType.MAX_LENGTH)
+		};
+
+		CatalogTable table = createCatalogTable(types);
+
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, table, false);
+
+		Arrays.equals(
+			new DataType[] {DataTypes.BYTES(), DataTypes.BYTES()},
+			catalog.getTable(path1).getSchema().getFieldDataTypes());
+	}
+
+	@Test
+	public void testCharTypeLength() throws Exception {
+		DataType[] types = new DataType[] {
+			DataTypes.CHAR(HiveChar.MAX_CHAR_LENGTH + 1)
+		};
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage("HiveCatalog doesn't support char type with length of '256'. The maximum length is 255");
+		verifyDataTypes(types);
+	}
+
+	@Test
+	public void testVarCharTypeLength() throws Exception {
+		DataType[] types = new DataType[] {
+			DataTypes.VARCHAR(HiveVarchar.MAX_VARCHAR_LENGTH + 1)
+		};
+
+		exception.expect(CatalogException.class);
+		exception.expectMessage("HiveCatalog doesn't support varchar type with length of '65536'. The maximum length is 65535");
+		verifyDataTypes(types);
+	}
+
+	private CatalogTable createCatalogTable(DataType[] types) {
 		String[] colNames = new String[types.length];
 
 		for (int i = 0; i < types.length; i++) {
-			colNames[i] = types[i].toString().toLowerCase() + "_col";
+			colNames[i] = String.format("%s_%d", types[i].toString().toLowerCase(), i);
 		}
 
 		TableSchema schema = TableSchema.builder()
 			.fields(colNames, types)
 			.build();
 
-		CatalogTable table = new GenericCatalogTable(
+		return new GenericCatalogTable(
 			schema,
 			getBatchTableProperties(),
 			TEST_COMMENT
 		);
+	}
+
+	private void verifyDataTypes(DataType[] types) throws Exception {
+		CatalogTable table = createCatalogTable(types);
 
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, table, false);
 
-		checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		assertEquals(table.getSchema(), catalog.getTable(path1).getSchema());
 	}
 
 	// ------ partitions ------
