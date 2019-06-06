@@ -95,8 +95,6 @@ public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCl
 
 	public abstract void sendTaskEvent(TaskEvent event) throws IOException;
 
-	public abstract int getPageSize();
-
 	/**
 	 * @return a future that is completed if there are more records available. If there are more
 	 * records available immediately, {@link #AVAILABLE} should be returned. Previously returned

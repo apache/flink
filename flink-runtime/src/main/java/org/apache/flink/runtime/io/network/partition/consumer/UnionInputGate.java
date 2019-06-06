@@ -265,19 +265,6 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
-	public int getPageSize() {
-		int pageSize = -1;
-		for (InputGate gate : inputGates) {
-			if (pageSize == -1) {
-				pageSize = gate.getPageSize();
-			} else if (gate.getPageSize() != pageSize) {
-				throw new IllegalStateException("Found input gates with different page sizes.");
-			}
-		}
-		return pageSize;
-	}
-
-	@Override
 	public void setup() {
 	}
 

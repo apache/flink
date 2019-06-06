@@ -33,8 +33,6 @@ import java.util.Queue;
  */
 public class MockInputGate extends InputGate {
 
-	private final int pageSize;
-
 	private final int numberOfChannels;
 
 	private final Queue<BufferOrEvent> bufferOrEvents;
@@ -43,18 +41,12 @@ public class MockInputGate extends InputGate {
 
 	private int closedChannels;
 
-	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
-		this.pageSize = pageSize;
+	MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
 		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
 		this.closed = new boolean[numberOfChannels];
 
 		isAvailable = AVAILABLE;
-	}
-
-	@Override
-	public int getPageSize() {
-		return pageSize;
 	}
 
 	@Override

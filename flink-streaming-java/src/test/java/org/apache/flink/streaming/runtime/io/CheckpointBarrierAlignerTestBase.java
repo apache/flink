@@ -76,7 +76,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		int numberOfChannels,
 		BufferOrEvent[] sequence,
 		@Nullable AbstractInvokable toNotify) throws IOException {
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, numberOfChannels, Arrays.asList(sequence));
+		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
 		return createBarrierBuffer(gate, toNotify);
 	}
 
