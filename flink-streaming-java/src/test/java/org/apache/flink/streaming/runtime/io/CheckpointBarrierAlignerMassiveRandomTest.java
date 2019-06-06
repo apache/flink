@@ -60,7 +60,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
 
-			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, myIG.getPageSize()), "Testing: No task associated", null);
+			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, PAGE_SIZE), "Testing: No task associated", null);
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
@@ -180,11 +180,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 		@Override
 		public void sendTaskEvent(TaskEvent event) {}
-
-		@Override
-		public int getPageSize() {
-			return PAGE_SIZE;
-		}
 
 		@Override
 		public void setup() {
