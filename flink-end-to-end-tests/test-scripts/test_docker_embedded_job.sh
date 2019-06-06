@@ -37,7 +37,8 @@ case $INPUT_TYPE in
         INPUT_LOCATION=${INPUT_PATH}/words
     ;;
     (dummy-fs)
-        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        source "$(dirname "$0")"/common_dummy_fs.sh
+        dummy_fs_setup
         INPUT_LOCATION="dummy://localhost/words"
     ;;
     (*)
