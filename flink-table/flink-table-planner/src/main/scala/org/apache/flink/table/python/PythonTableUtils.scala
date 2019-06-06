@@ -251,7 +251,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Boolean](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Boolean.valueOf(getElement(i).asInstanceOf[Boolean])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Boolean.valueOf(getElement(i).asInstanceOf[Boolean])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
@@ -266,7 +270,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Byte](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Byte.valueOf(getElement(i).asInstanceOf[Byte])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Byte.valueOf(getElement(i).asInstanceOf[Byte])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
@@ -281,7 +289,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Short](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Short.valueOf(getElement(i).asInstanceOf[Short])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Short.valueOf(getElement(i).asInstanceOf[Short])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
@@ -296,7 +308,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Integer](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Integer.valueOf(getElement(i).asInstanceOf[Int])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Integer.valueOf(getElement(i).asInstanceOf[Int])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
@@ -311,7 +327,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Long](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Long.valueOf(getElement(i).asInstanceOf[Long])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Long.valueOf(getElement(i).asInstanceOf[Long])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
@@ -326,7 +346,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Float](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Float.valueOf(getElement(i).asInstanceOf[Float])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Float.valueOf(getElement(i).asInstanceOf[Float])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
@@ -341,7 +365,11 @@ object PythonTableUtils {
         } else {
           val array = new Array[java.lang.Double](length)
           for (i <- 0 until length) {
-            array(i) = java.lang.Double.valueOf(getElement(i).asInstanceOf[Double])
+            if (getElement(i) != null) {
+              array(i) = java.lang.Double.valueOf(getElement(i).asInstanceOf[Double])
+            } else {
+              array(i) = null
+            }
           }
           array
         }
