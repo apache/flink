@@ -40,6 +40,16 @@ import scala.collection.JavaConversions._
   * 2. optimize recursively each [[RelNodeBlock]] from leaf block to root(sink) block,
   * and register the optimized result of non-root block as an [[IntermediateRelTable]].
   * 3. expand [[IntermediateRelTable]] into RelNode tree in each [[RelNodeBlock]].
+  *
+  * Currently, we choose this strategy based on the following considerations:
+  * 1. In general, for multi-sinks users tend to use VIEW which is a natural common sub-graph.
+  * 2. after some optimization, like project push-down, filter push-down, there may be no common
+  * sub-graph (even table source) could be found in the final plan.
+  * however, current strategy has some deficiencies that need to be improved:
+  * 1. how to find a valid break-point for common sub-graph, e.g. some physical RelNodes are
+  * converted from several logical RelNodes, so the valid break-point could not be
+  * between those logical nodes.
+  * 2. the optimization result is local optimal (in sub-graph), not global optimal.
   */
 abstract class CommonSubGraphBasedOptimizer extends Optimizer {
 
