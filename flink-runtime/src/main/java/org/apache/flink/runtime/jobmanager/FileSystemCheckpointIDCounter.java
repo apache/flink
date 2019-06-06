@@ -122,8 +122,9 @@ public class FileSystemCheckpointIDCounter implements CheckpointIDCounter {
     private void saveAndIncrementCount(){
         try {
             File result = counterStorage.store(0, Long.toString(checkpointID));
-            if (lastID != null)
-                lastID.delete();
+            if (lastID != null) {
+				lastID.delete();
+			}
             lastID = result;
         }
         catch (Throwable t){}
