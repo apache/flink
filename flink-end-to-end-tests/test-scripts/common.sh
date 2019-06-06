@@ -99,6 +99,9 @@ function revert_flink_dir() {
 
     rm -r "${TEST_DATA_DIR}/tmp/backup"
 
+    # By default, the plugins dir doesn't exist. Some tests may have created it.
+    rm -r "${FLINK_DIR}/plugins"
+
     REST_PROTOCOL="http"
     CURL_SSL_ARGS=""
 }
@@ -106,6 +109,18 @@ function revert_flink_dir() {
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
+}
+
+function add_optional_plugin() {
+    # This is similar to add_optional_lib, but the jar would be copied to
+    # Flink's plugins dir (the nested folder name does not matter).
+    # Note: this may not work with some jars, as not all of them implement plugin api.
+    # Please check the corresponding code of the jar.
+    local plugin="$1"
+    local plugin_dir="$FLINK_DIR/plugins/$plugin"
+
+    mkdir -p "$plugin_dir"
+    cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
 }
 
 function delete_config_key() {
