@@ -70,7 +70,10 @@ import static org.apache.flink.table.operations.WindowAggregateQueryOperation.Re
 import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 
 /**
  * Utility class for creating a valid {@link AggregateQueryOperation} or {@link WindowAggregateQueryOperation}.
@@ -257,12 +260,15 @@ public class AggregateOperationFactory {
 		}
 
 		FieldReferenceExpression timeField = (FieldReferenceExpression) timeFieldExpr;
-		validateTimeAttributeType(timeField);
+
+		final LogicalType timeFieldType = timeField.getOutputDataType().getLogicalType();
+
+		validateTimeAttributeType(timeFieldType);
+
 		return timeField;
 	}
 
-	private void validateTimeAttributeType(FieldReferenceExpression timeField) {
-		TypeInformation<?> timeFieldType = timeField.getResultType();
+	private void validateTimeAttributeType(LogicalType timeFieldType) {
 		if (isStreaming) {
 			validateStreamTimeAttribute(timeFieldType);
 		} else {
@@ -270,15 +276,15 @@ public class AggregateOperationFactory {
 		}
 	}
 
-	private void validateBatchTimeAttribute(TypeInformation<?> timeFieldType) {
-		if (!(timeFieldType instanceof SqlTimeTypeInfo || timeFieldType == LONG_TYPE_INFO)) {
+	private void validateBatchTimeAttribute(LogicalType timeFieldType) {
+		if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE) || hasRoot(timeFieldType, BIGINT))) {
 			throw new ValidationException("A group window expects a time attribute for grouping " +
 				"in a batch environment.");
 		}
 	}
 
-	private void validateStreamTimeAttribute(TypeInformation<?> timeFieldType) {
-		if (!(timeFieldType instanceof TimeIndicatorTypeInfo)) {
+	private void validateStreamTimeAttribute(LogicalType timeFieldType) {
+		if (!hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE) || !isTimeAttribute(timeFieldType)) {
 			throw new ValidationException("A group window expects a time attribute for grouping " +
 				"in a stream environment.");
 		}
@@ -291,6 +297,7 @@ public class AggregateOperationFactory {
 		ValueLiteralExpression windowSize = getAsValueLiteral(window.getSize(),
 			"A tumble window expects a size value literal.");
 
+		final LogicalType timeFieldType = timeField.getOutputDataType().getLogicalType();
 		final LogicalType windowSizeType = windowSize.getDataType().getLogicalType();
 
 		if (!hasRoot(windowSizeType, BIGINT) && !hasRoot(windowSizeType, INTERVAL_DAY_TIME)) {
@@ -298,7 +305,7 @@ public class AggregateOperationFactory {
 				"Tumbling window expects a size literal of a day-time interval or BIGINT type.");
 		}
 
-		validateWindowIntervalType(timeField, windowSizeType);
+		validateWindowIntervalType(timeFieldType, windowSizeType);
 
 		return ResolvedGroupWindow.tumblingWindow(
 			windowName,
@@ -315,6 +322,7 @@ public class AggregateOperationFactory {
 		ValueLiteralExpression windowSlide = getAsValueLiteral(window.getSlide(),
 			"A sliding window expects a slide value literal.");
 
+		final LogicalType timeFieldType = timeField.getOutputDataType().getLogicalType();
 		final LogicalType windowSizeType = windowSize.getDataType().getLogicalType();
 		final LogicalType windowSlideType = windowSlide.getDataType().getLogicalType();
 
@@ -327,7 +335,7 @@ public class AggregateOperationFactory {
 			throw new ValidationException("A sliding window expects the same type of size and slide.");
 		}
 
-		validateWindowIntervalType(timeField, windowSizeType);
+		validateWindowIntervalType(timeFieldType, windowSizeType);
 
 		return ResolvedGroupWindow.slidingWindow(
 			windowName,
@@ -356,8 +364,9 @@ public class AggregateOperationFactory {
 			windowGap);
 	}
 
-	private void validateWindowIntervalType(FieldReferenceExpression timeField, LogicalType intervalType) {
-		if (isRowTimeIndicator(timeField) && hasRoot(intervalType, BIGINT)) {
+	private void validateWindowIntervalType(LogicalType timeFieldType, LogicalType intervalType) {
+		if (hasRoot(intervalType, TIMESTAMP_WITHOUT_TIME_ZONE) && isRowtimeAttribute(timeFieldType) &&
+				hasRoot(intervalType, BIGINT)) {
 			// unsupported row intervals on event-time
 			throw new ValidationException(
 				"Event-time grouping windows on row intervals in a stream environment " +
@@ -370,11 +379,6 @@ public class AggregateOperationFactory {
 			throw new ValidationException(exceptionMessage);
 		}
 		return (ValueLiteralExpression) expression;
-	}
-
-	private boolean isRowTimeIndicator(FieldReferenceExpression field) {
-		return field.getResultType() instanceof TimeIndicatorTypeInfo &&
-			((TimeIndicatorTypeInfo) field.getResultType()).isEventTime();
 	}
 
 	private void validateWindowProperties(List<Expression> windowProperties, ResolvedGroupWindow window) {

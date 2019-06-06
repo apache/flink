@@ -53,6 +53,8 @@ import java.util.stream.Collectors;
 
 import scala.Some;
 
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+
 /**
  * Tries to resolve all unresolved expressions such as {@link UnresolvedReferenceExpression}
  * or calls such as {@link BuiltInFunctionDefinitions#OVER}.
@@ -213,7 +215,9 @@ public class ExpressionResolver {
 					.accept(bridgeConverter)
 					.resultType();
 
-			localReferences.put(windowName, new LocalReferenceExpression(windowName, windowType));
+			localReferences.put(
+				windowName,
+				new LocalReferenceExpression(windowName, fromLegacyInfoToDataType(windowType)));
 		}
 	}
 

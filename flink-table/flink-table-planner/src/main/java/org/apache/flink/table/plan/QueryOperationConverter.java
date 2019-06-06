@@ -95,6 +95,7 @@ import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
 /**
  * Converter from Flink's specific relational representation: {@link QueryOperation} to Calcite's specific relational
@@ -337,7 +338,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		private LogicalWindow toLogicalWindow(ResolvedGroupWindow window) {
-			TypeInformation<?> windowType = window.getTimeAttribute().getResultType();
+			TypeInformation<?> windowType = fromDataTypeToLegacyInfo(window.getTimeAttribute().getOutputDataType());
 			WindowReference windowReference = new WindowReference(window.getAlias(), new Some<>(windowType));
 			switch (window.getType()) {
 				case SLIDE:

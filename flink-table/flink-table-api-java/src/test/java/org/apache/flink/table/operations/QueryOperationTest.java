@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
@@ -43,7 +42,7 @@ public class QueryOperationTest {
 		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
 
 		ProjectQueryOperation tableOperation = new ProjectQueryOperation(
-			Collections.singletonList(new FieldReferenceExpression("a", Types.INT, 0, 0)),
+			Collections.singletonList(new FieldReferenceExpression("a", DataTypes.INT(), 0, 0)),
 			new CatalogQueryOperation(
 				Arrays.asList("cat1", "db1", "tab1"),
 				schema), schema);
@@ -65,7 +64,7 @@ public class QueryOperationTest {
 	@Test
 	public void testWindowAggregationSummaryString() {
 		TableSchema schema = TableSchema.builder().field("a", DataTypes.INT()).build();
-		FieldReferenceExpression field = new FieldReferenceExpression("a", Types.INT, 0, 0);
+		FieldReferenceExpression field = new FieldReferenceExpression("a", DataTypes.INT(), 0, 0);
 		WindowAggregateQueryOperation tableOperation = new WindowAggregateQueryOperation(
 			Collections.singletonList(field),
 			Collections.singletonList(new CallExpression(BuiltInFunctionDefinitions.SUM,

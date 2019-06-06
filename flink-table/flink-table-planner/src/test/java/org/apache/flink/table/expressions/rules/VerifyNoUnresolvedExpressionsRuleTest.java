@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions.rules;
 
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -54,7 +54,7 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	public void testUnresolvedReferenceIsCatched() {
 		List<Expression> expressions = asList(
 			unresolvedRef("field"),
-			new FieldReferenceExpression("resolvedField", Types.INT, 0, 0));
+			new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0));
 		resolverRule.apply(expressions, resolutionContext);
 	}
 
@@ -62,14 +62,14 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	public void testNestedUnresolvedReferenceIsCatched() {
 		List<Expression> expressions = asList(
 			call(AS, unresolvedRef("field"), valueLiteral("fieldAlias")),
-			new FieldReferenceExpression("resolvedField", Types.INT, 0, 0));
+			new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0));
 		resolverRule.apply(expressions, resolutionContext);
 	}
 
 	@Test(expected = TableException.class)
 	public void testFlattenCallIsCatched() {
 		List<Expression> expressions = singletonList(
-			call(FLATTEN, new FieldReferenceExpression("resolvedField", Types.INT, 0, 0))
+			call(FLATTEN, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0))
 		);
 		resolverRule.apply(expressions, resolutionContext);
 	}
@@ -78,7 +78,7 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	public void testUnresolvedOverWindowIsCatched() {
 		List<Expression> expressions = singletonList(
 			call(OVER,
-				call(COUNT, new FieldReferenceExpression("resolvedField", Types.INT, 0, 0)),
+				call(COUNT, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0)),
 				new UnresolvedReferenceExpression("w")
 			)
 		);
@@ -88,7 +88,7 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 	@Test(expected = TableException.class)
 	public void testLookupCallIsCatched() {
 		List<Expression> expressions = singletonList(
-			lookupCall("unresolvedCall", new FieldReferenceExpression("resolvedField", Types.INT, 0, 0))
+			lookupCall("unresolvedCall", new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0))
 		);
 		resolverRule.apply(expressions, resolutionContext);
 	}

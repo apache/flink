@@ -90,7 +90,7 @@ public class FieldReferenceLookup {
 		return IntStream.range(0, tableSchema.getFieldCount())
 			.mapToObj(i -> new FieldReferenceExpression(
 				tableSchema.getFieldName(i).get(),
-				tableSchema.getFieldType(i).get(),
+				tableSchema.getFieldDataType(i).get(),
 				inputIdx,
 				i))
 			.collect(Collectors.toMap(

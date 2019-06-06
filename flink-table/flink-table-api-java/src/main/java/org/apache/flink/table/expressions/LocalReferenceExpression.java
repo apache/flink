@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -31,23 +32,24 @@ import java.util.Objects;
  * That entity does not come from any of the Operations input. It might be for example a group
  * window in window aggregation.
  */
+@Internal
 public class LocalReferenceExpression implements Expression {
 
 	private final String name;
 
-	private final TypeInformation<?> resultType;
+	private final DataType dataType;
 
-	public LocalReferenceExpression(String name, TypeInformation<?> resultType) {
+	public LocalReferenceExpression(String name, DataType dataType) {
 		this.name = Preconditions.checkNotNull(name);
-		this.resultType = Preconditions.checkNotNull(resultType);
+		this.dataType = Preconditions.checkNotNull(dataType);
 	}
 
 	public String getName() {
 		return name;
 	}
 
-	public TypeInformation<?> getResultType() {
-		return resultType;
+	public DataType getOutputDataType() {
+		return dataType;
 	}
 
 	@Override
@@ -69,13 +71,13 @@ public class LocalReferenceExpression implements Expression {
 			return false;
 		}
 		LocalReferenceExpression that = (LocalReferenceExpression) o;
-		return Objects.equals(name, that.name) &&
-			Objects.equals(resultType, that.resultType);
+		return name.equals(that.name) &&
+			dataType.equals(that.dataType);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(name, resultType);
+		return Objects.hash(name, dataType);
 	}
 
 	@Override

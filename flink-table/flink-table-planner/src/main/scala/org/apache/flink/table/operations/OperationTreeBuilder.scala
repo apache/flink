@@ -282,7 +282,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       .withLocalReferences(
         new LocalReferenceExpression(
           resolvedWindow.getAlias,
-          resolvedWindow.getTimeAttribute.getResultType))
+          resolvedWindow.getTimeAttribute.getOutputDataType))
       .build
 
     val convertedGroupings = resolverWithWindowReferences.resolve(groupingExpressions)
@@ -322,7 +322,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       .withLocalReferences(
         new LocalReferenceExpression(
           resolvedWindow.getAlias,
-          resolvedWindow.getTimeAttribute.getResultType))
+          resolvedWindow.getTimeAttribute.getOutputDataType))
       .build
 
     val convertedGroupings = resolverWithWindowReferences.resolve(newGroupingExpressions)
