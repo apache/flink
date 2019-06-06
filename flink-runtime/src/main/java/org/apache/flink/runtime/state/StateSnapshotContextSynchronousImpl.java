@@ -40,7 +40,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	/** Checkpoint timestamp of the snapshot. */
 	private final long checkpointTimestamp;
 	
-	/** Factory for he checkpointing stream */
+	/** Factory for the checkpointing stream */
 	private final CheckpointStreamFactory streamFactory;
 	
 	/** Key group range for the operator that created this context. Only for keyed operators */
