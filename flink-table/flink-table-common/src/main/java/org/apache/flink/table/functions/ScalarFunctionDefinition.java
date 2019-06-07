@@ -21,22 +21,63 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.functions.FunctionDefinition.Type.SCALAR_FUNCTION;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * The function definition of an user-defined scalar function.
+ *
+ * <p>This class can be dropped once we introduce a new type inference.
  */
 @PublicEvolving
-public final class ScalarFunctionDefinition extends FunctionDefinition {
+public final class ScalarFunctionDefinition implements FunctionDefinition {
 
+	private final String name;
 	private final ScalarFunction scalarFunction;
 
 	public ScalarFunctionDefinition(String name, ScalarFunction scalarFunction) {
-		super(name, SCALAR_FUNCTION);
+		this.name = Preconditions.checkNotNull(name);
 		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
 	}
 
 	public ScalarFunction getScalarFunction() {
 		return scalarFunction;
+	}
+
+	@Override
+	public FunctionKind getKind() {
+		return FunctionKind.SCALAR;
+	}
+
+	@Override
+	public Set<FunctionRequirement> getRequirements() {
+		return scalarFunction.getRequirements();
+	}
+
+	@Override
+	public boolean isDeterministic() {
+		return scalarFunction.isDeterministic();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ScalarFunctionDefinition that = (ScalarFunctionDefinition) o;
+		return name.equals(that.name);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(name);
+	}
+
+	@Override
+	public String toString() {
+		return name;
 	}
 }

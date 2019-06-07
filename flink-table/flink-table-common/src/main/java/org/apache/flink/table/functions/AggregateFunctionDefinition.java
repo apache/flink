@@ -22,30 +22,34 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.functions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * The function definition of an user-defined aggregate function.
+ *
+ * <p>This class can be dropped once we introduce a new type inference.
  */
 @PublicEvolving
-public final class AggregateFunctionDefinition extends FunctionDefinition {
+public final class AggregateFunctionDefinition implements FunctionDefinition {
 
-	private final UserDefinedAggregateFunction<?, ?> aggregateFunction;
+	private final String name;
+	private final AggregateFunction<?, ?> aggregateFunction;
 	private final TypeInformation<?> resultTypeInfo;
 	private final TypeInformation<?> accumulatorTypeInfo;
 
 	public AggregateFunctionDefinition(
 			String name,
-			UserDefinedAggregateFunction<?, ?> aggregateFunction,
+			AggregateFunction<?, ?> aggregateFunction,
 			TypeInformation<?> resultTypeInfo,
 			TypeInformation<?> accTypeInfo) {
-		super(name, AGGREGATE_FUNCTION);
+		this.name = Preconditions.checkNotNull(name);
 		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
 		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
 		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
-	public UserDefinedAggregateFunction<?, ?> getAggregateFunction() {
+	public AggregateFunction<?, ?> getAggregateFunction() {
 		return aggregateFunction;
 	}
 
@@ -55,5 +59,42 @@ public final class AggregateFunctionDefinition extends FunctionDefinition {
 
 	public TypeInformation<?> getAccumulatorTypeInfo() {
 		return accumulatorTypeInfo;
+	}
+
+	@Override
+	public FunctionKind getKind() {
+		return FunctionKind.AGGREGATE;
+	}
+
+	@Override
+	public Set<FunctionRequirement> getRequirements() {
+		return aggregateFunction.getRequirements();
+	}
+
+	@Override
+	public boolean isDeterministic() {
+		return aggregateFunction.isDeterministic();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		AggregateFunctionDefinition that = (AggregateFunctionDefinition) o;
+		return name.equals(that.name);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(name);
+	}
+
+	@Override
+	public String toString() {
+		return name;
 	}
 }

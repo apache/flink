@@ -35,9 +35,9 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.functions.FunctionDefinition.Type.TABLE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionKind.TABLE;
 
 /**
  * Utility class for creating a valid {@link CalculatedQueryOperation} operation.
@@ -87,7 +87,7 @@ public class CalculatedTableFactory {
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 
-			if (!isFunctionOfType(children.get(0), TABLE_FUNCTION)) {
+			if (!isFunctionOfKind(children.get(0), TABLE)) {
 				throw fail();
 			}
 
@@ -114,7 +114,7 @@ public class CalculatedTableFactory {
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					tableFunctionDefinition.getName(),
+					tableFunctionDefinition.toString(),
 					callArity,
 					aliasesSize));
 			} else {

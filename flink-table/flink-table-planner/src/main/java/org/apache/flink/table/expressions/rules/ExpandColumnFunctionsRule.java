@@ -27,6 +27,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -76,10 +77,10 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
 			List<Expression> result;
 
-			String definitionName = call.getFunctionDefinition().getName();
-			if (definitionName.equals(WITH_COLUMNS.getName())) {
+			final FunctionDefinition definition = call.getFunctionDefinition();
+			if (definition == WITH_COLUMNS) {
 				result = resolveArgsOfColumns(call.getChildren(), false);
-			} else if (definitionName.equals(WITHOUT_COLUMNS.getName())) {
+			} else if (definition == WITHOUT_COLUMNS) {
 				result = resolveArgsOfColumns(call.getChildren(), true);
 			} else {
 				List<Expression> args = call.getChildren()
@@ -89,7 +90,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 				result = Collections.singletonList(new CallExpression(call.getFunctionDefinition(), args));
 
 				// validate as.
-				if (definitionName.equals(AS.getName())) {
+				if (definition == AS) {
 					for (int i = 1; i < args.size(); ++i) {
 						if (!(args.get(i) instanceof ValueLiteralExpression)) {
 							String errorMessage = String.join(
@@ -205,7 +206,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		 * Whether the expression is a column index range expression, e.g. withColumns(1 ~ 2).
 		 */
 		private boolean isIndexRangeCall(CallExpression expression) {
-			return expression.getFunctionDefinition().getName().equals(RANGE_TO.getName()) &&
+			return expression.getFunctionDefinition() == RANGE_TO &&
 				expression.getChildren().get(0) instanceof ValueLiteralExpression &&
 				expression.getChildren().get(1) instanceof ValueLiteralExpression;
 		}
@@ -214,7 +215,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		 * Whether the expression is a column name range expression, e.g. withColumns(a ~ b).
 		 */
 		private boolean isNameRangeCall(CallExpression expression) {
-			return expression.getFunctionDefinition().getName().equals(RANGE_TO.getName()) &&
+			return expression.getFunctionDefinition() == RANGE_TO &&
 				expression.getChildren().get(0) instanceof UnresolvedReferenceExpression &&
 				expression.getChildren().get(1) instanceof UnresolvedReferenceExpression;
 		}

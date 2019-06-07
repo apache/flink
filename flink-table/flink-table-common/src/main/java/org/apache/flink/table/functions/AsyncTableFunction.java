@@ -101,4 +101,9 @@ public abstract class AsyncTableFunction<T> extends UserDefinedFunction {
 	public TypeInformation<T> getResultType() {
 		return null;
 	}
+
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.ASYNC_TABLE;
+	}
 }

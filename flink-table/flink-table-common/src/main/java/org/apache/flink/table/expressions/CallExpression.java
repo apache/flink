@@ -80,6 +80,6 @@ public final class CallExpression implements Expression {
 	@Override
 	public String toString() {
 		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
-		return functionDefinition.getName() + "(" + String.join(", ", argList) + ")";
+		return functionDefinition.toString() + "(" + String.join(", ", argList) + ")";
 	}
 }

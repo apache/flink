@@ -26,47 +26,54 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * The function definition of an user-defined table function.
+ * The function definition of an user-defined table aggregate function.
  *
  * <p>This class can be dropped once we introduce a new type inference.
  */
 @PublicEvolving
-public final class TableFunctionDefinition implements FunctionDefinition {
+public final class TableAggregateFunctionDefinition implements FunctionDefinition {
 
 	private final String name;
-	private final TableFunction<?> tableFunction;
-	private final TypeInformation<?> resultType;
+	private final TableAggregateFunction<?, ?> aggregateFunction;
+	private final TypeInformation<?> resultTypeInfo;
+	private final TypeInformation<?> accumulatorTypeInfo;
 
-	public TableFunctionDefinition(
+	public TableAggregateFunctionDefinition(
 			String name,
-			TableFunction<?> tableFunction,
-			TypeInformation<?> resultType) {
+			TableAggregateFunction<?, ?> aggregateFunction,
+			TypeInformation<?> resultTypeInfo,
+			TypeInformation<?> accTypeInfo) {
 		this.name = Preconditions.checkNotNull(name);
-		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-		this.resultType = Preconditions.checkNotNull(resultType);
+		this.aggregateFunction = Preconditions.checkNotNull(aggregateFunction);
+		this.resultTypeInfo = Preconditions.checkNotNull(resultTypeInfo);
+		this.accumulatorTypeInfo = Preconditions.checkNotNull(accTypeInfo);
 	}
 
-	public TableFunction<?> getTableFunction() {
-		return tableFunction;
+	public TableAggregateFunction<?, ?> getTableAggregateFunction() {
+		return aggregateFunction;
 	}
 
-	public TypeInformation<?> getResultType() {
-		return resultType;
+	public TypeInformation<?> getResultTypeInfo() {
+		return resultTypeInfo;
+	}
+
+	public TypeInformation<?> getAccumulatorTypeInfo() {
+		return accumulatorTypeInfo;
 	}
 
 	@Override
 	public FunctionKind getKind() {
-		return FunctionKind.TABLE;
+		return FunctionKind.TABLE_AGGREGATE;
 	}
 
 	@Override
 	public Set<FunctionRequirement> getRequirements() {
-		return tableFunction.getRequirements();
+		return aggregateFunction.getRequirements();
 	}
 
 	@Override
 	public boolean isDeterministic() {
-		return tableFunction.isDeterministic();
+		return aggregateFunction.isDeterministic();
 	}
 
 	@Override
@@ -77,7 +84,7 @@ public final class TableFunctionDefinition implements FunctionDefinition {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		TableFunctionDefinition that = (TableFunctionDefinition) o;
+		TableAggregateFunctionDefinition that = (TableAggregateFunctionDefinition) o;
 		return name.equals(that.name);
 	}
 
