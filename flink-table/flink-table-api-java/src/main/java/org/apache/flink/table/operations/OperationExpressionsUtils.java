@@ -39,10 +39,10 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
-import static org.apache.flink.table.functions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 
 /**
  * Utility methods for transforming {@link Expression} to use them in {@link QueryOperation}s.
@@ -158,7 +158,7 @@ public class OperationExpressionsUtils {
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfKind(call, AGGREGATE)) {
 				aggregates.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);
 			} else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
 				properties.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);

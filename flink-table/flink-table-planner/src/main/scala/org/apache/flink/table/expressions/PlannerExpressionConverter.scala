@@ -83,7 +83,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
       case tfd: TableFunctionDefinition =>
         PlannerTableFunctionCall(
-          tfd.getName,
+          tfd.toString,
           tfd.getTableFunction,
           args,
           tfd.getResultType)
@@ -93,6 +93,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           afd.getAggregateFunction,
           afd.getResultTypeInfo,
           afd.getAccumulatorTypeInfo,
+          args)
+
+      case tafd: TableAggregateFunctionDefinition =>
+        AggFunctionCall(
+          tafd.getTableAggregateFunction,
+          tafd.getResultTypeInfo,
+          tafd.getAccumulatorTypeInfo,
           args)
 
       case fd: FunctionDefinition =>

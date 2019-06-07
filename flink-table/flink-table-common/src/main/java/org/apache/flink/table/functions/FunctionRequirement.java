@@ -18,17 +18,16 @@
 
 package org.apache.flink.table.functions;
 
-import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Dictionary of function definitions for all internal used functions.
+ * Characteristics that a {@link FunctionDefinition} requires.
  */
-public class InternalFunctionDefinitions {
+@PublicEvolving
+public enum FunctionRequirement {
 
-	public static final BuiltInFunctionDefinition THROW_EXCEPTION =
-		new BuiltInFunctionDefinition.Builder()
-			.name("throwException")
-			.kind(SCALAR)
-			.build();
-
+	/**
+	 * Requirement that an aggregate function can only be applied in an OVER window.
+	 */
+	OVER_WINDOW_ONLY
 }

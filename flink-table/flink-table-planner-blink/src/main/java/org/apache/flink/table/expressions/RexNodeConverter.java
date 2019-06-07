@@ -80,8 +80,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visitCall(CallExpression call) {
-		switch (call.getFunctionDefinition().getType()) {
-			case SCALAR_FUNCTION:
+		switch (call.getFunctionDefinition().getKind()) {
+			case SCALAR:
 				return visitScalarFunc(call);
 			default: throw new UnsupportedOperationException();
 		}
@@ -169,7 +169,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.MOD.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.MOD, child);
 		} else {
-			throw new UnsupportedOperationException(def.getName());
+			throw new UnsupportedOperationException(def.toString());
 		}
 	}
 

@@ -19,13 +19,22 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.lang.reflect.{Method, Modifier}
+import java.lang.{Integer => JInt, Long => JLong}
+import java.sql.{Date, Time, Timestamp}
+
+import com.google.common.primitives.Primitives
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.schema.DeferredTypeFlinkTableFunction
 import org.apache.flink.table.types.ClassDataTypeConverter.fromClassToDataType
 import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
@@ -37,19 +46,10 @@ import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
 
-import com.google.common.primitives.Primitives
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
-
-import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
-import java.sql.{Date, Time, Timestamp}
-
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.language.postfixOps
+
 
 object UserDefinedFunctionUtils {
 
@@ -505,7 +505,7 @@ object UserDefinedFunctionUtils {
       externalResultType,
       externalAccType,
       typeFactory,
-      aggFunction.requiresOver)
+      aggFunction.getRequirements.contains(FunctionRequirement.OVER_WINDOW_ONLY))
   }
 
   // ----------------------------------------------------------------------------------------------

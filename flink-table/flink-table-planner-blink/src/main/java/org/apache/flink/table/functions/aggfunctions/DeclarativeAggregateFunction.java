@@ -20,6 +20,7 @@ package org.apache.flink.table.functions.aggfunctions;
 
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
@@ -160,5 +161,10 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 			ret[i] = new UnresolvedReferenceExpression(name);
 		}
 		return ret;
+	}
+
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.OTHER;
 	}
 }

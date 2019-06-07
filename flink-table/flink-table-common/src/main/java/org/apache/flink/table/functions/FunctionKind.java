@@ -18,17 +18,23 @@
 
 package org.apache.flink.table.functions;
 
-import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Dictionary of function definitions for all internal used functions.
+ * Categorizes the semantics of a {@link FunctionDefinition}.
  */
-public class InternalFunctionDefinitions {
+@PublicEvolving
+public enum FunctionKind {
 
-	public static final BuiltInFunctionDefinition THROW_EXCEPTION =
-		new BuiltInFunctionDefinition.Builder()
-			.name("throwException")
-			.kind(SCALAR)
-			.build();
+	SCALAR,
 
+	TABLE,
+
+	ASYNC_TABLE,
+
+	AGGREGATE,
+
+	TABLE_AGGREGATE,
+
+	OTHER
 }

@@ -124,4 +124,9 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
 		 */
 		void retract(T record);
 	}
+
+	@Override
+	public final FunctionKind getKind() {
+		return FunctionKind.TABLE_AGGREGATE;
+	}
 }

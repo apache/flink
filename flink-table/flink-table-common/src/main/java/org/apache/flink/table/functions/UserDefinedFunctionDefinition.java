@@ -18,17 +18,18 @@
 
 package org.apache.flink.table.functions;
 
-import static org.apache.flink.table.functions.FunctionKind.SCALAR;
-
 /**
- * Dictionary of function definitions for all internal used functions.
+ * Definition of an user-defined function. Instances of this class provide all details necessary to
+ * validate a function call and perform planning.
+ *
+ * <p>Compared to {@link FunctionDefinition}, this definition provides a runtime implementation.
  */
-public class InternalFunctionDefinitions {
+public interface UserDefinedFunctionDefinition extends FunctionDefinition {
 
-	public static final BuiltInFunctionDefinition THROW_EXCEPTION =
-		new BuiltInFunctionDefinition.Builder()
-			.name("throwException")
-			.kind(SCALAR)
-			.build();
-
+	/**
+	 * Creates a runtime implementation for this definition.
+	 *
+	 * <p>This method allows for lazy instantiation of user-defined functions.
+	 */
+	UserDefinedFunction createImplementation();
 }

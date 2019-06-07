@@ -41,11 +41,12 @@ import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -62,9 +63,10 @@ import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.functions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
+import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.TUMBLE;
@@ -191,10 +193,10 @@ public class AggregateOperationFactory {
 	 * may return multi output names when the composite return type is flattened.
 	 */
 	private Stream<String> extractAggregateNames(Expression expression) {
-		if (isTableAggFunctionCall(expression)) {
-			return Arrays.stream(UserDefinedFunctionUtils.getFieldInfo(
-				((AggregateFunctionDefinition) ((CallExpression) expression).getFunctionDefinition())
-					.getResultTypeInfo())._1());
+		if (isFunctionOfKind(expression, FunctionKind.TABLE_AGGREGATE)) {
+			final TableAggregateFunctionDefinition definition =
+				(TableAggregateFunctionDefinition) ((CallExpression) expression).getFunctionDefinition();
+			return Arrays.stream(UserDefinedFunctionUtils.getFieldInfo(definition.getResultTypeInfo())._1());
 		} else {
 			return Stream.of(extractName(expression).orElseGet(expression::toString));
 		}
@@ -417,21 +419,19 @@ public class AggregateOperationFactory {
 		@Override
 		public Void visitCall(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfKind(call, AGGREGATE) || isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				if (functionDefinition == BuiltInFunctionDefinitions.DISTINCT) {
 					call.getChildren().forEach(expr -> expr.accept(validateDistinct));
 				} else {
-					if (functionDefinition instanceof AggregateFunctionDefinition) {
-						if (requiresOver(functionDefinition)) {
-							throw new ValidationException(format(
-								"OVER clause is necessary for window functions: [%s].",
-								call));
-						}
+					if (requiresOver(functionDefinition)) {
+						throw new ValidationException(format(
+							"OVER clause is necessary for window functions: [%s].",
+							call));
 					}
 
 					call.getChildren().forEach(child -> child.accept(noNestedAggregates));
 				}
-			} else if (functionDefinition == BuiltInFunctionDefinitions.AS) {
+			} else if (functionDefinition == AS) {
 				// skip alias
 				call.getChildren().get(0).accept(this);
 			} else {
@@ -441,10 +441,8 @@ public class AggregateOperationFactory {
 		}
 
 		private boolean requiresOver(FunctionDefinition functionDefinition) {
-			return ((AggregateFunctionDefinition) functionDefinition).getAggregateFunction()
-				instanceof AggregateFunction &&
-				((AggregateFunction) ((AggregateFunctionDefinition) functionDefinition)
-					.getAggregateFunction()).requiresOver();
+			return functionDefinition.getRequirements()
+				.contains(FunctionRequirement.OVER_WINDOW_ONLY);
 		}
 
 		@Override
@@ -466,7 +464,7 @@ public class AggregateOperationFactory {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.DISTINCT) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
-			} else if (call.getFunctionDefinition().getType() != AGGREGATE_FUNCTION) {
+			} else if (!isFunctionOfKind(call, AGGREGATE) && !isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				throw new ValidationException("Distinct operator can only be applied to aggregation expressions!");
 			} else {
 				call.getChildren().forEach(child -> child.accept(noNestedAggregates));
@@ -484,7 +482,7 @@ public class AggregateOperationFactory {
 
 		@Override
 		public Void visitCall(CallExpression call) {
-			if (call.getFunctionDefinition().getType() == AGGREGATE_FUNCTION) {
+			if (isFunctionOfKind(call, AGGREGATE) || isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
 			}
@@ -530,12 +528,9 @@ public class AggregateOperationFactory {
 		@Override
 		public Expression visitCall(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
-			if (definition.equals(AS)) {
+			if (definition == BuiltInFunctionDefinitions.AS) {
 				return unwrapFromAlias(call);
-			} else if (definition instanceof AggregateFunctionDefinition) {
-				if (!isTableAggFunctionCall(call)) {
-					throw fail();
-				}
+			} else if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				return call;
 			} else {
 				return defaultMethod(call);
@@ -550,18 +545,20 @@ public class AggregateOperationFactory {
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 
-			if (!isTableAggFunctionCall(children.get(0))) {
+			if (!isFunctionOfKind(children.get(0), TABLE_AGGREGATE)) {
 				throw fail();
 			}
 
-			validateAlias(aliases, (AggregateFunctionDefinition) ((CallExpression) children.get(0)).getFunctionDefinition());
+			validateAlias(
+				aliases,
+				(TableAggregateFunctionDefinition) ((CallExpression) children.get(0)).getFunctionDefinition());
 			alias = aliases;
 			return children.get(0);
 		}
 
 		private void validateAlias(
 			List<String> aliases,
-			AggregateFunctionDefinition aggFunctionDefinition) {
+			TableAggregateFunctionDefinition aggFunctionDefinition) {
 
 			TypeInformation<?> resultType = aggFunctionDefinition.getResultTypeInfo();
 
@@ -573,7 +570,7 @@ public class AggregateOperationFactory {
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					aggFunctionDefinition.getName(),
+					aggFunctionDefinition,
 					callArity,
 					aliasesSize));
 			}
@@ -589,17 +586,5 @@ public class AggregateOperationFactory {
 				"A flatAggregate only accepts an expression which defines a table aggregate " +
 					"function that might be followed by some alias.");
 		}
-	}
-
-	/**
-	 * Return true if the input {@link Expression} is a {@link CallExpression} of table aggregate function.
-	 */
-	public static boolean isTableAggFunctionCall(Expression expression) {
-		return Stream.of(expression)
-			.filter(p -> p instanceof CallExpression)
-			.map(p -> (CallExpression) p)
-			.filter(p -> p.getFunctionDefinition() instanceof AggregateFunctionDefinition)
-			.map(p -> (AggregateFunctionDefinition) p.getFunctionDefinition())
-			.anyMatch(p -> p.getAggregateFunction() instanceof TableAggregateFunction);
 	}
 }

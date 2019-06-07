@@ -1112,14 +1112,21 @@ trait ImplicitExpressionConversions {
   implicit class UserDefinedAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
       (val a: UserDefinedAggregateFunction[T, ACC]) {
 
-    private def createFunctionDefinition(): AggregateFunctionDefinition = {
+    private def createFunctionDefinition(): FunctionDefinition = {
       val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
         .getReturnTypeOfAggregateFunction(a, implicitly[TypeInformation[T]])
 
       val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper.
         getAccumulatorTypeOfAggregateFunction(a, implicitly[TypeInformation[ACC]])
 
-      new AggregateFunctionDefinition(a.getClass.getName, a, resultTypeInfo, accTypeInfo)
+      a match {
+        case af: AggregateFunction[_, _] =>
+          new AggregateFunctionDefinition(
+            af.getClass.getName, af, resultTypeInfo, accTypeInfo)
+        case taf: TableAggregateFunction[_, _] =>
+          new TableAggregateFunctionDefinition(
+            taf.getClass.getName, taf, resultTypeInfo, accTypeInfo)
+      }
     }
 
     /**

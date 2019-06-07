@@ -36,7 +36,6 @@ import org.apache.flink.table.expressions.RexPlannerExpression;
 import org.apache.flink.table.expressions.WindowReference;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.utils.TableSqlFunction;
-import org.apache.flink.table.operations.AggregateOperationFactory;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
@@ -92,9 +91,10 @@ import scala.Some;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
+import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.functions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
+import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 
 /**
@@ -166,7 +166,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		 * Get the {@link AggCall} correspond to the aggregate expression.
 		 */
 		private AggCall getAggCall(Expression aggregateExpression) {
-			if (AggregateOperationFactory.isTableAggFunctionCall(aggregateExpression)) {
+			if (isFunctionOfKind(aggregateExpression, TABLE_AGGREGATE)) {
 				return aggregateExpression.accept(tableAggregateVisitor);
 			} else {
 				return aggregateExpression.accept(aggregateVisitor);
@@ -416,7 +416,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					.orElseThrow(() -> new TableException("Unexpected name."));
 
 				Expression aggregate = call.getChildren().get(0);
-				if (isFunctionOfType(aggregate, AGGREGATE_FUNCTION)) {
+				if (isFunctionOfKind(aggregate, AGGREGATE)) {
 					return ((Aggregation) expressionBridge.bridge(aggregate))
 						.toAggCall(aggregateName, false, relBuilder);
 				}
@@ -433,7 +433,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	private class TableAggregateVisitor extends AggregateVisitor {
 		@Override
 		public AggCall visitCall(CallExpression call) {
-			if (isFunctionOfType(call, AGGREGATE_FUNCTION)) {
+			if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				AggFunctionCall aggFunctionCall = (AggFunctionCall) expressionBridge.bridge(call);
 				return aggFunctionCall.toAggCall(aggFunctionCall.toString(), false, relBuilder);
 			}

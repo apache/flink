@@ -19,7 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
 
 import java.util.Optional;
 
@@ -50,12 +50,12 @@ public final class ExpressionUtils {
 	 * Checks if the expression is a function call of given type.
 	 *
 	 * @param expr expression to check
-	 * @param type expected type of function
+	 * @param kind expected type of function
 	 * @return true if the expression is function call of given type, false otherwise
 	 */
-	public static boolean isFunctionOfType(Expression expr, FunctionDefinition.Type type) {
+	public static boolean isFunctionOfKind(Expression expr, FunctionKind kind) {
 		return expr instanceof CallExpression &&
-			((CallExpression) expr).getFunctionDefinition().getType() == type;
+			((CallExpression) expr).getFunctionDefinition().getKind() == kind;
 	}
 
 	private ExpressionUtils() {
