@@ -901,7 +901,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			(acceptLeadership) -> {
 				if (acceptLeadership) {
 					// confirming the leader session ID might be blocking,
-					leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+					leaderElectionService.confirmLeadership(newLeaderSessionID, getAddress());
 				}
 			},
 			getRpcService().getExecutor());

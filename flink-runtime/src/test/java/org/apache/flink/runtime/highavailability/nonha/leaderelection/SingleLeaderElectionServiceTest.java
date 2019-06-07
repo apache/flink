@@ -216,7 +216,7 @@ public class SingleLeaderElectionServiceTest {
 				@Override
 				public Void answer(InvocationOnMock invocation) throws Throwable {
 					final UUID uuid = (UUID) invocation.getArguments()[0];
-					service.confirmLeaderSessionID(uuid);
+					service.confirmLeadership(uuid, address);
 					return null;
 				}
 		}).when(mockContender).grantLeadership(any(UUID.class));
