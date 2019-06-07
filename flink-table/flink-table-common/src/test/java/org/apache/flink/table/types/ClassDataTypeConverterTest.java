@@ -90,6 +90,13 @@ public class ClassDataTypeConverterTest {
 				},
 
 				{
+					int[].class,
+					DataTypes.ARRAY(DataTypes.INT().notNull().bridgedTo(int.class))
+						.nullable()
+						.bridgedTo(int[].class)
+				},
+
+				{
 					TimeIntervalUnit.class,
 					new AtomicDataType(new SymbolType<>(TimeIntervalUnit.class))
 						.bridgedTo(TimeIntervalUnit.class)

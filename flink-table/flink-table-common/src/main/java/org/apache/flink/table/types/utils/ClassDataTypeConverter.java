@@ -93,7 +93,7 @@ public final class ClassDataTypeConverter {
 
 		if (clazz.isArray()) {
 			return extractDataType(clazz.getComponentType())
-				.map(element -> DataTypes.ARRAY(element).nullable().bridgedTo(clazz));
+				.map(DataTypes::ARRAY);
 		}
 
 		if (TableSymbol.class.isAssignableFrom(clazz)) {
