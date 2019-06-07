@@ -72,6 +72,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	private volatile UUID confirmedLeaderSessionID;
 
+	private volatile String confirmedLeaderAddress;
+
 	/** The leader contender which applies for leadership. */
 	private volatile LeaderContender leaderContender;
 
@@ -100,6 +102,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		issuedLeaderSessionID = null;
 		confirmedLeaderSessionID = null;
+		confirmedLeaderAddress = null;
 		leaderContender = null;
 
 		running = false;
@@ -177,12 +180,12 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 	}
 
 	@Override
-	public void confirmLeaderSessionID(UUID leaderSessionID) {
+	public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(
 				"Confirm leader session ID {} for leader {}.",
 				leaderSessionID,
-				leaderContender.getAddress());
+				leaderAddress);
 		}
 
 		Preconditions.checkNotNull(leaderSessionID);
@@ -192,8 +195,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			synchronized (lock) {
 				if (running) {
 					if (leaderSessionID.equals(this.issuedLeaderSessionID)) {
-						confirmedLeaderSessionID = leaderSessionID;
-						writeLeaderInformation(confirmedLeaderSessionID);
+						confirmLeaderInformation(leaderSessionID, leaderAddress);
+						writeLeaderInformation();
 					}
 				} else {
 					LOG.debug("Ignoring the leader session Id {} confirmation, since the " +
@@ -206,6 +209,11 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		}
 	}
 
+	private void confirmLeaderInformation(UUID leaderSessionID, String leaderAddress) {
+		confirmedLeaderSessionID = leaderSessionID;
+		confirmedLeaderAddress = leaderAddress;
+	}
+
 	@Override
 	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
 		return leaderLatch.hasLeadership() && leaderSessionId.equals(issuedLeaderSessionID);
@@ -216,7 +224,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		synchronized (lock) {
 			if (running) {
 				issuedLeaderSessionID = UUID.randomUUID();
-				confirmedLeaderSessionID = null;
+				clearConfirmedLeaderInformation();
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(
@@ -233,15 +241,20 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		}
 	}
 
+	private void clearConfirmedLeaderInformation() {
+		confirmedLeaderSessionID = null;
+		confirmedLeaderAddress = null;
+	}
+
 	@Override
 	public void notLeader() {
 		synchronized (lock) {
 			if (running) {
 				issuedLeaderSessionID = null;
-				confirmedLeaderSessionID = null;
+				clearConfirmedLeaderInformation();
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Revoke leadership of {}.", leaderContender.getAddress());
+					LOG.debug("Revoke leadership of {}.", leaderContender);
 				}
 
 				leaderContender.revokeLeadership();
@@ -275,7 +288,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 										"Writing leader information into empty node by {}.",
 										leaderContender.getAddress());
 								}
-								writeLeaderInformation(confirmedLeaderSessionID);
+								writeLeaderInformation();
 							} else {
 								byte[] data = childData.getData();
 
@@ -286,7 +299,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 											"Writing leader information into node with empty data field by {}.",
 											leaderContender.getAddress());
 									}
-									writeLeaderInformation(confirmedLeaderSessionID);
+									writeLeaderInformation();
 								} else {
 									ByteArrayInputStream bais = new ByteArrayInputStream(data);
 									ObjectInputStream ois = new ObjectInputStream(bais);
@@ -294,7 +307,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 									String leaderAddress = ois.readUTF();
 									UUID leaderSessionID = (UUID) ois.readObject();
 
-									if (!leaderAddress.equals(this.leaderContender.getAddress()) ||
+									if (!leaderAddress.equals(confirmedLeaderAddress) ||
 										(leaderSessionID == null || !leaderSessionID.equals(confirmedLeaderSessionID))) {
 										// the data field does not correspond to the expected leader information
 										if (LOG.isDebugEnabled()) {
@@ -302,7 +315,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 												"Correcting leader information by {}.",
 												leaderContender.getAddress());
 										}
-										writeLeaderInformation(confirmedLeaderSessionID);
+										writeLeaderInformation();
 									}
 								}
 							}
@@ -320,24 +333,22 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	/**
 	 * Writes the current leader's address as well the given leader session ID to ZooKeeper.
-	 *
-	 * @param leaderSessionID Leader session ID which is written to ZooKeeper
 	 */
-	protected void writeLeaderInformation(UUID leaderSessionID) {
+	protected void writeLeaderInformation() {
 		// this method does not have to be synchronized because the curator framework client
 		// is thread-safe
 		try {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(
 					"Write leader information: Leader={}, session ID={}.",
-					leaderContender.getAddress(),
-					leaderSessionID);
+					confirmedLeaderAddress,
+					confirmedLeaderSessionID);
 			}
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ObjectOutputStream oos = new ObjectOutputStream(baos);
 
-			oos.writeUTF(leaderContender.getAddress());
-			oos.writeObject(leaderSessionID);
+			oos.writeUTF(confirmedLeaderAddress);
+			oos.writeObject(confirmedLeaderSessionID);
 
 			oos.close();
 
@@ -381,8 +392,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(
 					"Successfully wrote leader information: Leader={}, session ID={}.",
-					leaderContender.getAddress(),
-					leaderSessionID);
+					confirmedLeaderAddress,
+					confirmedLeaderSessionID);
 			}
 		} catch (Exception e) {
 			leaderContender.handleError(

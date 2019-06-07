@@ -896,7 +896,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					recoveredJobsFuture,
 					BiFunctionWithException.unchecked((Boolean confirmLeadership, Collection<JobGraph> recoveredJobs) -> {
 						if (confirmLeadership) {
-							leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+							leaderElectionService.confirmLeadership(newLeaderSessionID, getAddress());
 						} else {
 							for (JobGraph recoveredJob : recoveredJobs) {
 								jobGraphStore.releaseJobGraph(recoveredJob.getJobID());

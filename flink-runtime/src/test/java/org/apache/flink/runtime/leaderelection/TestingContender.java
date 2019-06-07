@@ -118,7 +118,7 @@ public class TestingContender implements LeaderContender {
 
 			this.leaderSessionID = leaderSessionID;
 
-			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
+			leaderElectionService.confirmLeadership(leaderSessionID, getAddress());
 
 			leader = true;
 

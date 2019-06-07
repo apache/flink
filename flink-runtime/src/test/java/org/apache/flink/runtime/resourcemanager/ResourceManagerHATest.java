@@ -52,7 +52,7 @@ public class ResourceManagerHATest extends TestLogger {
 
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService() {
 			@Override
-			public void confirmLeaderSessionID(UUID leaderId) {
+			public void confirmLeadership(UUID leaderId, String leaderAddress) {
 				leaderSessionIdFuture.complete(leaderId);
 			}
 		};

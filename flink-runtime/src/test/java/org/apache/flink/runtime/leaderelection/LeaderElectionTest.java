@@ -101,7 +101,7 @@ public class LeaderElectionTest extends TestLogger {
 			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 			assertThat(leaderElectionService.hasLeadership(UUID.randomUUID()), is(false));
 
-			leaderElectionService.confirmLeaderSessionID(leaderSessionId);
+			leaderElectionService.confirmLeadership(leaderSessionId, manualLeaderContender.getAddress());
 
 			assertThat(leaderElectionService.hasLeadership(leaderSessionId), is(true));
 

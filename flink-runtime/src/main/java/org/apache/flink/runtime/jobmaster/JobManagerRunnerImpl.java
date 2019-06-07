@@ -335,7 +335,10 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 		final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
 		return startFuture.thenAcceptAsync(
-			(Acknowledge ack) -> confirmLeaderSessionIdIfStillLeader(leaderSessionId, currentLeaderGatewayFuture),
+			(Acknowledge ack) -> confirmLeaderSessionIdIfStillLeader(
+				leaderSessionId,
+				jobMasterService.getAddress(),
+				currentLeaderGatewayFuture),
 			executor);
 	}
 
@@ -358,10 +361,14 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		}
 	}
 
-	private void confirmLeaderSessionIdIfStillLeader(UUID leaderSessionId, CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture) {
+	private void confirmLeaderSessionIdIfStillLeader(
+			UUID leaderSessionId,
+			String leaderAddress,
+			CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture) {
+
 		if (leaderElectionService.hasLeadership(leaderSessionId)) {
 			currentLeaderGatewayFuture.complete(jobMasterService.getGateway());
-			leaderElectionService.confirmLeaderSessionID(leaderSessionId);
+			leaderElectionService.confirmLeadership(leaderSessionId, leaderAddress);
 		} else {
 			log.debug("Ignoring confirmation of leader session id because {} is no longer the leader.", getAddress());
 		}

@@ -67,7 +67,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 	}
 
 	@Override
-	public synchronized void confirmLeaderSessionID(UUID leaderSessionID) {
+	public synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
 		if (confirmationFuture != null) {
 			confirmationFuture.complete(leaderSessionID);
 		}

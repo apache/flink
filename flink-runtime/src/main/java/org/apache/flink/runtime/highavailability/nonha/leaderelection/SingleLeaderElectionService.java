@@ -141,7 +141,7 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	}
 
 	@Override
-	public void confirmLeaderSessionID(UUID leaderSessionID) {
+	public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
 		checkNotNull(leaderSessionID, "leaderSessionID");
 		checkArgument(leaderSessionID.equals(leaderId), "confirmed wrong leader session id");
 
@@ -151,14 +151,13 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 			checkState(leader == null, "leader already confirmed");
 
 			// accept the confirmation
-			final String address = proposedLeader.getAddress();
-			leaderAddress = address;
+			this.leaderAddress = leaderAddress;
 			leader = proposedLeader;
 
 			// notify all listeners
 			for (EmbeddedLeaderRetrievalService listener : listeners) {
 				notificationExecutor.execute(
-						new NotifyOfLeaderCall(address, leaderId, listener.listener, LOG));
+						new NotifyOfLeaderCall(leaderAddress, leaderId, listener.listener, LOG));
 			}
 		}
 	}
