@@ -22,6 +22,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.HashSet;
@@ -187,33 +188,4 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * A RestartBackoffTimeStrategy implementation for tests.
-	 */
-	private class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
-
-		private final boolean canRestart;
-
-		private final long backoffTime;
-
-		public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
-			this.canRestart = canRestart;
-			this.backoffTime = backoffTime;
-		}
-
-		@Override
-		public boolean canRestart() {
-			return canRestart;
-		}
-
-		@Override
-		public long getBackoffTime() {
-			return backoffTime;
-		}
-
-		@Override
-		public void notifyFailure(Throwable cause) {
-			// ignore
-		}
-	}
 }
