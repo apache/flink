@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
 
@@ -78,7 +78,7 @@ final class FlattenCallRule implements ResolverRule {
 
 		private List<Expression> flattenCompositeType(Expression arg, CompositeType<?> resultType) {
 			return IntStream.range(0, resultType.getArity())
-				.mapToObj(idx -> new CallExpression(GET, asList(arg, valueLiteral(resultType.getFieldNames()[idx]))))
+				.mapToObj(idx -> call(GET, arg, valueLiteral(resultType.getFieldNames()[idx])))
 				.collect(Collectors.toList());
 		}
 

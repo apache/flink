@@ -32,6 +32,7 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
@@ -41,7 +42,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
  * built-in rank like aggregate function, e.g. rank, dense_rank
  */
 public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFunction {
-	protected UnresolvedReferenceExpression sequence = new UnresolvedReferenceExpression("sequence");
+	protected UnresolvedReferenceExpression sequence = unresolvedRef("sequence");
 	protected UnresolvedReferenceExpression[] lastValues;
 	protected LogicalType[] orderKeyTypes;
 
@@ -49,7 +50,7 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 		this.orderKeyTypes = orderKeyTypes;
 		lastValues = new UnresolvedReferenceExpression[orderKeyTypes.length];
 		for (int i = 0; i < orderKeyTypes.length; ++i) {
-			lastValues[i] = new UnresolvedReferenceExpression("lastValue_" + i);
+			lastValues[i] = unresolvedRef("lastValue_" + i);
 		}
 	}
 

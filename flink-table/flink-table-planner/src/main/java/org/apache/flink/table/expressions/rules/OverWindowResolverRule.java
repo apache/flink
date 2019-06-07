@@ -32,8 +32,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
-import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 
 /**
  * Joins call to {@link BuiltInFunctionDefinitions#OVER} with corresponding over window
@@ -73,11 +72,14 @@ final class OverWindowResolverRule implements ResolverRule {
 					following));
 
 				newArgs.addAll(referenceWindow.partitionBy());
-				return new CallExpression(call.getFunctionDefinition(), newArgs);
+
+				return call(call.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
 			} else {
-				return new CallExpression(
+				return call(
 					call.getFunctionDefinition(),
-					call.getChildren().stream().map(expr -> expr.accept(this)).collect(toList()));
+					call.getChildren().stream()
+						.map(expr -> expr.accept(this))
+						.toArray(Expression[]::new));
 			}
 		}
 
@@ -85,9 +87,9 @@ final class OverWindowResolverRule implements ResolverRule {
 			return referenceWindow.following().orElseGet(() -> {
 					PlannerExpression preceding = resolutionContext.bridge(referenceWindow.preceding());
 					if (preceding.resultType() == BasicTypeInfo.LONG_TYPE_INFO) {
-						return new CallExpression(BuiltInFunctionDefinitions.CURRENT_ROW, emptyList());
+						return call(BuiltInFunctionDefinitions.CURRENT_ROW);
 					} else {
-						return new CallExpression(BuiltInFunctionDefinitions.CURRENT_RANGE, emptyList());
+						return call(BuiltInFunctionDefinitions.CURRENT_RANGE);
 					}
 				}
 			);

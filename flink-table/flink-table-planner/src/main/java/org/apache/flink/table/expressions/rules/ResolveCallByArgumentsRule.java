@@ -35,7 +35,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static java.util.Arrays.asList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.table.util.JavaScalaConversionUtil.toJava;
@@ -79,11 +79,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				.map(resolutionContext::bridge)
 				.collect(Collectors.toList());
 
-			List<Expression> newArgs = IntStream.range(0, args.size())
+			final Expression[] newArgs = IntStream.range(0, args.size())
 				.mapToObj(idx -> castIfNeeded(args.get(idx), expectedTypes.get(idx)))
-				.collect(Collectors.toList());
+				.toArray(Expression[]::new);
 
-			return new CallExpression(call.getFunctionDefinition(), newArgs);
+			return call(call.getFunctionDefinition(), newArgs);
 		}
 
 		private Expression validateArguments(CallExpression call, PlannerExpression plannerCall) {
@@ -120,11 +120,10 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			if (actualType.equals(expectedType)) {
 				return childExpression;
 			} else if (TypeCoercion.canSafelyCast(actualType, expectedType)) {
-				return new CallExpression(
+				return call(
 					BuiltInFunctionDefinitions.CAST,
-					asList(
-						childExpression,
-						typeLiteral(fromLegacyInfoToDataType(expectedType)))
+					childExpression,
+					typeLiteral(fromLegacyInfoToDataType(expectedType))
 				);
 			} else {
 				throw new ValidationException(String.format("Incompatible type of argument: %s Expected: %s",

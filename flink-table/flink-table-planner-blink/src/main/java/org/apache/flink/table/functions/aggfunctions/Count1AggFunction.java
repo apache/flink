@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
@@ -33,7 +34,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  * It differs in that null values are also counted.
  */
 public class Count1AggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression count1 = new UnresolvedReferenceExpression("count1");
+	private UnresolvedReferenceExpression count1 = unresolvedRef("count1");
 
 	@Override
 	public int operandCount() {

@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
@@ -41,8 +42,8 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  */
 public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
-	private UnresolvedReferenceExpression sum = new UnresolvedReferenceExpression("sum");
-	private UnresolvedReferenceExpression count = new UnresolvedReferenceExpression("count");
+	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
+	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
 	public abstract DataType getSumType();
 

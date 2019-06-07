@@ -18,16 +18,15 @@
 
 package org.apache.flink.table.sources.tsextractors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.descriptors.Rowtime
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-
-import java.util
-
-import scala.collection.JavaConversions._
 
 /**
   * Converts an existing [[Long]], [[java.sql.Timestamp]], or
@@ -72,23 +71,24 @@ final class ExistingField(val field: String) extends TimestampExtractor {
     fieldAccess.resultType match {
       case Types.LONG =>
         // access LONG field
-        val innerDiv = new CallExpression(
+        val innerDiv = call(
           BuiltInFunctionDefinitions.DIVIDE,
-          List(fieldReferenceExpr,
-            new ValueLiteralExpression(new java.math.BigDecimal(1000))))
-        new CallExpression(
+          fieldReferenceExpr,
+          valueLiteral(new java.math.BigDecimal(1000)))
+
+        call(
           BuiltInFunctionDefinitions.CAST,
-          List(
-            innerDiv,
-            new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP))))
+          innerDiv,
+          typeLiteral(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
+
       case Types.SQL_TIMESTAMP =>
         fieldReferenceExpr
+
       case Types.STRING =>
-        new CallExpression(
+        call(
           BuiltInFunctionDefinitions.CAST,
-          List(
-            fieldReferenceExpr,
-            new TypeLiteralExpression(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP))))
+          fieldReferenceExpr,
+          typeLiteral(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
     }
   }
 

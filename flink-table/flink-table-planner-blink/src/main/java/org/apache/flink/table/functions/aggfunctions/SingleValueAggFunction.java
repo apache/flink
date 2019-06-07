@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
@@ -44,8 +45,8 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 	private static final Expression ZERO = literal(0, DataTypes.INT());
 	private static final Expression ONE = literal(1, DataTypes.INT());
 	private static final String ERROR_MSG = "SingleValueAggFunction received more than one element.";
-	private UnresolvedReferenceExpression value = new UnresolvedReferenceExpression("value");
-	private UnresolvedReferenceExpression count = new UnresolvedReferenceExpression("count");
+	private UnresolvedReferenceExpression value = unresolvedRef("value");
+	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
 	@Override
 	public int operandCount() {

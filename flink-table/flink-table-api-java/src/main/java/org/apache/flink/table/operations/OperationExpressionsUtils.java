@@ -199,11 +199,11 @@ public class OperationExpressionsUtils {
 				return unresolvedRef(properties.get(call));
 			}
 
-			List<Expression> args = call.getChildren()
+			final Expression[] args = call.getChildren()
 				.stream()
 				.map(c -> c.accept(this))
-				.collect(Collectors.toList());
-			return new CallExpression(call.getFunctionDefinition(), args);
+				.toArray(Expression[]::new);
+			return call(call.getFunctionDefinition(), args);
 		}
 
 		@Override

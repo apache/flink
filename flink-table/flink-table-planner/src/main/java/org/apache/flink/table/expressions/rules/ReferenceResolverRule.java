@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 
 /**
  * Resolves {@link UnresolvedReferenceExpression} to either
@@ -54,12 +55,12 @@ final class ReferenceResolverRule implements ResolverRule {
 
 		@Override
 		public Expression visitCall(CallExpression call) {
-			List<Expression> resolvedArgs = call.getChildren()
+			final Expression[] resolvedArgs = call.getChildren()
 				.stream()
 				.map(expr -> expr.accept(this))
-				.collect(Collectors.toList());
+				.toArray(Expression[]::new);
 
-			return new CallExpression(call.getFunctionDefinition(), resolvedArgs);
+			return call(call.getFunctionDefinition(), resolvedArgs);
 		}
 
 		@Override

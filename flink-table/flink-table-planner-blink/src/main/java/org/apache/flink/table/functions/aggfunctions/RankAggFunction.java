@@ -27,6 +27,7 @@ import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 
 import java.util.Arrays;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.and;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
@@ -39,7 +40,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  */
 public class RankAggFunction extends RankLikeAggFunctionBase {
 
-	private UnresolvedReferenceExpression currNumber = new UnresolvedReferenceExpression("currNumber");
+	private UnresolvedReferenceExpression currNumber = unresolvedRef("currNumber");
 
 	public RankAggFunction(LogicalType[] orderKeyTypes) {
 		super(orderKeyTypes);

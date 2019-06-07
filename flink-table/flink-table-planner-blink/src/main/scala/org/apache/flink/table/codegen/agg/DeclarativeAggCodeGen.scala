@@ -20,7 +20,7 @@ package org.apache.flink.table.codegen.agg
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveTypeTermForType
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.expressions.{ResolvedDistinctKeyReference, _}
+import org.apache.flink.table.expressions.{ApiExpressionUtils, ResolvedDistinctKeyReference, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfo
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -217,9 +217,9 @@ class DeclarativeAggCodeGen(
       isDistinctMerge: Boolean = false) extends ExpressionVisitor[Expression] {
 
     override def visitCall(call: CallExpression): Expression = {
-      new CallExpression(
+      ApiExpressionUtils.call(
         call.getFunctionDefinition,
-        call.getChildren.asScala.map(_.accept(this)).asJava)
+        call.getChildren.asScala.map(_.accept(this)): _*)
     }
 
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {

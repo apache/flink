@@ -90,6 +90,7 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
@@ -387,12 +388,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RexNode visitCall(CallExpression call) {
-			List<Expression> newChildren = call.getChildren().stream().map(expr -> {
+			final Expression[] newChildren = call.getChildren().stream().map(expr -> {
 				RexNode convertedNode = expr.accept(this);
 				return (Expression) new RexPlannerExpression(convertedNode);
-			}).collect(toList());
+			}).toArray(Expression[]::new);
 
-			CallExpression newCall = new CallExpression(call.getFunctionDefinition(), newChildren);
+			CallExpression newCall = call(call.getFunctionDefinition(), newChildren);
 			return expressionBridge.bridge(newCall).toRexNode(relBuilder);
 		}
 

@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.concat;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
@@ -35,8 +36,8 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
  */
 public class ConcatAggFunction extends DeclarativeAggregateFunction {
 	private int operandCount;
-	private UnresolvedReferenceExpression acc = new UnresolvedReferenceExpression("concatAcc");
-	private UnresolvedReferenceExpression accDelimiter = new UnresolvedReferenceExpression("accDelimiter");
+	private UnresolvedReferenceExpression acc = unresolvedRef("concatAcc");
+	private UnresolvedReferenceExpression accDelimiter = unresolvedRef("accDelimiter");
 	private Expression delimiter;
 	private Expression operand;
 
