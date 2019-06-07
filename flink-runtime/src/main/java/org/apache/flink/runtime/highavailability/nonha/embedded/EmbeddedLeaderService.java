@@ -299,8 +299,7 @@ public class EmbeddedLeaderService {
 				currentLeaderProposed = leaderService;
 				currentLeaderProposed.isLeader = true;
 
-				LOG.info("Proposing leadership to contender {} @ {}",
-						leaderService.contender, leaderService.contender.getAddress());
+				LOG.info("Proposing leadership to contender {}", leaderService.contender.getDescription());
 
 				return execute(new GrantLeadershipCall(leaderService.contender, leaderSessionId, LOG));
 			}

@@ -315,7 +315,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 	private CompletionStage<Void> startJobMaster(UUID leaderSessionId) {
 		log.info("JobManager runner for job {} ({}) was granted leadership with session id {} at {}.",
-			jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, getAddress());
+			jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, jobMasterService.getAddress());
 
 		try {
 			runningJobsRegistry.setJobRunning(jobGraph.getJobID());
@@ -370,7 +370,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			currentLeaderGatewayFuture.complete(jobMasterService.getGateway());
 			leaderElectionService.confirmLeadership(leaderSessionId, leaderAddress);
 		} else {
-			log.debug("Ignoring confirmation of leader session id because {} is no longer the leader.", getAddress());
+			log.debug("Ignoring confirmation of leader session id because {} is no longer the leader.", getDescription());
 		}
 	}
 
@@ -394,8 +394,8 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	}
 
 	private CompletableFuture<Void> revokeJobMasterLeadership() {
-		log.info("JobManager for job {} ({}) was revoked leadership at {}.",
-			jobGraph.getName(), jobGraph.getJobID(), getAddress());
+		log.info("JobManager for job {} ({}) at {} was revoked leadership.",
+			jobGraph.getName(), jobGraph.getJobID(), jobMasterService.getAddress());
 
 		setNewLeaderGatewayFuture();
 
@@ -431,7 +431,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	}
 
 	@Override
-	public String getAddress() {
+	public String getDescription() {
 		return jobMasterService.getAddress();
 	}
 

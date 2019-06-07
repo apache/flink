@@ -26,7 +26,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Random;
@@ -34,7 +33,12 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 /**
  * Tests for the {@link SingleLeaderElectionService}.
@@ -165,7 +169,7 @@ public class SingleLeaderElectionServiceTest {
 		service.shutdown();
 
 		final LeaderContender contender = mock(LeaderContender.class);
-		
+
 		// should not be possible to start
 		try {
 			service.start(contender);
@@ -210,15 +214,10 @@ public class SingleLeaderElectionServiceTest {
 	private static LeaderContender mockContender(final LeaderElectionService service, final String address) {
 		LeaderContender mockContender = mock(LeaderContender.class);
 
-		when(mockContender.getAddress()).thenReturn(address);
-
-		doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					final UUID uuid = (UUID) invocation.getArguments()[0];
-					service.confirmLeadership(uuid, address);
-					return null;
-				}
+		doAnswer((Answer<Void>) invocation -> {
+			final UUID uuid = (UUID) invocation.getArguments()[0];
+			service.confirmLeadership(uuid, address);
+			return null;
 		}).when(mockContender).grantLeadership(any(UUID.class));
 
 		return mockContender;
