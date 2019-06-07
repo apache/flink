@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -30,10 +29,8 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
 
 /**
  * Utility class to work with {@link LeaderRetrievalService} class.
@@ -62,9 +59,7 @@ public class LeaderRetrievalUtils {
 		try {
 			leaderRetrievalService.start(listener);
 
-			Future<LeaderConnectionInfo> connectionInfoFuture = listener.getLeaderConnectionInfoFuture();
-
-			return FutureUtils.toJava(connectionInfoFuture).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			return listener.getLeaderConnectionInfoFuture().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			throw new LeaderRetrievalException("Could not retrieve the leader address and leader " +
 				"session ID.", e);
@@ -110,25 +105,23 @@ public class LeaderRetrievalUtils {
 	 * leader's akka URL and the current leader session ID.
 	 */
 	public static class LeaderConnectionInfoListener implements  LeaderRetrievalListener {
-		private final Promise<LeaderConnectionInfo> connectionInfo = new scala.concurrent.impl.Promise.DefaultPromise<>();
+		private final CompletableFuture<LeaderConnectionInfo> connectionInfoFuture = new CompletableFuture<>();
 
-		public Future<LeaderConnectionInfo> getLeaderConnectionInfoFuture() {
-			return connectionInfo.future();
+		public CompletableFuture<LeaderConnectionInfo> getLeaderConnectionInfoFuture() {
+			return connectionInfoFuture;
 		}
 
 		@Override
 		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-			if (leaderAddress != null && !leaderAddress.equals("") && !connectionInfo.isCompleted()) {
+			if (leaderAddress != null && !leaderAddress.equals("") && !connectionInfoFuture.isDone()) {
 				final LeaderConnectionInfo leaderConnectionInfo = new LeaderConnectionInfo(leaderSessionID, leaderAddress);
-				connectionInfo.success(leaderConnectionInfo);
+				connectionInfoFuture.complete(leaderConnectionInfo);
 			}
 		}
 
 		@Override
 		public void handleError(Exception exception) {
-			if (!connectionInfo.isCompleted()) {
-				connectionInfo.failure(exception);
-			}
+			connectionInfoFuture.completeExceptionally(exception);
 		}
 	}
 
