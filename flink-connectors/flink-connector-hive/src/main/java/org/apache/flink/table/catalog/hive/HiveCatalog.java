@@ -117,19 +117,19 @@ public class HiveCatalog extends AbstractCatalog {
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
-			getHiveConf(hiveSiteUrl));
+			createHiveConf(hiveSiteUrl));
 	}
 
 	@VisibleForTesting
 	protected HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
-		this.hiveConf = hiveConf == null ? getHiveConf(null) : hiveConf;
+		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	public static HiveConf getHiveConf(URL hiveSiteUrl) {
+	private static HiveConf createHiveConf(URL hiveSiteUrl) {
 		LOG.info("Setting hive-site location as {}", hiveSiteUrl);
 
 		HiveConf.setHiveSiteLocation(hiveSiteUrl);

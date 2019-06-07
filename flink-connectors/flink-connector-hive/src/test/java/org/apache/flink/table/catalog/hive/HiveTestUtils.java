@@ -42,14 +42,14 @@ public class HiveTestUtils {
 	}
 
 	public static HiveCatalog createHiveCatalog(String catalogName) {
-		return new HiveCatalog(catalogName, null, getHiveConf());
+		return new HiveCatalog(catalogName, null, createHiveConf());
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
 		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf);
 	}
 
-	public static HiveConf getHiveConf() {
+	public static HiveConf createHiveConf() {
 		ClassLoader classLoader = new HiveTestUtils().getClass().getClassLoader();
 		HiveConf.setHiveSiteLocation(classLoader.getResource(HIVE_SITE_XML));
 
