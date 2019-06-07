@@ -470,7 +470,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testGenericRow() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -484,7 +484,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(dataSet);
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testGenericRowWithAlias() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -498,8 +498,8 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(dataSet, "nullField");
 	}
 
-	@Test(expected = TableException.class)
-	public void testAsWithToManyFields() throws Exception {
+	@Test(expected = ValidationException.class)
+	public void testAsWithTooManyFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
@@ -507,7 +507,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testAsWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -516,7 +516,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testAsWithNonFieldReference1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -525,7 +525,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testAsWithNonFieldReference2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -534,7 +534,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b,  c");
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testNonStaticClassInput() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
@@ -543,7 +543,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		tableEnv.fromDataSet(env.fromElements(new MyNonStatic()), "name");
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testNonStaticClassOutput() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
