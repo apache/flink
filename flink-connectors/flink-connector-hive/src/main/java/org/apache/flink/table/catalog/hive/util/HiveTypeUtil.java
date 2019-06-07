@@ -25,8 +25,6 @@ import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -143,12 +141,10 @@ public class HiveTypeUtil {
 			// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
 		}
 
-		if (type instanceof CollectionDataType) {
+		if (dataType instanceof CollectionDataType) {
 
-			Class clazz = type.getLogicalType().getClass();
-
-			if (clazz == ArrayType.class) {
-				DataType elementType = ((CollectionDataType) type).getElementDataType();
+			if (type.equals(LogicalTypeRoot.ARRAY)) {
+				DataType elementType = ((CollectionDataType) dataType).getElementDataType();
 
 				return TypeInfoFactory.getListTypeInfo(toHiveTypeInfo(elementType));
 			}
@@ -156,16 +152,16 @@ public class HiveTypeUtil {
 			// Flink's collection types that Hive 2.3.4 doesn't support: multiset
 		}
 
-		if (type instanceof KeyValueDataType) {
-			KeyValueDataType keyValueDataType = (KeyValueDataType) type;
+		if (dataType instanceof KeyValueDataType) {
+			KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;
 			DataType keyType = keyValueDataType.getKeyDataType();
 			DataType valueType = keyValueDataType.getValueDataType();
 
 			return TypeInfoFactory.getMapTypeInfo(toHiveTypeInfo(keyType), toHiveTypeInfo(valueType));
 		}
 
-		if (type instanceof FieldsDataType) {
-			Map<String, DataType> fieldDataTypes = ((FieldsDataType) type).getFieldDataTypes();
+		if (dataType instanceof FieldsDataType) {
+			Map<String, DataType> fieldDataTypes = ((FieldsDataType) dataType).getFieldDataTypes();
 
 			List<String> names = new ArrayList(fieldDataTypes.size());
 			List<TypeInfo> typeInfos = new ArrayList<>(fieldDataTypes.size());
