@@ -67,54 +67,54 @@ public class StandaloneJobClusterEntryPointTest extends TestLogger {
 	}
 
 	@Test
-	public void configuredJobIDTakesPrecedenceWithHA() {
-		Optional<JobID> jobID = Optional.of(JobID.generate());
+	public void configuredJobIdTakesPrecedenceWithHA() {
+		Optional<JobID> jobId = Optional.of(JobID.generate());
 
 		Configuration globalConfiguration = new Configuration();
 		enableHighAvailability(globalConfiguration);
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
-			jobID,
+			jobId,
 			globalConfiguration);
 
-		assertThat(jobIdForCluster, is(jobID.get()));
+		assertThat(jobIdForCluster, is(jobId.get()));
 	}
 
 	@Test
-	public void configuredJobIDTakesPrecedenceWithoutHA() {
-		Optional<JobID> jobID = Optional.of(JobID.generate());
+	public void configuredJobIdTakesPrecedenceWithoutHA() {
+		Optional<JobID> jobId = Optional.of(JobID.generate());
 
 		Configuration globalConfiguration = new Configuration();
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
-			jobID,
+			jobId,
 			globalConfiguration);
 
-		assertThat(jobIdForCluster, is(jobID.get()));
+		assertThat(jobIdForCluster, is(jobId.get()));
 	}
 
 	@Test
-	public void jobIDdefaultsToZeroWithHA() {
-		Optional<JobID> jobID = Optional.empty();
+	public void jobIdDefaultsToZeroWithHA() {
+		Optional<JobID> jobId = Optional.empty();
 
 		Configuration globalConfiguration = new Configuration();
 		enableHighAvailability(globalConfiguration);
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
-			jobID,
+			jobId,
 			globalConfiguration);
 
 		assertThat(jobIdForCluster, is(ZERO_JOB_ID));
 	}
 
 	@Test
-	public void jobIDdefaultsToRandomJobIDWithoutHA() {
-		Optional<JobID> jobID = Optional.empty();
+	public void jobIdDefaultsToRandomJobIdWithoutHA() {
+		Optional<JobID> jobId = Optional.empty();
 
 		Configuration globalConfiguration = new Configuration();
 
 		JobID jobIdForCluster = StandaloneJobClusterEntryPoint.resolveJobIdForCluster(
-			jobID,
+			jobId,
 			globalConfiguration);
 
 		assertThat(jobIdForCluster, is(not(ZERO_JOB_ID)));
