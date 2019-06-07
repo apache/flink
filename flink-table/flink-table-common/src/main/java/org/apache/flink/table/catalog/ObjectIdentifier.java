@@ -20,18 +20,15 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.Optional;
 
 import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
 
 /**
  * Identifies an object in a catalog. It allows to identify objects such as tables, views, function,
- * or types in a catalog. An identifier must not be fully qualified. It is the responsibility of the
- * catalog manager to resolve an identifier to an object; e.g. by assuming default catalog/database.
+ * or types in a catalog. An identifier must be fully qualified. It is the responsibility of the
+ * catalog manager to resolve an identifier to an object.
  *
  * <p>While {@link ObjectPath} is used within the same catalog, instances of this class can be used
  * across catalogs.
@@ -40,9 +37,9 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
  */
 public final class ObjectIdentifier implements Serializable {
 
-	private @Nullable String catalogName;
+	private String catalogName;
 
-	private @Nullable String databaseName;
+	private String databaseName;
 
 	private String objectName;
 
@@ -53,35 +50,21 @@ public final class ObjectIdentifier implements Serializable {
 			Preconditions.checkNotNull(objectName, "Object name must not be null."));
 	}
 
-	public static ObjectIdentifier of(String databaseName, String objectName) {
-		return new ObjectIdentifier(
-			null,
-			Preconditions.checkNotNull(databaseName, "Database name must not be null."),
-			Preconditions.checkNotNull(objectName, "Object name must not be null."));
-	}
-
-	public static ObjectIdentifier of(String objectName) {
-		return new ObjectIdentifier(
-			null,
-			null,
-			Preconditions.checkNotNull(objectName, "Object name must not be null."));
-	}
-
 	private ObjectIdentifier(
-			@Nullable String catalogName,
-			@Nullable String databaseName,
+			String catalogName,
+			String databaseName,
 			String objectName) {
 		this.catalogName = catalogName;
 		this.databaseName = databaseName;
 		this.objectName = objectName;
 	}
 
-	public Optional<String> getCatalogName() {
-		return Optional.ofNullable(catalogName);
+	public String getCatalogName() {
+		return catalogName;
 	}
 
-	public Optional<String> getDatabaseName() {
-		return Optional.ofNullable(databaseName);
+	public String getDatabaseName() {
+		return databaseName;
 	}
 
 	public String getObjectName() {
@@ -94,14 +77,10 @@ public final class ObjectIdentifier implements Serializable {
 	 */
 	public String asSerializableString() {
 		final StringBuilder sb = new StringBuilder();
-		if (catalogName != null) {
-			sb.append(escapeIdentifier(catalogName));
-			sb.append('.');
-		}
-		if (databaseName != null) {
-			sb.append(escapeIdentifier(databaseName));
-			sb.append('.');
-		}
+		sb.append(escapeIdentifier(catalogName));
+		sb.append('.');
+		sb.append(escapeIdentifier(databaseName));
+		sb.append('.');
 		sb.append(escapeIdentifier(objectName));
 		return sb.toString();
 	}
