@@ -21,7 +21,12 @@ package org.apache.flink.table.catalog.hive.util;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -32,10 +37,16 @@ import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,7 +60,6 @@ public class HiveTypeUtil {
 
 	/**
 	 * Convert Flink data type to Hive data type name.
-	 * TODO: the following Hive types are not supported in Flink yet, including MAP, STRUCT
 	 *
 	 * @param type a Flink data type
 	 * @return the corresponding Hive data type name
@@ -133,7 +143,40 @@ public class HiveTypeUtil {
 			// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
 		}
 
-		// TODO: convert CollectionDataType and KeyValueDataType
+		if (type instanceof CollectionDataType) {
+
+			Class clazz = type.getLogicalType().getClass();
+
+			if (clazz == ArrayType.class) {
+				DataType elementType = ((CollectionDataType) type).getElementDataType();
+
+				return TypeInfoFactory.getListTypeInfo(toHiveTypeInfo(elementType));
+			}
+
+			// Flink's collection types that Hive 2.3.4 doesn't support: multiset
+		}
+
+		if (type instanceof KeyValueDataType) {
+			KeyValueDataType keyValueDataType = (KeyValueDataType) type;
+			DataType keyType = keyValueDataType.getKeyDataType();
+			DataType valueType = keyValueDataType.getValueDataType();
+
+			return TypeInfoFactory.getMapTypeInfo(toHiveTypeInfo(keyType), toHiveTypeInfo(valueType));
+		}
+
+		if (type instanceof FieldsDataType) {
+			Map<String, DataType> fieldDataTypes = ((FieldsDataType) type).getFieldDataTypes();
+
+			List<String> names = new ArrayList(fieldDataTypes.size());
+			List<TypeInfo> typeInfos = new ArrayList<>(fieldDataTypes.size());
+
+			for (Map.Entry<String, DataType> e : fieldDataTypes.entrySet()) {
+				names.add(e.getKey());
+				typeInfos.add(toHiveTypeInfo(e.getValue()));
+			}
+
+			return TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+		}
 
 		throw new UnsupportedOperationException(
 			String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
@@ -141,7 +184,6 @@ public class HiveTypeUtil {
 
 	/**
 	 * Convert Hive data type to a Flink data type.
-	 * TODO: the following Hive types are not supported in Flink yet, including MAP, STRUCT
 	 *
 	 * @param hiveType a Hive data type
 	 * @return the corresponding Flink data type
@@ -155,6 +197,22 @@ public class HiveTypeUtil {
 			case LIST:
 				ListTypeInfo listTypeInfo = (ListTypeInfo) hiveType;
 				return DataTypes.ARRAY(toFlinkType(listTypeInfo.getListElementTypeInfo()));
+			case MAP:
+				MapTypeInfo mapTypeInfo = (MapTypeInfo) hiveType;
+				return DataTypes.MAP(toFlinkType(mapTypeInfo.getMapKeyTypeInfo()), toFlinkType(mapTypeInfo.getMapValueTypeInfo()));
+			case STRUCT:
+				StructTypeInfo structTypeInfo = (StructTypeInfo) hiveType;
+
+				List<String> names = structTypeInfo.getAllStructFieldNames();
+				List<TypeInfo> typeInfos = structTypeInfo.getAllStructFieldTypeInfos();
+
+				DataTypes.Field[] fields = new DataTypes.Field[names.size()];
+
+				for (int i = 0; i < fields.length; i++) {
+					fields[i] = DataTypes.FIELD(names.get(i), toFlinkType(typeInfos.get(i)));
+				}
+
+				return DataTypes.ROW(fields);
 			default:
 				throw new UnsupportedOperationException(
 					String.format("Flink doesn't support Hive data type %s yet.", hiveType));

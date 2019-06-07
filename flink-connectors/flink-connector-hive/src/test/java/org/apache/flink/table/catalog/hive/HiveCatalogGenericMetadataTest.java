@@ -122,6 +122,29 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 		verifyDataTypes(types);
 	}
 
+	@Test
+	public void testComplexDataTypes() throws Exception {
+		DataType[] types = new DataType[]{
+			DataTypes.ARRAY(DataTypes.DOUBLE()),
+			DataTypes.MAP(DataTypes.FLOAT(), DataTypes.BIGINT()),
+			DataTypes.ROW(
+				DataTypes.FIELD("0", DataTypes.BOOLEAN()),
+				DataTypes.FIELD("1", DataTypes.BOOLEAN()),
+				DataTypes.FIELD("2", DataTypes.DATE())),
+
+			// nested complex types
+			DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+			DataTypes.MAP(DataTypes.STRING(), DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT())),
+			DataTypes.ROW(
+				DataTypes.FIELD("3", DataTypes.ARRAY(DataTypes.DECIMAL(5, 3))),
+				DataTypes.FIELD("4", DataTypes.MAP(DataTypes.TINYINT(), DataTypes.SMALLINT())),
+				DataTypes.FIELD("5", DataTypes.ROW(DataTypes.FIELD("3", DataTypes.TIMESTAMP())))
+			)
+		};
+
+		verifyDataTypes(types);
+	}
+
 	private CatalogTable createCatalogTable(DataType[] types) {
 		String[] colNames = new String[types.length];
 
