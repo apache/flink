@@ -159,7 +159,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		assertThat(
 			LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
 				highAvailabilityServices.getResourceManagerLeaderRetriever(),
-				TESTING_TIMEOUT).getLeaderSessionID(),
+				TESTING_TIMEOUT).getLeaderSessionId(),
 			is(notNullValue()));
 
 		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
