@@ -41,7 +41,9 @@ import scala.collection.mutable
 
 class RexProgramExtractorTest extends RexProgramTestBase {
 
-  private val functionCatalog: FunctionCatalog = new FunctionCatalog()
+  private val functionCatalog: FunctionCatalog = new FunctionCatalog(
+    "default_catalog",
+    "default_database")
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](
       functionCatalog,

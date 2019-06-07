@@ -69,10 +69,10 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 		}
 
 		String name = opName.getSimple();
-		Optional<FunctionDefinition> candidateFunction = functionCatalog.lookupFunction(name);
+		Optional<FunctionLookup.Result> candidateFunction = functionCatalog.lookupFunction(name);
 
-		candidateFunction.flatMap(functionDefinition ->
-			convertToSqlFunction(category, name, functionDefinition)
+		candidateFunction.flatMap(lookupResult ->
+			convertToSqlFunction(category, name, lookupResult.getFunctionDefinition())
 		).ifPresent(operatorList::add);
 	}
 

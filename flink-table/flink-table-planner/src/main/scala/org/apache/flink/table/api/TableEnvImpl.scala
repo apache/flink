@@ -52,11 +52,13 @@ abstract class TableEnvImpl(
     private val catalogManager: CatalogManager)
   extends TableEnvironment {
 
-  // Table API/SQL function catalog
-  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog()
-
   protected val defaultCatalogName: String = config.getBuiltInCatalogName
   protected val defaultDatabaseName: String = config.getBuiltInDatabaseName
+
+  // Table API/SQL function catalog
+  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(
+    defaultCatalogName,
+    defaultDatabaseName)
 
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =

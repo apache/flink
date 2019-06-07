@@ -20,7 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
+import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.List;
@@ -32,16 +32,17 @@ import java.util.stream.Collectors;
 @Internal
 public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> {
 
-	private final FunctionDefinitionCatalog functionCatalog;
+	private final FunctionLookup functionLookup;
 
-	public LookupCallResolver(FunctionDefinitionCatalog functionCatalog) {
-		this.functionCatalog = functionCatalog;
+	public LookupCallResolver(FunctionLookup functionLookup) {
+		this.functionLookup = functionLookup;
 	}
 
 	public Expression visitLookupCall(LookupCallExpression lookupCall) {
-		FunctionDefinition functionDefinition = functionCatalog.lookupFunction(lookupCall.getUnresolvedName())
+		final FunctionLookup.Result result = functionLookup.lookupFunction(lookupCall.getUnresolvedName())
 			.orElseThrow(() -> new ValidationException("Undefined function: " + lookupCall.getUnresolvedName()));
-		return createResolvedCall(functionDefinition, lookupCall.getChildren());
+
+		return createResolvedCall(result.getFunctionDefinition(), lookupCall.getChildren());
 	}
 
 	public Expression visitCall(CallExpression call) {

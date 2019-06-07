@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.catalog;
+package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -24,13 +24,36 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import java.util.Optional;
 
 /**
- * Catalog of functions that can resolve the name of a function to a {@link FunctionDefinition}.
+ * Catalog of functions that can resolve the name of a function to a {@link FunctionLookup.Result}.
  */
 @Internal
-public interface FunctionDefinitionCatalog {
+public interface FunctionLookup {
 
 	/**
-	 * Lookup a function by name and return the {@link FunctionDefinition}. The lookup is case insensitive.
+	 * Lookup a function by name. The lookup is case insensitive.
 	 */
-	Optional<FunctionDefinition> lookupFunction(String name);
+	Optional<Result> lookupFunction(String name);
+
+	/**
+	 * Result of a function lookup.
+	 */
+	class Result {
+
+		private final ObjectIdentifier objectIdentifier;
+
+		private final FunctionDefinition functionDefinition;
+
+		public Result(ObjectIdentifier objectIdentifier, FunctionDefinition functionDefinition) {
+			this.objectIdentifier = objectIdentifier;
+			this.functionDefinition = functionDefinition;
+		}
+
+		public ObjectIdentifier getObjectIdentifier() {
+			return objectIdentifier;
+		}
+
+		public FunctionDefinition getFunctionDefinition() {
+			return functionDefinition;
+		}
+	}
 }

@@ -28,9 +28,9 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.expressions.ApiExpressionUtils.call
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.Preconditions
 import org.slf4j.{Logger, LoggerFactory}
@@ -75,7 +75,7 @@ object RexProgramExtractor {
   def extractConjunctiveConditions(
       rexProgram: RexProgram,
       rexBuilder: RexBuilder,
-      catalog: FunctionDefinitionCatalog): (Array[Expression], Array[RexNode]) = {
+      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
 
     rexProgram.getCondition match {
       case condition: RexLocalRef =>
@@ -148,7 +148,7 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
   */
 class RexNodeToExpressionConverter(
     inputNames: Array[String],
-    functionCatalog: FunctionDefinitionCatalog)
+    functionCatalog: FunctionCatalog)
     extends RexVisitor[Option[Expression]] {
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
@@ -280,8 +280,8 @@ class RexNodeToExpressionConverter(
       functionCatalog,
       PlannerExpressionConverter.INSTANCE)
     JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(name))
-      .flatMap(definition =>
-        Try(expressionBridge.bridge(call(definition, operands: _*))).toOption
+      .flatMap(result =>
+        Try(expressionBridge.bridge(call(result.getFunctionDefinition, operands: _*))).toOption
       )
   }
 

@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -39,9 +38,18 @@ import java.util.Optional;
  * Simple function catalog to store {@link FunctionDefinition}s in memory.
  */
 @Internal
-public class FunctionCatalog implements FunctionDefinitionCatalog {
+public class FunctionCatalog implements FunctionLookup {
+
+	private final String defaultCatalogName;
+
+	private final String defaultDatabaseName;
 
 	private final Map<String, FunctionDefinition> userFunctions = new LinkedHashMap<>();
+
+	public FunctionCatalog(String defaultCatalogName, String defaultDatabaseName) {
+		this.defaultCatalogName = defaultCatalogName;
+		this.defaultDatabaseName = defaultDatabaseName;
+	}
 
 	public void registerScalarFunction(String name, ScalarFunction function) {
 		UserFunctionsTypeHelper.validateInstantiation(function.getClass());
@@ -87,16 +95,22 @@ public class FunctionCatalog implements FunctionDefinitionCatalog {
 	}
 
 	@Override
-	public Optional<FunctionDefinition> lookupFunction(String name) {
-		FunctionDefinition userCandidate = userFunctions.get(normalizeName(name));
+	public Optional<FunctionLookup.Result> lookupFunction(String name) {
+		final FunctionDefinition userCandidate = userFunctions.get(normalizeName(name));
+		final Optional<FunctionDefinition> foundDefinition;
 		if (userCandidate != null) {
-			return Optional.of(userCandidate);
+			foundDefinition = Optional.of(userCandidate);
 		} else {
-			return BuiltInFunctionDefinitions.getDefinitions()
+			foundDefinition = BuiltInFunctionDefinitions.getDefinitions()
 				.stream()
 				.filter(f -> normalizeName(name).equals(normalizeName(f.getName())))
 				.findFirst();
 		}
+
+		return foundDefinition.map(definition -> new FunctionLookup.Result(
+			ObjectIdentifier.of(defaultCatalogName, defaultDatabaseName, name),
+			definition)
+		);
 	}
 
 	private void registerFunction(String name, FunctionDefinition functionDefinition) {

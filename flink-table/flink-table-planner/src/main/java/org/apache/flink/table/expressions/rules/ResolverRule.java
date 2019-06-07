@@ -19,10 +19,10 @@
 package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -60,7 +60,7 @@ public interface ResolverRule {
 		/**
 		 * Access to available {@link FunctionDefinition}s.
 		 */
-		FunctionDefinitionCatalog functionDefinitionLookup();
+		FunctionLookup functionLookup();
 
 		/**
 		 * Access to available local references.

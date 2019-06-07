@@ -27,7 +27,7 @@ import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
+import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.rules.ResolverRule;
@@ -93,7 +93,7 @@ public class ExpressionResolver {
 
 	private final TableReferenceLookup tableLookup;
 
-	private final FunctionDefinitionCatalog functionLookup;
+	private final FunctionLookup functionLookup;
 
 	private final Map<String, LocalReferenceExpression> localReferences;
 
@@ -103,14 +103,14 @@ public class ExpressionResolver {
 
 	private ExpressionResolver(
 			TableReferenceLookup tableLookup,
-			FunctionDefinitionCatalog functionCatalog,
+			FunctionLookup functionLookup,
 			FieldReferenceLookup fieldLookup,
 			List<OverWindow> overWindows,
 			List<LocalReferenceExpression> localReferences,
 			List<ResolverRule> rules) {
 		this.tableLookup = Preconditions.checkNotNull(tableLookup);
 		this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
-		this.functionLookup = Preconditions.checkNotNull(functionCatalog);
+		this.functionLookup = Preconditions.checkNotNull(functionLookup);
 		this.resolveFunction = concatenateRules(rules);
 
 		this.localReferences = localReferences.stream().collect(Collectors.toMap(
@@ -125,15 +125,15 @@ public class ExpressionResolver {
 	 * like e.g. {@link GroupWindow} or {@link OverWindow}. You can also add additional {@link ResolverRule}.
 	 *
 	 * @param tableCatalog a way to lookup a table reference by name
-	 * @param functionDefinitionCatalog a way to lookup call by name
+	 * @param functionLookup a way to lookup call by name
 	 * @param inputs inputs to use for field resolution
 	 * @return builder for resolver
 	 */
 	public static ExpressionResolverBuilder resolverFor(
 			TableReferenceLookup tableCatalog,
-			FunctionDefinitionCatalog functionDefinitionCatalog,
+			FunctionLookup functionLookup,
 			QueryOperation... inputs) {
-		return new ExpressionResolverBuilder(inputs, tableCatalog, functionDefinitionCatalog);
+		return new ExpressionResolverBuilder(inputs, tableCatalog, functionLookup);
 	}
 
 	/**
@@ -275,7 +275,7 @@ public class ExpressionResolver {
 		}
 
 		@Override
-		public FunctionDefinitionCatalog functionDefinitionLookup() {
+		public FunctionLookup functionLookup() {
 			return functionLookup;
 		}
 
@@ -312,7 +312,7 @@ public class ExpressionResolver {
 
 		private final List<QueryOperation> queryOperations;
 		private final TableReferenceLookup tableCatalog;
-		private final FunctionDefinitionCatalog functionCatalog;
+		private final FunctionLookup functionLookup;
 		private List<OverWindow> logicalOverWindows = new ArrayList<>();
 		private List<LocalReferenceExpression> localReferences = new ArrayList<>();
 		private List<ResolverRule> rules = new ArrayList<>(getResolverRules());
@@ -320,10 +320,10 @@ public class ExpressionResolver {
 		private ExpressionResolverBuilder(
 				QueryOperation[] queryOperations,
 				TableReferenceLookup tableCatalog,
-				FunctionDefinitionCatalog functionCatalog) {
+				FunctionLookup functionLookup) {
 			this.queryOperations = Arrays.asList(queryOperations);
 			this.tableCatalog = tableCatalog;
-			this.functionCatalog = functionCatalog;
+			this.functionLookup = functionLookup;
 		}
 
 		public ExpressionResolverBuilder withOverWindows(List<OverWindow> windows) {
@@ -339,7 +339,7 @@ public class ExpressionResolver {
 		public ExpressionResolver build() {
 			return new ExpressionResolver(
 				tableCatalog,
-				functionCatalog,
+				functionLookup,
 				new FieldReferenceLookup(queryOperations),
 				logicalOverWindows,
 				localReferences,

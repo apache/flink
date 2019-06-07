@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 final class LookupCallByNameRule implements ResolverRule {
 	@Override
 	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-		LookupCallResolver lookupCallResolver = new LookupCallResolver(context.functionDefinitionLookup());
+		LookupCallResolver lookupCallResolver = new LookupCallResolver(context.functionLookup());
 		return expression.stream().map(expr -> expr.accept(lookupCallResolver)).collect(Collectors.toList());
 	}
 }
