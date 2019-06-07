@@ -20,13 +20,13 @@ package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogDescriptor;
 import org.apache.flink.table.descriptors.CatalogDescriptor;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Test;
 
 import java.util.Map;
@@ -42,7 +42,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
 	public void test() {
 		final String catalogName = "mycatalog";
 
-		final HiveCatalog expectedCatalog = new HiveCatalog(catalogName, null, new HiveConf());
+		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName);
 
 		final CatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
 

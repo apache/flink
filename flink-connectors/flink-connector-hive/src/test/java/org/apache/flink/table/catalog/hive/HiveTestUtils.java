@@ -38,7 +38,11 @@ public class HiveTestUtils {
 	 * Create a HiveCatalog with an embedded Hive Metastore.
 	 */
 	public static HiveCatalog createHiveCatalog() {
-		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, getHiveConf());
+		return createHiveCatalog(CatalogTestBase.TEST_CATALOG_NAME);
+	}
+
+	public static HiveCatalog createHiveCatalog(String catalogName) {
+		return new HiveCatalog(catalogName, null, getHiveConf());
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {

@@ -79,8 +79,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -116,45 +114,19 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveSiteFilePath) {
-		this(catalogName,
-			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
-			getHiveConf(loadHiveSiteUrl(hiveSiteFilePath)));
-	}
-
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
 			getHiveConf(hiveSiteUrl));
 	}
 
-	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable HiveConf hiveConf) {
+	@VisibleForTesting
+	protected HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? getHiveConf(null) : hiveConf;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
-
-		HiveConf.setHiveSiteLocation(null);
-	}
-
-	public static URL loadHiveSiteUrl(String filePath) {
-
-		URL url = null;
-
-		if (!StringUtils.isNullOrWhitespaceOnly(filePath)) {
-			try {
-				url = new File(filePath).toURI().toURL();
-
-				LOG.info("Successfully loaded '{}'", filePath);
-
-			} catch (MalformedURLException e) {
-				throw new CatalogException(
-					String.format("Failed to get hive-site.xml from the given path '%s'", filePath), e);
-			}
-		}
-
-		return url;
 	}
 
 	public static HiveConf getHiveConf(URL hiveSiteUrl) {

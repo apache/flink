@@ -18,15 +18,20 @@
 
 package org.apache.flink.table.catalog.hive.factories;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.util.StringUtils;
 
-import org.apache.hadoop.hive.conf.HiveConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +48,7 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
  * Catalog factory for {@link HiveCatalog}.
  */
 public class HiveCatalogFactory implements CatalogFactory {
+	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogFactory.class);
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -74,12 +80,26 @@ public class HiveCatalogFactory implements CatalogFactory {
 
 		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_SITE_PATH);
 
-		return new HiveCatalog(name, defaultDatabase, getHiveConf(hiveSitePath.orElse(null)));
+		return new HiveCatalog(name, defaultDatabase, loadHiveSiteUrl(hiveSitePath.orElse(null)));
 	}
 
-	@VisibleForTesting
-	protected HiveConf getHiveConf(String hiveSitePath) {
-		return HiveCatalog.getHiveConf(HiveCatalog.loadHiveSiteUrl(hiveSitePath));
+	private static URL loadHiveSiteUrl(String filePath) {
+
+		URL url = null;
+
+		if (!StringUtils.isNullOrWhitespaceOnly(filePath)) {
+			try {
+				url = new File(filePath).toURI().toURL();
+
+				LOG.info("Successfully loaded '{}'", filePath);
+
+			} catch (MalformedURLException e) {
+				throw new CatalogException(
+					String.format("Failed to get hive-site.xml from the given path '%s'", filePath), e);
+			}
+		}
+
+		return url;
 	}
 
 	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
