@@ -419,7 +419,11 @@ public class ExecutionGraphTestUtils {
 	}
 
 	public static JobVertex createNoOpVertex(int parallelism) {
-		JobVertex vertex = new JobVertex("vertex");
+		return createNoOpVertex("vertex", parallelism);
+	}
+
+	public static JobVertex createNoOpVertex(String name, int parallelism) {
+		JobVertex vertex = new JobVertex(name);
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
 		return vertex;
