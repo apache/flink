@@ -25,11 +25,11 @@ import java.util.UUID;
 /**
  * Interface for a service which allows to elect a leader among a group of contenders.
  *
- * Prior to using this service, it has to be started calling the start method. The start method
+ * <p>Prior to using this service, it has to be started calling the start method. The start method
  * takes the contender as a parameter. If there are multiple contenders, then each contender has
  * to instantiate its own leader election service.
  *
- * Once a contender has been granted leadership he has to confirm the received leader session ID
+ * <p>Once a contender has been granted leadership he has to confirm the received leader session ID
  * by calling the method {@link #confirmLeadership(UUID, String)}. This will notify the leader election
  * service, that the contender has accepted the leadership specified and that the leader session id as
  * well as the leader address can now be published for leader retrieval services.
