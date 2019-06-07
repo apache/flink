@@ -229,7 +229,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(
 						"Grant leadership to contender {} with session ID {}.",
-						leaderContender.getAddress(),
+						leaderContender.getDescription(),
 						issuedLeaderSessionID);
 				}
 
@@ -252,7 +252,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			if (running) {
 				LOG.debug(
 					"Revoke leadership of {} ({}@{}).",
-					leaderContender,
+					leaderContender.getDescription(),
 					confirmedLeaderSessionID,
 					confirmedLeaderAddress);
 
@@ -277,7 +277,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 						if (LOG.isDebugEnabled()) {
 							LOG.debug(
 								"Leader node changed while {} is the leader with session ID {}.",
-								leaderContender.getAddress(),
+								leaderContender.getDescription(),
 								confirmedLeaderSessionID);
 						}
 
@@ -288,7 +288,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 								if (LOG.isDebugEnabled()) {
 									LOG.debug(
 										"Writing leader information into empty node by {}.",
-										leaderContender.getAddress());
+										leaderContender.getDescription());
 								}
 								writeLeaderInformation();
 							} else {
@@ -299,7 +299,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 									if (LOG.isDebugEnabled()) {
 										LOG.debug(
 											"Writing leader information into node with empty data field by {}.",
-											leaderContender.getAddress());
+											leaderContender.getDescription());
 									}
 									writeLeaderInformation();
 								} else {
@@ -315,7 +315,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 										if (LOG.isDebugEnabled()) {
 											LOG.debug(
 												"Correcting leader information by {}.",
-												leaderContender.getAddress());
+												leaderContender.getDescription());
 										}
 										writeLeaderInformation();
 									}
@@ -410,7 +410,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 				LOG.debug("Connected to ZooKeeper quorum. Leader election can start.");
 				break;
 			case SUSPENDED:
-				LOG.warn("Connection to ZooKeeper suspended. The contender " + leaderContender.getAddress()
+				LOG.warn("Connection to ZooKeeper suspended. The contender " + leaderContender.getDescription()
 					+ " no longer participates in the leader election.");
 				break;
 			case RECONNECTED:
@@ -418,7 +418,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 				break;
 			case LOST:
 				// Maybe we have to throw an exception here to terminate the JobManager
-				LOG.warn("Connection to ZooKeeper lost. The contender " + leaderContender.getAddress()
+				LOG.warn("Connection to ZooKeeper lost. The contender " + leaderContender.getDescription()
 					+ " no longer participates in the leader election.");
 				break;
 		}

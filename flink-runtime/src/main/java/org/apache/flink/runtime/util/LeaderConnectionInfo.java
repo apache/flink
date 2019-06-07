@@ -28,7 +28,7 @@ public class LeaderConnectionInfo {
 
 	private final String address;
 
-	LeaderConnectionInfo(UUID leaderSessionId, String address) {
+	public LeaderConnectionInfo(UUID leaderSessionId, String address) {
 		this.leaderSessionId = leaderSessionId;
 		this.address = address;
 	}

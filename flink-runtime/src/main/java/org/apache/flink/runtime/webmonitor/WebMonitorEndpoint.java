@@ -719,7 +719,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 	}
 
 	@Override
-	public String getAddress() {
+	public String getDescription() {
 		return getRestBaseUrl();
 	}
 

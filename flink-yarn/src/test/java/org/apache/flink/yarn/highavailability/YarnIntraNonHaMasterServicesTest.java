@@ -49,7 +49,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for YarnIntraNonHaMasterServices.
@@ -149,8 +148,6 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 
 	private static LeaderContender mockContender(final LeaderElectionService service, final String address) {
 		LeaderContender mockContender = mock(LeaderContender.class);
-
-		when(mockContender.getAddress()).thenReturn(address);
 
 		doAnswer(new Answer<Void>() {
 			@Override
