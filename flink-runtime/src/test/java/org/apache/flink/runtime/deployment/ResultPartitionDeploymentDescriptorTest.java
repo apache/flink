@@ -104,6 +104,24 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
 	}
 
+	@Test
+	public void testReleasedOnConsumptionFlag() {
+		for (ResultPartitionType partitionType : ResultPartitionType.values()) {
+			ResultPartitionDeploymentDescriptor partitionDescriptor = new ResultPartitionDeploymentDescriptor(
+				new PartitionDescriptor(resultId, partitionId, partitionType, numberOfSubpartitions, connectionIndex),
+				ResultPartitionID::new,
+				1,
+				true
+			);
+
+			if (partitionType == ResultPartitionType.BLOCKING) {
+				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(false));
+			} else {
+				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(true));
+			}
+		}
+	}
+
 	private static ResultPartitionDeploymentDescriptor createCopyAndVerifyResultPartitionDeploymentDescriptor(
 			ShuffleDescriptor shuffleDescriptor) throws IOException {
 		ResultPartitionDeploymentDescriptor orig = new ResultPartitionDeploymentDescriptor(
