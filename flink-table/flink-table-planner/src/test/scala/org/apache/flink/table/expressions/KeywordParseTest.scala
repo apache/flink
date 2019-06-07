@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedRef, lookupCall}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, lookupCall, unresolvedRef}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

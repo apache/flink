@@ -25,20 +25,21 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.LookupCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.util.List;
 
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.FLATTEN;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OVER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 
 /**
  * Verifies that there is no more unresolved expressions. Checks for expression like:
  * <ul>
  *     <li>{@link UnresolvedReferenceExpression}</li>
  *     <li>{@link LookupCallExpression}</li>
- *     <li>{@link org.apache.flink.table.expressions.BuiltInFunctionDefinitions#OVER} that still contains
+ *     <li>{@link BuiltInFunctionDefinitions#OVER} that still contains
  *     just alias to corresponding window</li>
- *     <li>{@link org.apache.flink.table.expressions.BuiltInFunctionDefinitions#FLATTEN}</li>
+ *     <li>{@link BuiltInFunctionDefinitions#FLATTEN}</li>
  * </ul>
  */
 @Internal

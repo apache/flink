@@ -20,14 +20,14 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.expressions.AggregateFunctionDefinition;
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.expressions.FunctionDefinition;
-import org.apache.flink.table.expressions.ScalarFunctionDefinition;
-import org.apache.flink.table.expressions.TableFunctionDefinition;
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 

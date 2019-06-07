@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,8 +33,8 @@ import java.time.LocalDateTime;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AND;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.EQUALS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 

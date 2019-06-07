@@ -19,7 +19,7 @@
 package org.apache.flink.table.expressions.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.expressions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.Optional;
 

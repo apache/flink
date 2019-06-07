@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.ORDERING;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.ORDER_ASC;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDERING;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
 
 /**
  * Utility class for creating a valid {@link SortQueryOperation} operation.

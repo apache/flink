@@ -28,8 +28,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.expressions.AggregateFunctionDefinition;
-import org.apache.flink.table.expressions.TableFunctionDefinition;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -54,9 +54,9 @@ import static org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromData
  * 3.Deal with Decimal.
  *
  * <p>This class is for:
- * 1.See {@link TableFunctionDefinition#resultType}.
- * 2.See {@link AggregateFunctionDefinition#accumulatorTypeInfo}.
- * 3.See {@link MapViewTypeInfo#keyType}.
+ * 1.See {@link TableFunctionDefinition#getResultType()}.
+ * 2.See {@link AggregateFunctionDefinition#getAccumulatorTypeInfo()}.
+ * 3.See {@link MapViewTypeInfo#getKeyType()}.
  */
 @Deprecated
 public class TypeInfoDataTypeConverter {

@@ -23,10 +23,11 @@ import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,11 +38,11 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
+import static org.apache.flink.table.functions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 
 /**
  * Utility methods for transforming {@link Expression} to use them in {@link QueryOperation}s.
@@ -110,7 +111,7 @@ public class OperationExpressionsUtils {
 	 * <li>{@link FieldReferenceExpression}</li>
 	 * <li>{@link TableReferenceExpression}</li>
 	 * <li>{@link LocalReferenceExpression}</li>
-	 * <li>{@link org.apache.flink.table.expressions.BuiltInFunctionDefinitions#AS}</li>
+	 * <li>{@link BuiltInFunctionDefinitions#AS}</li>
 	 * </ul>
 	 *
 	 * @param expressions list of expressions to extract names from
@@ -126,7 +127,7 @@ public class OperationExpressionsUtils {
 	 * <li>{@link FieldReferenceExpression}</li>
 	 * <li>{@link TableReferenceExpression}</li>
 	 * <li>{@link LocalReferenceExpression}</li>
-	 * <li>{@link org.apache.flink.table.expressions.BuiltInFunctionDefinitions#AS}</li>
+	 * <li>{@link BuiltInFunctionDefinitions#AS}</li>
 	 * </ul>
 	 *
 	 * @param expression expression to extract name from

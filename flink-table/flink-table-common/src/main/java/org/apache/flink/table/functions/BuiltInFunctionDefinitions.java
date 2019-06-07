@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
@@ -29,9 +29,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.OTHER_FUNCTION;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.Type.OTHER_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.Type.SCALAR_FUNCTION;
 
 /**
  * Dictionary of function definitions for all built-in functions.

@@ -35,10 +35,10 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.lookupCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.COUNT;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.FLATTEN;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OVER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.mockito.Mockito.mock;
 
 /**

@@ -20,9 +20,9 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import org.junit.Test;
 

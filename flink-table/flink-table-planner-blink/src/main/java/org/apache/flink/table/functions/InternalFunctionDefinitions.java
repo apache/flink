@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.functions;
 
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
+import static org.apache.flink.table.functions.FunctionDefinition.Type.SCALAR_FUNCTION;
 
 /**
  * Dictionary of function definitions for all internal used functions.

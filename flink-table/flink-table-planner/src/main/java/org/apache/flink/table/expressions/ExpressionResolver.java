@@ -32,6 +32,7 @@ import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.rules.ResolverRule;
 import org.apache.flink.table.expressions.rules.ResolverRules;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.plan.logical.LogicalOverWindow;
 import org.apache.flink.table.plan.logical.LogicalWindow;

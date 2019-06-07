@@ -34,10 +34,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.RANGE_TO;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WITHOUT_COLUMNS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WITH_COLUMNS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RANGE_TO;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITHOUT_COLUMNS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITH_COLUMNS;
 
 /**
  * Replaces column functions with all available {@link org.apache.flink.table.expressions.UnresolvedReferenceExpression}s

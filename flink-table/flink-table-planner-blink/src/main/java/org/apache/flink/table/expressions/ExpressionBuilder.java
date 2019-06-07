@@ -18,29 +18,30 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AND;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CONCAT;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.DIVIDE;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.EQUALS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GREATER_THAN;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IF;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IS_NULL;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.LESS_THAN;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MINUS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MOD;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.NOT;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OR;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
-import static org.apache.flink.table.expressions.InternalFunctionDefinitions.THROW_EXCEPTION;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONCAT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
+import static org.apache.flink.table.functions.InternalFunctionDefinitions.THROW_EXCEPTION;
 
 /**
  * Builder for {@link Expression}s.
