@@ -26,6 +26,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.typeLiteral;
@@ -56,7 +57,7 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 	//If the length of function's args is 3, then the function has the default value.
 	private boolean existDefaultValue;
 
-	private UnresolvedReferenceExpression value = new UnresolvedReferenceExpression("leadlag");
+	private UnresolvedReferenceExpression value = unresolvedRef("leadlag");
 
 	public LeadLagAggFunction(int operandCount) {
 		this.operandCount = operandCount;

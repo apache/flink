@@ -22,7 +22,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.rules.ResolverRule.ResolutionContext;
 
 import org.junit.Test;
@@ -79,7 +78,7 @@ public class VerifyNoUnresolvedExpressionsRuleTest {
 		List<Expression> expressions = singletonList(
 			call(OVER,
 				call(COUNT, new FieldReferenceExpression("resolvedField", DataTypes.INT(), 0, 0)),
-				new UnresolvedReferenceExpression("w")
+				unresolvedRef("w")
 			)
 		);
 		resolverRule.apply(expressions, resolutionContext);

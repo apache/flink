@@ -19,14 +19,14 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 
 /**
  * Partially defined over window with (optional) partitioning and order.
@@ -83,7 +83,7 @@ public final class OverWindowPartitionedOrdered {
 			alias,
 			partitionBy,
 			orderBy,
-			new CallExpression(BuiltInFunctionDefinitions.UNBOUNDED_RANGE, Collections.emptyList()),
+			call(BuiltInFunctionDefinitions.UNBOUNDED_RANGE),
 			Optional.empty());
 	}
 }

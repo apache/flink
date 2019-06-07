@@ -22,7 +22,7 @@ import java.util.{Collections, Optional, List => JList}
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.FunctionLookup
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind
 import org.apache.flink.table.expressions._
@@ -143,7 +143,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       val fieldNames = child.getTableSchema.getFieldNames.toList.asJava
       ColumnOperationUtils.addOrReplaceColumns(fieldNames, fieldLists)
     } else {
-      (new UnresolvedReferenceExpression("*") +: fieldLists.asScala).asJava
+      (unresolvedRef("*") +: fieldLists.asScala).asJava
     }
     project(newColumns, child)
   }
@@ -231,9 +231,8 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     // flatten the aggregate function
     val aggNames = aggQueryOperation.getTableSchema.getFieldNames
     val flattenExpressions = aggNames.take(groupingExpressions.size())
-      .map(e => new UnresolvedReferenceExpression(e)) ++
-      Seq(new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
-        Seq(new UnresolvedReferenceExpression(aggNames.last))))
+      .map(e => unresolvedRef(e)) ++
+      Seq(call(BuiltInFunctionDefinitions.FLATTEN, unresolvedRef(aggNames.last)))
     val flattenedOperation = this.project(flattenExpressions.toList, aggQueryOperation)
 
     // add alias
@@ -476,8 +475,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
-    val expandedFields = new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
-      List(resolvedMapFunction).asJava)
+    val expandedFields = call(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction)
     project(Collections.singletonList(expandedFields), child)
   }
 
@@ -508,9 +506,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
     val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())
     val rightNode = dropColumns(
-      child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
+      child.getTableSchema.getFieldNames.map(ApiExpressionUtils.unresolvedRef).toList,
       joinNode)
-    alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
+    alias(originFieldNames.map(a => unresolvedRef(a)), rightNode)
   }
 
   /**
@@ -542,9 +540,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
         val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
         usedFieldNames.append(tempName)
         attrNameCntr += 1
-        new CallExpression(
+        call(
           BuiltInFunctionDefinitions.AS,
-          Seq(c, new ValueLiteralExpression(tempName))
+          c,
+          valueLiteral(tempName)
         )
       case e => e
     }
@@ -563,8 +562,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       val namesBeforeAlias = inputOperation.getTableSchema.getFieldNames
       val namesAfterAlias = namesBeforeAlias.take(aliasStartIndex) ++ alias ++
         namesBeforeAlias.takeRight(namesBeforeAlias.length - alias.size - aliasStartIndex)
-      this.alias(namesAfterAlias.map(e =>
-        new UnresolvedReferenceExpression(e)).toList, inputOperation)
+      this.alias(namesAfterAlias.map(e => unresolvedRef(e)).toList, inputOperation)
     } else {
       inputOperation
     }

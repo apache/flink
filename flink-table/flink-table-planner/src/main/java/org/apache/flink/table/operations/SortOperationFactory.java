@@ -27,9 +27,10 @@ import org.apache.flink.table.expressions.Expression;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.util.Collections.singletonList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDERING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
+
 
 /**
  * Utility class for creating a valid {@link SortQueryOperation} operation.
@@ -138,7 +139,7 @@ public class SortOperationFactory {
 
 		@Override
 		protected Expression defaultMethod(Expression expression) {
-			return new CallExpression(ORDER_ASC, singletonList(expression));
+			return call(ORDER_ASC, expression);
 		}
 	}
 }

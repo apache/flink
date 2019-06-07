@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
@@ -34,7 +35,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
  * built-in max aggregate function.
  */
 public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression max = new UnresolvedReferenceExpression("max");
+	private UnresolvedReferenceExpression max = unresolvedRef("max");
 
 	@Override
 	public int operandCount() {

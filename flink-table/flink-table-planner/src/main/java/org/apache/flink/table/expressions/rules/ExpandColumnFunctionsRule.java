@@ -34,11 +34,15 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RANGE_TO;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITHOUT_COLUMNS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITH_COLUMNS;
+
 
 /**
  * Replaces column functions with all available {@link org.apache.flink.table.expressions.UnresolvedReferenceExpression}s
@@ -51,7 +55,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		ColumnFunctionsExpander columnFunctionsExpander =
 			new ColumnFunctionsExpander(
 				context.referenceLookup().getAllInputFields().stream()
-					.map(p -> new UnresolvedReferenceExpression(p.getName()))
+					.map(p -> unresolvedRef(p.getName()))
 					.collect(Collectors.toList())
 			);
 		return expression.stream()
@@ -83,19 +87,19 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 			} else if (definition == WITHOUT_COLUMNS) {
 				result = resolveArgsOfColumns(call.getChildren(), true);
 			} else {
-				List<Expression> args = call.getChildren()
+				Expression[] args = call.getChildren()
 					.stream()
 					.flatMap(c -> c.accept(this).stream())
-					.collect(Collectors.toList());
-				result = Collections.singletonList(new CallExpression(call.getFunctionDefinition(), args));
+					.toArray(Expression[]::new);
+				result = Collections.singletonList(call(call.getFunctionDefinition(), args));
 
-				// validate as.
+				// validate alias
 				if (definition == AS) {
-					for (int i = 1; i < args.size(); ++i) {
-						if (!(args.get(i) instanceof ValueLiteralExpression)) {
-							String errorMessage = String.join(
-								", ",
-								args.stream().map(e -> e.toString()).collect(Collectors.toList()));
+					for (int i = 1; i < args.length; ++i) {
+						if (!(args[i] instanceof ValueLiteralExpression)) {
+							final String errorMessage = Stream.of(args)
+								.map(Object::toString)
+								.collect(Collectors.joining(", "));
 							throw new ValidationException(String.format("Invalid AS, parameters are: [%s].", errorMessage));
 						}
 					}

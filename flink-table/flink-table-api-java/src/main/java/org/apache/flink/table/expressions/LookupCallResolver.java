@@ -24,7 +24,8 @@ import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 
 /**
  * Resolves calls with function names to calls with actual function definitions.
@@ -50,12 +51,12 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
 	}
 
 	private Expression createResolvedCall(FunctionDefinition functionDefinition, List<Expression> unresolvedChildren) {
-		List<Expression> resolvedChildren = unresolvedChildren
+		final Expression[] resolvedChildren = unresolvedChildren
 			.stream()
 			.map(child -> child.accept(this))
-			.collect(Collectors.toList());
+			.toArray(Expression[]::new);
 
-		return new CallExpression(functionDefinition, resolvedChildren);
+		return call(functionDefinition, resolvedChildren);
 	}
 
 	@Override

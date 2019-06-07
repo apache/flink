@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
@@ -33,7 +34,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  * built-in count aggregate function.
  */
 public class CountAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression count = new UnresolvedReferenceExpression("count");
+	private UnresolvedReferenceExpression count = unresolvedRef("count");
 
 	@Override
 	public int operandCount() {

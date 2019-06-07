@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.lessThan;
@@ -39,7 +40,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  * negative number is discarded to ensure the monotonicity.
  */
 public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression sum = new UnresolvedReferenceExpression("sum");
+	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 
 	@Override
 	public int operandCount() {

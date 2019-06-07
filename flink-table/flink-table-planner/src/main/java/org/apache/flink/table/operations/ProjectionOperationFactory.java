@@ -36,7 +36,6 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +43,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -152,7 +152,7 @@ public final class ProjectionOperationFactory {
 				rename = Optional.of(getUniqueName());
 			}
 
-			return rename.map(name -> new CallExpression(AS, Arrays.asList(call, valueLiteral(name)))).orElse(call);
+			return rename.map(name -> call(AS, call, valueLiteral(name))).orElse(call);
 		}
 
 		private Optional<String> nameForGet(CallExpression call) {
@@ -169,7 +169,7 @@ public final class ProjectionOperationFactory {
 
 		@Override
 		public Expression visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
-			return new CallExpression(AS, Arrays.asList(valueLiteralExpression, valueLiteral(getUniqueName())));
+			return call(AS, valueLiteralExpression, valueLiteral(getUniqueName()));
 		}
 
 		@Override

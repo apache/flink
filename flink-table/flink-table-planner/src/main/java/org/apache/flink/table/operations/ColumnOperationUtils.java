@@ -21,10 +21,10 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 
@@ -57,7 +58,7 @@ public final class ColumnOperationUtils {
 	public static List<Expression> renameColumns(List<String> inputFields, List<Expression> newAliases) {
 		LinkedHashMap<String, Expression> finalFields = new LinkedHashMap<>();
 
-		inputFields.forEach(field -> finalFields.put(field, new UnresolvedReferenceExpression(field)));
+		inputFields.forEach(field -> finalFields.put(field, unresolvedRef(field)));
 		newAliases.forEach(expr -> {
 			String name = expr.accept(renameColumnExtractor);
 			finalFields.put(name, expr);
@@ -79,7 +80,7 @@ public final class ColumnOperationUtils {
 	public static List<Expression> addOrReplaceColumns(List<String> inputFields, List<Expression> newExpressions) {
 		LinkedHashMap<String, Expression> finalFields = new LinkedHashMap<>();
 
-		inputFields.forEach(field -> finalFields.put(field, new UnresolvedReferenceExpression(field)));
+		inputFields.forEach(field -> finalFields.put(field, unresolvedRef(field)));
 		newExpressions.forEach(expr -> {
 			String name = extractName(expr).orElse(expr.toString());
 			finalFields.put(name, expr);
@@ -110,7 +111,7 @@ public final class ColumnOperationUtils {
 
 		return inputFields.stream()
 			.filter(oldName -> !columnsToDrop.contains(oldName))
-			.map(UnresolvedReferenceExpression::new)
+			.map(ApiExpressionUtils::unresolvedRef)
 			.collect(Collectors.toList());
 	}
 

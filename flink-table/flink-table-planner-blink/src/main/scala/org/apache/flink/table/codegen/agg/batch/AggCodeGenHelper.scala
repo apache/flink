@@ -18,14 +18,17 @@
 
 package org.apache.flink.table.codegen.agg.batch
 
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForExternalType, genToExternal, genToInternal, newName, primitiveTypeTermForType}
+import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.OperatorCodeGenerator.STREAM_RECORD
-import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator}
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -35,10 +38,6 @@ import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToL
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.{DataType, InternalSerializers}
-
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 
 import scala.collection.JavaConverters._
 
@@ -258,9 +257,9 @@ object AggCodeGenHelper {
       aggBufferTypes: Array[Array[LogicalType]]) extends ExpressionVisitor[Expression] {
 
     override def visitCall(call: CallExpression): Expression = {
-      new CallExpression(
+      ApiExpressionUtils.call(
         call.getFunctionDefinition,
-        call.getChildren.asScala.map(_.accept(this)).asJava)
+        call.getChildren.asScala.map(_.accept(this)): _*)
     }
 
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {

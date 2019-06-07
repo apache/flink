@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
@@ -37,7 +38,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  * built-in sum0 aggregate function.
  */
 public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression sum0 = new UnresolvedReferenceExpression("sum");
+	private UnresolvedReferenceExpression sum0 = unresolvedRef("sum");
 
 	@Override
 	public int operandCount() {
