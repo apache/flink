@@ -23,7 +23,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.ConnectionUtils;
-import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,13 +119,8 @@ public class LeaderRetrievalUtils {
 		@Override
 		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
 			if (leaderAddress != null && !leaderAddress.equals("") && !connectionInfo.isCompleted()) {
-				try {
-					final LeaderConnectionInfo leaderConnectionInfo = new LeaderConnectionInfo(leaderAddress, leaderSessionID);
-					connectionInfo.success(leaderConnectionInfo);
-				} catch (FlinkException e) {
-					connectionInfo.failure(e);
-				}
-
+				final LeaderConnectionInfo leaderConnectionInfo = new LeaderConnectionInfo(leaderSessionID, leaderAddress);
+				connectionInfo.success(leaderConnectionInfo);
 			}
 		}
 

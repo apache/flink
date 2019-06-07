@@ -272,7 +272,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
 		return rpcService.connect(
 			leaderConnectionInfo.getAddress(),
-			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionID()),
+			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
 			DispatcherGateway.class).get();
 	}
 
