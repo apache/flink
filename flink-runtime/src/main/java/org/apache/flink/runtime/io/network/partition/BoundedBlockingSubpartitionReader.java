@@ -44,7 +44,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** The reader/decoder to the memory mapped region with the data we currently read from.
 	 * Null once the reader empty or disposed.*/
 	@Nullable
-	private BufferSlicer memory;
+	private BufferSlicer data;
 
 	/** The remaining number of data buffers (not events) in the result. */
 	private int dataBufferBacklog;
@@ -57,16 +57,16 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	 */
 	BoundedBlockingSubpartitionReader(
 			BoundedBlockingSubpartition parent,
-			BufferSlicer memory,
+			BufferSlicer data,
 			int numDataBuffers) {
 
 		checkArgument(numDataBuffers >= 0);
 
 		this.parent = checkNotNull(parent);
-		this.memory = checkNotNull(memory);
+		this.data = checkNotNull(data);
 		this.dataBufferBacklog = numDataBuffers;
 
-		this.nextBuffer = memory.sliceNextBuffer();
+		this.nextBuffer = data.sliceNextBuffer();
 	}
 
 	@Nullable
@@ -83,8 +83,8 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 			dataBufferBacklog--;
 		}
 
-		assert memory != null;
-		nextBuffer = memory.sliceNextBuffer();
+		assert data != null;
+		nextBuffer = data.sliceNextBuffer();
 
 		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog);
 	}
@@ -106,7 +106,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 
 		// nulling these fields means thet read method and will fail fast
 		nextBuffer = null;
-		memory = null;
+		data = null;
 
 		// Notify the parent that this one is released. This allows the parent to
 		// eventually release all resources (when all readers are done and the

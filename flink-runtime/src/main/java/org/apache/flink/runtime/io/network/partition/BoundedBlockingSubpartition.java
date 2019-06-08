@@ -72,7 +72,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	private BufferConsumer currentBuffer;
 
 	/** The memory that we store the data in, via a memory mapped file. */
-	private final MemoryMappedBuffers memory;
+	private final MemoryMappedBuffers data;
 
 	/** All created and not yet released readers. */
 	@GuardedBy("lock")
@@ -108,11 +108,11 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	BoundedBlockingSubpartition(
 			int index,
 			ResultPartition parent,
-			MemoryMappedBuffers memory) throws IOException {
+			MemoryMappedBuffers data) throws IOException {
 
 		super(index, parent);
 
-		this.memory = checkNotNull(memory);
+		this.data = checkNotNull(data);
 		this.readers = new HashSet<>();
 	}
 
@@ -166,7 +166,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		try {
 			final Buffer buffer = bufferConsumer.build();
 			try {
-				memory.writeBuffer(buffer);
+				data.writeBuffer(buffer);
 
 				numBuffersAndEventsWritten++;
 				if (buffer.isBuffer()) {
@@ -190,7 +190,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		isFinished = true;
 		flushCurrentBuffer();
 		writeAndCloseBufferConsumer(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE));
-		memory.finishWrite();
+		data.finishWrite();
 	}
 
 	@Override
@@ -215,9 +215,9 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 			availability.notifyDataAvailable();
 
-			final MemoryMappedBuffers.BufferSlicer memoryReader = memory.getFullBuffers();
+			final MemoryMappedBuffers.BufferSlicer dataReader = data.getFullBuffers();
 			final BoundedBlockingSubpartitionReader reader = new BoundedBlockingSubpartitionReader(
-					this, memoryReader, numDataBuffersWritten);
+					this, dataReader, numDataBuffersWritten);
 			readers.add(reader);
 			return reader;
 		}
@@ -240,7 +240,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		// To avoid segmentation faults, we need to wait until all readers have been released.
 
 		if (readers.isEmpty()) {
-			memory.close();
+			data.close();
 		}
 	}
 
@@ -265,7 +265,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 	@Override
 	protected long getTotalNumberOfBytes() {
-		return memory.getSize();
+		return data.getSize();
 	}
 
 	int getBuffersInBacklog() {
