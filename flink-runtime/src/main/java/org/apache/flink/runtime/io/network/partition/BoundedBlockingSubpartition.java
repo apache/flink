@@ -41,9 +41,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * in a blocking manner: The result is first produced, then consumed.
  * The result can be consumed possibly multiple times.
  *
- * <p>The implementation creates a temporary memory mapped file and writes all buffers to that
- * memory and serves the result from that memory. The kernel backs the mapped memory region
- * with physical memory and file space incrementally as new pages are filled.
+ * <p>Depending on the upplied implementation of {@link BoundedData}, the actual data is stored
+ * for example in a file, or in a temporary memory mapped file.
  *
  * <h2>Important Notes on Thread Safety</h2>
  *
@@ -57,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>The implementation supports multiple concurrent readers, but assumes a single
  * thread per reader. That same thread must also release the reader. In particular, after the reader
  * was released, no buffers obtained from this reader may be accessed any more, or segmentation
- * faults might occur.
+ * faults might occur in some implementations.
  *
  * <p>The method calls to create readers, dispose readers, and dispose the partition are
  * thread-safe vis-a-vis each other.
@@ -71,8 +70,8 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	@Nullable
 	private BufferConsumer currentBuffer;
 
-	/** The memory that we store the data in, via a memory mapped file. */
-	private final MemoryMappedBuffers data;
+	/** The bounded data store that we store the data in. */
+	private final BoundedData data;
 
 	/** All created and not yet released readers. */
 	@GuardedBy("lock")
@@ -108,7 +107,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	BoundedBlockingSubpartition(
 			int index,
 			ResultPartition parent,
-			MemoryMappedBuffers data) throws IOException {
+			BoundedData data) throws IOException {
 
 		super(index, parent);
 
@@ -215,7 +214,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 
 			availability.notifyDataAvailable();
 
-			final MemoryMappedBuffers.BufferSlicer dataReader = data.getFullBuffers();
+			final BoundedData.Reader dataReader = data.createReader();
 			final BoundedBlockingSubpartitionReader reader = new BoundedBlockingSubpartitionReader(
 					this, dataReader, numDataBuffersWritten);
 			readers.add(reader);

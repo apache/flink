@@ -26,7 +26,6 @@ import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
 import javax.annotation.Nullable;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -42,23 +41,13 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * This class is largely a workaround for the fact that a memory mapped region in Java can cannot
+ * An implementation of {@link BoundedData} simply through ByteBuffers backed by memory, typically
+ * from a memory mapped file, so the data gets automatically evicted from memory if it grows large.
+ *
+ * <p>Most of the code in this class is a workaround for the fact that a memory mapped region in Java cannot
  * be larger than 2GB (== signed 32 bit int max value). The class takes {@link Buffer Buffers} and
  * writes them to several memory mapped region, using the {@link BufferToByteBuffer}
  * class.
- *
- * <h2>Usage</h2>
- *
- * <p>The class assumes in the first phase that data is written by repeatedly calling
- * {@link #writeBuffer(Buffer)}. That puts the data into the memory region of the memory
- * mapped file. After writing, one must call {@link #finishWrite()}.
- *
- * <p>After that, the class can produce multiple {@link BufferSlicer} instances to re-read
- * the data from the memory regions. Multiple slicers can read concurrently, but each slicer
- * should be read from by a single thread.
- *
- * <p>Eventually, the resources must be disposed via {@link #close()}. After that,
- * no reading can happen any more.
  *
  * <h2>Important!</h2>
  *
@@ -67,10 +56,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * segmentation faults!
  *
  * <p>This class does limited sanity checks and assumes correct use from {@link BoundedBlockingSubpartition}
- * and {@link BoundedBlockingSubpartitionReader}, such as writing first and rading after.
+ * and {@link BoundedBlockingSubpartitionReader}, such as writing first and reading after.
  * Not obeying these contracts throws NullPointerExceptions.
  */
-class MemoryMappedBuffers implements Closeable {
+final class MemoryMappedBuffers implements BoundedData {
 
 	/** Memory mappings should be at the granularity of page sizes, for efficiency. */
 	private static final int PAGE_SIZE = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
@@ -108,7 +97,8 @@ class MemoryMappedBuffers implements Closeable {
 		rollOverToNextBuffer();
 	}
 
-	void writeBuffer(Buffer buffer) throws IOException {
+	@Override
+	public void writeBuffer(Buffer buffer) throws IOException {
 		assert currentBuffer != null;
 
 		if (currentBuffer.writeBuffer(buffer)) {
@@ -122,7 +112,8 @@ class MemoryMappedBuffers implements Closeable {
 		}
 	}
 
-	BufferSlicer getFullBuffers() {
+	@Override
+	public BufferSlicer createReader() {
 		assert currentBuffer == null;
 
 		final List<ByteBuffer> buffers = fullBuffers.stream()
@@ -136,7 +127,8 @@ class MemoryMappedBuffers implements Closeable {
 	 * Finishes the current region and prevents further writes.
 	 * After calling this method, further calls to {@link #writeBuffer(Buffer)} will fail.
 	 */
-	void finishWrite() throws IOException {
+	@Override
+	public void finishWrite() throws IOException {
 		assert currentBuffer != null;
 
 		fullBuffers.add(currentBuffer.complete());
@@ -172,7 +164,8 @@ class MemoryMappedBuffers implements Closeable {
 	/**
 	 * Gets the number of bytes of all written data (including the metadata in the buffer headers).
 	 */
-	long getSize() {
+	@Override
+	public long getSize() {
 		long size = 0L;
 		for (ByteBuffer bb : fullBuffers) {
 			size += bb.remaining();
@@ -220,7 +213,7 @@ class MemoryMappedBuffers implements Closeable {
 	 * The "reader" for the memory region. It slices a sequence of buffers from the
 	 * sequence of mapped ByteBuffers.
 	 */
-	static final class BufferSlicer {
+	static final class BufferSlicer implements BoundedData.Reader {
 
 		/** The reader/decoder to the memory mapped region with the data we currently read from.
 		 * Max 2GB large. Further regions may be in the {@link #furtherData} field. */
@@ -235,8 +228,9 @@ class MemoryMappedBuffers implements Closeable {
 			this.data = new BufferToByteBuffer.Reader(furtherData.next());
 		}
 
+		@Override
 		@Nullable
-		public Buffer sliceNextBuffer() {
+		public Buffer nextBuffer() {
 			// should only be null once empty or disposed, in which case this method
 			// should not be called any more
 			assert data != null;
@@ -251,7 +245,13 @@ class MemoryMappedBuffers implements Closeable {
 			}
 
 			data = new BufferToByteBuffer.Reader(furtherData.next());
-			return sliceNextBuffer();
+			return nextBuffer();
+		}
+
+		@Override
+		public void close() throws IOException {
+			// nothing to do, this class holds no actual resources of its own,
+			// only references to the mapped byte buffers
 		}
 	}
 

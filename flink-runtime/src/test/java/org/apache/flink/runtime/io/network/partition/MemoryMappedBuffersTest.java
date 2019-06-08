@@ -62,7 +62,7 @@ public class MemoryMappedBuffersTest {
 			final int numBuffers = writeInts(memory, numInts);
 			memory.finishWrite();
 
-			readInts(memory.getFullBuffers(), numBuffers, numInts);
+			readInts(memory.createReader(), numBuffers, numInts);
 		}
 	}
 
@@ -72,13 +72,13 @@ public class MemoryMappedBuffersTest {
 			memory.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer());
 			memory.finishWrite();
 
-			final BufferSlicer reader = memory.getFullBuffers();
-			assertNotNull(reader.sliceNextBuffer());
+			final BufferSlicer reader = memory.createReader();
+			assertNotNull(reader.nextBuffer());
 
 			// check that multiple calls now return empty buffers
-			assertNull(reader.sliceNextBuffer());
-			assertNull(reader.sliceNextBuffer());
-			assertNull(reader.sliceNextBuffer());
+			assertNull(reader.nextBuffer());
+			assertNull(reader.nextBuffer());
+			assertNull(reader.nextBuffer());
 		}
 	}
 
@@ -145,7 +145,7 @@ public class MemoryMappedBuffersTest {
 		int nextValue = 0;
 		int numBuffers = 0;
 
-		while ((b = memory.sliceNextBuffer()) != null) {
+		while ((b = memory.nextBuffer()) != null) {
 			final int numIntsInBuffer = b.getSize() / 4;
 			BufferBuilderTestUtils.validateBufferWithAscendingInts(b, numIntsInBuffer, nextValue);
 			nextValue += numIntsInBuffer;
