@@ -367,7 +367,8 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val resolver = resolverFor(tableCatalog, functionCatalog, left).build()
     val resolvedFunction = resolveSingleExpression(tableFunction, resolver)
 
-    val temporalTable = calculatedTableFactory.create(resolvedFunction)
+    val temporalTable =
+      calculatedTableFactory.create(resolvedFunction, left.getTableSchema.getFieldNames)
 
     join(left, temporalTable, joinType, condition, correlated = true)
   }

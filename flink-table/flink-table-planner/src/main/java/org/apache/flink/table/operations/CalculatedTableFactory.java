@@ -30,6 +30,7 @@ import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.TableFunctionDefinition;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -44,19 +45,24 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_F
 @Internal
 public class CalculatedTableFactory {
 
-	private FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor();
-
 	/**
 	 * Creates a valid {@link CalculatedQueryOperation} operation.
 	 *
 	 * @param callExpr call to table function as expression
 	 * @return valid calculated table
 	 */
-	public QueryOperation create(Expression callExpr) {
+	public QueryOperation create(Expression callExpr, String[] leftTableFieldNames) {
+		FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor(leftTableFieldNames);
 		return callExpr.accept(calculatedTableCreator);
 	}
 
 	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedQueryOperation<?>> {
+
+		private String[] leftTableFieldNames;
+
+		public FunctionTableCallVisitor(String[] leftTableFieldNames) {
+			this.leftTableFieldNames = leftTableFieldNames;
+		}
 
 		@Override
 		public CalculatedQueryOperation<?> visitCall(CallExpression call) {
@@ -102,7 +108,7 @@ public class CalculatedTableFactory {
 
 			String[] fieldNames;
 			if (aliasesSize == 0) {
-				fieldNames = FieldInfoUtils.getFieldNames(resultType);
+				fieldNames = FieldInfoUtils.getFieldNames(resultType, Arrays.asList(leftTableFieldNames));
 			} else if (aliasesSize != callArity) {
 				throw new ValidationException(String.format(
 					"List of column aliases must have same degree as table; " +

@@ -310,6 +310,37 @@ public class FieldInfoUtils {
 	}
 
 	/**
+	 * Returns field names for a given {@link TypeInformation}. If the input {@link TypeInformation}
+	 * is not a composite type, the result field name should not exist in the invalidNamesForNonCompositeType.
+	 *
+	 * @param inputType The TypeInformation extract the field names.
+	 * @param invalidNamesForNonCompositeType The invalid field names for non-composite types.
+	 * @param <A> The type of the TypeInformation.
+	 * @return An array holding the field names
+	 */
+	public static <A> String[] getFieldNames(TypeInformation<A> inputType, List<String> invalidNamesForNonCompositeType) {
+		validateInputTypeInfo(inputType);
+
+		final String[] fieldNames;
+		if (inputType instanceof CompositeType) {
+			fieldNames = ((CompositeType<A>) inputType).getFieldNames();
+		} else {
+			int i = 0;
+			String fieldName = ATOMIC_FIELD_NAME;
+			while (invalidNamesForNonCompositeType.contains(fieldName)) {
+				fieldName = ATOMIC_FIELD_NAME + "_" + i++;
+			}
+			fieldNames = new String[]{fieldName};
+		}
+
+		if (Arrays.asList(fieldNames).contains("*")) {
+			throw new TableException("Field name can not be '*'.");
+		}
+
+		return fieldNames;
+	}
+
+	/**
 	 * Validate if class represented by the typeInfo is static and globally accessible.
 	 *
 	 * @param typeInfo type to check
