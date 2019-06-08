@@ -59,4 +59,9 @@ public interface BufferPoolFactory {
 	 */
 	void destroyBufferPool(BufferPool bufferPool) throws IOException;
 
+	/**
+	 * Gets the size of the buffers in the buffer pools produced by this factory.
+	 */
+	int getBufferSize();
+
 }

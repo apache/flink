@@ -121,6 +121,11 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 				allocatedMb, availableMemorySegments.size(), segmentSize);
 	}
 
+	@Override
+	public int getBufferSize() {
+		return memorySegmentSize;
+	}
+
 	@Nullable
 	public MemorySegment requestMemorySegment() {
 		return availableMemorySegments.poll();

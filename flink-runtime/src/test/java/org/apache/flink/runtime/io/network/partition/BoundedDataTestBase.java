@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.partition.MemoryMappedBuffers.BufferSlicer;
 
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
@@ -34,7 +33,6 @@ import java.nio.file.Path;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -42,114 +40,141 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
  */
-public class MemoryMappedBuffersTest {
+public abstract class BoundedDataTestBase {
 
 	@ClassRule
 	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
+	/** Max buffer sized used by the tests that write data. For implementations that need
+	 * to instantiate buffers in the read side. */
+	protected static final int BUFFER_SIZE = 1024 * 1024; // 1 MiByte
+
+	// ------------------------------------------------------------------------
+	//  BoundedData Instantiation
+	// ------------------------------------------------------------------------
+
+	protected abstract BoundedData createBoundedData(Path tempFilePath) throws IOException;
+
+	protected abstract BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException;
+
+	private BoundedData createBoundedData() throws IOException {
+		return createBoundedData(createTempPath());
+	}
+
+	private BoundedData createBoundedDataWithRegion(int regionSize) throws IOException {
+		return createBoundedDataWithRegion(createTempPath(), regionSize);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Tests
+	// ------------------------------------------------------------------------
+
 	@Test
 	public void testWriteAndReadData() throws Exception {
-		testWriteAndReadData(10_000_000, Integer.MAX_VALUE);
-	}
-
-	@Test
-	public void testWriteAndReadDataAcrossRegions() throws Exception {
-		testWriteAndReadData(10_000_000, 1_276_347);
-	}
-
-	private static void testWriteAndReadData(int numInts, int regionSize) throws Exception {
-		try (MemoryMappedBuffers memory = MemoryMappedBuffers.createWithRegionSize(createTempPath(), regionSize)) {
-			final int numBuffers = writeInts(memory, numInts);
-			memory.finishWrite();
-
-			readInts(memory.getFullBuffers(), numBuffers, numInts);
+		try (BoundedData bd = createBoundedData()) {
+			testWriteAndReadData(bd);
 		}
 	}
 
 	@Test
-	public void returnNullAfterEmpty() throws Exception {
-		try (MemoryMappedBuffers memory = MemoryMappedBuffers.create(createTempPath())) {
-			memory.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer());
-			memory.finishWrite();
+	public void testWriteAndReadDataAcrossRegions() throws Exception {
+		try (BoundedData bd = createBoundedDataWithRegion(1_276_347)) {
+			testWriteAndReadData(bd);
+		}
+	}
 
-			final BufferSlicer reader = memory.getFullBuffers();
-			assertNotNull(reader.sliceNextBuffer());
+	private void testWriteAndReadData(BoundedData bd) throws Exception {
+		final int numInts = 10_000_000;
+		final int numBuffers = writeInts(bd, numInts);
+		bd.finishWrite();
+
+		readInts(bd.createReader(), numBuffers, numInts);
+	}
+
+	@Test
+	public void returnNullAfterEmpty() throws Exception {
+		try (BoundedData bd = createBoundedData()) {
+			bd.finishWrite();
+
+			final BoundedData.Reader reader = bd.createReader();
 
 			// check that multiple calls now return empty buffers
-			assertNull(reader.sliceNextBuffer());
-			assertNull(reader.sliceNextBuffer());
-			assertNull(reader.sliceNextBuffer());
+			assertNull(reader.nextBuffer());
+			assertNull(reader.nextBuffer());
+			assertNull(reader.nextBuffer());
 		}
 	}
 
 	@Test
 	public void testDeleteFileOnClose() throws Exception {
 		final Path path = createTempPath();
-		final MemoryMappedBuffers mmb = MemoryMappedBuffers.create(path);
+		final BoundedData bd = createBoundedData(path);
 		assertTrue(Files.exists(path));
 
-		mmb.close();
+		bd.close();
 
 		assertFalse(Files.exists(path));
 	}
 
 	@Test
 	public void testGetSizeSingleRegion() throws Exception {
-		testGetSize(Integer.MAX_VALUE);
+		try (BoundedData bd = createBoundedData()) {
+			testGetSize(bd);
+		}
 	}
 
 	@Test
 	public void testGetSizeMultipleRegions() throws Exception {
-		testGetSize(100_000);
+		try (BoundedData bd = createBoundedDataWithRegion(100_000)) {
+			testGetSize(bd);
+		}
 	}
 
-	private static void testGetSize(int regionSize) throws Exception {
+	private static void testGetSize(BoundedData bd) throws Exception {
 		final int bufferSize1 = 60_787;
 		final int bufferSize2 = 76_687;
-		final int expectedSize1 = bufferSize1 + BufferToByteBuffer.HEADER_LENGTH;
-		final int expectedSizeFinal = bufferSize1 + bufferSize2 + 2 * BufferToByteBuffer.HEADER_LENGTH;
+		final int expectedSize1 = bufferSize1 + BufferReaderWriterUtil.HEADER_LENGTH;
+		final int expectedSizeFinal = bufferSize1 + bufferSize2 + 2 * BufferReaderWriterUtil.HEADER_LENGTH;
 
-		try (MemoryMappedBuffers memory = MemoryMappedBuffers.createWithRegionSize(createTempPath(), regionSize)) {
+		bd.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer(bufferSize1));
+		assertEquals(expectedSize1, bd.getSize());
 
-			memory.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer(bufferSize1));
-			assertEquals(expectedSize1, memory.getSize());
+		bd.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer(bufferSize2));
+		assertEquals(expectedSizeFinal, bd.getSize());
 
-			memory.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer(bufferSize2));
-			assertEquals(expectedSizeFinal, memory.getSize());
-
-			memory.finishWrite();
-			assertEquals(expectedSizeFinal, memory.getSize());
-		}
+		bd.finishWrite();
+		assertEquals(expectedSizeFinal, bd.getSize());
 	}
 
 	// ------------------------------------------------------------------------
 	//  utils
 	// ------------------------------------------------------------------------
 
-	private static int writeInts(MemoryMappedBuffers memory, int numInts) throws IOException {
-		final int bufferSize = 1024 * 1024; // 1 MiByte
-		final int numIntsInBuffer = bufferSize / 4;
+	private static int writeInts(BoundedData bd, int numInts) throws IOException {
+		final int numIntsInBuffer = BUFFER_SIZE / 4;
 		int numBuffers = 0;
 
 		for (int nextValue = 0; nextValue < numInts; nextValue += numIntsInBuffer) {
-			Buffer buffer = BufferBuilderTestUtils.buildBufferWithAscendingInts(bufferSize, numIntsInBuffer, nextValue);
-			memory.writeBuffer(buffer);
+			Buffer buffer = BufferBuilderTestUtils.buildBufferWithAscendingInts(BUFFER_SIZE, numIntsInBuffer, nextValue);
+			bd.writeBuffer(buffer);
 			numBuffers++;
 		}
 
 		return numBuffers;
 	}
 
-	private static void readInts(MemoryMappedBuffers.BufferSlicer memory, int numBuffersExpected, int numInts) throws IOException {
+	private static void readInts(BoundedData.Reader reader, int numBuffersExpected, int numInts) throws IOException {
 		Buffer b;
 		int nextValue = 0;
 		int numBuffers = 0;
 
-		while ((b = memory.sliceNextBuffer()) != null) {
+		while ((b = reader.nextBuffer()) != null) {
 			final int numIntsInBuffer = b.getSize() / 4;
 			BufferBuilderTestUtils.validateBufferWithAscendingInts(b, numIntsInBuffer, nextValue);
 			nextValue += numIntsInBuffer;
 			numBuffers++;
+
+			b.recycleBuffer();
 		}
 
 		assertEquals(numBuffersExpected, numBuffers);
