@@ -184,7 +184,7 @@ abstract class WindowCodeGenerator(
     val functionName = CodeGenUtils.newName("triggerWindowProcess")
     val functionCode =
       s"""
-         |private void $functionName() {
+         |private void $functionName() throws java.lang.Exception {
          |  ${ctx.reuseLocalVariableCode()}
          |  $statements
          |}
@@ -561,7 +561,7 @@ abstract class WindowCodeGenerator(
     val inputTypeTerm = boxedTypeTermForType(inputType)
     ctx.addReusableMember(
       s"""
-         |private void $processFuncName($inputTypeTerm $inputTerm) throws java.io.IOException {
+         |private void $processFuncName($inputTypeTerm $inputTerm) throws java.lang.Exception {
          |  ${ctx.reuseLocalVariableCode()}
          |  // assign timestamp (pane/window)
          |  ${ctx.reuseInputUnboxingCode(inputTerm)}
@@ -579,7 +579,7 @@ abstract class WindowCodeGenerator(
        """.stripMargin
     ctx.addReusableMember(
       s"""
-         |private void $endProcessFuncName() throws java.io.IOException {
+         |private void $endProcessFuncName() throws java.lang.Exception {
          |  ${ctx.reuseLocalVariableCode()}
          |  $setLastPaneAggResultCode
          |}

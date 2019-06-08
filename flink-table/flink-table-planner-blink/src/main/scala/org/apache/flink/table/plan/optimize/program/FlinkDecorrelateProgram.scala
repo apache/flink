@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
 
+import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalJoin, LogicalProject}
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rex.{RexCorrelVariable, RexVisitorImpl}
@@ -43,7 +44,10 @@ class FlinkDecorrelateProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeP
   }
 
   /**
-    * Check if there is still correlate variables after decorrelate.
+    * Check if there is still correlate variables after decorrelating.
+    *
+    * NOTES: this method only checks correlate variables in join, project and filter,
+    * and will ignore the correlate variables from UNNEST (inputs of Uncollect).
     */
   private def checkCorrelVariableExists(root: RelNode): Unit = {
     try {
@@ -76,6 +80,15 @@ class FlinkDecorrelateProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeP
       override def visit(join: LogicalJoin): RelNode = {
         join.getCondition.accept(visitor)
         super.visit(join)
+      }
+
+      override def visit(other: RelNode): RelNode = {
+        other match {
+          // ignore Uncollect's inputs due to the correlate variables are from UNNEST directly,
+          // not from cases (project, filter and join) which RelDecorrelator handles
+          case r: Uncollect => r
+          case _ => super.visit(other)
+        }
       }
     }
     input.accept(shuttle)

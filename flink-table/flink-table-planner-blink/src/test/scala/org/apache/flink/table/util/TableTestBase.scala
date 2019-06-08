@@ -92,7 +92,7 @@ abstract class TableTestUtil(test: TableTestBase) {
   // scala env
   val env = new StreamExecutionEnvironment(javaEnv)
 
-  protected def getTableEnv: TableEnvironment
+  def getTableEnv: TableEnvironment
 
   // a counter for unique table names
   private var counter = 0

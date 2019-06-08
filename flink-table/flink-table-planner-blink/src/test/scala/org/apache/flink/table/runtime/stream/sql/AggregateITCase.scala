@@ -982,7 +982,6 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  @Ignore("Fix correlate variable")
   @Test
   def testCollectOnClusteredFields(): Unit = {
     val data = List(

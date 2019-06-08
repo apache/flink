@@ -19,10 +19,9 @@
 package org.apache.flink.table.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.{TableConfigOptions, Types}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -30,7 +29,6 @@ import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.sinks.CollectRowTableSink
-import org.apache.flink.types.Row
 
 import org.junit.{Assert, Before, Ignore, Test}
 
@@ -491,45 +489,6 @@ class JoinITCase() extends BatchTestBase {
     checkResult(
       "SELECT COUNT(g), COUNT(b) FROM SmallTable3, Table5 WHERE a = d",
       Seq(row(6L, 6L)))
-  }
-
-  @Ignore
-  @Test
-  def testCrossWithUnnest(): Unit = {
-    val data = List(
-      row(1, 1L, Array("Hi", "w")),
-      row(2, 2L, Array("Hello", "k")),
-      row(3, 2L, Array("Hello world", "x"))
-    )
-    registerCollection("T", data,
-      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_ARRAY_TYPE_INFO),
-      "a, b, c")
-
-    checkResult(
-      "SELECT a, s FROM T, UNNEST(T.c) as A (s)",
-      Seq())
-  }
-
-  @Ignore
-  @Test
-  def testJoinWithUnnestOfTuple(): Unit = {
-    val data = List(
-      row(1, Array(row(12, "45.6"), row(2, "45.612"))),
-      row(2, Array(row(13, "41.6"), row(1, "45.2136"))),
-      row(3, Array(row(18, "42.6"))))
-    registerCollection("T", data,
-      new RowTypeInfo(INT_TYPE_INFO,
-        ObjectArrayTypeInfo.getInfoFor(classOf[Array[Row]],
-          new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO))),
-      "a, b")
-
-    checkResult(
-      "SELECT a, b, x, y " +
-        "FROM " +
-        "  (SELECT a, b FROM T WHERE a < 3) as tf, " +
-        "  UNNEST(tf.b) as A (x, y) " +
-        "WHERE x > a",
-      Seq())
   }
 
   @Ignore

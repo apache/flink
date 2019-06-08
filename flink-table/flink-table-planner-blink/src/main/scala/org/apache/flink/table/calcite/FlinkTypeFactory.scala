@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.{TableException, TableSchema}
@@ -466,6 +466,9 @@ object FlinkTypeFactory {
     case MAP if relDataType.isInstanceOf[MapRelDataType] =>
       val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
       mapRelDataType.mapType
+
+    // CURSOR for UDTF case, whose type info will never be used, just a placeholder
+    case CURSOR => new GenericType(new NothingTypeInfo)
 
     case _@t =>
       throw new TableException(s"Type is not supported: $t")

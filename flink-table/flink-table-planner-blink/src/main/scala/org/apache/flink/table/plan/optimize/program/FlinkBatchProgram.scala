@@ -29,7 +29,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
   */
 object FlinkBatchProgram {
   val SUBQUERY_REWRITE = "subquery_rewrite"
-  val CORRELATE_REWRITE = "correlate_rewrite"
+  val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
   val DECORRELATE = "decorrelate"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
@@ -72,8 +72,9 @@ object FlinkBatchProgram {
     )
 
     // rewrite special temporal join plan
+    // TODO remove this program after upgraded to CALCITE-1.20.0 (CALCITE-2004 is fixed)
     chainedProgram.addLast(
-      CORRELATE_REWRITE,
+      TEMPORAL_JOIN_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
