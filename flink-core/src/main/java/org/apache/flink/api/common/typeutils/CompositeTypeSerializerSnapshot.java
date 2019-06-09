@@ -183,6 +183,11 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 		this.nestedSerializersSnapshotDelegate = checkNotNull(delegate);
 	}
 
+	@Internal
+	public NestedSerializersSnapshotDelegate getNestedSerializersSnapshotDelegate() {
+		return this.nestedSerializersSnapshotDelegate;
+	}
+
 	@Override
 	public final TypeSerializer<T> restoreSerializer() {
 		@SuppressWarnings("unchecked")

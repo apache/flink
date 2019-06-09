@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
@@ -548,9 +549,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		if (stateDesc.getType() == StateDescriptor.Type.MAP) {
 			TypeSerializerSnapshot previousSerializerSnapshot = stateMetaInfo.f1.getStateSerializerProvider().getPreviousSerializerSnapshot();
-			checkState(previousSerializerSnapshot != null, "previous serializer snapshot is null.");
+			checkState(previousSerializerSnapshot instanceof MapSerializerSnapshot, "previous serializer have to be map serializer.");
+			TypeSerializerSnapshot previousKeySerializerSnapshot = ((MapSerializerSnapshot) previousSerializerSnapshot).getNestedSerializersSnapshotDelegate().getNestedSerializerSnapshots()[0];
 			TypeSerializer newUserKeySerializer = ((MapSerializer) stateMetaInfo.f1.getStateSerializer()).getKeySerializer();
-			TypeSerializerSchemaCompatibility compatibility = previousSerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
+			TypeSerializerSchemaCompatibility compatibility = previousKeySerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
 			if (!compatibility.isCompatibleAsIs()) {
 				throw new StateMigrationException(
 					"The new serializer for a MapState requires state migration in order for the job to proceed." + " However, migration for MapState currently only supported value migration.");
