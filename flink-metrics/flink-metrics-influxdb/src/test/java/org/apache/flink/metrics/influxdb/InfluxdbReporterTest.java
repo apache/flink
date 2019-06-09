@@ -57,6 +57,7 @@ public class InfluxdbReporterTest extends TestLogger {
 	private static final String TEST_INFLUXDB_DB = "test-42";
 	private static final String METRIC_HOSTNAME = "task-mgr-1";
 	private static final String METRIC_TM_ID = "tm-id-123";
+	private String retentionPolicy = "";
 
 	@Rule
 	public final WireMockRule wireMockRule = new WireMockRule(
@@ -111,8 +112,36 @@ public class InfluxdbReporterTest extends TestLogger {
 
 			verify(postRequestedFor(urlPathEqualTo("/write"))
 				.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
+				.withQueryParam("rp", equalTo(retentionPolicy))
 				.withHeader("Content-Type", containing("text/plain"))
 				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
+		} finally {
+			metricRegistry.shutdown().get();
+		}
+	}
+
+	@Test
+	public void testMetricReportingWithRetentionPolicy() throws Exception {
+		retentionPolicy = "two_hour";
+
+		MetricRegistryImpl metricRegistry = createMetricRegistry();
+		try {
+			String metricName = "TestCounter";
+			Counter counter = registerTestMetric(metricName, metricRegistry);
+			counter.inc(42);
+
+			stubFor(post(urlPathEqualTo("/write"))
+					.willReturn(aResponse()
+							.withStatus(200)));
+
+			InfluxdbReporter reporter = (InfluxdbReporter) metricRegistry.getReporters().get(0);
+			reporter.report();
+
+			verify(postRequestedFor(urlPathEqualTo("/write"))
+					.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
+					.withQueryParam("rp", equalTo(retentionPolicy))
+					.withHeader("Content-Type", containing("text/plain"))
+					.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
 		} finally {
 			metricRegistry.shutdown().get();
 		}
@@ -123,6 +152,7 @@ public class InfluxdbReporterTest extends TestLogger {
 		metricConfig.setProperty("host", "localhost");
 		metricConfig.setProperty("port", String.valueOf(wireMockRule.port()));
 		metricConfig.setProperty("db", TEST_INFLUXDB_DB);
+		metricConfig.setProperty("rp", retentionPolicy);
 
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),

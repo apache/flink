@@ -42,6 +42,7 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.DB;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.HOST;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PASSWORD;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.PORT;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.RETENTION_POLICY;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
@@ -53,6 +54,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 	private String database;
 	private InfluxDB influxDB;
+	private String retentionPolicy;
 
 	public InfluxdbReporter() {
 		super(new MeasurementInfoProvider());
@@ -79,6 +81,8 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		} else {
 			influxDB = InfluxDBFactory.connect(url);
 		}
+		this.retentionPolicy = getString(config, RETENTION_POLICY);
+
 		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}}", host, port, database);
 	}
 
@@ -102,7 +106,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 	private BatchPoints buildReport() {
 		Instant timestamp = Instant.now();
 		BatchPoints.Builder report = BatchPoints.database(database);
-		report.retentionPolicy("");
+		report.retentionPolicy(retentionPolicy);
 		try {
 			for (Map.Entry<Gauge<?>, MeasurementInfo> entry : gauges.entrySet()) {
 				report.point(MetricMapper.map(entry.getValue(), timestamp, entry.getKey()));
