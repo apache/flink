@@ -22,6 +22,8 @@ import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.flink.table.types.logical.TypeInformationAnyType
 
+import java.lang
+
 /**
   * Generic type for encapsulating Flink's [[TypeInformationAnyType]].
   *
@@ -54,5 +56,9 @@ class GenericRelDataType(
 
   override def hashCode(): Int = {
     genericType.hashCode()
+  }
+
+  override def generateTypeString(sb: lang.StringBuilder, withDetail: Boolean): Unit = {
+    sb.append(toString)
   }
 }
