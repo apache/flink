@@ -26,7 +26,6 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -164,10 +163,11 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 					.orElseThrow(() -> new ValidationException("Constant integer value expected."));
 				int end = ExpressionUtils.extractValue(call.getChildren().get(1), Integer.class)
 					.orElseThrow(() -> new ValidationException("Constant integer value expected."));
-				Preconditions.checkArgument(
-					start <= end,
-					String.format("The start:%s of %s() or %s() should not bigger than end:%s.",
-						start, WITH_COLUMNS.getName(), WITHOUT_COLUMNS.getName(), end));
+				if (start > end) {
+					throw new ValidationException(
+						String.format("The start:%s of %s() or %s() should not bigger than end:%s.",
+							start, WITH_COLUMNS.getName(), WITHOUT_COLUMNS.getName(), end));
+				}
 
 				return inputFieldReferences.subList(start - 1, end);
 
@@ -177,10 +177,11 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
 				int start = indexOfName(inputFieldReferences, startName);
 				int end = indexOfName(inputFieldReferences, endName);
-				Preconditions.checkArgument(
-					start <= end,
-					String.format("The start name:%s of %s() or %s() should not behind the end:%s.",
-						startName, WITH_COLUMNS.getName(), WITHOUT_COLUMNS.getName(), endName));
+				if (start > end) {
+					throw new ValidationException(
+						String.format("The start name:%s of %s() or %s() should not behind the end:%s.",
+							startName, WITH_COLUMNS.getName(), WITHOUT_COLUMNS.getName(), endName));
+				}
 
 				return inputFieldReferences.subList(start, end + 1);
 			} else {

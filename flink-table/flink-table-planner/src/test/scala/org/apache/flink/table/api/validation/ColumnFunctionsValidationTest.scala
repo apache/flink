@@ -36,7 +36,7 @@ class ColumnFunctionsValidationTest extends TableTestBase {
 
   @Test
   def testIndexRangeInvalid(): Unit = {
-    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       s"The start:2 of $withCol() or $withoutCol() should not bigger than end:1")
 
@@ -47,7 +47,7 @@ class ColumnFunctionsValidationTest extends TableTestBase {
 
   @Test
   def testNameRangeInvalid(): Unit = {
-    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       s"The start name:b of $withCol() or $withoutCol() should not behind the end:a.")
 
