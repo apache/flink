@@ -19,7 +19,8 @@ import os
 import tempfile
 import json
 
-from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.common import (ExecutionConfig, RestartStrategies, CheckpointConfig,
+                            CheckpointingMode)
 from pyflink.streaming import StreamExecutionEnvironment
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -114,6 +115,30 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.disable_operation_chaining()
 
         assert self.env.is_chaining_enabled() is False
+
+    def test_get_checkpoint_config(self):
+
+        checkpoint_config = self.env.get_checkpoint_config()
+
+        assert isinstance(checkpoint_config, CheckpointConfig)
+
+    def test_get_set_checkpoint_interval(self):
+
+        self.env.enable_checkpointing(30000)
+
+        interval = self.env.get_checkpoint_interval()
+
+        assert interval == 30000
+
+    def test_get_set_checkpointing_mode(self):
+        mode = self.env.get_checkpointing_mode()
+        assert mode == CheckpointingMode.EXACTLY_ONCE
+
+        self.env.enable_checkpointing(30000, CheckpointingMode.AT_LEAST_ONCE)
+
+        mode = self.env.get_checkpointing_mode()
+
+        assert mode == CheckpointingMode.AT_LEAST_ONCE
 
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()

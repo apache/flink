@@ -15,7 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.common import CheckpointConfig, CheckpointingMode, RestartStrategies
+from pyflink.common.execution_config import ExecutionConfig
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
 
@@ -146,6 +147,67 @@ class StreamExecutionEnvironment(object):
         :return: True if chaining is enabled, false otherwise.
         """
         return self._j_stream_execution_environment.isChainingEnabled()
+
+    def get_checkpoint_config(self):
+        """
+        Gets the checkpoint config, which defines values like checkpoint interval, delay between
+        checkpoints, etc.
+
+        :return: The :class:`~pyflink.common.CheckpointConfig`.
+        """
+        j_checkpoint_config = self._j_stream_execution_environment.getCheckpointConfig()
+        return CheckpointConfig(j_checkpoint_config)
+
+    def enable_checkpointing(self, interval, mode=None):
+        """
+        Enables checkpointing for the streaming job. The distributed state of the streaming
+        dataflow will be periodically snapshotted. In case of a failure, the streaming
+        dataflow will be restarted from the latest completed checkpoint.
+
+        The job draws checkpoints periodically, in the given interval. The system uses the
+        given :class:`~pyflink.common.CheckpointingMode` for the checkpointing ("exactly once"
+        vs "at least once"). The state will be stored in the configured state backend.
+
+        .. note::
+            Checkpointing iterative streaming dataflows in not properly supported at
+            the moment. For that reason, iterative jobs will not be started if used
+            with enabled checkpointing.
+
+        :param interval: Time interval between state checkpoints in milliseconds.
+        :param mode: The checkpointing mode, selecting between "exactly once" and "at least once"
+                     guaranteed.
+        :return: This object.
+        """
+        if mode is None:
+            self._j_stream_execution_environment = \
+                self._j_stream_execution_environment.enableCheckpointing(interval)
+        else:
+            j_checkpointing_mode = CheckpointingMode._to_j_checkpointing_mode(mode)
+            self._j_stream_execution_environment.enableCheckpointing(
+                interval,
+                j_checkpointing_mode)
+        return self
+
+    def get_checkpoint_interval(self):
+        """
+        Returns the checkpointing interval or -1 if checkpointing is disabled.
+
+        Shorthand for get_checkpoint_config().get_checkpoint_interval().
+
+        :return: The checkpointing interval or -1.
+        """
+        return self._j_stream_execution_environment.getCheckpointInterval()
+
+    def get_checkpointing_mode(self):
+        """
+        Returns the checkpointing mode (exactly-once vs. at-least-once).
+
+        Shorthand for get_checkpoint_config().get_checkpointing_mode().
+
+        :return: The :class:`~pyflink.common.CheckpointingMode`.
+        """
+        j_checkpointing_mode = self._j_stream_execution_environment.getCheckpointingMode()
+        return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
 
     def set_restart_strategy(self, restart_strategy_configuration):
         """

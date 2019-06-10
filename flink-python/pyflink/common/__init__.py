@@ -15,12 +15,17 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.common.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
+from pyflink.common.checkpointing_mode import CheckpointingMode
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.common.restart_strategy import RestartStrategies
 
 __all__ = [
+    'CheckpointConfig',
+    'ExternalizedCheckpointCleanup',
+    'CheckpointingMode',
     'ExecutionConfig',
     'ExecutionMode',
     'InputDependencyConstraint',
