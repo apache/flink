@@ -111,20 +111,24 @@ public class HiveCatalog extends AbstractCatalog {
 	private static final String FLINK_FUNCTION_PREFIX = "flink:";
 
 	private final HiveConf hiveConf;
+	private final String hiveVersion;
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl) {
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl, String hiveVersion) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
-			createHiveConf(hiveSiteUrl));
+			createHiveConf(hiveSiteUrl),
+			hiveVersion);
 	}
 
 	@VisibleForTesting
-	protected HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
+	protected HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf, String hiveVersion) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
+		this.hiveVersion = hiveVersion;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
@@ -137,10 +141,15 @@ public class HiveCatalog extends AbstractCatalog {
 		return new HiveConf();
 	}
 
+	@VisibleForTesting
+	public String getHiveVersion() {
+		return hiveVersion;
+	}
+
 	@Override
 	public void open() throws CatalogException {
 		if (client == null) {
-			client = HiveMetastoreClientFactory.create(hiveConf);
+			client = HiveMetastoreClientFactory.create(hiveConf, hiveVersion);
 			LOG.info("Connected to Hive metastore");
 		}
 

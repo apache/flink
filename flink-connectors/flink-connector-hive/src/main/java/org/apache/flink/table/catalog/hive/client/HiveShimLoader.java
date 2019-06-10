@@ -42,8 +42,7 @@ public class HiveShimLoader {
 	private HiveShimLoader() {
 	}
 
-	public static HiveShim loadHiveShim() {
-		String version = HiveVersionInfo.getVersion();
+	public static HiveShim loadHiveShim(String version) {
 		return hiveShims.computeIfAbsent(version, (v) -> {
 			if (v.startsWith(HIVE_V1_VERSION_NAME)) {
 				return new HiveShimV1();
@@ -53,5 +52,9 @@ public class HiveShimLoader {
 			}
 			throw new CatalogException("Unsupported Hive version " + v);
 		});
+	}
+
+	public static String getHiveVersion() {
+		return HiveVersionInfo.getVersion();
 	}
 }

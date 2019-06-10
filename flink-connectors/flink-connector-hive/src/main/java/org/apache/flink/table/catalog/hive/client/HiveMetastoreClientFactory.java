@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.util.StringUtils;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 
 /**
@@ -28,7 +30,8 @@ public class HiveMetastoreClientFactory {
 	private HiveMetastoreClientFactory() {
 	}
 
-	public static HiveMetastoreClientWrapper create(HiveConf hiveConf) {
-		return new HiveMetastoreClientWrapper(hiveConf);
+	public static HiveMetastoreClientWrapper create(HiveConf hiveConf, String hiveVersion) {
+		return new HiveMetastoreClientWrapper(hiveConf,
+				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
 	}
 }

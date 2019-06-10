@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
@@ -178,7 +179,7 @@ public class DependencyTest {
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
-			return HiveTestUtils.createHiveCatalog(name);
+			return HiveTestUtils.createHiveCatalog(name, properties.get(HiveCatalogValidator.CATALOG_HIVE_VERSION));
 		}
 	}
 }

@@ -20,6 +20,8 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
@@ -38,15 +40,16 @@ public class HiveTestUtils {
 	 * Create a HiveCatalog with an embedded Hive Metastore.
 	 */
 	public static HiveCatalog createHiveCatalog() {
-		return createHiveCatalog(CatalogTestBase.TEST_CATALOG_NAME);
+		return createHiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null);
 	}
 
-	public static HiveCatalog createHiveCatalog(String catalogName) {
-		return new HiveCatalog(catalogName, null, createHiveConf());
+	public static HiveCatalog createHiveCatalog(String name, String hiveVersion) {
+		return new HiveCatalog(name, null, createHiveConf(),
+				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
-		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf);
+		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion());
 	}
 
 	public static HiveConf createHiveConf() {

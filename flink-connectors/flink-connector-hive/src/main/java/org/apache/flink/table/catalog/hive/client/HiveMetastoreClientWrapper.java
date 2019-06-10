@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -43,6 +44,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Wrapper class for Hive Metastore Client, which embeds a HiveShim layer to handle different Hive versions.
  * Methods provided mostly conforms to IMetaStoreClient interfaces except those that require shims.
@@ -54,9 +57,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	private final IMetaStoreClient client;
 	private final HiveConf hiveConf;
+	private final String hiveVersion;
 
-	public HiveMetastoreClientWrapper(HiveConf hiveConf) {
+	public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
 		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
+		this.hiveVersion = hiveVersion;
 		client = createMetastoreClient();
 	}
 
@@ -210,17 +216,17 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	//-------- Start of shimmed methods ----------
 
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getViews(client, databaseName);
 	}
 
 	private IMetaStoreClient createMetastoreClient() {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getHiveMetastoreClient(hiveConf);
 	}
 
 	public Function getFunction(String databaseName, String functionName) throws MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getFunction(client, databaseName, functionName);
 	}
 }

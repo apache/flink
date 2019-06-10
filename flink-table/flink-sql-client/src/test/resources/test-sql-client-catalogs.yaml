@@ -130,3 +130,7 @@ catalogs:
   - name: mycatalog
     type: hive
     test: test
+    hive-version: 2.3.4
+  - name: hivedefaultversion
+    type: hive
+    test: test
