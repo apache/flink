@@ -106,8 +106,8 @@ public class MemoryMappedBuffersTest {
 	private static void testGetSize(int regionSize) throws Exception {
 		final int bufferSize1 = 60_787;
 		final int bufferSize2 = 76_687;
-		final int expectedSize1 = bufferSize1 + BufferToByteBuffer.HEADER_LENGTH;
-		final int expectedSizeFinal = bufferSize1 + bufferSize2 + 2 * BufferToByteBuffer.HEADER_LENGTH;
+		final int expectedSize1 = bufferSize1 + BufferReaderWriterUtil.HEADER_LENGTH;
+		final int expectedSizeFinal = bufferSize1 + bufferSize2 + 2 * BufferReaderWriterUtil.HEADER_LENGTH;
 
 		try (MemoryMappedBuffers memory = MemoryMappedBuffers.createWithRegionSize(createTempPath(), regionSize)) {
 

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.BufferToByteBuffer.Writer;
 import org.apache.flink.util.IOUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
@@ -28,6 +27,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Files;
@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>Most of the code in this class is a workaround for the fact that a memory mapped region in Java cannot
  * be larger than 2GB (== signed 32 bit int max value). The class takes {@link Buffer Buffers} and
- * writes them to several memory mapped region, using the {@link BufferToByteBuffer}
+ * writes them to several memory mapped region, using the {@link BufferReaderWriterUtil}
  * class.
  *
  * <h2>Important!</h2>
@@ -64,10 +64,10 @@ final class MemoryMappedBuffers implements BoundedData {
 	/** Memory mappings should be at the granularity of page sizes, for efficiency. */
 	private static final int PAGE_SIZE = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
 
-	/** The encoder to the current memory mapped region we are writing to.
+	/** The the current memory mapped region we are writing to.
 	 * This value is null once writing has finished or the buffers are disposed. */
 	@Nullable
-	private BufferToByteBuffer.Writer currentBuffer;
+	private ByteBuffer currentBuffer;
 
 	/** All memory mapped regions that are already full (completed). */
 	private final ArrayList<ByteBuffer> fullBuffers;
@@ -101,13 +101,13 @@ final class MemoryMappedBuffers implements BoundedData {
 	public void writeBuffer(Buffer buffer) throws IOException {
 		assert currentBuffer != null;
 
-		if (currentBuffer.writeBuffer(buffer)) {
+		if (BufferReaderWriterUtil.writeBuffer(buffer, currentBuffer)) {
 			return;
 		}
 
 		rollOverToNextBuffer();
 
-		if (!currentBuffer.writeBuffer(buffer)) {
+		if (!BufferReaderWriterUtil.writeBuffer(buffer, currentBuffer)) {
 			throwTooLargeBuffer(buffer);
 		}
 	}
@@ -117,7 +117,7 @@ final class MemoryMappedBuffers implements BoundedData {
 		assert currentBuffer == null;
 
 		final List<ByteBuffer> buffers = fullBuffers.stream()
-				.map(ByteBuffer::slice)
+				.map((bb) -> bb.slice().order(ByteOrder.nativeOrder()))
 				.collect(Collectors.toList());
 
 		return new BufferSlicer(buffers);
@@ -131,7 +131,8 @@ final class MemoryMappedBuffers implements BoundedData {
 	public void finishWrite() throws IOException {
 		assert currentBuffer != null;
 
-		fullBuffers.add(currentBuffer.complete());
+		currentBuffer.flip();
+		fullBuffers.add(currentBuffer);
 		currentBuffer = null; // fail further writes fast
 		file.close(); // won't map further regions from now on
 	}
@@ -150,7 +151,7 @@ final class MemoryMappedBuffers implements BoundedData {
 		fullBuffers.clear();
 
 		if (currentBuffer != null) {
-			PlatformDependent.freeDirectBuffer(currentBuffer.complete());
+			PlatformDependent.freeDirectBuffer(currentBuffer);
 			currentBuffer = null;
 		}
 
@@ -171,7 +172,7 @@ final class MemoryMappedBuffers implements BoundedData {
 			size += bb.remaining();
 		}
 		if (currentBuffer != null) {
-			size += currentBuffer.getNumBytes();
+			size += currentBuffer.position();
 		}
 		return size;
 	}
@@ -180,11 +181,12 @@ final class MemoryMappedBuffers implements BoundedData {
 		if (currentBuffer != null) {
 			// we need to remember the original buffers, not any slices.
 			// slices have no cleaner, which we need to trigger explicit unmapping
-			fullBuffers.add(currentBuffer.complete());
+			currentBuffer.flip();
+			fullBuffers.add(currentBuffer);
 		}
 
-		final ByteBuffer mapped = file.map(MapMode.READ_WRITE, nextMappingOffset, mappingSize);
-		currentBuffer = new Writer(mapped);
+		currentBuffer = file.map(MapMode.READ_WRITE, nextMappingOffset, mappingSize);
+		currentBuffer.order(ByteOrder.nativeOrder());
 		nextMappingOffset += mappingSize;
 	}
 
@@ -215,9 +217,9 @@ final class MemoryMappedBuffers implements BoundedData {
 	 */
 	static final class BufferSlicer implements BoundedData.Reader {
 
-		/** The reader/decoder to the memory mapped region with the data we currently read from.
+		/** The memory mapped region we currently read from.
 		 * Max 2GB large. Further regions may be in the {@link #furtherData} field. */
-		private BufferToByteBuffer.Reader data;
+		private ByteBuffer data;
 
 		/** Further byte buffers, to handle cases where there is more data than fits into
 		 * one mapped byte buffer (2GB = Integer.MAX_VALUE). */
@@ -225,7 +227,7 @@ final class MemoryMappedBuffers implements BoundedData {
 
 		BufferSlicer(Iterable<ByteBuffer> data) {
 			this.furtherData = data.iterator();
-			this.data = new BufferToByteBuffer.Reader(furtherData.next());
+			this.data = furtherData.next();
 		}
 
 		@Override
@@ -235,7 +237,7 @@ final class MemoryMappedBuffers implements BoundedData {
 			// should not be called any more
 			assert data != null;
 
-			final Buffer next = data.sliceNextBuffer();
+			final Buffer next = BufferReaderWriterUtil.sliceNextBuffer(data);
 			if (next != null) {
 				return next;
 			}
@@ -244,7 +246,7 @@ final class MemoryMappedBuffers implements BoundedData {
 				return null;
 			}
 
-			data = new BufferToByteBuffer.Reader(furtherData.next());
+			data = furtherData.next();
 			return nextBuffer();
 		}
 
