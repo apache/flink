@@ -448,8 +448,8 @@ the provided `Map<String, String>`:
  * **bulk.flush.concurrent.requests**: Number of bulk concurrent requests.
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>NOTE</b>: If the number of <b>bulk.flush.concurrent.requests</b> is larger than 0, 
-this makes bulk flush asynchronous. Be aware that this essentially means the sink will not provide 
+<b>NOTE</b>: If the number of <b>bulk.flush.concurrent.requests</b> is larger than 0,
+this makes bulk flush asynchronous. Be aware that this essentially means the sink will not provide
 any strong delivery guarantees anymore, even with checkpoint for the topology enabled.
 </p>
 
