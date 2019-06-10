@@ -19,13 +19,22 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -35,24 +44,32 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link DefaultExecutionSlotAllocator}.
  */
 public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
-	private TestingSlotProvider slotProvider;
+	private ParamsCapturedTestingSlotProvider slotProvider;
 
 	private Queue<CompletableFuture<LogicalSlot>> slotFutures;
 
@@ -66,7 +83,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		cancelledSlotRequestIds = new ArrayList<>();
 		slotFutures = new ArrayDeque<>();
 
-		slotProvider = new TestingSlotProvider(slotRequestId -> {
+		slotProvider = new ParamsCapturedTestingSlotProvider(slotRequestId -> {
 			receivedSlotRequestIds.add(slotRequestId);
 			return slotFutures.poll();
 		});
@@ -105,7 +122,54 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		inputsLocationsRetriever.assignTaskManagerLocation(producerId);
 
 		assertTrue(consumerSlotAssignment.getLogicalSlotFuture().isDone());
-		assertThat(executionSlotAllocator.getPendingSlotAssignments().keySet(), hasSize(0));
+		assertEquals(0, executionSlotAllocator.getNumberOfPendingSlotAssignments());
+	}
+
+	/**
+	 * Tests that validate the parameters when calling allocateSlot in SlotProvider.
+	 */
+	@Test
+	public void testAllocateSlotsParameters() throws Exception {
+		slotFutures.add(CompletableFuture.completedFuture(new TestingLogicalSlot()));
+		final CompletableFuture<ScheduledUnit> taskFuture = new CompletableFuture<>();
+		final CompletableFuture<SlotProfile> slotProfileFuture = new CompletableFuture<>();
+
+		slotProvider.setRequestSlotParamsCapture((slotRequestIdScheduledUnitSlotProfileTuple3) -> {
+			taskFuture.complete(slotRequestIdScheduledUnitSlotProfileTuple3.f1);
+			slotProfileFuture.complete(slotRequestIdScheduledUnitSlotProfileTuple3.f2);
+		});
+
+		final ExecutionVertexID executionVertexId1 = new ExecutionVertexID(new JobVertexID(), 0);
+		final AllocationID allocationId = new AllocationID();
+		final SlotSharingGroupId sharingGroupId = new SlotSharingGroupId();
+		final ResourceProfile resourceProfile = new ResourceProfile(0.5, 250);
+		final CoLocationConstraint coLocationConstraint = new CoLocationGroup().getLocationConstraint(0);
+		final Collection<TaskManagerLocation> taskManagerLocations = Collections.singleton(new LocalTaskManagerLocation());
+
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
+
+		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Arrays.asList(
+				new ExecutionVertexSchedulingRequirements.Builder()
+						.withExecutionVertexId(executionVertexId1)
+						.withPreviousAllocationId(allocationId)
+						.withSlotSharingGroupId(sharingGroupId)
+						.withPreferredLocations(taskManagerLocations)
+						.withResourceProfile(resourceProfile)
+						.withCoLocationConstraint(coLocationConstraint)
+						.build()
+		);
+
+		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+
+		ScheduledUnit expectedTask = taskFuture.get();
+		SlotProfile expectedSlotProfile = slotProfileFuture.get();
+
+		assertEquals(sharingGroupId, expectedTask.getSlotSharingGroupId());
+		assertEquals(coLocationConstraint, expectedTask.getCoLocationConstraint());
+		assertThat(expectedSlotProfile.getPreferredAllocations(), contains(allocationId));
+		assertThat(expectedSlotProfile.getPreviousExecutionGraphAllocations(), contains(allocationId));
+		assertEquals(resourceProfile, expectedSlotProfile.getResourceProfile());
+		assertThat(expectedSlotProfile.getPreferredLocations(), contains(taskManagerLocations.toArray()));
 	}
 
 	/**
@@ -113,15 +177,12 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 */
 	@Test
 	public void testCancelNonExistingExecutionVertex() {
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = new TestingInputsLocationsRetriever.Builder()
-				.build();
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
 		ExecutionVertexID inValidExecutionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		executionSlotAllocator.cancel(inValidExecutionVertexId);
 
-		assertThat(cancelledSlotRequestIds, hasSize(0));
+		assertThat(cancelledSlotRequestIds, is(empty()));
 	}
 
 	/**
@@ -132,10 +193,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		slotFutures.add(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
 
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = new TestingInputsLocationsRetriever.Builder()
-				.build();
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
 				createSchedulingRequirements(producerId);
@@ -143,7 +201,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 		executionSlotAllocator.cancel(producerId);
 
-		assertThat(cancelledSlotRequestIds, hasSize(0));
+		assertThat(cancelledSlotRequestIds, is(empty()));
 	}
 
 	/**
@@ -154,47 +212,46 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		slotFutures.add(new CompletableFuture<>());
 		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
 
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = new TestingInputsLocationsRetriever.Builder()
-				.build();
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
 				createSchedulingRequirements(producerId);
-		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+		Collection<SlotExecutionVertexAssignment> assignments = executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
 
 		executionSlotAllocator.cancel(producerId);
 
 		assertThat(cancelledSlotRequestIds, hasSize(1));
 		assertThat(cancelledSlotRequestIds, contains(receivedSlotRequestIds.toArray()));
+
+		try {
+			assignments.iterator().next().getLogicalSlotFuture().get();
+			fail("Expect a CancellationException but got nothing.");
+		} catch (CancellationException e) {
+			//
+		} catch (Exception e) {
+			fail("Expect an CancellationException but got " + e);
+		}
 	}
 
 	/**
 	 * Tests that all unfulfilled slot requests will be cancelled when stopped.
 	 */
 	@Test
-	public void testStop() {
+	public void testStop() throws Exception {
 		slotFutures.add(new CompletableFuture<>());
-		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
-		final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
+		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = new TestingInputsLocationsRetriever.Builder()
-				.connectConsumerToProducer(consumerId, producerId)
-				.build();
-
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
-
-		inputsLocationsRetriever.markScheduled(producerId);
+		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-				createSchedulingRequirements(producerId, consumerId);
+				createSchedulingRequirements(executionVertexId);
 		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
 
-		executionSlotAllocator.stop().getNow(null);
+		executionSlotAllocator.stop().get();
 
 		assertThat(cancelledSlotRequestIds, hasSize(1));
 		assertThat(cancelledSlotRequestIds, contains(receivedSlotRequestIds.toArray()));
-		assertThat(executionSlotAllocator.getPendingSlotAssignments().keySet(), hasSize(0));
+		assertEquals(0, executionSlotAllocator.getNumberOfPendingSlotAssignments());
 	}
 
 	/**
@@ -221,16 +278,15 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 						build()
 		);
 
-		final TestingInputsLocationsRetriever inputsLocationsRetriever = new TestingInputsLocationsRetriever.Builder()
-				.build();
-		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator(inputsLocationsRetriever);
-
-		Set<AllocationID> allPriorAllocationIds = executionSlotAllocator.computeAllPriorAllocationIds(testSchedulingRequirements);
+		Set<AllocationID> allPriorAllocationIds = DefaultExecutionSlotAllocator.computeAllPriorAllocationIds(testSchedulingRequirements);
 		assertThat(allPriorAllocationIds, containsInAnyOrder(expectAllocationIds.toArray()));
 	}
 
-	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(InputsLocationsRetriever inputsLocationsRetriever) {
+	private DefaultExecutionSlotAllocator createExecutionSlotAllocator() {
+		return createExecutionSlotAllocator(new TestingInputsLocationsRetriever.Builder().build());
+	}
 
+	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(InputsLocationsRetriever inputsLocationsRetriever) {
 		return new DefaultExecutionSlotAllocator(slotProvider, inputsLocationsRetriever, Time.seconds(10));
 	}
 
@@ -247,11 +303,30 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	private SlotExecutionVertexAssignment findSlotAssignmentByExecutionVertexId(
 			ExecutionVertexID executionVertexId,
 			Collection<SlotExecutionVertexAssignment> slotExecutionVertexAssignments) {
-		for (SlotExecutionVertexAssignment slotExecutionVertexAssignment : slotExecutionVertexAssignments) {
-			if (slotExecutionVertexAssignment.getExecutionVertexId().equals(executionVertexId)) {
-				return slotExecutionVertexAssignment;
-			}
+		return slotExecutionVertexAssignments.stream()
+				.filter(slotExecutionVertexAssignment -> slotExecutionVertexAssignment.getExecutionVertexId().equals(executionVertexId))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException(String.format(
+						"SlotExecutionVertexAssignment with execution vertex id %s not found",
+						executionVertexId)));
+	}
+
+	private class ParamsCapturedTestingSlotProvider extends TestingSlotProvider {
+
+		private Consumer<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> paramsCapture = (ignored) -> {};
+
+		public ParamsCapturedTestingSlotProvider(Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator) {
+			super(slotFutureCreator);
 		}
-		return null;
+
+		public void setRequestSlotParamsCapture(Consumer<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> paramsCapture) {
+			this.paramsCapture = paramsCapture;
+		}
+
+		@Override
+		public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, SlotProfile slotProfile, boolean allowQueued, Time timeout) {
+			paramsCapture.accept(Tuple3.of(slotRequestId, task, slotProfile));
+			return super.allocateSlot(slotRequestId, task, slotProfile, allowQueued, timeout);
+		}
 	}
 }

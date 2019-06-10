@@ -105,7 +105,6 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 									slotProvider.allocateSlot(
 											slotRequestId,
 											new ScheduledUnit(
-													null,
 													executionVertexId.getJobVertexId(),
 													slotSharingGroupId,
 													schedulingRequirements.getCoLocationConstraint()),
@@ -162,7 +161,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 			Collection<TaskManagerLocation> preferredLocationsBasedOnState,
 			InputsLocationsRetriever inputsLocationsRetriever) {
 
-		if (preferredLocationsBasedOnState != null && !preferredLocationsBasedOnState.isEmpty()) {
+		if (!preferredLocationsBasedOnState.isEmpty()) {
 			return CompletableFuture.completedFuture(preferredLocationsBasedOnState);
 		}
 
@@ -244,7 +243,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 	}
 
 	@VisibleForTesting
-	Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingSlotAssignments() {
-		return Collections.unmodifiableMap(pendingSlotAssignments);
+	int getNumberOfPendingSlotAssignments() {
+		return pendingSlotAssignments.size();
 	}
 }
