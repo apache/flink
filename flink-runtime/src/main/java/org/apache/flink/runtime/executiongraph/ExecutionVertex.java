@@ -73,7 +73,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
-	public static final int ABC = 1;
 	// --------------------------------------------------------------------------------------------
 
 	private final ExecutionJobVertex jobVertex;
