@@ -684,8 +684,7 @@ public class FlinkKafkaProducer011<IN>
 				IOUtils.closeQuietly(currentTransaction().producer);
 			}
 			// Make sure all the producers for pending transactions are closed.
-			pendingTransactions().forEach(transaction ->
-											  IOUtils.closeQuietly(transaction.getValue().producer)
+			pendingTransactions().forEach(transaction -> IOUtils.closeQuietly(transaction.getValue().producer)
 			);
 			// make sure we propagate pending errors
 			checkErroneous();
