@@ -26,8 +26,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
-import akka.dispatch.OnComplete;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -807,20 +805,8 @@ public class FutureUtils {
 	 * @return Java 8 CompletableFuture
 	 */
 	public static <T, U extends T> CompletableFuture<T> toJava(Future<U> scalaFuture) {
-		final CompletableFuture<T> result = new CompletableFuture<>();
-
-		scalaFuture.onComplete(new OnComplete<U>() {
-			@Override
-			public void onComplete(Throwable failure, U success) {
-				if (failure != null) {
-					result.completeExceptionally(failure);
-				} else {
-					result.complete(success);
-				}
-			}
-		}, Executors.directExecutionContext());
-
-		return result;
+		//noinspection unchecked
+		return scala.compat.java8.FutureConverters.toJava((Future<T>) scalaFuture).toCompletableFuture();
 	}
 
 	/**
