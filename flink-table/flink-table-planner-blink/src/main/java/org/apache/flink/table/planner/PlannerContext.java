@@ -180,7 +180,7 @@ public class PlannerContext {
 	/**
 	 * Returns the {@link SqlToRelConverter} config.
 	 *
-	 * `expand` is set as false, and each sub-query becomes a [[org.apache.calcite.rex.RexSubQuery]].
+	 * <p>`expand` is set as false, and each sub-query becomes a [[org.apache.calcite.rex.RexSubQuery]].
 	 */
 	private SqlToRelConverter.Config getSqlToRelConverterConfig(CalciteConfig calciteConfig) {
 		return JavaScalaConversionUtil.toJava(calciteConfig.getSqlToRelConverterConfig()).orElseGet(
