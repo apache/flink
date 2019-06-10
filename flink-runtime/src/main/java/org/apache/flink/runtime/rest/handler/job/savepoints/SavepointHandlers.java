@@ -141,6 +141,7 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 			final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+			final long savepointTimeout = request.getRequestBody().getTimeout();
 
 			if (requestedTargetDirectory == null && defaultSavepointDir == null) {
 				throw new RestHandlerException(
@@ -152,7 +153,7 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 
 			final boolean advanceToEndOfEventTime = request.getRequestBody().shouldDrain();
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
-			return gateway.stopWithSavepoint(jobId, targetDirectory, advanceToEndOfEventTime, RpcUtils.INF_TIMEOUT);
+			return gateway.stopWithSavepoint(jobId, targetDirectory, advanceToEndOfEventTime, RpcUtils.INF_TIMEOUT, savepointTimeout);
 		}
 	}
 
@@ -172,6 +173,7 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 		protected CompletableFuture<String> triggerOperation(HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 			final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
+			final long savepointTimeout = request.getRequestBody().getTimeout();
 
 			if (requestedTargetDirectory == null && defaultSavepointDir == null) {
 				throw new RestHandlerException(
@@ -183,7 +185,7 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 
 			final boolean cancelJob = request.getRequestBody().isCancelJob();
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
-			return gateway.triggerSavepoint(jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
+			return gateway.triggerSavepoint(jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT, savepointTimeout);
 		}
 	}
 

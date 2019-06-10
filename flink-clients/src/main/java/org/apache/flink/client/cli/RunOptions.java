@@ -18,14 +18,31 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.util.Preconditions;
+
 import org.apache.commons.cli.CommandLine;
+
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_TIMEOUT_OPTION;
 
 /**
  * Command line options for the RUN command.
  */
 public class RunOptions extends ProgramOptions {
 
+	private final long savepointTimeout;
+
 	public RunOptions(CommandLine line) throws CliArgsException {
 		super(line);
+		if (getSavepointRestoreSettings().restoreSavepoint() && line.hasOption(SAVEPOINT_TIMEOUT_OPTION.getOpt())) {
+			this.savepointTimeout = Long.parseLong(line.getOptionValue(SAVEPOINT_TIMEOUT_OPTION.getOpt()));
+			Preconditions.checkArgument(savepointTimeout == -1L || savepointTimeout >= 1L,
+				"Checkpoint timeout must be larger than zero or equal to -1.");
+		} else {
+			this.savepointTimeout = -1L;
+		}
+	}
+
+	public long getSavepointTimeout() {
+		return savepointTimeout;
 	}
 }

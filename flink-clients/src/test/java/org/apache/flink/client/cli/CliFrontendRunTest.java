@@ -32,6 +32,7 @@ import java.util.Collections;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -94,6 +95,28 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertTrue(savepointSettings.restoreSavepoint());
 			assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
 			assertTrue(savepointSettings.allowNonRestoredState());
+		}
+
+		// test configure savepoint path (with savepoint timeout)
+		{
+			String[] parameters = {"-s", "expectedSavepointPath", "-st", "100000" , getTestJarPath()};
+			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+			SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+			assertTrue(savepointSettings.restoreSavepoint());
+			assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+			assertEquals(100000L, options.getSavepointTimeout());
+			assertFalse(savepointSettings.allowNonRestoredState());
+		}
+
+		// test ignore savepoint timeout
+		{
+			String[] parameters = {"-st", "100000" , getTestJarPath()};
+			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+			SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+			assertFalse(savepointSettings.restoreSavepoint());
+			assertNull(savepointSettings.getRestorePath());
+			assertEquals(-1L, options.getSavepointTimeout());
+			assertFalse(savepointSettings.allowNonRestoredState());
 		}
 
 		// test jar arguments

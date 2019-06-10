@@ -130,7 +130,7 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 				Assert.fail("Failed to initialize state within deadline");
 			}
 
-			CompletableFuture<String> path = client.triggerSavepoint(result.getJobID(), dirPath);
+			CompletableFuture<String> path = client.triggerSavepoint(result.getJobID(), dirPath, -1L);
 			return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 		} finally {
 			client.cancel(jobId);

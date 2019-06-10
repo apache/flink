@@ -114,6 +114,7 @@ public interface RestfulGateway extends RpcGateway {
 	 * @param jobId           ID of the job for which the savepoint should be triggered.
 	 * @param targetDirectory Target directory for the savepoint.
 	 * @param timeout         Timeout for the asynchronous operation
+	 * @param savepointTimeout Timeout for the savepoint
 	 * @return A future to the {@link CompletedCheckpoint#getExternalPointer() external pointer} of
 	 * the savepoint.
 	 */
@@ -121,7 +122,8 @@ public interface RestfulGateway extends RpcGateway {
 			JobID jobId,
 			String targetDirectory,
 			boolean cancelJob,
-			@RpcTimeout Time timeout) {
+			@RpcTimeout Time timeout,
+			long savepointTimeout) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -134,13 +136,15 @@ public interface RestfulGateway extends RpcGateway {
 	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
 	 *                              to fire any registered event-time timers
 	 * @param timeout for the rpc call
+	 * @param savepointTimeout Timeout for savepoint
 	 * @return Future which is completed with the savepoint path once completed
 	 */
 	default CompletableFuture<String> stopWithSavepoint(
 			final JobID jobId,
 			final String targetDirectory,
 			final boolean advanceToEndOfEventTime,
-			@RpcTimeout final Time timeout) {
+			@RpcTimeout final Time timeout,
+			final long savepointTimeout) {
 		throw new UnsupportedOperationException();
 	}
 

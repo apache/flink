@@ -222,12 +222,14 @@ public interface JobMasterGateway extends
 	 * @param targetDirectory to which to write the savepoint data or null if the
 	 *                           default savepoint directory should be used
 	 * @param timeout for the rpc call
+	 * @param savepointTimeout Timeout for savepoint
 	 * @return Future which is completed with the savepoint path once completed
 	 */
 	CompletableFuture<String> triggerSavepoint(
 		@Nullable final String targetDirectory,
 		final boolean cancelJob,
-		@RpcTimeout final Time timeout);
+		@RpcTimeout final Time timeout,
+		final long savepointTimeout);
 
 	/**
 	 * Stops the job with a savepoint.
@@ -237,12 +239,14 @@ public interface JobMasterGateway extends
 	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
 	 *                              to fire any registered event-time timers
 	 * @param timeout for the rpc call
+	 * @param savepointTimeout Timeout for savepoint
 	 * @return Future which is completed with the savepoint path once completed
 	 */
 	CompletableFuture<String> stopWithSavepoint(
 		@Nullable final String targetDirectory,
 		final boolean advanceToEndOfEventTime,
-		@RpcTimeout final Time timeout);
+		@RpcTimeout final Time timeout,
+		final long savepointTimeout);
 
 	/**
 	 * Requests the statistics on operator back pressure.

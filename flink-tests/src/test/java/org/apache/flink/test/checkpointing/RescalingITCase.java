@@ -210,7 +210,7 @@ public class RescalingITCase extends TestLogger {
 			// clear the CollectionSink set for the restarted job
 			CollectionSink.clearElementsSet();
 
-			CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+			CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null, -1L);
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
@@ -274,7 +274,7 @@ public class RescalingITCase extends TestLogger {
 			// wait until the operator is started
 			StateSourceBase.workStartedLatch.await();
 
-			CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+			CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null, -1L);
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
@@ -358,7 +358,7 @@ public class RescalingITCase extends TestLogger {
 			// clear the CollectionSink set for the restarted job
 			CollectionSink.clearElementsSet();
 
-			CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+			CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null, -1L);
 
 			final String savepointPath = savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
@@ -468,7 +468,7 @@ public class RescalingITCase extends TestLogger {
 			CompletableFuture<String> savepointPathFuture = FutureUtils.retryWithDelay(
 				() -> {
 					try {
-						return client.triggerSavepoint(jobID, null);
+						return client.triggerSavepoint(jobID, null, -1L);
 					} catch (FlinkException e) {
 						return FutureUtils.completedExceptionally(e);
 					}

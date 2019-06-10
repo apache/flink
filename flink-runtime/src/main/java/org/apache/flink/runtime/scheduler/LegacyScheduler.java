@@ -479,7 +479,7 @@ public class LegacyScheduler implements SchedulerNG {
 	}
 
 	@Override
-	public CompletableFuture<String> triggerSavepoint(final String targetDirectory, final boolean cancelJob) {
+	public CompletableFuture<String> triggerSavepoint(final String targetDirectory, final boolean cancelJob, long timeout) {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
@@ -500,7 +500,7 @@ public class LegacyScheduler implements SchedulerNG {
 		}
 
 		return checkpointCoordinator
-			.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+			.triggerSavepoint(System.currentTimeMillis(), targetDirectory, timeout)
 			.thenApply(CompletedCheckpoint::getExternalPointer)
 			.handleAsync((path, throwable) -> {
 				if (throwable != null) {
@@ -586,7 +586,7 @@ public class LegacyScheduler implements SchedulerNG {
 	}
 
 	@Override
-	public CompletableFuture<String> stopWithSavepoint(final String targetDirectory, final boolean advanceToEndOfEventTime) {
+	public CompletableFuture<String> stopWithSavepoint(final String targetDirectory, final boolean advanceToEndOfEventTime, long timeout) {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
@@ -613,7 +613,7 @@ public class LegacyScheduler implements SchedulerNG {
 
 		final long now = System.currentTimeMillis();
 		final CompletableFuture<String> savepointFuture = checkpointCoordinator
-				.triggerSynchronousSavepoint(now, advanceToEndOfEventTime, targetDirectory)
+				.triggerSynchronousSavepoint(now, advanceToEndOfEventTime, targetDirectory, timeout)
 				.thenApply(CompletedCheckpoint::getExternalPointer);
 
 		final CompletableFuture<JobStatus> terminationFuture = executionGraph

@@ -1526,7 +1526,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// trigger the first checkpoint. this should succeed
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
-		CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir, -1L);
 		assertFalse(savepointFuture.isDone());
 
 		// validate that we have a pending savepoint
@@ -1604,7 +1604,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// trigger another checkpoint and see that this one replaces the other checkpoint
 		// ---------------
 		final long timestampNew = timestamp + 7;
-		savepointFuture = coord.triggerSavepoint(timestampNew, savepointDir);
+		savepointFuture = coord.triggerSavepoint(timestampNew, savepointDir, -1L);
 		assertFalse(savepointFuture.isDone());
 
 		long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
@@ -1682,7 +1682,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
 		// Trigger savepoint and checkpoint
-		CompletableFuture<CompletedCheckpoint> savepointFuture1 = coord.triggerSavepoint(timestamp, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture1 = coord.triggerSavepoint(timestamp, savepointDir, -1L);
 		long savepointId1 = counter.getLast();
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
@@ -1706,7 +1706,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		assertTrue(coord.triggerCheckpoint(timestamp + 3, false));
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
 
-		CompletableFuture<CompletedCheckpoint> savepointFuture2 = coord.triggerSavepoint(timestamp + 4, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepointFuture2 = coord.triggerSavepoint(timestamp + 4, savepointDir, -1L);
 		long savepointId2 = counter.getLast();
 		assertEquals(3, coord.getNumberOfPendingCheckpoints());
 
@@ -2009,7 +2009,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// Trigger savepoints
 		for (int i = 0; i < numSavepoints; i++) {
-			savepointFutures.add(coord.triggerSavepoint(i, savepointDir));
+			savepointFutures.add(coord.triggerSavepoint(i, savepointDir, -1L));
 		}
 
 		// After triggering multiple savepoints, all should in progress
@@ -2063,10 +2063,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
-		CompletableFuture<CompletedCheckpoint> savepoint0 = coord.triggerSavepoint(0, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepoint0 = coord.triggerSavepoint(0, savepointDir, -1L);
 		assertFalse("Did not trigger savepoint", savepoint0.isDone());
 
-		CompletableFuture<CompletedCheckpoint> savepoint1 = coord.triggerSavepoint(1, savepointDir);
+		CompletableFuture<CompletedCheckpoint> savepoint1 = coord.triggerSavepoint(1, savepointDir, -1L);
 		assertFalse("Did not trigger savepoint", savepoint1.isDone());
 	}
 
@@ -2414,7 +2414,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			// trigger a savepoint and wait it to be finished
 			String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 			timestamp = System.currentTimeMillis();
-			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir, -1L);
 
 
 			KeyGroupRange keyGroupRangeForSavepoint = KeyGroupRange.of(1, 1);
@@ -3449,7 +3449,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 					null,
 					true,
-					false);
+					false,
+					-1L);
 			fail("The triggerCheckpoint call expected an exception");
 		} catch (CheckpointException e) {
 			assertEquals(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN, e.getCheckpointFailureReason());
@@ -3462,7 +3463,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 					CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 					null,
 					false,
-					false);
+					false,
+					-1L);
 		} catch (CheckpointException e) {
 			fail("Unexpected exception : " + e.getCheckpointFailureReason().message());
 		}

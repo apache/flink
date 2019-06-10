@@ -231,10 +231,11 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	 * Cancels a job identified by the job id and triggers a savepoint.
 	 * @param jobId the job id
 	 * @param savepointDirectory directory the savepoint should be written to
+	 * @param timeout the savepoint timeout
 	 * @return path where the savepoint is located
 	 * @throws Exception In case an error occurred.
 	 */
-	public abstract String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception;
+	public abstract String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory, long timeout) throws Exception;
 
 	/**
 	 * Stops a program on Flink cluster whose job-manager is configured in this client's configuration.
@@ -245,12 +246,13 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	 * @param jobId the job ID of the streaming program to stop
 	 * @param advanceToEndOfEventTime flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
 	 * @param savepointDirectory directory the savepoint should be written to
+	 * @param timeout the specified savepoint timeout
 	 * @return a {@link CompletableFuture} containing the path where the savepoint is located
 	 * @throws Exception
 	 *             If the job ID is invalid (ie, is unknown or refers to a batch job) or if sending the stop signal
 	 *             failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
 	 */
-	public abstract String stopWithSavepoint(final JobID jobId, final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory) throws Exception;
+	public abstract String stopWithSavepoint(final JobID jobId, final boolean advanceToEndOfEventTime, @Nullable final String savepointDirectory, final long timeout) throws Exception;
 
 	/**
 	 * Triggers a savepoint for the job identified by the job id. The savepoint will be written to the given savepoint
@@ -258,10 +260,11 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	 *
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
+	 * @param savepointTimeout timeout for savepoint
 	 * @return path future where the savepoint is located
 	 * @throws FlinkException if no connection to the cluster could be established
 	 */
-	public abstract CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException;
+	public abstract CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory, long savepointTimeout) throws FlinkException;
 
 	public abstract CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException;
 

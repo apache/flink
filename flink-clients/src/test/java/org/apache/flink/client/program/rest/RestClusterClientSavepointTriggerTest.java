@@ -129,6 +129,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 			request -> {
 				assertNull(request.getTargetDirectory());
 				assertFalse(request.isCancelJob());
+				assertEquals(20000L, request.getTimeout());
 				return triggerId;
 			},
 			trigger -> {
@@ -138,7 +139,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
 			final RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			final String savepointPath = restClusterClient.triggerSavepoint(new JobID(), null).get();
+			final String savepointPath = restClusterClient.triggerSavepoint(new JobID(), null, 20000L).get();
 			assertEquals(expectedReturnedSavepointDir, savepointPath);
 		}
 	}
@@ -153,6 +154,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 			triggerRequestBody -> {
 				assertEquals(expectedSubmittedSavepointDir, triggerRequestBody.getTargetDirectory());
 				assertFalse(triggerRequestBody.isCancelJob());
+				assertEquals(1000L, triggerRequestBody.getTimeout());
 				return triggerId;
 			},
 			statusRequestTriggerId -> {
@@ -162,7 +164,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
 			final RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			final String savepointPath = restClusterClient.triggerSavepoint(new JobID(), expectedSubmittedSavepointDir).get();
+			final String savepointPath = restClusterClient.triggerSavepoint(new JobID(), expectedSubmittedSavepointDir, 1000L).get();
 			assertEquals(expectedReturnedSavepointDir, savepointPath);
 		}
 	}
@@ -175,6 +177,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 		try (final RestServerEndpoint restServerEndpoint = createRestServerEndpoint(
 			request -> {
 				assertTrue(request.isCancelJob());
+				assertEquals(10000L, request.getTimeout());
 				return triggerId;
 			},
 			trigger -> {
@@ -184,7 +187,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
 			final RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			final String savepointPath = restClusterClient.cancelWithSavepoint(new JobID(), null);
+			final String savepointPath = restClusterClient.cancelWithSavepoint(new JobID(), null, 10000L);
 			assertEquals(expectedSavepointDir, savepointPath);
 		}
 	}
@@ -200,7 +203,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 			final RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
 			try {
-				restClusterClient.triggerSavepoint(new JobID(), null).get();
+				restClusterClient.triggerSavepoint(new JobID(), null, -1L).get();
 			} catch (ExecutionException e) {
 				final Throwable cause = e.getCause();
 				assertThat(cause, instanceOf(SerializedThrowable.class));
@@ -229,7 +232,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 
 			final RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
-			final String savepointPath = restClusterClient.triggerSavepoint(new JobID(), null).get();
+			final String savepointPath = restClusterClient.triggerSavepoint(new JobID(), null, -1L).get();
 			assertEquals(expectedSavepointDir, savepointPath);
 		}
 	}

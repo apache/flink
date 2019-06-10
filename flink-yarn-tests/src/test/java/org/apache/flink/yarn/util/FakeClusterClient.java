@@ -74,17 +74,17 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 	}
 
 	@Override
-	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) {
+	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory, long timeout) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
 	@Override
-	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) throws Exception {
+	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirectory, long timeout) throws Exception {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
 	@Override
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) {
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory, long savepointTimeout) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 

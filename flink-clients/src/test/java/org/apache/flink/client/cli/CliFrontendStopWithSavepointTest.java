@@ -73,7 +73,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(false), isNull());
+				.stopWithSavepoint(eq(jid), eq(false), isNull(), eq(-1L));
 	}
 
 	@Test
@@ -86,7 +86,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(false), isNull());
+				.stopWithSavepoint(eq(jid), eq(false), isNull(), eq(-1L));
 	}
 
 	@Test
@@ -99,7 +99,20 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(false), eq("test-target-dir"));
+				.stopWithSavepoint(eq(jid), eq(false), eq("test-target-dir"), eq(-1L));
+	}
+
+	@Test
+	public void testStopWithExplicitSavepointTimeout() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-s", jid.toString(), "-st", "100000" };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+			.stopWithSavepoint(eq(jid), eq(false), isNull(), eq(100000L));
 	}
 
 	@Test
@@ -112,7 +125,20 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(true), isNull());
+				.stopWithSavepoint(eq(jid), eq(true), isNull(), eq(-1L));
+	}
+
+	@Test
+	public void testStopWithMaxWMAndSavepointTimeout() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-d", jid.toString(), "-st", "100000" };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+			.stopWithSavepoint(eq(jid), eq(true), isNull(), eq(100000L));
 	}
 
 	@Test
@@ -125,7 +151,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(true), isNull());
+				.stopWithSavepoint(eq(jid), eq(true), isNull(), eq(-1L));
 	}
 
 	@Test
@@ -138,7 +164,20 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(true), eq("test-target-dir"));
+				.stopWithSavepoint(eq(jid), eq(true), eq("test-target-dir"), eq(-1L));
+	}
+
+	@Test
+	public void testStopWithMaxWMAndExplicitSavepointTimeout() throws Exception {
+		JobID jid = new JobID();
+
+		String[] parameters = { "-d", "-s", "-st", "100000", jid.toString() };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		testFrontend.stop(parameters);
+
+		Mockito.verify(clusterClient, times(1))
+			.stopWithSavepoint(eq(jid), eq(true), isNull(), eq(100000L));
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -173,7 +212,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		testFrontend.stop(parameters);
 
 		Mockito.verify(clusterClient, times(1))
-				.stopWithSavepoint(eq(jid), eq(false), eq("test-target-dir"));
+				.stopWithSavepoint(eq(jid), eq(false), eq("test-target-dir"), eq(-1L));
 	}
 
 	@Test
@@ -199,7 +238,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
 		if (exception != null) {
-			doThrow(exception).when(clusterClient).stopWithSavepoint(any(JobID.class), anyBoolean(), anyString());
+			doThrow(exception).when(clusterClient).stopWithSavepoint(any(JobID.class), anyBoolean(), anyString(), eq(-1L));
 		}
 
 		return clusterClient;

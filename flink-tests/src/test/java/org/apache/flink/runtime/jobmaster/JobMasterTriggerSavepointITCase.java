@@ -63,7 +63,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isOneOf;
 
 /**
- * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean, Time)}.
+ * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean, Time, long)}.
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
@@ -184,7 +184,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 		setUpWithCheckpointInterval(10L);
 
 		try {
-			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null);
+			clusterClient.cancelWithSavepoint(jobGraph.getJobID(), null, -1L);
 		} catch (Exception e) {
 			if (!ExceptionUtils.findThrowableWithMessage(e, "savepoint directory").isPresent()) {
 				throw e;
@@ -254,7 +254,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 	private String cancelWithSavepoint() throws Exception {
 		return clusterClient.cancelWithSavepoint(
 			jobGraph.getJobID(),
-			savepointDirectory.toAbsolutePath().toString());
+			savepointDirectory.toAbsolutePath().toString(), -1L);
 	}
 
 }

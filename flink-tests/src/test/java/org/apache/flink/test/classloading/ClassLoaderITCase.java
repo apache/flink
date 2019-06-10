@@ -364,7 +364,7 @@ public class ClassLoaderITCase extends TestLogger {
 		for (int i = 0; i < 20; i++) {
 			LOG.info("Triggering savepoint (" + (i + 1) + "/20).");
 			try {
-				savepointPath = clusterClient.triggerSavepoint(jobId, null)
+				savepointPath = clusterClient.triggerSavepoint(jobId, null, -1L)
 					.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			} catch (Exception cause) {
 				LOG.info("Failed to trigger savepoint. Retrying...", cause);

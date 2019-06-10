@@ -108,18 +108,18 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		return miniCluster.triggerSavepoint(jobId, savepointDirectory, true).get();
+	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory, long timeout) throws Exception {
+		return miniCluster.triggerSavepoint(jobId, savepointDirectory, true, -1L).get();
 	}
 
 	@Override
-	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirector) throws Exception {
-		return miniCluster.stopWithSavepoint(jobId, savepointDirector, advanceToEndOfEventTime).get();
+	public String stopWithSavepoint(JobID jobId, boolean advanceToEndOfEventTime, @Nullable String savepointDirector, long timeout) throws Exception {
+		return miniCluster.stopWithSavepoint(jobId, savepointDirector, advanceToEndOfEventTime, timeout).get();
 	}
 
 	@Override
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) {
-		return miniCluster.triggerSavepoint(jobId, savepointDirectory, false);
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory, long savepointTimeout) {
+		return miniCluster.triggerSavepoint(jobId, savepointDirectory, false, savepointTimeout);
 	}
 
 	@Override

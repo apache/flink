@@ -194,7 +194,7 @@ public class TimestampITCase extends TestLogger {
 					// send stop until the job is stopped
 					do {
 						try {
-							clusterClient.stopWithSavepoint(id, false, "test");
+							clusterClient.stopWithSavepoint(id, false, "test", -1L);
 						}
 						catch (Exception e) {
 							boolean ignoreException = ExceptionUtils.findThrowable(e, CheckpointException.class)

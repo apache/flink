@@ -30,6 +30,7 @@ import org.mockito.Mockito;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.notNull;
@@ -100,20 +101,20 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 			testFrontend.cancel(parameters);
 
 			Mockito.verify(clusterClient, times(1))
-				.cancelWithSavepoint(any(JobID.class), isNull(String.class));
+				.cancelWithSavepoint(any(JobID.class), isNull(String.class), eq(-1L));
 		}
 
 		{
 			// Cancel with savepoint (with target directory)
 			JobID jid = new JobID();
 
-			String[] parameters = { "-s", "targetDirectory", jid.toString() };
+			String[] parameters = { "-s", "targetDirectory", jid.toString(), "-st", "100000" };
 			final ClusterClient<String> clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			testFrontend.cancel(parameters);
 
 			Mockito.verify(clusterClient, times(1))
-				.cancelWithSavepoint(any(JobID.class), notNull(String.class));
+				.cancelWithSavepoint(any(JobID.class), notNull(String.class), eq(100000L));
 		}
 	}
 

@@ -111,11 +111,11 @@ public interface SchedulerNG {
 
 	// ------------------------------------------------------------------------
 
-	CompletableFuture<String> triggerSavepoint(@Nullable String targetDirectory, boolean cancelJob);
+	CompletableFuture<String> triggerSavepoint(@Nullable String targetDirectory, boolean cancelJob, long timeout);
 
 	void acknowledgeCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot checkpointState);
 
 	void declineCheckpoint(DeclineCheckpoint decline);
 
-	CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean advanceToEndOfEventTime);
+	CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean advanceToEndOfEventTime, long timeout);
 }

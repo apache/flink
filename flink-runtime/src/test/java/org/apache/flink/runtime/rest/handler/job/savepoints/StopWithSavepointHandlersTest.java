@@ -196,7 +196,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
 			final String targetDirectory
 	) throws HandlerRequestException {
 		return new HandlerRequest<>(
-				new StopWithSavepointRequestBody(targetDirectory, false),
+				new StopWithSavepointRequestBody(targetDirectory, false, -1L),
 				new SavepointTriggerMessageParameters(),
 				Collections.singletonMap(JobIDPathParameter.KEY, JOB_ID.toString()),
 				Collections.emptyMap());
