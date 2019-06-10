@@ -122,7 +122,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient TaskAttemptContext context;
 
 	// Maps a partition dir name to the corresponding writer. Used for dynamic partitioning.
-	private transient Map<String, HivePartitionWriter> partitionToWriter;
+	private transient Map<String, HivePartitionWriter> partitionToWriter = new HashMap<>();
 	// Writer for non-partitioned and static partitioned table
 	private transient HivePartitionWriter staticWriter;
 

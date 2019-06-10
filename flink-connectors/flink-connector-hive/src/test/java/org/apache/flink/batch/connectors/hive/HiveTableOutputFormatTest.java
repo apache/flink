@@ -46,10 +46,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -91,7 +93,7 @@ public class HiveTableOutputFormatTest {
 		outputFormat.close();
 		outputFormat.finalizeGlobal(1);
 
-		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite);
+		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite, 0);
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
@@ -110,7 +112,7 @@ public class HiveTableOutputFormatTest {
 		writeRecords(toWrite, outputFormat);
 		outputFormat.close();
 		outputFormat.finalizeGlobal(1);
-		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite);
+		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite, 0);
 
 		// write some data to overwrite existing data and verify
 		outputFormat = createHiveTableOutputFormat(tablePath, hiveTable, rowTypeInfo, null, true);
@@ -119,18 +121,19 @@ public class HiveTableOutputFormatTest {
 		writeRecords(toWrite, outputFormat);
 		outputFormat.close();
 		outputFormat.finalizeGlobal(1);
-		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite);
+		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite, 0);
 
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
+	@Test
 	public void testInsertIntoStaticPartition() throws Exception {
 		String dbName = "default";
 		String tblName = "dest";
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+
 		Map<String, Object> partSpec = new HashMap<>();
 		partSpec.put("s", "a");
 		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, hiveTable, rowTypeInfo, partSpec, false);
@@ -141,8 +144,37 @@ public class HiveTableOutputFormatTest {
 		outputFormat.finalizeGlobal(1);
 
 		// make sure new partition is created
+		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
 		HiveCatalogPartition catalogPartition = (HiveCatalogPartition) hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(
 				partSpec.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()))));
+		verifyWrittenData(new Path(catalogPartition.getLocation(), "0"), toWrite, 1);
+
+		hiveCatalog.dropTable(tablePath, false);
+	}
+
+	@Test
+	public void testInsertIntoDynamicPartition() throws Exception {
+		String dbName = "default";
+		String tblName = "dest";
+		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+
+		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, hiveTable, rowTypeInfo, Collections.emptyMap(), false);
+		outputFormat.open(0, 1);
+		List<Row> toWrite = generateRecords(5);
+		writeRecords(toWrite, outputFormat);
+		outputFormat.close();
+		outputFormat.finalizeGlobal(1);
+
+		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
+		assertEquals(toWrite.size(), partitionSpecs.size());
+		for (int i = 0; i < toWrite.size(); i++) {
+			HiveCatalogPartition partition = (HiveCatalogPartition) hiveCatalog.getPartition(tablePath, partitionSpecs.get(i));
+			verifyWrittenData(new Path(partition.getLocation(), "0"), Collections.singletonList(toWrite.get(i)), 1);
+		}
+
+		hiveCatalog.dropTable(tablePath, false);
 	}
 
 	private RowTypeInfo createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
@@ -180,14 +212,16 @@ public class HiveTableOutputFormatTest {
 				MetaStoreUtils.getTableMetadata(hiveTable), overwrite);
 	}
 
-	private void verifyWrittenData(Path outputFile, List<Row> expected) throws Exception {
+	private void verifyWrittenData(Path outputFile, List<Row> expected, int numPartCols) throws Exception {
 		FileSystem fs = outputFile.getFileSystem(hiveConf);
 		assertTrue(fs.exists(outputFile));
+		int[] fields = IntStream.range(0, expected.get(0).getArity() - numPartCols).toArray();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(outputFile)))) {
 			int numWritten = 0;
 			String line = reader.readLine();
 			while (line != null) {
-				assertEquals(expected.get(numWritten++).toString(), line.replaceAll("\u0001", ","));
+				Row expectedRow = Row.project(expected.get(numWritten++), fields);
+				assertEquals(expectedRow.toString(), line.replaceAll("\u0001", ","));
 				line = reader.readLine();
 			}
 			reader.close();
