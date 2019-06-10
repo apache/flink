@@ -78,4 +78,11 @@ if [[ -n "$FLINK_TESTING" ]]; then
   set +f
 fi
 
-exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH}:${FLINK_TEST_CLASSPATH} ${DRIVER} ${ARGS[@]}
+ARGS_COUNT=${#ARGS[@]}
+if [[ ${ARGS[0]} == "local" ]]; then
+  ARGS=("${ARGS[@]:1:$ARGS_COUNT}")
+  exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH}:${FLINK_TEST_CLASSPATH} ${DRIVER} ${ARGS[@]}
+else
+  ARGS=("${ARGS[@]:1:$ARGS_COUNT}")
+  exec "$FLINK_BIN_DIR"/flink run ${ARGS[@]} -c ${DRIVER} -j ${TABLE_JAR_PATH}
+fi

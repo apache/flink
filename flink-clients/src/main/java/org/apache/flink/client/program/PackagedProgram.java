@@ -182,7 +182,8 @@ public class PackagedProgram {
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		// Whether the job is a Python job.
-		isPython = entryPointClassName != null && entryPointClassName.equals("org.apache.flink.client.python.PythonDriver");
+		isPython = entryPointClassName != null && (entryPointClassName.equals("org.apache.flink.client.python.PythonDriver")
+			|| entryPointClassName.equals("org.apache.flink.client.python.PythonGatewayServer"));
 
 		URL jarFileUrl = null;
 		if (jarFile != null) {
