@@ -256,7 +256,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		} else {
 			bulkProcessorFlushIntervalMillis = null;
 		}
-		
+
 		if (params.has(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS)) {
 			bulkProcessorConcurrentRequests = params.getInt(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS);
 			userConfig.remove(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS);

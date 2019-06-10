@@ -152,7 +152,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_CONCURRENT_REQUESTS, String.valueOf(concurrentRequests));
 		}
-		
+
 		/**
 		 * Sets whether or not to enable bulk flush backoff behaviour.
 		 *
