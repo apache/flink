@@ -40,6 +40,7 @@ class GenericRelDataType(
     SqlTypeName.ANY) {
 
   isNullable = nullable
+  computeDigest()
 
   override def toString = s"ANY($genericType)"
 
