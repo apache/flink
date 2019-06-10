@@ -15,11 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from py4j.java_gateway import get_java_class
+
 from pyflink.common import CheckpointConfig, CheckpointingMode, RestartStrategies
 from pyflink.common.execution_config import ExecutionConfig
+from pyflink.common.state_backend import _from_j_state_backend
 from pyflink.common.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class
+from pyflink.util.utils import to_j_config, load_java_class
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -209,6 +212,66 @@ class StreamExecutionEnvironment(object):
         """
         j_checkpointing_mode = self._j_stream_execution_environment.getCheckpointingMode()
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
+
+    def get_state_backend(self):
+        """
+        Gets the state backend that defines how to store and checkpoint state.
+
+        see :func:`set_state_backend`
+
+        see :func:`set_state_backend_factory`
+
+        :return: The :class:`StateBackend`.
+        """
+        j_state_backend = self._j_stream_execution_environment.getStateBackend()
+        return _from_j_state_backend(j_state_backend)
+
+    def set_state_backend(self, state_backend):
+        """
+        Sets the state backend that describes how to store and checkpoint operator state. It
+        defines both which data structures hold state during execution (for example hash tables,
+        RockDB, or other data stores) as well as where checkpointed data will be persisted.
+
+        The :class:`~pyflink.common.MemoryStateBackend` for example maintains the state in heap
+        memory, as objects. It is lightweight without extra dependencies, but can checkpoint only
+        small states(some counters).
+
+        In contrast, the :class:`~pyflink.common.FsStateBackend` stores checkpoints of the state
+        (also maintained as heap objects) in files. When using a replicated file system (like HDFS,
+        S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost upon failures of
+        individual nodes and that streaming program can be executed highly available and strongly
+        consistent(assuming that Flink is run in high-availability mode).
+
+        see :func:`get_state_backend`
+
+        :param state_backend: The :class:`StateBackend`.
+        :return: This object.
+        """
+        self._j_stream_execution_environment = \
+            self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
+        return self
+
+    def set_state_backend_factory(self, state_backend_factory_class_name, config):
+        """
+        Create a StateBackend with the provided ``StateBackendFactory`` and config dict and call
+        :func:`set_state_backend` for it. This method is used to set a customized state backend.
+
+        :param state_backend_factory_class_name: The fully-qualified java class name of the
+                                                 ``StateBackendFactory``.
+        :param config: The configuration dict object.
+        :return: This object.
+        """
+        gateway = get_gateway()
+        JStateBackendFactory = gateway.jvm.org.apache.flink.runtime.state.StateBackendFactory
+        context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
+        j_config = to_j_config(config)
+        factory_clz = load_java_class(state_backend_factory_class_name)
+        if not get_java_class(JStateBackendFactory).isAssignableFrom(factory_clz):
+            raise ValueError("The given state backend factory class: %s does not implement "
+                             "StateBackendFactory." % state_backend_factory_class_name)
+        j_factory = factory_clz.newInstance()
+        return self.set_state_backend(_from_j_state_backend(j_factory.createFromConfig(
+            j_config, context_classloader)))
 
     def set_restart_strategy(self, restart_strategy_configuration):
         """

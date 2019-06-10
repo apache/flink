@@ -38,6 +38,19 @@ def to_jarray(j_type, arr):
     return j_arr
 
 
+def to_j_config(config):
+    gateway = get_gateway()
+    Configuration = gateway.jvm.org.apache.flink.configuration.Configuration
+    j_config = Configuration()
+    for key in config:
+        if not isinstance(config[key], (str, unicode)):
+            value = str(config[key])
+        else:
+            value = config[key]
+        j_config.setString(key, value)
+    return j_config
+
+
 def to_j_flink_time(time_delta):
     gateway = get_gateway()
     TimeUnit = gateway.jvm.java.util.concurrent.TimeUnit

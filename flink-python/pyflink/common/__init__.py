@@ -21,6 +21,9 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.common.restart_strategy import RestartStrategies
+from pyflink.common.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
+                                          RocksDBStateBackend, CustomStateBackend,
+                                          PredefinedOptions)
 from pyflink.common.time_characteristic import TimeCharacteristic
 
 __all__ = [
@@ -31,5 +34,11 @@ __all__ = [
     'ExecutionMode',
     'InputDependencyConstraint',
     'RestartStrategies',
+    'StateBackend',
+    'MemoryStateBackend',
+    'FsStateBackend',
+    'RocksDBStateBackend',
+    'CustomStateBackend',
+    'PredefinedOptions',
     'TimeCharacteristic'
 ]

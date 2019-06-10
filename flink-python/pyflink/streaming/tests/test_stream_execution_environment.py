@@ -20,7 +20,8 @@ import tempfile
 import json
 
 from pyflink.common import (ExecutionConfig, RestartStrategies, CheckpointConfig,
-                            CheckpointingMode, TimeCharacteristic)
+                            CheckpointingMode, MemoryStateBackend, CustomStateBackend,
+                            TimeCharacteristic)
 from pyflink.streaming import StreamExecutionEnvironment
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -139,6 +140,32 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         mode = self.env.get_checkpointing_mode()
 
         assert mode == CheckpointingMode.AT_LEAST_ONCE
+
+    def test_get_state_backend(self):
+
+        state_backend = self.env.get_state_backend()
+
+        assert state_backend is None
+
+    def test_set_state_backend(self):
+
+        input_backend = MemoryStateBackend()
+
+        self.env.set_state_backend(input_backend)
+
+        output_backend = self.env.get_state_backend()
+
+        assert output_backend._j_memory_state_backend == input_backend._j_memory_state_backend
+
+    def test_set_state_backend_factory(self):
+
+        self.env.set_state_backend_factory(
+            "org.apache.flink.streaming.runtime.tasks"
+            ".StreamTaskTest$TestMemoryStateBackendFactory", {})
+
+        state_backend = self.env.get_state_backend()
+
+        assert isinstance(state_backend, CustomStateBackend)
 
     def test_get_set_stream_time_characteristic(self):
 
