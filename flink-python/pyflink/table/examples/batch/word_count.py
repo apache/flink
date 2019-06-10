@@ -39,16 +39,19 @@ def word_count():
 
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()
-    result_dir = tmp_dir + '/result'
-    if os.path.exists(result_dir):
+    result_path = tmp_dir + '/result'
+    if os.path.exists(result_path):
         try:
-            shutil.rmtree(result_dir)
+            if os.path.isfile(result_path):
+                os.remove(result_path)
+            else:
+                shutil.rmtree(result_path)
         except OSError as e:
             logging.error("Error removing directory: %s - %s.", e.filename, e.strerror)
 
-    logging.info("Results directory: %s", result_dir)
+    logging.info("Results directory: %s", result_path)
 
-    t_env.connect(FileSystem().path(result_dir)) \
+    t_env.connect(FileSystem().path(result_path)) \
         .with_format(OldCsv()
                      .field_delimiter(',')
                      .field("word", DataTypes.STRING())
