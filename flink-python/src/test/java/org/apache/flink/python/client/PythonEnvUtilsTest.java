@@ -82,7 +82,6 @@ public class PythonEnvUtilsTest {
 
 		String targetDir = env.workingDirectory + File.separator + tmpDirPath.getName();
 		expectedPythonPaths.add(targetDir + File.separator + a.getName());
-		expectedPythonPaths.add(targetDir + File.separator + "subdir" + File.separator + b.getName());
 		expectedPythonPaths.add(targetDir + File.separator + "subdir" + File.separator + c.getName());
 
 		// the parent dir for files suffixed with .py should also be added to PYTHONPATH

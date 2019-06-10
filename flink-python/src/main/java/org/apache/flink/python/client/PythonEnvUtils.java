@@ -132,6 +132,7 @@ public final class PythonEnvUtils {
 			FileUtils.copy(pythonFile, targetPath, true);
 			String targetFileNames = Files.walk(Paths.get(targetPath.toString()))
 				.filter(Files::isRegularFile)
+				.filter(f -> !f.toString().endsWith(".py"))
 				.map(java.nio.file.Path::toString)
 				.collect(Collectors.joining(File.pathSeparator));
 			pythonPathEnv.append(File.pathSeparator);
