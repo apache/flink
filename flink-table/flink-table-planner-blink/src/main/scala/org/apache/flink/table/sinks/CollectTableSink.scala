@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.io.RichOutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -26,24 +25,24 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.table.api._
 import org.apache.flink.types.Row
 
 /**
   * A simple [[TableSink]] to emit data as T to a collection.
   */
 class CollectTableSink[T](produceOutputType: (Array[TypeInformation[_]] => TypeInformation[T]))
-  extends TableSinkBase[T] with BatchTableSink[T] {
+  extends TableSinkBase[T] with StreamTableSink[T] {
 
   private var collectOutputFormat: CollectOutputFormat[T] = _
 
-  override def emitBoundedStream(
-      boundedStream: DataStream[T],
-      tableConfig: TableConfig,
-      executionConfig: ExecutionConfig): DataStreamSink[T] = {
-    boundedStream.writeUsingOutputFormat(collectOutputFormat)
-        .setParallelism(1)
-        .name("collect")
+  override def consumeDataStream(dataStream: DataStream[T]): DataStreamSink[_] = {
+    dataStream.writeUsingOutputFormat(collectOutputFormat)
+      .setParallelism(1)
+      .name("collect")
+  }
+
+  override def emitDataStream(dataStream: DataStream[T]): Unit = {
+    consumeDataStream(dataStream)
   }
 
   override protected def copy: TableSinkBase[T] = {

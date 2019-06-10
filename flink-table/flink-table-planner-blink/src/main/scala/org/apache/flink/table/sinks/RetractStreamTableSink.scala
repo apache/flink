@@ -18,16 +18,27 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.api.{Table, Types}
-
 import java.lang.{Boolean => JBool}
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.api.Types
+
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.Table
 
 /**
   * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
   * changes.
+  *
+  * The table will be converted into a stream of accumulate and retraction messages which are
+  * encoded as [[JTuple2]].
+  * The first field is a [[JBool]] flag to indicate the message type.
+  * The second field holds the record of the requested type [[T]].
+  *
+  * A message with true [[JBool]] flag is an accumulate (or add) message.
+  * A message with false flag is a retract message.
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
@@ -35,6 +46,9 @@ trait RetractStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
 
   /** Returns the requested record type */
   def getRecordType: TypeInformation[T]
+
+  /** Emits the DataStream. */
+  def emitDataStream(dataStream: DataStream[JTuple2[JBool, T]]): Unit
 
   override def getOutputType = new TupleTypeInfo(Types.BOOLEAN, getRecordType)
 

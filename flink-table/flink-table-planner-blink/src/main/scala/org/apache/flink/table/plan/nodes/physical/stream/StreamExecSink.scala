@@ -115,17 +115,24 @@ class StreamExecSink[T](
                 "RetractStreamTableSink, or UpsertStreamTableSink.")
         }
         val dataStream = new DataStream(tableEnv.execEnv, transformation)
-        streamTableSink.emitDataStream(dataStream).getTransformation
+        val dsSink = streamTableSink.consumeDataStream(dataStream)
+        if (dsSink == null) {
+          throw new TableException("The StreamTableSink#consumeDataStream(DataStream) must be " +
+            "implemented and return the sink transformation DataStreamSink. " +
+            s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
+        }
+        dsSink.getTransformation
 
-      case streamTableSink: DataStreamTableSink[_] =>
+      case dsTableSink: DataStreamTableSink[_] =>
         // In case of table to stream through BatchTableEnvironment#translateToDataStream,
         // we insert a DataStreamTableSink then wrap it as a LogicalSink, there is no real batch
         // table sink, so we do not need to invoke TableSink#emitBoundedStream and set resource,
         // just a translation to StreamTransformation is ok.
-        translateToStreamTransformation(streamTableSink.withChangeFlag, tableEnv)
+        translateToStreamTransformation(dsTableSink.withChangeFlag, tableEnv)
 
       case _ =>
-        throw new TableException("Only Support StreamTableSink or DataStreamTableSink!")
+        throw new TableException(s"Only Support StreamTableSink! " +
+          s"However ${sink.getClass.getCanonicalName} is not a StreamTableSink.")
     }
     resultTransformation.asInstanceOf[StreamTransformation[Any]]
   }

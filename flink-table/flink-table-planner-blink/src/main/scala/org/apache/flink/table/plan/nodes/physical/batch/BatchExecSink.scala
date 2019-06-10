@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import java.util
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
@@ -28,14 +29,11 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
-import org.apache.flink.table.sinks.{BatchTableSink, DataStreamTableSink, TableSink}
+import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -78,11 +76,21 @@ class BatchExecSink[T](
   override protected def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[Any] = {
     val resultTransformation = sink match {
-      case batchTableSink: BatchTableSink[T] =>
+      case _: RetractStreamTableSink[T] | _: UpsertStreamTableSink[T] =>
+        throw new TableException("RetractStreamTableSink and UpsertStreamTableSink is not" +
+          " supported in Batch environment.")
+
+      case streamTableSink: StreamTableSink[T] =>
+        // we can insert the bounded DataStream into a StreamTableSink
         val transformation = translateToStreamTransformation(withChangeFlag = false, tableEnv)
         val boundedStream = new DataStream(tableEnv.streamEnv, transformation)
-        val sinkTransformation = batchTableSink.emitBoundedStream(
-          boundedStream, tableEnv.getConfig, tableEnv.streamEnv.getConfig).getTransformation
+        val dsSink = streamTableSink.consumeDataStream(boundedStream)
+        if (dsSink == null) {
+          throw new TableException("The StreamTableSink#consumeDataStream(DataStream) must be " +
+            "implemented and return the sink transformation DataStreamSink. " +
+            s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
+        }
+        val sinkTransformation = dsSink.getTransformation
 
         if (sinkTransformation.getMaxParallelism > 0) {
           sinkTransformation.setParallelism(sinkTransformation.getMaxParallelism)
@@ -97,15 +105,16 @@ class BatchExecSink[T](
         }
         sinkTransformation
 
-      case streamTableSink: DataStreamTableSink[T] =>
+      case dsTableSink: DataStreamTableSink[T] =>
         // In case of table to bounded stream through BatchTableEnvironment#toBoundedStream, we
         // insert a DataStreamTableSink then wrap it as a LogicalSink, there is no real batch table
         // sink, so we do not need to invoke TableSink#emitBoundedStream and set resource, just a
         // translation to StreamTransformation is ok.
-        translateToStreamTransformation(withChangeFlag = streamTableSink.withChangeFlag, tableEnv)
+        translateToStreamTransformation(withChangeFlag = dsTableSink.withChangeFlag, tableEnv)
 
       case _ =>
-        throw new TableException("Only Support BatchTableSink or DataStreamTableSink!")
+        throw new TableException(s"Only Support StreamTableSink! " +
+          s"However ${sink.getClass.getCanonicalName} is not a StreamTableSink.")
     }
     resultTransformation.asInstanceOf[StreamTransformation[Any]]
   }

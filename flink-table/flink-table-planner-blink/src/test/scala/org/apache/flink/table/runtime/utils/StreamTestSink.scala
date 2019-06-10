@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.utils
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
@@ -30,7 +29,7 @@ import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSn
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
@@ -276,7 +275,8 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
 
   override def getFieldTypes: Array[TypeInformation[_]] = fTypes
 
-  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, BaseRow]]) = {
+  override def consumeDataStream(
+      dataStream: DataStream[JTuple2[JBoolean, BaseRow]]): DataStreamSink[_] = {
     dataStream.map(new MapFunction[JTuple2[JBoolean, BaseRow], (Boolean, BaseRow)] {
       override def map(value: JTuple2[JBoolean, BaseRow]): (Boolean, BaseRow) = {
         (value.f0, value.f1)
@@ -292,6 +292,10 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
         }
       })")
       .setParallelism(dataStream.getParallelism)
+  }
+
+  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, BaseRow]]): Unit = {
+    consumeDataStream(dataStream)
   }
 
   override def configure(
@@ -310,8 +314,7 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   def getUpsertResults: List[String] = sink.getUpsertResults
 }
 
-final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[Row]
-  with BatchTableSink[Row] {
+final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[Row] {
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
   var sink = new TestingAppendSink(tz)
@@ -321,16 +324,13 @@ final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[R
     this(TimeZone.getTimeZone("UTC"))
   }
 
-  override def emitDataStream(dataStream: DataStream[Row]): DataStreamSink[Row] = {
+  override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     dataStream.addSink(sink).name("TestingAppendTableSink")
       .setParallelism(dataStream.getParallelism)
   }
 
-  override def emitBoundedStream(
-      boundedStream: DataStream[Row],
-      tableConfig: TableConfig,
-      executionConfig: ExecutionConfig): DataStreamSink[Row] = {
-    boundedStream.writeUsingOutputFormat(outputFormat).name("appendTableSink")
+  override def emitDataStream(dataStream: DataStream[Row]): Unit = {
+    consumeDataStream(dataStream)
   }
 
   override def getOutputType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
@@ -352,7 +352,7 @@ final class TestingAppendTableSink(tz: TimeZone) extends AppendStreamTableSink[R
 
   def getAppendResults: List[String] = sink.getAppendResults
 
-  def getResults: List[String] = outputFormat.getResults
+  def getResults: List[String] = sink.getAppendResults
 }
 
 class TestingOutputFormat[T](tz: TimeZone)
@@ -483,7 +483,8 @@ final class TestingRetractTableSink(tz: TimeZone) extends RetractStreamTableSink
     this(TimeZone.getTimeZone("UTC"))
   }
 
-  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, Row]]) = {
+  override def consumeDataStream(
+      dataStream: DataStream[JTuple2[JBoolean, Row]]): DataStreamSink[_] = {
     dataStream.map(new MapFunction[JTuple2[JBoolean, Row], (Boolean, Row)] {
       override def map(value: JTuple2[JBoolean, Row]): (Boolean, Row) = {
         (value.f0, value.f1)
@@ -492,6 +493,10 @@ final class TestingRetractTableSink(tz: TimeZone) extends RetractStreamTableSink
       .addSink(sink)
       .name("TestingRetractTableSink")
       .setParallelism(dataStream.getParallelism)
+  }
+
+  override def emitDataStream(dataStream: DataStream[JTuple2[JBoolean, Row]]): Unit = {
+    consumeDataStream(dataStream)
   }
 
   override def getRecordType: TypeInformation[Row] =

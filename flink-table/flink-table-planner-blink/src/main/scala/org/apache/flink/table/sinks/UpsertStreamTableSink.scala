@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.sinks
 
+import java.lang.{Boolean => JBool}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{Table, Types}
-
-import java.lang.{Boolean => JBool}
-
 
 /**
   * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
@@ -35,6 +35,13 @@ import java.lang.{Boolean => JBool}
   *
   * The unique key of the table is configured by the [[UpsertStreamTableSink#setKeyFields()]]
   * method.
+  *
+  * The [[Table]] will be converted into a stream of upsert and delete messages which are encoded as
+  * [[JTuple2]]. The first field is a [[JBool]] flag to indicate the message type. The second field
+  * holds the record of the requested type [[T]].
+  *
+  * A message with true [[JBool]] field is an upsert message for the configured key.
+  * A message with false flag is a delete message for the configured key.
   *
   * If the table is append-only, all messages will have a true flag and must be interpreted
   * as insertions.
@@ -65,6 +72,9 @@ trait UpsertStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
   /** Returns the requested record type */
   def getRecordType: TypeInformation[T]
 
-  override def getOutputType = new TupleTypeInfo(Types.BOOLEAN, getRecordType)
+  /** Emits the DataStream. */
+  def emitDataStream(dataStream: DataStream[JTuple2[JBool, T]]): Unit
 
+  override def getOutputType: TypeInformation[JTuple2[JBool, T]] =
+    new TupleTypeInfo(Types.BOOLEAN, getRecordType)
 }
