@@ -233,8 +233,7 @@ public class ReadOnlySlicedBufferTest {
 	/**
 	 * Tests the independence of the writer index via
 	 * {@link ReadOnlySlicedNetworkBuffer#setSize(int)},
-	 * {@link ReadOnlySlicedNetworkBuffer#getSize()}, and
-	 * {@link ReadOnlySlicedNetworkBuffer#getSizeUnsafe()}.
+	 * {@link ReadOnlySlicedNetworkBuffer#getSize()}.
 	 */
 	@Test
 	public void testGetSetSize1() {
@@ -244,8 +243,7 @@ public class ReadOnlySlicedBufferTest {
 	/**
 	 * Tests the independence of the writer index via
 	 * {@link ReadOnlySlicedNetworkBuffer#setSize(int)},
-	 * {@link ReadOnlySlicedNetworkBuffer#getSize()}, and
-	 * {@link ReadOnlySlicedNetworkBuffer#getSizeUnsafe()}.
+	 * {@link ReadOnlySlicedNetworkBuffer#getSize()}.
 	 */
 	@Test
 	public void testGetSetSize2() {
@@ -254,14 +252,10 @@ public class ReadOnlySlicedBufferTest {
 
 	private void testGetSetSize(ReadOnlySlicedNetworkBuffer slice, int sliceSize) {
 		assertEquals(DATA_SIZE, buffer.getSize());
-		assertEquals(DATA_SIZE, buffer.getSizeUnsafe());
 		assertEquals(sliceSize, slice.getSize());
-		assertEquals(sliceSize, slice.getSizeUnsafe());
 		buffer.setSize(DATA_SIZE + 1);
 		assertEquals(DATA_SIZE + 1, buffer.getSize());
-		assertEquals(DATA_SIZE + 1, buffer.getSizeUnsafe());
 		assertEquals(sliceSize, slice.getSize());
-		assertEquals(sliceSize, slice.getSizeUnsafe());
 	}
 
 	@Test

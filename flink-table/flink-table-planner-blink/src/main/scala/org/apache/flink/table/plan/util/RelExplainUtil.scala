@@ -19,6 +19,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -587,6 +588,20 @@ object RelExplainUtil {
     s"Calc($name)"
   }
 
+  def conditionToString(
+      calcProgram: RexProgram,
+      f: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+    val cond = calcProgram.getCondition
+    val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
+    val localExprs = calcProgram.getExprList.toList
+
+    if (cond != null) {
+      f(cond, inputFieldNames, Some(localExprs))
+    } else {
+      ""
+    }
+  }
+
   def selectionToString(
       calcProgram: RexProgram,
       expression: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String,
@@ -757,6 +772,45 @@ object RelExplainUtil {
         f
       } else {
         s"$prefix$f AS $o"
+      }
+    }.mkString(", ")
+  }
+
+  def streamWindowAggregationToString(
+      inputType: RelDataType,
+      grouping: Array[Int],
+      rowType: RelDataType,
+      aggs: Seq[AggregateCall],
+      namedProperties: Seq[NamedWindowProperty],
+      withOutputFieldNames: Boolean = true): String = {
+    val inFields = inputType.getFieldNames
+    val outFields = rowType.getFieldNames
+    val groupStrings = grouping.map(inFields(_))
+
+    val aggStrings = aggs.map(a => {
+      val distinct = if (a.isDistinct) {
+        if (a.getArgList.size() == 0) {
+          "DISTINCT"
+        } else {
+          "DISTINCT "
+        }
+      } else {
+        ""
+      }
+      val argList = if (a.getArgList.size() > 0) {
+        a.getArgList.map(inFields(_)).mkString(", ")
+      } else {
+        "*"
+      }
+      s"${a.getAggregation}($distinct$argList)"
+    })
+
+    val propStrings = namedProperties.map(_.property.toString)
+    (groupStrings ++ aggStrings ++ propStrings).zip(outFields).map {
+      case (f, o) => if (f == o) {
+        f
+      } else {
+        if (withOutputFieldNames) s"$f AS $o" else f
       }
     }.mkString(", ")
   }

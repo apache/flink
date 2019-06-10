@@ -20,7 +20,8 @@ package org.apache.flink.table.descriptors
 
 import java.lang.{Boolean => JBoolean, Double => JDouble, Integer => JInt}
 
-import org.apache.flink.table.api.{TableException, Types, ValidationException}
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.table.api.{TableException, ValidationException}
 
 /**
   * Validator for [[LiteralValue]].
@@ -53,7 +54,7 @@ class LiteralValueValidator(keyPrefix: String) extends HierarchyDescriptorValida
       val valueKey = s"$keyPrefix${LiteralValueValidator.VALUE}"
       val typeInfo = properties.getType(typeKey)
       typeInfo match {
-        case Types.DECIMAL => properties.validateBigDecimal(valueKey, false)
+        case Types.BIG_DEC => properties.validateBigDecimal(valueKey, false)
         case Types.BOOLEAN => properties.validateBoolean(valueKey, false)
         case Types.BYTE => properties.validateByte(valueKey, false)
         case Types.DOUBLE => properties.validateDouble(valueKey, false)
@@ -98,7 +99,7 @@ object LiteralValueValidator {
       val valueKey = s"$keyPrefix$VALUE"
       val typeInfo = properties.getType(typeKey)
       typeInfo match {
-        case Types.DECIMAL => properties.getBigDecimal(valueKey)
+        case Types.BIG_DEC => properties.getBigDecimal(valueKey)
         case Types.BOOLEAN => properties.getBoolean(valueKey)
         case Types.BYTE => properties.getByte(valueKey)
         case Types.DOUBLE => properties.getDouble(valueKey)

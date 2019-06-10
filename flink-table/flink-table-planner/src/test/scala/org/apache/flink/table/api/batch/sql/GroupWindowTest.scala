@@ -32,7 +32,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testNonPartitionedTumbleWindow(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
@@ -42,7 +42,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetWindowAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "ts, a, b")
         ),
         term("window", "TumblingGroupWindow('w$, 'ts, 7200000.millis)"),
@@ -55,7 +55,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testPartitionedTumbleWindow(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
       "SELECT " +
@@ -73,7 +73,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetWindowAggregate",
-          batchTableNode(0),
+          batchTableNode(table),
           term("groupBy", "c"),
           term("window", "TumblingGroupWindow('w$, 'ts, 240000.millis)"),
           term("select", "c, SUM(a) AS sumA, MIN(b) AS minB, " +
@@ -89,7 +89,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testTumbleWindowWithUdAgg() = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val weightedAvg = new WeightedAvgWithMerge
     util.tableEnv.registerFunction("weightedAvg", weightedAvg)
@@ -103,7 +103,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetWindowAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "ts, b, a")
         ),
         term("window", "TumblingGroupWindow('w$, 'ts, 240000.millis)"),
@@ -116,7 +116,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testNonPartitionedHopWindow(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB " +
@@ -128,7 +128,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetWindowAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "ts, a, b")
         ),
         term("window", "SlidingGroupWindow('w$, 'ts, 5400000.millis, 900000.millis)"),
@@ -141,7 +141,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testPartitionedHopWindow(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
+    val table = util.addTable[(Int, Long, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
 
     val sqlQuery =
       "SELECT " +
@@ -159,7 +159,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetWindowAggregate",
-          batchTableNode(0),
+          batchTableNode(table),
           term("groupBy", "c, d"),
           term("window", "SlidingGroupWindow('w$, 'ts, 10800000.millis, 3600000.millis)"),
           term("select", "c, d, SUM(a) AS sumA, AVG(b) AS avgB, " +
@@ -175,7 +175,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testNonPartitionedSessionWindow(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
       "SELECT COUNT(*) AS cnt FROM T GROUP BY SESSION(ts, INTERVAL '30' MINUTE)"
@@ -185,7 +185,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetWindowAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "ts")
         ),
         term("window", "SessionGroupWindow('w$, 'ts, 1800000.millis)"),
@@ -198,7 +198,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testPartitionedSessionWindow(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Int, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
+    val table = util.addTable[(Int, Long, String, Int, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
 
     val sqlQuery =
       "SELECT " +
@@ -216,7 +216,7 @@ class GroupWindowTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetWindowAggregate",
-          batchTableNode(0),
+          batchTableNode(table),
           term("groupBy", "c, d"),
           term("window", "SessionGroupWindow('w$, 'ts, 43200000.millis)"),
           term("select", "c, d, SUM(a) AS sumA, MIN(b) AS minB, " +
@@ -232,7 +232,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testWindowEndOnly(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
       "SELECT " +
@@ -247,7 +247,7 @@ class GroupWindowTest extends TableTestBase {
           "DataSetWindowAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(table),
             term("select", "ts, c")
           ),
           term("groupBy", "c"),
@@ -263,7 +263,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testExpressionOnWindowHavingFunction() = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    val table = util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sql =
       "SELECT " +
@@ -282,7 +282,7 @@ class GroupWindowTest extends TableTestBase {
           "DataSetWindowAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(table),
             term("select", "ts, a")
           ),
           term("window", "SlidingGroupWindow('w$, 'ts, 60000.millis, 900000.millis)"),
@@ -305,7 +305,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testDecomposableAggFunctions() = {
     val util = batchTestUtil()
-    util.addTable[(Int, String, Long, Timestamp)]("MyTable", 'a, 'b, 'c, 'rowtime)
+    val table = util.addTable[(Int, String, Long, Timestamp)]("MyTable", 'a, 'b, 'c, 'rowtime)
 
     val sql =
       "SELECT " +
@@ -322,7 +322,7 @@ class GroupWindowTest extends TableTestBase {
           "DataSetWindowAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(table),
             term("select", "rowtime", "c", "*(c, c) AS $f2")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),

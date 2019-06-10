@@ -18,103 +18,75 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.lang.reflect.Modifier
+import _root_.java.util.Optional
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.config.Lex
-import org.apache.calcite.jdbc.CalciteSchema
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.schema
-import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.sql2rel.SqlToRelConverter
 import org.apache.calcite.tools._
+import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.table.calcite._
-import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.catalog._
+import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.{CatalogTableOperation, OperationTreeBuilder, PlannerTableOperation}
-import org.apache.flink.table.plan.TableOperationConverter
-import org.apache.flink.table.plan.cost.DataSetCostFactory
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.operations.{CatalogQueryOperation, OperationTreeBuilder, PlannerQueryOperation, TableSourceQueryOperation}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
+import org.apache.flink.util.StringUtils
 
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.mutable
 
 /**
   * The abstract base class for the implementation of batch and stream TableEnvironments.
   *
   * @param config The configuration of the TableEnvironment
   */
-abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
-
-  // the catalog to hold all registered and translated tables
-  // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
-  private val rootSchema: SchemaPlus = internalSchema.plus()
+abstract class TableEnvImpl(
+    val config: TableConfig,
+    private val catalogManager: CatalogManager)
+  extends TableEnvironment {
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog()
 
-  // the configuration to create a Calcite planner
-  private lazy val frameworkConfig: FrameworkConfig = Frameworks
-    .newConfigBuilder
-    .defaultSchema(rootSchema)
-    .parserConfig(getSqlParserConfig)
-    .costFactory(new DataSetCostFactory)
-    .typeSystem(new FlinkTypeSystem)
-    .operatorTable(getSqlOperatorTable)
-    .sqlToRelConverterConfig(getSqlToRelConverterConfig)
-    // the converter is needed when calling temporal table functions from SQL, because
-    // they reference a history table represented with a tree of table operations
-    .context(Contexts.of(
-      new TableOperationConverter.ToRelConverterSupplier(expressionBridge)
-    ))
-    // set the executor to evaluate constant expressions
-    .executor(new ExpressionReducer(config))
-    .build
+  protected val defaultCatalogName: String = config.getBuiltInCatalogName
+  protected val defaultDatabaseName: String = config.getBuiltInDatabaseName
 
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
 
-  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder
-    .create(frameworkConfig, expressionBridge)
-
-  // the planner instance used to optimize queries of this TableEnvironment
-  private lazy val planner: RelOptPlanner = relBuilder.getPlanner
-
-  private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
-
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
-  // registered external catalog names -> catalog
-  private val externalCatalogs = new mutable.HashMap[String, ExternalCatalog]
-
   private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
+
+  private val planningConfigurationBuilder: PlanningConfigurationBuilder =
+    new PlanningConfigurationBuilder(
+      config,
+      functionCatalog,
+      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isBatch)),
+      expressionBridge)
 
   protected def calciteConfig: CalciteConfig = config.getPlannerConfig
     .unwrap(classOf[CalciteConfig])
@@ -122,46 +94,15 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
   def getConfig: TableConfig = config
 
+  private def isBatch: Boolean = this match {
+    case _: BatchTableEnvImpl => true
+    case _ => false
+  }
+
   private[flink] def queryConfig: QueryConfig = this match {
     case _: BatchTableEnvImpl => new BatchQueryConfig
     case _: StreamTableEnvImpl => new StreamQueryConfig
     case _ => null
-  }
-
-  /**
-    * Returns the SqlToRelConverter config.
-    */
-  protected def getSqlToRelConverterConfig: SqlToRelConverter.Config = {
-    calciteConfig.sqlToRelConverterConfig match {
-
-      case None =>
-        SqlToRelConverter.configBuilder()
-          .withTrimUnusedFields(false)
-          .withConvertTableAccess(false)
-          .withInSubQueryThreshold(Integer.MAX_VALUE)
-          .withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
-          .build()
-
-      case Some(c) => c
-    }
-  }
-
-  /**
-    * Returns the operator table for this environment including a custom Calcite configuration.
-    */
-  protected def getSqlOperatorTable: SqlOperatorTable = {
-    calciteConfig.sqlOperatorTable match {
-
-      case None =>
-        functionCatalog.getSqlOperatorTable
-
-      case Some(table) =>
-        if (calciteConfig.replacesSqlOperatorTable) {
-          table
-        } else {
-          ChainedSqlOperatorTable.of(functionCatalog.getSqlOperatorTable, table)
-        }
-    }
   }
 
   /**
@@ -218,25 +159,6 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
         } else {
           RuleSets.ofList((getBuiltInPhysicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
-    }
-  }
-
-  /**
-    * Returns the SQL parser config for this environment including a custom Calcite configuration.
-    */
-  protected def getSqlParserConfig: SqlParser.Config = {
-    calciteConfig.sqlParserConfig match {
-
-      case None =>
-        // we use Java lex because back ticks are easier than double quotes in programming
-        // and cases are preserved
-        SqlParser
-          .configBuilder()
-          .setLex(Lex.JAVA)
-          .build()
-
-      case Some(sqlParserConfig) =>
-        sqlParserConfig
     }
   }
 
@@ -355,7 +277,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     input: RelNode,
     targetTraits: RelTraitSet): RelNode = {
 
-    val planner = new HepPlanner(hepProgram, frameworkConfig.getContext)
+    val planner = new HepPlanner(hepProgram, planningConfigurationBuilder.getContext)
     planner.setRoot(input)
     if (input.getTraitSet != targetTraits) {
       planner.changeTraits(input, targetTraits.simplify)
@@ -395,23 +317,12 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     output
   }
 
-  override def fromTableSource(source: TableSource[_]): Table = {
-    val name = createUniqueTableName()
-    registerTableSourceInternal(name, source)
-    scan(name)
-  }
-
   override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
-    if (rootSchema.getSubSchema(name) != null) {
-      throw new ExternalCatalogAlreadyExistException(name)
-    }
-    this.externalCatalogs.put(name, externalCatalog)
-    // create an external catalog Calcite schema, register it on the root schema
-    ExternalCatalogSchema.registerCatalog(this, rootSchema, name, externalCatalog)
+    catalogManager.registerExternalCatalog(name, externalCatalog)
   }
 
   override def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
-    this.externalCatalogs.get(name) match {
+    JavaScalaConversionUtil.toScala(catalogManager.getExternalCatalog(name)) match {
       case Some(catalog) => catalog
       case None => throw new ExternalCatalogNotExistException(name)
     }
@@ -424,7 +335,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     functionCatalog.registerScalarFunction(
       name,
       function,
-      typeFactory)
+      planningConfigurationBuilder.getTypeFactory)
   }
 
   /**
@@ -448,7 +359,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       name,
       function,
       typeInfo,
-      typeFactory)
+      planningConfigurationBuilder.getTypeFactory)
   }
 
   /**
@@ -456,7 +367,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     * user-defined functions under this name.
     */
   private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
-      name: String, function: AggregateFunction[T, ACC]): Unit = {
+      name: String, function: UserDefinedAggregateFunction[T, ACC]): Unit = {
     // check if class not Scala object
     checkNotSingleton(function.getClass)
     // check if class could be instantiated
@@ -475,7 +386,31 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       function,
       resultTypeInfo,
       accTypeInfo,
-      typeFactory)
+      planningConfigurationBuilder.getTypeFactory)
+  }
+
+  override def registerCatalog(catalogName: String, catalog: Catalog): Unit = {
+    catalogManager.registerCatalog(catalogName, catalog)
+  }
+
+  override def getCatalog(catalogName: String): Optional[Catalog] = {
+    catalogManager.getCatalog(catalogName)
+  }
+
+  override def getCurrentCatalog: String = {
+    catalogManager.getCurrentCatalog
+  }
+
+  override def getCurrentDatabase: String = {
+    catalogManager.getCurrentDatabase
+  }
+
+  override def useCatalog(catalogName: String): Unit = {
+    catalogManager.setCurrentCatalog(catalogName)
+  }
+
+  override def useDatabase(databaseName: String): Unit = {
+    catalogManager.setCurrentDatabase(databaseName)
   }
 
   override def registerTable(name: String, table: Table): Unit = {
@@ -486,94 +421,177 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
-    checkValidTableName(name)
-    val tableTable = new RelTable(table.asInstanceOf[TableImpl].getRelNode)
+    val tableTable = new QueryOperationCatalogView(table.getQueryOperation)
     registerTableInternal(name, tableTable)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    checkValidTableName(name)
+    validateTableSource(tableSource)
     registerTableSourceInternal(name, tableSource)
   }
 
-  /**
-    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
-    * name checking. Registered tables can be referenced in SQL queries.
-    *
-    * @param name        The name under which the [[TableSource]] is registered.
-    * @param tableSource The [[TableSource]] to register.
-    */
-  protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit
-
   override def registerTableSink(
-      name: String,
-      fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit
+    name: String,
+    fieldNames: Array[String],
+    fieldTypes: Array[TypeInformation[_]],
+    tableSink: TableSink[_]): Unit = {
 
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
+    if (fieldNames == null) {
+      throw new TableException("fieldNames must not be null.")
+    }
+    if (fieldTypes == null) {
+      throw new TableException("fieldTypes must not be null.")
+    }
+    if (fieldNames.length == 0) {
+      throw new TableException("fieldNames must not be empty.")
+    }
+    if (fieldNames.length != fieldTypes.length) {
+      throw new TableException("Same number of field names and types required.")
+    }
+
+    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    // validate
+    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+
+    validateTableSink(configuredSink)
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  override def fromTableSource(source: TableSource[_]): Table = {
+    new TableImpl(this, new TableSourceQueryOperation(source, isBatch))
+  }
 
   /**
-    * Replaces a registered Table with another Table under the same name.
-    * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
-    * with a [[org.apache.calcite.schema.TranslatableTable]].
+    * Perform batch or streaming specific validations of the [[TableSource]].
+    * This method should throw [[ValidationException]] if the [[TableSource]] cannot be used
+    * in this [[TableEnvironment]].
     *
-    * @param name Name of the table to replace.
-    * @param table The table that replaces the previous table.
+    * @param tableSource table source to validate
     */
-  protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
+  protected def validateTableSource(tableSource: TableSource[_]): Unit
 
-    if (isRegistered(name)) {
-      rootSchema.add(name, table)
-    } else {
-      throw new TableException(s"Table \'$name\' is not registered.")
+  /**
+    * Perform batch or streaming specific validations of the [[TableSink]].
+    * This method should throw [[ValidationException]] if the [[TableSink]] cannot be used
+    * in this [[TableEnvironment]].
+    *
+    * @param tableSink table source to validate
+    */
+  protected def validateTableSink(tableSink: TableSink[_]): Unit
+
+  private def registerTableSourceInternal(
+    name: String,
+    tableSource: TableSource[_])
+  : Unit = {
+    // register
+    getCatalogTable(defaultCatalogName, defaultDatabaseName, name) match {
+
+      // check if a table (source or sink) is registered
+      case Some(table: ConnectorCatalogTable[_, _]) =>
+        if (table.getTableSource.isPresent) {
+          // wrapper contains source
+          throw new TableException(s"Table '$name' already exists. " +
+            s"Please choose a different name.")
+        } else {
+          // wrapper contains only sink (not source)
+          replaceTableInternal(
+            name,
+            ConnectorCatalogTable
+              .sourceAndSink(tableSource, table.getTableSink.get, isBatch))
+        }
+
+      // no table is registered
+      case _ =>
+        registerTableInternal(name, ConnectorCatalogTable.source(tableSource, isBatch))
+    }
+  }
+
+  private def registerTableSinkInternal(
+    name: String,
+    tableSink: TableSink[_])
+  : Unit = {
+    // check if a table (source or sink) is registered
+    getCatalogTable(defaultCatalogName, defaultDatabaseName, name) match {
+
+      // table source and/or sink is registered
+      case Some(table: ConnectorCatalogTable[_, _]) =>
+        if (table.getTableSink.isPresent) {
+          // wrapper contains sink
+          throw new TableException(s"Table '$name' already exists. " +
+            s"Please choose a different name.")
+        } else {
+          // wrapper contains only source (not sink)
+          replaceTableInternal(
+            name,
+            ConnectorCatalogTable
+              .sourceAndSink(table.getTableSource.get, tableSink, isBatch))
+        }
+
+      // no table is registered
+      case _ =>
+        registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, isBatch))
+    }
+  }
+
+  private def checkValidTableName(name: String) = {
+    if (StringUtils.isNullOrWhitespaceOnly(name)) {
+      throw new ValidationException("A table name cannot be null or consist of only whitespaces.")
+    }
+  }
+
+  protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    checkValidTableName(name)
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) =>
+        catalog.createTable(
+          path,
+          table,
+          false)
+      case None => throw new TableException("The default catalog does not exist.")
+    }
+  }
+
+  protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    checkValidTableName(name)
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) =>
+        catalog.alterTable(
+          path,
+          table,
+          false)
+      case None => throw new TableException("The default catalog does not exist.")
     }
   }
 
   @throws[TableException]
   override def scan(tablePath: String*): Table = {
     scanInternal(tablePath.toArray) match {
-      case Some(table) => table
+      case Some(table) => new TableImpl(this, table)
       case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
     }
   }
 
-  private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
-    require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
-    val schemaPaths = tablePath.slice(0, tablePath.length - 1)
-    val schema = getSchema(schemaPaths)
-    if (schema != null) {
-      val tableName = tablePath(tablePath.length - 1)
-      val table = schema.getTable(tableName)
-      if (table != null) {
-        return Some(new TableImpl(this,
-          new CatalogTableOperation(tablePath.toList.asJava, extractTableSchema(table))))
-      }
-    }
-    None
-  }
-
-  private def extractTableSchema(table: schema.Table): TableSchema = {
-    val relDataType = table.getRowType(typeFactory)
-    val fieldNames = relDataType.getFieldNames
-    val fieldTypes = relDataType.getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-    new TableSchema(fieldNames.asScala.toArray, fieldTypes.toArray)
-  }
-
-  private def getSchema(schemaPath: Array[String]): SchemaPlus = {
-    var schema = rootSchema
-    for (schemaName <- schemaPath) {
-      schema = schema.getSubSchema(schemaName)
-      if (schema == null) {
-        return schema
-      }
-    }
-    schema
+  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogQueryOperation] = {
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath: _*))
+      .map(t => new CatalogQueryOperation(t.getTablePath, t.getTableSchema))
   }
 
   override def listTables(): Array[String] = {
-    rootSchema.getTableNames.asScala.toArray
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentCatalog = catalogManager.getCatalog(currentCatalogName)
+    JavaScalaConversionUtil.toScala(currentCatalog) match {
+      case Some(catalog) => catalog.listTables(catalogManager.getCurrentDatabase).asScala.toArray
+      case None =>
+        throw new TableException(s"The current catalog ($currentCatalogName) does not exist.")
+    }
   }
 
   override def listUserDefinedFunctions(): Array[String] = {
@@ -583,15 +601,12 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   override def explain(table: Table): String
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = new FlinkPlannerImpl(
-      getFrameworkConfig,
-      getPlanner,
-      getTypeFactory)
+    val planner = getFlinkPlanner
     planner.getCompletionHints(statement, position)
   }
 
   override def sqlQuery(query: String): Table = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = getFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(query)
     if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
@@ -599,7 +614,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, new PlannerTableOperation(relational.rel))
+      new TableImpl(this, new PlannerQueryOperation(relational.rel))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -612,7 +627,7 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
   }
 
   override def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = getFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {
@@ -623,13 +638,13 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
         // get query result as Table
         val queryResult = new TableImpl(this,
-          new PlannerTableOperation(planner.rel(validatedQuery).rel))
+          new PlannerQueryOperation(planner.rel(validatedQuery).rel))
 
         // get name of sink table
-        val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
+        val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
 
         // insert query result into sink table
-        insertInto(queryResult, targetTableName, config)
+        insertInto(queryResult, config, targetTablePath.asScala:_*)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
@@ -646,35 +661,51 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
     */
   private[flink] def writeToSink[T](table: Table, sink: TableSink[T], conf: QueryConfig): Unit
 
+  override def insertInto(
+      table: Table,
+      queryConfig: QueryConfig,
+      sinkPath: String,
+      sinkPathContinued: String*)
+    : Unit = insertInto(table, queryConfig, sinkPath +: sinkPathContinued: _*)
+
+  override def insertInto(
+      table: Table,
+      sinkPath: String,
+      sinkPathContinued: String*)
+    : Unit = insertInto(table, queryConfig, sinkPath +: sinkPathContinued: _*)
+
   /**
     * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
     *
     * @param table The table to write to the TableSink.
-    * @param sinkTableName The name of the registered TableSink.
+    * @param sinkTablePath The name of the registered TableSink.
     * @param conf The query configuration to use.
     */
-  private[flink] def insertInto(table: Table, sinkTableName: String, conf: QueryConfig): Unit = {
+  private def insertInto(table: Table, conf: QueryConfig, sinkTablePath: String*): Unit = {
 
     // check that sink table exists
-    if (null == sinkTableName) throw new TableException("Name of TableSink must not be null.")
-    if (sinkTableName.isEmpty) throw new TableException("Name of TableSink must not be empty.")
+    if (null == sinkTablePath) {
+      throw new TableException("Name of TableSink must not be null.")
+    }
+    if (sinkTablePath.isEmpty) {
+      throw new TableException("Name of TableSink must not be empty.")
+    }
 
-    getTable(sinkTableName) match {
+    getTableSink(sinkTablePath: _*) match {
 
       case None =>
-        throw new TableException(s"No table was registered under the name $sinkTableName.")
+        throw new TableException(s"No table was registered under the name $sinkTablePath.")
 
-      case Some(s: TableSourceSinkTable[_, _]) if s.tableSinkTable.isDefined =>
-        val tableSink = s.tableSinkTable.get.tableSink
+      case Some(tableSink) =>
         // validate schema of source table and table sink
         val srcFieldTypes = table.getSchema.getFieldTypes
-        val sinkFieldTypes = tableSink.getFieldTypes
+        val sinkFieldTypes = tableSink.getTableSchema.getFieldTypes
 
         if (srcFieldTypes.length != sinkFieldTypes.length ||
           srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
 
           val srcFieldNames = table.getSchema.getFieldNames
-          val sinkFieldNames = tableSink.getFieldNames
+          val sinkFieldNames = tableSink.getTableSchema.getFieldNames
 
           // format table and table sink schema strings
           val srcSchema = srcFieldNames.zip(srcFieldTypes)
@@ -686,266 +717,70 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
 
           throw new ValidationException(
             s"Field types of query result and registered TableSink " +
-              s"$sinkTableName do not match.\n" +
+              s"$sinkTablePath do not match.\n" +
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }
         // emit the table to the configured table sink
         writeToSink(table, tableSink, conf)
-
-      case Some(_) =>
-        throw new TableException(s"The table registered as $sinkTableName is not a TableSink. " +
-          s"You can only emit query results to a registered TableSink.")
     }
   }
 
-  /**
-    * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
-    *
-    * @param name The name under which the table will be registered.
-    * @param table The table to register in the catalog
-    * @throws TableException if another table is registered under the provided name.
-    */
-  @throws[TableException]
-  protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
+  private def getTableSink(name: String*): Option[TableSink[_]] = {
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(name: _*)) match {
+      case Some(s) if s.getExternalCatalogTable.isPresent =>
 
-    if (isRegistered(name)) {
-      throw new TableException(s"Table \'$name\' already exists. " +
-        s"Please, choose a different name.")
-    } else {
-      rootSchema.add(name, table)
+        Option(TableFactoryUtil.findAndCreateTableSink(s.getExternalCatalogTable.get()))
+
+      case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
+        .exists(_.isInstanceOf[ConnectorCatalogTable[_, _]]) =>
+
+        JavaScalaConversionUtil
+          .toScala(s.getCatalogTable.get().asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
+
+      case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
+        .exists(_.isInstanceOf[CatalogTable]) =>
+
+        val sinkProperties = s.getCatalogTable.get().asInstanceOf[CatalogTable].toProperties
+        Option(TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
+          .createTableSink(sinkProperties))
+
+      case _ => None
     }
   }
 
-  /** Returns a unique table name according to the internal naming pattern. */
-  protected def createUniqueTableName(): String
-
-  /**
-    * Checks if the chosen table name is valid.
-    *
-    * @param name The table name to check.
-    */
-  protected def checkValidTableName(name: String): Unit
-
-  /**
-    * Checks if a table is registered under the given name.
-    *
-    * @param name The table name to check.
-    * @return true, if a table is registered under the name, false otherwise.
-    */
-  protected[flink] def isRegistered(name: String): Boolean = {
-    rootSchema.getTableNames.contains(name)
-  }
-
-  /**
-    * Get a table from either internal or external catalogs.
-    *
-    * @param name The name of the table.
-    * @return The table registered either internally or externally, None otherwise.
-    */
-  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
-
-    // recursively fetches a table from a schema.
-    def getTableFromSchema(
-        schema: SchemaPlus,
-        path: List[String]): Option[org.apache.calcite.schema.Table] = {
-
-      path match {
-        case tableName :: Nil =>
-          // look up table
-          Option(schema.getTable(tableName))
-        case subschemaName :: remain =>
-          // look up subschema
-          val subschema = Option(schema.getSubSchema(subschemaName))
-          subschema match {
-            case Some(s) =>
-              // search for table in subschema
-              getTableFromSchema(s, remain)
-            case None =>
-              // subschema does not exist
-              None
-          }
-      }
-    }
-
-    val pathNames = name.split('.').toList
-    getTableFromSchema(rootSchema, pathNames)
-  }
-
-  /** Returns a unique temporary attribute name. */
-  private[flink] def createUniqueAttributeName(): String = {
-    "TMP_" + attrNameCntr.getAndIncrement()
+  protected def getCatalogTable(name: String*): Option[CatalogBaseTable] = {
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(name: _*))
+      .flatMap(t => JavaScalaConversionUtil.toScala(t.getCatalogTable))
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
-    relBuilder
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentDatabase = catalogManager.getCurrentDatabase
+
+    planningConfigurationBuilder.createRelBuilder(currentCatalogName, currentDatabase)
   }
 
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
-  private[flink] def getPlanner: RelOptPlanner = {
-    planner
-  }
-
-  /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
-  private[flink] def getTypeFactory: FlinkTypeFactory = {
-    typeFactory
+  private def getPlanner: RelOptPlanner = {
+    planningConfigurationBuilder.getPlanner
   }
 
   private[flink] def getFunctionCatalog: FunctionCatalog = {
     functionCatalog
   }
 
+  private[flink] def getParserConfig: SqlParser.Config = planningConfigurationBuilder
+    .getSqlParserConfig
+
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
-  private[flink] def getFrameworkConfig: FrameworkConfig = {
-    frameworkConfig
-  }
+  @VisibleForTesting
+  private[flink] def getFlinkPlanner: FlinkPlannerImpl = {
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentDatabase = catalogManager.getCurrentDatabase
 
-  /**
-    * Reference input fields by name:
-    * All fields in the schema definition are referenced by name
-    * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
-    * projected out. Moreover, we can define proctime and rowtime attributes at arbitrary
-    * positions using arbitrary names (except those that exist in the result schema). This mode
-    * can be used for any input type, including POJOs.
-    *
-    * Reference input fields by position:
-    * In this mode, fields are simply renamed. Event-time attributes can
-    * replace the field on their position in the input data (if it is of correct type) or be
-    * appended at the end. Proctime attributes must be appended at the end. This mode can only be
-    * used if the input type has a defined field order (tuple, case class, Row) and no of fields
-    * references a field of the input type.
-    */
-  protected def isReferenceByPosition(ct: CompositeType[_], fields: Array[Expression]): Boolean = {
-    if (!ct.isInstanceOf[TupleTypeInfoBase[_]]) {
-      return false
-    }
-
-    val inputNames = ct.getFieldNames
-
-    // Use the by-position mode if no of the fields exists in the input.
-    // This prevents confusing cases like ('f2, 'f0, 'myName) for a Tuple3 where fields are renamed
-    // by position but the user might assume reordering instead of renaming.
-    fields.forall {
-      case UnresolvedFieldReference(name) => !inputNames.contains(name)
-      case _ => true
-    }
-  }
-
-  /**
-    * Returns field names and field positions for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation extract the field names and positions from.
-    * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
-    */
-  protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
-  (Array[String], Array[Int]) = {
-
-    if (inputType.isInstanceOf[GenericTypeInfo[A]] && inputType.getTypeClass == classOf[Row]) {
-      throw new TableException(
-        "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
-          "Please specify the type of the input with a RowTypeInfo.")
-    } else {
-      (TableEnvImpl.getFieldNames(inputType), TableEnvImpl.getFieldIndices(inputType))
-    }
-  }
-
-  /**
-    * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
-    * [[Expression]]. It does not handle time attributes but considers them in indices.
-    *
-    * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
-    * @param exprs     The expressions that define the field names.
-    * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
-    */
-  protected def getFieldInfo[A](
-      inputType: TypeInformation[A],
-      exprs: Array[Expression])
-    : (Array[String], Array[Int]) = {
-
-    TableEnvImpl.validateType(inputType)
-
-    def referenceByName(name: String, ct: CompositeType[_]): Option[Int] = {
-      val inputIdx = ct.getFieldIndex(name)
-      if (inputIdx < 0) {
-        throw new TableException(s"$name is not a field of type $ct. " +
-                s"Expected: ${ct.getFieldNames.mkString(", ")}")
-      } else {
-        Some(inputIdx)
-      }
-    }
-
-    val indexedNames: Array[(Int, String)] = inputType match {
-
-      case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
-        throw new TableException(
-          "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
-            "Please specify the type of the input with a RowTypeInfo.")
-
-      case t: TupleTypeInfoBase[A] if t.isInstanceOf[TupleTypeInfo[A]] ||
-        t.isInstanceOf[CaseClassTypeInfo[A]] || t.isInstanceOf[RowTypeInfo] =>
-
-        // determine schema definition mode (by position or by name)
-        val isRefByPos = isReferenceByPosition(t, exprs)
-
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name: String), idx) =>
-            if (isRefByPos) {
-              Some((idx, name))
-            } else {
-              referenceByName(name, t).map((_, name))
-            }
-          case (Alias(UnresolvedFieldReference(origName), name: String, _), _) =>
-            if (isRefByPos) {
-              throw new TableException(
-                s"Alias '$name' is not allowed if other fields are referenced by position.")
-            } else {
-              referenceByName(origName, t).map((_, name))
-            }
-          case (_: TimeAttribute, _) | (Alias(_: TimeAttribute, _, _), _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-
-      case p: PojoTypeInfo[A] =>
-        exprs flatMap {
-          case UnresolvedFieldReference(name: String) =>
-            referenceByName(name, p).map((_, name))
-          case Alias(UnresolvedFieldReference(origName), name: String, _) =>
-            referenceByName(origName, p).map((_, name))
-          case _: TimeAttribute | Alias(_: TimeAttribute, _, _) =>
-            None
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
-
-      case _: TypeInformation[_] => // atomic or other custom type information
-        var referenced = false
-        exprs flatMap {
-          case _: TimeAttribute =>
-            None
-          case UnresolvedFieldReference(_) if referenced =>
-            // only accept the first field for an atomic type
-            throw new TableException("Only the first field can reference an atomic type.")
-          case UnresolvedFieldReference(name: String) =>
-            referenced = true
-            // first field reference is mapped to atomic type
-            Some((0, name))
-          case _ => throw new TableException(
-            "Field reference expression expected.")
-        }
-    }
-
-    val (fieldIndexes, fieldNames) = indexedNames.unzip
-
-    if (fieldNames.contains("*")) {
-      throw new TableException("Field name can not be '*'.")
-    }
-
-    (fieldNames, fieldIndexes)
+    planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
   }
 
   protected def generateRowConverterFunction[OUT](
@@ -1059,74 +894,5 @@ abstract class TableEnvImpl(val config: TableConfig) extends TableEnvironment {
       requestedTypeInfo)
 
     Some(generated)
-  }
-}
-
-/**
-  * Object to instantiate a [[TableEnvImpl]] depending on the batch or stream execution environment.
-  */
-object TableEnvImpl {
-
-  /**
-    * Returns field names for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation extract the field names.
-    * @tparam A The type of the TypeInformation.
-    * @return An array holding the field names
-    */
-  def getFieldNames[A](inputType: TypeInformation[A]): Array[String] = {
-    validateType(inputType)
-
-    val fieldNames: Array[String] = inputType match {
-      case t: CompositeType[_] => t.getFieldNames
-      case _: TypeInformation[_] => Array("f0")
-    }
-
-    if (fieldNames.contains("*")) {
-      throw new TableException("Field name can not be '*'.")
-    }
-
-    fieldNames
-  }
-
-  /**
-    * Validate if class represented by the typeInfo is static and globally accessible
-    * @param typeInfo type to check
-    * @throws TableException if type does not meet these criteria
-    */
-  def validateType(typeInfo: TypeInformation[_]): Unit = {
-    val clazz = typeInfo.getTypeClass
-    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) ||
-      !Modifier.isPublic(clazz.getModifiers) ||
-      clazz.getCanonicalName == null) {
-      throw new TableException(
-        s"Class '$clazz' described in type information '$typeInfo' must be " +
-        s"static and globally accessible.")
-    }
-  }
-
-  /**
-    * Returns field indexes for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation extract the field positions from.
-    * @return An array holding the field positions
-    */
-  def getFieldIndices(inputType: TypeInformation[_]): Array[Int] = {
-    getFieldNames(inputType).indices.toArray
-  }
-
-  /**
-    * Returns field types for a given [[TypeInformation]].
-    *
-    * @param inputType The TypeInformation to extract field types from.
-    * @return An array holding the field types.
-    */
-  def getFieldTypes(inputType: TypeInformation[_]): Array[TypeInformation[_]] = {
-    validateType(inputType)
-
-    inputType match {
-      case ct: CompositeType[_] => 0.until(ct.getArity).map(i => ct.getTypeAt(i)).toArray
-      case t: TypeInformation[_] => Array(t.asInstanceOf[TypeInformation[_]])
-    }
   }
 }

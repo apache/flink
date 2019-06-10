@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.{Tuple1, Tuple2}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import com.google.common.base.Charsets
 import com.google.common.io.Files
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
@@ -34,6 +34,7 @@ import org.apache.flink.types.Row
 
 import java.io.File
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.annotation.varargs
 
@@ -256,6 +257,59 @@ object UserDefinedFunctionTestUtils {
 
     def eval(id: Int, name: String, age: Int, point: String): CompositeObj = {
       CompositeObj(id, name, age, point)
+    }
+  }
+
+  object TestWrapperUdf extends ScalarFunction {
+    def eval(id: Int): Int = {
+      id
+    }
+
+    def eval(id: String): String = {
+      id
+    }
+  }
+
+  class TestAddWithOpen extends ScalarFunction {
+
+    var isOpened: Boolean = false
+
+    override def open(context: FunctionContext): Unit = {
+      super.open(context)
+      isOpened = true
+      TestAddWithOpen.aliveCounter.incrementAndGet()
+    }
+
+    def eval(a: Long, b: Long): Long = {
+      if (!isOpened) {
+        throw new IllegalStateException("Open method is not called.")
+      }
+      a + b
+    }
+    
+    def eval(a: Long, b: Int): Long = {
+      eval(a, b.asInstanceOf[Long])
+    }
+
+    override def close(): Unit = {
+      TestAddWithOpen.aliveCounter.decrementAndGet()
+    }
+  }
+
+  object TestAddWithOpen {
+    /** A thread-safe counter to record how many alive TestAddWithOpen UDFs */
+    val aliveCounter = new AtomicInteger(0)
+  }
+
+  object TestMod extends ScalarFunction {
+    def eval(src: Long, mod: Int): Long = {
+      src % mod
+    }
+  }
+
+  object TestExceptionThrown extends ScalarFunction {
+    def eval(src: String): Int = {
+      throw new NumberFormatException("Cannot parse this input.")
     }
   }
 

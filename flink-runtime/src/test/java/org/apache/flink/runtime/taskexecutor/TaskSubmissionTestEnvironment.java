@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -37,7 +37,6 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
@@ -59,6 +58,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
@@ -70,6 +70,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -83,7 +84,7 @@ import static org.mockito.Mockito.when;
 class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 	private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-	private final TestingRpcService testingRpcService = new TestingRpcService();
+	private final TestingRpcService testingRpcService;
 	private final BlobCacheService blobCacheService= new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
 	private final Time timeout = Time.milliseconds(10000L);
 	private final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
@@ -100,11 +101,11 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			JobID jobId,
 			JobMasterId jobMasterId,
 			int slotSize,
-			boolean mockNetworkEnvironment,
 			TestingJobMasterGateway testingJobMasterGateway,
 			Configuration configuration,
-			boolean localCommunication,
-			List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners) throws Exception {
+			List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners,
+			TestingRpcService testingRpcService,
+			NetworkEnvironment networkEnvironment) throws Exception {
 
 		this.haServices = new TestingHighAvailabilityServices();
 		this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
@@ -143,8 +144,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			taskManagerActions = testTaskManagerActions;
 		}
 
-		final NetworkEnvironment networkEnvironment = createNetworkEnvironment(localCommunication, configuration, testingRpcService, mockNetworkEnvironment);
-
+		this.testingRpcService = testingRpcService;
 		final JobManagerConnection jobManagerConnection = createJobManagerConnection(jobId, jobMasterGateway, testingRpcService, taskManagerActions, timeout);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		jobManagerTable.put(jobId, jobManagerConnection);
@@ -231,6 +231,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	private static NetworkEnvironment createNetworkEnvironment(
+			ResourceID taskManagerLocation,
 			boolean localCommunication,
 			Configuration configuration,
 			RpcService testingRpcService,
@@ -240,16 +241,18 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			networkEnvironment = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
 		} else {
 			final InetSocketAddress socketAddress = new InetSocketAddress(
-				InetAddress.getByName(testingRpcService.getAddress()), configuration.getInteger(TaskManagerOptions.DATA_PORT));
+				InetAddress.getByName(testingRpcService.getAddress()), configuration.getInteger(NetworkEnvironmentOptions.DATA_PORT));
 
 			final NettyConfig nettyConfig = new NettyConfig(socketAddress.getAddress(), socketAddress.getPort(),
 				NetworkEnvironmentConfiguration.getPageSize(configuration), ConfigurationParserUtils.getSlot(configuration), configuration);
 
 			networkEnvironment =  new NetworkEnvironmentBuilder()
-				.setPartitionRequestInitialBackoff(configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL))
-				.setPartitionRequestMaxBackoff(configuration.getInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX))
+				.setTaskManagerLocation(taskManagerLocation)
+				.setPartitionRequestInitialBackoff(configuration.getInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL))
+				.setPartitionRequestMaxBackoff(configuration.getInteger(NetworkEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX))
 				.setNettyConfig(localCommunication ? null : nettyConfig)
 				.build();
+
 			networkEnvironment.start();
 		}
 
@@ -278,6 +281,9 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		private TestingJobMasterGateway jobMasterGateway;
 		private boolean localCommunication = true;
 		private Configuration configuration = new Configuration();
+		@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+		private Optional<NetworkEnvironment> optionalNetworkEnvironment = Optional.empty();
+		private ResourceID resourceID = ResourceID.generate();
 
 		private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>> taskManagerActionListeners = new ArrayList<>();
 
@@ -285,8 +291,15 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			this.jobId = jobId;
 		}
 
-		public Builder setMockNetworkEnvironment(boolean mockNetworkEnvironment) {
-			this.mockNetworkEnvironment = mockNetworkEnvironment;
+		public Builder useRealNonMockNetworkEnvironment() {
+			this.optionalNetworkEnvironment = Optional.empty();
+			this.mockNetworkEnvironment = false;
+			return this;
+		}
+
+		public Builder setNetworkEnvironment(NetworkEnvironment optionalNetworkEnvironment) {
+			this.mockNetworkEnvironment = false;
+			this.optionalNetworkEnvironment = Optional.of(optionalNetworkEnvironment);
 			return this;
 		}
 
@@ -320,16 +333,34 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			return this;
 		}
 
+		public Builder setResourceID(ResourceID resourceID) {
+			this.resourceID = resourceID;
+			return this;
+		}
+
 		public TaskSubmissionTestEnvironment build() throws Exception {
+			final TestingRpcService testingRpcService = new TestingRpcService();
+			final NetworkEnvironment network = optionalNetworkEnvironment.orElseGet(() -> {
+				try {
+					return createNetworkEnvironment(
+						resourceID,
+						localCommunication,
+						configuration,
+						testingRpcService,
+						mockNetworkEnvironment);
+				} catch (Exception e) {
+					throw new FlinkRuntimeException("Failed to build TaskSubmissionTestEnvironment", e);
+				}
+			});
 			return new TaskSubmissionTestEnvironment(
 				jobId,
 				jobMasterId,
 				slotSize,
-				mockNetworkEnvironment,
 				jobMasterGateway,
 				configuration,
-				localCommunication,
-				taskManagerActionListeners);
+				taskManagerActionListeners,
+				testingRpcService,
+				network);
 		}
 	}
 }

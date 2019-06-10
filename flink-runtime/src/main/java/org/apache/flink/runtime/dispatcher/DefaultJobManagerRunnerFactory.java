@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 
 /**
  * Singleton default factory for {@link JobManagerRunner}.
@@ -56,6 +57,7 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 
 		final SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(configuration);
 		final SchedulerFactory schedulerFactory = DefaultSchedulerFactory.fromConfiguration(configuration);
+		final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration, jobManagerServices.getRestartStrategyFactory());
 
 		final JobMasterServiceFactory jobMasterFactory = new DefaultJobMasterServiceFactory(
 			jobMasterConfiguration,
@@ -66,7 +68,8 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			jobManagerServices,
 			heartbeatServices,
 			jobManagerJobMetricGroupFactory,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			schedulerNGFactory);
 
 		return new JobManagerRunner(
 			jobGraph,

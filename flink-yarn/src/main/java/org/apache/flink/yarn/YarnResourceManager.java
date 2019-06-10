@@ -40,6 +40,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -63,6 +64,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,6 +72,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -86,10 +89,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	/** YARN container map. Package private for unit test purposes. */
 	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
-
-	/** The heartbeat interval while the resource master is waiting for containers. */
-	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
-
 	/** Environment variable name of the final container id used by the YarnResourceManager.
 	 * Container ID generation may vary across Hadoop versions. */
 	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
@@ -113,6 +112,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final int defaultTaskManagerMemoryMB;
 
 	private final int defaultCpus;
+
+	/** The heartbeat interval while the resource master is waiting for containers. */
+	private final int containerRequestHeartbeatIntervalMillis;
 
 	/** Client to communicate with the Resource Manager (YARN's master). */
 	private AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient;
@@ -173,6 +175,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					yarnHeartbeatIntervalMS, yarnExpiryIntervalMS);
 		}
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
+		containerRequestHeartbeatIntervalMillis = flinkConfig.getInteger(YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
 		numPendingContainerRequests = 0;
 
 		this.webInterfaceUrl = webInterfaceUrl;
@@ -292,8 +295,12 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
 		log.info("Unregister application from the YARN Resource Manager with final status {}.", yarnStatus);
 
+		final Optional<URL> historyServerURL = HistoryServerUtils.getHistoryServerURL(flinkConfig);
+
+		final String appTrackingUrl = historyServerURL.map(URL::toString).orElse("");
+
 		try {
-			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, "");
+			resourceManagerClient.unregisterApplicationMaster(yarnStatus, diagnostics, appTrackingUrl);
 		} catch (Throwable t) {
 			log.error("Could not unregister the application master.", t);
 		}
@@ -514,8 +521,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		resourceManagerClient.addContainerRequest(getContainerRequest());
 
 		// make sure we transmit the request fast and receive fast news of granted allocations
-		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
-
+		resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
 		numPendingContainerRequests++;
 
 		log.info("Requesting new TaskExecutor container with resources {}. Number pending requests {}.",

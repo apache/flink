@@ -40,8 +40,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 
-	private volatile boolean running = true;
-
 	private final WatermarkGauge input1WatermarkGauge;
 	private final WatermarkGauge input2WatermarkGauge;
 	private final MinWatermarkGauge minInputWatermarkGauge;
@@ -100,7 +98,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				this.headOperator,
 				getEnvironment().getMetricGroup().getIOMetricGroup(),
 				input1WatermarkGauge,
-				input2WatermarkGauge);
+				input2WatermarkGauge,
+				getTaskNameWithSubtaskAndId());
 
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
@@ -110,12 +109,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	}
 
 	@Override
-	protected void run() throws Exception {
-		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
-
-		while (running && inputProcessor.processInput()) {
-			// all the work happens in the "processInput" method
+	protected void performDefaultAction(ActionContext context) throws Exception {
+		if (!inputProcessor.processInput()) {
+			context.allActionsCompleted();
 		}
 	}
 
@@ -128,6 +124,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	protected void cancelTask() {
-		running = false;
+
 	}
 }

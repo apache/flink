@@ -22,10 +22,11 @@ usage() {
 Usage:
   build.sh --job-jar <path-to-job-jar> --from-local-dist [--image-name <image>]
   build.sh --job-jar <path-to-job-jar> --from-archive <path-to-dist-archive> [--image-name <image>]
-  build.sh --job-jar <path-to-job-jar> --from-release --flink-version <x.x.x> --hadoop-version <x.x> --scala-version <x.xx> [--image-name <image>]
+  build.sh --job-jar <path-to-job-jar> --from-release --flink-version <x.x.x> --scala-version <x.xx> [--hadoop-version <x.x>] [--image-name <image>]
   build.sh --help
 
-  If the --image-name flag is not used the built image name will be 'flink'.
+  If the --image-name flag is not used the built image name will be 'flink-job'.
+  Before Flink-1.8, the hadoop-version is required. And from Flink-1.8, the hadoop-version is optional and would download pre-bundled shaded Hadoop jar package if provided.
 HERE
   exit 1
 }
@@ -57,7 +58,8 @@ key="$1"
     shift
     ;;
     --hadoop-version)
-    HADOOP_VERSION="$(echo "$2" | sed 's/\.//')"
+    HADOOP_VERSION="$2"
+    HADOOP_MAJOR_VERSION="$(echo ${HADOOP_VERSION} | sed 's/\.//')"
     shift
     ;;
     --scala-version)
@@ -94,15 +96,60 @@ mkdir -p "${TMPDIR}"
 JOB_JAR_TARGET="${TMPDIR}/job.jar"
 cp ${JOB_JAR_PATH} ${JOB_JAR_TARGET}
 
+checkUrlAvailable() {
+    curl --output /dev/null --silent --head --fail $1
+    ret=$?
+    if [[ ${ret} -ne 0 ]]; then
+        echo "The url $1 not available, please check your parameters, exit..."
+        usage
+        exit 2
+    fi
+}
+
 if [ -n "${FROM_RELEASE}" ]; then
 
-  [[ -n "${FLINK_VERSION}" ]] && [[ -n "${HADOOP_VERSION}" ]] && [[ -n "${SCALA_VERSION}" ]] || usage
+  [[ -n "${FLINK_VERSION}" ]] && [[ -n "${SCALA_VERSION}" ]] || usage
 
-  FLINK_DIST_FILE_NAME="flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz"
+  FLINK_BASE_URL="$(curl -s https://www.apache.org/dyn/closer.cgi\?preferred\=true)flink/flink-${FLINK_VERSION}/"
+
+  FLINK_MAJOR_VERSION=$(echo "$FLINK_VERSION" | sed -e 's/\.//;s/\(..\).*/\1/')
+
+  if [[ $FLINK_MAJOR_VERSION -ge 18 ]]; then
+
+  # After Flink-1.8 we would let release pre-built package with hadoop
+    if [[ -n "${HADOOP_VERSION}" ]]; then
+        echo "After Flink-1.8, we would download pre-bundle hadoop jar package."
+        # list to get target pre-bundle package
+        SHADED_HADOOP_BASE_URL="https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop2-uber/"
+        SHADED_HADOOP_VERSION="$(curl -s ${SHADED_HADOOP_BASE_URL} | grep -o "title=\"[0-9.-]*/\"" | sed 's/title=\"//g; s/\/"//g' | grep ${HADOOP_VERSION} | head -1)"
+        SHADED_HADOOP_FILE_NAME="flink-shaded-hadoop2-uber-${SHADED_HADOOP_VERSION}.jar"
+
+        CURL_OUTPUT_SHADED_HADOOP="${TMPDIR}/${SHADED_HADOOP_FILE_NAME}"
+
+        DOWNLOAD_SHADED_HADOOP_URL=${SHADED_HADOOP_BASE_URL}${SHADED_HADOOP_VERSION}/${SHADED_HADOOP_FILE_NAME}
+        checkUrlAvailable ${DOWNLOAD_SHADED_HADOOP_URL}
+
+        echo "Downloading ${SHADED_HADOOP_FILE_NAME} from ${DOWNLOAD_SHADED_HADOOP_URL}"
+
+        curl -# ${DOWNLOAD_SHADED_HADOOP_URL} --output ${CURL_OUTPUT_SHADED_HADOOP}
+        SHADED_HADOOP="${CURL_OUTPUT_SHADED_HADOOP}"
+    fi
+    FLINK_DIST_FILE_NAME="flink-${FLINK_VERSION}-bin-scala_${SCALA_VERSION}.tgz"
+  elif [[ -z "${HADOOP_VERSION}" ]]; then
+    usage
+  else
+    FLINK_DIST_FILE_NAME="flink-${FLINK_VERSION}-bin-hadoop${HADOOP_MAJOR_VERSION}-scala_${SCALA_VERSION}.tgz"
+  fi
+
+
   CURL_OUTPUT="${TMPDIR}/${FLINK_DIST_FILE_NAME}"
 
-  echo "Downloading ${FLINK_DIST_FILE_NAME} from ${FLINK_BASE_URL}"
-  curl -# "https://archive.apache.org/dist/flink/flink-${FLINK_VERSION}/${FLINK_DIST_FILE_NAME}" --output ${CURL_OUTPUT}
+  DOWNLOAD_FLINK_URL=${FLINK_BASE_URL}${FLINK_DIST_FILE_NAME}
+  checkUrlAvailable ${DOWNLOAD_FLINK_URL}
+
+  echo "Downloading ${FLINK_DIST_FILE_NAME} from ${DOWNLOAD_FLINK_URL}"
+
+  curl -# ${DOWNLOAD_FLINK_URL} --output ${CURL_OUTPUT}
 
   FLINK_DIST="${CURL_OUTPUT}"
 
@@ -123,4 +170,4 @@ else
 
 fi
 
-docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_jar="${JOB_JAR_TARGET}" -t "${IMAGE_NAME}" .
+docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_jar="${JOB_JAR_TARGET}" --build-arg hadoop_jar="${SHADED_HADOOP}" -t "${IMAGE_NAME}" .

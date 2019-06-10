@@ -34,6 +34,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -115,7 +116,10 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * The environment of the context (local by default, cluster if invoked through command line).
 	 */
-	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
+	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory = null;
+
+	/** The ThreadLocal used to store {@link StreamExecutionEnvironmentFactory}. */
+	private static final ThreadLocal<StreamExecutionEnvironmentFactory> threadLocalContextEnvironmentFactory = new ThreadLocal<>();
 
 	/** The default parallelism used when creating a local environment. */
 	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
@@ -1568,10 +1572,12 @@ public abstract class StreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		if (contextEnvironmentFactory != null) {
-			return contextEnvironmentFactory.createExecutionEnvironment();
-		}
+		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
+			.map(StreamExecutionEnvironmentFactory::createExecutionEnvironment)
+			.orElseGet(StreamExecutionEnvironment::createStreamExecutionEnvironment);
+	}
 
+	private static StreamExecutionEnvironment createStreamExecutionEnvironment() {
 		// because the streaming project depends on "flink-clients" (and not the other way around)
 		// we currently need to intercept the data set environment and create a dependent stream env.
 		// this should be fixed once we rework the project dependencies
@@ -1766,10 +1772,12 @@ public abstract class StreamExecutionEnvironment {
 
 	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = ctx;
+		threadLocalContextEnvironmentFactory.set(contextEnvironmentFactory);
 	}
 
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+		threadLocalContextEnvironmentFactory.remove();
 	}
 
 	/**

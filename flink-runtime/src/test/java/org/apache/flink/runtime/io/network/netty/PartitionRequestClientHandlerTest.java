@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -27,9 +25,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -127,14 +125,15 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testReceiveBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
+			.setMemorySegmentProvider(networkBufferPool)
+			.buildRemoteAndSetToGate(inputGate);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments();
 
 			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
@@ -203,60 +202,6 @@ public class PartitionRequestClientHandlerTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
-		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class));
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @param client The client is used to send partition request.
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
-		return createRemoteInputChannel(inputGate, client, 0, 0);
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @param client The client is used to send partition request.
-	 * @param initialBackoff initial back off (in ms) for retriggering subpartition requests (must be <tt>&gt; 0</tt> to activate)
-	 * @param maxBackoff after which delay (in ms) to stop retriggering subpartition requests
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(
-			SingleInputGate inputGate,
-			PartitionRequestClient client,
-			int initialBackoff,
-			int maxBackoff) throws Exception {
-		final ConnectionManager connectionManager = mock(ConnectionManager.class);
-		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-			.thenReturn(client);
-
-		ResultPartitionID partitionId = new ResultPartitionID();
-		RemoteInputChannel inputChannel = new RemoteInputChannel(
-			inputGate,
-			0,
-			partitionId,
-			mock(ConnectionID.class),
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			InputChannelTestUtils.newUnregisteredInputChannelMetrics());
-
-		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
-		return inputChannel;
-	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.

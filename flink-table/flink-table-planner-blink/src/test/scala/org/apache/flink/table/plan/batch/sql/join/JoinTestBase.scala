@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
 import org.junit.Test
@@ -34,9 +34,9 @@ abstract class JoinTestBase extends TableTestBase {
     util.verifyPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
   }
 
-  @Test
+  @Test(expected = classOf[TableException])
   def testJoinNonMatchingKeyTypes(): Unit = {
-    // TODO do implicit type coercion
+    // INTEGER and VARCHAR(65536) does not have common type now
     util.verifyPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g")
   }
 
@@ -179,6 +179,16 @@ abstract class JoinTestBase extends TableTestBase {
   @Test
   def testFullOuterJoinOnFalse(): Unit = {
     util.verifyPlan("SELECT * FROM MyTable2 FULL OUTER JOIN MyTable1 ON false")
+  }
+
+  @Test
+  def testFullOuterWithUsing(): Unit = {
+    util.addTableSource[(Int, Long, String)]("MyTable3", 'a, 'b, 'c)
+    val sqlQuery =
+      """
+        |SELECT * FROM (SELECT * FROM MyTable1) FULL JOIN (SELECT * FROM MyTable3) USING (a)
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
   }
 
   @Test

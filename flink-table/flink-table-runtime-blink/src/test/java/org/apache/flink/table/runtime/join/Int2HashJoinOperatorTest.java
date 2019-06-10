@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.join;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
@@ -33,7 +34,6 @@ import org.apache.flink.table.generated.GeneratedJoinCondition;
 import org.apache.flink.table.generated.GeneratedProjection;
 import org.apache.flink.table.generated.JoinCondition;
 import org.apache.flink.table.generated.Projection;
-import org.apache.flink.table.runtime.TwoInputOperatorWrapper;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.RowType;
@@ -181,7 +181,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.SEMI;
-		StreamOperator operator = newOperator(33 * 32 * 1024, type, false);
+		Object operator = newOperator(33 * 32 * 1024, type, false);
 		joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true);
 	}
 
@@ -196,7 +196,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.ANTI;
-		StreamOperator operator = newOperator(33 * 32 * 1024, type, false);
+		Object operator = newOperator(33 * 32 * 1024, type, false);
 		joinAndAssert(operator, buildInput, probeInput, 10, 1, 45, true);
 	}
 
@@ -211,7 +211,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.BUILD_LEFT_SEMI;
-		StreamOperator operator = newOperator(33 * 32 * 1024, type, false);
+		Object operator = newOperator(33 * 32 * 1024, type, false);
 		joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true);
 	}
 
@@ -226,7 +226,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		HashJoinType type = HashJoinType.BUILD_LEFT_ANTI;
-		StreamOperator operator = newOperator(33 * 32 * 1024, type, false);
+		Object operator = newOperator(33 * 32 * 1024, type, false);
 		joinAndAssert(operator, buildInput, probeInput, 10, 1, 45, true);
 	}
 
@@ -236,12 +236,12 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			boolean leftOut, boolean rightOut, boolean buildLeft,
 			int expectOutSize, int expectOutKeySize, int expectOutVal) throws Exception {
 		HashJoinType type = HashJoinType.of(buildLeft, leftOut, rightOut);
-		StreamOperator operator = newOperator(33 * 32 * 1024, type, !buildLeft);
+		Object operator = newOperator(33 * 32 * 1024, type, !buildLeft);
 		joinAndAssert(operator, buildInput, probeInput, expectOutSize, expectOutKeySize, expectOutVal, false);
 	}
 
 	static void joinAndAssert(
-			StreamOperator operator,
+			Object operator,
 			MutableObjectIterator<BinaryRow> input1,
 			MutableObjectIterator<BinaryRow> input2,
 			int expectOutSize,
@@ -252,7 +252,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 	}
 
 	static void joinAndAssert(
-			StreamOperator operator,
+			Object operator,
 			MutableObjectIterator<BinaryRow> input1,
 			MutableObjectIterator<BinaryRow> input2,
 			int expectOutSize,
@@ -269,7 +269,11 @@ public class Int2HashJoinOperatorTest implements Serializable {
 		testHarness.memorySize = 36 * 1024 * 1024;
 		testHarness.getExecutionConfig().enableObjectReuse();
 		testHarness.setupOutputForSingletonOperatorChain();
-		testHarness.getStreamConfig().setStreamOperator(operator);
+		if (operator instanceof StreamOperator) {
+			testHarness.getStreamConfig().setStreamOperator((StreamOperator<?>) operator);
+		} else {
+			testHarness.getStreamConfig().setStreamOperatorFactory((StreamOperatorFactory<?>) operator);
+		}
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
 
 		testHarness.invoke();
@@ -391,21 +395,15 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
 	static void endInput1(TwoInputStreamTaskTestHarness harness) throws Exception {
 		StreamOperator op = ((OperatorChain) harness.getTask().getStreamStatusMaintainer()).getHeadOperator();
-		if (op instanceof TwoInputOperatorWrapper) {
-			op = ((TwoInputOperatorWrapper) op).getOperator();
-		}
 		op.getClass().getMethod("endInput1").invoke(op);
 	}
 
 	static void endInput2(TwoInputStreamTaskTestHarness harness) throws Exception {
 		StreamOperator op = ((OperatorChain) harness.getTask().getStreamStatusMaintainer()).getHeadOperator();
-		if (op instanceof TwoInputOperatorWrapper) {
-			op = ((TwoInputOperatorWrapper) op).getOperator();
-		}
 		op.getClass().getMethod("endInput2").invoke(op);
 	}
 
-	public StreamOperator newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
+	public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
 		return HashJoinOperator.newHashJoinOperator(
 				memorySize, memorySize, 0, type,
 				new GeneratedJoinCondition("", "", new Object[0]) {

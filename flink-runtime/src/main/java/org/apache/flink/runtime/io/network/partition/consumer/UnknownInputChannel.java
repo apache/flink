@@ -18,12 +18,16 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -49,6 +53,9 @@ class UnknownInputChannel extends InputChannel {
 
 	private final InputChannelMetrics metrics;
 
+	@Nonnull
+	private final MemorySegmentProvider memorySegmentProvider;
+
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
@@ -58,7 +65,8 @@ class UnknownInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
-			InputChannelMetrics metrics) {
+			InputChannelMetrics metrics,
+			@Nonnull MemorySegmentProvider memorySegmentProvider) {
 
 		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
 
@@ -68,6 +76,7 @@ class UnknownInputChannel extends InputChannel {
 		this.metrics = checkNotNull(metrics);
 		this.initialBackoff = initialBackoff;
 		this.maxBackoff = maxBackoff;
+		this.memorySegmentProvider = memorySegmentProvider;
 	}
 
 	@Override
@@ -117,7 +126,8 @@ class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, initialBackoff, maxBackoff, metrics);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress),
+			connectionManager, initialBackoff, maxBackoff, metrics, memorySegmentProvider);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {

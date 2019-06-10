@@ -17,24 +17,8 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
-import org.apache.flink.table.`type`.InternalTypes._
-import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, RowType, TypeConverters}
-import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
-import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
-import org.apache.flink.table.expressions.{FieldReferenceExpression, ProctimeAttribute, RexNodeConverter, RowtimeAttribute, WindowEnd, WindowStart}
-import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
-import org.apache.flink.table.functions.utils.AggSqlFunction
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
-import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
-import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo, MapViewTypeInfo}
+import java.time.Duration
+import java.util
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -43,8 +27,29 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
-
-import java.util
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
+import org.apache.flink.table.JLong
+import org.apache.flink.table.`type`.InternalTypes._
+import org.apache.flink.table.`type`.{DecimalType, InternalType, InternalTypes, TypeConverters}
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
+import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.expressions.ExpressionUtils.extractValue
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
+import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
+import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
+import org.apache.flink.table.types.logical.LogicalTypeRoot
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+import org.apache.flink.table.typeutils._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -490,7 +495,7 @@ object AggregateUtil extends Enumeration {
             s"Please re-check the data type.")
       }
     } else {
-      TypeConverters.createExternalTypeInfoFromInternalType(new RowType(argTypes: _*))
+      new BaseRowTypeInfo(argTypes: _*)
     }
   }
 
@@ -696,4 +701,26 @@ object AggregateUtil extends Enumeration {
     }
     (propPos._1, propPos._2, propPos._3)
   }
+
+  def isRowtimeAttribute(field: FieldReferenceExpression): Boolean = {
+    LogicalTypeChecks.isRowtimeAttribute(field.getOutputDataType.getLogicalType)
+  }
+
+  def isProctimeAttribute(field: FieldReferenceExpression): Boolean = {
+    LogicalTypeChecks.isProctimeAttribute(field.getOutputDataType.getLogicalType)
+  }
+
+  def hasTimeIntervalType(intervalType: ValueLiteralExpression): Boolean = {
+    hasRoot(intervalType.getOutputDataType.getLogicalType, LogicalTypeRoot.INTERVAL_DAY_TIME)
+  }
+
+  def hasRowIntervalType(intervalType: ValueLiteralExpression): Boolean = {
+    hasRoot(intervalType.getOutputDataType.getLogicalType, LogicalTypeRoot.BIGINT)
+  }
+
+  def toLong(literalExpr: ValueLiteralExpression): JLong =
+    extractValue(literalExpr, classOf[JLong]).get()
+
+  def toDuration(literalExpr: ValueLiteralExpression): Duration =
+    extractValue(literalExpr, classOf[Duration]).get()
 }

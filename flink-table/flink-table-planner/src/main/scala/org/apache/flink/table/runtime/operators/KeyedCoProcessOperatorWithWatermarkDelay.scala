@@ -18,16 +18,16 @@
 package org.apache.flink.table.runtime.operators
 
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 
 /**
-  * A [[KeyedCoProcessOperator]] that supports holding back watermarks with a static delay.
+  * A [[LegacyKeyedCoProcessOperator]] that supports holding back watermarks with a static delay.
   */
 class KeyedCoProcessOperatorWithWatermarkDelay[KEY, IN1, IN2, OUT](
     private val flatMapper: CoProcessFunction[IN1, IN2, OUT],
     private val watermarkDelay: Long = 0L)
-  extends KeyedCoProcessOperator[KEY, IN1, IN2, OUT](flatMapper) {
+  extends LegacyKeyedCoProcessOperator[KEY, IN1, IN2, OUT](flatMapper) {
 
   /** emits watermark without delay */
   def emitWithoutDelay(mark: Watermark): Unit = output.emitWatermark(mark)

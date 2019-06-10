@@ -32,11 +32,6 @@ public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisito
 	}
 
 	@Override
-	public T visitSymbol(SymbolExpression symbolExpression) {
-		return defaultMethod(symbolExpression);
-	}
-
-	@Override
 	public T visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
 		return defaultMethod(valueLiteralExpression);
 	}

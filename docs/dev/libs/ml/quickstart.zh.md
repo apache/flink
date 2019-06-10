@@ -55,7 +55,7 @@ through [principal components analysis](https://en.wikipedia.org/wiki/Principal_
 ## Linking with FlinkML
 
 In order to use FlinkML in your project, first you have to
-[set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
+[set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project:
 
 {% highlight xml %}

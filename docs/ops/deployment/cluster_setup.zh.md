@@ -110,7 +110,7 @@ In particular,
  * the amount of available memory per TaskManager (`taskmanager.heap.mb`),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
- * the temporary directories (`taskmanager.tmp.dirs`)
+ * the temporary directories (`io.tmp.dirs`)
 
 are very important configuration values.
 

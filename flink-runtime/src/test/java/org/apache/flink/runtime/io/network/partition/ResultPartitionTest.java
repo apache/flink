@@ -19,25 +19,31 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
+
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -50,53 +56,37 @@ import static org.mockito.Mockito.verify;
  */
 public class ResultPartitionTest {
 
-	/** Asynchronous I/O manager. */
-	private static final IOManager ioManager = new IOManagerAsync();
-
-	@AfterClass
-	public static void shutdown() {
-		ioManager.shutdown();
-	}
-
 	/**
 	 * Tests the schedule or update consumers message sending behaviour depending on the relevant flags.
 	 */
 	@Test
 	public void testSendScheduleOrUpdateConsumersMessage() throws Exception {
+		JobID jobId = new JobID();
+		TaskActions taskActions = new NoOpTaskActions();
+
 		{
 			// Pipelined, send message => notify
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, true);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
+			ResultPartitionWriter consumableNotifyingPartitionWriter = createConsumableNotifyingResultPartitionWriter(
+				ResultPartitionType.PIPELINED,
+				taskActions,
+				jobId,
+				notifier);
+			consumableNotifyingPartitionWriter.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
 			verify(notifier, times(1))
-				.notifyPartitionConsumable(
-					eq(partition.getJobId()),
-					eq(partition.getPartitionId()),
-					any(TaskActions.class));
-		}
-
-		{
-			// Pipelined, don't send message => don't notify
-			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, false);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+				.notifyPartitionConsumable(eq(jobId), eq(consumableNotifyingPartitionWriter.getPartitionId()), eq(taskActions));
 		}
 
 		{
 			// Blocking, send message => don't notify
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, true);
+			ResultPartitionWriter partition = createConsumableNotifyingResultPartitionWriter(
+				ResultPartitionType.BLOCKING,
+				taskActions,
+				jobId,
+				notifier);
 			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
-		}
-
-		{
-			// Blocking, don't send message => don't notify
-			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, false);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+			verify(notifier, never()).notifyPartitionConsumable(eq(jobId), eq(partition.getPartitionId()), eq(taskActions));
 		}
 	}
 
@@ -113,18 +103,23 @@ public class ResultPartitionTest {
 	/**
 	 * Tests {@link ResultPartition#addBufferConsumer} on a partition which has already finished.
 	 *
-	 * @param pipelined the result partition type to set up
+	 * @param partitionType the result partition type to set up
 	 */
-	protected void testAddOnFinishedPartition(final ResultPartitionType pipelined)
-		throws Exception {
+	private void testAddOnFinishedPartition(final ResultPartitionType partitionType) throws Exception {
 		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
+		JobID jobId = new JobID();
+		TaskActions taskActions = new NoOpTaskActions();
+		ResultPartitionWriter consumableNotifyingPartitionWriter = createConsumableNotifyingResultPartitionWriter(
+			partitionType,
+			taskActions,
+			jobId,
+			notifier);
 		try {
-			ResultPartition partition = createPartition(notifier, pipelined, true);
-			partition.finish();
+			consumableNotifyingPartitionWriter.finish();
 			reset(notifier);
 			// partition.add() should fail
-			partition.addBufferConsumer(bufferConsumer, 0);
+			consumableNotifyingPartitionWriter.addBufferConsumer(bufferConsumer, 0);
 			Assert.fail("exception expected");
 		} catch (IllegalStateException e) {
 			// expected => ignored
@@ -134,7 +129,10 @@ public class ResultPartitionTest {
 				Assert.fail("bufferConsumer not recycled");
 			}
 			// should not have notified either
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+			verify(notifier, never()).notifyPartitionConsumable(
+				eq(jobId),
+				eq(consumableNotifyingPartitionWriter.getPartitionId()),
+				eq(taskActions));
 		}
 	}
 
@@ -151,17 +149,24 @@ public class ResultPartitionTest {
 	/**
 	 * Tests {@link ResultPartition#addBufferConsumer} on a partition which has already been released.
 	 *
-	 * @param pipelined the result partition type to set up
+	 * @param partitionType the result partition type to set up
 	 */
-	protected void testAddOnReleasedPartition(final ResultPartitionType pipelined)
-		throws Exception {
+	private void testAddOnReleasedPartition(final ResultPartitionType partitionType) throws Exception {
 		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
+		JobID jobId = new JobID();
+		TaskActions taskActions = new NoOpTaskActions();
+		ResultPartition partition = createPartition(partitionType);
+		ResultPartitionWriter consumableNotifyingPartitionWriter = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
+			Collections.singleton(createPartitionDeploymentDescriptor(partitionType)),
+			new ResultPartitionWriter[] {partition},
+			taskActions,
+			jobId,
+			notifier)[0];
 		try {
-			ResultPartition partition = createPartition(notifier, pipelined, true);
 			partition.release();
 			// partition.add() silently drops the bufferConsumer but recycles it
-			partition.addBufferConsumer(bufferConsumer, 0);
+			consumableNotifyingPartitionWriter.addBufferConsumer(bufferConsumer, 0);
 			assertTrue(partition.isReleased());
 		} finally {
 			if (!bufferConsumer.isRecycled()) {
@@ -169,7 +174,7 @@ public class ResultPartitionTest {
 				Assert.fail("bufferConsumer not recycled");
 			}
 			// should not have notified either
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+			verify(notifier, never()).notifyPartitionConsumable(eq(jobId), eq(partition.getPartitionId()), eq(taskActions));
 		}
 	}
 
@@ -186,35 +191,32 @@ public class ResultPartitionTest {
 	/**
 	 * Tests {@link ResultPartition#addBufferConsumer(BufferConsumer, int)} on a working partition.
 	 *
-	 * @param pipelined the result partition type to set up
+	 * @param partitionType the result partition type to set up
 	 */
-	protected void testAddOnPartition(final ResultPartitionType pipelined)
-		throws Exception {
+	private void testAddOnPartition(final ResultPartitionType partitionType) throws Exception {
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-		ResultPartition partition = createPartition(notifier, pipelined, true);
+		JobID jobId = new JobID();
+		TaskActions taskActions = new NoOpTaskActions();
+		ResultPartitionWriter consumableNotifyingPartitionWriter = createConsumableNotifyingResultPartitionWriter(
+			partitionType,
+			taskActions,
+			jobId,
+			notifier);
 		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
 		try {
 			// partition.add() adds the bufferConsumer without recycling it (if not spilling)
-			partition.addBufferConsumer(bufferConsumer, 0);
+			consumableNotifyingPartitionWriter.addBufferConsumer(bufferConsumer, 0);
 			assertFalse("bufferConsumer should not be recycled (still in the queue)", bufferConsumer.isRecycled());
 		} finally {
 			if (!bufferConsumer.isRecycled()) {
 				bufferConsumer.close();
 			}
 			// should have been notified for pipelined partitions
-			if (pipelined.isPipelined()) {
+			if (partitionType.isPipelined()) {
 				verify(notifier, times(1))
-					.notifyPartitionConsumable(
-						eq(partition.getJobId()),
-						eq(partition.getPartitionId()),
-						any(TaskActions.class));
+					.notifyPartitionConsumable(eq(jobId), eq(consumableNotifyingPartitionWriter.getPartitionId()), eq(taskActions));
 			}
 		}
-	}
-
-	@Test
-	public void testReleaseMemoryOnBlockingPartition() throws Exception {
-		testReleaseMemory(ResultPartitionType.BLOCKING);
 	}
 
 	@Test
@@ -231,10 +233,9 @@ public class ResultPartitionTest {
 		final int numAllBuffers = 10;
 		final NetworkEnvironment network = new NetworkEnvironmentBuilder()
 			.setNumNetworkBuffers(numAllBuffers).build();
-		final ResultPartitionConsumableNotifier notifier = new NoOpResultPartitionConsumableNotifier();
-		final ResultPartition resultPartition = createPartition(notifier, resultPartitionType, false);
+		final ResultPartition resultPartition = createPartition(network, resultPartitionType, 1);
 		try {
-			network.setupPartition(resultPartition);
+			resultPartition.setup();
 
 			// take all buffers (more than the minimum required)
 			for (int i = 0; i < numAllBuffers; ++i) {
@@ -261,23 +262,31 @@ public class ResultPartitionTest {
 		}
 	}
 
-	// ------------------------------------------------------------------------
+	private ResultPartitionWriter createConsumableNotifyingResultPartitionWriter(
+			ResultPartitionType partitionType,
+			TaskActions taskActions,
+			JobID jobId,
+			ResultPartitionConsumableNotifier notifier) {
+		return ConsumableNotifyingResultPartitionWriterDecorator.decorate(
+			Collections.singleton(createPartitionDeploymentDescriptor(partitionType)),
+			new ResultPartitionWriter[] {createPartition(partitionType)},
+			taskActions,
+			jobId,
+			notifier)[0];
+	}
 
-	private static ResultPartition createPartition(
-			ResultPartitionConsumableNotifier notifier,
-			ResultPartitionType type,
-			boolean sendScheduleOrUpdateConsumersMessage) {
-		return new ResultPartition(
-			"TestTask",
-			new NoOpTaskActions(),
-			new JobID(),
-			new ResultPartitionID(),
-			type,
+	private ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(ResultPartitionType partitionType) {
+		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
+			new IntermediateDataSetID(),
+			shuffleDescriptor.getResultPartitionID().getPartitionId(),
+			partitionType,
 			1,
+			0);
+		return new ResultPartitionDeploymentDescriptor(
+			partitionDescriptor,
+			shuffleDescriptor,
 			1,
-			mock(ResultPartitionManager.class),
-			notifier,
-			ioManager,
-			sendScheduleOrUpdateConsumersMessage);
+			true);
 	}
 }

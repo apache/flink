@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.api.{TableException, TableSchema}
@@ -84,9 +84,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
               new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
           case InternalTypes.BINARY => createSqlType(VARBINARY)
-
-          case InternalTypes.CHAR =>
-            throw new TableException("Character type is not supported.")
 
           case decimal: DecimalType =>
             createSqlType(DECIMAL, decimal.precision(), decimal.scale())
@@ -193,11 +190,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     buildRelDataType(
       tableSchema.getFieldNames.toSeq,
       tableSchema.getFieldTypes map {
-        case TimeIndicatorTypeInfo.PROCTIME_INDICATOR
-          if isStreaming.isDefined && !isStreaming.get =>
-          InternalTypes.TIMESTAMP
-        case TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-          if isStreaming.isDefined && !isStreaming.get =>
+        case _: TimeIndicatorTypeInfo if isStreaming.isDefined && !isStreaming.get =>
           InternalTypes.TIMESTAMP
         case tpe: TypeInformation[_] => createInternalTypeFromTypeInfo(tpe)
       })
@@ -473,6 +466,9 @@ object FlinkTypeFactory {
     case MAP if relDataType.isInstanceOf[MapRelDataType] =>
       val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
       mapRelDataType.mapType
+
+    // CURSOR for UDTF case, whose type info will never be used, just a placeholder
+    case CURSOR => new GenericType(new NothingTypeInfo)
 
     case _@t =>
       throw new TableException(s"Type is not supported: $t")

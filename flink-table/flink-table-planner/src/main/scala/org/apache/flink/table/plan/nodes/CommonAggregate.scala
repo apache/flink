@@ -25,6 +25,7 @@ import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 trait CommonAggregate {
 
@@ -35,16 +36,14 @@ trait CommonAggregate {
   }
 
   private[flink] def aggregationToString(
-      inputType: RelDataType,
-      grouping: Array[Int],
-      rowType: RelDataType,
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      namedProperties: Seq[NamedWindowProperty])
-    : String = {
+    inputType: RelDataType,
+    grouping: Array[Int],
+    outFields: Seq[String],
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    namedProperties: Seq[NamedWindowProperty])
+  : String = {
 
     val inFields = inputType.getFieldNames.asScala
-    val outFields = rowType.getFieldNames.asScala
-
     val groupStrings = grouping.map( inFields(_) )
 
     val aggs = namedAggregates.map(_.getKey)
@@ -66,5 +65,16 @@ trait CommonAggregate {
         s"$f AS $o"
       }
     }.mkString(", ")
+  }
+
+  private[flink] def aggregationToString(
+      inputType: RelDataType,
+      grouping: Array[Int],
+      rowType: RelDataType,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      namedProperties: Seq[NamedWindowProperty])
+    : String = {
+    aggregationToString(
+      inputType, grouping, rowType.getFieldNames, namedAggregates, namedProperties)
   }
 }

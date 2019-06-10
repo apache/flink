@@ -24,6 +24,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
@@ -35,6 +36,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -73,9 +75,16 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 	@Override
 	PipelinedSubpartition createSubpartition() {
-		final ResultPartition parent = mock(ResultPartition.class);
+		final ResultPartition parent = PartitionTestUtils.createPartition();
 
 		return new PipelinedSubpartition(0, parent);
+	}
+
+	@Override
+	ResultSubpartition createFailingWritesSubpartition() throws Exception {
+		// the tests relating to this are currently not supported by the PipelinedSubpartition
+		Assume.assumeTrue(false);
+		return null;
 	}
 
 	@Test
@@ -279,5 +288,41 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		}
 		assertEquals(2, partition.getTotalNumberOfBuffers());
 		assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
+	}
+
+	@Test
+	public void testReleaseParent() throws Exception {
+		final ResultSubpartition partition = createSubpartition();
+		verifyViewReleasedAfterParentRelease(partition);
+	}
+
+	@Test
+	public void testReleaseParentAfterSpilled() throws Exception {
+		final ResultSubpartition partition = createSubpartition();
+		partition.releaseMemory();
+
+		verifyViewReleasedAfterParentRelease(partition);
+	}
+
+	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
+		// Add a bufferConsumer
+		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
+		partition.add(bufferConsumer);
+		partition.finish();
+
+		// Create the view
+		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
+		ResultSubpartitionView view = partition.createReadView(listener);
+
+		// The added bufferConsumer and end-of-partition event
+		assertNotNull(view.getNextBuffer());
+		assertNotNull(view.getNextBuffer());
+
+		// Release the parent
+		assertFalse(view.isReleased());
+		partition.release();
+
+		// Verify that parent release is reflected at partition view
+		assertTrue(view.isReleased());
 	}
 }

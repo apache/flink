@@ -57,13 +57,6 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public Expression[] initialValuesExpressions() {
-		return new Expression[] {
-				/* sum0 = */ literal(0L, getResultType())
-		};
-	}
-
-	@Override
 	public Expression[] accumulateExpressions() {
 		return new Expression[] {
 				/* sum0 = */ ifThenElse(isNull(operand(0)), sum0, plus(sum0, operand(0)))
@@ -98,6 +91,13 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		public TypeInformation getResultType() {
 			return Types.INT;
 		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal(0, getResultType())
+			};
+		}
 	}
 
 	/**
@@ -107,6 +107,13 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.BYTE;
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal((byte) 0, getResultType())
+			};
 		}
 	}
 
@@ -118,6 +125,13 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		public TypeInformation getResultType() {
 			return Types.SHORT;
 		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal((short) 0, getResultType())
+			};
+		}
 	}
 
 	/**
@@ -127,6 +141,13 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 		@Override
 		public TypeInformation getResultType() {
 			return Types.LONG;
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal(0L, getResultType())
+			};
 		}
 	}
 

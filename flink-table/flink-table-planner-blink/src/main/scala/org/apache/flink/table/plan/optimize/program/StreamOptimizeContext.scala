@@ -18,15 +18,29 @@
 
 package org.apache.flink.table.plan.optimize.program
 
+import org.apache.calcite.rex.RexBuilder
+
 /**
   * A OptimizeContext allows to obtain stream table environment information when optimizing.
   */
 trait StreamOptimizeContext extends FlinkOptimizeContext {
 
   /**
+    * Gets the Calcite [[RexBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]].
+    */
+  def getRexBuilder: RexBuilder
+
+  /**
     * Returns true if the sink requests updates as retraction messages
-    * defined in [[org.apache.flink.table.plan.optimize.StreamOptimizer.optimize]].
+    * defined in
+    * [[org.apache.flink.table.plan.optimize.StreamCommonSubGraphBasedOptimizer.optimize]].
     */
   def updateAsRetraction: Boolean
+
+  /**
+    * Returns true if the output node needs final TimeIndicator conversion
+    * defined in [[org.apache.flink.table.api.TableEnvironment.optimize]].
+    */
+  def needFinalTimeIndicatorConversion: Boolean
 
 }

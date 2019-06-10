@@ -83,7 +83,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				}
 			}
 
-			final BufferOrEvent bufferOrEvent = inputGate.getNextBufferOrEvent().orElseThrow(IllegalStateException::new);
+			final BufferOrEvent bufferOrEvent = inputGate.getNext().orElseThrow(IllegalStateException::new);
 
 			if (bufferOrEvent.isBuffer()) {
 				currentRecordDeserializer = recordDeserializers[bufferOrEvent.getChannelIndex()];

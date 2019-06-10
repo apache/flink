@@ -23,16 +23,18 @@ import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.util.RelExplainUtil
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Correlate
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
-import org.apache.calcite.sql.SemiJoinType
+import org.apache.calcite.rel.{RelCollationTraitDef, RelDistribution, RelFieldCollation, RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
+import org.apache.calcite.sql.{SemiJoinType, SqlKind}
+import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 
 import java.util
 
@@ -92,6 +94,79 @@ class BatchExecCorrelate(
       .item("rowType", outputRowType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
+  }
+
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    // Correlate could not provide broadcast distribution
+    if (requiredDistribution.getType == RelDistribution.Type.BROADCAST_DISTRIBUTED) {
+      return None
+    }
+
+    def getOutputInputMapping: Mapping = {
+      val inputFieldCnt = getInput.getRowType.getFieldCount
+      projectProgram match {
+        case Some(program) =>
+          val projects = program.getProjectList.map(program.expandLocalRef)
+          val mapping = Mappings.create(MappingType.INVERSE_FUNCTION, inputFieldCnt, projects.size)
+          projects.zipWithIndex.foreach {
+            case (project, index) =>
+              project match {
+                case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
+                case call: RexCall if call.getKind == SqlKind.AS =>
+                  call.getOperands.head match {
+                    case inputRef: RexInputRef => mapping.set(inputRef.getIndex, index)
+                    case _ => // ignore
+                  }
+                case _ => // ignore
+              }
+          }
+          mapping.inverse()
+        case _ =>
+          val mapping = Mappings.create(MappingType.FUNCTION, inputFieldCnt, inputFieldCnt)
+          (0 until inputFieldCnt).foreach {
+            index => mapping.set(index, index)
+          }
+          mapping
+      }
+    }
+
+    val mapping = getOutputInputMapping
+    val appliedDistribution = requiredDistribution.apply(mapping)
+    // If both distribution and collation can be satisfied, satisfy both. If only distribution
+    // can be satisfied, only satisfy distribution. There is no possibility to only satisfy
+    // collation here except for there is no distribution requirement.
+    if ((!requiredDistribution.isTop) && (appliedDistribution eq FlinkRelDistribution.ANY)) {
+      return None
+    }
+
+    val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    val appliedCollation = TraitUtil.apply(requiredCollation, mapping)
+    // the required collation can be satisfied if field collations are not empty
+    // and the direction of each field collation is non-STRICTLY
+    val canSatisfyCollation = appliedCollation.getFieldCollations.nonEmpty &&
+      !appliedCollation.getFieldCollations.exists { c =>
+        (c.getDirection eq RelFieldCollation.Direction.STRICTLY_ASCENDING) ||
+          (c.getDirection eq RelFieldCollation.Direction.STRICTLY_DESCENDING)
+      }
+    // If required traits only contains collation requirements, but collation keys are not columns
+    // from input, then no need to satisfy required traits.
+    if ((appliedDistribution eq FlinkRelDistribution.ANY) && !canSatisfyCollation) {
+      return None
+    }
+
+    var inputRequiredTraits = getInput.getTraitSet
+    var providedTraits = getTraitSet
+    if (!appliedDistribution.isTop) {
+      inputRequiredTraits = inputRequiredTraits.replace(appliedDistribution)
+      providedTraits = providedTraits.replace(requiredDistribution)
+    }
+    if (canSatisfyCollation) {
+      inputRequiredTraits = inputRequiredTraits.replace(appliedCollation)
+      providedTraits = providedTraits.replace(requiredCollation)
+    }
+    val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
+    Some(copy(providedTraits, Seq(newInput)))
   }
 
   //~ ExecNode methods -----------------------------------------------------------

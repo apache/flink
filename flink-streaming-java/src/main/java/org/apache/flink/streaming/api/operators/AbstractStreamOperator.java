@@ -90,7 +90,7 @@ import java.util.Locale;
  */
 @PublicEvolving
 public abstract class AbstractStreamOperator<OUT>
-		implements StreamOperator<OUT>, Serializable {
+		implements StreamOperator<OUT>, SetupableStreamOperator<OUT>, Serializable {
 
 	private static final long serialVersionUID = 1L;
 

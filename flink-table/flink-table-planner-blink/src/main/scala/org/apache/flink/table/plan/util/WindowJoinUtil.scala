@@ -19,14 +19,13 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator,
-ExpressionReducer, FunctionCodeGenerator}
+import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, ExpressionReducer, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.generated.GeneratedFunction
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.`type`.RowType
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
@@ -475,6 +474,9 @@ object WindowJoinUtil {
       */
     def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
+        case c: RexCall if RelTimeIndicatorConverter.isMaterializationCall(c) =>
+          // replace with timestamp
+          rexBuilder.makeZeroLiteral(expr.getType)
         case c: RexCall =>
           // replace in call operands
           val newOps = c.operands.map(replaceTimeFieldWithLiteral)

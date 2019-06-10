@@ -45,7 +45,7 @@ class ExternalCatalogInsertTest extends TableTestBase {
     val table2 = tableBatchEnv.scan("test", "db2", "tb2")
     table2.select('d * 2, 'e, 'g.upperCase())
       .unionAll(table1.select('a * 2, 'b, 'c.upperCase()))
-      .insertInto("test.db3.tb3")
+      .insertInto("test", "db3", "tb3")
   }
 
   @Test
@@ -54,7 +54,7 @@ class ExternalCatalogInsertTest extends TableTestBase {
       "test",
       CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
-    val sqlInsert = "INSERT INTO `test.db3.tb3` SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 " +
+    val sqlInsert = "INSERT INTO test.db3.tb3 SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 " +
       "UNION ALL (SELECT a * 2, b, c FROM test.db1.tb1)"
 
     tableBatchEnv.sqlUpdate(sqlInsert)
@@ -74,7 +74,7 @@ class ExternalCatalogInsertTest extends TableTestBase {
     table2.where("d < 3")
       .select('d * 2, 'e, 'g.upperCase())
       .unionAll(table1.select('a * 2, 'b, 'c.upperCase()))
-      .insertInto("test.db3.tb3")
+      .insertInto("test", "db3", "tb3")
   }
 
   @Test
@@ -85,7 +85,7 @@ class ExternalCatalogInsertTest extends TableTestBase {
       "test",
       CommonTestData.getInMemoryTestCatalog(isStreaming = true))
 
-    val sqlInsert = "INSERT INTO `test.db3.tb3` SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 " +
+    val sqlInsert = "INSERT INTO test.db3.tb3 SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 " +
       "UNION ALL (SELECT a * 2, b, c FROM test.db1.tb1)"
 
     tableEnv.sqlUpdate(sqlInsert)
@@ -103,6 +103,6 @@ class ExternalCatalogInsertTest extends TableTestBase {
     val table2 = tableEnv.scan("test", "db2", "tb2")
     table2.select('d * 2, 'e, 'g.upperCase())
       .unionAll(table1.select('a * 2, 'b, 'c.upperCase()))
-      .insertInto("test.tb3")
+      .insertInto("test", "tb3")
   }
 }

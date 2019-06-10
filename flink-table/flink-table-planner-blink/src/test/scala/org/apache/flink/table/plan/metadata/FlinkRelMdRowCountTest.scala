@@ -18,9 +18,15 @@
 
 package org.apache.flink.table.plan.metadata
 
+import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 
+import com.google.common.collect.Lists
+import org.apache.calcite.rel.core.{AggregateCall, Project}
+import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.sql.fun.SqlCountAggFunction
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.LESS_THAN
+import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
 import org.junit.Test
 
@@ -135,8 +141,38 @@ class FlinkRelMdRowCountTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetRowCountOnOverWindow(): Unit = {
-    Array(flinkLogicalOverWindow, batchOverWindowAgg).foreach { agg =>
+  def testGetRowCountOnWindowAgg(): Unit = {
+    Array(logicalWindowAgg, flinkLogicalWindowAgg, batchLocalWindowAgg,
+      batchGlobalWindowAggWithoutLocalAgg,
+      batchGlobalWindowAggWithLocalAgg, streamWindowAgg).foreach { agg =>
+      assertEquals(50D, mq.getRowCount(agg))
+    }
+
+    Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
+      batchLocalWindowAggWithAuxGroup,
+      batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
+      batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
+      assertEquals(50D, mq.getRowCount(agg))
+    }
+
+    relBuilder.clear()
+    val ts = relBuilder.scan("TemporalTable3").peek()
+    val aggCallOfWindowAgg = Lists.newArrayList(AggregateCall.create(
+      new SqlCountAggFunction("COUNT"), false, false, List[Integer](3), -1, 2, ts, null, "s"))
+    val windowAgg = new LogicalWindowAggregate(
+      ts.getCluster,
+      ts.getTraitSet,
+      ts,
+      ImmutableBitSet.of(0, 1),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+    assertEquals(4000000000D, mq.getRowCount(windowAgg))
+  }
+
+  @Test
+  def testGetRowCountOnOverAgg(): Unit = {
+    Array(flinkLogicalOverAgg, batchOverAgg).foreach { agg =>
       assertEquals(50.0, mq.getRowCount(agg))
     }
   }

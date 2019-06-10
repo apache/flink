@@ -680,18 +680,19 @@ private[flink] class TestUpsertSink(
 
   override def setKeyFields(keys: Array[String]): Unit =
     if (keys != null) {
-      assertEquals("Provided key fields do not match expected keys",
-        expectedKeys.sorted.mkString(","),
-        keys.sorted.mkString(","))
+      if (!expectedKeys.sorted.mkString(",").equals(keys.sorted.mkString(","))) {
+        throw new AssertionError("Provided key fields do not match expected keys")
+      }
     } else {
-      assertNull("Provided key fields should not be null.", expectedKeys)
+      if (expectedKeys != null) {
+        throw new AssertionError("Provided key fields should not be null.")
+      }
     }
 
   override def setIsAppendOnly(isAppendOnly: JBool): Unit =
-    assertEquals(
-      "Provided isAppendOnly does not match expected isAppendOnly",
-      expectedIsAppendOnly,
-      isAppendOnly)
+    if (expectedIsAppendOnly != isAppendOnly) {
+      throw new AssertionError("Provided isAppendOnly does not match expected isAppendOnly")
+    }
 
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
 
@@ -749,9 +750,9 @@ object RowCollector {
         }
       }.filter{ case (_, c: Int) => c != 0 }
 
-    assertFalse(
-      "Received retracted rows which have not been accumulated.",
-      retracted.exists{ case (_, c: Int) => c < 0})
+    if (retracted.exists{ case (_, c: Int) => c < 0}) {
+      throw new AssertionError("Received retracted rows which have not been accumulated.")
+    }
 
     retracted.flatMap { case (r: String, c: Int) => (0 until c).map(_ => r) }.toList
   }

@@ -27,7 +27,7 @@ import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.buildAggregateA
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.generated.{NormalizedKeyComputer, RecordComparator}
@@ -334,10 +334,6 @@ object HashAggCodeGenHelper {
       new CallExpression(
         call.getFunctionDefinition,
         call.getChildren.map(_.accept(this)))
-    }
-
-    override def visitSymbol(symbolExpression: SymbolExpression): Expression = {
-      symbolExpression
     }
 
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {

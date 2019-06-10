@@ -32,7 +32,7 @@ import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.rules.ResolverRule;
 import org.apache.flink.table.expressions.rules.ResolverRules;
-import org.apache.flink.table.operations.TableOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.plan.logical.LogicalOverWindow;
 import org.apache.flink.table.plan.logical.LogicalWindow;
 import org.apache.flink.table.plan.logical.SessionGroupWindow;
@@ -52,6 +52,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import scala.Some;
+
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Tries to resolve all unresolved expressions such as {@link UnresolvedReferenceExpression}
@@ -129,7 +131,7 @@ public class ExpressionResolver {
 	public static ExpressionResolverBuilder resolverFor(
 			TableReferenceLookup tableCatalog,
 			FunctionDefinitionCatalog functionDefinitionCatalog,
-			TableOperation... inputs) {
+			QueryOperation... inputs) {
 		return new ExpressionResolverBuilder(inputs, tableCatalog, functionDefinitionCatalog);
 	}
 
@@ -213,7 +215,9 @@ public class ExpressionResolver {
 					.accept(bridgeConverter)
 					.resultType();
 
-			localReferences.put(windowName, new LocalReferenceExpression(windowName, windowType));
+			localReferences.put(
+				windowName,
+				new LocalReferenceExpression(windowName, fromLegacyInfoToDataType(windowType)));
 		}
 	}
 
@@ -305,7 +309,7 @@ public class ExpressionResolver {
 	 */
 	public static class ExpressionResolverBuilder {
 
-		private final List<TableOperation> tableOperations;
+		private final List<QueryOperation> queryOperations;
 		private final TableReferenceLookup tableCatalog;
 		private final FunctionDefinitionCatalog functionCatalog;
 		private List<OverWindow> logicalOverWindows = new ArrayList<>();
@@ -313,10 +317,10 @@ public class ExpressionResolver {
 		private List<ResolverRule> rules = new ArrayList<>(getResolverRules());
 
 		private ExpressionResolverBuilder(
-				TableOperation[] tableOperations,
+				QueryOperation[] queryOperations,
 				TableReferenceLookup tableCatalog,
 				FunctionDefinitionCatalog functionCatalog) {
-			this.tableOperations = Arrays.asList(tableOperations);
+			this.queryOperations = Arrays.asList(queryOperations);
 			this.tableCatalog = tableCatalog;
 			this.functionCatalog = functionCatalog;
 		}
@@ -335,7 +339,7 @@ public class ExpressionResolver {
 			return new ExpressionResolver(
 				tableCatalog,
 				functionCatalog,
-				new FieldReferenceLookup(tableOperations),
+				new FieldReferenceLookup(queryOperations),
 				logicalOverWindows,
 				localReferences,
 				rules);

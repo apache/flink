@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.JDouble
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecGroupAggregateBase
+import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase}
 import org.apache.flink.table.plan.stats._
 import org.apache.flink.table.plan.util.AggregateUtil
 
@@ -61,6 +61,14 @@ class AggCallSelectivityEstimator(agg: RelNode, mq: FlinkRelMetadataQuery)
         val (auxGroupSet, otherAggCalls) = AggregateUtil.checkAndSplitAggCalls(rel)
         (rel.getGroupSet.toArray ++ auxGroupSet, otherAggCalls)
       case rel: BatchExecGroupAggregateBase =>
+        (rel.getGrouping ++ rel.getAuxGrouping, rel.getAggCallList)
+      case rel: BatchExecLocalHashWindowAggregate =>
+        val fullGrouping = rel.getGrouping ++ Array(rel.inputTimeFieldIndex) ++ rel.getAuxGrouping
+        (fullGrouping, rel.getAggCallList)
+      case rel: BatchExecLocalSortWindowAggregate =>
+        val fullGrouping = rel.getGrouping ++ Array(rel.inputTimeFieldIndex) ++ rel.getAuxGrouping
+        (fullGrouping, rel.getAggCallList)
+      case rel: BatchExecWindowAggregateBase =>
         (rel.getGrouping ++ rel.getAuxGrouping, rel.getAggCallList)
       case _ => throw new IllegalArgumentException(s"Cannot handle ${agg.getRelTypeName}!")
     }

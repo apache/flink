@@ -1,5 +1,5 @@
 ---
-title: "Execution Plans"
+title: "执行计划"
 nav-parent_id: execution
 nav-pos: 40
 ---

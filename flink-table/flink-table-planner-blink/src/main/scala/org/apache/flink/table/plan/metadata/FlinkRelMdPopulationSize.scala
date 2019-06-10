@@ -19,9 +19,9 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank}
+import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch._
-import org.apache.flink.table.plan.util.FlinkRelMdUtil
+import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.{JArrayList, JDouble}
 
 import org.apache.calcite.plan.volcano.RelSubset
@@ -179,7 +179,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
       rel: Rank,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet): JDouble = {
-    val rankFunColumnIndex = FlinkRelMdUtil.getRankFunctionColumnIndex(rel).getOrElse(-1)
+    val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel).getOrElse(-1)
     if (rankFunColumnIndex < 0 || !groupKey.toArray.contains(rankFunColumnIndex)) {
       mq.getPopulationSize(rel.getInput, groupKey)
     } else {
@@ -272,26 +272,67 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
     NumberUtil.min(popSizeOfColsInGroupKeys * popSizeOfColsInAggCalls, inputRowCnt)
   }
 
-  // TODO supports window aggregate
+  def getPopulationSize(
+      rel: WindowAggregate,
+      mq: RelMetadataQuery,
+      groupKey: ImmutableBitSet): JDouble = {
+    val fieldCnt = rel.getRowType.getFieldCount
+    val namedPropertiesCnt = rel.getNamedProperties.size
+    val namedWindowStartIndex = fieldCnt - namedPropertiesCnt
+    val groupKeyFromNamedWindow = groupKey.toList.exists(_ >= namedWindowStartIndex)
+    if (groupKeyFromNamedWindow) {
+      // cannot estimate PopulationSize result when some group keys are from named windows
+      null
+    } else {
+      // regular aggregate
+      getPopulationSize(rel.asInstanceOf[Aggregate], mq, groupKey)
+    }
+  }
+
+  def getPopulationSize(
+      rel: BatchExecWindowAggregateBase,
+      mq: RelMetadataQuery,
+      groupKey: ImmutableBitSet): JDouble = {
+    if (rel.isFinal) {
+      val namedWindowStartIndex = rel.getRowType.getFieldCount - rel.getNamedProperties.size
+      val groupKeyFromNamedWindow = groupKey.toList.exists(_ >= namedWindowStartIndex)
+      if (groupKeyFromNamedWindow) {
+        return null
+      }
+      if (rel.isMerge) {
+        // set the bits as they correspond to local window aggregate
+        val localWinAggGroupKey = FlinkRelMdUtil.setChildKeysOfWinAgg(groupKey, rel)
+        return mq.getPopulationSize(rel.getInput, localWinAggGroupKey)
+      }
+    } else {
+      // local window aggregate
+      val assignTsFieldIndex = rel.getGrouping.length
+      if (groupKey.toList.contains(assignTsFieldIndex)) {
+        // groupKey contains `assignTs` fields
+        return null
+      }
+    }
+    getPopulationSizeOfAggregate(rel, mq, groupKey)
+  }
 
   def getPopulationSize(
       window: Window,
       mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet): JDouble = getPopulationSizeOfOverWindow(window, mq, groupKey)
+      groupKey: ImmutableBitSet): JDouble = getPopulationSizeOfOverAgg(window, mq, groupKey)
 
   def getPopulationSize(
       rel: BatchExecOverAggregate,
       mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet): JDouble = getPopulationSizeOfOverWindow(rel, mq, groupKey)
+      groupKey: ImmutableBitSet): JDouble = getPopulationSizeOfOverAgg(rel, mq, groupKey)
 
-  private def getPopulationSizeOfOverWindow(
-      overWindow: SingleRel,
+  private def getPopulationSizeOfOverAgg(
+      overAgg: SingleRel,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet): JDouble = {
-    val input = overWindow.getInput
+    val input = overAgg.getInput
     val fieldsCountOfInput = input.getRowType.getFieldCount
     val groupKeyContainsAggCall = groupKey.toList.exists(_ >= fieldsCountOfInput)
-    // cannot estimate population size of aggCall result of OverWindowAgg
+    // cannot estimate population size of aggCall result of OverAgg
     if (groupKeyContainsAggCall) {
       null
     } else {
@@ -302,12 +343,14 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
   def getPopulationSize(
       rel: Join,
       mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet): JDouble = RelMdUtil.getJoinPopulationSize(mq, rel, groupKey)
-
-  def getPopulationSize(
-      rel: SemiJoin,
-      mq: RelMetadataQuery,
-      groupKey: ImmutableBitSet): JDouble = mq.getPopulationSize(rel.getLeft, groupKey)
+      groupKey: ImmutableBitSet): JDouble = {
+    rel.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        mq.getPopulationSize(rel.getLeft, groupKey)
+      case _ =>
+        RelMdUtil.getJoinPopulationSize(mq, rel, groupKey)
+    }
+  }
 
   def getPopulationSize(
       rel: Union,

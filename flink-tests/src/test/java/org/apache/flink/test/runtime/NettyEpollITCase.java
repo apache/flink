@@ -20,6 +20,7 @@ package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,7 +32,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.runtime.io.network.netty.NettyConfig.TRANSPORT_TYPE;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 
 /**
@@ -73,7 +73,7 @@ public class NettyEpollITCase extends TestLogger {
 	private MiniClusterWithClientResource trySetUpCluster() throws Exception {
 		try {
 			Configuration config = new Configuration();
-			config.setString(TRANSPORT_TYPE, "epoll");
+			config.setString(NetworkEnvironmentOptions.TRANSPORT_TYPE, "epoll");
 			MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 				new MiniClusterResourceConfiguration.Builder()
 					.setConfiguration(config)

@@ -72,6 +72,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: true */
 	private boolean failOnCheckpointingErrors = true;
 
+	/** Determines if a job will fallback to checkpoint when there is a more recent savepoint. **/
+	private boolean preferCheckpointForRecovery = false;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -283,6 +286,24 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public boolean isExternalizedCheckpointsEnabled() {
 		return externalizedCheckpointCleanup != null;
+	}
+
+	/**
+	 * Returns whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
+	 *
+	 * @return <code>true</code> if a job recovery should fallback to checkpoint.
+	 */
+	@PublicEvolving
+	public boolean isPreferCheckpointForRecovery() {
+		return preferCheckpointForRecovery;
+	}
+
+	/**
+	 * Sets whether a job recovery should fallback to checkpoint when there is a more recent savepoint.
+	 */
+	@PublicEvolving
+	public void setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
+		this.preferCheckpointForRecovery = preferCheckpointForRecovery;
 	}
 
 	/**

@@ -109,13 +109,6 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public void setChar(int pos, char value) {
-		assertIndexIsValid(pos);
-		setNotNullAt(pos);
-		SegmentsUtil.setChar(segments, getFieldOffset(pos), value);
-	}
-
-	@Override
 	public void setDecimal(int pos, Decimal value, int precision) {
 		assertIndexIsValid(pos);
 
@@ -220,12 +213,6 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	public double getDouble(int pos) {
 		assertIndexIsValid(pos);
 		return SegmentsUtil.getDouble(segments, getFieldOffset(pos));
-	}
-
-	@Override
-	public char getChar(int pos) {
-		assertIndexIsValid(pos);
-		return SegmentsUtil.getChar(segments, getFieldOffset(pos));
 	}
 
 	@Override

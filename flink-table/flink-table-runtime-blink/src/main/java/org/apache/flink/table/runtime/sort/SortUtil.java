@@ -122,10 +122,6 @@ public class SortUtil {
 		NormalizedKeyUtil.putUnsignedLongNormalizedKey(lValue, target, offset, numBytes);
 	}
 
-	public static void putCharNormalizedKey(char value, MemorySegment target, int offset, int numBytes) {
-		NormalizedKeyUtil.putCharNormalizedKey(value, target, offset, numBytes);
-	}
-
 	public static void putBinaryNormalizedKey(
 			byte[] value, MemorySegment target, int offset, int numBytes) {
 		final int limit = offset + numBytes;

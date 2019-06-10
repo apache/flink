@@ -28,7 +28,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -77,7 +77,7 @@ object ScanUtil {
       val convertFunc = CodeGenUtils.genToInternal(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
-        case _ => ((record: String) => s"$GENERIC_ROW.wrap(${convertFunc(record)})",
+        case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
             new RowType(internalInType))
       }
     }
@@ -112,7 +112,7 @@ object ScanUtil {
       config,
       converter = inputTermConverter)
 
-    val substituteStreamOperator = new OneInputOperatorWrapper[Any, BaseRow](generatedOperator)
+    val substituteStreamOperator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
 
     new OneInputTransformation(
       input,

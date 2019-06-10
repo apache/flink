@@ -32,18 +32,18 @@ class UnionTest extends TableTestBase {
   @Test
   def testUnionAllNullableCompositeType() = {
     val streamUtil = streamTestUtil()
-    streamUtil.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
+    val table = streamUtil.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
 
     val expected = binaryNode(
       "DataStreamUnion",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "a")
       ),
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
       ),
       term("all", "true"),
@@ -62,18 +62,18 @@ class UnionTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    streamUtil.addJavaTable(typeInfo, "A", "a, b")
+    val table = streamUtil.addJavaTable(typeInfo, "A", "a, b")
 
     val expected = binaryNode(
       "DataStreamUnion",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "a")
       ),
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(table),
         term("select", "b")
       ),
       term("all", "true"),

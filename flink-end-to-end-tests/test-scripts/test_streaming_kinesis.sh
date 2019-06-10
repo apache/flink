@@ -36,17 +36,12 @@ docker run -d --rm --entrypoint "/tini" --name flink-test-kinesis -p ${KINESALIT
 docker logs flink-test-kinesis
 
 function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
   # job needs to stop before kinesalite
   stop_cluster
   echo "terminating kinesalite"
   docker kill flink-test-kinesis
 }
-trap test_cleanup INT
-trap test_cleanup EXIT
+on_exit test_cleanup
 
 # prefix com.amazonaws.sdk.disableCertChecking to account for shading
 DISABLE_CERT_CHECKING_JAVA_OPTS="-Dorg.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking"

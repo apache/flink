@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.nodes.physical.batch.BatchExecGroupAggregateB
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Aggregate, Join, SemiJoin, Union}
+import org.apache.calcite.rel.core.{Aggregate, Join, JoinRelType, Union}
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.util.{BuiltInMethod, Util}
 
@@ -57,16 +57,17 @@ class FlinkRelMdPercentageOriginalRows private
 
   def getPercentageOriginalRows(rel: Join, mq: RelMetadataQuery): JDouble = {
     val left: JDouble = mq.getPercentageOriginalRows(rel.getLeft)
-    val right: JDouble = mq.getPercentageOriginalRows(rel.getRight)
-    if (left == null || right == null) {
-      null
-    } else {
-      left * right
+    rel.getJoinType match {
+      case JoinRelType.SEMI | JoinRelType.ANTI =>
+        left
+      case _ =>
+        val right: JDouble = mq.getPercentageOriginalRows(rel.getRight)
+        if (left == null || right == null) {
+          null
+        } else {
+          left * right
+        }
     }
-  }
-
-  def getPercentageOriginalRows(rel: SemiJoin, mq: RelMetadataQuery): JDouble = {
-    mq.getPercentageOriginalRows(rel.getLeft)
   }
 
   def getPercentageOriginalRows(rel: Union, mq: RelMetadataQuery): JDouble = {

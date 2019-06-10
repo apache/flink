@@ -19,7 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -39,21 +39,28 @@ public final class FieldReferenceExpression implements Expression {
 
 	private final String name;
 
-	private final TypeInformation<?> resultType;
+	private final DataType dataType;
 
+	/**
+	 * index of an input the field belongs to.
+	 * e.g. for a join, `inputIndex` of left input is 0 and `inputIndex` of right input is 1.
+	 */
 	private final int inputIndex;
 
+	/**
+	 * index of a field within the corresponding input.
+	 */
 	private final int fieldIndex;
 
 	public FieldReferenceExpression(
 			String name,
-			TypeInformation<?> resultType,
+			DataType dataType,
 			int inputIndex,
 			int fieldIndex) {
 		Preconditions.checkArgument(inputIndex >= 0, "Index of input should be a positive number");
 		Preconditions.checkArgument(fieldIndex >= 0, "Index of field should be a positive number");
-		this.name = Preconditions.checkNotNull(name);
-		this.resultType = Preconditions.checkNotNull(resultType);
+		this.name = Preconditions.checkNotNull(name, "Field name must not be null.");
+		this.dataType = Preconditions.checkNotNull(dataType, "Field data type must not be null.");
 		this.inputIndex = inputIndex;
 		this.fieldIndex = fieldIndex;
 	}
@@ -62,8 +69,8 @@ public final class FieldReferenceExpression implements Expression {
 		return name;
 	}
 
-	public TypeInformation<?> getResultType() {
-		return resultType;
+	public DataType getOutputDataType() {
+		return dataType;
 	}
 
 	public int getInputIndex() {
@@ -93,15 +100,15 @@ public final class FieldReferenceExpression implements Expression {
 			return false;
 		}
 		FieldReferenceExpression that = (FieldReferenceExpression) o;
-		return Objects.equals(name, that.name) &&
-			Objects.equals(resultType, that.resultType) &&
+		return name.equals(that.name) &&
+			dataType.equals(that.dataType) &&
 			inputIndex == that.inputIndex &&
 			fieldIndex == that.fieldIndex;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(name, resultType, inputIndex, fieldIndex);
+		return Objects.hash(name, dataType, inputIndex, fieldIndex);
 	}
 
 	@Override

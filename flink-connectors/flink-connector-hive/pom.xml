@@ -35,11 +35,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<properties>
-		<hive.version>2.3.4</hive.version>
-		<hivemetastore.hadoop.version>2.7.2</hivemetastore.hadoop.version>
-	</properties>
-
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -58,6 +53,13 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Hadoop dependency -->
 		<!-- Hadoop as provided dependencies, so we can depend on them without pulling in Hadoop -->
 
@@ -66,6 +68,36 @@ under the License.
 			<artifactId>hadoop-common</artifactId>
 			<version>${hivemetastore.hadoop.version}</version>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-recipes</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-digester</groupId>
+					<artifactId>commons-digester</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-mapper-asl</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -73,6 +105,24 @@ under the License.
 			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<version>${hivemetastore.hadoop.version}</version>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-test</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-yarn-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jackson</groupId>
+					<artifactId>jackson-core-asl</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Hive dependencies -->
@@ -83,6 +133,7 @@ under the License.
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-metastore</artifactId>
 			<version>${hive.version}</version>
+			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
@@ -101,10 +152,6 @@ under the License.
 					<artifactId>protobuf-java</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.apache.derby</groupId>
-					<artifactId>derby</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.apache.hbase</groupId>
 					<artifactId>hbase-client</artifactId>
 				</exclusion>
@@ -115,10 +162,6 @@ under the License.
 				<exclusion>
 					<groupId>com.zaxxer</groupId>
 					<artifactId>HikariCP</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.jdo</groupId>
-					<artifactId>jdo-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>co.cask.tephra</groupId>
@@ -197,10 +240,6 @@ under the License.
 					<artifactId>metrics-json</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>com.github.joshelser</groupId>
 					<artifactId>dropwizard-metrics-hadoop-metrics2-reporter</artifactId>
 				</exclusion>
@@ -243,13 +282,11 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- test dependencies -->
-
 		<dependency>
 			<groupId>org.apache.hive</groupId>
 			<artifactId>hive-exec</artifactId>
 			<version>${hive.version}</version>
-			<scope>test</scope>
+			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
@@ -338,18 +375,28 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.derby</groupId>
-			<artifactId>derby</artifactId>
-			<version>10.10.2.0</version>
-			<scope>test</scope>
-		</dependency>
+		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!--flink-java and flink-clients test dependencies used for HiveInputFormatTest-->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-java</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -387,8 +434,8 @@ under the License.
 									<include>commons-dbcp:commons-dbcp</include>
 									<include>commons-pool:commons-pool</include>
 									<include>commons-beanutils:commons-beanutils</include>
+									<include>com.fasterxml.jackson.core:*</include>
 									<include>com.jolbox:bonecp</include>
-									<include>org.apache.hive:*</include>
 									<include>org.apache.thrift:libthrift</include>
 									<include>org.datanucleus:*</include>
 									<include>org.antlr:antlr-runtime</include>
@@ -426,4 +473,15 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Activate this profile with -Phive-1.2.1 to build and test against hive-1.2.1 -->
+		<profile>
+			<id>hive-1.2.1</id>
+			<properties>
+				<hive.version>1.2.1</hive.version>
+				<hivemetastore.hadoop.version>2.6.0</hivemetastore.hadoop.version>
+			</properties>
+		</profile>
+	</profiles>
 </project>

@@ -25,33 +25,28 @@ import java.util.Optional;
 /**
  * A generic catalog function implementation.
  */
-public class GenericCatalogFunction implements CatalogFunction {
-
-	private final String className; // Fully qualified class name of the function
-	private final Map<String, String> properties;
+public class GenericCatalogFunction extends AbstractCatalogFunction {
 
 	public GenericCatalogFunction(String className) {
 		this(className, new HashMap<>());
 	}
 
 	public GenericCatalogFunction(String className, Map<String, String> properties) {
-		this.className = className;
-		this.properties = properties;
-	}
-
-	@Override
-	public String getClassName() {
-		return this.className;
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return this.properties;
+		super(className, properties);
+		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
 	}
 
 	@Override
 	public GenericCatalogFunction copy() {
-		return new GenericCatalogFunction(className, new HashMap<>(properties));
+		return new GenericCatalogFunction(getClassName(), new HashMap<>(getProperties()));
+	}
+
+	@Override
+	public String toString() {
+		return "GenericCatalogFunction{" +
+			", className='" + getClassName() + '\'' +
+			", properties=" + getProperties() +
+			'}';
 	}
 
 	@Override
@@ -61,15 +56,7 @@ public class GenericCatalogFunction implements CatalogFunction {
 
 	@Override
 	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a user-defined function in an in-memory catalog implementation");
-	}
-
-	@Override
-	public String toString() {
-		return "GenericCatalogFunction{" +
-			", className='" + className + '\'' +
-			", properties=" + properties +
-			'}';
+		return Optional.of("This is a user-defined function");
 	}
 
 }

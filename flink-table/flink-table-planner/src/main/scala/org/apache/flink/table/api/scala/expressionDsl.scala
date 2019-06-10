@@ -20,14 +20,18 @@ package org.apache.flink.table.api.scala
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
+import java.time.{LocalDate, LocalDateTime}
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{Over, Table, ValidationException}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{WITH_COLUMNS, RANGE_TO, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import _root_.scala.language.implicitConversions
 
@@ -262,14 +266,25 @@ trait ImplicitExpressionOperations {
   def collect: Expression = call(COLLECT, expr)
 
   /**
-    * Converts a value to a given type.
+    * Converts a value to a given data type.
     *
-    * e.g. "42".cast(Types.INT) leads to 42.
+    * e.g. "42".cast(DataTypes.INT()) leads to 42.
     *
     * @return casted expression
     */
-  def cast(toType: TypeInformation[_]): Expression =
+  def cast(toType: DataType): Expression =
     call(CAST, expr, typeLiteral(toType))
+
+  /**
+    * @deprecated This method will be removed in future versions as it uses the old type system. It
+    *             is recommended to use [[cast(DataType)]] instead which uses the new type system
+    *             based on [[DataTypes]]. Please make sure to use either the old or the new type
+    *             system consistently to avoid unintended behavior. See the website documentation
+    *             for more information.
+    */
+  @deprecated
+  def cast(toType: TypeInformation[_]): Expression =
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(toType)))
 
   /**
     * Specifies a name for an expression i.e. a field.
@@ -683,18 +698,20 @@ trait ImplicitExpressionOperations {
   /**
     * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
     */
-  def toDate: Expression = call(CAST, expr, typeLiteral(SqlTimeTypeInfo.DATE))
+  def toDate: Expression =
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.DATE)))
 
   /**
     * Parses a time string in the form "HH:mm:ss" to a SQL Time.
     */
-  def toTime: Expression = call(CAST, expr, typeLiteral(SqlTimeTypeInfo.TIME))
+  def toTime: Expression =
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIME)))
 
   /**
     * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
     */
   def toTimestamp: Expression =
-    call(CAST, expr, typeLiteral(SqlTimeTypeInfo.TIMESTAMP))
+    call(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIMESTAMP)))
 
   /**
     * Extracts parts of a time point or time interval. Returns the part as a long value.
@@ -702,7 +719,7 @@ trait ImplicitExpressionOperations {
     * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
     */
   def extract(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(EXTRACT, symbol(timeIntervalUnit), expr)
+    call(EXTRACT, valueLiteral(timeIntervalUnit), expr)
 
   /**
     * Rounds down a time point to the given unit.
@@ -710,7 +727,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
     */
   def floor(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(FLOOR, symbol(timeIntervalUnit), expr)
+    call(FLOOR, valueLiteral(timeIntervalUnit), expr)
 
   /**
     * Rounds up a time point to the given unit.
@@ -718,7 +735,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
     */
   def ceil(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(CEIL, symbol(timeIntervalUnit), expr)
+    call(CEIL, valueLiteral(timeIntervalUnit), expr)
 
   // Interval types
 
@@ -1096,8 +1113,8 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  implicit class AggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
-      (val a: AggregateFunction[T, ACC]) {
+  implicit class UserDefinedAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
+      (val a: UserDefinedAggregateFunction[T, ACC]) {
 
     private def createFunctionDefinition(): AggregateFunctionDefinition = {
       val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
@@ -1127,14 +1144,14 @@ trait ImplicitExpressionConversions {
   }
 
   implicit def tableSymbolToExpression(sym: TableSymbol): Expression =
-    symbol(sym)
+    valueLiteral(sym)
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression =
     unresolvedRef(sym.name)
 
   implicit def scalaRange2RangeExpression(range: Range.Inclusive): Expression = {
-    val startExpression = new ValueLiteralExpression(range.start, BasicTypeInfo.INT_TYPE_INFO)
-    val endExpression = new ValueLiteralExpression(range.end, BasicTypeInfo.INT_TYPE_INFO)
+    val startExpression = valueLiteral(range.start)
+    val endExpression = valueLiteral(range.end)
     startExpression to endExpression
   }
 
@@ -1165,6 +1182,13 @@ trait ImplicitExpressionConversions {
 
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     valueLiteral(sqlTimestamp)
+
+  implicit def localDate2Literal(localDate: LocalDate): Expression = valueLiteral(localDate)
+
+  implicit def localTime2Literal(localTime: LocalTime): Expression = valueLiteral(localTime)
+
+  implicit def localDateTime2Literal(localDateTime: LocalDateTime): Expression =
+    valueLiteral(localDateTime)
 
   implicit def array2ArrayConstructor(array: Array[_]): Expression = {
 
@@ -1197,6 +1221,9 @@ trait ImplicitExpressionConversions {
       case _: Array[Date] => createArray(array)
       case _: Array[Time] => createArray(array)
       case _: Array[Timestamp] => createArray(array)
+      case _: Array[LocalDate] => createArray(array)
+      case _: Array[LocalTime] => createArray(array)
+      case _: Array[LocalDateTime] => createArray(array)
       case bda: Array[BigDecimal] => createArray(bda.map(_.bigDecimal))
 
       case _ =>
@@ -1545,19 +1572,30 @@ object uuid {
 }
 
 /**
-  * Returns a null literal value of a given type.
+  * Returns a null literal value of a given data type.
   *
-  * e.g. nullOf(Types.INT)
+  * e.g. nullOf(DataTypes.INT())
   */
 object nullOf {
 
   /**
-    * Returns a null literal value of a given type.
+    * Returns a null literal value of a given data type.
     *
-    * e.g. nullOf(Types.INT)
+    * e.g. nullOf(DataTypes.INT())
+    */
+  def apply(dataType: DataType): Expression = {
+    valueLiteral(null, dataType)
+  }
+
+  /**
+    * @deprecated This method will be removed in future versions as it uses the old type system. It
+    *             is recommended to use [[apply(DataType)]] instead which uses the new type system
+    *             based on [[DataTypes]]. Please make sure to use either the old or the new type
+    *             system consistently to avoid unintended behavior. See the website documentation
+    *             for more information.
     */
   def apply(typeInfo: TypeInformation[_]): Expression = {
-    valueLiteral(null, typeInfo)
+    apply(TypeConversions.fromLegacyInfoToDataType(typeInfo))
   }
 }
 

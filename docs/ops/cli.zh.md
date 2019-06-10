@@ -47,6 +47,12 @@ available.
 {:toc}
 
 ## Examples
+### 作业提交示例
+-----------------------------
+
+这些示例是关于如何通过脚本提交一个作业
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 -   Run example program with no arguments:
 
@@ -82,11 +88,57 @@ available.
                                ./examples/batch/WordCount.jar \
                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({{site.baseurl}}/zh/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/batch/WordCount.jar \
                                --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
+                               
+</div>
+
+<div data-lang="python" markdown="1">
+
+-   提交一个Python Table的作业:
+
+        ./bin/flink run -py WordCount.py -j <path/to/flink-table.jar>
+
+-   提交一个有多个依赖的Python Table的作业:
+
+        ./bin/flink run -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar> \
+                                -pyfs file:///user.txt,hdfs:///$namenode_address/username.txt
+
+-   提交一个有多个依赖的Python Table的作业，Python作业的主入口通过pym选项指定:
+
+        ./bin/flink run -pym batch.word_count -pyfs examples/python/table/batch -j <path/to/flink-table.jar>
+
+-   提交一个指定并发度为16的Python Table的作业:
+
+        ./bin/flink run -p 16 -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   提交一个关闭flink日志输出的Python Table的作业:
+
+        ./bin/flink run -q -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   提交一个运行在detached模式下的Python Table的作业:
+
+        ./bin/flink run -d -py examples/python/table/batch/word_count.py -j <path/to/flink-table.jar>
+
+-   提交一个运行在指定JobManager上的Python Table的作业:
+
+        ./bin/flink run -m myJMHost:8081 \
+                            -py examples/python/table/batch/word_count.py \
+                            -j <path/to/flink-table.jar>
+
+-   提交一个运行在有两个TaskManager的[per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn)的Python Table的作业:
+
+        ./bin/flink run -m yarn-cluster -yn 2 \
+                                 -py examples/python/table/batch/word_count.py \
+                                 -j <path/to/flink-table.jar>
+                                 
+</div>
+
+### 作业管理示例
+-----------------------------
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
@@ -251,6 +303,15 @@ Action "run" compiles and runs a program.
                                           program. Optional flag to override the
                                           default value specified in the
                                           configuration.
+     -py,--python <python-file>           指定Python作业的入口，依赖的资源文件可以通过
+                                          `--pyFiles`进行指定。
+     -pyfs,--pyFiles <python-files>       指定Python作业依赖的一些自定义的python文件，
+                                          如果有多个文件，可以通过逗号(,)进行分隔。支持
+                                          常用的python资源文件，例如(.py/.egg/.zip)。
+                                          (例如:--pyFiles file:///tmp/myresource.zip
+                                          ,hdfs:///$namenode_address/myresource2.zip)
+     -pym,--pyModule <python-module>      指定python程序的运行的模块入口，这个选项必须配合
+                                          `--pyFiles`一起使用。
      -q,--sysoutLogging                   If present, suppress logging output to
                                           standard out.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job

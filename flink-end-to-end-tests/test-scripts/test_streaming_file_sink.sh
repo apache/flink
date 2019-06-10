@@ -24,7 +24,7 @@ source "$(dirname "$0")"/common_s3.sh
 
 s3_setup hadoop
 set_conf_ssl "mutual"
-set_conf "metrics.fetcher.update-interval" "2000"
+set_config_key "metrics.fetcher.update-interval" "2000"
 
 OUT=temp/test_streaming_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
@@ -48,7 +48,7 @@ function out_cleanup {
   s3_delete_by_full_path_prefix $OUT
 }
 if [ "${OUT_TYPE}" == "s3" ]; then
-  trap out_cleanup EXIT
+  on_exit out_cleanup
 fi
 
 TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/StreamingFileSinkProgram.jar"

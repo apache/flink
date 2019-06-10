@@ -204,19 +204,24 @@ public abstract class ClusterClient<T> {
 
 	public static FlinkPlan getOptimizedPlan(Optimizer compiler, PackagedProgram prog, int parallelism)
 			throws CompilerException, ProgramInvocationException {
-		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
-		if (prog.isUsingProgramEntryPoint()) {
-			return getOptimizedPlan(compiler, prog.getPlanWithJars(), parallelism);
-		} else if (prog.isUsingInteractiveMode()) {
-			// temporary hack to support the optimizer plan preview
-			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(compiler);
-			if (parallelism > 0) {
-				env.setParallelism(parallelism);
-			}
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
+			if (prog.isUsingProgramEntryPoint()) {
+				return getOptimizedPlan(compiler, prog.getPlanWithJars(), parallelism);
+			} else if (prog.isUsingInteractiveMode()) {
+				// temporary hack to support the optimizer plan preview
+				OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(compiler);
+				if (parallelism > 0) {
+					env.setParallelism(parallelism);
+				}
 
-			return env.getOptimizedPlan(prog);
-		} else {
-			throw new RuntimeException("Couldn't determine program mode.");
+				return env.getOptimizedPlan(prog);
+			} else {
+				throw new RuntimeException("Couldn't determine program mode.");
+			}
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
 	}
 
@@ -247,44 +252,48 @@ public abstract class ClusterClient<T> {
 	 */
 	public JobSubmissionResult run(PackagedProgram prog, int parallelism)
 			throws ProgramInvocationException, ProgramMissingJobException {
-		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
-		if (prog.isUsingProgramEntryPoint()) {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
+			if (prog.isUsingProgramEntryPoint()) {
+				final JobWithJars jobWithJars = prog.getPlanWithJars();
+				return run(jobWithJars, parallelism, prog.getSavepointSettings());
+			}
+			else if (prog.isUsingInteractiveMode()) {
+				log.info("Starting program in interactive mode (detached: {})", isDetached());
 
-			final JobWithJars jobWithJars = prog.getPlanWithJars();
+				final List<URL> libraries = prog.getAllLibraries();
 
-			return run(jobWithJars, parallelism, prog.getSavepointSettings());
-		}
-		else if (prog.isUsingInteractiveMode()) {
-			log.info("Starting program in interactive mode (detached: {})", isDetached());
+				ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
+				prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
+				prog.getSavepointSettings());
+				ContextEnvironment.setAsContext(factory);
 
-			final List<URL> libraries = prog.getAllLibraries();
-
-			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
-					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
-					prog.getSavepointSettings());
-			ContextEnvironment.setAsContext(factory);
-
-			try {
-				// invoke main method
-				prog.invokeInteractiveModeForExecution();
-				if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
-					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
+				try {
+					// invoke main method
+					prog.invokeInteractiveModeForExecution();
+					if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
+						throw new ProgramMissingJobException("The program didn't contain a Flink job.");
+					}
+					if (isDetached()) {
+						// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here
+						return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
+					}
+					else {
+						// in blocking mode, we execute all Flink jobs contained in the user code and then return here
+						return this.lastJobExecutionResult;
+					}
 				}
-				if (isDetached()) {
-					// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here
-					return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
-				}
-				else {
-					// in blocking mode, we execute all Flink jobs contained in the user code and then return here
-					return this.lastJobExecutionResult;
+				finally {
+					ContextEnvironment.unsetContext();
 				}
 			}
-			finally {
-				ContextEnvironment.unsetContext();
+			else {
+				throw new ProgramInvocationException("PackagedProgram does not have a valid invocation mode.");
 			}
 		}
-		else {
-			throw new ProgramInvocationException("PackagedProgram does not have a valid invocation mode.");
+		finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
 	}
 

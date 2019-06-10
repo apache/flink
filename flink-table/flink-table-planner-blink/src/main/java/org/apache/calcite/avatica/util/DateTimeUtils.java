@@ -309,6 +309,28 @@ public class DateTimeUtils {
 		return sdf;
 	}
 
+	/** Helper for CAST({timestamp} Or {date} or {time} AS VARCHAR(n)). */
+	public static String unixDateTimeToString(Object o, TimeZone tz) {
+		int offset = tz.getOffset(Calendar.ZONE_OFFSET);
+		if (tz.useDaylightTime()) {
+			offset = tz.getOffset(((java.util.Date) o).getTime());
+		}
+		if (o instanceof Date) {
+			long time = ((Date) o).getTime();
+			time = time + UTC_ZONE.getOffset(time);
+			if (o instanceof java.sql.Date) {
+				return unixDateToString((int) (time / MILLIS_PER_DAY) + offset);
+			}
+			if (o instanceof java.sql.Time) {
+				return unixTimeToString(((int) (time % MILLIS_PER_DAY) + offset) % (int) MILLIS_PER_DAY);
+			}
+			if (o instanceof java.sql.Timestamp) {
+				return unixTimestampToString(time + offset, 3);
+			}
+		}
+		return o.toString();
+	}
+
 	/** Helper for CAST({timestamp} AS VARCHAR(n)). */
 	public static String unixTimestampToString(long timestamp) {
 		return unixTimestampToString(timestamp, 0);

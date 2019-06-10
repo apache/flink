@@ -43,7 +43,7 @@ To use this connector, add the following dependency to your project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
 
 ## Installing Apache Cassandra
 There are multiple ways to bring up a Cassandra instance on local machine:

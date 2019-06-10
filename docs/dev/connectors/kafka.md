@@ -88,7 +88,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>>= 1.0.0</td>
         <td>
         This universal Kafka connector attempts to track the latest version of the Kafka client.
-        The version of the client it uses may change between Flink releases. As of this release, it uses the Kafka 2.2.0 client.
+        The version of the client it uses may change between Flink releases. Starting with Flink 1.9 release, it uses the Kafka 2.2.0 client.
         Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
         However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated
         flink-connector-kafka-0.11{{ site.scala_version_suffix }} and flink-connector-kafka-0.10{{ site.scala_version_suffix }} respectively.
@@ -114,7 +114,7 @@ Then, import the connector in your maven project:
 {% endhighlight %}
 
 Note that the streaming connectors are currently not part of the binary distribution.
-See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
+See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
 
 ## Installing Apache Kafka
 
@@ -134,6 +134,15 @@ If you use an older version of Kafka (0.11, 0.10, 0.9, or 0.8), you should use t
 The universal Kafka connector is compatible with older and newer Kafka brokers through the compatibility guarantees of the Kafka client API and broker.
 It is compatible with broker versions 0.11.0 or newer, depending on the features used.
 For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
+
+### Migrating Kafka Connector from 0.11 to universal
+
+In order to perform the migration, see the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html)
+and:
+* Use Flink 1.9 or newer for the whole process.
+* Do not upgrade the Flink and operators at the same time.
+* Make sure that Kafka Consumer and/or Kafka Producer used in your job have assigned unique identifiers (`uid`):
+* Use stop with savepoint feature to take the savepoint (for example by using `stop --withSavepoint`)[CLI command]({{ site.baseurl }}/ops/cli.html).
 
 ### Usage
 
@@ -490,8 +499,8 @@ special records in the Kafka stream that contain the current event-time watermar
 Consumer allows the specification of an `AssignerWithPeriodicWatermarks` or an `AssignerWithPunctuatedWatermarks`.
 
 You can specify your custom timestamp extractor/watermark emitter as described
-[here]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html), or use one from the
-[predefined ones]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html). After doing so, you
+[here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html), or use one from the
+[predefined ones]({{ site.baseurl }}/dev/event_timestamp_extractors.html). After doing so, you
 can pass it to your consumer in the following way:
 
 <div class="codetabs" markdown="1">

@@ -19,12 +19,12 @@
 package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.util.Preconditions;
@@ -145,11 +145,9 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
 		@Override
 		public List<UnresolvedReferenceExpression> visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
-			if (valueLiteralExpression.getType() instanceof IntegerTypeInfo) {
-				return Collections.singletonList(inputFieldReferences.get((int) valueLiteralExpression.getValue() - 1));
-			} else {
-				return defaultMethod(valueLiteralExpression);
-			}
+			return ExpressionUtils.extractValue(valueLiteralExpression, Integer.class)
+				.map(i -> Collections.singletonList(inputFieldReferences.get(i - 1)))
+				.orElseGet(() -> defaultMethod(valueLiteralExpression));
 		}
 
 		@Override
@@ -165,8 +163,10 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		@Override
 		public List<UnresolvedReferenceExpression> visitCall(CallExpression call) {
 			if (isIndexRangeCall(call)) {
-				int start = (int) ((ValueLiteralExpression) call.getChildren().get(0)).getValue();
-				int end = (int) ((ValueLiteralExpression) call.getChildren().get(1)).getValue();
+				int start = ExpressionUtils.extractValue(call.getChildren().get(0), Integer.class)
+					.orElseThrow(() -> new ValidationException("Constant integer value expected."));
+				int end = ExpressionUtils.extractValue(call.getChildren().get(1), Integer.class)
+					.orElseThrow(() -> new ValidationException("Constant integer value expected."));
 				Preconditions.checkArgument(
 					start <= end,
 					String.format("The start:%s of %s() or %s() should not bigger than end:%s.",

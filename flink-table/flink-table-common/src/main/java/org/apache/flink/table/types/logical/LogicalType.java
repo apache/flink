@@ -197,16 +197,4 @@ public abstract class LogicalType implements Serializable {
 	protected static Set<String> conversionSet(String... elements) {
 		return new HashSet<>(Arrays.asList(elements));
 	}
-
-	protected static String escapeBackticks(String s) {
-		return s.replace("`", "``");
-	}
-
-	protected static String escapeSingleQuotes(String s) {
-		return s.replace("'", "''");
-	}
-
-	protected static String escapeIdentifier(String s) {
-		return "`" + escapeBackticks(s) + "`";
-	}
 }

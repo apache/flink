@@ -8,6 +8,11 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>yarn.application-attempt-failures-validity-interval</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/">here</a> for more information.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.application-attempts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need to set the JM host:port manually. It is recommended to leave this option at 1.</td>
@@ -28,12 +33,22 @@
             <td>The port where the application master RPC system is listening.</td>
         </tr>
         <tr>
+            <td><h5>yarn.appmaster.vcores</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>The number of virtual cores (vcores) used by YARN application master.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.containers.vcores</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>The number of virtual cores (vcores) per YARN container. By default, the number of vcores is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting the <span markdown="span">`org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler`</span>.</td>
         </tr>
         <tr>
-            <td><h5>yarn.heartbeat-delay</h5></td>
+            <td><h5>yarn.heartbeat.container-request-interval</h5></td>
+            <td style="word-wrap: break-word;">500</td>
+            <td>Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.heartbeat.interval</h5></td>
             <td style="word-wrap: break-word;">5</td>
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
         </tr>

@@ -25,15 +25,15 @@ TEST=flink-heavy-deployment-stress-test
 TEST_PROGRAM_NAME=HeavyDeploymentStressTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_conf "taskmanager.heap.mb" "512" # 512Mb x 10TMs = 5Gb total heap
+set_config_key "taskmanager.heap.mb" "512" # 512Mb x 10TMs = 5Gb total heap
 
-set_conf "taskmanager.memory.size" "8" # 8Mb
-set_conf "taskmanager.network.memory.min" "8mb"
-set_conf "taskmanager.network.memory.max" "8mb"
-set_conf "taskmanager.network.request-backoff.max" "60000"
-set_conf "taskmanager.memory.segment-size" "8kb"
+set_config_key "taskmanager.memory.size" "8" # 8Mb
+set_config_key "taskmanager.network.memory.min" "8mb"
+set_config_key "taskmanager.network.memory.max" "8mb"
+set_config_key "taskmanager.network.request-backoff.max" "60000"
+set_config_key "taskmanager.memory.segment-size" "8kb"
 
-set_conf "taskmanager.numberOfTaskSlots" "10" # 10 slots per TM
+set_config_key "taskmanager.numberOfTaskSlots" "10" # 10 slots per TM
 
 start_cluster # this also starts 1TM
 start_taskmanagers 9 # 1TM + 9TM = 10TM a 10 slots = 100 slots

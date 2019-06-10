@@ -221,10 +221,6 @@ class DeclarativeAggCodeGen(
         call.getChildren.asScala.map(_.accept(this)).asJava)
     }
 
-    override def visitSymbol(symbolExpression: SymbolExpression): Expression = {
-      symbolExpression
-    }
-
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {
       valueLiteralExpression
     }

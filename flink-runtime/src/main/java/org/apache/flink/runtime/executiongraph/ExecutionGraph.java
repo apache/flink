@@ -64,6 +64,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -300,6 +302,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
 
+	/** Shuffle master to register partitions for task deployment. */
+	private final ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -524,7 +529,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			StateBackend checkpointStateBackend,
-			CheckpointStatsTracker statsTracker) {
+			CheckpointStatsTracker statsTracker,
+			boolean isPreferCheckpointForRecovery) {
 
 		// simple sanity checks
 		checkArgument(interval >= 10, "checkpoint interval must not be below 10ms");
@@ -554,7 +560,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			checkpointStore,
 			checkpointStateBackend,
 			ioExecutor,
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			isPreferCheckpointForRecovery);
 
 		// register the master hooks on the checkpoint coordinator
 		for (MasterTriggerRestoreHook<?> hook : masterHooks) {
@@ -1800,5 +1807,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		if (!(jobMasterMainThreadExecutor instanceof ComponentMainThreadExecutor.DummyComponentMainThreadExecutor)) {
 			jobMasterMainThreadExecutor.assertRunningInMainThread();
 		}
+	}
+
+	ShuffleMaster<?> getShuffleMaster() {
+		return shuffleMaster;
 	}
 }

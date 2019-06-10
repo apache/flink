@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -35,10 +34,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -165,22 +161,22 @@ public class StreamGraph extends StreamingPlan {
 	public <IN, OUT> void addSource(Integer vertexID,
 		String slotSharingGroup,
 		@Nullable String coLocationGroup,
-		StreamOperator<OUT> operatorObject,
+		StreamOperatorFactory<OUT> operatorFactory,
 		TypeInformation<IN> inTypeInfo,
 		TypeInformation<OUT> outTypeInfo,
 		String operatorName) {
-		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
 	public <IN, OUT> void addSink(Integer vertexID,
 		String slotSharingGroup,
 		@Nullable String coLocationGroup,
-		StreamOperator<OUT> operatorObject,
+		StreamOperatorFactory<OUT> operatorFactory,
 		TypeInformation<IN> inTypeInfo,
 		TypeInformation<OUT> outTypeInfo,
 		String operatorName) {
-		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
 		sinks.add(vertexID);
 	}
 
@@ -188,15 +184,15 @@ public class StreamGraph extends StreamingPlan {
 			Integer vertexID,
 			String slotSharingGroup,
 			@Nullable String coLocationGroup,
-			StreamOperator<OUT> operatorObject,
+			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		if (operatorObject instanceof StreamSource) {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorObject, operatorName);
+		if (operatorFactory.isStreamSource()) {
+			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorFactory, operatorName);
 		} else {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorObject, operatorName);
+			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
 		}
 
 		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
@@ -205,16 +201,13 @@ public class StreamGraph extends StreamingPlan {
 
 		setSerializers(vertexID, inSerializer, null, outSerializer);
 
-		if (operatorObject instanceof OutputTypeConfigurable && outTypeInfo != null) {
-			@SuppressWarnings("unchecked")
-			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operatorObject;
+		if (operatorFactory.isOutputTypeConfigurable() && outTypeInfo != null) {
 			// sets the output type which must be know at StreamGraph creation time
-			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+			operatorFactory.setOutputType(outTypeInfo, executionConfig);
 		}
 
-		if (operatorObject instanceof InputTypeConfigurable) {
-			InputTypeConfigurable inputTypeConfigurable = (InputTypeConfigurable) operatorObject;
-			inputTypeConfigurable.setInputType(inTypeInfo, executionConfig);
+		if (operatorFactory.isInputTypeConfigurable()) {
+			operatorFactory.setInputType(inTypeInfo, executionConfig);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -226,24 +219,22 @@ public class StreamGraph extends StreamingPlan {
 			Integer vertexID,
 			String slotSharingGroup,
 			@Nullable String coLocationGroup,
-			TwoInputStreamOperator<IN1, IN2, OUT> taskOperatorObject,
+			StreamOperatorFactory<OUT> taskOperatorFactory,
 			TypeInformation<IN1> in1TypeInfo,
 			TypeInformation<IN2> in2TypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		addNode(vertexID, slotSharingGroup, coLocationGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
+		addNode(vertexID, slotSharingGroup, coLocationGroup, TwoInputStreamTask.class, taskOperatorFactory, operatorName);
 
 		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
 				outTypeInfo.createSerializer(executionConfig) : null;
 
 		setSerializers(vertexID, in1TypeInfo.createSerializer(executionConfig), in2TypeInfo.createSerializer(executionConfig), outSerializer);
 
-		if (taskOperatorObject instanceof OutputTypeConfigurable) {
-			@SuppressWarnings("unchecked")
-			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) taskOperatorObject;
+		if (taskOperatorFactory.isOutputTypeConfigurable()) {
 			// sets the output type which must be know at StreamGraph creation time
-			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+			taskOperatorFactory.setOutputType(outTypeInfo, executionConfig);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -255,7 +246,7 @@ public class StreamGraph extends StreamingPlan {
 		String slotSharingGroup,
 		@Nullable String coLocationGroup,
 		Class<? extends AbstractInvokable> vertexClass,
-		StreamOperator<?> operatorObject,
+		StreamOperatorFactory<?> operatorFactory,
 		String operatorName) {
 
 		if (streamNodes.containsKey(vertexID)) {
@@ -266,7 +257,7 @@ public class StreamGraph extends StreamingPlan {
 			vertexID,
 			slotSharingGroup,
 			coLocationGroup,
-			operatorObject,
+			operatorFactory,
 			operatorName,
 			new ArrayList<OutputSelector<?>>(),
 			vertexClass);
@@ -511,10 +502,6 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(vertexID).setSerializerOut(outType.createSerializer(executionConfig));
 	}
 
-	public <IN, OUT> void setOperator(Integer vertexID, StreamOperator<OUT> operatorObject) {
-		getStreamNode(vertexID).setOperator(operatorObject);
-	}
-
 	public void setInputFormat(Integer vertexID, InputFormat<?, ?> inputFormat) {
 		getStreamNode(vertexID).setInputFormat(inputFormat);
 	}
@@ -570,11 +557,10 @@ public class StreamGraph extends StreamingPlan {
 		return streamNodes.values();
 	}
 
-	public Set<Tuple2<Integer, StreamOperator<?>>> getOperators() {
-		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<>();
+	public Set<Tuple2<Integer, StreamOperatorFactory<?>>> getAllOperatorFactory() {
+		Set<Tuple2<Integer, StreamOperatorFactory<?>>> operatorSet = new HashSet<>();
 		for (StreamNode vertex : streamNodes.values()) {
-			operatorSet.add(new Tuple2<Integer, StreamOperator<?>>(vertex.getId(), vertex
-					.getOperator()));
+			operatorSet.add(new Tuple2<>(vertex.getId(), vertex.getOperatorFactory()));
 		}
 		return operatorSet;
 	}

@@ -35,7 +35,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -154,16 +153,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			boolean sharedYarnClient) {
 
 		this.yarnConfiguration = Preconditions.checkNotNull(yarnConfiguration);
-
-		// for unit tests only
-		if (System.getenv("IN_TESTS") != null) {
-			try {
-				yarnConfiguration.addResource(new File(System.getenv("YARN_CONF_DIR"), "yarn-site.xml").toURI().toURL());
-			} catch (Throwable t) {
-				throw new RuntimeException("Error", t);
-			}
-		}
-
 		this.yarnClient = Preconditions.checkNotNull(yarnClient);
 		this.sharedYarnClient = sharedYarnClient;
 
@@ -251,6 +240,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				.orElse(0);
 		} catch (Exception e) {
 			throw new YarnDeploymentException("Couldn't get cluster description, please check on the YarnConfiguration", e);
+		}
+
+		int configuredAmVcores = flinkConfiguration.getInteger(YarnConfigOptions.APP_MASTER_VCORES);
+		if (configuredAmVcores > numYarnMaxVcores) {
+			throw new IllegalConfigurationException(
+				String.format("The number of requested virtual cores for application master %d" +
+						" exceeds the maximum number of virtual cores %d available in the Yarn Cluster.",
+					configuredAmVcores, numYarnMaxVcores));
 		}
 
 		int configuredVcores = flinkConfiguration.getInteger(YarnConfigOptions.VCORES, clusterSpecification.getSlotsPerTaskManager());
@@ -786,11 +783,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		for (String classPath : systemClassPaths) {
 			classPathBuilder.append(classPath).append(File.pathSeparator);
 		}
-		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
-			for (String userClassPath : userClassPaths) {
-				classPathBuilder.append(userClassPath).append(File.pathSeparator);
-			}
-		}
 
 		// Setup jar for ApplicationMaster
 		Path remotePathJar = setupSingleLocalResource(
@@ -830,6 +822,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		classPathBuilder.append("flink.jar").append(File.pathSeparator);
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
+
+		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.LAST) {
+			for (String userClassPath : userClassPaths) {
+				classPathBuilder.append(userClassPath).append(File.pathSeparator);
+			}
+		}
 
 		// write job graph to tmp file and add it to local resource
 		// TODO: server use user main method to generate job graph
@@ -873,6 +871,18 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		Path remoteYarnSiteXmlPath = null;
 		boolean hasKrb5 = false;
 		if (System.getenv("IN_TESTS") != null) {
+			File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
+			LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
+			Path yarnSitePath = new Path(f.getAbsolutePath());
+			remoteYarnSiteXmlPath = setupSingleLocalResource(
+				Utils.YARN_SITE_FILE_NAME,
+				fs,
+				appId,
+				yarnSitePath,
+				localResources,
+				homeDir,
+				"");
+
 			String krb5Config = System.getProperty("java.security.krb5.conf");
 			if (krb5Config != null && krb5Config.length() != 0) {
 				File krb5 = new File(krb5Config);
@@ -883,18 +893,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					fs,
 					appId,
 					krb5ConfPath,
-					localResources,
-					homeDir,
-					"");
-
-				File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
-				LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
-				Path yarnSitePath = new Path(f.getAbsolutePath());
-				remoteYarnSiteXmlPath = setupSingleLocalResource(
-					Utils.YARN_SITE_FILE_NAME,
-					fs,
-					appId,
-					yarnSitePath,
 					localResources,
 					homeDir,
 					"");
@@ -962,8 +960,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		//To support Yarn Secure Integration Test Scenario
-		if (remoteYarnSiteXmlPath != null && remoteKrb5Path != null) {
+		if (remoteYarnSiteXmlPath != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_YARN_SITE_XML_PATH, remoteYarnSiteXmlPath.toString());
+		}
+		if (remoteKrb5Path != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_KRB5_PATH, remoteKrb5Path.toString());
 		}
 
@@ -979,7 +979,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Set up resource type requirements for ApplicationMaster
 		Resource capability = Records.newRecord(Resource.class);
 		capability.setMemory(clusterSpecification.getMasterMemoryMB());
-		capability.setVirtualCores(1);
+		capability.setVirtualCores(flinkConfiguration.getInteger(YarnConfigOptions.APP_MASTER_VCORES));
 
 		final String customApplicationName = customName != null ? customName : applicationName;
 
@@ -1290,7 +1290,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		ApplicationSubmissionContextReflector reflector = ApplicationSubmissionContextReflector.getInstance();
 
 		reflector.setKeepContainersAcrossApplicationAttempts(appContext, true);
-		reflector.setAttemptFailuresValidityInterval(appContext, AkkaUtils.getTimeout(flinkConfiguration).toMillis());
+
+		reflector.setAttemptFailuresValidityInterval(
+			appContext,
+			flinkConfiguration.getLong(YarnConfigOptions.APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL));
 	}
 
 	private void setApplicationTags(final ApplicationSubmissionContext appContext) throws InvocationTargetException,

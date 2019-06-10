@@ -33,7 +33,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.genToExternal
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.dataformat.util.BaseRowUtil
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink}
 import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TimeIndicatorTypeInfo}
 import org.apache.flink.types.Row
@@ -44,7 +44,7 @@ object SinkCodeGenerator {
     try {
       sink match {
         // DataStreamTableSink has no generic class, so we need get the type to get type class.
-        case sink: DataStreamTableSink[_] => sink.getOutputType.getTypeClass
+        case sink: DataStreamTableSink[_] => sink.getConsumedDataType.getConversionClass
         case _ => TypeExtractor.createTypeInfo(sink, classOf[TableSink[_]], sink.getClass, 0)
                   .getTypeClass.asInstanceOf[Class[_]]
       }
@@ -63,7 +63,7 @@ object SinkCodeGenerator {
       rowtimeField: Option[Int],
       withChangeFlag: Boolean,
       resultType: TypeInformation[_],
-      sink: TableSink[_]): (OneInputOperatorWrapper[BaseRow, OUT], TypeInformation[OUT]) = {
+      sink: TableSink[_]): (CodeGenOperatorFactory[OUT], TypeInformation[OUT]) = {
 
     val requestedTypeInfo = if (withChangeFlag) {
       resultType match {
@@ -182,8 +182,7 @@ object SinkCodeGenerator {
       endInputCode,
       createInternalTypeFromTypeInfo(inputTypeInfo),
       config)
-    val operator = new OneInputOperatorWrapper[BaseRow, OUT](generated)
-    (operator, outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
+    (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
   }
 
   private def checkRowConverterValid[OUT](

@@ -88,7 +88,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>>= 1.0.0</td>
         <td>
         This universal Kafka connector attempts to track the latest version of the Kafka client.
-        The version of the client it uses may change between Flink releases.
+        The version of the client it uses may change between Flink releases. Starting with Flink 1.9 release, it uses the Kafka 2.2.0 client.
         Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
         However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated
         flink-connector-kafka-0.11{{ site.scala_version_suffix }} and flink-connector-kafka-0.10{{ site.scala_version_suffix }} respectively.
@@ -114,7 +114,7 @@ Then, import the connector in your maven project:
 {% endhighlight %}
 
 Note that the streaming connectors are currently not part of the binary distribution.
-See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
+See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/projectsetup/dependencies.html).
 
 ## Installing Apache Kafka
 
@@ -490,8 +490,8 @@ special records in the Kafka stream that contain the current event-time watermar
 Consumer allows the specification of an `AssignerWithPeriodicWatermarks` or an `AssignerWithPunctuatedWatermarks`.
 
 You can specify your custom timestamp extractor/watermark emitter as described
-[here]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html), or use one from the
-[predefined ones]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html). After doing so, you
+[here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html), or use one from the
+[predefined ones]({{ site.baseurl }}/dev/event_timestamp_extractors.html). After doing so, you
 can pass it to your consumer in the following way:
 
 <div class="codetabs" markdown="1">

@@ -30,7 +30,23 @@ export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
 export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
 export INPUT_PATH=/data/test/input
 export OUTPUT_PATH=/data/test/output
-export FLINK_JOB_ARGUMENTS="--input ${INPUT_PATH}/words --output ${OUTPUT_PATH}/docker_wc_out"
+
+INPUT_TYPE=${1:-file}
+case $INPUT_TYPE in
+    (file)
+        INPUT_LOCATION=${INPUT_PATH}/words
+    ;;
+    (dummy-fs)
+        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        INPUT_LOCATION="dummy://localhost/words"
+    ;;
+    (*)
+        echo "Unknown input type $INPUT_TYPE"
+        exit 1
+    ;;
+esac
+
+export FLINK_JOB_ARGUMENTS="--input ${INPUT_LOCATION} --output ${OUTPUT_PATH}/docker_wc_out"
 
 build_image() {
     ./build.sh --from-local-dist --job-jar ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
@@ -40,12 +56,12 @@ build_image() {
 mkdir -p $OUTPUT_VOLUME
 chmod 777 $OUTPUT_VOLUME
 
-cd "$DOCKER_MODULE_DIR"
+pushd "$DOCKER_MODULE_DIR"
 if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} build_image; then
     echo "Failed to build docker image. Aborting..."
     exit 1
 fi
-cd "$END_TO_END_DIR"
+popd
 
 docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
 docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > ${FLINK_DIR}/log/jobmanager.log

@@ -21,7 +21,9 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.join.HashJoinType
@@ -41,14 +43,19 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode for hash [[Join]].
   */
-trait BatchExecHashJoinBase extends BatchExecJoinBase {
-
-  // true if LHS is build side, else false
-  val leftIsBuild: Boolean
-  // true if build side is broadcast, else false
-  val isBroadcast: Boolean
-  val tryDistinctBuildRow: Boolean
-  var haveInsertRf: Boolean
+class BatchExecHashJoin(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    leftRel: RelNode,
+    rightRel: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType,
+    // true if LHS is build side, else false
+    val leftIsBuild: Boolean,
+    // true if build side is broadcast, else false
+    val isBroadcast: Boolean,
+    val tryDistinctBuildRow: Boolean)
+  extends BatchExecJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   private val (leftKeys, rightKeys) =
     JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
@@ -60,6 +67,25 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
 
   val hashJoinType: HashJoinType = HashJoinType.of(leftIsBuild, getJoinType.generatesNullsOnRight(),
     getJoinType.generatesNullsOnLeft())
+
+  override def copy(
+      traitSet: RelTraitSet,
+      conditionExpr: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
+    new BatchExecHashJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType,
+      leftIsBuild,
+      isBroadcast,
+      tryDistinctBuildRow)
+  }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
@@ -103,6 +129,37 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
     }
   }
 
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    if (!isBroadcast) {
+      satisfyTraitsOnNonBroadcastHashJoin(requiredTraitSet)
+    } else {
+      satisfyTraitsOnBroadcastJoin(requiredTraitSet, leftIsBuild)
+    }
+  }
+
+  private def satisfyTraitsOnNonBroadcastHashJoin(
+      requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val (canSatisfyDistribution, leftRequiredDistribution, rightRequiredDistribution) =
+      satisfyHashDistributionOnNonBroadcastJoin(requiredDistribution)
+    if (!canSatisfyDistribution) {
+      return None
+    }
+
+    val toRestrictHashDistributionByKeys = (distribution: FlinkRelDistribution) =>
+      getCluster.getPlanner
+        .emptyTraitSet
+        .replace(FlinkConventions.BATCH_PHYSICAL)
+        .replace(distribution)
+    val leftRequiredTraits = toRestrictHashDistributionByKeys(leftRequiredDistribution)
+    val rightRequiredTraits = toRestrictHashDistributionByKeys(rightRequiredDistribution)
+    val newLeft = RelOptRule.convert(getLeft, leftRequiredTraits)
+    val newRight = RelOptRule.convert(getRight, rightRequiredTraits)
+    val providedTraits = getTraitSet.replace(requiredDistribution)
+    // HashJoin can not satisfy collation.
+    Some(copy(providedTraits, Seq(newLeft, newRight)))
+  }
+
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = {
@@ -122,38 +179,4 @@ trait BatchExecHashJoinBase extends BatchExecJoinBase {
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     throw new TableException("Implements this")
   }
-}
-
-class BatchExecHashJoin(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    leftRel: RelNode,
-    rightRel: RelNode,
-    condition: RexNode,
-    joinType: JoinRelType,
-    val leftIsBuild: Boolean,
-    val isBroadcast: Boolean,
-    override var haveInsertRf: Boolean = false)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
-  with BatchExecHashJoinBase {
-
-  override val tryDistinctBuildRow = false
-
-  override def copy(
-      traitSet: RelTraitSet,
-      conditionExpr: RexNode,
-      left: RelNode,
-      right: RelNode,
-      joinType: JoinRelType,
-      semiJoinDone: Boolean): Join =
-    new BatchExecHashJoin(
-      cluster,
-      traitSet,
-      left,
-      right,
-      conditionExpr,
-      joinType,
-      leftIsBuild,
-      isBroadcast,
-      haveInsertRf)
 }

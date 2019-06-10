@@ -374,7 +374,7 @@ public class BufferSpiller implements BufferBlocker {
 				Buffer buf = new NetworkBuffer(seg, FreeingBufferRecycler.INSTANCE);
 				buf.setSize(length);
 
-				return new BufferOrEvent(buf, channel);
+				return new BufferOrEvent(buf, channel, true);
 			}
 			else {
 				// deserialize event
@@ -399,7 +399,7 @@ public class BufferSpiller implements BufferBlocker {
 				AbstractEvent evt = EventSerializer.fromSerializedEvent(buffer, getClass().getClassLoader());
 				buffer.limit(oldLimit);
 
-				return new BufferOrEvent(evt, channel);
+				return new BufferOrEvent(evt, channel, true, length);
 			}
 		}
 

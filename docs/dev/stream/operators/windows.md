@@ -371,7 +371,7 @@ Dynamic gaps are specified by implementing the `SessionWindowTimeGapExtractor` i
 
 <span class="label label-danger">Attention</span> Since session windows do not have a fixed start and end,
 they are  evaluated differently than tumbling and sliding windows. Internally, a session window operator
-creates a new window for each arriving record and merges windows together if their are closer to each other
+creates a new window for each arriving record and merges windows together if they are closer to each other
 than the defined gap.
 In order to be mergeable, a session window operator requires a merging [Trigger](#triggers) and a merging
 [Window Function](#window-functions), such as `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`

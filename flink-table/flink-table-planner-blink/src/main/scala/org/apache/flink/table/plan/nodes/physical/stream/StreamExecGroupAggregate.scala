@@ -146,13 +146,18 @@ class StreamExecGroupAggregate(
       CodeGeneratorContext(tableConfig),
       tableEnv.getRelBuilder,
       inputRowType.getFieldTypes,
-      needRetraction,
       // TODO: heap state backend do not copy key currently, we have to copy input field
       // TODO: copy is not need when state backend is rocksdb, improve this in future
       // TODO: but other operators do not copy this input field.....
       copyInputField = true)
 
-    val aggsHandler = generator.generateAggsHandler("GroupAggsHandler", aggInfoList)
+    if (needRetraction) {
+      generator.needRetract()
+    }
+
+    val aggsHandler = generator
+      .needAccumulate()
+      .generateAggsHandler("GroupAggsHandler", aggInfoList)
     val accTypes = aggInfoList.getAccTypes.map(createInternalTypeFromTypeInfo)
     val aggValueTypes = aggInfoList.getActualValueTypes.map(createInternalTypeFromTypeInfo)
     val recordEqualiser = new EqualiserCodeGenerator(aggValueTypes)

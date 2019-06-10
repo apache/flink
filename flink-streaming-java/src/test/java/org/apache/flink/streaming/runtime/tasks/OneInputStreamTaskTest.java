@@ -54,6 +54,7 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -797,7 +798,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 					chainedIndex - 1,
 					null,
 					null,
-					null,
+					(StreamOperator<?>) null,
 					null,
 					null,
 					null
@@ -807,7 +808,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 					chainedIndex,
 					null,
 					null,
-					null,
+					(StreamOperator<?>) null,
 					null,
 					null,
 					null

@@ -16,19 +16,85 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testExplainDataStreamScan">
+  <TestCase name="testExplainDataStreamScan[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[DataStreamTable]])
++- LogicalTableScan(table=[[MyTable1]])
 
 == Optimized Logical Plan ==
 DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
 
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testExplainTableSourceScan">
+  <TestCase name="testExplainWithAgg[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+Calc(select=[EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (a))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(select: (EXPR$0))
+					ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainDataStreamScan[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainTableSourceScan[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -36,6 +102,470 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 
 == Optimized Logical Plan ==
 TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainTableSourceScan[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+
+== Optimized Logical Plan ==
+TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithAgg[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a])
+         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (a))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(select: (EXPR$0))
+					ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithFilter[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=(MOD($0, 2), 0)])
+   +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
++- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(where: ((a MOD 2) = 0), select: (a, b, c))
+			ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithFilter[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=(MOD($0, 2), 0)])
+   +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(where: ((a MOD 2) = 0), select: (a, b, c))
+			ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithMultiSinks[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(name=[sink1], fields=[a, cnt])
++- LogicalProject(a=[$0], cnt=[$1])
+   +- LogicalFilter(condition=[>($1, 10)])
+      +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[_DataStreamTable_0]])
+
+LogicalSink(name=[sink1], fields=[a, cnt])
++- LogicalProject(a=[$0], cnt=[$1])
+   +- LogicalFilter(condition=[<($1, 10)])
+      +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[_DataStreamTable_0]])
+
+== Optimized Logical Plan ==
+GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], reuse_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a])
+      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+
+Sink(name=[sink1], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[>(cnt, 10)])
+   +- Reused(reference_id=[1])
+
+Sink(name=[sink1], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[<(cnt, 10)])
+   +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (a))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(where: (cnt > 10), select: (a, cnt))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : SinkConversionToTuple2
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : Map
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : Calc(where: (cnt < 10), select: (a, cnt))
+								ship_strategy : FORWARD
+
+								 : Operator
+									content : SinkConversionToTuple2
+									ship_strategy : FORWARD
+
+									 : Operator
+										content : Map
+										ship_strategy : FORWARD
+
+										 : Data Sink
+											content : Sink: TestingUpsertTableSink(keys=(0))
+											ship_strategy : FORWARD
+
+											 : Data Sink
+												content : Sink: TestingUpsertTableSink(keys=(0))
+												ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithMultiSinks[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(name=[sink1], fields=[a, cnt])
++- LogicalProject(a=[$0], cnt=[$1])
+   +- LogicalFilter(condition=[>($1, 10)])
+      +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[_DataStreamTable_0]])
+
+LogicalSink(name=[sink1], fields=[a, cnt])
++- LogicalProject(a=[$0], cnt=[$1])
+   +- LogicalFilter(condition=[<($1, 10)])
+      +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[_DataStreamTable_0]])
+
+== Optimized Logical Plan ==
+GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[a, cnt], where=[>(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Reused(reference_id=[1])
+
+Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[a, cnt], where=[<(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (a))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(where: (cnt > 10), select: (a, cnt))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : SinkConversionToTuple2
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : Map
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : Calc(where: (cnt < 10), select: (a, cnt))
+								ship_strategy : FORWARD
+
+								 : Operator
+									content : SinkConversionToTuple2
+									ship_strategy : FORWARD
+
+									 : Operator
+										content : Map
+										ship_strategy : FORWARD
+
+										 : Data Sink
+											content : Sink: TestingUpsertTableSink(keys=(0))
+											ship_strategy : FORWARD
+
+											 : Data Sink
+												content : Sink: TestingUpsertTableSink(keys=(0))
+												ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithSingleSink[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[>($0, 10)])
+      +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+Sink(fields=[a, b, c])
++- Calc(select=[a, b, c], where=[>(a, 10)])
+   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(where: (a > 10), select: (a, b, c))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : SinkConversionToRow
+				ship_strategy : FORWARD
+
+				 : Data Sink
+					content : Sink: TestingAppendTableSink
+					ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithSingleSink[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[>($0, 10)])
+      +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+Sink(fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[a, b, c], where=[>(a, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(where: (a > 10), select: (a, b, c))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : SinkConversionToRow
+				ship_strategy : FORWARD
+
+				 : Data Sink
+					content : Sink: TestingAppendTableSink
+					ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithSort[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SortLimit(orderBy: [a ASC], offset: 0, fetch: 5)
+			ship_strategy : GLOBAL
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithUnion[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:  +- LogicalTableScan(table=[[MyTable1]])
++- LogicalProject(d=[$0], e=[$1], f=[$2])
+   +- LogicalTableScan(table=[[MyTable2]])
+
+== Optimized Logical Plan ==
+Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[_DataStreamTable_1]], fields=[d, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:Buffer(_DataStreamTable_1), fields:(d, e, f))
+			ship_strategy : FORWARD
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithSort[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[MyTable1]])
+
+== Optimized Logical Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SortLimit(orderBy: [a ASC], offset: 0, fetch: 5)
+			ship_strategy : GLOBAL
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainWithUnion[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:  +- LogicalTableScan(table=[[MyTable1]])
++- LogicalProject(d=[$0], e=[$1], f=[$2])
+   +- LogicalTableScan(table=[[MyTable2]])
+
+== Optimized Logical Plan ==
+Union(all=[true], union=[a, b, c])
+:- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
++- DataStreamScan(table=[[_DataStreamTable_1]], fields=[d, e, f])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(_DataStreamTable_0), fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:Buffer(_DataStreamTable_1), fields:(d, e, f))
+			ship_strategy : FORWARD
 
 ]]>
     </Resource>

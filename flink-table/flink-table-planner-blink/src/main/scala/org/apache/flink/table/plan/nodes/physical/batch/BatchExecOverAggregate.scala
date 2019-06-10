@@ -22,7 +22,7 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.`type`.InternalTypes
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, PlannerConfigOptions, TableConfig, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -31,17 +31,19 @@ import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.generated.GeneratedRecordComparator
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
-import org.apache.flink.table.plan.util.{OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.over.frame.OffsetOverFrame.CalcOffsetFunc
 import org.apache.flink.table.runtime.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
 import org.apache.flink.table.runtime.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelDistribution.Type._
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
@@ -51,6 +53,7 @@ import org.apache.calcite.rex.RexWindowBound
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.ImmutableIntList
 
 import java.util
 
@@ -58,7 +61,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Batch physical RelNode for sort-based over [[Window]].
+  * Batch physical RelNode for sort-based over [[Window]] aggregate.
   */
 class BatchExecOverAggregate(
     cluster: RelOptCluster,
@@ -179,7 +182,7 @@ class BatchExecOverAggregate(
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "windowAgg$" + i)
   }
 
-  private[flink] def splitOutOffsetOrInsensitiveGroup()
+  private def splitOutOffsetOrInsensitiveGroup()
   : Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] = {
 
     def compareTo(o1: Window.RexWinAggCall, o2: Window.RexWinAggCall): Boolean = {
@@ -242,6 +245,102 @@ class BatchExecOverAggregate(
     windowGroupInfo
   }
 
+  override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
+    val requiredDistribution = requiredTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
+    val requiredCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    if (requiredDistribution.getType == ANY && requiredCollation.getFieldCollations.isEmpty) {
+      return None
+    }
+
+    val selfProvidedTraitSet = inferProvidedTraitSet()
+    if (selfProvidedTraitSet.satisfies(requiredTraitSet)) {
+      // Current node can satisfy the requiredTraitSet,return the current node with ProvidedTraitSet
+      return Some(copy(selfProvidedTraitSet, Seq(getInput)))
+    }
+
+    val inputFieldCnt = getInput.getRowType.getFieldCount
+    val canSatisfy = if (requiredDistribution.getType == ANY) {
+      true
+    } else {
+      if (!grouping.isEmpty) {
+        if (requiredDistribution.requireStrict) {
+          requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)
+        } else {
+          val isAllFieldsFromInput = requiredDistribution.getKeys.forall(_ < inputFieldCnt)
+          if (isAllFieldsFromInput) {
+            val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+            if (tableConfig.getConf.getBoolean(
+              PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)) {
+              ImmutableIntList.of(grouping: _*).containsAll(requiredDistribution.getKeys)
+            } else {
+              requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)
+            }
+          } else {
+            // If requirement distribution keys are not all comes from input directly,
+            // cannot satisfy requirement distribution and collations.
+            false
+          }
+        }
+      } else {
+        requiredDistribution.getType == SINGLETON
+      }
+    }
+    // If OverAggregate can provide distribution, but it's traits cannot satisfy required
+    // distribution, cannot push down distribution and collation requirement (because later
+    // shuffle will destroy previous collation.
+    if (!canSatisfy) {
+      return None
+    }
+
+    var inputRequiredTraits = getInput.getTraitSet
+    var providedTraits = selfProvidedTraitSet
+    val providedCollation = selfProvidedTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+    if (!requiredDistribution.isTop) {
+      inputRequiredTraits = inputRequiredTraits.replace(requiredDistribution)
+      providedTraits = providedTraits.replace(requiredDistribution)
+    }
+
+    if (providedCollation.satisfies(requiredCollation)) {
+      // the providedCollation can satisfy the requirement,
+      // so don't push down the sort into it's input.
+    } else if (providedCollation.getFieldCollations.isEmpty &&
+      requiredCollation.getFieldCollations.nonEmpty) {
+      // If OverAgg cannot provide collation itself, try to push down collation requirements into
+      // it's input if collation fields all come from input node.
+      val canPushDownCollation = requiredCollation.getFieldCollations
+          .forall(_.getFieldIndex < inputFieldCnt)
+      if (canPushDownCollation) {
+        inputRequiredTraits = inputRequiredTraits.replace(requiredCollation)
+        providedTraits = providedTraits.replace(requiredCollation)
+      }
+    } else {
+      // Don't push down the sort into it's input,
+      // due to the provided collation will destroy the input's provided collation.
+    }
+    val newInput = RelOptRule.convert(getInput, inputRequiredTraits)
+    Some(copy(providedTraits, Seq(newInput)))
+  }
+
+  private def inferProvidedTraitSet(): RelTraitSet = {
+    var selfProvidedTraitSet = getTraitSet
+    // provided distribution
+    val providedDistribution = if (grouping.nonEmpty) {
+      FlinkRelDistribution.hash(grouping.map(Integer.valueOf).toList, requireStrict = false)
+    } else {
+      FlinkRelDistribution.SINGLETON
+    }
+    selfProvidedTraitSet = selfProvidedTraitSet.replace(providedDistribution)
+    // provided collation
+    val firstGroup = windowGroupToAggCallToAggFunction.head._1
+    if (OverAggregateUtil.needCollationTrait(logicWindow, firstGroup)) {
+      val collation = OverAggregateUtil.createCollation(firstGroup)
+      if (!collation.equals(RelCollations.EMPTY)) {
+        selfProvidedTraitSet = selfProvidedTraitSet.replace(collation)
+      }
+    }
+    selfProvidedTraitSet
+  }
+
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior = DamBehavior.PIPELINED
@@ -286,11 +385,12 @@ class BatchExecOverAggregate(
           codeGenCtx,
           relBuilder,
           inputType.getFieldTypes,
-          needRetract = false,
           copyInputField = false)
         // over agg code gen must pass the constants
-        generator.withConstants(constants).generateAggsHandler(
-          "BoundedOverAggregateHelper", aggInfoList)
+        generator
+          .needAccumulate()
+          .withConstants(constants)
+          .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
       }.toArray
 
       val resetAccumulators =
@@ -344,12 +444,14 @@ class BatchExecOverAggregate(
               CodeGeneratorContext(config),
               relBuilder,
               inputType.getFieldTypes,
-              needRetract = true,
               copyInputField = false)
 
             // over agg code gen must pass the constants
-            val genAggsHandler = generator.withConstants(constants)
-                .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
+            val genAggsHandler = generator
+              .needAccumulate()
+              .needRetract()
+              .withConstants(constants)
+              .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
 
             // LEAD is behind the currentRow, so we need plus offset.
             // LAG is in front of the currentRow, so we need minus offset.
@@ -414,11 +516,12 @@ class BatchExecOverAggregate(
             codeGenCtx,
             relBuilder,
             inputType.getFieldTypes,
-            needRetract = false,
             copyInputField = false)
 
           // over agg code gen must pass the constants
-          val genAggsHandler = generator.withConstants(constants)
+          val genAggsHandler = generator
+              .needAccumulate()
+              .withConstants(constants)
               .generateAggsHandler("BoundedOverAggregateHelper", aggInfoList)
 
           mode match {

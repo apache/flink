@@ -20,13 +20,12 @@ package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.OperatorID
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStreamTaskTestHarness, OperatorChain}
+import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStreamTaskTestHarness}
 import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.codegen.agg.AggTestBase
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, GenericRow}
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.util.BaseRowTestUtil
 
 import org.junit.Assert
@@ -63,7 +62,7 @@ abstract class BatchAggTestBase extends AggTestBase {
   }
 
   def testOperator(
-      args: (OneInputStreamOperator[BaseRow, BaseRow], RowType, RowType),
+      args: (CodeGenOperatorFactory[BaseRow], RowType, RowType),
       input: Array[BaseRow], expectedOutput: Array[GenericRow]): Unit = {
     val testHarness = new OneInputStreamTaskTestHarness[BaseRow, BaseRow](
       new function.Function[Environment, OneInputStreamTask[BaseRow, BaseRow]] {
@@ -73,7 +72,7 @@ abstract class BatchAggTestBase extends AggTestBase {
 
     testHarness.setupOutputForSingletonOperatorChain()
     val streamConfig = testHarness.getStreamConfig
-    streamConfig.setStreamOperator(args._1)
+    streamConfig.setStreamOperatorFactory(args._1)
     streamConfig.setOperatorID(new OperatorID)
 
     testHarness.invoke()
@@ -84,11 +83,6 @@ abstract class BatchAggTestBase extends AggTestBase {
     }
 
     testHarness.waitForInputProcessing()
-
-    val op = testHarness.getTask.getStreamStatusMaintainer.asInstanceOf[OperatorChain[_, _]]
-        .getHeadOperator.asInstanceOf[OneInputOperatorWrapper[_, _]].getOperator
-    // TODO close will invoke endInput
-    // op.getClass.getMethod("endInput").invoke(op)
 
     testHarness.endInput()
     testHarness.waitForTaskCompletion()

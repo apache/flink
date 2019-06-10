@@ -45,6 +45,8 @@ import org.apache.flink.util.FlinkException;
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
 
+	private static final Runnable SOURCE_POISON_LETTER = () -> {};
+
 	private volatile boolean externallyInducedCheckpoints;
 
 	public SourceStreamTask(Environment env) {
@@ -98,12 +100,46 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void run() throws Exception {
-		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
+	protected void performDefaultAction(ActionContext context) throws Exception {
+		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
+		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
+		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread();
+		sourceThread.start();
+
+		// We run an alternative mailbox loop that does not involve default actions and synchronizes around actions.
+		try {
+			runAlternativeMailboxLoop();
+		} catch (Exception mailboxEx) {
+			// We cancel the source function if some runtime exception escaped the mailbox.
+			if (!isCanceled()) {
+				cancelTask();
+			}
+			throw mailboxEx;
+		}
+
+		sourceThread.join();
+		sourceThread.checkThrowSourceExecutionException();
+
+		context.allActionsCompleted();
+	}
+
+	private void runAlternativeMailboxLoop() throws InterruptedException {
+
+		while (true) {
+
+			Runnable letter = mailbox.takeMail();
+			if (letter == SOURCE_POISON_LETTER) {
+				break;
+			}
+
+			synchronized (getCheckpointLock()) {
+				letter.run();
+			}
+		}
 	}
 
 	@Override
-	protected void cancelTask() throws Exception {
+	protected void cancelTask() {
 		if (headOperator != null) {
 			headOperator.cancel();
 		}
@@ -127,6 +163,35 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			// we do not trigger checkpoints here, we simply state whether we can trigger them
 			synchronized (getCheckpointLock()) {
 				return isRunning();
+			}
+		}
+	}
+
+	/**
+	 * Runnable that executes the the source function in the head operator.
+	 */
+	private class LegacySourceFunctionThread extends Thread {
+
+		private Throwable sourceExecutionThrowable;
+
+		LegacySourceFunctionThread() {
+			this.sourceExecutionThrowable = null;
+		}
+
+		@Override
+		public void run() {
+			try {
+				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
+			} catch (Throwable t) {
+				sourceExecutionThrowable = t;
+			} finally {
+				mailbox.clearAndPut(SOURCE_POISON_LETTER);
+			}
+		}
+
+		void checkThrowSourceExecutionException() throws Exception {
+			if (sourceExecutionThrowable != null) {
+				throw new Exception(sourceExecutionThrowable);
 			}
 		}
 	}

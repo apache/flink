@@ -18,20 +18,13 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.plan.stats.TableStats;
-
 import java.util.List;
+import java.util.Map;
 
 /**
  * Represents a table in a catalog.
  */
 public interface CatalogTable extends CatalogBaseTable {
-	/**
-	 * Get the statistics of the table.
-	 * @return table statistics
-	 */
-	TableStats getStatistics();
-
 	/**
 	 * Check if the table is partitioned or not.
 	 *
@@ -45,4 +38,12 @@ public interface CatalogTable extends CatalogBaseTable {
 	 * @return partition keys of the table
 	 */
 	List<String> getPartitionKeys();
+
+	/**
+	 * Return a property map for table factory discovery purpose. The properties will be used to match a [[TableFactory]].
+	 * Please refer to {@link org.apache.flink.table.factories.TableFactory}
+	 *
+	 * @return a map of properties
+	 */
+	Map<String, String> toProperties();
 }

@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The BarrierTracker keeps track of what checkpoint barriers have been received from
@@ -89,17 +90,27 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	}
 
 	@Override
-	public BufferOrEvent getNextNonBlocked() throws Exception {
+	public CompletableFuture<?> isAvailable() {
+		return inputGate.isAvailable();
+	}
+
+	@Override
+	public boolean isFinished() {
+		return inputGate.isFinished();
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNext() throws Exception {
 		while (true) {
-			Optional<BufferOrEvent> next = inputGate.getNextBufferOrEvent();
+			Optional<BufferOrEvent> next = inputGate.pollNext();
 			if (!next.isPresent()) {
 				// buffer or input exhausted
-				return null;
+				return next;
 			}
 
 			BufferOrEvent bufferOrEvent = next.get();
 			if (bufferOrEvent.isBuffer()) {
-				return bufferOrEvent;
+				return next;
 			}
 			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
 				processBarrier((CheckpointBarrier) bufferOrEvent.getEvent(), bufferOrEvent.getChannelIndex());
@@ -109,7 +120,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 			}
 			else {
 				// some other event
-				return bufferOrEvent;
+				return next;
 			}
 		}
 	}
@@ -138,6 +149,11 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	public long getAlignmentDurationNanos() {
 		// this one does not do alignment at all
 		return 0L;
+	}
+
+	@Override
+	public int getNumberOfInputChannels() {
+		return totalNumberOfInputChannels;
 	}
 
 	private void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {

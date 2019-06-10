@@ -31,20 +31,23 @@ import java.util.Set;
  *
  * <p>The serialized string representation is {@code VARCHAR(n)} where {@code n} is the maximum
  * number of code points. {@code n} must have a value between 1 and {@link Integer#MAX_VALUE} (both
- * inclusive). If no length is specified, {@code n} is equal to 1.
+ * inclusive). If no length is specified, {@code n} is equal to 1. {@code STRING} is a synonym for
+ * {@code VARCHAR(2147483647)}.
  *
  * <p>A conversion from and to {@code byte[]} assumes UTF-8 encoding.
  */
 @PublicEvolving
 public final class VarCharType extends LogicalType {
 
-	private static final int MIN_LENGTH = 1;
+	public static final int MIN_LENGTH = 1;
 
-	private static final int MAX_LENGTH = Integer.MAX_VALUE;
+	public static final int MAX_LENGTH = Integer.MAX_VALUE;
 
-	private static final int DEFAULT_LENGTH = 1;
+	public static final int DEFAULT_LENGTH = 1;
 
 	private static final String FORMAT = "VARCHAR(%d)";
+
+	private static final String MAX_FORMAT = "STRING";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		String.class.getName(),
@@ -86,6 +89,14 @@ public final class VarCharType extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
+		return withNullability(FORMAT, length);
+	}
+
+	@Override
+	public String asSummaryString() {
+		if (length == MAX_LENGTH) {
+			return withNullability(MAX_FORMAT);
+		}
 		return withNullability(FORMAT, length);
 	}
 

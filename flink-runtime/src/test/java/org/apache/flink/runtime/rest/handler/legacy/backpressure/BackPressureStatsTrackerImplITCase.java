@@ -92,7 +92,7 @@ public class BackPressureStatsTrackerImplITCase extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		networkBufferPool = new NetworkBufferPool(100, 8192);
+		networkBufferPool = new NetworkBufferPool(100, 8192, 1);
 		testBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
 		final Configuration configuration = new Configuration();

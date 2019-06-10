@@ -106,6 +106,11 @@ under the License.
 									<pattern>com.amazon</pattern>
 									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
 								</relocation>
+								<!-- shade Flink's Hadoop FS utility classes -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>

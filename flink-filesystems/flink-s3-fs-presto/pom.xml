@@ -290,6 +290,12 @@ under the License.
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
 								</relocation>
+
+								<!-- shade Flink's Hadoop FS utility classes -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.common</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>

@@ -22,7 +22,9 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -46,6 +48,14 @@ public class YarnConfigOptions {
 			key("yarn.appmaster.rpc.port")
 			.defaultValue(-1)
 			.withDescription("The port where the application master RPC system is listening.");
+
+	/**
+	 * The vcores used by YARN application master.
+	 */
+	public static final ConfigOption<Integer> APP_MASTER_VCORES =
+		key("yarn.appmaster.vcores")
+		.defaultValue(1)
+		.withDescription("The number of virtual cores (vcores) used by YARN application master.");
 
 	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
@@ -100,12 +110,42 @@ public class YarnConfigOptions {
 			" to set the JM host:port manually. It is recommended to leave this option at 1.");
 
 	/**
+	 * The config parameter defining the attemptFailuresValidityInterval of Yarn application.
+	 */
+	public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
+		key("yarn.application-attempt-failures-validity-interval")
+		.defaultValue(10000L)
+		.withDescription(Description.builder()
+			.text("Time window in milliseconds which defines the number of application attempt failures when restarting the AM. " +
+				"Failures which fall outside of this window are not being considered. " +
+				"Set this value to -1 in order to count globally. " +
+				"See %s for more information.", link("https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/", "here"))
+			.build());
+
+	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 */
 	public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
-		key("yarn.heartbeat-delay")
+		key("yarn.heartbeat.interval")
 		.defaultValue(5)
+		.withDeprecatedKeys("yarn.heartbeat-delay")
 		.withDescription("Time between heartbeats with the ResourceManager in seconds.");
+
+	/**
+	 * The heartbeat interval between the Application Master and the YARN Resource Manager
+	 * if Flink is requesting containers.
+	 */
+	public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
+		key("yarn.heartbeat.container-request-interval")
+			.defaultValue(500)
+			.withDescription(
+				new Description.DescriptionBuilder()
+					.text("Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:")
+					.list(
+						text("The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats."),
+						text("The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn."))
+					.text("If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See %s for more information.", link("https://issues.apache.org/jira/browse/YARN-1902", "this link"))
+					.build());
 
 	/**
 	 * When a Flink job is submitted to YARN, the JobManager's host and the number of available

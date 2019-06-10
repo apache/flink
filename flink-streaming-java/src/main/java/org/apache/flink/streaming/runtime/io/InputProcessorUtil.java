@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.NetworkEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -40,7 +41,8 @@ public class InputProcessorUtil {
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
 			InputGate inputGate,
-			Configuration taskManagerConfig) throws IOException {
+			Configuration taskManagerConfig,
+			String taskName) throws IOException {
 
 		CheckpointBarrierHandler barrierHandler;
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
@@ -51,10 +53,18 @@ public class InputProcessorUtil {
 					+ " must be positive or -1 (infinite)");
 			}
 
-			if (taskManagerConfig.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL)) {
-				barrierHandler = new BarrierBuffer(inputGate, new CachedBufferBlocker(inputGate.getPageSize()), maxAlign);
+			if (taskManagerConfig.getBoolean(NetworkEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
+				barrierHandler = new BarrierBuffer(
+					inputGate,
+					new CachedBufferBlocker(inputGate.getPageSize()),
+					maxAlign,
+					taskName);
 			} else {
-				barrierHandler = new BarrierBuffer(inputGate, new BufferSpiller(ioManager, inputGate.getPageSize()), maxAlign);
+				barrierHandler = new BarrierBuffer(
+					inputGate,
+					new BufferSpiller(ioManager, inputGate.getPageSize()),
+					maxAlign,
+					taskName);
 			}
 		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
 			barrierHandler = new BarrierTracker(inputGate);

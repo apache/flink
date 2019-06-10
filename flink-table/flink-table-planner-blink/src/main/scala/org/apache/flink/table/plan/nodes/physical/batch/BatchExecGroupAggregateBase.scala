@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableException}
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -82,6 +82,13 @@ abstract class BatchExecGroupAggregateBase(
       aggCallToAggFunction,
       isMerge,
       isFinal)
+  }
+
+  protected def isEnforceTwoStageAgg: Boolean = {
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+    val aggConfig = tableConfig.getConf.getString(
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
+    AggPhaseEnforcer.TWO_PHASE.toString.equalsIgnoreCase(aggConfig)
   }
 
 }

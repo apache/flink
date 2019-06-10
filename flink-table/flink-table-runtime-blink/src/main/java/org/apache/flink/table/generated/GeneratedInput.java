@@ -25,7 +25,7 @@ import org.apache.flink.api.common.io.InputFormat;
  *
  * @param <F> type of Function
  */
-public final class GeneratedInput<F extends InputFormat<?, ?>> extends GeneratedClass<F> {
+public class GeneratedInput<F extends InputFormat<?, ?>> extends GeneratedClass<F> {
 
 	private static final long serialVersionUID = -7355875544905245676L;
 

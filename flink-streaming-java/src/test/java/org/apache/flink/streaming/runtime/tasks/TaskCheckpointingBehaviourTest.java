@@ -46,8 +46,8 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NetworkEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -72,6 +72,7 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -223,7 +224,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				TestStreamTask.class.getName(),
 				taskConfig);
 
-		NetworkEnvironment network = mock(NetworkEnvironment.class);
+		NetworkEnvironment network = new NetworkEnvironmentBuilder().build();
 
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
@@ -505,8 +506,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		public void init() {}
 
 		@Override
-		protected void run() throws Exception {
-
+		protected void performDefaultAction(ActionContext context) throws Exception {
 			triggerCheckpointOnBarrier(
 				new CheckpointMetaData(
 					11L,
@@ -517,6 +517,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 			while (isRunning()) {
 				Thread.sleep(1L);
 			}
+			context.allActionsCompleted();
 		}
 
 		@Override

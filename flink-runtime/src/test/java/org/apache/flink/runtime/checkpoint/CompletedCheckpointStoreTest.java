@@ -79,11 +79,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		// Add and get latest
 		checkpoints.addCheckpoint(expected[0]);
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
-		verifyCheckpoint(expected[0], checkpoints.getLatestCheckpoint());
+		verifyCheckpoint(expected[0], checkpoints.getLatestCheckpoint(false));
 
 		checkpoints.addCheckpoint(expected[1]);
 		assertEquals(2, checkpoints.getNumberOfRetainedCheckpoints());
-		verifyCheckpoint(expected[1], checkpoints.getLatestCheckpoint());
+		verifyCheckpoint(expected[1], checkpoints.getLatestCheckpoint(false));
 	}
 
 	/**
@@ -119,7 +119,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	/**
 	 * Tests that
 	 * <ul>
-	 * <li>{@link CompletedCheckpointStore#getLatestCheckpoint()} returns <code>null</code>,</li>
+	 * <li>{@link CompletedCheckpointStore#getLatestCheckpoint(boolean)} returns <code>null</code>,</li>
 	 * <li>{@link CompletedCheckpointStore#getAllCheckpoints()} returns an empty list,</li>
 	 * <li>{@link CompletedCheckpointStore#getNumberOfRetainedCheckpoints()} returns 0.</li>
 	 * </ul>
@@ -128,7 +128,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	public void testEmptyState() throws Exception {
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
 
-		assertNull(checkpoints.getLatestCheckpoint());
+		assertNull(checkpoints.getLatestCheckpoint(false));
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
 		assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 	}
@@ -179,7 +179,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		checkpoints.shutdown(JobStatus.FINISHED);
 
 		// Empty state
-		assertNull(checkpoints.getLatestCheckpoint());
+		assertNull(checkpoints.getLatestCheckpoint(false));
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
 		assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 

@@ -28,7 +28,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForExternalType
 import org.apache.flink.table.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, OperatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, SymbolExpression, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
@@ -260,10 +260,6 @@ object AggCodeGenHelper {
       new CallExpression(
         call.getFunctionDefinition,
         call.getChildren.asScala.map(_.accept(this)).asJava)
-    }
-
-    override def visitSymbol(symbolExpression: SymbolExpression): Expression = {
-      symbolExpression
     }
 
     override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {

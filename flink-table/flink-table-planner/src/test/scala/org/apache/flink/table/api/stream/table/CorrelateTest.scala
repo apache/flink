@@ -45,7 +45,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "s"),
@@ -66,7 +66,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
         term("select", "a", "b", "c", "s"),
@@ -92,7 +92,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "s"),
@@ -120,7 +120,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(table),
         term("invocation",
              s"${function.functionIdentifier}(${scalarFunc.functionIdentifier}($$2))"),
         term("correlate", s"table(${function.getClass.getSimpleName}(Func13(c)))"),
@@ -146,7 +146,7 @@ class CorrelateTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCorrelate",
-      streamTableNode(0),
+      streamTableNode(table),
       term("invocation", s"${function.functionIdentifier}($$2)"),
       term("correlate", "table(HierarchyTableFunction(c))"),
       term("select", "a", "b", "c", "name", "adult", "len"),
@@ -169,7 +169,7 @@ class CorrelateTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCorrelate",
-      streamTableNode(0),
+      streamTableNode(table),
       term("invocation", s"${function.functionIdentifier}($$2)"),
       term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
       term("select", "a", "b", "c", "age", "name"),
@@ -197,7 +197,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "name", "len"),
@@ -223,7 +223,7 @@ class CorrelateTest extends TableTestBase {
 
     val expected = unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(table),
         term("invocation",  s"${function.functionIdentifier}(SUBSTRING($$2, 2, CHAR_LENGTH($$2)))"),
         term("correlate",
              s"table(${function.getClass.getSimpleName}(SUBSTRING(c, 2, CHAR_LENGTH(c))))"),
@@ -253,7 +253,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(sourceTable),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "d", "e"),
@@ -299,7 +299,7 @@ class CorrelateTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(sourceTable),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "d", "e"),
@@ -320,14 +320,15 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
 
     val func2 = new TableFunc2
-    val resultTable = util.addTable[(Int, Long, String)]("MyTable", 'f1, 'f2, 'f3)
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'f1, 'f2, 'f3)
+    val resultTable = sourceTable
       .flatMap(func2('f3))
 
     val expected = unaryNode(
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        streamTableNode(sourceTable),
         term("invocation", s"${func2.functionIdentifier}($$2)"),
         term("correlate", "table(TableFunc2(f3))"),
         term("select", "f1", "f2", "f3", "f0", "f1_0"),

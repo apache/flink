@@ -59,6 +59,8 @@ import static org.mockito.Mockito.when;
  */
 public class CheckpointStateRestoreTest {
 
+	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
+
 	/**
 	 * Tests that on restore the task state is reset for each stateful task.
 	 */
@@ -109,7 +111,8 @@ public class CheckpointStateRestoreTest {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -128,11 +131,11 @@ public class CheckpointStateRestoreTest {
 					StateObjectCollection.singleton(serializedKeyGroupStates),
 					StateObjectCollection.empty()));
 
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec2.getAttemptId(), checkpointId));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates), TASK_MANAGER_LOCATION_INFO);
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates), TASK_MANAGER_LOCATION_INFO);
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates), TASK_MANAGER_LOCATION_INFO);
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec2.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
 
 			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -187,7 +190,8 @@ public class CheckpointStateRestoreTest {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				false);
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
@@ -245,7 +249,8 @@ public class CheckpointStateRestoreTest {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			SharedStateRegistry.DEFAULT_FACTORY);
+			SharedStateRegistry.DEFAULT_FACTORY,
+			false);
 
 		// --- (2) Checkpoint misses state for a jobVertex (should work) ---
 		Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();

@@ -195,7 +195,7 @@ public class SharedSlot extends Slot implements LogicalSlot {
 		assignmentGroup.releaseSharedSlot(this);
 
 		if (!(isReleased() && subSlots.isEmpty())) {
-			throw new IllegalStateException("Bug: SharedSlot is not empty and released after call to releaseSlot()");
+			throw new IllegalStateException("Bug: SharedSlot is not released or not empty after call to releaseSlot()");
 		}
 
 		return CompletableFuture.completedFuture(null);

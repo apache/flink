@@ -19,18 +19,25 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.ListIterator;
 
 /**
  * A bounded LIFO-queue of {@link CompletedCheckpoint} instances.
  */
 public interface CompletedCheckpointStore {
 
+	Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
+
 	/**
 	 * Recover available {@link CompletedCheckpoint} instances.
 	 *
-	 * <p>After a call to this method, {@link #getLatestCheckpoint()} returns the latest
+	 * <p>After a call to this method, {@link #getLatestCheckpoint(boolean)} returns the latest
 	 * available checkpoint.
 	 */
 	void recover() throws Exception;
@@ -47,7 +54,33 @@ public interface CompletedCheckpointStore {
 	 * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
 	 * added.
 	 */
-	CompletedCheckpoint getLatestCheckpoint() throws Exception;
+	default CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) throws Exception {
+		if (getAllCheckpoints().isEmpty()) {
+			return null;
+		}
+
+		CompletedCheckpoint candidate = getAllCheckpoints().get(getAllCheckpoints().size() - 1);
+		if (isPreferCheckpointForRecovery && getAllCheckpoints().size() > 1) {
+			List<CompletedCheckpoint> allCheckpoints;
+			try {
+				allCheckpoints = getAllCheckpoints();
+				ListIterator<CompletedCheckpoint> listIterator = allCheckpoints.listIterator(allCheckpoints.size() - 1);
+				while (listIterator.hasPrevious()) {
+					CompletedCheckpoint prev = listIterator.previous();
+					if (!prev.getProperties().isSavepoint()) {
+						candidate = prev;
+						LOG.info("Found a completed checkpoint before the latest savepoint, will use it to recover!");
+						break;
+					}
+				}
+			} catch (Exception e) {
+				LOG.error("Method getAllCheckpoints caused exception : ", e);
+				throw new FlinkRuntimeException(e);
+			}
+		}
+
+		return candidate;
+	}
 
 	/**
 	 * Shuts down the store.

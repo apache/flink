@@ -39,6 +39,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.junit.After;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -46,8 +47,8 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Matchers.any;
@@ -69,9 +70,25 @@ public abstract class BarrierBufferTestBase {
 
 	private static int sizeCounter = 1;
 
-	abstract BarrierBuffer createBarrierHandler(InputGate gate) throws IOException;
+	BarrierBuffer buffer;
+
+	protected BarrierBuffer createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
+		MockInputGate gate = new MockInputGate(PAGE_SIZE, numberOfChannels, Arrays.asList(sequence));
+		return createBarrierBuffer(gate);
+	}
+
+	abstract BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException;
 
 	abstract void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence);
+
+	@After
+	public void ensureEmpty() throws Exception {
+		assertFalse(buffer.pollNext().isPresent());
+		assertTrue(buffer.isFinished());
+		assertTrue(buffer.isEmpty());
+
+		buffer.cleanup();
+	}
 
 	// ------------------------------------------------------------------------
 	//  Tests
@@ -87,20 +104,13 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(0, PAGE_SIZE), createBuffer(0, PAGE_SIZE),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
-			assertEquals(boe, buffer.getNextNonBlocked());
+			assertEquals(boe, buffer.pollNext().get());
 		}
 
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
 	}
 
 	/**
@@ -115,20 +125,13 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(3, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createEndOfPartition(3),
 			createBuffer(1, PAGE_SIZE), createEndOfPartition(1), createBuffer(2, PAGE_SIZE), createEndOfPartition(2)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 4, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
-			assertEquals(boe, buffer.getNextNonBlocked());
+			assertEquals(boe, buffer.pollNext().get());
 		}
 
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
 	}
 
 	/**
@@ -146,9 +149,7 @@ public abstract class BarrierBufferTestBase {
 			createBarrier(4, 0), createBarrier(5, 0), createBarrier(6, 0),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(1, sequence);
 
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
 		buffer.registerCheckpointEventHandler(handler);
@@ -156,14 +157,9 @@ public abstract class BarrierBufferTestBase {
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, buffer.getNextNonBlocked());
+				assertEquals(boe, buffer.pollNext().get());
 			}
 		}
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
 	}
 
 	/**
@@ -204,93 +200,86 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(0, PAGE_SIZE),
 			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
 		buffer.registerCheckpointEventHandler(handler);
 		handler.setNextExpectedCheckpointId(1L);
 
 		// pre checkpoint 1
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, handler.getNextExpectedCheckpointId());
 
 		long startTs = System.nanoTime();
 
 		// blocking while aligning for checkpoint 1
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, handler.getNextExpectedCheckpointId());
 
 		// checkpoint 1 done, returning buffered data
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, handler.getNextExpectedCheckpointId());
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[5], sequence[6]);
 
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 
 		// pre checkpoint 2
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[11], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, handler.getNextExpectedCheckpointId());
 
 		// checkpoint 2 barriers come together
 		startTs = System.nanoTime();
-		check(sequence[17], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[17], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(3L, handler.getNextExpectedCheckpointId());
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment());
 
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 starts, data buffered
-		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[20], sequence[21]);
 		assertEquals(4L, handler.getNextExpectedCheckpointId());
-		check(sequence[21], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 4 happens without extra data
 
 		// pre checkpoint 5
-		check(sequence[27], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[27], buffer.pollNext().get(), PAGE_SIZE);
 
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment());
 		assertEquals(5L, handler.getNextExpectedCheckpointId());
 
-		check(sequence[28], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[29], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[28], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[29], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 5 aligning
-		check(sequence[31], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[32], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[33], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[37], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[31], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[32], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[33], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[37], buffer.pollNext().get(), PAGE_SIZE);
 
 		// buffered data from checkpoint 5 alignment
-		check(sequence[34], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[36], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[38], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[39], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[34], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[36], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[38], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[39], buffer.pollNext().get(), PAGE_SIZE);
 
 		// remaining data
-		check(sequence[41], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[42], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[43], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[44], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
+		check(sequence[41], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[42], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[43], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[44], buffer.pollNext().get(), PAGE_SIZE);
 
 		validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(),
 			sequence[34], sequence[36], sequence[38], sequence[39]);
-
-		buffer.cleanup();
 	}
 
 	@Test
@@ -305,45 +294,38 @@ public abstract class BarrierBufferTestBase {
 			createBarrier(2, 2),
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2), createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
 		buffer.registerCheckpointEventHandler(handler);
 		handler.setNextExpectedCheckpointId(1L);
 
 		// pre-checkpoint 1
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, handler.getNextExpectedCheckpointId());
 
 		// pre-checkpoint 2
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, handler.getNextExpectedCheckpointId());
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 2 alignment
 		long startTs = System.nanoTime();
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[14], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[14], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 
 		// end of stream: remaining buffered contents
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[11], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[17], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[17], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	/**
@@ -388,78 +370,71 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
 		buffer.registerCheckpointEventHandler(handler);
 		handler.setNextExpectedCheckpointId(1L);
 
 		// around checkpoint 1
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, handler.getNextExpectedCheckpointId());
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
 
 		// alignment of checkpoint 2 - buffering also some barriers for
 		// checkpoints 3 and 4
 		long startTs = System.nanoTime();
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[23], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[23], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 2 completed
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		check(sequence[25], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[27], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[30], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[32], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[25], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[27], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[30], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[32], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 completed (emit buffered)
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[28], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[28], buffer.pollNext().get(), PAGE_SIZE);
 
 		// past checkpoint 3
-		check(sequence[36], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[38], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[36], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[38], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 4 completed (emit buffered)
-		check(sequence[22], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[26], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[31], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[33], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[39], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[26], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[31], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[33], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[39], buffer.pollNext().get(), PAGE_SIZE);
 
 		// past checkpoint 4, alignment for checkpoint 5
-		check(sequence[42], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[45], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[46], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[42], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[45], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[46], buffer.pollNext().get(), PAGE_SIZE);
 
 		// abort checkpoint 5 (end of partition)
-		check(sequence[37], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[37], buffer.pollNext().get(), PAGE_SIZE);
 
 		// start checkpoint 6 alignment
-		check(sequence[47], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[48], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[47], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[48], buffer.pollNext().get(), PAGE_SIZE);
 
 		// end of input, emit remainder
-		check(sequence[43], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[44], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[43], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[44], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	/**
@@ -488,9 +463,7 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
@@ -498,56 +471,51 @@ public abstract class BarrierBufferTestBase {
 		long startTs;
 
 		// initial data
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 
 		// align checkpoint 1
 		startTs = System.nanoTime();
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, buffer.getCurrentCheckpointId());
 
 		// checkpoint done - replay buffered
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		verify(toNotify).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
 
 		// alignment of checkpoint 2
 		startTs = System.nanoTime();
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[15], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 2 aborted, checkpoint 3 started
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(3L, buffer.getCurrentCheckpointId());
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		verify(toNotify).abortCheckpointOnBarrier(eq(2L), isA(CheckpointDeclineSubsumedException.class));
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 alignment in progress
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 aborted (end of partition)
-		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify).abortCheckpointOnBarrier(eq(3L), isA(InputEndOfStreamException.class));
 
 		// replay buffered data from checkpoint 3
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 
 		// all the remaining messages
-		check(sequence[21], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[22], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[23], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[24], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[23], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[24], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	/**
@@ -580,59 +548,52 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
 		buffer.registerCheckpointEventHandler(handler);
 		handler.setNextExpectedCheckpointId(1L);
 
 		// checkpoint 1
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, buffer.getCurrentCheckpointId());
 
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
 
 		// alignment of checkpoint 2
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, buffer.getCurrentCheckpointId());
-		check(sequence[15], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[21], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
 
 		long startTs = System.nanoTime();
 
 		// checkpoint 2 aborted, checkpoint 4 started. replay buffered
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(4L, buffer.getCurrentCheckpointId());
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[22], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
 
 		// align checkpoint 4 remainder
-		check(sequence[25], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[26], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[25], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[26], buffer.pollNext().get(), PAGE_SIZE);
 
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 
 		// checkpoint 4 aborted (due to end of partition)
-		check(sequence[24], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[27], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[28], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[29], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[30], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[24], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[27], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[28], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[29], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[30], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	/**
@@ -677,55 +638,48 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		// checkpoint 1
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, buffer.getCurrentCheckpointId());
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
 
 		// alignment of checkpoint 2
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[22], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, buffer.getCurrentCheckpointId());
 
 		// checkpoint 2 completed
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[15], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 skipped, alignment for 4 started
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(4L, buffer.getCurrentCheckpointId());
-		check(sequence[21], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[24], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[26], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[30], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[24], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[26], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[30], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 4 completed
-		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[28], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[29], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[28], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[29], buffer.pollNext().get(), PAGE_SIZE);
 
-		check(sequence[32], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[33], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[34], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[35], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[36], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[37], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[32], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[33], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[34], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[35], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[36], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[37], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	@Test
@@ -740,35 +694,36 @@ public abstract class BarrierBufferTestBase {
 			createBarrier(2, 2),
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2), createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
 		buffer.registerCheckpointEventHandler(handler);
 		handler.setNextExpectedCheckpointId(1L);
 
 		// pre-checkpoint 1
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, handler.getNextExpectedCheckpointId());
 
 		// pre-checkpoint 2
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, handler.getNextExpectedCheckpointId());
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 2 alignment
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[14], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[14], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
 
-		// end of stream: remaining buffered contents
-		buffer.getNextNonBlocked();
-		buffer.cleanup();
+		// drain buffer
+		buffer.pollNext().get();
+		buffer.pollNext().get();
+		buffer.pollNext().get();
+		buffer.pollNext().get();
+		buffer.pollNext().get();
 	}
 
 	@Test
@@ -800,44 +755,36 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(3, PAGE_SIZE),
 			createEndOfPartition(3)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 4, Arrays.asList(sequence));
-
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(4, sequence);
 
 		// pre checkpoint 2
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[3], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[4], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 alignment
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, buffer.getCurrentCheckpointId());
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[11], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 buffered
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(3L, buffer.getCurrentCheckpointId());
 
 		// after checkpoint 4
-		check(sequence[15], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(4L, buffer.getCurrentCheckpointId());
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[17], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[17], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[21], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(5L, buffer.getCurrentCheckpointId());
-		check(sequence[22], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	@Test
@@ -860,33 +807,25 @@ public abstract class BarrierBufferTestBase {
 			// final end of stream
 			createEndOfPartition(0)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		// data after first checkpoint
-		check(sequence[3], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[4], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(1L, buffer.getCurrentCheckpointId());
 
 		// alignment of second checkpoint
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(2L, buffer.getCurrentCheckpointId());
 
 		// first end-of-partition encountered: checkpoint will not be completed
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[11], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[14], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		// all done
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[14], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
 	@Test
@@ -902,31 +841,27 @@ public abstract class BarrierBufferTestBase {
 			createCancellationBarrier(6, 0),
 			createBuffer(0, PAGE_SIZE)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(1, sequence);
 
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(5L, buffer.getCurrentCheckpointId());
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(2L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(5L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(6L, buffer.getCurrentCheckpointId());
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
-
-		buffer.cleanup();
 	}
 
 	@Test
@@ -965,9 +900,7 @@ public abstract class BarrierBufferTestBase {
 
 			/* 37 */ createBuffer(0, PAGE_SIZE)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
@@ -975,60 +908,54 @@ public abstract class BarrierBufferTestBase {
 		long startTs;
 
 		// successful first checkpoint, with some aligned buffers
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[1], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		startTs = System.nanoTime();
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
 
 		// canceled checkpoint on last barrier
 		startTs = System.nanoTime();
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
 
 		// one more successful checkpoint
-		check(sequence[15], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
 		startTs = System.nanoTime();
-		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(3L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		check(sequence[21], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
 
 		// this checkpoint gets immediately canceled
-		check(sequence[24], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[24], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		// some buffers
-		check(sequence[26], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[27], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[28], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[26], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[27], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[28], buffer.pollNext().get(), PAGE_SIZE);
 
 		// a simple successful checkpoint
 		startTs = System.nanoTime();
-		check(sequence[32], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[32], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(5L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		check(sequence[33], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[33], buffer.pollNext().get(), PAGE_SIZE);
 
-		check(sequence[37], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[37], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
-
-		// all done
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
 	}
 
 	@Test
@@ -1058,42 +985,40 @@ public abstract class BarrierBufferTestBase {
 				// some more buffers
 			/* 16 */ createBuffer(0, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createBuffer(2, PAGE_SIZE)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		long startTs;
 
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
 
 		// starting first checkpoint
 		startTs = System.nanoTime();
-		check(sequence[4], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
 
 		// finished first checkpoint
-		check(sequence[3], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(1L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 
 		// re-read the queued cancellation barriers
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[14], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[14], buffer.pollNext().get(), PAGE_SIZE);
 
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[17], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[17], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 
 		// no further alignment should have happened
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
@@ -1101,12 +1026,6 @@ public abstract class BarrierBufferTestBase {
 		// no further checkpoint (abort) notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(any(CheckpointMetaData.class), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong(), any(CheckpointDeclineOnCancellationBarrierException.class));
-
-		// all done
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
 	}
 
 	/**
@@ -1148,54 +1067,46 @@ public abstract class BarrierBufferTestBase {
 				// some more buffers
 			/* 18 */ createBuffer(0, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createBuffer(2, PAGE_SIZE)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		long startTs;
 
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
 
 		// starting first checkpoint
 		startTs = System.nanoTime();
-		check(sequence[2], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[3], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[6], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 
 		// cancelled by cancellation barrier
-		check(sequence[4], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		verify(toNotify).abortCheckpointOnBarrier(eq(1L), any(CheckpointDeclineOnCancellationBarrierException.class));
 
 		// the next checkpoint alignment starts now
 		startTs = System.nanoTime();
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[11], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[15], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint done
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		verify(toNotify).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(2L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 
 		// queued data
-		check(sequence[10], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[14], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[14], buffer.pollNext().get(), PAGE_SIZE);
 
 		// trailing data
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[19], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		// all done
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
 
 		// check overall notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(any(CheckpointMetaData.class), any(CheckpointOptions.class), any(CheckpointMetrics.class));
@@ -1232,9 +1143,7 @@ public abstract class BarrierBufferTestBase {
 				// some more buffers
 			/* 16 */ createBuffer(0, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createBuffer(2, PAGE_SIZE)
 		};
-
-		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = createBarrierHandler(gate);
+		buffer = createBarrierBuffer(3, sequence);
 
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
@@ -1243,39 +1152,33 @@ public abstract class BarrierBufferTestBase {
 
 		// validate the sequence
 
-		check(sequence[0], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
 
 		// beginning of first checkpoint
-		check(sequence[5], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 
 		// future barrier aborts checkpoint
 		startTs = System.nanoTime();
-		check(sequence[3], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(3L), any(CheckpointDeclineSubsumedException.class));
-		check(sequence[4], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
 
 		// alignment of next checkpoint
-		check(sequence[8], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[9], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[13], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint finished
-		check(sequence[7], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(5L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		check(sequence[11], buffer.getNextNonBlocked(), PAGE_SIZE);
+		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
 
 		// remaining data
-		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[17], buffer.getNextNonBlocked(), PAGE_SIZE);
-		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
-
-		// all done
-		assertNull(buffer.getNextNonBlocked());
-		assertNull(buffer.getNextNonBlocked());
-
-		buffer.cleanup();
+		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[17], buffer.pollNext().get(), PAGE_SIZE);
+		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 
 		// check overall notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(any(CheckpointMetaData.class), any(CheckpointOptions.class), any(CheckpointMetrics.class));

@@ -50,6 +50,13 @@ to files that are modified. Note that if you are making changes that affect
 the sidebar navigation, you'll have to build the entire site to see
 those changes reflected on every page.
 
+| Flag | Action | 
+| -----| -------| 
+| -p   | Run interactive preview | 
+| -i   | Incremental builds | 
+| -e   | Build only English docs |
+| -z   | Build only Chinese docs |
+
 ## Generate configuration tables
 
 Configuration descriptions are auto generated from code. To trigger the generation you need to run:

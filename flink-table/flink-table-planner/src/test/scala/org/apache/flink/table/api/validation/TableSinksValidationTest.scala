@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException
 import org.apache.flink.table.runtime.stream.table.TestAppendSink
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
 import org.apache.flink.table.utils.TableTestBase
@@ -42,7 +43,7 @@ class TableSinksValidationTest extends TableTestBase {
     .insertInto("testSink")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[TableAlreadyExistException])
   def testSinkTableRegistrationUsingExistedTableName(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Int, String)]("TargetTable", 'id, 'text)

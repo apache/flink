@@ -26,12 +26,12 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.OrdinalReturnTypeInference
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 import _root_.scala.collection.JavaConverters._
@@ -96,7 +96,7 @@ case class OverCall(
     val partitionKeys = partitionBy.map(_.toRexNode).asJava
 
     // assemble bounds
-    val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
+    val isPhysical: Boolean = preceding.resultType == BasicTypeInfo.LONG_TYPE_INFO
 
     val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
     val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
@@ -186,9 +186,9 @@ case class OverCall(
     preceding match {
       case _: CurrentRow | _: CurrentRange | _: UnboundedRow | _: UnboundedRange =>
         ValidationSuccess
-      case Literal(v: Long, _: RowIntervalTypeInfo) if v > 0 =>
+      case Literal(v: Long, BasicTypeInfo.LONG_TYPE_INFO) if v > 0 =>
         ValidationSuccess
-      case Literal(_, _: RowIntervalTypeInfo) =>
+      case Literal(_, BasicTypeInfo.LONG_TYPE_INFO) =>
         return ValidationFailure("Preceding row interval must be larger than 0.")
       case Literal(v: Long, _: TimeIntervalTypeInfo[_]) if v >= 0 =>
         ValidationSuccess
@@ -202,9 +202,9 @@ case class OverCall(
     following match {
       case _: CurrentRow | _: CurrentRange | _: UnboundedRow | _: UnboundedRange =>
         ValidationSuccess
-      case Literal(v: Long, _: RowIntervalTypeInfo) if v > 0 =>
+      case Literal(v: Long, BasicTypeInfo.LONG_TYPE_INFO) if v > 0 =>
         ValidationSuccess
-      case Literal(_, _: RowIntervalTypeInfo) =>
+      case Literal(_, BasicTypeInfo.LONG_TYPE_INFO) =>
         return ValidationFailure("Following row interval must be larger than 0.")
       case Literal(v: Long, _: TimeIntervalTypeInfo[_]) if v >= 0 =>
         ValidationSuccess

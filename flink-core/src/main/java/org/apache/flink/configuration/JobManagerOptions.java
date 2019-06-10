@@ -120,18 +120,6 @@ public class JobManagerOptions {
 				).build());
 
 	/**
-	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
-	 * to the resource manager has been lost.
-	 *
-	 * <p>This option is only intended for internal use.
-	 */
-	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
-		key("jobmanager.resourcemanager.reconnect-interval")
-		.defaultValue(2000L)
-		.withDescription("This option specifies the interval in order to trigger a resource manager reconnection if the connection" +
-			" to the resource manager has been lost. This option is only intended for internal use.");
-
-	/**
 	 * The location where the JobManager stores the archives of completed jobs.
 	 */
 	public static final ConfigOption<String> ARCHIVE_DIR =
@@ -172,6 +160,19 @@ public class JobManagerOptions {
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
 			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+	/**
+	 * Config parameter determining the scheduler implementation.
+	 */
+	@Documentation.ExcludeFromDocumentation("SchedulerNG is still in development.")
+	public static final ConfigOption<String> SCHEDULER =
+		key("jobmanager.scheduler")
+			.defaultValue("legacy")
+			.withDescription(Description.builder()
+				.text("Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
+				.list(
+					text("'legacy': legacy scheduler"),
+					text("'ng': new generation scheduler"))
+				.build());
 
 	// ---------------------------------------------------------------------------------------------
 

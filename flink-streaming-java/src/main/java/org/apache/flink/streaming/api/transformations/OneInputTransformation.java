@@ -19,10 +19,13 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -42,7 +45,7 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 
 	private final StreamTransformation<IN> input;
 
-	private final OneInputStreamOperator<IN, OUT> operator;
+	private final StreamOperatorFactory<OUT> operatorFactory;
 
 	private KeySelector<IN, ?> stateKeySelector;
 
@@ -63,9 +66,18 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 			OneInputStreamOperator<IN, OUT> operator,
 			TypeInformation<OUT> outputType,
 			int parallelism) {
+		this(input, name, SimpleOperatorFactory.of(operator), outputType, parallelism);
+	}
+
+	public OneInputTransformation(
+			StreamTransformation<IN> input,
+			String name,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<OUT> outputType,
+			int parallelism) {
 		super(name, outputType, parallelism);
 		this.input = input;
-		this.operator = operator;
+		this.operatorFactory = operatorFactory;
 	}
 
 	/**
@@ -82,11 +94,16 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 		return input.getOutputType();
 	}
 
-	/**
-	 * Returns the {@code OneInputStreamOperator} of this Transformation.
-	 */
+	@VisibleForTesting
 	public OneInputStreamOperator<IN, OUT> getOperator() {
-		return operator;
+		return (OneInputStreamOperator<IN, OUT>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+	}
+
+	/**
+	 * Returns the {@code StreamOperatorFactory} of this Transformation.
+	 */
+	public StreamOperatorFactory<OUT> getOperatorFactory() {
+		return operatorFactory;
 	}
 
 	/**
@@ -126,6 +143,6 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operator.setChainingStrategy(strategy);
+		operatorFactory.setChainingStrategy(strategy);
 	}
 }

@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.catalog.CatalogTestBase;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
 
@@ -32,23 +35,36 @@ public class HiveTestUtils {
 	private static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	/**
-	 * Create a GenericHiveMetastoreCatalog with an embedded Hive Metastore.
+	 * Create a HiveCatalog with an embedded Hive Metastore.
 	 */
-	public static GenericHiveMetastoreCatalog createGenericHiveMetastoreCatalog() throws IOException {
-		return new GenericHiveMetastoreCatalog("test", getHiveConf());
+	public static HiveCatalog createHiveCatalog() {
+		return createHiveCatalog(CatalogTestBase.TEST_CATALOG_NAME);
 	}
 
-	private static HiveConf getHiveConf() throws IOException {
+	public static HiveCatalog createHiveCatalog(String catalogName) {
+		return new HiveCatalog(catalogName, null, createHiveConf());
+	}
+
+	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
+		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf);
+	}
+
+	public static HiveConf createHiveConf() {
 		ClassLoader classLoader = new HiveTestUtils().getClass().getClassLoader();
 		HiveConf.setHiveSiteLocation(classLoader.getResource(HIVE_SITE_XML));
 
-		TEMPORARY_FOLDER.create();
-		String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
-		String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
-		HiveConf hiveConf = new HiveConf();
-		hiveConf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
-		hiveConf.setVar(HiveConf.ConfVars.METASTORECONNECTURLKEY, warehouseUri);
+		try {
+			TEMPORARY_FOLDER.create();
+			String warehouseDir = TEMPORARY_FOLDER.newFolder().getAbsolutePath() + "/metastore_db";
+			String warehouseUri = String.format(HIVE_WAREHOUSE_URI_FORMAT, warehouseDir);
 
-		return hiveConf;
+			HiveConf hiveConf = new HiveConf();
+			hiveConf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, TEMPORARY_FOLDER.newFolder("hive_warehouse").getAbsolutePath());
+			hiveConf.setVar(HiveConf.ConfVars.METASTORECONNECTURLKEY, warehouseUri);
+			return hiveConf;
+		} catch (IOException e) {
+			throw new CatalogException(
+				"Failed to create test HiveConf to HiveCatalog.", e);
+		}
 	}
 }

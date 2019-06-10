@@ -31,18 +31,21 @@ import java.util.Set;
  *
  * <p>The serialized string representation is {@code VARBINARY(n)} where {@code n} is the maximum
  * number of bytes. {@code n} must have a value between 1 and {@link Integer#MAX_VALUE} (both
- * inclusive). If no length is specified, {@code n} is equal to 1.
+ * inclusive). If no length is specified, {@code n} is equal to 1. {@code BYTES} is a synonym for
+ * {@code VARBINARY(2147483647)}.
  */
 @PublicEvolving
 public final class VarBinaryType extends LogicalType {
 
-	private static final int MIN_LENGTH = 1;
+	public static final int MIN_LENGTH = 1;
 
-	private static final int MAX_LENGTH = Integer.MAX_VALUE;
+	public static final int MAX_LENGTH = Integer.MAX_VALUE;
 
-	private static final int DEFAULT_LENGTH = 1;
+	public static final int DEFAULT_LENGTH = 1;
 
 	private static final String FORMAT = "VARBINARY(%d)";
+
+	private static final String MAX_FORMAT = "BYTES";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
@@ -83,6 +86,14 @@ public final class VarBinaryType extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
+		return withNullability(FORMAT, length);
+	}
+
+	@Override
+	public String asSummaryString() {
+		if (length == MAX_LENGTH) {
+			return withNullability(MAX_FORMAT);
+		}
 		return withNullability(FORMAT, length);
 	}
 

@@ -207,6 +207,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
+			vertex.getCurrentExecutionAttempt().registerProducedPartitions(slot.getTaskManagerLocation()).get();
 			vertex.deployToSlot(slot);
 
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
@@ -239,7 +240,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
 			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
-			assertEquals(10, iteratorConsumedPartitions.next().getInputChannelDeploymentDescriptors().length);
+			assertEquals(10, iteratorConsumedPartitions.next().getShuffleDescriptors().length);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -801,6 +802,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					0,
 					1,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+					false,
 					false),
 				null));
 

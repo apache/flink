@@ -572,7 +572,7 @@ Example reporter configuration that specifies multiple reporters:
 {% highlight yaml %}
 metrics.reporters: my_jmx_reporter,my_other_reporter
 
-metrics.reporter.my_jmx_reporter.class: org.apache.flink.metrics.jmx.JMXReporter
+metrics.reporter.my_jmx_reporter.factory.class: org.apache.flink.metrics.jmx.JMXReporterFactory
 metrics.reporter.my_jmx_reporter.port: 9020-9040
 
 metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.GraphiteReporter
@@ -605,7 +605,7 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporter.jmx.class: org.apache.flink.metrics.jmx.JMXReporter
+metrics.reporter.jmx.factory.class: org.apache.flink.metrics.jmx.JMXReporterFactory
 metrics.reporter.jmx.port: 8789
 
 {% endhighlight %}

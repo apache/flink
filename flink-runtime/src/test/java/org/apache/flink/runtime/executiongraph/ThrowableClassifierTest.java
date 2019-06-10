@@ -27,6 +27,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test throwable classifier
@@ -68,6 +70,34 @@ public class ThrowableClassifierTest extends TestLogger {
 			ThrowableClassifier.getThrowableType(new Sub_ThrowableType_PartitionDataMissingError_Exception()));
 	}
 
+	@Test
+	public void testFindThrowableOfThrowableType() {
+		// no throwable type
+		assertFalse(ThrowableClassifier.findThrowableOfThrowableType(
+			new Exception(),
+			ThrowableType.RecoverableError).isPresent());
+
+		// no recoverable throwable type
+		assertFalse(ThrowableClassifier.findThrowableOfThrowableType(
+			new ThrowableType_PartitionDataMissingError_Exception(),
+			ThrowableType.RecoverableError).isPresent());
+
+		// direct recoverable throwable
+		assertTrue(ThrowableClassifier.findThrowableOfThrowableType(
+			new ThrowableType_RecoverableFailure_Exception(),
+			ThrowableType.RecoverableError).isPresent());
+
+		// nested recoverable throwable
+		assertTrue(ThrowableClassifier.findThrowableOfThrowableType(
+			new Exception(new ThrowableType_RecoverableFailure_Exception()),
+			ThrowableType.RecoverableError).isPresent());
+
+		// inherit recoverable throwable
+		assertTrue(ThrowableClassifier.findThrowableOfThrowableType(
+			new Sub_ThrowableType_RecoverableFailure_Exception(),
+			ThrowableType.RecoverableError).isPresent());
+	}
+
 	@ThrowableAnnotation(ThrowableType.PartitionDataMissingError)
 	private class ThrowableType_PartitionDataMissingError_Exception extends Exception {
 	}
@@ -81,5 +111,8 @@ public class ThrowableClassifierTest extends TestLogger {
 	}
 
 	private class Sub_ThrowableType_PartitionDataMissingError_Exception extends ThrowableType_PartitionDataMissingError_Exception {
+	}
+
+	private class Sub_ThrowableType_RecoverableFailure_Exception extends ThrowableType_RecoverableFailure_Exception {
 	}
 }

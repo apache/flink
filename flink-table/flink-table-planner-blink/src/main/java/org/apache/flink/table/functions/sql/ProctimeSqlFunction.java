@@ -35,18 +35,18 @@ import org.apache.calcite.sql.type.ReturnTypes;
 public class ProctimeSqlFunction extends SqlFunction {
 	public ProctimeSqlFunction() {
 		super(
-			"PROCTIME",
-			SqlKind.OTHER_FUNCTION,
-			ReturnTypes.explicit(new ProctimeRelProtoDataType()),
-			null,
-			OperandTypes.NILADIC,
-			SqlFunctionCategory.TIMEDATE);
+				"PROCTIME",
+				SqlKind.OTHER_FUNCTION,
+				ReturnTypes.explicit(new ProctimeRelProtoDataType()),
+				null,
+				OperandTypes.NILADIC,
+				SqlFunctionCategory.TIMEDATE);
 	}
 
 	private static class ProctimeRelProtoDataType implements RelProtoDataType {
 		@Override
 		public RelDataType apply(RelDataTypeFactory factory) {
-			return ((FlinkTypeFactory) factory).createRowtimeIndicatorType();
+			return ((FlinkTypeFactory) factory).createProctimeIndicatorType();
 		}
 	}
 }

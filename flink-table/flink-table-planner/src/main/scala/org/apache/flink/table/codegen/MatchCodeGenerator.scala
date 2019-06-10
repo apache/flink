@@ -36,7 +36,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName, primitiveDefaultValue, primitiveTypeTermForTypeInfo}
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
+import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
@@ -729,9 +729,11 @@ class MatchCodeGenerator(
     def generateAggFunction(): Unit = {
       val matchAgg = extractAggregatesAndExpressions
 
-      val aggGenerator = new AggregationCodeGenerator(config, false, input, None)
-
-      val aggFunc = aggGenerator.generateAggregations(
+      val aggGenerator = new AggregationCodeGenerator(
+        config,
+        false,
+        input,
+        None,
         s"AggFunction_$variableUID",
         matchAgg.inputExprs.map(r => FlinkTypeFactory.toTypeInfo(r.getType)),
         matchAgg.aggregations.map(_.aggFunction).toArray,
@@ -748,6 +750,7 @@ class MatchCodeGenerator(
         needReset = false,
         None
       )
+      val aggFunc = aggGenerator.generateAggregations
 
       reusableMemberStatements.add(aggFunc.code)
 
@@ -874,7 +877,7 @@ class MatchCodeGenerator(
     )
 
     private case class SingleAggCall(
-      aggFunction: TableAggregateFunction[_, _],
+      aggFunction: UserDefinedAggregateFunction[_, _],
       inputIndices: Array[Int],
       dataViews: Seq[DataViewSpec[_]],
       distinctAccIndex: Int

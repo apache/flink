@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
-import org.apache.flink.table.runtime.OneInputOperatorWrapper
+import org.apache.flink.table.runtime.CodeGenOperatorFactory
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -44,34 +44,34 @@ import java.util
 import scala.collection.JavaConversions._
 
 abstract class BatchExecSortWindowAggregateBase(
-    window: LogicalWindow,
-    inputTimeFieldIndex: Int,
-    inputTimeIsDate: Boolean,
-    namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
     relBuilder: RelBuilder,
     traitSet: RelTraitSet,
-    inputNode: RelNode,
-    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+    inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
     aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
+    aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
+    window: LogicalWindow,
+    inputTimeFieldIndex: Int,
+    inputTimeIsDate: Boolean,
+    namedProperties: Seq[NamedWindowProperty],
     enableAssignPane: Boolean = false,
     isMerge: Boolean,
     isFinal: Boolean)
   extends BatchExecWindowAggregateBase(
-    window,
-    namedProperties,
     cluster,
     traitSet,
-    inputNode,
-    aggCallToAggFunction,
+    inputRel,
     outputRowType,
     inputRowType,
     grouping,
     auxGrouping,
+    aggCallToAggFunction,
+    window,
+    namedProperties,
     enableAssignPane,
     isMerge,
     isFinal)
@@ -133,7 +133,7 @@ abstract class BatchExecSortWindowAggregateBase(
     } else {
       generator.genWithKeys()
     }
-    val operator = new OneInputOperatorWrapper[BaseRow, BaseRow](generatedOperator)
+    val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
     new OneInputTransformation(
       input,
       getOperatorName,

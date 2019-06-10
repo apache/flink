@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.plan
 
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Table, TableImpl, Tumble}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Table, Tumble}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.utils.StreamTableTestUtil
 import org.junit.Assert._
@@ -316,8 +316,7 @@ class UpdatePlanCheckerUtil extends StreamTableTestUtil {
   }
 
   def getKeyGroups(resultTable: Table): Option[Seq[(String, String)]] = {
-    val relNode = resultTable.asInstanceOf[TableImpl].getRelNode
-    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = tableEnv.optimize(toRelNode(resultTable), updatesAsRetraction = false)
     UpdatingPlanChecker.getUniqueKeyGroups(optimized)
   }
 

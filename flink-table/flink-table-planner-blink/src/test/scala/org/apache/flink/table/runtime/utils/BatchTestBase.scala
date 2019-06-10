@@ -29,6 +29,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
 import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository}
@@ -388,18 +389,21 @@ class BatchTestBase extends BatchAbstractTestBase {
       tableName: String,
       data: Iterable[T],
       typeInfo: TypeInformation[T],
-      fieldNullables: Array[Boolean],
-      fields: String): Unit = {
-    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
-  }
-
-  def registerCollection(
-      tableName: String,
-      data: Iterable[Row],
-      typeInfo: TypeInformation[Row],
       fields: String,
       fieldNullables: Array[Boolean]): Unit = {
-    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
+    BatchTableEnvUtil.registerCollection(
+      tEnv, tableName, data, typeInfo, fields, fieldNullables, None)
+  }
+
+  def registerCollection[T](
+      tableName: String,
+      data: Iterable[T],
+      typeInfo: TypeInformation[T],
+      fields: String,
+      fieldNullables: Array[Boolean],
+      statistic: FlinkStatistic): Unit = {
+    BatchTableEnvUtil.registerCollection(
+      tEnv, tableName, data, typeInfo, fields, fieldNullables, Some(statistic))
   }
 
   def registerFunction[T: TypeInformation, ACC: TypeInformation](

@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.api.scala
 
-import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableEnvImpl}
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment, asScalaStream}
+import org.apache.flink.table.api.{StreamQueryConfig, Table, TableConfig, TableImpl}
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.scala.asScalaStream
+import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
 
 /**
   * The implementation for a Scala [[StreamTableEnvironment]].
@@ -33,37 +33,34 @@ import org.apache.flink.streaming.api.scala.asScalaStream
   */
 class StreamTableEnvImpl(
     execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
+    config: TableConfig,
+    catalogManager: CatalogManager)
   extends org.apache.flink.table.api.StreamTableEnvImpl(
     execEnv.getWrappedStreamExecutionEnvironment,
-    config)
-    with org.apache.flink.table.api.scala.StreamTableEnvironment {
+    config,
+    catalogManager)
+  with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream)
-    scan(name)
+    val tableOperation = asQueryOperation(dataStream.javaStream, None)
+    new TableImpl(this, tableOperation)
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
-    scan(name)
+    val tableOperation = asQueryOperation(dataStream.javaStream, Some(fields.toArray))
+    new TableImpl(this, tableOperation)
   }
 
   override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream)
+    registerTable(name, fromDataStream(dataStream))
   }
 
   override def registerDataStream[T](
-    name: String, dataStream: DataStream[T], fields: Expression*): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
+      name: String,
+      dataStream: DataStream[T],
+      fields: Expression*)
+    : Unit = {
+    registerTable(name, fromDataStream(dataStream, fields: _*))
   }
 
   override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
@@ -75,7 +72,8 @@ class StreamTableEnvImpl(
     queryConfig: StreamQueryConfig): DataStream[T] = {
     val returnType = createTypeInformation[T]
     asScalaStream(translate(
-      table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(returnType))
+      table.getQueryOperation, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(
+      returnType))
   }
 
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
@@ -87,7 +85,11 @@ class StreamTableEnvImpl(
       queryConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
     asScalaStream(
-      translate(table, queryConfig, updatesAsRetraction = true, withChangeFlag = true)(returnType))
+      translate(
+        table.getQueryOperation,
+        queryConfig,
+        updatesAsRetraction = true,
+        withChangeFlag = true)(returnType))
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
@@ -98,6 +100,12 @@ class StreamTableEnvImpl(
       name: String,
       f: AggregateFunction[T, ACC])
   : Unit = {
+    registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+
+  override def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: TableAggregateFunction[T, ACC]): Unit = {
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
 }

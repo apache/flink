@@ -26,10 +26,12 @@ import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironment}
 import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.CollectTableSink
 import org.apache.flink.util.AbstractID
-
 import _root_.java.util.{ArrayList => JArrayList}
+
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -41,12 +43,14 @@ object BatchTableEnvUtil {
       table: Table,
       sink: CollectTableSink[T],
       jobName: Option[String]): Seq[T] = {
-    val typeSerializer = sink.getOutputType.createSerializer(tEnv.streamEnv.getConfig)
+    val typeSerializer = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+      .asInstanceOf[TypeInformation[T]]
+      .createSerializer(tEnv.streamEnv.getConfig)
     val id = new AbstractID().toString
     sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
     tEnv.writeToSink(table, sink)
 
-    val res = tEnv.streamEnv.execute()
+    val res = tEnv.execute()
     val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
     SerializedListAccumulator.deserializeList(accResult, typeSerializer)
   }
@@ -70,7 +74,7 @@ object BatchTableEnvUtil {
       tableName: String, data: Iterable[T], typeInfo: TypeInformation[T],
       fieldNames: String): Unit = {
     registerCollection(
-      tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), None)
+      tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), None, None)
   }
 
   /**
@@ -82,6 +86,7 @@ object BatchTableEnvUtil {
     * @param typeInfo information of [[Iterable]].
     * @param fieldNames field names, eg: "a, b, c"
     * @param fieldNullables The field isNullables attributes of data.
+    * @param statistic statistics of current Table
     * @tparam T The type of the [[Iterable]].
     * @return The converted [[Table]].
     */
@@ -91,9 +96,10 @@ object BatchTableEnvUtil {
       data: Iterable[T],
       typeInfo: TypeInformation[T],
       fieldNames: String,
-      fieldNullables: Array[Boolean]): Unit = {
-    registerCollection(
-      tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), Option(fieldNullables))
+      fieldNullables: Array[Boolean],
+      statistic: Option[FlinkStatistic]): Unit = {
+    registerCollection(tEnv, tableName, data, typeInfo,
+      Some(parseFieldNames(fieldNames)), Option(fieldNullables), statistic)
   }
 
   /**
@@ -105,6 +111,7 @@ object BatchTableEnvUtil {
     * @param typeInfo information of [[Iterable]].
     * @param fieldNames field names.
     * @param fieldNullables The field isNullables attributes of data.
+    * @param statistic statistics of current Table
     * @tparam T The type of the [[Iterable]].
     * @return The converted [[Table]].
     */
@@ -115,13 +122,15 @@ object BatchTableEnvUtil {
       data: Iterable[T],
       typeInfo: TypeInformation[T],
       fieldNames: Option[Array[String]],
-      fieldNullables: Option[Array[Boolean]]): Unit = {
+      fieldNullables: Option[Array[Boolean]],
+      statistic: Option[FlinkStatistic]): Unit = {
     val boundedStream = tEnv.streamEnv.createInput(new CollectionInputFormat[T](
       data.asJavaCollection,
       typeInfo.createSerializer(tEnv.streamEnv.getConfig)),
       typeInfo)
     boundedStream.forceNonParallel()
-    registerBoundedStreamInternal(tEnv, tableName, boundedStream, fieldNames, fieldNullables)
+    registerBoundedStreamInternal(
+      tEnv, tableName, boundedStream, fieldNames, fieldNullables, statistic)
   }
 
   /**
@@ -137,12 +146,14 @@ object BatchTableEnvUtil {
       name: String,
       boundedStream: DataStream[T],
       fieldNames: Option[Array[String]],
-      fieldNullables: Option[Array[Boolean]]): Unit = {
+      fieldNullables: Option[Array[Boolean]],
+      statistic: Option[FlinkStatistic]): Unit = {
     val (typeFieldNames, fieldIdxs) =
       tEnv.getFieldInfo(boundedStream.getTransformation.getOutputType)
     val boundedStreamTable = new DataStreamTable[T](
       boundedStream, fieldIdxs, fieldNames.getOrElse(typeFieldNames), fieldNullables)
-    tEnv.registerTableInternal(name, boundedStreamTable)
+    val withStatistic = boundedStreamTable.copy(statistic.getOrElse(FlinkStatistic.UNKNOWN))
+    tEnv.registerTableInternal(name, withStatistic)
   }
 
   /**
@@ -154,7 +165,8 @@ object BatchTableEnvUtil {
       tableName: String,
       data: Iterable[T],
       typeInfo: TypeInformation[T],
-      fieldNames: Array[String]): Table = {
+      fieldNames: Array[String],
+      statistic: Option[FlinkStatistic]): Table = {
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
     val boundedStream = tEnv.streamEnv.createInput(new CollectionInputFormat[T](
       data.asJavaCollection,
@@ -162,7 +174,7 @@ object BatchTableEnvUtil {
       typeInfo)
     boundedStream.setParallelism(1)
     val name = if (tableName == null) tEnv.createUniqueTableName() else tableName
-    registerBoundedStreamInternal(tEnv, name, boundedStream, Option(fieldNames), None)
+    registerBoundedStreamInternal(tEnv, name, boundedStream, Option(fieldNames), None, statistic)
     tEnv.scan(name)
   }
 
@@ -172,6 +184,6 @@ object BatchTableEnvUtil {
     */
   def fromCollection[T](tEnv: BatchTableEnvironment,
       data: Iterable[T], typeInfo: TypeInformation[T], fields: String): Table = {
-    fromCollection(tEnv, null, data, typeInfo, parseFieldNames(fields))
+    fromCollection(tEnv, null, data, typeInfo, parseFieldNames(fields), None)
   }
 }

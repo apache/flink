@@ -33,18 +33,18 @@ under the License.
 </div>
 
 In a nutshell, this feature exposes Flink's managed keyed (partitioned) state
-(see [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)) to the outside world and 
-allows the user to query a job's state from outside Flink. For some scenarios, queryable state 
-eliminates the need for distributed operations/transactions with external systems such as key-value 
-stores which are often the bottleneck in practice. In addition, this feature may be particularly 
+(see [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)) to the outside world and
+allows the user to query a job's state from outside Flink. For some scenarios, queryable state
+eliminates the need for distributed operations/transactions with external systems such as key-value
+stores which are often the bottleneck in practice. In addition, this feature may be particularly
 useful for debugging purposes.
 
 <div class="alert alert-warning">
-  <strong>Attention:</strong> When querying a state object, that object is accessed from a concurrent 
+  <strong>Attention:</strong> When querying a state object, that object is accessed from a concurrent
   thread without any synchronization or copying. This is a design choice, as any of the above would lead
-  to increased job latency, which we wanted to avoid. Since any state backend using Java heap space, 
-  <i>e.g.</i> <code>MemoryStateBackend</code> or <code>FsStateBackend</code>, does not work 
-  with copies when retrieving values but instead directly references the stored values, read-modify-write 
+  to increased job latency, which we wanted to avoid. Since any state backend using Java heap space,
+  <i>e.g.</i> <code>MemoryStateBackend</code> or <code>FsStateBackend</code>, does not work
+  with copies when retrieving values but instead directly references the stored values, read-modify-write
   patterns are unsafe and may cause the queryable state server to fail due to concurrent modifications.
   The <code>RocksDBStateBackend</code> is safe from these issues.
 </div>
@@ -54,25 +54,27 @@ useful for debugging purposes.
 Before showing how to use the Queryable State, it is useful to briefly describe the entities that compose it.
 The Queryable State feature consists of three main entities:
 
- 1. the `QueryableStateClient`, which (potentially) runs outside the Flink cluster and submits the user queries, 
- 2. the `QueryableStateClientProxy`, which runs on each `TaskManager` (*i.e.* inside the Flink cluster) and is responsible 
- for receiving the client's queries, fetching the requested state from the responsible Task Manager on his behalf, and 
- returning it to the client, and 
+ 1. the `QueryableStateClient`, which (potentially) runs outside the Flink cluster and submits the user queries,
+ 2. the `QueryableStateClientProxy`, which runs on each `TaskManager` (*i.e.* inside the Flink cluster) and is responsible
+ for receiving the client's queries, fetching the requested state from the responsible Task Manager on his behalf, and
+ returning it to the client, and
  3. the `QueryableStateServer` which runs on each `TaskManager` and is responsible for serving the locally stored state.
- 
-The client connects to one of the proxies and sends a request for the state associated with a specific 
-key, `k`. As stated in [Working with State]({{ site.baseurl }}/dev/stream/state/state.html), keyed state is organized in 
-*Key Groups*, and each `TaskManager` is assigned a number of these key groups. To discover which `TaskManager` is 
-responsible for the key group holding `k`, the proxy will ask the `JobManager`. Based on the answer, the proxy will 
+
+The client connects to one of the proxies and sends a request for the state associated with a specific
+key, `k`. As stated in [Working with State]({{ site.baseurl }}/dev/stream/state/state.html), keyed state is organized in
+*Key Groups*, and each `TaskManager` is assigned a number of these key groups. To discover which `TaskManager` is
+responsible for the key group holding `k`, the proxy will ask the `JobManager`. Based on the answer, the proxy will
 then query the `QueryableStateServer` running on that `TaskManager` for the state associated with `k`, and forward the
 response back to the client.
 
 ## Activating Queryable State
 
-To enable queryable state on your Flink cluster, you just have to copy the 
-`flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
-from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"), 
-to the `lib/` folder. Otherwise, the queryable state feature is not enabled. 
+To enable queryable state on your Flink cluster, you need to do the following:
+
+ 1. copy the `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar`
+from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"),
+to the `lib/` folder.
+ 2. set the property `queryable-state.enable` to `true`. See the [Configuration]({{ site.baseurl }}/ops/config.html#queryable-state) documentation for details and additional parameters.
 
 To verify that your cluster is running with queryable state enabled, check the logs of any 
 task manager for the line: `"Started the Queryable State Proxy Server @ ..."`.
@@ -178,7 +180,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 {% endhighlight %}
 </div>
 
-For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
+For more on this, you can check how to [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 

@@ -29,6 +29,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -48,6 +49,18 @@ public abstract class EncodingUtils {
 
 	private EncodingUtils() {
 		// do not instantiate
+	}
+
+	public static String escapeBackticks(String s) {
+		return s.replace("`", "``");
+	}
+
+	public static String escapeSingleQuotes(String s) {
+		return s.replace("'", "''");
+	}
+
+	public static String escapeIdentifier(String s) {
+		return "`" + escapeBackticks(s) + "`";
 	}
 
 	public static String encodeObjectToString(Serializable obj) {
@@ -93,8 +106,12 @@ public abstract class EncodingUtils {
 		return loadClass(qualifiedName, Thread.currentThread().getContextClassLoader());
 	}
 
+	public static String encodeBytesToBase64(byte[] bytes) {
+		return new String(java.util.Base64.getEncoder().encode(bytes), UTF_8);
+	}
+
 	public static String encodeStringToBase64(String string) {
-		return new String(java.util.Base64.getEncoder().encode(string.getBytes(UTF_8)), UTF_8);
+		return encodeBytesToBase64(string.getBytes(UTF_8));
 	}
 
 	public static String decodeBase64ToString(String base64) {
@@ -122,6 +139,11 @@ public abstract class EncodingUtils {
 			hexChars[j * 2 + 1] = HEX_CHARS[v & 0x0F];
 		}
 		return new String(hexChars);
+	}
+
+	public static String objectToString(Object object) {
+		final String arrayString = Arrays.deepToString(new Object[]{object});
+		return arrayString.substring(1, arrayString.length() - 1);
 	}
 
 	// --------------------------------------------------------------------------------------------

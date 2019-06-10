@@ -17,20 +17,23 @@
  */
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
-import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.optimize.{BatchOptimizer, Optimizer}
+import org.apache.flink.table.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources._
+import org.apache.flink.table.util.PlanUtil
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
@@ -66,7 +69,7 @@ class BatchTableEnvironment(
       RelCollationTraitDef.INSTANCE)
   }
 
-  override protected def getOptimizer: Optimizer = new BatchOptimizer(this)
+  override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
   /**
     * Checks if the chosen table name is valid.
@@ -83,8 +86,40 @@ class BatchTableEnvironment(
     }
   }
 
-  override private[flink] def translateNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
-    val nodeDag = super.translateNodeDag(rels)
+  override def execute(jobName: String): JobExecutionResult = {
+    generateStreamGraph(jobName)
+    // TODO supports streamEnv.execute(streamGraph)
+    streamEnv.execute(jobName)
+  }
+
+  protected override def translateStreamGraph(
+      streamingTransformations: Seq[StreamTransformation[_]],
+      jobName: Option[String]): StreamGraph = {
+    mergeParameters()
+    streamEnv.getConfig
+      //.enableObjectReuse() // TODO add object reuse config in table config for batch and stream
+      .setLatencyTrackingInterval(-1L)
+    streamEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
+    streamEnv.setBufferTimeout(-1L)
+    if (streamEnv.getCheckpointConfig.isCheckpointingEnabled) {
+      throw new TableException("Checkpoint should be disabled on Batch job.")
+    }
+
+    // TODO introduce StreamGraphGenerator#Context to support following features:
+    // disable all CheckpointConfig
+    // setChainingEnabled
+    // setMultiHeadChainMode
+    // setSlotSharingEnabled
+    // setScheduleMode
+    // setChainEagerlyEnabled
+
+    val streamGraph = StreamGraphGenerator.generate(streamEnv, streamingTransformations.toList)
+    streamGraph.setJobName(jobName.getOrElse(DEFAULT_JOB_NAME))
+    streamGraph
+  }
+
+  override private[flink] def translateToExecNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
+    val nodeDag = super.translateToExecNodeDag(rels)
     // breakup deadlock
     new DeadlockBreakupProcessor().process(nodeDag)
   }
@@ -110,28 +145,8 @@ class BatchTableEnvironment(
     }
   }
 
-  /**
-    * Writes a [[Table]] to a [[TableSink]].
-    *
-    * Internally, the [[Table]] is translated into a [[DataStream]] and handed over to the
-    * [[TableSink]] to write it.
-    *
-    * @param table The [[Table]] to write.
-    * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
-    */
-  override private[table] def writeToSink[T](
-      table: Table,
-      sink: TableSink[T],
-      sinkName: String): Unit = {
-    mergeParameters()
-
-    val sinkNode = LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
-    val optimizedPlan = optimize(sinkNode)
-    val optimizedNodes = translateNodeDag(Seq(optimizedPlan))
-    require(optimizedNodes.size() == 1)
-    translateToPlan(optimizedNodes.head)
-  }
+  override protected def translateToPlan(
+      sinks: Seq[ExecNode[_, _]]): Seq[StreamTransformation[_]] = sinks.map(translateToPlan)
 
   /**
     * Translates a [[BatchExecNode]] plan into a [[StreamTransformation]].
@@ -166,7 +181,10 @@ class BatchTableEnvironment(
     */
   def explain(table: Table, extended: Boolean): String = {
     val ast = table.asInstanceOf[TableImpl].getRelNode
-    val optimizedNode = optimize(ast)
+    val execNodeDag = compileToExecNodePlan(ast)
+    val transformations = translateToPlan(execNodeDag)
+    val streamGraph = translateStreamGraph(transformations)
+    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val explainLevel = if (extended) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -180,9 +198,11 @@ class BatchTableEnvironment(
       System.lineSeparator +
       s"== Optimized Logical Plan ==" +
       System.lineSeparator +
-      s"${FlinkRelOptUtil.toString(optimizedNode, explainLevel)}" +
-      System.lineSeparator
-    // TODO show Physical Execution Plan
+      s"${ExecNodePlanDumper.dagToString(execNodeDag, explainLevel)}" +
+      System.lineSeparator +
+      s"== Physical Execution Plan ==" +
+      System.lineSeparator +
+      s"$executionPlan"
   }
 
   /**
@@ -198,8 +218,33 @@ class BatchTableEnvironment(
     * @param extended Flag to include detailed optimizer estimates.
     */
   def explain(extended: Boolean): String = {
-    // TODO implements this method when supports multi-sinks
-    throw new TableException("Unsupported now")
+    val sinkExecNodes = compileToExecNodePlan(sinkNodes: _*)
+    val sinkTransformations = translateToPlan(sinkExecNodes)
+    val streamGraph = translateStreamGraph(sinkTransformations)
+    val sqlPlan = PlanUtil.explainStreamGraph(streamGraph)
+
+    val sb = new StringBuilder
+    sb.append("== Abstract Syntax Tree ==")
+    sb.append(System.lineSeparator)
+    sinkNodes.foreach { sink =>
+      sb.append(FlinkRelOptUtil.toString(sink))
+      sb.append(System.lineSeparator)
+    }
+
+    sb.append("== Optimized Logical Plan ==")
+    sb.append(System.lineSeparator)
+    val explainLevel = if (extended) {
+      SqlExplainLevel.ALL_ATTRIBUTES
+    } else {
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES
+    }
+    sb.append(ExecNodePlanDumper.dagToString(sinkExecNodes, explainLevel))
+    sb.append(System.lineSeparator)
+
+    sb.append("== Physical Execution Plan ==")
+    sb.append(System.lineSeparator)
+    sb.append(sqlPlan)
+    sb.toString()
   }
 
   /**

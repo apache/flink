@@ -1,5 +1,5 @@
 ---
-title: "Restart Strategies"
+title: "重启策略"
 nav-parent_id: execution
 nav-pos: 50
 ---

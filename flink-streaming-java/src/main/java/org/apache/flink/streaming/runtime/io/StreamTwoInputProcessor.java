@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -140,12 +141,18 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
 			TaskIOMetricGroup metrics,
 			WatermarkGauge input1WatermarkGauge,
-			WatermarkGauge input2WatermarkGauge) throws IOException {
+			WatermarkGauge input2WatermarkGauge,
+			String taskName) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
 		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
-			checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
+			checkpointedTask,
+			checkpointMode,
+			ioManager,
+			inputGate,
+			taskManagerConfig,
+			taskName);
 
 		this.lock = checkNotNull(lock);
 
@@ -270,28 +277,35 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				}
 			}
 
-			final BufferOrEvent bufferOrEvent = barrierHandler.getNextNonBlocked();
-			if (bufferOrEvent != null) {
-
-				if (bufferOrEvent.isBuffer()) {
-					currentChannel = bufferOrEvent.getChannelIndex();
-					currentRecordDeserializer = recordDeserializers[currentChannel];
-					currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-
+			final Optional<BufferOrEvent> bufferOrEvent = barrierHandler.pollNext();
+			if (bufferOrEvent.isPresent()) {
+				processBufferOrEvent(bufferOrEvent.get());
+			} else {
+				if (!barrierHandler.isFinished()) {
+					barrierHandler.isAvailable().get();
 				} else {
-					// Event received
-					final AbstractEvent event = bufferOrEvent.getEvent();
-					if (event.getClass() != EndOfPartitionEvent.class) {
-						throw new IOException("Unexpected event: " + event);
+					isFinished = true;
+					if (!barrierHandler.isEmpty()) {
+						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
 					}
+					return false;
 				}
 			}
-			else {
-				isFinished = true;
-				if (!barrierHandler.isEmpty()) {
-					throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
-				}
-				return false;
+		}
+	}
+
+	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws IOException {
+		if (bufferOrEvent.isBuffer()) {
+			currentChannel = bufferOrEvent.getChannelIndex();
+			currentRecordDeserializer = recordDeserializers[currentChannel];
+			currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
+		}
+		else {
+			// Event received
+			final AbstractEvent event = bufferOrEvent.getEvent();
+			// TODO: with barrierHandler.isFinished() we might not need to support any events on this level.
+			if (event.getClass() != EndOfPartitionEvent.class) {
+				throw new IOException("Unexpected event: " + event);
 			}
 		}
 	}

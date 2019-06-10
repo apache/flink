@@ -22,17 +22,23 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class JobGraphTest extends TestLogger {
@@ -308,5 +314,46 @@ public class JobGraphTest extends TestLogger {
 			assertEquals(entry.isZipped, jobGraphEntry.isZipped);
 			assertEquals(entry.filePath, jobGraphEntry.filePath);
 		}
+	}
+
+	@Test
+	public void checkpointingIsDisabledByDefault() {
+		final JobGraph jobGraph = new JobGraph();
+
+		assertFalse(jobGraph.isCheckpointingEnabled());
+	}
+
+	@Test
+	public void checkpointingIsEnabledIfIntervalIsPositive() {
+		final JobGraph jobGraph = new JobGraph();
+		jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(1));
+
+		assertTrue(jobGraph.isCheckpointingEnabled());
+	}
+
+	@Test
+	public void checkpointingIsDisabledIfIntervalIsMaxValue() {
+		final JobGraph jobGraph = new JobGraph();
+		jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(Long.MAX_VALUE));
+
+		assertFalse(jobGraph.isCheckpointingEnabled());
+	}
+
+	private static JobCheckpointingSettings createCheckpointSettingsWithInterval(final long checkpointInterval) {
+		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
+			checkpointInterval,
+			Long.MAX_VALUE,
+			Long.MAX_VALUE,
+			Integer.MAX_VALUE,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false);
+
+		return new JobCheckpointingSettings(
+			Collections.emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
+			checkpointCoordinatorConfiguration,
+			null);
 	}
 }

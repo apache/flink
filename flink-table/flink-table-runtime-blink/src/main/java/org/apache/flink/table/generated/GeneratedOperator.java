@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
  *
  * @param <C> type of StreamOperator
  */
-public final class GeneratedOperator<C extends StreamOperator<?>> extends GeneratedClass<C> {
+public class GeneratedOperator<C extends StreamOperator<?>> extends GeneratedClass<C> {
 
 	private static final long serialVersionUID = -7355875544905245676L;
 

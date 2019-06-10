@@ -64,8 +64,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
-import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -107,6 +105,8 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.runtime.scheduler.LegacySchedulerFactory;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -188,7 +188,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -205,7 +204,7 @@ public class JobMasterTest extends TestLogger {
 	private static final Time testingTimeout = Time.seconds(10L);
 
 	private static final long fastHeartbeatInterval = 1L;
-	private static final long fastHeartbeatTimeout = 5L;
+	private static final long fastHeartbeatTimeout = 10L;
 
 	private static final long heartbeatInterval = 1000L;
 	private static final long heartbeatTimeout = 5_000_000L;
@@ -290,6 +289,10 @@ public class JobMasterTest extends TestLogger {
 
 			final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
 			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+			final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+				jobManagerSharedServices.getRestartStrategyFactory());
+
 			final JobMaster jobMaster = new JobMaster(
 				rpcService1,
 				jobMasterConfiguration,
@@ -303,7 +306,8 @@ public class JobMasterTest extends TestLogger {
 				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 				new TestingOnCompletionActions(),
 				testingFatalErrorHandler,
-				JobMasterTest.class.getClassLoader()) {
+				JobMasterTest.class.getClassLoader(),
+				schedulerNGFactory) {
 				@Override
 				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
 					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
@@ -488,7 +492,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -549,7 +553,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -557,42 +561,6 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
-	}
-
-	/**
-	 * Tests that in a streaming use case where checkpointing is enabled, a
-	 * fixed delay with Integer.MAX_VALUE retries is instantiated if no other restart
-	 * strategy has been specified.
-	 */
-	@Test
-	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
-		// create savepoint data
-		final long savepointId = 42L;
-		final File savepointFile = createSavepoint(savepointId);
-
-		// set savepoint settings
-		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath(
-			savepointFile.getAbsolutePath(),
-			true);
-		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
-
-		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
-		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(
-			completedCheckpointStore,
-			new StandaloneCheckpointIDCounter());
-		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
-		final JobMaster jobMaster = createJobMaster(
-			new Configuration(),
-			jobGraph,
-			haServices,
-			new TestingJobManagerSharedServicesBuilder()
-				.setRestartStrategyFactory(RestartStrategyFactory.createRestartStrategyFactory(configuration))
-				.build());
-
-		RestartStrategy restartStrategy = jobMaster.getRestartStrategy();
-
-		assertNotNull(restartStrategy);
-		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
 	}
 
 	/**
@@ -636,7 +604,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			// starting the JobMaster should have read the savepoint
-			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+			final CompletedCheckpoint savepointCheckpoint = completedCheckpointStore.getLatestCheckpoint(false);
 
 			assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -1465,20 +1433,27 @@ public class JobMasterTest extends TestLogger {
 	 */
 	@Test
 	public void testTriggerSavepointTimeout() throws Exception {
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+		final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+			jobManagerSharedServices.getRestartStrategyFactory());
+
 		final JobMaster jobMaster = new JobMaster(
 			rpcService,
-			JobMasterConfiguration.fromConfiguration(configuration),
+			jobMasterConfiguration,
 			jmResourceId,
 			jobGraph,
 			haServices,
 			DefaultSlotPoolFactory.fromConfiguration(configuration),
 			DefaultSchedulerFactory.fromConfiguration(configuration),
-			new TestingJobManagerSharedServicesBuilder().build(),
+			jobManagerSharedServices,
 			heartbeatServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			new TestingOnCompletionActions(),
 			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader()) {
+			JobMasterTest.class.getClassLoader(),
+			schedulerNGFactory) {
 
 			@Override
 			public CompletableFuture<String> triggerSavepoint(
@@ -1864,7 +1839,8 @@ public class JobMasterTest extends TestLogger {
 			1000L,
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-			true);
+			true,
+			false);
 		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
 			Collections.emptyList(),
 			Collections.emptyList(),
@@ -1917,6 +1893,8 @@ public class JobMasterTest extends TestLogger {
 			HeartbeatServices heartbeatServices,
 			OnCompletionActions onCompletionActions) throws Exception {
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+		final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
+			jobManagerSharedServices.getRestartStrategyFactory());
 
 		return new JobMaster(
 			rpcService,
@@ -1931,7 +1909,8 @@ public class JobMasterTest extends TestLogger {
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			onCompletionActions,
 			testingFatalErrorHandler,
-			JobMasterTest.class.getClassLoader());
+			JobMasterTest.class.getClassLoader(),
+			schedulerNGFactory);
 	}
 
 	private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {

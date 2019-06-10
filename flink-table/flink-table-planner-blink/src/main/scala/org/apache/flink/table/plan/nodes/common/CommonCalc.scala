@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.plan.nodes.common
 
-import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkRelNode}
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexProgram}
+import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkRelNode}
+import org.apache.flink.table.plan.util.RelExplainUtil.conditionToString
 
 import scala.collection.JavaConversions._
 
@@ -60,19 +60,9 @@ abstract class CommonCalc(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
       .item("select", projectionToString())
-      .itemIf("where", conditionToString(), calcProgram.getCondition != null)
-  }
-
-  protected def conditionToString(): String = {
-    val cond = calcProgram.getCondition
-    val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
-    val localExprs = calcProgram.getExprList.toList
-
-    if (cond != null) {
-      getExpressionString(cond, inputFieldNames, Some(localExprs))
-    } else {
-      ""
-    }
+      .itemIf("where",
+        conditionToString(calcProgram, getExpressionString),
+        calcProgram.getCondition != null)
   }
 
   protected def projectionToString(

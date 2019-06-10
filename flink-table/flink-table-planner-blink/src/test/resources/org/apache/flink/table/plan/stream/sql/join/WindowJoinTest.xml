@@ -35,12 +35,12 @@ LogicalProject(a=[$0], b=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=0, leftUpperBound=0, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), =(proctime, proctime0))], select=[a, proctime, a0, b, proctime0])
-   :- Exchange(distribution=[hash[a, proctime]])
-   :  +- Calc(select=[a, proctime])
++- Join(joinType=[InnerJoin], where=[AND(=(a, a0), =($f5, $f50))], select=[a, $f5, a0, b, $f50])
+   :- Exchange(distribution=[hash[a, $f5]])
+   :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS $f5])
    :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
-   +- Exchange(distribution=[hash[a, proctime]])
-      +- Calc(select=[a, b, proctime])
+   +- Exchange(distribution=[hash[a, $f5]])
+      +- Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS $f5])
          +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -64,12 +64,12 @@ LogicalProject(a=[$0], b=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=0, leftUpperBound=0, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), =(rowtime, rowtime0))], select=[a, rowtime, a0, b, rowtime0])
-   :- Exchange(distribution=[hash[a, rowtime]])
-   :  +- Calc(select=[a, rowtime])
++- Join(joinType=[InnerJoin], where=[AND(=(a, a0), =(rowtime0, rowtime00))], select=[a, rowtime0, a0, b, rowtime00])
+   :- Exchange(distribution=[hash[a, rowtime0]])
+   :  +- Calc(select=[a, CAST(rowtime) AS rowtime0])
    :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
-   +- Exchange(distribution=[hash[a, rowtime]])
-      +- Calc(select=[a, b, rowtime])
+   +- Exchange(distribution=[hash[a, rowtime0]])
+      +- Calc(select=[a, b, CAST(rowtime) AS rowtime0])
          +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -184,7 +184,7 @@ LogicalProject(a=[$0], b=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
++- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(PROCTIME_MATERIALIZE(proctime), -(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)), <=(PROCTIME_MATERIALIZE(proctime), +(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
    :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
@@ -217,17 +217,16 @@ LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, aSum, bCnt])
-+- GroupAggregate(groupBy=[$f0, b], select=[$f0, b, SUM(a0) AS aSum, COUNT(b0) AS bCnt])
-   +- Exchange(distribution=[hash[$f0, b]])
-      +- Calc(select=[TUMBLE(rowtime, 21600000:INTERVAL HOUR) AS $f0, b, a0, b0])
-         +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 600000:INTERVAL MINUTE)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
-            :- Exchange(distribution=[hash[a]])
-            :  +- Calc(select=[a, b, rowtime])
-            :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
-            +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, b, rowtime])
-                  +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow], select=[b, SUM(a0) AS aSum, COUNT(b0) AS bCnt])
++- Exchange(distribution=[hash[b]])
+   +- Calc(select=[rowtime, b, a0, b0])
+      +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b, rowtime])
+         :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, b, rowtime])
+               +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -404,17 +403,16 @@ LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[b, aSum, bCnt])
-+- GroupAggregate(groupBy=[$f0, b], select=[$f0, b, SUM(a) AS aSum, COUNT($f3) AS bCnt])
-   +- Exchange(distribution=[hash[$f0, b]])
-      +- Calc(select=[TUMBLE(rowtime0, 21600000:INTERVAL HOUR) AS $f0, b0 AS b, a, b AS $f3])
-         +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 600000:INTERVAL MINUTE)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
-            :- Exchange(distribution=[hash[a]])
-            :  +- Calc(select=[a, b, rowtime])
-            :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
-            +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, b, rowtime])
-                  +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+GroupWindowAggregate(groupBy=[b0], window=[TumblingGroupWindow], select=[b0, SUM(a) AS aSum, COUNT(b) AS bCnt])
++- Exchange(distribution=[hash[b0]])
+   +- Calc(select=[rowtime0, b0, a, b])
+      +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b, rowtime])
+         :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, b, rowtime])
+               +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -438,7 +436,7 @@ LogicalProject(a=[$0], b=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b])
-+- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 600000:INTERVAL MINUTE)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
++- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, rowtime])
    :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])

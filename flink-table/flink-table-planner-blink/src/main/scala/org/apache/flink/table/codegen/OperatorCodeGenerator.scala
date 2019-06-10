@@ -17,8 +17,10 @@
  */
 package org.apache.flink.table.codegen
 
-import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, StreamOperator, TwoInputStreamOperator}
+import org.apache.flink.streaming.api.graph.StreamConfig
+import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.runtime.tasks.StreamTask
 import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -63,9 +65,14 @@ object OperatorCodeGenerator extends Logging {
         private final Object[] references;
         ${ctx.reuseMemberCode()}
 
-        public $operatorName(Object[] references) throws Exception {
+        public $operatorName(
+            Object[] references,
+            ${classOf[StreamTask[_, _]].getCanonicalName} task,
+            ${classOf[StreamConfig].getCanonicalName} config,
+            ${classOf[Output[_]].getCanonicalName} output) throws Exception {
           this.references = references;
           ${ctx.reuseInitCode()}
+          this.setup(task, config, output);
         }
 
         @Override
@@ -144,9 +151,14 @@ object OperatorCodeGenerator extends Logging {
         private final Object[] references;
         ${ctx.reuseMemberCode()}
 
-        public $operatorName(Object[] references) throws Exception {
+        public $operatorName(
+            Object[] references,
+            ${classOf[StreamTask[_, _]].getCanonicalName} task,
+            ${classOf[StreamConfig].getCanonicalName} config,
+            ${classOf[Output[_]].getCanonicalName} output) throws Exception {
           this.references = references;
           ${ctx.reuseInitCode()}
+          this.setup(task, config, output);
         }
 
         @Override

@@ -47,11 +47,11 @@ import java.util.Set;
 @PublicEvolving
 public final class TimestampType extends LogicalType {
 
-	private static final int MIN_PRECISION = 0;
+	public static final int MIN_PRECISION = 0;
 
-	private static final int MAX_PRECISION = 9;
+	public static final int MAX_PRECISION = 9;
 
-	private static final int DEFAULT_PRECISION = 6;
+	public static final int DEFAULT_PRECISION = 6;
 
 	private static final String FORMAT = "TIMESTAMP(%d)";
 
@@ -114,6 +114,14 @@ public final class TimestampType extends LogicalType {
 	@Override
 	public String asSerializableString() {
 		return withNullability(FORMAT, precision);
+	}
+
+	@Override
+	public String asSummaryString() {
+		if (kind != TimestampKind.REGULAR) {
+			return String.format("%s *%s*", asSerializableString(), kind);
+		}
+		return asSerializableString();
 	}
 
 	@Override
