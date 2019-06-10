@@ -18,28 +18,34 @@
 
 package org.apache.flink.table.sources;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-/** Defines an external stream table and provides read access to its data.
+/**
+ * Defines an external bounded table and provides access to its data.
  *
- * @param <T> Type of the {@link DataStream} created by this {@link TableSource}.
+ * @param <T> Type of the bounded {@link InputFormat} created by this {@link TableSource}.
  */
-public interface StreamTableSource<T> extends TableSource<T> {
+@Experimental
+public abstract class InputFormatTableSource<T> implements StreamTableSource<T> {
 
 	/**
-	 * Returns true if this is a bounded source, false if this is an unbounded source.
-	 * Default is unbounded for compatibility.
+	 * Returns an {@link InputFormat} for reading the data of the table.
 	 */
-	default boolean isBounded() {
-		return false;
+	public abstract InputFormat<T, ?> getInputFormat();
+
+	/**
+	 * Always returns true which indicates this is a bounded source.
+	 */
+	@Override
+	public final boolean isBounded() {
+		return true;
 	}
 
-	/**
-	 * Returns the data of the table as a {@link DataStream}.
-	 *
-	 *<p>NOTE: This method is for internal use only for defining a {@link TableSource}.
-	 *       Do not use it in Table API programs.
-	 */
-	DataStream<T> getDataStream(StreamExecutionEnvironment execEnv);
+	@Override
+	public final DataStream<T> getDataStream(StreamExecutionEnvironment execEnv) {
+		return execEnv.createInput(getInputFormat(), getReturnType());
+	}
 }

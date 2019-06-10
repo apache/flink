@@ -25,10 +25,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.util.TestTableSourceWithTime
 import org.apache.flink.types.Row
-
 import org.junit.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
@@ -42,11 +41,13 @@ class TableScanITCase extends BatchTestBase {
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
 
-    val tableSource = new BatchTableSource[Row]() {
+    val tableSource = new StreamTableSource[Row]() {
       private val fieldNames: Array[String] = Array("name", "id", "value")
       private val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG, Types.INT)
 
-      override def getBoundedStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+      override def isBounded: Boolean = true
+
+      override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
         val data = Seq(
           row("Mary", new JLong(1L), new JInt(1)),
           row("Bob", new JLong(2L), new JInt(3))
@@ -77,7 +78,7 @@ class TableScanITCase extends BatchTestBase {
     val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.SQL_TIMESTAMP))
     val returnType = Types.STRING
 
-    val tableSource = new TestTableSourceWithTime(schema, returnType, data, null, "ptime")
+    val tableSource = new TestTableSourceWithTime(true, schema, returnType, data, null, "ptime")
     tEnv.registerTableSource(tableName, tableSource)
 
     checkResult(
@@ -105,7 +106,7 @@ class TableScanITCase extends BatchTestBase {
       Array(Types.STRING, Types.SQL_TIMESTAMP, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
       fieldNames)
 
-    val tableSource = new TestTableSourceWithTime(schema, rowType, data, "rtime", null)
+    val tableSource = new TestTableSourceWithTime(true, schema, rowType, data, "rtime", null)
     tEnv.registerTableSource(tableName, tableSource)
 
     checkResult(

@@ -50,7 +50,7 @@ class BatchTableSourceScanRule
       rel.getCluster,
       traitSet,
       scan.getTable,
-      scan.tableSource.asInstanceOf[BatchTableSource[_]],
+      scan.tableSource,
       scan.selectedFields
     )
   }

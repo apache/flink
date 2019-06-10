@@ -37,13 +37,12 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sinks.DataStreamTableSink
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{LookupableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.table.types.{DataType, LogicalTypeDataTypeConverter}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.util.PlanUtil
-
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.sql.SqlExplainLevel
 
@@ -507,41 +506,49 @@ abstract class StreamTableEnvironment(
     //  case _ => // ok
     //}
 
+    def register(): Unit = {
+      // register
+      getTable(name) match {
+
+        // check if a table (source or sink) is registered
+        case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+
+          // wrapper contains source
+          case Some(_: TableSourceTable[_]) if !replace =>
+            throw new TableException(s"Table '$name' already exists. " +
+              s"Please choose a different name.")
+
+          // wrapper contains only sink (not source)
+          case Some(_: TableSourceTable[_]) =>
+            val enrichedTable = new TableSourceSinkTable(
+              Some(new TableSourceTable(tableSource, true, statistic)),
+              table.tableSinkTable)
+            replaceRegisteredTable(name, enrichedTable)
+        }
+
+        // no table is registered
+        case _ =>
+          val newTable = new TableSourceSinkTable(
+            Some(new TableSourceTable(tableSource, true, statistic)),
+            None)
+          registerTableInternal(name, newTable)
+      }
+    }
+
     tableSource match {
 
       // check for proper stream table source
-      case streamTableSource: StreamTableSource[_] =>
-        // register
-        getTable(name) match {
+      case streamTableSource: StreamTableSource[_] if !streamTableSource.isBounded =>
+        register()
 
-          // check if a table (source or sink) is registered
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
-
-            // wrapper contains source
-            case Some(_: TableSourceTable[_]) if !replace =>
-              throw new TableException(s"Table '$name' already exists. " +
-                s"Please choose a different name.")
-
-            // wrapper contains only sink (not source)
-            case Some(_: StreamTableSourceTable[_]) =>
-              val enrichedTable = new TableSourceSinkTable(
-                Some(new StreamTableSourceTable(streamTableSource)),
-                table.tableSinkTable)
-              replaceRegisteredTable(name, enrichedTable)
-          }
-
-          // no table is registered
-          case _ =>
-            val newTable = new TableSourceSinkTable(
-              Some(new StreamTableSourceTable(streamTableSource)),
-              None)
-            registerTableInternal(name, newTable)
-        }
+      // a lookupable table source can also be registered in the env
+      case _: LookupableTableSource[_] =>
+        register()
 
       // not a stream table source
       case _ =>
-        throw new TableException(
-          "Only StreamTableSource can be registered in StreamTableEnvironment")
+        throw new TableException("Only LookupableTableSource and unbounded StreamTableSource " +
+          "can be registered in StreamTableEnvironment")
     }
   }
 

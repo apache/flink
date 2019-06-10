@@ -40,9 +40,10 @@ import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{BatchTableSource, InputFormatTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, validateInputTypeInfo}
+import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 
 /**
@@ -68,15 +69,18 @@ abstract class BatchTableEnvImpl(
   override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
     TableSourceUtil.validateTableSource(tableSource)
 
-    if (!tableSource.isInstanceOf[BatchTableSource[_]]) {
-      throw new TableException("Only BatchTableSource can be registered in " +
-        "BatchTableEnvironment.")
+    if (!tableSource.isInstanceOf[BatchTableSource[_]] &&
+        !tableSource.isInstanceOf[InputFormatTableSource[_]]) {
+      throw new TableException("Only BatchTableSource and InputFormatTableSource can be registered " +
+        "in BatchTableEnvironment.")
     }
   }
 
   override protected  def validateTableSink(configuredSink: TableSink[_]): Unit = {
-    if (!configuredSink.isInstanceOf[BatchTableSink[_]]) {
-      throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
+    if (!configuredSink.isInstanceOf[BatchTableSink[_]] &&
+        !configuredSink.isInstanceOf[BoundedTableSink[_]]) {
+      throw new TableException("Only BatchTableSink and BoundedTableSink can be registered " +
+        "in BatchTableEnvironment.")
     }
   }
 

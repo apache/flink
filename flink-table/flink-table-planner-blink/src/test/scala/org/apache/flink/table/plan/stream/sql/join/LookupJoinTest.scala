@@ -342,9 +342,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
 
 class TestTemporalTable
-  extends StreamTableSource[BaseRow]
-  with BatchTableSource[BaseRow]
-  with LookupableTableSource[BaseRow]
+  extends LookupableTableSource[BaseRow]
   with DefinedIndexes {
 
   val fieldNames: Array[String] = Array("id", "name", "age")
@@ -380,16 +378,6 @@ class TestTemporalTable
       .indexedColumns("id")
       .build()
     util.Arrays.asList(index1, index2)
-  }
-
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[BaseRow] = {
-    throw new UnsupportedOperationException("This TableSource is only used for unit test, " +
-      "this method should never be called.")
-  }
-
-  override def getBoundedStream(streamEnv: StreamExecutionEnvironment): DataStream[BaseRow] = {
-    throw new UnsupportedOperationException("This TableSource is only used for unit test, " +
-      "this method should never be called.")
   }
 }
 

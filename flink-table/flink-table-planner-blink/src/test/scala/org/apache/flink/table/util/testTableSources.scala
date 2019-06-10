@@ -33,6 +33,7 @@ import java.util.Collections
 import scala.collection.JavaConversions._
 
 class TestTableSourceWithTime[T](
+    isBatch: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[T],
     values: Seq[T],
@@ -40,17 +41,14 @@ class TestTableSourceWithTime[T](
     proctime: String = null,
     mapping: Map[String, String] = null)
   extends StreamTableSource[T]
-  with BatchTableSource[T]
   with DefinedRowtimeAttributes
   with DefinedProctimeAttribute
   with DefinedFieldMapping {
 
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
-    execEnv.fromCollection(values, returnType)
-  }
+  override def isBounded: Boolean = isBatch
 
-  override def getBoundedStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[T] = {
-    val dataStream = streamEnv.fromCollection(values, returnType)
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
+    val dataStream = execEnv.fromCollection(values, returnType)
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream
   }

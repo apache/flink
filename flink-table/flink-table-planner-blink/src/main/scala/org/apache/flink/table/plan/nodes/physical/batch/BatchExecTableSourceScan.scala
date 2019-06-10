@@ -34,7 +34,7 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
-import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -47,7 +47,8 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode to read data from an external source defined by a [[BatchTableSource]].
+  * Batch physical RelNode to read data from an external source defined by a
+  * bounded [[StreamTableSource]].
   */
 class BatchExecTableSourceScan(
     cluster: RelOptCluster,
@@ -87,8 +88,8 @@ class BatchExecTableSourceScan(
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val config = tableEnv.getConfig
-    val bts = tableSource.asInstanceOf[BatchTableSource[_]]
-    val inputTransform = bts.getBoundedStream(tableEnv.execEnv).getTransformation
+    val bts = tableSource.asInstanceOf[StreamTableSource[_]] // bounded table source
+    val inputTransform = bts.getDataStream(tableEnv.execEnv).getTransformation
     inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
@@ -141,13 +142,13 @@ class BatchExecTableSourceScan(
       ScanUtil.needsConversion(
         tableSource.getProducedDataType,
         TypeExtractor.createTypeInfo(
-          tableSource, classOf[BatchTableSource[_]], tableSource.getClass, 0)
+          tableSource, classOf[StreamTableSource[_]], tableSource.getClass, 0)
           .getTypeClass.asInstanceOf[Class[_]])
   }
 
   def getSourceTransformation(
       streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
-    tableSource.asInstanceOf[BatchTableSource[_]].getBoundedStream(streamEnv).getTransformation
+    tableSource.asInstanceOf[StreamTableSource[_]].getDataStream(streamEnv).getTransformation
   }
 
   def getEstimatedRowCount: lang.Double = {

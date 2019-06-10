@@ -54,7 +54,6 @@ class InMemoryLookupableTableSource(
     lookupConfig: LookupConfig)
   extends LookupableTableSource[Row]
   with StreamTableSource[Row]
-  with BatchTableSource[Row]
   with DefinedPrimaryKey
   with DefinedIndexes {
 
@@ -122,10 +121,6 @@ class InMemoryLookupableTableSource(
   def getResourceCounter: Int = resourceCounter.get()
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    throw new UnsupportedOperationException("This should never be called.")
-  }
-
-  override def getBoundedStream(streamEnv: StreamExecutionEnvironment): DataStream[Row] = {
     throw new UnsupportedOperationException("This should never be called.")
   }
 }

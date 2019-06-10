@@ -80,7 +80,7 @@ class TableScanITCase extends StreamingTestBase {
     val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.SQL_TIMESTAMP))
     val returnType = Types.STRING
 
-    val tableSource = new TestTableSourceWithTime(schema, returnType, data, null, "ptime")
+    val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
     tEnv.registerTableSource(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
