@@ -112,8 +112,8 @@ class StreamExecLocalGroupAggregate(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
-    val inRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
+    val inRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
     val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
 

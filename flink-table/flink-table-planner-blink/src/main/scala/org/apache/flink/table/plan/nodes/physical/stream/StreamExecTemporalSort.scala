@@ -133,7 +133,7 @@ class StreamExecTemporalSort(
   private def createSortProcTime(
       input: StreamTransformation[BaseRow],
       tableConfig: TableConfig): StreamTransformation[BaseRow] = {
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     val fieldCollations = sortCollation.getFieldCollations
     // if the order has secondary sorting fields in addition to the proctime
     if (fieldCollations.size() > 1) {
@@ -144,7 +144,7 @@ class StreamExecTemporalSort(
       val rowComparator = ComparatorCodeGenerator.gen(tableConfig, "ProcTimeSortComparator",
         keys, keyTypes, orders, nullsIsLast)
       val sortOperator = new ProcTimeSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
-      val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType))
+      val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
       // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
       val ret = new OneInputTransformation(
@@ -173,7 +173,7 @@ class StreamExecTemporalSort(
       tableConfig: TableConfig): StreamTransformation[BaseRow] = {
     val fieldCollations = sortCollation.getFieldCollations
     val rowTimeIdx = fieldCollations.get(0).getFieldIndex
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     val rowComparator = if (fieldCollations.size() > 1) {
       // strip off time collation
       val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations.tail)
@@ -186,7 +186,7 @@ class StreamExecTemporalSort(
     }
     val sortOperator = new RowTimeSortOperator(
       BaseRowTypeInfo.of(inputType), rowTimeIdx, rowComparator)
-    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType))
+    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
     val ret = new OneInputTransformation(

@@ -413,13 +413,13 @@ class BatchExecWindowAggregateRule
     val typeFactory = agg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val aggBufferSqlTypes = aggBufferTypes.flatten.map { t =>
       val nullable = !FlinkTypeFactory.isTimeIndicatorType(t)
-      typeFactory.createTypeFromLogicalType(t)
+      typeFactory.createFieldTypeFromLogicalType(t)
     }
 
     val localAggFieldTypes = (
       groupSet.map(inputType.getFieldList.get(_).getType) ++ // groupSet
         // assignTs
-        Array(typeFactory.createTypeFromLogicalType(windowType)) ++
+        Array(typeFactory.createFieldTypeFromLogicalType(windowType)) ++
         auxGroupSet.map(inputType.getFieldList.get(_).getType) ++ // auxGroupSet
         aggBufferSqlTypes // aggCalls
       ).toList

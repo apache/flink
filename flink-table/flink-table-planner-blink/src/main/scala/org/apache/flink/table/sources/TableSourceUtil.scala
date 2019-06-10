@@ -178,7 +178,7 @@ object TableSourceUtil {
       } else {
         (fieldNames, fieldTypes)
       }
-    typeFactory.buildLogicalRowType(selectedFieldNames, selectedFieldTypes)
+    typeFactory.buildRelNodeRowType(selectedFieldNames, selectedFieldTypes)
   }
 
   /**
@@ -252,7 +252,7 @@ object TableSourceUtil {
             fromTypeInfoToLogicalType(f._3))): _*)
       val (physicalFields, physicalTypes) = (0 to maxIdx)
         .map(i => idxMap.getOrElse(i, ("", new TinyIntType()))).unzip
-      val physicalSchema: RelDataType = typeFactory.buildLogicalRowType(
+      val physicalSchema: RelDataType = typeFactory.buildRelNodeRowType(
         physicalFields,
         physicalTypes)
       LogicalValues.create(

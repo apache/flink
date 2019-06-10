@@ -214,10 +214,10 @@ class StreamExecOverAggregate(
     val fieldTypes = inputRowType.getFieldList.asScala
       .map(c => FlinkTypeFactory.toLogicalType(c.getType))
 
-    val inRowType = FlinkTypeFactory.toInternalRowType(inputRel.getRowType)
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
+    val inRowType = FlinkTypeFactory.toLogicalRowType(inputRel.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
-    val aggInputType = tableEnv.getTypeFactory.buildLogicalRowType(
+    val aggInputType = tableEnv.getTypeFactory.buildRelNodeRowType(
       fieldNames ++ constants.indices.map(i => "TMP" + i),
       fieldTypes ++ constantTypes)
 

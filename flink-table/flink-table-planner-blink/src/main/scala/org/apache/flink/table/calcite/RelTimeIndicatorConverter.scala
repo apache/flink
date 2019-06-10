@@ -47,7 +47,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromLogicalType(new TimestampType(isNullable, 3))
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   val materializerUtils = new RexTimeIndicatorMaterializerUtils(rexBuilder)
 
@@ -510,7 +510,7 @@ class RexTimeIndicatorMaterializer(
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromLogicalType(new TimestampType(isNullable, 3))
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     // reference is interesting
@@ -602,7 +602,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromLogicalType(new TimestampType(isNullable, 3))
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   def projectAndMaterializeFields(input: RelNode, indicesToMaterialize: Set[Int]): RelNode = {
     val projects = input.getRowType.getFieldList.map { field =>

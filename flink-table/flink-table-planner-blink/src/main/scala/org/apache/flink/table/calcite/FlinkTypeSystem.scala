@@ -66,7 +66,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
     val argTypeInfo = FlinkTypeFactory.toLogicalType(argType)
     val avgType = FlinkTypeSystem.deriveAvgAggType(argTypeInfo)
-    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromLogicalType(
+    typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
       avgType.copy(argType.isNullable))
   }
 
@@ -74,7 +74,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
     val argTypeInfo = FlinkTypeFactory.toLogicalType(argType)
     val sumType = FlinkTypeSystem.deriveSumType(argTypeInfo)
-    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromLogicalType(
+    typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
       sumType.copy(argType.isNullable))
   }
 }

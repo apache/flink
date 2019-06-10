@@ -113,7 +113,7 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetColumnIntervalOnCalc(): Unit = {
-    val outputRowType = typeFactory.buildLogicalRowType(
+    val outputRowType = typeFactory.buildRelNodeRowType(
       Array("f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12"),
       Array(new IntType(), new DoubleType(), new BooleanType(), new BooleanType(),
         new BooleanType(), new BooleanType(), new BooleanType(), new BooleanType(),

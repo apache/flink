@@ -97,7 +97,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			RexNode child = call.getChildren().get(0).accept(this);
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
 			return relBuilder.getRexBuilder().makeAbstractCast(
-					typeFactory.createTypeFromLogicalType(
+					typeFactory.createFieldTypeFromLogicalType(
 							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
 					child);
 		} else if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
@@ -105,7 +105,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
 			RexNode checkOverflow = call.getChildren().get(2).accept(this);
 			return relBuilder.getRexBuilder().makeReinterpretCast(
-					typeFactory.createTypeFromLogicalType(
+					typeFactory.createFieldTypeFromLogicalType(
 							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
 					child,
 					checkOverflow);
@@ -178,7 +178,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		if (expr.isNull()) {
 			return relBuilder.getRexBuilder()
 					.makeCast(
-							typeFactory.createTypeFromLogicalType(type),
+							typeFactory.createFieldTypeFromLogicalType(type),
 							relBuilder.getRexBuilder().constantNull());
 		}
 
@@ -298,7 +298,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		// using index to resolve field directly, name used in toString only
 		return new RexInputRef(
 				reference.getIndex(),
-				typeFactory.createTypeFromLogicalType(reference.getResultType()));
+				typeFactory.createFieldTypeFromLogicalType(reference.getResultType()));
 	}
 
 	private RexNode visitResolvedAggLocalReference(ResolvedAggLocalReference reference) {
@@ -306,7 +306,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		return new RexAggLocalVariable(
 				reference.getFieldTerm(),
 				reference.getNullTerm(),
-				typeFactory.createTypeFromLogicalType(type),
+				typeFactory.createFieldTypeFromLogicalType(type),
 				type);
 	}
 
@@ -314,7 +314,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		LogicalType type = reference.getResultType();
 		return new RexDistinctKeyVariable(
 				reference.getName(),
-				typeFactory.createTypeFromLogicalType(type),
+				typeFactory.createFieldTypeFromLogicalType(type),
 				type);
 	}
 }

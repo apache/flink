@@ -25,9 +25,11 @@ import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.types.Nothing
+import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -50,7 +52,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   private val seenTypes = mutable.HashMap[LogicalType, RelDataType]()
 
-  def createTypeFromLogicalType(t: LogicalType): RelDataType = {
+  /**
+    * Create a calcite field type in table schema from [[LogicalType]]. It use
+    * PEEK_FIELDS_NO_EXPAND when type is a nested struct type (Flink [[RowType]]).
+    *
+    * @param t flink logical type.
+    * @return calcite [[RelDataType]].
+    */
+  def createFieldTypeFromLogicalType(t: LogicalType): RelDataType = {
     def newRelDataType(): RelDataType = t.getTypeRoot match {
       case LogicalTypeRoot.BOOLEAN => createSqlType(BOOLEAN)
       case LogicalTypeRoot.TINYINT => createSqlType(TINYINT)
@@ -83,29 +92,25 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
       case LogicalTypeRoot.ROW =>
         val rowType = t.asInstanceOf[RowType]
-        val b = builder
-        // fields are not expanded in "SELECT *"
-        b.kind(StructKind.PEEK_FIELDS_NO_EXPAND)
-        val fields = rowType.getFieldNames.zip(rowType.getChildren)
-        fields foreach {
-          case (fieldName, fieldType) =>
-            b.add(fieldName, createTypeFromLogicalType(fieldType))
-        }
-        b.build
+        buildStructType(
+          rowType.getFieldNames,
+          rowType.getChildren,
+          // fields are not expanded in "SELECT *"
+          StructKind.PEEK_FIELDS_NO_EXPAND)
 
       case LogicalTypeRoot.ARRAY =>
         val arrayType = t.asInstanceOf[ArrayType]
-        createArrayType(createTypeFromLogicalType(arrayType.getElementType), -1)
+        createArrayType(createFieldTypeFromLogicalType(arrayType.getElementType), -1)
 
       case LogicalTypeRoot.MAP =>
         val mapType = t.asInstanceOf[MapType]
         createMapType(
-          createTypeFromLogicalType(mapType.getKeyType),
-          createTypeFromLogicalType(mapType.getValueType))
+          createFieldTypeFromLogicalType(mapType.getKeyType),
+          createFieldTypeFromLogicalType(mapType.getValueType))
 
       case LogicalTypeRoot.MULTISET =>
         val multisetType = t.asInstanceOf[MultisetType]
-        createMultisetType(createTypeFromLogicalType(multisetType.getElementType), -1)
+        createMultisetType(createFieldTypeFromLogicalType(multisetType.getElementType), -1)
 
       case LogicalTypeRoot.ANY =>
         new GenericRelDataType(
@@ -143,7 +148,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     * Creates a indicator type for processing-time, but with similar properties as SQL timestamp.
     */
   def createProctimeIndicatorType(): RelDataType = {
-    val originalType = createTypeFromLogicalType(new TimestampType(3))
+    val originalType = createFieldTypeFromLogicalType(new TimestampType(3))
     canonize(
       new TimeIndicatorRelDataType(
         getTypeSystem,
@@ -156,7 +161,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     * Creates a indicator type for event-time, but with similar properties as SQL timestamp.
     */
   def createRowtimeIndicatorType(): RelDataType = {
-    val originalType = createTypeFromLogicalType(new TimestampType(3))
+    val originalType = createFieldTypeFromLogicalType(new TimestampType(3))
     canonize(
       new TimeIndicatorRelDataType(
         getTypeSystem,
@@ -166,20 +171,38 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   }
 
   /**
-    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory
+    * Creates a table row type with the input fieldNames and input fieldTypes using
+    * FlinkTypeFactory. Table row type is table schema for Calcite RelNode. See getRowType of
+    * [[RelNode]]. Use FULLY_QUALIFIED to let each field must be referenced explicitly.
     *
     * @param fieldNames field names
     * @param fieldTypes field types, every element is Flink's [[LogicalType]]
-    * @return a struct type with the input fieldNames, input fieldTypes, and system fields
+    * @return a table row type with the input fieldNames, input fieldTypes.
     */
-  def buildLogicalRowType(
+  def buildRelNodeRowType(
       fieldNames: Seq[String],
       fieldTypes: Seq[LogicalType]): RelDataType = {
+    buildStructType(fieldNames, fieldTypes, StructKind.FULLY_QUALIFIED)
+  }
+
+  /**
+    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory.
+    *
+    * @param fieldNames field names
+    * @param fieldTypes field types, every element is Flink's [[LogicalType]].
+    * @param structKind Name resolution policy. See more information in [[StructKind]].
+    * @return a struct type with the input fieldNames, input fieldTypes.
+    */
+  private def buildStructType(
+      fieldNames: Seq[String],
+      fieldTypes: Seq[LogicalType],
+      structKind: StructKind): RelDataType = {
     val b = builder
+    b.kind(structKind)
     val fields = fieldNames.zip(fieldTypes)
     fields foreach {
       case (fieldName, fieldType) =>
-        b.add(fieldName, createTypeFromLogicalType(fieldType))
+        b.add(fieldName, createFieldTypeFromLogicalType(fieldType))
     }
     b.build
   }
@@ -405,7 +428,7 @@ object FlinkTypeFactory {
           recordType.getFieldNames.toSeq.toArray)
 
       case ROW if relDataType.isInstanceOf[RelRecordType] =>
-        toInternalRowType(relDataType.asInstanceOf[RelRecordType])
+        toLogicalRowType(relDataType.asInstanceOf[RelRecordType])
 
       case MULTISET => new MultisetType(toLogicalType(relDataType.getComponentType))
 
@@ -426,7 +449,8 @@ object FlinkTypeFactory {
     logicalType.copy(relDataType.isNullable)
   }
 
-  def toInternalRowType(relType: RelDataType): RowType = {
+  def toLogicalRowType(relType: RelDataType): RowType = {
+    checkArgument(relType.isStruct)
     RowType.of(
       relType.getFieldList.asScala
           .map(fieldType => toLogicalType(fieldType.getType))

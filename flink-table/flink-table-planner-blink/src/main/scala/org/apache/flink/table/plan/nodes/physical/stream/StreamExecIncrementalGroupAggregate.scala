@@ -138,8 +138,8 @@ class StreamExecIncrementalGroupAggregate(
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
 
-    val inRowType = FlinkTypeFactory.toInternalRowType(inputRel.getRowType)
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
+    val inRowType = FlinkTypeFactory.toLogicalRowType(inputRel.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
     val partialAggsHandler = generateAggsHandler(
       "PartialGroupAggsHandler",
@@ -208,7 +208,7 @@ class StreamExecIncrementalGroupAggregate(
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(config),
       relBuilder,
-      FlinkTypeFactory.toInternalRowType(inputRowType).getChildren,
+      FlinkTypeFactory.toLogicalRowType(inputRowType).getChildren,
       inputFieldCopy)
 
     generator

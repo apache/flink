@@ -360,7 +360,7 @@ object AggregateUtil extends Enumeration {
         false,
         new util.ArrayList[Integer](),
         -1,
-        typeFactory.createTypeFromLogicalType(new BigIntType()),
+        typeFactory.createFieldTypeFromLogicalType(new BigIntType()),
         "_$count1$_")
 
       indexOfCountStar = Some(aggregateCalls.length)
@@ -561,7 +561,7 @@ object AggregateUtil extends Enumeration {
     val groupingNames = groupSet.map(inputType.getFieldNames.get(_))
     val accFieldNames = inferStreamAggAccumulatorNames(aggInfoList)
 
-    typeFactory.buildLogicalRowType(
+    typeFactory.buildRelNodeRowType(
       groupingNames ++ accFieldNames,
       groupingTypes ++ accTypes.map(fromDataTypeToLogicalType))
   }
@@ -638,7 +638,7 @@ object AggregateUtil extends Enumeration {
     val groupingNames = groupSet.map(inputRowType.getFieldNames.get(_))
     val accFieldNames = inferAggAccumulatorNames(aggInfoList)
 
-    typeFactory.buildLogicalRowType(
+    typeFactory.buildRelNodeRowType(
       groupingNames ++ accFieldNames,
       groupingTypes ++ accTypes.map(fromDataTypeToLogicalType))
   }

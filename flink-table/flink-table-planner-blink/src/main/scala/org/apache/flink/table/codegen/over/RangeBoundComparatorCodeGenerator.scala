@@ -138,7 +138,7 @@ class RangeBoundComparatorCodeGenerator(
     }
 
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val relKeyType = typeFactory.createTypeFromLogicalType(realKeyType)
+    val relKeyType = typeFactory.createFieldTypeFromLogicalType(realKeyType)
 
     //minus between inputValue and currentValue
     val ctx = CodeGeneratorContext(config)

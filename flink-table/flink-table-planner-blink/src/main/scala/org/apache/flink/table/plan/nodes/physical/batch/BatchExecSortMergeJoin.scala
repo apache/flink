@@ -269,7 +269,7 @@ class BatchExecSortMergeJoin(
       rightInput,
       getOperatorName,
       operator,
-      BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType)),
+      BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
   }
 

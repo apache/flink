@@ -38,7 +38,7 @@ object ValuesCodeGenerator {
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     description: String): ValuesInputFormat = {
     val config = tableEnv.getConfig
-    val outputType = FlinkTypeFactory.toInternalRowType(rowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(rowType)
 
     val ctx = CodeGeneratorContext(config)
     val exprGenerator = new ExprCodeGenerator(ctx, false)

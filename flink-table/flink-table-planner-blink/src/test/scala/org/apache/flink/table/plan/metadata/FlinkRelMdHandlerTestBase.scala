@@ -102,16 +102,16 @@ class FlinkRelMdHandlerTestBase {
     streamPhysicalTraits = cluster.traitSetOf(FlinkConventions.STREAM_PHYSICAL)
   }
 
-  protected val intType: RelDataType = typeFactory.createTypeFromLogicalType(
+  protected val intType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
     new IntType(false))
 
-  protected val doubleType: RelDataType = typeFactory.createTypeFromLogicalType(
+  protected val doubleType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
     new DoubleType(false))
 
-  protected val longType: RelDataType = typeFactory.createTypeFromLogicalType(
+  protected val longType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
     new BigIntType(false))
 
-  protected val stringType: RelDataType = typeFactory.createTypeFromLogicalType(
+  protected val stringType: RelDataType = typeFactory.createFieldTypeFromLogicalType(
     new VarCharType(false, VarCharType.MAX_LENGTH))
 
   protected lazy val testRel = new TestRel(
@@ -2103,7 +2103,7 @@ class FlinkRelMdHandlerTestBase {
       allowCast: Boolean = true): RexNode = {
     rexBuilder.makeLiteral(
       value,
-      typeFactory.createTypeFromLogicalType(internalType.copy(isNullable)),
+      typeFactory.createFieldTypeFromLogicalType(internalType.copy(isNullable)),
       allowCast
     )
   }

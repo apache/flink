@@ -52,7 +52,7 @@ abstract class AggTestBase {
   val inputType = RowType.of(inputTypes, inputNames)
 
   val relBuilder: RelBuilder = FlinkRelBuilder.create(frameworkConfig).values(
-    typeFactory.buildLogicalRowType(inputNames, inputTypes))
+    typeFactory.buildRelNodeRowType(inputNames, inputTypes))
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])

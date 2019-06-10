@@ -128,7 +128,7 @@ abstract class WindowCodeGenerator(
         (groupKeyTypes :+ timestampInternalType) ++ aggBuffTypes,
         ((groupKeyNames :+ "assignedTs$") ++ aggBuffNames).toArray)
     } else {
-      FlinkTypeFactory.toInternalRowType(inputRowType)
+      FlinkTypeFactory.toLogicalRowType(inputRowType)
     }
   }
 

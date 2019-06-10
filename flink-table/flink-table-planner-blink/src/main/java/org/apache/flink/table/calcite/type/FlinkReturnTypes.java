@@ -149,6 +149,6 @@ public class FlinkReturnTypes {
 		ReturnTypes.cascade(NUMERIC_FROM_ARG1_DEFAULT1, SqlTypeTransforms.TO_NULLABLE);
 
 	public static final SqlReturnTypeInference STR_MAP_NULLABLE = ReturnTypes.explicit(
-			factory -> ((FlinkTypeFactory) factory).createTypeFromLogicalType(
+			factory -> ((FlinkTypeFactory) factory).createFieldTypeFromLogicalType(
 		new MapType(new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH))));
 }

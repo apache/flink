@@ -104,7 +104,7 @@ class StreamExecCalc(
 
     val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
       classOf[AbstractProcessStreamOperator[BaseRow]])
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val substituteStreamOperator = CalcCodeGenerator.generateCalcOperator(
       ctx,
       cluster,

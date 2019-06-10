@@ -124,7 +124,7 @@ class StreamExecGlobalGroupAggregate(
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
 
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
 
@@ -212,7 +212,7 @@ class StreamExecGlobalGroupAggregate(
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(config),
       relBuilder,
-      FlinkTypeFactory.toInternalRowType(inputRowType).getChildren,
+      FlinkTypeFactory.toLogicalRowType(inputRowType).getChildren,
       inputFieldCopy)
 
     generator

@@ -104,7 +104,7 @@ abstract class InlineTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes)
+    flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
   }
 
   /**

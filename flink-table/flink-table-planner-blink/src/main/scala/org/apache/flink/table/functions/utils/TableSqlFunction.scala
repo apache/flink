@@ -121,7 +121,7 @@ object TableSqlFunction {
     }
     func.getParameterTypes(getEvalMethodSignature(func, parameters))
         .map(fromTypeInfoToLogicalType)
-        .map(typeFactory.createTypeFromLogicalType)
+        .map(typeFactory.createFieldTypeFromLogicalType)
         .zipWithIndex
         .foreach {
           case (t, i) => operandTypes(i) = t

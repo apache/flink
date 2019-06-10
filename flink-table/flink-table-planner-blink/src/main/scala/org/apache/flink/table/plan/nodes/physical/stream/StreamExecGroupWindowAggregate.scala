@@ -141,7 +141,7 @@ class StreamExecGroupWindowAggregate(
       .asInstanceOf[StreamTransformation[BaseRow]]
 
     val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(outputRowType))
+    val outRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(outputRowType))
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
 

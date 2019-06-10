@@ -161,7 +161,7 @@ class BatchExecExchange(
     }
 
     val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType))
+    val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // TODO supports DataExchangeMode.BATCH in runtime
     if (requiredExchangeMode.contains(DataExchangeMode.BATCH)) {

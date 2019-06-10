@@ -426,7 +426,7 @@ object LookupJoinCodeGenerator {
     CalcCodeGenerator.generateFunction(
       tableSourceRowType,
       "TableCalcMapFunction",
-      FlinkTypeFactory.toInternalRowType(program.getOutputRowType),
+      FlinkTypeFactory.toLogicalRowType(program.getOutputRowType),
       classOf[GenericRow],
       program,
       condition,

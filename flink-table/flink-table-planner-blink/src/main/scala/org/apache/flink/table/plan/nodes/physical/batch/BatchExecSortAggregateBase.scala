@@ -107,8 +107,8 @@ abstract class BatchExecSortAggregateBase(
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
         .asInstanceOf[StreamTransformation[BaseRow]]
     val ctx = CodeGeneratorContext(tableEnv.getConfig)
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toInternalRowType(inputRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)

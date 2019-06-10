@@ -139,7 +139,7 @@ class StreamExecRank(
     }
 
     val inputRowTypeInfo = BaseRowTypeInfo.of(
-      FlinkTypeFactory.toInternalRowType(getInput.getRowType))
+      FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val fieldCollations = orderKey.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
@@ -203,7 +203,7 @@ class StreamExecRank(
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
     val outputRowTypeInfo = BaseRowTypeInfo.of(
-      FlinkTypeFactory.toInternalRowType(getRowType))
+      FlinkTypeFactory.toLogicalRowType(getRowType))
     val ret = new OneInputTransformation(
       inputTransform,
       rankOpName,

@@ -249,7 +249,7 @@ class BatchExecRank(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
         .asInstanceOf[StreamTransformation[BaseRow]]
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val partitionBySortingKeys = partitionKey.toArray
     // The collation for the partition-by fields is inessential here, we only use the
     // comparator to distinguish different groups.
@@ -262,7 +262,7 @@ class BatchExecRank(
     val orderByCollation = orderKey.getFieldCollations.map(_ => (true, true)).toArray
     val orderByKeys = orderKey.getFieldCollations.map(_.getFieldIndex).toArray
 
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     //operator needn't cache data
     val operator = new RankOperator(
       ComparatorCodeGenerator.gen(

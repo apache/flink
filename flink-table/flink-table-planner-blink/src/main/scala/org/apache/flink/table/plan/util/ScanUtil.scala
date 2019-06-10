@@ -66,7 +66,7 @@ object ScanUtil {
       beforeConvert: String = "",
       afterConvert: String = ""): StreamTransformation[BaseRow] = {
 
-    val outputRowType = FlinkTypeFactory.toInternalRowType(outRowType)
+    val outputRowType = FlinkTypeFactory.toLogicalRowType(outRowType)
 
     // conversion
     val convertName = "SourceConversion"

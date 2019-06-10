@@ -76,7 +76,7 @@ object StreamExecLookupJoinRule {
 
     val cluster = join.getCluster
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val tableRowType = typeFactory.buildLogicalRowType(
+    val tableRowType = typeFactory.buildRelNodeRowType(
       tableSource.getTableSchema.getFieldNames,
       tableSource.getTableSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
     )

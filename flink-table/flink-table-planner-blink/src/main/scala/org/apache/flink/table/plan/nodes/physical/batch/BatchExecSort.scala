@@ -106,8 +106,8 @@ class BatchExecSort(
         .asInstanceOf[StreamTransformation[BaseRow]]
 
     val conf = tableEnv.getConfig
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     // sort code gen
     val keyTypes = keys.map(inputType.getTypeAt)

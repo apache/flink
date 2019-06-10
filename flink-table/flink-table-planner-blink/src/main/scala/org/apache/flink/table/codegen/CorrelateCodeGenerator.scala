@@ -77,7 +77,7 @@ object CorrelateCodeGenerator {
         .asInstanceOf[FlinkTableFunction]
         .getExternalResultType(arguments, argTypes)
     val pojoFieldMapping = Some(UserDefinedFunctionUtils.getFieldInfo(udtfExternalType)._2)
-    val inputType = FlinkTypeFactory.toInternalRowType(inputRelType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRelType)
     val (returnType, swallowInputOnly ) = if (projectProgram.isDefined) {
       val program = projectProgram.get
       val selects = program.getProjectList.map(_.getIndex)
@@ -85,10 +85,10 @@ object CorrelateCodeGenerator {
       val swallowInputOnly = selects.head > inputFieldCnt &&
         (inputFieldCnt - outDataType.getFieldCount == inputRelType.getFieldCount)
       // partial output or output right only
-      (FlinkTypeFactory.toInternalRowType(outDataType), swallowInputOnly)
+      (FlinkTypeFactory.toLogicalRowType(outDataType), swallowInputOnly)
     } else {
       // completely output left input + right
-      (FlinkTypeFactory.toInternalRowType(outDataType), false)
+      (FlinkTypeFactory.toLogicalRowType(outDataType), false)
     }
     // adjust indicies of InputRefs to adhere to schema expected by generator
     val changeInputRefIndexShuttle = new RexShuttle {

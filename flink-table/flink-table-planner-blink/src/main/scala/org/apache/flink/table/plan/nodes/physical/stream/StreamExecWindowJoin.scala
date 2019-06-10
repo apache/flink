@@ -139,10 +139,10 @@ class StreamExecWindowJoin(
            FlinkJoinType.LEFT |
            FlinkJoinType.RIGHT |
            FlinkJoinType.FULL =>
-        val leftRowType = FlinkTypeFactory.toInternalRowType(getLeft.getRowType)
-        val rightRowType = FlinkTypeFactory.toInternalRowType(getRight.getRowType)
+        val leftRowType = FlinkTypeFactory.toLogicalRowType(getLeft.getRowType)
+        val rightRowType = FlinkTypeFactory.toLogicalRowType(getRight.getRowType)
         val returnType = BaseRowTypeInfo.of(
-          FlinkTypeFactory.toInternalRowType(getRowType))
+          FlinkTypeFactory.toLogicalRowType(getRowType))
 
         val relativeWindowSize = leftUpperBound - leftLowerBound
         if (relativeWindowSize < 0) {

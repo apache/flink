@@ -118,7 +118,7 @@ class StreamExecSort(
       throw new TableException("Sort on a non-time-attribute field is not supported.")
     }
 
-    val inputType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
     val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(sortCollation.getFieldCollations)
     // sort code gen
     val keyTypes = keys.map(inputType.getTypeAt)
@@ -127,7 +127,7 @@ class StreamExecSort(
     val sortOperator = new StreamSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
-    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toInternalRowType(getRowType))
+    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // sets parallelism to 1 since StreamExecSort could only work in global mode.
     val ret = new OneInputTransformation(

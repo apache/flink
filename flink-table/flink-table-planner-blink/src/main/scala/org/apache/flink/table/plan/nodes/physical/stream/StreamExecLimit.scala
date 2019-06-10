@@ -109,7 +109,7 @@ class StreamExecLimit(
         "FETCH is missed, which on streaming table is not supported currently.")
     }
     val inputRowTypeInfo = BaseRowTypeInfo.of(
-      FlinkTypeFactory.toInternalRowType(getInput.getRowType))
+      FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val tableConfig = tableEnv.getConfig
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
@@ -159,7 +159,7 @@ class StreamExecLimit(
       .asInstanceOf[StreamTransformation[BaseRow]]
 
     val outputRowTypeInfo = BaseRowTypeInfo.of(
-      FlinkTypeFactory.toInternalRowType(getRowType))
+      FlinkTypeFactory.toLogicalRowType(getRowType))
 
     // sets parallelism to 1 since StreamExecLimit could only work in global mode.
     val ret = new OneInputTransformation(

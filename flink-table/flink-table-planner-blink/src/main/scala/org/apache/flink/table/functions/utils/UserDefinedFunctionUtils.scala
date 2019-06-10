@@ -817,7 +817,7 @@ object UserDefinedFunctionUtils {
     fieldNames
         .zip(fieldTypes)
         .foreach { f =>
-          builder.add(f._1, flinkTypeFactory.createTypeFromLogicalType(f._2))
+          builder.add(f._1, flinkTypeFactory.createFieldTypeFromLogicalType(f._2))
         }
     builder.build
   }

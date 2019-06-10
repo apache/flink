@@ -58,7 +58,7 @@ class DataStreamTable[T](
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     fieldNullables match {
       case Some(nulls) => typeFactory.asInstanceOf[FlinkTypeFactory]
-          .buildLogicalRowType(fieldNames, fieldTypes.zip(nulls).map {
+          .buildRelNodeRowType(fieldNames, fieldTypes.zip(nulls).map {
             case (t, nullable) => t.copy(nullable)
           })
       case _ => super.getRowType(typeFactory)

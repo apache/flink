@@ -261,7 +261,7 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     val expr10 = relBuilder.call(CASE, expr2, expr9, expr4, expr8, relBuilder.literal(null))
     val expr11 = relBuilder.call(CASE, expr5, relBuilder.literal(1), relBuilder.field(3))
     // TODO add tests for IF
-    val rowType = typeFactory.buildLogicalRowType(
+    val rowType = typeFactory.buildRelNodeRowType(
       Array("f0", "f1", "f2", "f3"),
       Array(new IntType(), new IntType(), new IntType(), new IntType()))
     val calc8 = createLogicalCalc(

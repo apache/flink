@@ -83,7 +83,7 @@ class StreamExecExchange(
       .asInstanceOf[StreamTransformation[BaseRow]]
     val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val outputTypeInfo = BaseRowTypeInfo.of(
-      FlinkTypeFactory.toInternalRowType(getRowType))
+      FlinkTypeFactory.toLogicalRowType(getRowType))
     relDistribution.getType match {
       case RelDistribution.Type.SINGLETON =>
         val partitioner = new GlobalPartitioner[BaseRow]

@@ -106,7 +106,7 @@ class LogicalUnnestRule(
               val valueType = toLogicalType(map.getValueType)
               val rowInternalType = RowType.of(keyType, valueType)
               val componentType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-                  .createTypeFromLogicalType(rowInternalType)
+                  .createFieldTypeFromLogicalType(rowInternalType)
               val mapTypeInfo = new MapTypeInfo(
                 fromLogicalTypeToTypeInfo(keyType),
                 fromLogicalTypeToTypeInfo(valueType)

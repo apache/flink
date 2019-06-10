@@ -81,7 +81,7 @@ class StreamExecExpand(
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
     val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val ctx = CodeGeneratorContext(config)
     val operator = ExpandCodeGenerator.generateExpandOperator(

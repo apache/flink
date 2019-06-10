@@ -518,7 +518,7 @@ object FlinkRelMdUtil {
   }
 
   def binaryRowAverageSize(rel: RelNode): JDouble = {
-    val binaryType = FlinkTypeFactory.toInternalRowType(rel.getRowType)
+    val binaryType = FlinkTypeFactory.toLogicalRowType(rel.getRowType)
     // TODO reuse FlinkRelMetadataQuery here
     val mq = rel.getCluster.getMetadataQuery
     val columnSizes = mq.getAverageColumnSizes(rel)

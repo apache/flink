@@ -32,26 +32,26 @@ class FlinkTypeFactoryTest {
       Assert.assertEquals(
         t.copy(true),
         FlinkTypeFactory.toLogicalType(
-          typeFactory.createTypeFromLogicalType(t.copy(true)))
+          typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
       Assert.assertEquals(
         t.copy(false),
         FlinkTypeFactory.toLogicalType(
-          typeFactory.createTypeFromLogicalType(t.copy(false)))
+          typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
       )
 
       // twice for cache.
       Assert.assertEquals(
         t.copy(true),
         FlinkTypeFactory.toLogicalType(
-          typeFactory.createTypeFromLogicalType(t.copy(true)))
+          typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
       Assert.assertEquals(
         t.copy(false),
         FlinkTypeFactory.toLogicalType(
-          typeFactory.createTypeFromLogicalType(t.copy(false)))
+          typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
       )
     }
 

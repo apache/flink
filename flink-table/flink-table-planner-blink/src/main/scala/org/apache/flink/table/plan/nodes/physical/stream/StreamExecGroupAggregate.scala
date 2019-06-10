@@ -137,8 +137,8 @@ class StreamExecGroupAggregate(
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
 
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
-    val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
+    val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)

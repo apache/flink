@@ -88,7 +88,7 @@ object ScalarSqlFunction {
           }
         ).toArray
         val resultType = getResultTypeOfScalarFunction(scalarFunction, arguments, parameters)
-        typeFactory.createTypeFromLogicalType(
+        typeFactory.createFieldTypeFromLogicalType(
           fromDataTypeToLogicalType(resultType))
       }
     }
@@ -125,7 +125,7 @@ object ScalarSqlFunction {
     }
     func.getParameterTypes(getEvalMethodSignature(func, parameters))
         .map(fromTypeInfoToLogicalType)
-        .map(typeFactory.createTypeFromLogicalType)
+        .map(typeFactory.createFieldTypeFromLogicalType)
         .zipWithIndex
         .foreach {
           case (t, i) => operandTypes(i) = t

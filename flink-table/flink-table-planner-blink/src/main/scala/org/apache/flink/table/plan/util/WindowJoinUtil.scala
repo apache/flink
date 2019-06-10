@@ -109,7 +109,7 @@ object WindowJoinUtil {
     val ctx = CodeGeneratorContext(config)
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
 
-    val returnTypeInfo = FlinkTypeFactory.toInternalRowType(returnType)
+    val returnTypeInfo = FlinkTypeFactory.toLogicalRowType(returnType)
     val joinedRow = "joinedRow"
     ctx.addReusableOutputRecord(returnTypeInfo, classOf[JoinedRow], joinedRow)
 

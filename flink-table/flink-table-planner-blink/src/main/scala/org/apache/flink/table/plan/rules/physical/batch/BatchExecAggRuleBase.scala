@@ -81,7 +81,7 @@ trait BatchExecAggRuleBase {
     // local agg output order: groupSet + auxGroupSet + aggCalls
     val aggBufferSqlTypes = aggBufferTypes.flatten.map { t =>
       val nullable = !FlinkTypeFactory.isTimeIndicatorType(t)
-      typeFactory.createTypeFromLogicalType(t)
+      typeFactory.createFieldTypeFromLogicalType(t)
     }
 
     val localAggFieldTypes = (

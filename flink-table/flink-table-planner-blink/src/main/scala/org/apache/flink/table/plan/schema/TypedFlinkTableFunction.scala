@@ -47,7 +47,7 @@ class TypedFlinkTableFunction(
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): RelDataType = {
     // we have determined the row type before, just convert it to RelDataType
-    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromLogicalType(
+    typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
       fromDataTypeToLogicalType(externalResultType))
   }
 }

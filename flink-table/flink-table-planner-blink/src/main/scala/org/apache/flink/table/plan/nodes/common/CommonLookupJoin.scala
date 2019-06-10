@@ -157,9 +157,9 @@ abstract class CommonLookupJoin(
       config: TableConfig,
       relBuilder: RelBuilder): StreamTransformation[BaseRow] = {
 
-    val inputRowType = FlinkTypeFactory.toInternalRowType(input.getRowType)
-    val tableSourceRowType = FlinkTypeFactory.toInternalRowType(tableRowType)
-    val resultRowType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val inputRowType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
+    val tableSourceRowType = FlinkTypeFactory.toLogicalRowType(tableRowType)
+    val resultRowType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val tableSchema = tableSource.getTableSchema
 
     val producedDataType = tableSource.getProducedDataType
@@ -234,7 +234,7 @@ abstract class CommonLookupJoin(
       val asyncFunc = if (calcOnTemporalTable.isDefined) {
         // a projection or filter after table source scan
         val rightRowType = FlinkTypeFactory
-          .toInternalRowType(calcOnTemporalTable.get.getOutputRowType)
+          .toLogicalRowType(calcOnTemporalTable.get.getOutputRowType)
         val generatedResultFuture = LookupJoinCodeGenerator.generateTableAsyncCollector(
           config,
           "TableFunctionResultFuture",
@@ -310,7 +310,7 @@ abstract class CommonLookupJoin(
       val processFunc = if (calcOnTemporalTable.isDefined) {
         // a projection or filter after table source scan
         val rightRowType = FlinkTypeFactory
-          .toInternalRowType(calcOnTemporalTable.get.getOutputRowType)
+          .toLogicalRowType(calcOnTemporalTable.get.getOutputRowType)
         val generatedCollector = generateCollector(
           ctx,
           inputRowType,

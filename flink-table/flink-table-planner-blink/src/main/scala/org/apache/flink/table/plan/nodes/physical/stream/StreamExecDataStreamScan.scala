@@ -162,7 +162,7 @@ class StreamExecDataStreamScan(
           Some(
             relBuilder.cast(
               relBuilder.call(new StreamRecordTimestampSqlFunction),
-              relBuilder.getTypeFactory.createTypeFromLogicalType(
+              relBuilder.getTypeFactory.createFieldTypeFromLogicalType(
                 new TimestampType(true, TimestampKind.ROWTIME, 3)).getSqlTypeName))
       }
     }

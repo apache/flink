@@ -107,13 +107,13 @@ class BatchExecOverAggregate(
       inputType.getFieldNames ++ constants.indices.map(i => "TMP" + i)
     val inputTypesWithConstants = inputType.getChildren ++ constantTypes
     cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-        .buildLogicalRowType(inputTypeNamesWithConstants, inputTypesWithConstants)
+        .buildRelNodeRowType(inputTypeNamesWithConstants, inputTypesWithConstants)
   }
 
   lazy val aggregateCalls: Seq[AggregateCall] =
     windowGroupToAggCallToAggFunction.flatMap(_._2).map(_._1)
 
-  private lazy val inputType = FlinkTypeFactory.toInternalRowType(inputRowType)
+  private lazy val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
   def getGrouping: Array[Int] = grouping
 
@@ -359,7 +359,7 @@ class BatchExecOverAggregate(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
         .asInstanceOf[StreamTransformation[BaseRow]]
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     //The generated sort is used for generating the comparator among partitions.
     //So here not care the ASC or DESC for the grouping fields.

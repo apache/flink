@@ -122,7 +122,7 @@ object AggSqlFunction {
                     s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
-            .map(typeFactory.createTypeFromLogicalType)
+            .map(typeFactory.createFieldTypeFromLogicalType)
 
         for (i <- operandTypes.indices) {
           if (i < inferredTypes.length - 1) {
@@ -144,7 +144,7 @@ object AggSqlFunction {
 
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        typeFactory.createTypeFromLogicalType(resultType)
+        typeFactory.createFieldTypeFromLogicalType(resultType)
       }
     }
   }
