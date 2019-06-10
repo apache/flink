@@ -99,7 +99,7 @@ public class CoLocationConstraint {
 	 *
 	 * @return True if the location has been assigned and the shared slot is alive,
 	 *         false otherwise.
-	 * @deprecated Should only be called by legacy code (if using {@link Scheduler})
+	 * @deprecated Should only be called by legacy code
 	 */
 	@Deprecated
 	public boolean isAssignedAndAlive() {
