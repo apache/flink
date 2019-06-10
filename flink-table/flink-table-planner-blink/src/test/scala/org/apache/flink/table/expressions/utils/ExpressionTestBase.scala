@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.java.StreamTableEnvironment
-import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
 import org.apache.flink.table.types.DataType
@@ -58,11 +57,7 @@ abstract class ExpressionTestBase {
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
   private val tEnv = StreamTableEnvironment.create(env, config)
   private val relBuilder = tEnv.getRelBuilder
-  private val planner = new FlinkPlannerImpl(
-    tEnv.getFrameworkConfig,
-    tEnv.getPlanner,
-    tEnv.getTypeFactory,
-    relBuilder.getCluster)
+  private val planner = tEnv.getFlinkPlanner
 
   // setup test utils
   private val tableName = "testTable"
@@ -196,8 +191,7 @@ abstract class ExpressionTestBase {
 
   def testSqlApi(
       sqlExpr: String,
-      expected: String)
-    : Unit = {
+      expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected)
   }
 

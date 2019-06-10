@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.api.{DataTypes, TableConfig}
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
@@ -32,7 +32,7 @@ import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
+import org.apache.calcite.tools.RelBuilder
 import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 /**
@@ -44,14 +44,13 @@ abstract class AggTestBase {
   val env = new LocalStreamEnvironment
   val conf = new TableConfig
   val tEnv = new StreamTableEnvironment(env, conf)
-  val frameworkConfig: FrameworkConfig = tEnv.getFrameworkConfig
   val inputNames = Array("f0", "f1", "f2", "f3", "f4")
   val inputTypes: Array[LogicalType] = Array(
     new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new DoubleType(), new BigIntType(),
     new VarCharType(VarCharType.MAX_LENGTH))
-  val inputType = RowType.of(inputTypes, inputNames)
+  val inputType: RowType = RowType.of(inputTypes, inputNames)
 
-  val relBuilder: RelBuilder = FlinkRelBuilder.create(frameworkConfig).values(
+  val relBuilder: RelBuilder = tEnv.getRelBuilder.values(
     typeFactory.buildRelNodeRowType(inputNames, inputTypes))
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])

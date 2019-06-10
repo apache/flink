@@ -26,11 +26,10 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.util.ListSqlOperatorTable
+
+import java.util
 
 import _root_.scala.collection.JavaConversions._
-import _root_.scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
@@ -39,7 +38,7 @@ import scala.collection.mutable.ListBuffer
   */
 class FunctionCatalog() {
 
-  val sqlFunctions: ListBuffer[SqlFunction] = mutable.ListBuffer[SqlFunction]()
+  val sqlFunctions: util.List[SqlOperator] = new util.ArrayList[SqlOperator]()
 
   def registerScalarFunction(
       name: String,
@@ -96,6 +95,4 @@ class FunctionCatalog() {
     sqlFunctions.map(_.getName)
   }
 
-  def getSqlOperatorTable: SqlOperatorTable =
-      new ListSqlOperatorTable(sqlFunctions)
 }

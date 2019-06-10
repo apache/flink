@@ -23,20 +23,14 @@ import org.apache.flink.table.expressions.WindowProperty
 import org.apache.flink.table.runtime.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
-import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
-import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelBuilderFactory}
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.util
-import java.util.{Collections, Properties}
-
-import scala.collection.JavaConversions._
 
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
@@ -65,8 +59,6 @@ class FlinkRelBuilder(
   }
 
   def getRelOptSchema: RelOptSchema = relOptSchema
-
-  def getPlanner: RelOptPlanner = cluster.getPlanner
 
   def getCluster: RelOptCluster = relOptCluster
 
@@ -103,36 +95,6 @@ class FlinkRelBuilder(
 }
 
 object FlinkRelBuilder {
-
-  def create(config: FrameworkConfig): FlinkRelBuilder = {
-
-    // create Flink type factory
-    val typeSystem = config.getTypeSystem
-    val typeFactory = new FlinkTypeFactory(typeSystem)
-
-    // create context instances with Flink type factory
-    val context = config.getContext
-    val planner = new VolcanoPlanner(config.getCostFactory, context)
-    planner.setExecutor(config.getExecutor)
-    config.getTraitDefs.foreach(planner.addRelTraitDef)
-
-    val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
-    val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
-
-    val prop = new Properties()
-    prop.setProperty(
-      CalciteConnectionProperty.CASE_SENSITIVE.camelName,
-      String.valueOf(config.getParserConfig.caseSensitive))
-    val connectionConfig = new CalciteConnectionConfigImpl(prop)
-
-    val relOptSchema = new FlinkCalciteCatalogReader(
-      calciteSchema,
-      Collections.emptyList(),
-      typeFactory,
-      connectionConfig)
-
-    new FlinkRelBuilder(context, cluster, relOptSchema)
-  }
 
   /**
     * Information necessary to create a window aggregate.
