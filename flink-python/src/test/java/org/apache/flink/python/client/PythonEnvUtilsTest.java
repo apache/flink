@@ -31,7 +31,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -74,7 +77,7 @@ public class PythonEnvUtilsTest {
 		pyFilesList.add(tmpDirPath);
 
 		PythonEnvUtils.PythonEnvironment env = PythonEnvUtils.preparePythonEnvironment(pyFilesList);
-		List<String> expectedPythonPaths = new ArrayList<>();
+		Set<String> expectedPythonPaths = new HashSet<>();
 		expectedPythonPaths.add(env.workingDirectory);
 
 		String targetDir = env.workingDirectory + File.separator + tmpDirPath.getName();
@@ -84,7 +87,7 @@ public class PythonEnvUtilsTest {
 
 		// the parent dir for files suffixed with .py should also be added to PYTHONPATH
 		expectedPythonPaths.add(targetDir + File.separator + "subdir");
-		Assert.assertEquals(String.join(File.pathSeparator, expectedPythonPaths), env.pythonPath);
+		Assert.assertEquals(expectedPythonPaths, new HashSet<>(Arrays.asList(env.pythonPath.split(File.pathSeparator))));
 	}
 
 	@Test
