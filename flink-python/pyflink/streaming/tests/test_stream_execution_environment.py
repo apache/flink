@@ -19,6 +19,7 @@ import os
 import tempfile
 import json
 
+from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.streaming import StreamExecutionEnvironment
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -28,6 +29,11 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
         self.env = StreamExecutionEnvironment.get_execution_environment()
+
+    def test_get_config(self):
+        execution_config = self.env.get_config()
+
+        assert isinstance(execution_config, ExecutionConfig)
 
     def test_get_set_parallelism(self):
 
@@ -53,11 +59,25 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         assert parallelism == 8
 
+    def test_set_get_restart_strategy(self):
+
+        self.env.set_restart_strategy(RestartStrategies.no_restart())
+
+        restart_strategy = self.env.get_restart_strategy()
+
+        assert restart_strategy == RestartStrategies.no_restart()
+
     def test_add_default_kryo_serializer(self):
 
         self.env.add_default_kryo_serializer(
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
+
+        dict = self.env.get_config().get_default_kryo_serializer_classes()
+
+        assert dict == {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+                        'org.apache.flink.runtime.state'
+                        '.StateBackendTestBase$CustomKryoTestSerializer'}
 
     def test_register_type_with_kryo_serializer(self):
 
@@ -65,9 +85,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
 
+        dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
+
+        assert dict == {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+                        'org.apache.flink.runtime.state'
+                        '.StateBackendTestBase$CustomKryoTestSerializer'}
+
     def test_register_type(self):
 
         self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
+
+        type_list = self.env.get_config().get_registered_pojo_types()
+
+        assert type_list == ['org.apache.flink.runtime.state.StateBackendTestBase$TestPojo']
 
     def test_get_set_max_parallelism(self):
 

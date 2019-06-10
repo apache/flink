@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
 
@@ -34,6 +35,14 @@ class StreamExecutionEnvironment(object):
 
     def __init__(self, j_stream_execution_environment):
         self._j_stream_execution_environment = j_stream_execution_environment
+
+    def get_config(self):
+        """
+        Gets the config object.
+
+        :return: The :class:`~pyflink.common.ExecutionConfig` object.
+        """
+        return ExecutionConfig(self._j_stream_execution_environment.getConfig())
 
     def set_parallelism(self, parallelism):
         """
@@ -137,6 +146,26 @@ class StreamExecutionEnvironment(object):
         :return: True if chaining is enabled, false otherwise.
         """
         return self._j_stream_execution_environment.isChainingEnabled()
+
+    def set_restart_strategy(self, restart_strategy_configuration):
+        """
+        Sets the restart strategy configuration. The configuration specifies which restart strategy
+        will be used for the execution graph in case of a restart.
+
+        :param restart_strategy_configuration: Restart strategy configuration to be set.
+        :return:
+        """
+        self._j_stream_execution_environment.setRestartStrategy(
+            restart_strategy_configuration._j_restart_strategy_configuration)
+
+    def get_restart_strategy(self):
+        """
+        Returns the specified restart strategy configuration.
+
+        :return: The restart strategy configuration to be used.
+        """
+        return RestartStrategies._from_j_restart_strategy(
+            self._j_stream_execution_environment.getRestartStrategy())
 
     def add_default_kryo_serializer(self, type_class_name, serializer_class_name):
         """

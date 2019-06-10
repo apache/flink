@@ -22,6 +22,7 @@ import tempfile
 from py4j.protocol import Py4JJavaError
 
 from pyflink.batch import ExecutionEnvironment
+from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.table import DataTypes, BatchTableEnvironment, CsvTableSource, CsvTableSink
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -60,11 +61,31 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
 
         assert parallelism == 8
 
+    def test_get_config(self):
+
+        execution_config = self.env.get_config()
+
+        assert isinstance(execution_config, ExecutionConfig)
+
+    def test_set_get_restart_strategy(self):
+
+        self.env.set_restart_strategy(RestartStrategies.no_restart())
+
+        restart_strategy = self.env.get_restart_strategy()
+
+        assert restart_strategy == RestartStrategies.no_restart()
+
     def test_add_default_kryo_serializer(self):
 
         self.env.add_default_kryo_serializer(
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
+
+        dict = self.env.get_config().get_default_kryo_serializer_classes()
+
+        assert dict == {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+                        'org.apache.flink.runtime.state'
+                        '.StateBackendTestBase$CustomKryoTestSerializer'}
 
     def test_register_type_with_kryo_serializer(self):
 
@@ -72,9 +93,19 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
 
+        dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
+
+        assert dict == {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+                        'org.apache.flink.runtime.state'
+                        '.StateBackendTestBase$CustomKryoTestSerializer'}
+
     def test_register_type(self):
 
         self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
+
+        type_list = self.env.get_config().get_registered_pojo_types()
+
+        assert type_list == ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"]
 
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()
