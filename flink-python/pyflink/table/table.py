@@ -42,8 +42,9 @@ class Table(object):
     Example:
     ::
 
-        >>> t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
-        >>> t_env = TableEnvironment.create(t_config)
+        >>> env = StreamExecutionEnvironment.get_execution_environment()
+        >>> env.set_parallelism(1)
+        >>> t_env = StreamTableEnvironment.create(env)
         >>> ...
         >>> t_env.register_table_source("source", ...)
         >>> t = t_env.scan("source")
@@ -51,7 +52,7 @@ class Table(object):
         ...
         >>> t_env.register_table_sink("result", ...)
         >>> t.insert_into("result")
-        >>> t_env.execute()
+        >>> t_env.exec_env().execute()
 
     Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,
     :func:`~pyflink.table.Table.where` and :func:`~pyflink.table.Table.group_by`

@@ -27,8 +27,11 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from pyflink.table.sources import CsvTableSource
 
+from pyflink.batch import ExecutionEnvironment
+from pyflink.streaming import StreamExecutionEnvironment
+
 from pyflink.find_flink_home import _find_flink_home
-from pyflink.table import TableEnvironment, TableConfig
+from pyflink.table import BatchTableEnvironment, StreamTableEnvironment
 from pyflink.java_gateway import get_gateway
 
 if sys.version_info[0] >= 3:
@@ -104,8 +107,9 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
 
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
-        self.t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
-        self.t_env = TableEnvironment.create(self.t_config)
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(1)
+        self.t_env = StreamTableEnvironment.create(self.env)
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -115,8 +119,9 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
 
     def setUp(self):
         super(PyFlinkBatchTableTestCase, self).setUp()
-        self.t_config = TableConfig.Builder().as_batch_execution().set_parallelism(1).build()
-        self.t_env = TableEnvironment.create(self.t_config)
+        self.env = ExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(1)
+        self.t_env = BatchTableEnvironment.create(self.env)
 
     def collect(self, table):
         j_table = table._j_table

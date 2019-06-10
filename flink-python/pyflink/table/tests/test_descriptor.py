@@ -956,7 +956,7 @@ class AbstractTableDescriptorTests(object):
         t_env.scan("source") \
              .select("a + 1, b, c") \
              .insert_into("sink")
-        t_env.execute()
+        t_env.exec_env().execute()
 
         with open(sink_path, 'r') as f:
             lines = f.read()
@@ -998,7 +998,7 @@ class AbstractTableDescriptorTests(object):
         t_env.scan("source") \
              .select("a + 1, b, c") \
              .insert_into("sink")
-        t_env.execute()
+        t_env.exec_env().execute()
 
         with open(sink_path, 'r') as f:
             lines = f.read()

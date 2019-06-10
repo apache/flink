@@ -15,25 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.streaming.stream_execution_environment import StreamExecutionEnvironment
 
-from pyflink.java_gateway import get_gateway
-
-
-def to_jarray(j_type, arr):
-    """
-    Convert python list to java type array
-
-    :param j_type: java type of element in array
-    :param arr: python type list
-    """
-    gateway = get_gateway()
-    j_arr = gateway.new_array(j_type, len(arr))
-    for i in range(0, len(arr)):
-        j_arr[i] = arr[i]
-    return j_arr
-
-
-def load_java_class(class_name):
-    gateway = get_gateway()
-    context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
-    return context_classloader.loadClass(class_name)
+__all__ = ['StreamExecutionEnvironment']
