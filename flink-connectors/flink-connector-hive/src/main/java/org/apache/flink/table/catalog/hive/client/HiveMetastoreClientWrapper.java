@@ -54,10 +54,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	private final IMetaStoreClient client;
 	private final HiveConf hiveConf;
+	private final String hiveVersion;
 
-	public HiveMetastoreClientWrapper(HiveConf hiveConf) {
+	public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
 		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
 		client = createMetastoreClient();
+		this.hiveVersion = hiveVersion;
 	}
 
 	@Override
@@ -210,17 +212,17 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	//-------- Start of shimmed methods ----------
 
 	public List<String> getViews(String databaseName) throws UnknownDBException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getViews(client, databaseName);
 	}
 
 	private IMetaStoreClient createMetastoreClient() {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getHiveMetastoreClient(hiveConf);
 	}
 
 	public Function getFunction(String databaseName, String functionName) throws MetaException, TException {
-		HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getFunction(client, databaseName, functionName);
 	}
 }

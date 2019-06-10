@@ -42,11 +42,11 @@ public class HiveTestUtils {
 	}
 
 	public static HiveCatalog createHiveCatalog(String catalogName) {
-		return new HiveCatalog(catalogName, null, createHiveConf());
+		return new HiveCatalog(catalogName, null, createHiveConf(), null);
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
-		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf);
+		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf, null);
 	}
 
 	public static HiveConf createHiveConf() {

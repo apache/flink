@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -199,7 +200,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		StorageDescriptor jobSD = hiveTablePartition.getStorageDescriptor();
 		Path stagingDir = new Path(jobSD.getLocation());
 		FileSystem fs = stagingDir.getFileSystem(jobConf);
-		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class))) {
+		String hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, null);
+		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			Table table = client.getTable(databaseName, tableName);
 			if (!isDynamicPartition) {
 				commitJob(stagingDir.toString());
@@ -352,7 +354,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 				// Note we assume the srcDir is a hidden dir, otherwise it will be deleted if it's a sub-dir of destDir
 				FileStatus[] existingFiles = fs.listStatus(destDir, FileUtils.HIDDEN_FILES_PATH_FILTER);
 				if (existingFiles != null) {
-					HiveShim hiveShim = HiveShimLoader.loadHiveShim();
+					HiveShim hiveShim = HiveShimLoader.loadHiveShim(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, null));
 					for (FileStatus existingFile : existingFiles) {
 						Preconditions.checkState(hiveShim.moveToTrash(fs, existingFile.getPath(), jobConf, purge),
 							"Failed to overwrite existing file " + existingFile);

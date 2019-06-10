@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hive.common.util.HiveVersionInfo;
 import org.slf4j.Logger;
@@ -42,8 +43,10 @@ public class HiveShimLoader {
 	private HiveShimLoader() {
 	}
 
-	public static HiveShim loadHiveShim() {
-		String version = HiveVersionInfo.getVersion();
+	public static HiveShim loadHiveShim(String version) {
+		if (StringUtils.isNullOrWhitespaceOnly(version)) {
+			version = HiveVersionInfo.getVersion();
+		}
 		return hiveShims.computeIfAbsent(version, (v) -> {
 			if (v.startsWith(HIVE_V1_VERSION_NAME)) {
 				return new HiveShimV1();

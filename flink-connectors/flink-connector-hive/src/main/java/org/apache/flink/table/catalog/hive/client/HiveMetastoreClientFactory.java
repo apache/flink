@@ -28,7 +28,7 @@ public class HiveMetastoreClientFactory {
 	private HiveMetastoreClientFactory() {
 	}
 
-	public static HiveMetastoreClientWrapper create(HiveConf hiveConf) {
-		return new HiveMetastoreClientWrapper(hiveConf);
+	public static HiveMetastoreClientWrapper create(HiveConf hiveConf, String hiveVersion) {
+		return new HiveMetastoreClientWrapper(hiveConf, hiveVersion);
 	}
 }
