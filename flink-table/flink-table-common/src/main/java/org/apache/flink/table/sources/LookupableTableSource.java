@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.sources;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 
@@ -29,7 +29,7 @@ import org.apache.flink.table.functions.TableFunction;
  *
  * @param <T> type of the result
  */
-@PublicEvolving
+@Experimental
 public interface LookupableTableSource<T> extends TableSource<T> {
 
 	/**
@@ -45,7 +45,11 @@ public interface LookupableTableSource<T> extends TableSource<T> {
 	AsyncTableFunction<T> getAsyncLookupFunction(String[] lookupKeys);
 
 	/**
-	 * Defines the lookup behavior in the config. Such as whether to use async lookup.
+	 * Returns true if async lookup is enabled.
+	 *
+	 * <p>The lookup function returned by {@link #getAsyncLookupFunction(String[])} will be
+	 * used if returns true. Otherwise, the lookup function returned by
+	 * {@link #getLookupFunction(String[])} will be used.
 	 */
-	LookupConfig getLookupConfig();
+	boolean isAsyncEnabled();
 }

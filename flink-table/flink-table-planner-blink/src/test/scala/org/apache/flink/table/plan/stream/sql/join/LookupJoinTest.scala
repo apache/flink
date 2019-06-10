@@ -19,8 +19,6 @@
 package org.apache.flink.table.plan.stream.sql.join
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.table.api._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
@@ -31,11 +29,12 @@ import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
-
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
 
 import _root_.java.util
+import _root_.java.util.concurrent.CompletableFuture
+import _root_.java.util.{Collection => JCollection}
 import _root_.java.lang.{Long => JLong}
 import _root_.java.sql.Timestamp
 
@@ -161,7 +160,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T AS T JOIN temporalTable7 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Expected: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
+      "Expected: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
         "Actual: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
         "java.sql.Timestamp)",
@@ -173,9 +172,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T AS T JOIN temporalTable8 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-        "Expected: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
+        "Expected: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
-        "Actual: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
+        "Actual: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, java.lang.String, java.sql.Timestamp)",
       classOf[TableException]
     )
@@ -185,6 +184,18 @@ class LookupJoinTest extends TableTestBase with Serializable {
     verifyTranslationSuccess("SELECT * FROM T AS T JOIN temporalTable9 " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D " +
       "ON T.a = D.id AND T.b = D.name AND T.ts = D.ts")
+
+    val temporalTable10 = new TestInvalidTemporalTable(new InvalidAsyncTableFunctionEvalSignature3)
+    streamUtil.tableEnv.registerTableSource("temporalTable10", temporalTable10)
+    expectExceptionThrown(
+      "SELECT * FROM T AS T JOIN temporalTable10 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
+      "Expected: eval(java.util.concurrent.CompletableFuture, " +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
+        "Actual: eval(org.apache.flink.streaming.api.functions.async.ResultFuture, " +
+        "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long)",
+      classOf[TableException]
+    )
   }
 
   @Test
@@ -358,7 +369,7 @@ class TestTemporalTable
       "this method should never be called.")
   }
 
-  override def getLookupConfig: LookupConfig = LookupConfig.DEFAULT
+  override def isAsyncEnabled: Boolean = false
 
   override def getReturnType: TypeInformation[BaseRow] = {
     new BaseRowTypeInfo(
@@ -385,8 +396,7 @@ class TestInvalidTemporalTable private(
     async: Boolean,
     fetcher: TableFunction[_],
     asyncFetcher: AsyncTableFunction[_])
-  extends StreamTableSource[BaseRow]
-  with LookupableTableSource[BaseRow]
+  extends LookupableTableSource[BaseRow]
   with DefinedIndexes {
 
   val fieldNames: Array[String] = Array("id", "name", "age", "ts")
@@ -418,11 +428,7 @@ class TestInvalidTemporalTable private(
     asyncFetcher.asInstanceOf[AsyncTableFunction[BaseRow]]
   }
 
-  override def getLookupConfig: LookupConfig = {
-    LookupConfig.builder()
-        .setAsyncEnabled(async)
-        .build()
-  }
+  override def isAsyncEnabled: Boolean = async
 
   override def getIndexes: util.Collection[TableIndex] = {
     util.Collections.singleton(TableIndex.builder()
@@ -430,12 +436,6 @@ class TestInvalidTemporalTable private(
       .indexedColumns("id", "name", "ts")
       .build())
   }
-
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[BaseRow] = {
-    throw new UnsupportedOperationException("This TableSource is only used for unit test, " +
-      "this method should never be called.")
-  }
-
 }
 
 class InvalidTableFunctionResultType extends TableFunction[String] {
@@ -472,17 +472,25 @@ class InvalidAsyncTableFunctionEvalSignature1 extends AsyncTableFunction[BaseRow
 }
 
 class InvalidAsyncTableFunctionEvalSignature2 extends AsyncTableFunction[BaseRow] {
-  def eval(resultFuture: ResultFuture[BaseRow], a: Integer, b: String,  c: Timestamp): Unit = {
+  def eval(resultFuture: CompletableFuture[JCollection[BaseRow]],
+    a: Integer, b: String,  c: Timestamp): Unit = {
+  }
+}
+
+class InvalidAsyncTableFunctionEvalSignature3 extends AsyncTableFunction[BaseRow] {
+  def eval(resultFuture: ResultFuture[BaseRow],
+    a: Integer, b: BinaryString,  c: JLong): Unit = {
   }
 }
 
 class ValidAsyncTableFunction extends AsyncTableFunction[BaseRow] {
   @varargs
-  def eval(resultFuture: ResultFuture[BaseRow], objs: AnyRef*): Unit = {
+  def eval(resultFuture: CompletableFuture[JCollection[BaseRow]], objs: AnyRef*): Unit = {
   }
 }
 
 class ValidAsyncTableFunction2 extends AsyncTableFunction[BaseRow] {
-  def eval(resultFuture: ResultFuture[BaseRow], a: Integer, b: BinaryString, c: JLong): Unit = {
+  def eval(resultFuture: CompletableFuture[JCollection[BaseRow]],
+    a: Integer, b: BinaryString, c: JLong): Unit = {
   }
 }

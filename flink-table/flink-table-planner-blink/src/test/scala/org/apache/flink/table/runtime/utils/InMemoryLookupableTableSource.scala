@@ -21,9 +21,6 @@ package org.apache.flink.table.runtime.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext, TableFunction}
 import org.apache.flink.table.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction}
@@ -51,9 +48,8 @@ class InMemoryLookupableTableSource(
     data: List[Row],
     primaryKey: Option[Array[String]],
     tableIndexes: Array[TableIndex],
-    lookupConfig: LookupConfig)
+    asyncEnabled: Boolean)
   extends LookupableTableSource[Row]
-  with StreamTableSource[Row]
   with DefinedPrimaryKey
   with DefinedIndexes {
 
@@ -104,7 +100,7 @@ class InMemoryLookupableTableSource(
     map.toMap
   }
 
-  override def getLookupConfig: LookupConfig = lookupConfig
+  override def isAsyncEnabled: Boolean = asyncEnabled
 
   override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
 
@@ -120,9 +116,6 @@ class InMemoryLookupableTableSource(
   @VisibleForTesting
   def getResourceCounter: Int = resourceCounter.get()
 
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    throw new UnsupportedOperationException("This should never be called.")
-  }
 }
 
 object InMemoryLookupableTableSource {
@@ -181,7 +174,7 @@ object InMemoryLookupableTableSource {
     private val tableIndexes = new mutable.ArrayBuffer[TableIndex]()
     private var primaryKey: Option[Array[String]] = None
     private var data: List[Product] = _
-    private val lookupConfigBuilder: LookupConfig.Builder = LookupConfig.builder()
+    private var asyncEnabled: Boolean = false
 
     /**
       * Sets table data for the table source.
@@ -255,23 +248,7 @@ object InMemoryLookupableTableSource {
       * Enables async lookup for the table source
       */
     def enableAsync(): Builder = {
-      lookupConfigBuilder.setAsyncEnabled(true)
-      this
-    }
-
-    /**
-      * Sets async buffer capacity.
-      */
-    def asyncBufferCapacity(capacity: Int): Builder = {
-      lookupConfigBuilder.setAsyncBufferCapacity(capacity)
-      this
-    }
-
-    /**
-      * Sets async time out milli-second.
-      */
-    def asyncTimeoutMs(ms: Long): Builder = {
-      lookupConfigBuilder.setAsyncTimeoutMs(ms)
+      asyncEnabled = true
       this
     }
 
@@ -294,7 +271,7 @@ object InMemoryLookupableTableSource {
         rowData,
         primaryKey,
         tableIndexes.toArray,
-        lookupConfigBuilder.build()
+        asyncEnabled
       )
     }
   }
@@ -343,7 +320,7 @@ object InMemoryLookupableTableSource {
     }
 
     @varargs
-    def eval(resultFuture: ResultFuture[Row], inputs: AnyRef*): Unit = {
+    def eval(resultFuture: CompletableFuture[util.Collection[Row]], inputs: AnyRef*): Unit = {
       CompletableFuture
         .supplyAsync(new CollectionSupplier(data, Row.of(inputs: _*)), executor)
         .thenAccept(new CollectionConsumer(resultFuture))
@@ -369,7 +346,7 @@ object InMemoryLookupableTableSource {
       }
     }
 
-    private class CollectionConsumer(resultFuture: ResultFuture[Row])
+    private class CollectionConsumer(resultFuture: CompletableFuture[util.Collection[Row]])
         extends Consumer[util.Collection[Row]] {
 
       override def accept(results: util.Collection[Row]): Unit = {

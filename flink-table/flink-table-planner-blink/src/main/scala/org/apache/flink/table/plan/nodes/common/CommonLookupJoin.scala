@@ -21,11 +21,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.streaming.api.operators.ProcessOperator
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.api.{TableConfig, TableException, TableSchema}
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.LookupJoinCodeGenerator._
 import org.apache.flink.table.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
@@ -37,7 +36,7 @@ import org.apache.flink.table.plan.util.LookupJoinUtil._
 import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
 import org.apache.flink.table.sources.TableIndex.IndexType
-import org.apache.flink.table.sources.{LookupConfig, LookupableTableSource, TableIndex, TableSource}
+import org.apache.flink.table.sources.{LookupableTableSource, TableIndex, TableSource}
 import org.apache.flink.table.types.ClassLogicalTypeConverter
 import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -47,7 +46,6 @@ import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyIn
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
 
-import com.google.common.primitives.Primitives
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
@@ -59,7 +57,10 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.mapping.IntPair
 
+import com.google.common.primitives.Primitives
+
 import java.util.Collections
+import java.util.concurrent.CompletableFuture
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -129,7 +130,7 @@ abstract class CommonLookupJoin(
       case None => tableFieldNames
     }
     val resultFieldNames = getRowType.getFieldNames.asScala.toArray
-    val lookupConfig = getLookupConfig(tableSource.asInstanceOf[LookupableTableSource[_]])
+    val lookupableSource = tableSource.asInstanceOf[LookupableTableSource[_]]
     val whereString = calcOnTemporalTable match {
       case Some(calc) => RelExplainUtil.conditionToString(calc, getExpressionString)
       case None => "N/A"
@@ -138,7 +139,7 @@ abstract class CommonLookupJoin(
     super.explainTerms(pw)
       .item("table", tableSource.explainSource())
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
-      .item("async", lookupConfig.isAsyncEnabled)
+      .item("async", lookupableSource.isAsyncEnabled)
       .item("on", joinOnToString(inputFieldNames, rightFieldNames, joinInfo))
       .itemIf("where", whereString, calcOnTemporalTable.isDefined)
       .itemIf("joinCondition",
@@ -191,12 +192,13 @@ abstract class CommonLookupJoin(
       allLookupKeys)
 
     val lookupableTableSource = tableSource.asInstanceOf[LookupableTableSource[_]]
-    val lookupConfig = getLookupConfig(lookupableTableSource)
     val leftOuterJoin = joinType == JoinRelType.LEFT
 
-    val operator = if (lookupConfig.isAsyncEnabled) {
-      val asyncBufferCapacity= lookupConfig.getAsyncBufferCapacity
-      val asyncTimeout = lookupConfig.getAsyncTimeoutMs
+    val operator = if (lookupableTableSource.isAsyncEnabled) {
+      val asyncBufferCapacity= config.getConf
+        .getInteger(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
+      val asyncTimeout = config.getConf
+        .getLong(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT_MS)
 
       val asyncLookupFunction = lookupableTableSource
         .getAsyncLookupFunction(lookupFieldNamesInOrder)
@@ -212,10 +214,9 @@ abstract class CommonLookupJoin(
         producedTypeInfo,
         udtfResultType,
         extractedResultTypeInfo)
-      val parameters =
-        Array(new TypeInformationAnyType[ResultFuture[_]](
-          new GenericTypeInfo[ResultFuture[_]](classOf[ResultFuture[_]]))) ++
-            lookupFieldTypesInOrder
+      val futureType = new TypeInformationAnyType(
+        new GenericTypeInfo(classOf[CompletableFuture[_]]))
+      val parameters = Array(futureType) ++ lookupFieldTypesInOrder
       checkEvalMethodSignature(
         asyncLookupFunction,
         parameters,
@@ -253,7 +254,7 @@ abstract class CommonLookupJoin(
           producedTypeInfo,
           BaseRowTypeInfo.of(rightRowType),
           leftOuterJoin,
-          lookupConfig.getAsyncBufferCapacity)
+          asyncBufferCapacity)
       } else {
         // right type is the same as table source row type, because no calc after temporal table
         val rightRowType = tableSourceRowType
@@ -354,14 +355,6 @@ abstract class CommonLookupJoin(
       operator,
       BaseRowTypeInfo.of(resultRowType),
       inputTransformation.getParallelism)
-  }
-
-  def getLookupConfig(tableSource: LookupableTableSource[_]): LookupConfig = {
-    if (tableSource.getLookupConfig != null) {
-      tableSource.getLookupConfig
-    } else {
-      LookupConfig.DEFAULT
-    }
   }
 
   private def rowTypeEquals(expected: TypeInformation[_], actual: TypeInformation[_]): Boolean = {

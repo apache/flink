@@ -33,6 +33,7 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
 import org.apache.flink.table.plan.util.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
+import org.apache.flink.table.runtime.join.lookup.DelegatingResultFuture
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions
@@ -127,11 +128,13 @@ object LookupJoinCodeGenerator {
       fieldCopy = true) // always copy input field because of async buffer
 
     val lookupFunctionTerm = ctx.addReusableFunction(asyncLookupFunction)
+    val DELEGATE = className[DelegatingResultFuture[_]]
 
     val body =
       s"""
          |$prepareCode
-         |$lookupFunctionTerm.eval($DEFAULT_COLLECTOR_TERM, $parameters);
+         |$DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
+         |$lookupFunctionTerm.eval(delegates.getCompletableFuture(), $parameters);
       """.stripMargin
 
     FunctionCodeGenerator.generateFunction(

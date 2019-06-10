@@ -182,6 +182,20 @@ public class TableConfigOptions {
 					.withDescription("Cache size of every topn task.");
 
 	// ------------------------------------------------------------------------
+	//  Async Lookup Options
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Integer> SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY =
+		key("sql.exec.lookup.async.buffer-capacity")
+		.defaultValue(100)
+		.withDescription("The max number of async i/o operation that the async lookup join can trigger.");
+
+	public static final ConfigOption<Long> SQL_EXEC_LOOKUP_ASYNC_TIMEOUT_MS =
+		key("sql.exec.lookup.async.timeout-ms")
+		.defaultValue(180_000L)
+		.withDescription("The async timeout millisecond for the asynchronous operation to complete.");
+
+	// ------------------------------------------------------------------------
 	//  MiniBatch Options
 	// ------------------------------------------------------------------------
 
