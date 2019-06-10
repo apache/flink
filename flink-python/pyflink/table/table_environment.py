@@ -19,8 +19,10 @@ import os
 import tempfile
 from abc import ABCMeta, abstractmethod
 
+from pyflink.dataset import ExecutionEnvironment
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.descriptors import (StreamTableDescriptor, ConnectorDescriptor,
@@ -369,16 +371,12 @@ class TableEnvironment(object):
         """
         self._j_tenv.useDatabase(database_name)
 
-    def execute(self, job_name=None):
+    @abstractmethod
+    def exec_env(self):
         """
-        Triggers the program execution.
-
-        :param job_name: Optional, desired name of the job.
+        :return: The execution environment of this table environment.
         """
-        if job_name is not None:
-            self._j_tenv.execEnv().execute(job_name)
-        else:
-            self._j_tenv.execEnv().execute()
+        pass
 
     @abstractmethod
     def get_config(self):
@@ -431,32 +429,6 @@ class TableEnvironment(object):
                  table source/sink.
         """
         pass
-
-    @classmethod
-    def create(cls, table_config):
-        """
-        Returns a :class:`StreamTableEnvironment` or a :class:`BatchTableEnvironment`
-        which matches the :class:`TableConfig`'s content.
-
-        :type table_config: The TableConfig for the new TableEnvironment.
-        :return: Desired :class:`TableEnvironment`.
-        """
-        gateway = get_gateway()
-        if table_config.is_stream():
-            j_execution_env = gateway.jvm.StreamExecutionEnvironment.getExecutionEnvironment()
-            j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                j_execution_env, table_config._j_table_config)
-            t_env = StreamTableEnvironment(j_tenv)
-        else:
-            j_execution_env = gateway.jvm.ExecutionEnvironment.getExecutionEnvironment()
-            j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                j_execution_env, table_config._j_table_config)
-            t_env = BatchTableEnvironment(j_tenv)
-
-        if table_config.parallelism() is not None:
-            t_env._j_tenv.execEnv().setParallelism(table_config.parallelism())
-
-        return t_env
 
     def from_elements(self, elements, schema=None, verify_schema=True):
         """
@@ -561,8 +533,6 @@ class StreamTableEnvironment(TableEnvironment):
         """
         table_config = TableConfig()
         table_config._j_table_config = self._j_tenv.getConfig()
-        table_config._set_stream(True)
-        table_config._set_parallelism(self._j_tenv.execEnv().getParallelism())
         return table_config
 
     def query_config(self):
@@ -605,6 +575,24 @@ class StreamTableEnvironment(TableEnvironment):
         return StreamTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
+    def exec_env(self):
+        """
+        :return: The stream execution environment of this table environment.
+        """
+        return StreamExecutionEnvironment(self._j_tenv.execEnv())
+
+    @classmethod
+    def create(cls, stream_execution_environment, table_config=None):
+        gateway = get_gateway()
+        if table_config is not None:
+            j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                stream_execution_environment._j_stream_execution_environment,
+                table_config._j_table_config)
+        else:
+            j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                stream_execution_environment._j_stream_execution_environment)
+        return StreamTableEnvironment(j_tenv)
+
 
 class BatchTableEnvironment(TableEnvironment):
 
@@ -627,8 +615,6 @@ class BatchTableEnvironment(TableEnvironment):
         """
         table_config = TableConfig()
         table_config._j_table_config = self._j_tenv.getConfig()
-        table_config._set_stream(False)
-        table_config._set_parallelism(self._j_tenv.execEnv().getParallelism())
         return table_config
 
     def query_config(self):
@@ -670,3 +656,21 @@ class BatchTableEnvironment(TableEnvironment):
         # type: (ConnectorDescriptor) -> BatchTableDescriptor
         return BatchTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
+
+    def exec_env(self):
+        """
+        :return: The stream execution environment of this table environment.
+        """
+        return ExecutionEnvironment(self._j_tenv.execEnv())
+
+    @classmethod
+    def create(cls, execution_environment, table_config=None):
+        gateway = get_gateway()
+        if table_config is not None:
+            j_tenv = gateway.jvm.BatchTableEnvironment.create(
+                execution_environment._j_execution_environment,
+                table_config._j_table_config)
+        else:
+            j_tenv = gateway.jvm.BatchTableEnvironment.create(
+                execution_environment._j_execution_environment)
+        return BatchTableEnvironment(j_tenv)

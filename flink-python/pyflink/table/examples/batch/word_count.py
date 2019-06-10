@@ -67,7 +67,7 @@ def word_count():
          .select("word, count(1) as count") \
          .insert_into("Results")
 
-    t_env.execute()
+    t_env.exec_env().execute()
 
 
 if __name__ == '__main__':

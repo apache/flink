@@ -17,7 +17,12 @@
 ################################################################################
 import platform
 
+from pyflink.dataset import ExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import *
+from pyflink.table.catalog import *
+from pyflink.table.descriptors import *
+from pyflink.table.window import *
 
 print("Using Python version %s (%s, %s)" % (
     platform.python_version(),
@@ -75,29 +80,27 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * import shutil
     * sink_path = tempfile.gettempdir() + '/batch.csv'
     * if os.path.exists(sink_path):
-    *    if os.path.isfile(sink_path):
-    *        os.remove(sink_path)
-    *    else:
-    *        shutil.rmtree(sink_path)
-    * bt_config = TableConfig.Builder().set_parallelism(1).as_batch_execution().build()
-    * bt_env = TableEnvironment.create(bt_config)
+    *     if os.path.isfile(sink_path):
+    *         os.remove(sink_path)
+    *     else:
+    *         shutil.rmtree(sink_path)
+    * bt_env.exec_env().set_parallelism(1)
     * t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * bt_env.connect(FileSystem().path(sink_path))\\
-    *    .with_format(OldCsv()
-    *                .field_delimiter(',')
-    *                .field("a", DataTypes.BIGINT())
-    *                .field("b", DataTypes.STRING())
-    *                .field("c", DataTypes.STRING()))\\
-    *    .with_schema(Schema()
-    *                .field("a", DataTypes.BIGINT())
-    *                .field("b", DataTypes.STRING())
-    *                .field("c", DataTypes.STRING()))\\
-    *    .register_table_sink("batch_sink")
-    * 
-    * t.select("a + 1, b, c")\\
-    *   .insert_into("batch_sink")
-    *                
-    * bt_env.execute()
+    * bt_env.connect(FileSystem().path(sink_path))\
+    *     .with_format(OldCsv()
+    *                  .field_delimiter(',')
+    *                  .field("a", DataTypes.BIGINT())
+    *                  .field("b", DataTypes.STRING())
+    *                  .field("c", DataTypes.STRING()))\
+    *     .with_schema(Schema()
+    *                  .field("a", DataTypes.BIGINT())
+    *                  .field("b", DataTypes.STRING())
+    *                  .field("c", DataTypes.STRING()))\
+    *     .register_table_sink("batch_sink")
+    *
+    * t.select("a + 1, b, c").insert_into("batch_sink")
+    *
+    * bt_env.exec_env().execute()
 
   Streaming - Use the 'st_env' variable
 
@@ -107,34 +110,30 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * import shutil
     * sink_path = tempfile.gettempdir() + '/streaming.csv'
     * if os.path.exists(sink_path):
-    *    if os.path.isfile(sink_path):
-    *        os.remove(sink_path)
-    *    else:
-    *        shutil.rmtree(sink_path)
-    * st_config = TableConfig.Builder().set_parallelism(1).as_streaming_execution().build()
-    * st_env = TableEnvironment.create(st_config)
+    *     if os.path.isfile(sink_path):
+    *         os.remove(sink_path)
+    *     else:
+    *         shutil.rmtree(sink_path)
+    * st_env.exec_env().set_parallelism(1)
     * t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
     * st_env.connect(FileSystem().path(sink_path))\\
-    *    .with_format(OldCsv()
-    *                .field_delimiter(',')
-    *                .field("a", DataTypes.BIGINT())
-    *                .field("b", DataTypes.STRING())
-    *                .field("c", DataTypes.STRING()))\\
-    *    .with_schema(Schema()
-    *                .field("a", DataTypes.BIGINT())
-    *                .field("b", DataTypes.STRING())
-    *                .field("c", DataTypes.STRING()))\\
-    *    .register_table_sink("stream_sink")
+    *     .with_format(OldCsv()
+    *                  .field_delimiter(',')
+    *                  .field("a", DataTypes.BIGINT())
+    *                  .field("b", DataTypes.STRING())
+    *                  .field("c", DataTypes.STRING()))\\
+    *     .with_schema(Schema()
+    *                  .field("a", DataTypes.BIGINT())
+    *                  .field("b", DataTypes.STRING())
+    *                  .field("c", DataTypes.STRING()))\\
+    *     .register_table_sink("stream_sink")
     * 
-    * t.select("a + 1, b, c")\\
-    *   .insert_into("stream_sink")
+    * t.select("a + 1, b, c").insert_into("stream_sink")
     *
-    * st_env.execute()
+    * st_env.exec_env().execute()
       '''
 print(welcome_msg)
 
-bt_config = TableConfig.Builder().as_batch_execution().build()
-bt_env = TableEnvironment.create(bt_config)
+bt_env = BatchTableEnvironment.create(ExecutionEnvironment.get_execution_environment())
 
-st_config = TableConfig.Builder().as_streaming_execution().build()
-st_env = TableEnvironment.create(st_config)
+st_env = StreamTableEnvironment.create(StreamExecutionEnvironment.get_execution_environment())
