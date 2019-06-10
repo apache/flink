@@ -76,19 +76,19 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   protected val DEFAULT_JOB_NAME = "Flink Exec Table Job"
 
-  // the catalog to hold all registered and translated tables
-  // we disable caching here to prevent side effects
-  private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(false, false)
-  private val rootSchema: SchemaPlus = internalSchema.plus()
   private val functionCatalog = new FunctionCatalog
 
   private val plannerContext: PlannerContext =
     new PlannerContext(
       config,
       functionCatalog,
-      internalSchema,
+      // the catalog to hold all registered and translated tables
+      // we disable caching here to prevent side effects
+      CalciteSchema.createRootSchema(false, false),
       getTraitDefs.toList
     )
+
+  private lazy val rootSchema: SchemaPlus = planningConfigurationBuilder.getRootSchema
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = plannerContext.createRelBuilder()

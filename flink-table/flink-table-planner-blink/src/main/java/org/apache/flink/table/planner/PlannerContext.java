@@ -107,6 +107,10 @@ public class PlannerContext {
 		return typeFactory;
 	}
 
+	public SchemaPlus getRootSchema() {
+		return frameworkConfig.getDefaultSchema();
+	}
+
 	/**
 	 * Creates a configured {@link FlinkRelBuilder} for a planning session.
 	 *
