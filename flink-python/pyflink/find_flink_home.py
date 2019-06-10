@@ -28,9 +28,6 @@ def _find_flink_home():
     # If the environment has set FLINK_HOME, trust it.
     if 'FLINK_HOME' in os.environ:
         return os.environ['FLINK_HOME']
-    elif 'FLINK_ROOT_DIR' in os.environ:
-        os.environ['FLINK_HOME'] = os.environ['FLINK_ROOT_DIR']
-        return os.environ['FLINK_ROOT_DIR']
     else:
         try:
             flink_root_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + "/../../")

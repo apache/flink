@@ -17,6 +17,7 @@
 ################################################################################
 import os
 import platform
+import shlex
 import shutil
 import signal
 import struct
@@ -65,6 +66,9 @@ def launch_gateway():
     script = "./bin/pyflink-gateway-server.sh"
     command = [os.path.join(FLINK_HOME, script)]
     command += ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
+
+    submit_args = os.environ.get("SUBMIT_ARGS", "local")
+    command += shlex.split(submit_args)
 
     # Create a temporary directory where the gateway server should write the connection information.
     conn_info_dir = tempfile.mkdtemp()

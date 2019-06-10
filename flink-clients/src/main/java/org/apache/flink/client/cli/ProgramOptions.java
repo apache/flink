@@ -77,7 +77,11 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			line.getOptionValues(ARGS_OPTION.getOpt()) :
 			line.getArgs();
 
-		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt());
+		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
+			line.getOptionValue(CLASS_OPTION.getOpt()) : null;
+
+		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt())
+			| "org.apache.flink.python.client.PythonGatewayServer".equals(entryPointClass);
 		// If specified the option -py(--python)
 		if (line.hasOption(PY_OPTION.getOpt())) {
 			// Cannot use option -py and -pym simultaneously.
@@ -150,9 +154,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			}
 		}
 		this.classpaths = classpaths;
-
-		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-			line.getOptionValue(CLASS_OPTION.getOpt()) : null;
 
 		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
 			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
