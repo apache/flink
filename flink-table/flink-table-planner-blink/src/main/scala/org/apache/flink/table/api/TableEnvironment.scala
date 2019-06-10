@@ -745,7 +745,13 @@ abstract class TableEnvironment(
     */
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
     checkValidTableName(name)
-    registerTableSourceInternal(name, tableSource, FlinkStatistic.UNKNOWN, replace = false)
+    registerTableSourceInternal(
+      name,
+      tableSource,
+      FlinkStatistic.builder()
+        .tableStats(tableSource.getTableStats.orElse(null))
+        .build(),
+      replace = false)
   }
 
   /**
@@ -758,7 +764,13 @@ abstract class TableEnvironment(
   def registerOrReplaceTableSource(name: String,
       tableSource: TableSource[_]): Unit = {
     checkValidTableName(name)
-    registerTableSourceInternal(name, tableSource, FlinkStatistic.UNKNOWN, replace = true)
+    registerTableSourceInternal(
+      name,
+      tableSource,
+      FlinkStatistic.builder()
+        .tableStats(tableSource.getTableStats.orElse(null))
+        .build(),
+      replace = true)
   }
 
   /**

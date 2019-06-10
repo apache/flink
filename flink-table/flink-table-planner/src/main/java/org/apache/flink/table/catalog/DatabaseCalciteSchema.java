@@ -75,7 +75,7 @@ class DatabaseCalciteSchema implements Schema {
 					.map(tableSource -> new TableSourceTable<>(
 						tableSource,
 						!connectorTable.isBatch(),
-						FlinkStatistic.UNKNOWN()))
+						FlinkStatistic.of(tableSource.getTableStats().orElse(null))))
 					.orElseThrow(() -> new TableException("Cannot query a sink only table."));
 			} else {
 				throw new TableException("Unsupported table type: " + table);

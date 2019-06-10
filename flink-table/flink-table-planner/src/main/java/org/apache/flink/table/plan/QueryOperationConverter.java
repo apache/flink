@@ -278,7 +278,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			final Table relTable = new TableSourceTable<>(
 				tableSourceTable.getTableSource(),
 				!tableSourceTable.isBatch(),
-				FlinkStatistic.UNKNOWN());
+				FlinkStatistic.of(tableSourceTable.getTableSource().getTableStats().orElse(null)));
 
 			CatalogReader catalogReader = (CatalogReader) relBuilder.getRelOptSchema();
 

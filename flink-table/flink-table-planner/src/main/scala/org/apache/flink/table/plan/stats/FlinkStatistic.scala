@@ -86,6 +86,6 @@ object FlinkStatistic {
     * @param tableStats The table statistics.
     * @return The generated FlinkStatistic
     */
-  def of(tableStats: TableStats): FlinkStatistic = new FlinkStatistic(Some(tableStats))
+  def of(tableStats: TableStats): FlinkStatistic = new FlinkStatistic(Option(tableStats))
 
 }
