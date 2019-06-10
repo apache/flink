@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.RelDataTypeSystem
-import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
+import org.apache.calcite.sql.`type`.{ArraySqlType, BasicSqlType, MapSqlType, SqlTypeName}
 import org.apache.flink.table.types.logical.TypeInformationAnyType
 
 import java.lang
@@ -58,6 +58,9 @@ class GenericRelDataType(
     genericType.hashCode()
   }
 
+  /**
+    * [[ArraySqlType]], [[MapSqlType]]... use generateTypeString to equals and hashcode.
+    */
   override def generateTypeString(sb: lang.StringBuilder, withDetail: Boolean): Unit = {
     sb.append(toString)
   }
