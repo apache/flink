@@ -21,6 +21,7 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.common.restart_strategy import RestartStrategies
+from pyflink.common.time_characteristic import TimeCharacteristic
 
 __all__ = [
     'CheckpointConfig',
@@ -29,5 +30,6 @@ __all__ = [
     'ExecutionConfig',
     'ExecutionMode',
     'InputDependencyConstraint',
-    'RestartStrategies'
+    'RestartStrategies',
+    'TimeCharacteristic'
 ]

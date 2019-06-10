@@ -20,7 +20,7 @@ import tempfile
 import json
 
 from pyflink.common import (ExecutionConfig, RestartStrategies, CheckpointConfig,
-                            CheckpointingMode)
+                            CheckpointingMode, TimeCharacteristic)
 from pyflink.streaming import StreamExecutionEnvironment
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -139,6 +139,18 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         mode = self.env.get_checkpointing_mode()
 
         assert mode == CheckpointingMode.AT_LEAST_ONCE
+
+    def test_get_set_stream_time_characteristic(self):
+
+        default_time_characteristic = self.env.get_stream_time_characteristic()
+
+        assert default_time_characteristic == TimeCharacteristic.ProcessingTime
+
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+
+        time_characteristic = self.env.get_stream_time_characteristic()
+
+        assert time_characteristic == TimeCharacteristic.EventTime
 
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()

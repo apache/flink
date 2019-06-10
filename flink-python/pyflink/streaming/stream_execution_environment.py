@@ -17,6 +17,7 @@
 ################################################################################
 from pyflink.common import CheckpointConfig, CheckpointingMode, RestartStrategies
 from pyflink.common.execution_config import ExecutionConfig
+from pyflink.common.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
 
@@ -266,6 +267,52 @@ class StreamExecutionEnvironment(object):
         """
         type_clz = load_java_class(type_class_name)
         self._j_stream_execution_environment.registerType(type_clz)
+
+    def set_stream_time_characteristic(self, characteristic):
+        """
+        Sets the time characteristic for all streams create from this environment, e.g., processing
+        time, event time, or ingestion time.
+
+        If you set the characteristic to IngestionTime of EventTime this will set a default
+        watermark update interval of 200 ms. If this is not applicable for your application
+        you should change it using
+        :func:`pyflink.common.ExecutionConfig.set_auto_watermark_interval`.
+
+        :param characteristic: The time characteristic.
+        """
+        gateway = get_gateway()
+        JTimeCharacteristic = gateway.jvm.org.apache.flink.streaming.api.TimeCharacteristic
+        if characteristic == TimeCharacteristic.EventTime:
+            j_characteristic = JTimeCharacteristic.EventTime
+        elif characteristic == TimeCharacteristic.IngestionTime:
+            j_characteristic = JTimeCharacteristic.IngestionTime
+        elif characteristic == TimeCharacteristic.ProcessingTime:
+            j_characteristic = JTimeCharacteristic.ProcessingTime
+        else:
+            raise TypeError("Unsupported time characteristic: %s, supported time characteristic "
+                            "are: TimeCharacteristic.EventTime, TimeCharacteristic.IngestionTime, "
+                            "TimeCharacteristic.ProcessingTime." % characteristic)
+        self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
+
+    def get_stream_time_characteristic(self):
+        """
+        Gets the time characteristic.
+
+        see :func:`set_stream_time_characteristic`
+
+        :return: The :class:`TimeCharacteristic`.
+        """
+        gateway = get_gateway()
+        JTimeCharacteristic = gateway.jvm.org.apache.flink.streaming.api.TimeCharacteristic
+        j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
+        if j_characteristic == JTimeCharacteristic.EventTime:
+            return TimeCharacteristic.EventTime
+        elif j_characteristic == JTimeCharacteristic.ProcessingTime:
+            return TimeCharacteristic.ProcessingTime
+        elif j_characteristic == JTimeCharacteristic.IngestionTime:
+            return TimeCharacteristic.IngestionTime
+        else:
+            raise Exception("Unsupported java time characteristic: %s." % j_characteristic)
 
     def get_default_local_parallelism(self):
         """
