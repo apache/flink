@@ -33,6 +33,8 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -1052,6 +1054,64 @@ public abstract class CatalogTest {
 		assertEquals(2, catalog.listPartitions(path1, createPartitionSpecSubset()).size());
 		assertEquals(1, catalog.listPartitions(path1, createAnotherPartitionSpecSubset()).size());
 	}
+
+
+	// ------ table and column stats ------
+
+	@Test
+	public void testGetTableStats_TableNotExistException() throws Exception{
+		catalog.createDatabase(db1, createDb(), false);
+		exception.expect(org.apache.flink.table.api.TableNotExistException.class);
+		catalog.getTableStatistics(path1);
+	}
+
+	@Test
+	public void testGetPartitionStats() throws Exception{
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+		// there're essentially no stats, so nothing to assert
+		catalog.getPartitionStatistics(path1, createPartitionSpec());
+	}
+
+	@Test
+	public void testAlterTableStats() throws Exception{
+		// Non-partitioned table
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createTable();
+		catalog.createTable(path1, table, false);
+		CatalogTableStatistics tableStats = new CatalogTableStatistics(100, 10, 1000, 10000);
+		catalog.alterTableStatistics(path1, tableStats, false);
+		CatalogTableStatistics actual = catalog.getTableStatistics(path1);
+
+		assertEquals(tableStats.toString(), actual.toString());
+	}
+
+	@Test
+	public void testAlterTableStats_partitionedTable() throws Exception {
+		// alterTableStats() should do nothing for partitioned tables
+		// getTableStats() should return empty column stats for partitioned tables
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+
+		catalog.alterTableStatistics(path1, stats, false);
+
+		assertEquals(CatalogTableStatistics.UNKNOWN, catalog.getTableStatistics(path1));
+	}
+
+	@Test
+	public void testAlterTableStats_TableNotExistException() throws Exception {
+		exception.expect(TableNotExistException.class);
+		catalog.alterTableStatistics(new ObjectPath(catalog.getDefaultDatabase(), "nonexist"), null, false);
+	}
+
+	@Test
+	public void testAlterTableStats_TableNotExistException_ignore() throws Exception {
+		catalog.alterTableStatistics(new ObjectPath("non", "exist"), null, true);
+	}
+
 
 	// ------ utilities ------
 
