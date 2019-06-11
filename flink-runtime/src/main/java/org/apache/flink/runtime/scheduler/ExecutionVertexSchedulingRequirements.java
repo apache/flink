@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 
