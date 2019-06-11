@@ -45,22 +45,11 @@ public class BatchParallelismProcessor implements DAGProcessor {
 		List<ExecNode<?, ?>> rootNodes = filterSinkNodes(sinkNodes);
 		Map<ExecNode<?, ?>, Integer> nodeToFinalParallelismMap = BatchFinalParallelismSetter.calculate(tEnv, rootNodes);
 		Map<ExecNode<?, ?>, ShuffleStage> nodeShuffleStageMap = ShuffleStageGenerator.generate(rootNodes, nodeToFinalParallelismMap);
-		calculateOnShuffleStages(nodeShuffleStageMap);
+		new BatchShuffleStageParallelismCalculator(tEnv.getConfig().getConf(), tEnv.streamEnv().getParallelism());
 		for (ExecNode<?, ?> node : nodeShuffleStageMap.keySet()) {
 			node.getResource().setParallelism(nodeShuffleStageMap.get(node).getParallelism());
 		}
 		return sinkNodes;
-	}
-
-	protected void calculateOnShuffleStages(Map<ExecNode<?, ?>, ShuffleStage> nodeShuffleStageMap) {
-		Configuration tableConf = tEnv.getConfig().getConf();
-		getShuffleStageParallelismCalculator(tableConf).calculate(nodeShuffleStageMap.values());
-	}
-
-	protected BatchShuffleStageParallelismCalculator getShuffleStageParallelismCalculator(
-			Configuration tableConf) {
-		int envParallelism = tEnv.streamEnv().getParallelism();
-		return new BatchShuffleStageParallelismCalculator(tableConf, envParallelism);
 	}
 
 	private List<ExecNode<?, ?>> filterSinkNodes(List<ExecNode<?, ?>> sinkNodes) {
