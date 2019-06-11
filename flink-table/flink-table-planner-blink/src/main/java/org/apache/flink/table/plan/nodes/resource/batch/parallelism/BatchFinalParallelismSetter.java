@@ -92,6 +92,7 @@ public class BatchFinalParallelismSetter {
 		calculateInputs(execNode);
 		for (ExecNode<?, ?> inputNode : execNode.getInputNodes()) {
 			if (inputNode instanceof BatchExecExchange) {
+				// set parallelism as 1 to GlobalAggregate and other global node.
 				if (((BatchExecExchange) inputNode).getDistribution().getType() == RelDistribution.Type.SINGLETON) {
 					finalParallelismNodeMap.put(execNode, 1);
 					return;

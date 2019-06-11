@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
@@ -35,7 +36,7 @@ import java.util.Set;
 public class BatchShuffleStageParallelismCalculator {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchShuffleStageParallelismCalculator.class);
 	private final Configuration tableConf;
-	protected final int envParallelism;
+	private final int envParallelism;
 
 	public BatchShuffleStageParallelismCalculator(Configuration tableConf, int envParallelism) {
 		this.tableConf = tableConf;
@@ -47,6 +48,7 @@ public class BatchShuffleStageParallelismCalculator {
 		shuffleStageSet.forEach(this::calculate);
 	}
 
+	@VisibleForTesting
 	protected void calculate(ShuffleStage shuffleStage) {
 		if (shuffleStage.isFinalParallelism()) {
 			return;
@@ -68,7 +70,7 @@ public class BatchShuffleStageParallelismCalculator {
 		}
 	}
 
-	protected int calculateSource(BatchExecTableSourceScan tableSourceScan) {
+	private int calculateSource(BatchExecTableSourceScan tableSourceScan) {
 		boolean infer = !NodeResourceConfig.getInferMode(tableConf).equals(NodeResourceConfig.InferMode.NONE);
 		LOG.info("infer source partitions num: " + infer);
 		if (infer) {
@@ -85,7 +87,7 @@ public class BatchShuffleStageParallelismCalculator {
 		}
 	}
 
-	protected Configuration getTableConf() {
+	private Configuration getTableConf() {
 		return this.tableConf;
 	}
 }

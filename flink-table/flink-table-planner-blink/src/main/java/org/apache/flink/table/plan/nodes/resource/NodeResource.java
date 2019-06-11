@@ -33,4 +33,12 @@ public class NodeResource {
 	public void setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder("{");
+		sb.append("parallelism=").append(parallelism);
+		sb.append("}");
+		return sb.toString();
+	}
 }

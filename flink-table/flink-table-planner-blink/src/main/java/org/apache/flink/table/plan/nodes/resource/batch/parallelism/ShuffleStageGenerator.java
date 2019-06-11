@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
 
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecUnion;
 
 import org.apache.calcite.rel.RelDistribution;
@@ -36,7 +35,11 @@ import java.util.stream.Collectors;
 import static java.util.stream.Collectors.toList;
 
 /**
- * Build shuffleStages.
+ * Build exec nodes to shuffleStages according to {@link BatchExecExchange}.
+ * If there is data shuffle between two adjacent exec nodes,
+ * they are belong to different shuffleStages.
+ * If there is no data shuffle between two adjacent exec nodes, but
+ * they have different final parallelism, they are also belong to different shuffleStages.
  */
 public class ShuffleStageGenerator {
 
@@ -79,9 +82,8 @@ public class ShuffleStageGenerator {
 				shuffleStage.setParallelism(nodeToFinalParallelismMap.get(execNode), true);
 			}
 			nodeShuffleStageMap.put(execNode, shuffleStage);
-		} else if (execNode instanceof BatchExecExchange && !(((BatchExecExchange) execNode).getDistribution().getType() == RelDistribution.Type.RANGE_DISTRIBUTED)) {
-			// do nothing
-		} else if (execNode instanceof BatchExecSink) {
+		} else if (execNode instanceof BatchExecExchange &&
+				!(((BatchExecExchange) execNode).getDistribution().getType() == RelDistribution.Type.RANGE_DISTRIBUTED)) {
 			// do nothing
 		} else {
 			Set<ShuffleStage> inputShuffleStages = getInputShuffleStages(execNode);

@@ -122,9 +122,9 @@ class BatchTableEnvironment(
 
   override private[flink] def translateToExecNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
     val nodeDag = super.translateToExecNodeDag(rels)
-    // breakup deadlock
-    val postNodeDag = new DeadlockBreakupProcessor().process(nodeDag)
     val context = new DAGProcessContext(this)
+    // breakup deadlock
+    val postNodeDag = new DeadlockBreakupProcessor().process(nodeDag, context)
     new BatchParallelismProcessor().process(postNodeDag, context)
   }
 

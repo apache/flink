@@ -147,6 +147,4 @@ class BatchExecSink[T](
                                    "This is a bug and should not happen. Please file an issue.")
     }
   }
-
-
 }

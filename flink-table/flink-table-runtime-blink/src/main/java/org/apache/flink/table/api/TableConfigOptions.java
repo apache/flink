@@ -244,10 +244,4 @@ public class TableConfigOptions {
 					.defaultValue(1000000L)
 					.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
 							"to input row count.");
-
-	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MAX =
-			key("sql.resource.infer.operator.parallelism.max")
-					.defaultValue(800)
-					.withDescription("Sets max parallelism for all operators.");
-
 }

@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
 
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfigOptions;
-
-import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * Deal with resource config for {@link org.apache.flink.table.plan.nodes.exec.ExecNode}.
@@ -33,55 +30,6 @@ public class NodeResourceConfig {
 	 * How many Bytes per MB.
 	 */
 	public static final long SIZE_IN_MB =  1024L * 1024;
-
-	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MIN =
-			key("sql.resource.infer.operator.parallelism.min")
-					.defaultValue(1)
-					.withDescription("Sets min parallelism for operators.");
-
-	/**
-	 * Gets the config max num of operator parallelism.
-	 *
-	 * @param tableConf Configuration.
-	 * @return the config max num of operator parallelism.
-	 */
-	public static int getOperatorMaxParallelism(Configuration tableConf) {
-		return tableConf.getInteger(TableConfigOptions.SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MAX);
-	}
-
-	/**
-	 * Gets the config min num of operator parallelism.
-	 *
-	 * @param tableConf Configuration.
-	 * @return the config max num of operator parallelism.
-	 */
-	public static int getOperatorMinParallelism(Configuration tableConf) {
-		return tableConf.getInteger(SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MIN);
-	}
-
-	/**
-	 * Gets the config row count that one partition processes.
-	 *
-	 * @param tableConf Configuration.
-	 * @return the config row count that one partition processes.
-	 */
-	public static long getRowCountPerPartition(Configuration tableConf) {
-		return tableConf.getLong(TableConfigOptions.SQL_RESOURCE_INFER_ROWS_PER_PARTITION);
-	}
-
-	/**
-	 * Calculates operator parallelism based on rowcount of the operator.
-	 *
-	 * @param rowCount rowCount of the operator
-	 * @param tableConf Configuration.
-	 * @return the result of operator parallelism.
-	 */
-	public static int calOperatorParallelism(double rowCount, Configuration tableConf) {
-		int maxParallelism = getOperatorMaxParallelism(tableConf);
-		int minParallelism = getOperatorMinParallelism(tableConf);
-		int resultParallelism = (int) (rowCount / getRowCountPerPartition(tableConf));
-		return Math.max(Math.min(resultParallelism, maxParallelism), minParallelism);
-	}
 
 	/**
 	 * Gets the config parallelism for source.
