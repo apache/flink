@@ -397,7 +397,7 @@ class Csv(FormatDescriptor):
         :param delimiter: The field delimiter character.
         :return: This :class:`Csv` object.
         """
-        if not isinstance(delimiter, (str, unicode)) or len(delimiter) > 1:
+        if not isinstance(delimiter, (str, unicode)) or len(delimiter) != 1:
             raise TypeError("Only one-character string is supported!")
         self._j_csv = self._j_csv.fieldDelimiter(delimiter)
         return self
@@ -416,10 +416,10 @@ class Csv(FormatDescriptor):
         """
         Sets the field delimiter character (',' by default).
 
-        :param delimiter: The field delimiter character.
+        :param quote_character: The quote character.
         :return: This :class:`Csv` object.
         """
-        if not isinstance(quote_character, (str, unicode)) or len(quote_character) > 1:
+        if not isinstance(quote_character, (str, unicode)) or len(quote_character) != 1:
             raise TypeError("Only one-character string is supported!")
         self._j_csv = self._j_csv.quoteCharacter(quote_character)
         return self
