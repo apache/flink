@@ -19,10 +19,10 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.dataformat.BaseArray;
+import org.apache.flink.table.dataformat.BaseMap;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.types.logical.ArrayType;
@@ -160,10 +160,10 @@ public class ClassLogicalTypeConverter {
 			case DECIMAL:
 				return Decimal.class;
 			case ARRAY:
-				return BinaryArray.class;
+				return BaseArray.class;
 			case MAP:
 			case MULTISET:
-				return BinaryMap.class;
+				return BaseMap.class;
 			case ROW:
 				return BaseRow.class;
 			case BINARY:

@@ -140,13 +140,13 @@ public final class ColumnarRow implements BaseRow {
 	}
 
 	@Override
-	public BinaryArray getArray(int ordinal) {
+	public BaseArray getArray(int ordinal) {
 		// TODO
 		throw new UnsupportedOperationException("Array is not supported.");
 	}
 
 	@Override
-	public BinaryMap getMap(int ordinal) {
+	public BaseMap getMap(int ordinal) {
 		// TODO
 		throw new UnsupportedOperationException("Map is not supported.");
 	}

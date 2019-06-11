@@ -669,7 +669,7 @@ object GenerateUtils {
         SortUtil.getNullDefaultOrder(true), at, "a", "b")
       val funcCode: String =
         s"""
-          public int $compareFunc($BINARY_ARRAY a, $BINARY_ARRAY b) {
+          public int $compareFunc($BASE_ARRAY a, $BASE_ARRAY b) {
             $compareCode
             return 0;
           }

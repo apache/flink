@@ -28,14 +28,18 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.typeutils.BaseArraySerializer;
+import org.apache.flink.table.typeutils.BaseMapSerializer;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
-import org.apache.flink.table.typeutils.BinaryArraySerializer;
 import org.apache.flink.table.typeutils.BinaryGenericSerializer;
-import org.apache.flink.table.typeutils.BinaryMapSerializer;
 import org.apache.flink.table.typeutils.BinaryStringSerializer;
 import org.apache.flink.table.typeutils.DecimalSerializer;
 
@@ -72,10 +76,12 @@ public class InternalSerializers {
 				DecimalType decimalType = (DecimalType) type;
 				return new DecimalSerializer(decimalType.getPrecision(), decimalType.getScale());
 			case ARRAY:
-				return BinaryArraySerializer.INSTANCE;
+				return new BaseArraySerializer(((ArrayType) type).getElementType(), config);
 			case MAP:
+				MapType mapType = (MapType) type;
+				return new BaseMapSerializer(mapType.getKeyType(), mapType.getValueType());
 			case MULTISET:
-				return BinaryMapSerializer.INSTANCE;
+				return new BaseMapSerializer(((MultisetType) type).getElementType(), new IntType());
 			case ROW:
 				RowType rowType = (RowType) type;
 				return new BaseRowSerializer(config, rowType);

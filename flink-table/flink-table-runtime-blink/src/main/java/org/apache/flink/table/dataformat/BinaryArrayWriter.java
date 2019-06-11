@@ -208,4 +208,8 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	public void complete() {
 		array.pointTo(segment, 0, cursor);
 	}
+
+	public int getNumElements() {
+		return numElements;
+	}
 }

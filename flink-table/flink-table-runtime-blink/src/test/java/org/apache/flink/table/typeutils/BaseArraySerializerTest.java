@@ -18,19 +18,49 @@
 
 package org.apache.flink.table.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.dataformat.BaseArray;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.GenericArray;
+import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 /**
- * A test for the {@link BinaryArraySerializer}.
+ * A test for the {@link BaseArraySerializer}.
  */
-public class BinaryArraySerializerTest extends SerializerTestBase<BinaryArray> {
+public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
+
+	public BaseArraySerializerTest() {
+		super(new DeeplyEqualsChecker().withCustomCheck(
+				(o1, o2) -> o1 instanceof BaseArray && o2 instanceof BaseArray,
+				(o1, o2, checker) -> {
+					BaseArray array1 = (BaseArray) o1;
+					BaseArray array2 = (BaseArray) o2;
+					if (array1.numElements() != array2.numElements()) {
+						return false;
+					}
+					for (int i = 0; i < array1.numElements(); i++) {
+						if (!array1.isNullAt(i) || !array2.isNullAt(i)) {
+							if (array1.isNullAt(i) || array2.isNullAt(i)) {
+								return false;
+							} else {
+								if (!array1.getString(i).equals(array2.getString(i))) {
+									return false;
+								}
+							}
+						}
+					}
+					return true;
+				}
+		));
+	}
 
 	@Override
-	protected BinaryArraySerializer createSerializer() {
-		return BinaryArraySerializer.INSTANCE;
+	protected BaseArraySerializer createSerializer() {
+		return new BaseArraySerializer(DataTypes.STRING().getLogicalType(), new ExecutionConfig());
 	}
 
 	@Override
@@ -39,14 +69,14 @@ public class BinaryArraySerializerTest extends SerializerTestBase<BinaryArray> {
 	}
 
 	@Override
-	protected Class<BinaryArray> getTypeClass() {
-		return BinaryArray.class;
+	protected Class<BaseArray> getTypeClass() {
+		return BaseArray.class;
 	}
 
 	@Override
-	protected BinaryArray[] getTestData() {
-		return new BinaryArray[] {
-				createArray("11"),
+	protected BaseArray[] getTestData() {
+		return new BaseArray[] {
+				new GenericArray(new BinaryString[] {BinaryString.fromString("11")}, 1),
 				createArray("11", "haa"),
 				createArray("11", "haa", "ke"),
 				createArray("11", "haa", "ke"),

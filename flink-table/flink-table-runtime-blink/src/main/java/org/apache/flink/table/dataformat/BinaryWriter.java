@@ -17,9 +17,12 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.typeutils.BaseArraySerializer;
+import org.apache.flink.table.typeutils.BaseMapSerializer;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 
 /**
  * Writer to write a composite data format, like row, array.
@@ -59,11 +62,11 @@ public interface BinaryWriter {
 
 	void writeDecimal(int pos, Decimal value, int precision);
 
-	void writeArray(int pos, BinaryArray value);
+	void writeArray(int pos, BaseArray value, BaseArraySerializer serializer);
 
-	void writeMap(int pos, BinaryMap value);
+	void writeMap(int pos, BaseMap value, BaseMapSerializer serializer);
 
-	void writeRow(int pos, BaseRow value, RowType type);
+	void writeRow(int pos, BaseRow value, BaseRowSerializer type);
 
 	void writeGeneric(int pos, BinaryGeneric value);
 
@@ -72,7 +75,8 @@ public interface BinaryWriter {
 	 */
 	void complete();
 
-	static void write(BinaryWriter writer, int pos, Object o, LogicalType type) {
+	static void write(BinaryWriter writer, int pos,
+			Object o, LogicalType type, TypeSerializer serializer) {
 		switch (type.getTypeRoot()) {
 			case BOOLEAN:
 				writer.writeBoolean(pos, (boolean) o);
@@ -109,15 +113,14 @@ public interface BinaryWriter {
 				writer.writeDecimal(pos, (Decimal) o, decimalType.getPrecision());
 				break;
 			case ARRAY:
-				writer.writeArray(pos, (BinaryArray) o);
+				writer.writeArray(pos, (BaseArray) o, (BaseArraySerializer) serializer);
 				break;
 			case MAP:
 			case MULTISET:
-				writer.writeMap(pos, (BinaryMap) o);
+				writer.writeMap(pos, (BaseMap) o, (BaseMapSerializer) serializer);
 				break;
 			case ROW:
-				RowType rowType = (RowType) type;
-				writer.writeRow(pos, (BaseRow) o, rowType);
+				writer.writeRow(pos, (BaseRow) o, (BaseRowSerializer) serializer);
 				break;
 			case ANY:
 				writer.writeGeneric(pos, (BinaryGeneric) o);

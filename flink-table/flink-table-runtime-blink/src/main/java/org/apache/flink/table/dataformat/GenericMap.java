@@ -16,38 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataformat;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.types.logical.LogicalType;
+
+import java.util.Map;
 
 /**
- * A test for the {@link BaseArraySerializer}.
+ * A GenericMap is a map where all the keys have the same type, and all the values have the same type.
+ * It can be considered as a wrapper class of the normal java map.
  */
-public class DecimalSerializerTest extends SerializerTestBase<Decimal> {
+public class GenericMap implements BaseMap {
 
-	@Override
-	protected DecimalSerializer createSerializer() {
-		return new DecimalSerializer(5, 2);
+	private final Map<Object, Object> map;
+
+	public GenericMap(Map<Object, Object> map) {
+		this.map = map;
 	}
 
 	@Override
-	protected int getLength() {
-		return -1;
+	public int numElements() {
+		return map.size();
 	}
 
 	@Override
-	protected Class<Decimal> getTypeClass() {
-		return Decimal.class;
+	public Map toJavaMap(LogicalType keyType, LogicalType valueType) {
+		return map;
+	}
+
+	public Object get(Object key) {
+		return map.get(key);
 	}
 
 	@Override
-	protected Decimal[] getTestData() {
-		return new Decimal[] {
-				Decimal.fromLong(1, 5, 2),
-				Decimal.fromLong(2, 5, 2),
-				Decimal.fromLong(3, 5, 2),
-				Decimal.fromLong(4, 5, 2)
-		};
+	public String toString() {
+		return map.toString();
+	}
+
+	public Map<Object, Object> getMap() {
+		return map;
 	}
 }

@@ -53,6 +53,9 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 	private final LogicalType[] types;
 	private final TypeSerializer[] fieldSerializers;
 
+	private transient BinaryRow reuseRow;
+	private transient BinaryRowWriter reuseWriter;
+
 	public BaseRowSerializer(ExecutionConfig config, RowType rowType) {
 		this(rowType.getChildren().toArray(new LogicalType[0]),
 			rowType.getChildren().stream()
@@ -85,7 +88,7 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 
 	@Override
 	public void serialize(BaseRow row, DataOutputView target) throws IOException {
-		binarySerializer.serialize(baseRowToBinary(row), target);
+		binarySerializer.serialize(toBinaryRow(row), target);
 	}
 
 	@Override
@@ -165,49 +168,33 @@ public class BaseRowSerializer extends AbstractRowSerializer<BaseRow> {
 
 	/**
 	 * Convert base row to binary row.
-	 * TODO modify it to code gen, and reuse BinaryRow&BinaryRowWriter.
+	 * TODO modify it to code gen.
 	 */
 	@Override
-	public BinaryRow baseRowToBinary(BaseRow row) {
+	public BinaryRow toBinaryRow(BaseRow row) {
 		if (row instanceof BinaryRow) {
 			return (BinaryRow) row;
 		}
-		BinaryRow binaryRow = new BinaryRow(types.length);
-		BinaryRowWriter writer = new BinaryRowWriter(binaryRow);
-		writer.writeHeader(row.getHeader());
+		if (reuseRow == null) {
+			reuseRow = new BinaryRow(types.length);
+			reuseWriter = new BinaryRowWriter(reuseRow);
+		}
+		reuseWriter.reset();
+		reuseWriter.writeHeader(row.getHeader());
 		for (int i = 0; i < types.length; i++) {
 			if (row.isNullAt(i)) {
-				writer.setNullAt(i);
+				reuseWriter.setNullAt(i);
 			} else {
-				BinaryWriter.write(writer, i, TypeGetterSetters.get(row, i, types[i]), types[i]);
+				BinaryWriter.write(reuseWriter, i, TypeGetterSetters.get(row, i, types[i]), types[i], fieldSerializers[i]);
 			}
 		}
-		writer.complete();
-		return binaryRow;
-	}
-
-	public static BinaryRow baseRowToBinary(BaseRow row, RowType type) {
-		if (row instanceof BinaryRow) {
-			return (BinaryRow) row;
-		}
-		BinaryRow binaryRow = new BinaryRow(type.getFields().size());
-		BinaryRowWriter writer = new BinaryRowWriter(binaryRow);
-		writer.writeHeader(row.getHeader());
-		for (int i = 0; i < binaryRow.getArity(); i++) {
-			if (row.isNullAt(i)) {
-				writer.setNullAt(i);
-			} else {
-				LogicalType fieldType = type.getFields().get(i).getType();
-				BinaryWriter.write(writer, i, TypeGetterSetters.get(row, i, fieldType), fieldType);
-			}
-		}
-		writer.complete();
-		return binaryRow;
+		reuseWriter.complete();
+		return reuseRow;
 	}
 
 	@Override
 	public int serializeToPages(BaseRow row, AbstractPagedOutputView target) throws IOException {
-		return binarySerializer.serializeToPages(baseRowToBinary(row), target);
+		return binarySerializer.serializeToPages(toBinaryRow(row), target);
 	}
 
 	@Override

@@ -42,6 +42,7 @@ import org.apache.flink.table.typeutils.MapViewTypeInfo;
 import org.apache.flink.types.Row;
 
 import static org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.table.types.PlannerTypeUtils.isPrimitive;
 
 /**
  * Converter between {@link TypeInformation} and {@link DataType}.
@@ -79,7 +80,8 @@ public class TypeInfoDataTypeConverter {
 			case VARBINARY: // ignore precision
 				return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 			case ARRAY:
-				if (dataType instanceof CollectionDataType) {
+				if (dataType instanceof CollectionDataType &&
+						!isPrimitive(((CollectionDataType) dataType).getElementDataType().getLogicalType())) {
 					return ObjectArrayTypeInfo.getInfoFor(
 							fromDataTypeToTypeInfo(((CollectionDataType) dataType).getElementDataType()));
 				} else {
