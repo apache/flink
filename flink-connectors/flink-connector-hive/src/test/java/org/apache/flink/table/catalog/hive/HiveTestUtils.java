@@ -21,10 +21,12 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
+import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Test utils for Hive connector.
@@ -43,6 +45,10 @@ public class HiveTestUtils {
 
 	public static HiveCatalog createHiveCatalog(String catalogName) {
 		return new HiveCatalog(catalogName, null, createHiveConf(), null);
+	}
+
+	public static HiveCatalog createHiveCatalog(String name, Map<String, String> properties) {
+		return new HiveCatalog(name, null, createHiveConf(), properties.get(HiveCatalogValidator.CATALOG_HIVE_VERSION));
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {

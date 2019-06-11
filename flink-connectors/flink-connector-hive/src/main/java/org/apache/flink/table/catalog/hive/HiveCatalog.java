@@ -140,6 +140,11 @@ public class HiveCatalog extends AbstractCatalog {
 		return new HiveConf();
 	}
 
+	@VisibleForTesting
+	public String getHiveVersion() {
+		return hiveVersion;
+	}
+
 	@Override
 	public void open() throws CatalogException {
 		if (client == null) {

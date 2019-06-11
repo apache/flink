@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
@@ -44,6 +46,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -79,6 +82,11 @@ public class ExecutionContextTest {
 
 		assertEquals(tableEnv.getCurrentCatalog(), catalogName);
 		assertEquals(tableEnv.getCurrentDatabase(), "mydatabase");
+
+		Catalog catalog = tableEnv.getCatalog("mycatalog").orElse(null);
+		assertNotNull(catalog);
+		assertTrue(catalog instanceof HiveCatalog);
+		assertEquals("1.2.1", ((HiveCatalog) catalog).getHiveVersion());
 	}
 
 	@Test
