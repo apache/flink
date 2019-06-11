@@ -25,9 +25,16 @@ import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
-import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.HiveCatalogPartition;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
@@ -44,7 +51,6 @@ import org.apache.hadoop.hive.common.HiveStatsUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -74,7 +80,6 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,8 +203,10 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		StorageDescriptor jobSD = hiveTablePartition.getStorageDescriptor();
 		Path stagingDir = new Path(jobSD.getLocation());
 		FileSystem fs = stagingDir.getFileSystem(jobConf);
-		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class))) {
-			Table table = client.getTable(databaseName, tableName);
+		HiveCatalog catalog = new HiveCatalog("dummyName", null, new HiveConf(jobConf, HiveConf.class));
+		catalog.open();
+		try {
+			Table table = catalog.getHiveTable(new ObjectPath(databaseName, tableName));
 			if (!isDynamicPartition) {
 				commitJob(stagingDir.toString());
 			}
@@ -211,21 +218,23 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 						commitJob(part.getPath().toString());
 						LinkedHashMap<String, String> fullPartSpec = new LinkedHashMap<>();
 						Warehouse.makeSpecFromName(fullPartSpec, part.getPath());
-						loadPartition(part.getPath(), table, fullPartSpec, client);
+						loadPartition(part.getPath(), table, fullPartSpec, catalog);
 					}
 				} else {
 					LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 					for (String partCol : hiveTablePartition.getPartitionSpec().keySet()) {
 						partSpec.put(partCol, hiveTablePartition.getPartitionSpec().get(partCol).toString());
 					}
-					loadPartition(stagingDir, table, partSpec, client);
+					loadPartition(stagingDir, table, partSpec, catalog);
 				}
 			} else {
 				moveFiles(stagingDir, new Path(table.getSd().getLocation()));
 			}
-		} catch (TException e) {
+		} catch (TableNotExistException | PartitionAlreadyExistsException | PartitionSpecInvalidException |
+				PartitionNotExistException | TableNotPartitionedException | MetaException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} finally {
+			catalog.close();
 			fs.delete(stagingDir, true);
 		}
 	}
@@ -319,26 +328,25 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	}
 
 	// load a single partition
-	private void loadPartition(Path srcDir, Table table, Map<String, String> partSpec, HiveMetastoreClientWrapper client)
-			throws TException, IOException {
+	private void loadPartition(Path srcDir, Table table, Map<String, String> partSpec, HiveCatalog catalog)
+			throws IOException, TableNotPartitionedException, TableNotExistException, PartitionNotExistException,
+			PartitionAlreadyExistsException, PartitionSpecInvalidException, MetaException {
 		Path tblLocation = new Path(table.getSd().getLocation());
-		List<Partition> existingPart = client.listPartitions(databaseName, tableName,
-				new ArrayList<>(partSpec.values()), (short) 1);
-		Path destDir = existingPart.isEmpty() ? new Path(tblLocation, Warehouse.makePartPath(partSpec)) :
-				new Path(existingPart.get(0).getSd().getLocation());
+		ObjectPath tablePath = new ObjectPath(databaseName, tableName);
+		CatalogPartitionSpec catalogPartitionSpec = new CatalogPartitionSpec(partSpec);
+		List<CatalogPartitionSpec> existingPart = catalog.listPartitions(tablePath, catalogPartitionSpec);
+		Path destDir;
+		if (existingPart.isEmpty()) {
+			destDir = new Path(tblLocation, Warehouse.makePartPath(partSpec));
+		} else {
+			HiveCatalogPartition hiveCatalogPartition = (HiveCatalogPartition) catalog.getPartition(
+					tablePath, catalogPartitionSpec);
+			destDir = new Path(hiveCatalogPartition.getLocation());
+		}
 		moveFiles(srcDir, destDir);
 		// register new partition if it doesn't exist
 		if (existingPart.isEmpty()) {
-			Partition partition = new Partition();
-			partition.setValues(new ArrayList<>(partSpec.values()));
-			StorageDescriptor sd = new StorageDescriptor(hiveTablePartition.getStorageDescriptor());
-			sd.setLocation(destDir.toString());
-			partition.setSd(sd);
-			partition.setDbName(databaseName);
-			partition.setTableName(tableName);
-			partition.setCreateTime((int) System.currentTimeMillis());
-			partition.setLastAccessTime((int) System.currentTimeMillis());
-			client.add_partition(partition);
+			catalog.createPartition(tablePath, catalogPartitionSpec, new HiveCatalogPartition(new HashMap<>(), destDir.toString()), false);
 		}
 	}
 

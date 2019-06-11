@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.AbstractCatalogTable;
@@ -120,8 +119,7 @@ public class HiveCatalog extends AbstractCatalog {
 			createHiveConf(hiveSiteUrl));
 	}
 
-	@VisibleForTesting
-	protected HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
+	public HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
@@ -458,7 +456,6 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	@VisibleForTesting
 	public Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
 		try {
 			return client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
