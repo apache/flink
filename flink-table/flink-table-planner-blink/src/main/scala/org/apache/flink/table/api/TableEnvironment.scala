@@ -88,7 +88,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       getTraitDefs.toList
     )
 
-  private lazy val rootSchema: SchemaPlus = planningConfigurationBuilder.getRootSchema
+  private lazy val rootSchema: SchemaPlus = plannerContext.getRootSchema
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = plannerContext.createRelBuilder()
