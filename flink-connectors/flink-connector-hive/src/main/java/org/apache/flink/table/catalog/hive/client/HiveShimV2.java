@@ -29,7 +29,10 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.thrift.TException;
 
@@ -85,5 +88,11 @@ public class HiveShimV2 implements HiveShim {
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new IOException("Failed to move " + path + " to trash", e);
 		}
+	}
+
+	@Override
+	public void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table) throws InvalidOperationException, MetaException, TException {
+		// For Hive-2.3.4, we don't need to tell HMS not to update stats.
+		client.alter_table(databaseName, tableName, table);
 	}
 }

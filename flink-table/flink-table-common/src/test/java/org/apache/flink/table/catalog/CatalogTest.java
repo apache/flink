@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -1055,6 +1056,84 @@ public abstract class CatalogTest {
 		assertEquals(2, catalog.listPartitions(path1, createPartitionSpecSubset()).size());
 		assertEquals(1, catalog.listPartitions(path1, createAnotherPartitionSpecSubset()).size());
 	}
+
+
+	// ------ table and column stats ------
+
+	@Test
+	public void testGetTableStats_TableNotExistException() throws Exception{
+		catalog.createDatabase(db1, createDb(), false);
+		exception.expect(org.apache.flink.table.catalog.exceptions.TableNotExistException.class);
+		catalog.getTableStatistics(path1);
+	}
+
+	@Test
+	public void testGetPartitionStats() throws Exception{
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+		CatalogTableStatistics tableStatistics = catalog.getPartitionStatistics(path1, createPartitionSpec());
+		assertEquals(0, tableStatistics.getFileCount());
+		assertEquals(0, tableStatistics.getRawDataSize());
+		assertEquals(0, tableStatistics.getTotalSize());
+		assertEquals(0, tableStatistics.getRowCount());
+	}
+
+	@Test
+	public void testAlterTableStats() throws Exception{
+		// Non-partitioned table
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable table = createTable();
+		catalog.createTable(path1, table, false);
+		CatalogTableStatistics tableStats = new CatalogTableStatistics(100, 10, 1000, 10000);
+		catalog.alterTableStatistics(path1, tableStats, false);
+		CatalogTableStatistics actual = catalog.getTableStatistics(path1);
+
+		// we don't check fileCount and totalSize here for hive will automatically calc and set to real num.
+		assertEquals(tableStats.getRowCount(), actual.getRowCount());
+		assertEquals(tableStats.getRawDataSize(), actual.getRawDataSize());
+	}
+
+	@Test
+	public void testAlterTableStats_partitionedTable() throws Exception {
+		// alterTableStats() should do nothing for partitioned tables
+		// getTableStats() should return unknown column stats for partitioned tables
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+
+		catalog.alterTableStatistics(path1, stats, false);
+
+		assertEquals(CatalogTableStatistics.UNKNOWN, catalog.getTableStatistics(path1));
+	}
+
+	@Test
+	public void testAlterPartitionTableStats() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path1, partitionSpec, createPartition(), true);
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+		catalog.alterPartitionStatistics(path1, partitionSpec, stats, false);
+		CatalogTableStatistics actual = catalog.getPartitionStatistics(path1, partitionSpec);
+		assertEquals(stats.getRowCount(), actual.getRowCount());
+		assertEquals(stats.getRawDataSize(), actual.getRawDataSize());
+	}
+
+	@Test
+	public void testAlterTableStats_TableNotExistException() throws Exception {
+		exception.expect(TableNotExistException.class);
+		catalog.alterTableStatistics(new ObjectPath(catalog.getDefaultDatabase(), "nonexist"), CatalogTableStatistics.UNKNOWN, false);
+	}
+
+	@Test
+	public void testAlterTableStats_TableNotExistException_ignore() throws Exception {
+		catalog.alterTableStatistics(new ObjectPath("non", "exist"), CatalogTableStatistics.UNKNOWN, true);
+	}
+
 
 	// ------ utilities ------
 
