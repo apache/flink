@@ -648,33 +648,39 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	public void close() throws FlinkKafka011Exception {
-		final KafkaTransactionState currentTransaction = currentTransaction();
-		if (currentTransaction != null) {
-			// to avoid exceptions on aborting transactions with some pending records
-			flush(currentTransaction);
-
-			// normal abort for AT_LEAST_ONCE and NONE do not clean up resources because of producer reusing, thus
-			// we need to close it manually
-			switch (semantic) {
-				case EXACTLY_ONCE:
-					break;
-				case AT_LEAST_ONCE:
-				case NONE:
-					currentTransaction.producer.close();
-					break;
-			}
-		}
+		// First close the producer for current transaction.
 		try {
+			final KafkaTransactionState currentTransaction = currentTransaction();
+			if (currentTransaction != null) {
+				// to avoid exceptions on aborting transactions with some pending records
+				flush(currentTransaction);
+
+				// normal abort for AT_LEAST_ONCE and NONE do not clean up resources because of producer reusing, thus
+				// we need to close it manually
+				switch (semantic) {
+					case EXACTLY_ONCE:
+						break;
+					case AT_LEAST_ONCE:
+					case NONE:
+						currentTransaction.producer.close();
+						break;
+				}
+			}
 			super.close();
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			asyncException = ExceptionUtils.firstOrSuppressed(e, asyncException);
+		} finally {
+			// We may have to close producer of the current transaction in case some exception was thrown before
+			// the normal close routine finishes.
+			if (currentTransaction() != null) {
+				IOUtils.closeQuietly(currentTransaction().producer);
+			}
+			// Make sure all the producers for pending transactions are closed.
+			pendingTransactions().forEach(transaction -> IOUtils.closeQuietly(transaction.getValue().producer)
+			);
+			// make sure we propagate pending errors
+			checkErroneous();
 		}
-		// make sure we propagate pending errors
-		checkErroneous();
-		pendingTransactions().forEach(transaction ->
-			IOUtils.closeQuietly(transaction.getValue().producer)
-		);
 	}
 
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
