@@ -133,7 +133,4 @@ class BatchExecLocalHashAggregate(
   }
 
   override def getOperatorName: String = aggOperatorName("LocalHashAggregate")
-
-  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int =
-    input.getParallelism
 }

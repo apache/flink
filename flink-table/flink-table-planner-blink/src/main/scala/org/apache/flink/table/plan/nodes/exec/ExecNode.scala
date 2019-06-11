@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.nodes.exec
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
+import org.apache.flink.table.plan.nodes.resource.NodeResource
 
 import java.util
 
@@ -33,9 +34,19 @@ import java.util
 trait ExecNode[E <: TableEnvironment, T] {
 
   /**
+    * Defines how much resource the node will take.
+    */
+  private val resource: NodeResource = new NodeResource
+
+  /**
     * The [[StreamTransformation]] translated from this node.
     */
   private var transformation: StreamTransformation[T] = _
+
+  /**
+    * Get node resource.
+    */
+  def getResource = resource
 
   /**
     * Translates this node into a Flink operator.
@@ -83,5 +94,4 @@ trait ExecNode[E <: TableEnvironment, T] {
   def accept(visitor: ExecNodeVisitor): Unit = {
     visitor.visit(this)
   }
-
 }

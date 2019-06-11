@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
@@ -132,9 +133,9 @@ abstract class BatchExecHashWindowAggregateBase(
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
 
     val reservedManagedMem = tableEnv.config.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * TableConfigOptions.SIZE_IN_MB
+      TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
     val maxManagedMem = tableEnv.config.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM) * TableConfigOptions.SIZE_IN_MB
+      TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM) * NodeResourceConfig.SIZE_IN_MB
 
     val generatedOperator = new HashWindowCodeGenerator(
       ctx, relBuilder, window, inputTimeFieldIndex,
@@ -148,6 +149,6 @@ abstract class BatchExecHashWindowAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
+      getResource.getParallelism)
   }
 }

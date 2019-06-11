@@ -96,8 +96,4 @@ class BatchExecSortWindowAggregate(
     val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
     aggregateNamePrefix + "WindowSortAggregateBatchExec"
   }
-
-  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int = {
-    if (isFinal && grouping.length == 0) 1 else input.getParallelism
-  }
 }

@@ -104,7 +104,7 @@ class BatchExecExpand(
       operatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      config.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM))
+      getResource.getParallelism)
   }
 
 }

@@ -288,7 +288,7 @@ class BatchExecRank(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
+      getResource.getParallelism)
   }
 
   private def getOperatorName: String = {

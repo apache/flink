@@ -142,7 +142,4 @@ class BatchExecLocalSortAggregate(
 
   override def getOperatorName: String = aggOperatorName("LocalSortAggregate")
 
-  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int =
-    input.getParallelism
-
 }

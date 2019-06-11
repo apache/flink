@@ -29,8 +29,8 @@ import org.apache.flink.table.JDouble
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
-import org.apache.flink.table.plan.nodes.exec.NodeResourceConfig
 import org.apache.flink.table.plan.nodes.physical.batch._
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.plan.util.AggregateUtil.{hasTimeIntervalType, toLong}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, SortUtil}

@@ -169,8 +169,4 @@ class BatchExecSortAggregate(
     aggOperatorName(aggregateNamePrefix + "SortAggregate")
   }
 
-  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int = {
-    if (isFinal && grouping.length == 0) 1 else input.getParallelism
-  }
-
 }

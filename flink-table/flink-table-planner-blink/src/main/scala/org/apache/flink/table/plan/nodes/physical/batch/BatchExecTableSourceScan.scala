@@ -18,8 +18,14 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import java.{lang, util}
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -29,7 +35,6 @@ import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
 import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -37,6 +42,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
 import java.util
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import scala.collection.JavaConversions._
 
@@ -82,7 +88,8 @@ class BatchExecTableSourceScan(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val config = tableEnv.getConfig
     val bts = tableSource.asInstanceOf[BatchTableSource[_]]
-    val inputTransform = bts.getBoundedStream(tableEnv.streamEnv).getTransformation
+    val inputTransform = bts.getBoundedStream(tableEnv.execEnv).getTransformation
+    inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
@@ -108,7 +115,7 @@ class BatchExecTableSourceScan(
       tableEnv.getRelBuilder
     )
     if (needInternalConversion) {
-      ScanUtil.convertToInternalRow(
+      val conversionTransform = ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[StreamTransformation[Any]],
         fieldIndexes,
@@ -117,6 +124,8 @@ class BatchExecTableSourceScan(
         getTable.getQualifiedName,
         config,
         rowtimeExpression)
+      conversionTransform.setParallelism(getResource.getParallelism)
+      conversionTransform
     } else {
       inputTransform.asInstanceOf[StreamTransformation[BaseRow]]
     }
@@ -134,5 +143,14 @@ class BatchExecTableSourceScan(
         TypeExtractor.createTypeInfo(
           tableSource, classOf[BatchTableSource[_]], tableSource.getClass, 0)
           .getTypeClass.asInstanceOf[Class[_]])
+  }
+
+  def getSourceTransformation(
+      streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
+    tableSource.asInstanceOf[BatchTableSource[_]].getBoundedStream(streamEnv).getTransformation
+  }
+
+  def getEstimatedRowCount: lang.Double = {
+    getCluster.getMetadataQuery.getRowCount(this)
   }
 }

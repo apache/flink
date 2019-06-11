@@ -79,7 +79,10 @@ class BatchExecValues(
       getRowType,
       tuples,
       getRelTypeName)
-    tableEnv.streamEnv.createInput(inputFormat, inputFormat.getProducedType).getTransformation
+    val transformation = tableEnv.streamEnv.createInput(inputFormat,
+      inputFormat.getProducedType).getTransformation
+    transformation.setParallelism(getResource.getParallelism)
+    transformation
   }
 
 }

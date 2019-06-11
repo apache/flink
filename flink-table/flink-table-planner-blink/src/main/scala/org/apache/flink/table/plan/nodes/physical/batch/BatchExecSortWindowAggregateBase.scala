@@ -105,8 +105,6 @@ abstract class BatchExecSortWindowAggregateBase(
 
   def getOperatorName: String
 
-  def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int
-
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
@@ -140,6 +138,6 @@ abstract class BatchExecSortWindowAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getParallelism(input, tableEnv.config))
+      getResource.getParallelism)
   }
 }

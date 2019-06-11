@@ -89,14 +89,12 @@ class BatchExecLookupJoin(
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
-    val defaultParallelism = tableEnv.getConfig.getConf
-      .getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM)
     val transformation = translateToPlanInternal(
       inputTransformation,
       tableEnv.streamEnv,
       tableEnv.config,
       tableEnv.getRelBuilder)
-    transformation.setParallelism(defaultParallelism)
+    transformation.setParallelism(getResource.getParallelism)
     transformation
   }
 }

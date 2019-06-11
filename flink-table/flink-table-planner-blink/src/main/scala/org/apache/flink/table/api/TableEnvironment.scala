@@ -70,9 +70,13 @@ import _root_.scala.collection.mutable
 /**
   * The abstract base class for batch and stream TableEnvironments.
   *
+  * @param streamEnv The [[JavaStreamExecEnv]] which is wrapped in this
+  *                [[StreamTableEnvironment]].
   * @param config The configuration of the TableEnvironment
   */
-abstract class TableEnvironment(val config: TableConfig) {
+abstract class TableEnvironment(
+    val streamEnv: JavaStreamExecEnv,
+    val config: TableConfig) {
 
   protected val DEFAULT_JOB_NAME = "Flink Exec Table Job"
 
