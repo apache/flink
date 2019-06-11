@@ -50,7 +50,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
