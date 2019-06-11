@@ -1059,7 +1059,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Table hiveTable = getHiveTable(tablePath);
 			// Set table stats
-			if (needUpdateStatistics(hiveTable.getParameters(), tableStatistics)) {
+			if (needToUpdateStatistics(tableStatistics, hiveTable.getParameters())) {
 				updateStatisticsParameters(tableStatistics, hiveTable.getParameters());
 				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
 			}
@@ -1091,7 +1091,7 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static boolean needUpdateStatistics(Map<String, String> oldParameters, CatalogTableStatistics statistics) {
+	private static boolean needToUpdateStatistics(CatalogTableStatistics statistics, Map<String, String> oldParameters) {
 		String oldRowCount = oldParameters.getOrDefault(StatsSetupConst.ROW_COUNT, "0");
 		String oldTotalSize = oldParameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, "0");
 		String oldNumFiles = oldParameters.getOrDefault(StatsSetupConst.NUM_FILES, "0");
@@ -1120,12 +1120,12 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			// Set table stats
-			if (needUpdateStatistics(hivePartition.getParameters(), partitionStatistics)) {
+			if (needToUpdateStatistics(partitionStatistics, hivePartition.getParameters())) {
 				updateStatisticsParameters(partitionStatistics, hivePartition.getParameters());
 				client.alter_partition(tablePath.getDatabaseName(), tablePath.getObjectName(), hivePartition);
 			}
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
+			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter table stats of table %s 's partition %s", tablePath.getFullName(), String.valueOf(partitionSpec)), e);
 		}
@@ -1192,7 +1192,7 @@ public class HiveCatalog extends AbstractCatalog {
 			Partition partition = getHivePartition(tablePath, partitionSpec);
 			return createCatalogTableStatistics(partition.getParameters());
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
-			throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
+			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to get table stats of table %s 's partition %s",
 													tablePath.getFullName(), String.valueOf(partitionSpec)), e);
