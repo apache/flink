@@ -45,4 +45,12 @@ public class Tuple2Test {
 		Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
 		tuple.getFieldNotNull(1);
 	}
+
+	@Test(expected = NullFieldException.class)
+	public void testGetFieldNotNull2() {
+		Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
+
+		Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
+		tuple.getFieldNotNull(1);
+	}
 }
