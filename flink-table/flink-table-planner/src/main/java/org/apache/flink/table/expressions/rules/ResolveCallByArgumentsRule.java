@@ -31,6 +31,7 @@ import org.apache.flink.table.validate.ValidationFailure;
 import org.apache.flink.table.validate.ValidationResult;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -87,19 +88,31 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		private Expression validateArguments(CallExpression call, PlannerExpression plannerCall) {
 			if (!plannerCall.valid()) {
-				final String errorMessage;
-				ValidationResult validationResult = plannerCall.validateInput();
-				if (validationResult instanceof ValidationFailure) {
-					errorMessage = ((ValidationFailure) validationResult).message();
-				} else {
-					errorMessage = String.format("Invalid arguments %s for function: %s",
-						call.getChildren(),
-						call.getFunctionDefinition().getName());
-				}
-				throw new ValidationException(errorMessage);
+				throw new ValidationException(
+					getValidationErrorMessage(plannerCall)
+						.orElse("Unexpected behavior, validation failed but can't get error messages!"));
 			}
-
 			return call;
+		}
+
+		/**
+		 * Return the validation error message of this {@link PlannerExpression} or return the
+		 * validation error message of it's children if it passes the validation. Return empty if
+		 * all validation succeeded.
+		 */
+		private Optional<String> getValidationErrorMessage(PlannerExpression plannerCall) {
+			ValidationResult validationResult = plannerCall.validateInput();
+			if (validationResult instanceof ValidationFailure) {
+				return Optional.of(((ValidationFailure) validationResult).message());
+			} else {
+				for (Expression plannerExpression: plannerCall.getChildren()) {
+					Optional<String> errorMessage = getValidationErrorMessage((PlannerExpression) plannerExpression);
+					if (errorMessage.isPresent()) {
+						return errorMessage;
+					}
+				}
+			}
+			return Optional.empty();
 		}
 
 		private Expression castIfNeeded(PlannerExpression childExpression, TypeInformation<?> expectedType) {
