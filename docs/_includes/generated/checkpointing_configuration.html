@@ -18,6 +18,11 @@
             <td>Option whether the state backend should use an asynchronous snapshot method where possible and configurable. Some state backends may not support asynchronous snapshots, or only support asynchronous snapshots, and ignore this option.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.fs.buffer-size</h5></td>
+            <td style="word-wrap: break-word;">4096</td>
+            <td>The default write buffer size for file checkpoint output stream created by FsCheckpointStreamFactory. And the final actual write buffer size would consider the maximum of values of this option and option 'state.backend.fs.memory-threshold'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.fs.memory-threshold</h5></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file.</td>

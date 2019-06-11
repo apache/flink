@@ -69,8 +69,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** Maximum size of state that is stored with the metadata, rather than in files. */
 	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
-	/** Default size for the write buffer. */
-	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
+	/** The writing buffer size. */
+	private final int writeBufferSize;
 
 	/** State below this size will be stored as part of the metadata, rather than in files. */
 	private final int fileStateThreshold;
@@ -96,16 +96,23 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	 * @param sharedStateDirectory The directory for shared checkpoint data.
 	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
 	 *                             rather than in files
+	 * @param writeBufferSize The write buffer size.
 	 */
 	public FsCheckpointStreamFactory(
 			FileSystem fileSystem,
 			Path checkpointDirectory,
 			Path sharedStateDirectory,
-			int fileStateSizeThreshold) {
+			int fileStateSizeThreshold,
+			int writeBufferSize) {
 
 		if (fileStateSizeThreshold < 0) {
 			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
 		}
+
+		if (writeBufferSize < 0) {
+			throw new IllegalArgumentException("The write buffer size must be zero or larger.");
+		}
+
 		if (fileStateSizeThreshold > MAX_FILE_STATE_THRESHOLD) {
 			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
 				MAX_FILE_STATE_THRESHOLD);
@@ -115,6 +122,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		this.checkpointDirectory = checkNotNull(checkpointDirectory);
 		this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
 		this.fileStateThreshold = fileStateSizeThreshold;
+		this.writeBufferSize = writeBufferSize;
 	}
 
 	// ------------------------------------------------------------------------
@@ -122,7 +130,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
 		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
-		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
+		int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
 		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
 	}
