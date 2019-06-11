@@ -656,6 +656,7 @@ Parameters:
 - `db` - the InfluxDB database to store metrics
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
+- `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server
 
 Example configuration:
 
@@ -667,6 +668,7 @@ metrics.reporter.influxdb.port: 8086
 metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
+metrics.reporter.influxdb.retentionPolicy: one_hr
 
 {% endhighlight %}
 

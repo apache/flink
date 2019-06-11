@@ -83,7 +83,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		}
 		this.retentionPolicy = getString(config, RETENTION_POLICY);
 
-		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}}", host, port, database);
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{}}", host, port, database, retentionPolicy);
 	}
 
 	@Override
