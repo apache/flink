@@ -33,6 +33,8 @@ import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
@@ -47,6 +49,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -57,6 +60,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
@@ -379,10 +383,16 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			final JobGraph jobGraph,
 			final RestartStrategy restartStrategy) throws Exception {
 
+		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+			jobGraph.getJobID(),
+			NettyShuffleMaster.INSTANCE,
+			ignored -> Optional.empty());
+
 		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
 			.setRestartStrategy(restartStrategy)
 			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
 			.setSlotProvider(slotProvider)
+			.setPartitionTracker(partitionTracker)
 			.build();
 
 		eg.start(componentMainThreadExecutor);
@@ -453,6 +463,15 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 		FailingSlotProviderDecorator(final SlotProvider delegate) {
 			this.delegate = checkNotNull(delegate);
+		}
+
+		@Override
+		public CompletableFuture<LogicalSlot> allocateBatchSlot(
+			final SlotRequestId slotRequestId,
+			final ScheduledUnit scheduledUnit,
+			final SlotProfile slotProfile,
+			final boolean allowQueuedScheduling) {
+			return allocateSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, null);
 		}
 
 		@Override

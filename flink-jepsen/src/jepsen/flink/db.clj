@@ -129,7 +129,12 @@
 
                         db/LogFiles
                         (log-files [_ _ _]
-                          (fu/find-files! log-dir)))]
+                          (c/su
+                            (fu/dump-jstack-by-pattern! log-dir
+                                                        "TaskExecutor"
+                                                        "TaskManager"
+                                                        "ClusterEntrypoint")
+                            (fu/find-files! log-dir))))]
     (combined-db [flink-base-db db])))
 
 (defn- sorted-nodes

@@ -49,7 +49,7 @@ import java.util.Set;
 @PublicEvolving
 public final class TypeInformationAnyType<T> extends LogicalType {
 
-	private static final String FORMAT = "ANY(%s, ?)";
+	private static final String FORMAT = "ANY('%s', ?)";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),

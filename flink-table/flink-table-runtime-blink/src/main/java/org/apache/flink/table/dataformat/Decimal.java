@@ -19,9 +19,9 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfoFactory;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.typeutils.DecimalTypeInfoFactory;
-import org.apache.flink.table.util.SegmentsUtil;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;

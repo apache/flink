@@ -22,13 +22,13 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.typeutils.BaseArraySerializer;
-import org.apache.flink.table.typeutils.BaseMapSerializer;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
-import org.apache.flink.table.util.SegmentsUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -325,7 +325,7 @@ public class BinaryArrayTest {
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 			writer.setNullAt(0);
 			writer.writeMap(1, BinaryMap.valueOf(subArray, subArray),
-					new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
+					new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 			writer.complete();
 
 			assertTrue(array.isNullAt(0));
@@ -358,7 +358,7 @@ public class BinaryArrayTest {
 		BinaryRow row = new BinaryRow(1);
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
 		rowWriter.writeMap(0, binaryMap,
-				new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
+				new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 		rowWriter.complete();
 
 		BinaryMap map = (BinaryMap) row.getMap(0);

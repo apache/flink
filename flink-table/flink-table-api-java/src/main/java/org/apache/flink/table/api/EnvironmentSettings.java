@@ -170,8 +170,8 @@ public class EnvironmentSettings {
 		 * enabled.
 		 */
 		public Builder useBlinkPlanner() {
-			this.plannerClass = "org.apache.flink.table.planner.BlinkPlannerFactory";
-			this.executorClass = "org.apache.flink.table.executor.BlinkExecutorFactory";
+			this.plannerClass = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
+			this.executorClass = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
 			return this;
 		}
 

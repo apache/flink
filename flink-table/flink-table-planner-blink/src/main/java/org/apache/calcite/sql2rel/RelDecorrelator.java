@@ -16,7 +16,7 @@
  */
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.plan.rules.logical.FlinkFilterJoinRule;
+import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterJoinRule;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -63,7 +63,6 @@ import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.FilterCorrelateRule;
-import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -117,8 +116,13 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- *  This class is copied from Apache Calcite except that it supports SEMI/ANTI join.
- *  NOTES: This file should be deleted when CALCITE-3169 and CALCITE-3170 are fixed.
+ * This class is copied from Apache Calcite except that it supports SEMI/ANTI join.
+ * NOTES: This file should be deleted when CALCITE-3169 and CALCITE-3170 are fixed,
+ * and please make sure to synchronize with RelDecorrelator in flink planner when changing this class.
+ * Modification:
+ * 1. lines changed (249-251)
+ * 2. lines changed (271-278)
+ * 3. lines changed (1214-1215)
  */
 
 /**
@@ -241,8 +245,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         .addRuleInstance(new AdjustProjectForCountAggregateRule(false, f))
         .addRuleInstance(new AdjustProjectForCountAggregateRule(true, f))
         .addRuleInstance(
-            new FilterJoinRule.FilterIntoJoinRule(true, f,
-                FilterJoinRule.TRUE_PREDICATE))
+            // use FilterJoinRule instead of FlinkFilterJoinRule while CALCITE-3170 is fixed
+            new FlinkFilterJoinRule.FlinkFilterIntoJoinRule(true, f,
+                FlinkFilterJoinRule.TRUE_PREDICATE))
         .addRuleInstance(
             new FilterProjectTransposeRule(Filter.class, Project.class, true,
                 true, f))

@@ -110,7 +110,9 @@ public abstract class CatalogTest {
 
 	@AfterClass
 	public static void closeup() {
-		catalog.close();
+		if (catalog != null) {
+			catalog.close();
+		}
 	}
 
 	// ------ databases ------

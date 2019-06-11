@@ -389,10 +389,6 @@ under the License.
                     <artifactId>hive-jdbc</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.apache.hive.hcatalog</groupId>
-                    <artifactId>hive-webhcat-java-client</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-service</artifactId>
                 </exclusion>
@@ -402,15 +398,16 @@ under the License.
                 </exclusion>
 				<exclusion>
 					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-dag</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-common</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-mapreduce</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- This dependency is not available with java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
 				</exclusion>
             </exclusions>
         </dependency>
@@ -447,6 +444,11 @@ under the License.
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
 				</exclusion>
+				<exclusion>
+					<!-- This dependency is not available with java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
+				</exclusion>
 			</exclusions>
         </dependency>
 
@@ -463,6 +465,14 @@ under the License.
 			</exclusions>
         </dependency>
 
+		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -475,35 +485,6 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<includes>
-									<include>*:*</include>
-								</includes>
-							</artifactSet>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-								</filter>
-							</filters>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>
@@ -553,22 +534,18 @@ under the License.
 				<jdk>9</jdk>
 			</activation>
 
-			<dependencyManagement>
-				<dependencies>
-					<dependency>
-						<groupId>org.apache.hbase</groupId>
-						<artifactId>hbase-annotations</artifactId>
-						<scope>test</scope>
-						<exclusions>
-							<exclusion>
-								<!-- This dependency is not available with java 9.-->
-								<groupId>jdk.tools</groupId>
-								<artifactId>jdk.tools</artifactId>
-							</exclusion>
-						</exclusions>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<!-- hive does not support Java 9 -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 </project>

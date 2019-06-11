@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * This class is copied from Calcite's {@link org.apache.calcite.plan.RelOptCluster},
  * can be removed after https://issues.apache.org/jira/browse/CALCITE-2855 is accepted.
+ * NOTES: please make sure to synchronize with RelDecorrelator in flink planner when changing this class.
  *
  * Modification:
  * - Make non-deprecated constructor public

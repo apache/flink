@@ -105,7 +105,7 @@ object PreValidateReWriter {
       val id = sqlProperty.getKey
       val targetField = SqlValidatorUtil.getTargetField(targetRowType,
           typeFactory, id, calciteCatalogReader, relOptTable)
-      validateField(assignedFields.containsValue, id, targetField)
+      validateField(idx => !assignedFields.contains(idx), id, targetField)
       val value = sqlProperty.getValue.asInstanceOf[SqlLiteral]
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))

@@ -47,7 +47,7 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
  *
  * <p>The serialized string representation is {@code ROW<n0 t0 'd0', n1 t1 'd1', ...>} where
  * {@code n} is the unique name of a field, {@code t} is the logical type of a field, {@code d} is
- * the description of a field.
+ * the description of a field. {@code ROW(...)} is a synonym for being closer to the SQL standard.
  */
 @PublicEvolving
 public final class RowType extends LogicalType {

@@ -19,14 +19,18 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 import static org.apache.flink.table.dataformat.BinaryRow.calculateBitSetWidthInBytes;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Its memory storage structure and {@link BinaryRow} exactly the same, the only different is it supports
- * all bytes in variable MemorySegments.
+ * Its memory storage structure is exactly the same with {@link BinaryRow}.
+ * The only different is that, as {@link NestedRow} is used
+ * to store row value in the variable-length part of {@link BinaryRow},
+ * every field (including both fixed-length part and variable-length part) of {@link NestedRow}
+ * has a possibility to cross the boundary of a segment, while the fixed-length part of {@link BinaryRow}
+ * must fit into its first memory segment.
  */
 public final class NestedRow extends BinaryFormat implements BaseRow {
 
@@ -219,7 +223,7 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	public BinaryString getString(int pos) {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
-		final long offsetAndLen = segments[0].getLong(fieldOffset);
+		final long offsetAndLen = SegmentsUtil.getLong(segments, fieldOffset);
 		return BinaryString.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 
@@ -247,7 +251,7 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	public byte[] getBinary(int pos) {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
-		final long offsetAndLen = segments[0].getLong(fieldOffset);
+		final long offsetAndLen = SegmentsUtil.getLong(segments, fieldOffset);
 		return readBinaryFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
 	}
 

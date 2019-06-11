@@ -55,6 +55,7 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -557,7 +558,7 @@ public class LogicalTypesTest {
 
 		testEquality(anyType, new TypeInformationAnyType<>(Types.TUPLE(Types.STRING, Types.LONG)));
 
-		testStringSummary(anyType, "ANY(org.apache.flink.api.java.tuple.Tuple2, ?)");
+		testStringSummary(anyType, "ANY('org.apache.flink.api.java.tuple.Tuple2', ?)");
 
 		testNullability(anyType);
 
@@ -572,8 +573,8 @@ public class LogicalTypesTest {
 	public void testAnyType() {
 		testAll(
 			new AnyType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
-				"ANY(org.apache.flink.table.types.LogicalTypesTest$Human, " +
-					"AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
+				"ANY('org.apache.flink.table.types.LogicalTypesTest$Human', " +
+					"'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
 					"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +
 					"VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY" +
 					"2FsVHlwZXNUZXN0JEh1bWFuAQAAADUAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNh" +
@@ -583,8 +584,8 @@ public class LogicalTypesTest {
 					"mcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMk" +
 					"RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB" +
 					"ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3" +
-					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=)",
-			"ANY(org.apache.flink.table.types.LogicalTypesTest$Human, ...)",
+					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=')",
+			"ANY('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
 			new Class[]{Human.class, User.class}, // every User is Human
 			new Class[]{Human.class},
 			new LogicalType[]{},
@@ -598,7 +599,7 @@ public class LogicalTypesTest {
 
 		testEquality(symbolType, new SymbolType<>(TimePointUnit.class));
 
-		testStringSummary(symbolType, "SYMBOL(" + TimeIntervalUnit.class.getName() + ")");
+		testStringSummary(symbolType, "SYMBOL('" + TimeIntervalUnit.class.getName() + "')");
 
 		testNullability(symbolType);
 
@@ -607,6 +608,16 @@ public class LogicalTypesTest {
 		testConversions(symbolType, new Class[]{TimeIntervalUnit.class}, new Class[]{TimeIntervalUnit.class});
 
 		testInvalidStringSerializability(symbolType);
+	}
+
+	@Test
+	public void testUnresolvedUserDefinedType() {
+		final UnresolvedUserDefinedType unresolvedType =
+			new UnresolvedUserDefinedType("catalog", "database", "Type");
+
+		testEquality(unresolvedType, new UnresolvedUserDefinedType("different", "database", "Type"));
+
+		testStringSummary(unresolvedType, "`catalog`.`database`.`Type`");
 	}
 
 	@Test

@@ -156,6 +156,9 @@ public enum LogicalTypeRoot {
 		LogicalTypeFamily.EXTENSION),
 
 	SYMBOL(
+		LogicalTypeFamily.EXTENSION),
+
+	UNRESOLVED(
 		LogicalTypeFamily.EXTENSION);
 
 	private final Set<LogicalTypeFamily> families;

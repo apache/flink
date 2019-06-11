@@ -682,6 +682,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.isEmpty)
             CurrentRow()
 
+          case STREAM_RECORD_TIMESTAMP =>
+            assert(args.isEmpty)
+            StreamRecordTimestamp()
+
           case _ =>
             throw new TableException(s"Unsupported function definition: $fd")
         }

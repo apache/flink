@@ -18,6 +18,8 @@
 import sys
 
 from py4j.compat import long
+
+from pyflink.common import Configuration
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TableConfig']
@@ -226,6 +228,24 @@ class TableConfig(object):
         precision = j_math_context.getPrecision()
         rounding_mode = j_math_context.getRoundingMode().name()
         return precision, rounding_mode
+
+    def get_configuration(self):
+        """
+        Returns all key/value configuration.
+
+        :return: All key/value configuration.
+        :rtype: Configuration
+        """
+        return Configuration(j_configuration=self._j_table_config.getConfiguration())
+
+    def add_configuration(self, configuration):
+        """
+        Adds the given key/value configuration.
+
+        :param configuration: The given key/value configuration.
+        :type configuration: Configuration
+        """
+        self._j_table_config.addConfiguration(configuration._j_configuration)
 
     @staticmethod
     def get_default():

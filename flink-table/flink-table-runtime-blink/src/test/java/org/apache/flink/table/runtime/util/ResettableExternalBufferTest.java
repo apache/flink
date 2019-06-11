@@ -24,7 +24,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;

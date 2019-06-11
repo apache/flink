@@ -36,20 +36,20 @@ object PlannerExpressionUtils {
   }
 
   private[flink] def isTimeAttribute(expr: PlannerExpression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isTimeIndicatorType(r.resultType) =>
+    case r: PlannerResolvedFieldReference if FlinkTypeFactory.isTimeIndicatorType(r.resultType) =>
       true
     case _ => false
   }
 
   private[flink] def isRowtimeAttribute(expr: PlannerExpression): Boolean = expr match {
-    case r: ResolvedFieldReference
+    case r: PlannerResolvedFieldReference
       if FlinkTypeFactory.isRowtimeIndicatorType(r.resultType) =>
       true
     case _ => false
   }
 
   private[flink] def isProctimeAttribute(expr: PlannerExpression): Boolean = expr match {
-    case r: ResolvedFieldReference
+    case r: PlannerResolvedFieldReference
       if FlinkTypeFactory.isProctimeIndicatorType(r.resultType) =>
       true
     case _ => false
