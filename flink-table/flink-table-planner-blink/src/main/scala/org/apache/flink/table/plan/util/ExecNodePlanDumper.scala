@@ -58,13 +58,15 @@ object ExecNodePlanDumper {
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withRetractTraits: Boolean = false,
-      withOutputType: Boolean = false): String = {
+      withOutputType: Boolean = false,
+      withResource: Boolean = false): String = {
     doConvertTreeToString(
       node,
       detailLevel = detailLevel,
       withExecNodeId = withExecNodeId,
       withRetractTraits = withRetractTraits,
-      withOutputType = withOutputType)
+      withOutputType = withOutputType,
+      withResource = withResource)
   }
 
   /**
@@ -83,14 +85,16 @@ object ExecNodePlanDumper {
       detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withRetractTraits: Boolean = false,
-      withOutputType: Boolean = false): String = {
+      withOutputType: Boolean = false,
+      withResource: Boolean = false): String = {
     if (nodes.length == 1) {
       return treeToString(
         nodes.head,
         detailLevel,
         withExecNodeId = withExecNodeId,
         withRetractTraits = withRetractTraits,
-        withOutputType = withOutputType)
+        withOutputType = withOutputType,
+        withResource = withResource)
     }
 
     val reuseInfoBuilder = new ReuseInfoBuilder()
@@ -124,7 +128,8 @@ object ExecNodePlanDumper {
             withRetractTraits = withRetractTraits,
             withOutputType = withOutputType,
             stopExplainNodes = Some(stopExplainNodes),
-            reuseInfoMap = Some(reuseInfoMap))
+            reuseInfoMap = Some(reuseInfoMap),
+            withResource = withResource)
           sb.append(reusePlan).append(System.lineSeparator)
           if (isReuseNode) {
             // update visit info after the reuse node visited
@@ -151,7 +156,8 @@ object ExecNodePlanDumper {
       withRetractTraits: Boolean = false,
       withOutputType: Boolean = false,
       stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
-      reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None
+      reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None,
+      withResource: Boolean = false
   ): String = {
     // TODO refactor this part of code
     //  get ExecNode explain value by RelNode#explain now
@@ -164,7 +170,8 @@ object ExecNodePlanDumper {
       withRetractTraits = withRetractTraits,
       withOutputType = withOutputType,
       stopExplainNodes = stopExplainNodes,
-      reuseInfoMap = reuseInfoMap)
+      reuseInfoMap = reuseInfoMap,
+      withResource = withResource)
     node.asInstanceOf[RelNode].explain(planWriter)
     sw.toString
   }
@@ -217,7 +224,8 @@ class NodeTreeWriterImpl(
     withRetractTraits: Boolean = false,
     withOutputType: Boolean = false,
     stopExplainNodes: Option[util.Set[ExecNode[_, _]]] = None,
-    reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None)
+    reuseInfoMap: Option[util.IdentityHashMap[ExecNode[_, _], (Integer, Boolean)]] = None,
+    withResource: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, false) {
 
   require((stopExplainNodes.isEmpty && reuseInfoMap.isEmpty) ||
@@ -321,6 +329,10 @@ class NodeTreeWriterImpl(
       if (withExecNodeId) {
         // use RelNode's id now
         printValues.add(Pair.of("__id__", rel.getId.toString))
+      }
+
+      if (withResource) {
+        printValues.add(Pair.of("resource", node.getResource))
       }
 
       if (withRetractTraits) {

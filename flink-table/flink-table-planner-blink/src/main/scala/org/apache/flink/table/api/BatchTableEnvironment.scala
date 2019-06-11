@@ -26,6 +26,8 @@ import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.process.DAGProcessContext
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.BatchParallelismProcessor
 import org.apache.flink.table.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, TableSourceSinkTable, TableSourceTable}
@@ -50,9 +52,9 @@ import _root_.scala.collection.JavaConversions._
   * @param config The [[TableConfig]] of this [[BatchTableEnvironment]].
   */
 class BatchTableEnvironment(
-    val streamEnv: StreamExecutionEnvironment,
+    val execEnv: StreamExecutionEnvironment,
     config: TableConfig)
-  extends TableEnvironment(config) {
+  extends TableEnvironment(execEnv, config) {
 
   // prefix for unique table names.
   override private[flink] val tableNamePrefix = "_DataStreamTable_"
@@ -120,8 +122,10 @@ class BatchTableEnvironment(
 
   override private[flink] def translateToExecNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
     val nodeDag = super.translateToExecNodeDag(rels)
+    val context = new DAGProcessContext(this)
     // breakup deadlock
-    new DeadlockBreakupProcessor().process(nodeDag)
+    val postNodeDag = new DeadlockBreakupProcessor().process(nodeDag, context)
+    new BatchParallelismProcessor().process(postNodeDag, context)
   }
 
   /**

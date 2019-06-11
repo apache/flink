@@ -203,7 +203,7 @@ class BatchExecCorrelate(
       condition,
       outputRowType,
       joinType,
-      tableEnv.getConfig.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM),
+      getResource.getParallelism,
       retainHeader = false,
       getExpressionString,
       "BatchExecCorrelate")

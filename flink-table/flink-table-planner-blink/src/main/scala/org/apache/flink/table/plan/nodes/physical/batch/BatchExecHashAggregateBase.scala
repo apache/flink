@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.batch.{AggWithoutKeysCodeGenerator, HashAggCodeGenerator}
@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
@@ -116,8 +117,6 @@ abstract class BatchExecHashAggregateBase(
 
   def getOperatorName: String
 
-  def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int
-
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
@@ -134,9 +133,9 @@ abstract class BatchExecHashAggregateBase(
         ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
       val reservedManagedMem = tableEnv.config.getConf.getInteger(
-        TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * TableConfigOptions.SIZE_IN_MB
+        TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
       val maxManagedMem = tableEnv.config.getConf.getInteger(
-        TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM) * TableConfigOptions.SIZE_IN_MB
+        TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM) * NodeResourceConfig.SIZE_IN_MB
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal
       ).genWithKeys(reservedManagedMem, maxManagedMem)
@@ -147,6 +146,6 @@ abstract class BatchExecHashAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getParallelism(input, tableEnv.config))
+      getResource.getParallelism)
   }
 }

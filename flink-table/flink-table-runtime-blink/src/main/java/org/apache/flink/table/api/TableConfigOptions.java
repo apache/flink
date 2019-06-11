@@ -105,16 +105,35 @@ public class TableConfigOptions {
 	//  Resource Options
 	// ------------------------------------------------------------------------
 
-	/**
-	 * How many Bytes per MB.
-	 */
-	public static final long SIZE_IN_MB =  1024L * 1024;
+	public static final ConfigOption<String> SQL_RESOURCE_INFER_MODE =
+			key("sql.resource.infer.mode")
+					.defaultValue("NONE")
+					.withDescription("Sets infer resource mode according to statics. Only NONE, or ONLY_SOURCE can be set.\n" +
+							"If set NONE, parallelism and memory of all node are set by config.\n" +
+							"If set ONLY_SOURCE, only source parallelism is inferred according to statics.\n");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_SOURCE_PARALLELISM_MAX =
+			key("sql.resource.infer.source.parallelism.max")
+					.defaultValue(1000)
+					.withDescription("Sets max infer parallelism for source operator.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_DEFAULT_PARALLELISM =
 			key("sql.resource.default.parallelism")
 					.defaultValue(-1)
 					.withDescription("Default parallelism of the job. If any node do not have special parallelism, use it." +
 							"Its default value is the num of cpu cores in the client host.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_SOURCE_PARALLELISM =
+			key("sql.resource.source.parallelism")
+					.defaultValue(-1)
+					.withDescription("Sets source parallelism if " + SQL_RESOURCE_INFER_MODE + " is NONE, " +
+							"use " + SQL_RESOURCE_DEFAULT_PARALLELISM + " to set source parallelism.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_SINK_PARALLELISM =
+			key("sql.resource.sink.parallelism")
+					.defaultValue(-1)
+					.withDescription("Sets sink parallelism if it is set. If it is not set, " +
+							"sink nodes will chain with ahead nodes as far as possible.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_EXTERNAL_BUFFER_MEM =
 			key("sql.resource.external-buffer.memory.mb")
@@ -225,10 +244,4 @@ public class TableConfigOptions {
 					.defaultValue(1000000L)
 					.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
 							"to input row count.");
-
-	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_OPERATOR_PARALLELISM_MAX =
-			key("sql.resource.infer.operator.parallelism.max")
-					.defaultValue(800)
-					.withDescription("Sets max parallelism for all operators.");
-
 }

@@ -26,6 +26,7 @@ import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.sort.SortOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
@@ -114,12 +115,12 @@ class BatchExecSort(
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
     val reservedMemorySize = conf.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB
+      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
 
     val maxMemorySize = conf.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MAX_MEM) * TableConfigOptions.SIZE_IN_MB
+      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MAX_MEM) * NodeResourceConfig.SIZE_IN_MB
     val perRequestSize = conf.getConf.getInteger(
-      TableConfigOptions.SQL_EXEC_PER_REQUEST_MEM) * TableConfigOptions.SIZE_IN_MB
+      TableConfigOptions.SQL_EXEC_PER_REQUEST_MEM) * NodeResourceConfig.SIZE_IN_MB
 
     val operator = new SortOperator(
       reservedMemorySize,
@@ -133,6 +134,6 @@ class BatchExecSort(
       s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
       operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
       BaseRowTypeInfo.of(outputType),
-      input.getParallelism)
+      getResource.getParallelism)
   }
 }

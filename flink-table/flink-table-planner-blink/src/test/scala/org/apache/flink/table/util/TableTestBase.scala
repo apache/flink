@@ -305,6 +305,18 @@ abstract class TableTestUtil(test: TableTestBase) {
     assertEqualsOrExpand("planAfter", actual.toString, expand = false)
   }
 
+  def verifyResource(sql: String): Unit = {
+    assertEqualsOrExpand("sql", sql)
+    val table = getTableEnv.sqlQuery(sql)
+    doVerifyPlan(
+      table,
+      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      withRowType = false,
+      withRetractTraits = false,
+      printResource = true,
+      printPlanBefore = false)
+  }
+
   def doVerifyPlan(
       table: Table,
       explainLevel: SqlExplainLevel,
@@ -323,13 +335,15 @@ abstract class TableTestUtil(test: TableTestBase) {
       explainLevel: SqlExplainLevel,
       withRowType: Boolean,
       withRetractTraits: Boolean,
-      printPlanBefore: Boolean): Unit = {
+      printPlanBefore: Boolean,
+      printResource: Boolean = false): Unit = {
     val relNode = table.asInstanceOf[TableImpl].getRelNode
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
       withRetractTraits = withRetractTraits,
-      withRowType = withRowType)
+      withRowType = withRowType,
+      withResource = printResource)
 
     if (printPlanBefore) {
       val planBefore = SystemUtils.LINE_SEPARATOR +
@@ -393,7 +407,8 @@ abstract class TableTestUtil(test: TableTestBase) {
       relNodes: Array[RelNode],
       explainLevel: SqlExplainLevel,
       withRetractTraits: Boolean,
-      withRowType: Boolean): String = {
+      withRowType: Boolean,
+      withResource: Boolean = false): String = {
     require(relNodes.nonEmpty)
     val tEnv = getTableEnv
     val optimizedRels = tEnv.optimize(relNodes)
@@ -405,7 +420,8 @@ abstract class TableTestUtil(test: TableTestBase) {
           optimizedNodes,
           detailLevel = explainLevel,
           withRetractTraits = withRetractTraits,
-          withOutputType = withRowType)
+          withOutputType = withRowType,
+          withResource = withResource)
       case _ =>
         optimizedRels.map { rel =>
           FlinkRelOptUtil.toString(

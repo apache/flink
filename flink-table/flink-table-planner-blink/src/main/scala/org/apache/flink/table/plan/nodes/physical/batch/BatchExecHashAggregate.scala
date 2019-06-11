@@ -154,12 +154,4 @@ class BatchExecHashAggregate(
     val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
     aggOperatorName(aggregateNamePrefix + "HashAggregate")
   }
-
-  override def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int = {
-    if (isFinal && grouping.length == 0) {
-      1
-    } else {
-      conf.getConf.getInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM)
-    }
-  }
 }

@@ -18,10 +18,10 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
-import org.apache.flink.table.codegen.agg.batch.{AggWithoutKeysCodeGenerator, HashAggCodeGenerator, SortAggCodeGenerator}
+import org.apache.flink.table.codegen.agg.batch.{AggWithoutKeysCodeGenerator, SortAggCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
@@ -100,8 +100,6 @@ abstract class BatchExecSortAggregateBase(
 
   def getOperatorName: String
 
-  def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int
-
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
@@ -126,6 +124,6 @@ abstract class BatchExecSortAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getParallelism(input, tableEnv.config))
+      getResource.getParallelism)
   }
 }

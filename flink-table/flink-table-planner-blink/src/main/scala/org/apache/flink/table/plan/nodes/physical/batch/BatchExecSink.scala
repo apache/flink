@@ -27,6 +27,7 @@ import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
 import org.apache.flink.table.sinks.{BatchTableSink, DataStreamTableSink, TableSink}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
@@ -80,8 +81,21 @@ class BatchExecSink[T](
       case batchTableSink: BatchTableSink[T] =>
         val transformation = translateToStreamTransformation(withChangeFlag = false, tableEnv)
         val boundedStream = new DataStream(tableEnv.streamEnv, transformation)
-        batchTableSink.emitBoundedStream(
+        val sinkTransformation = batchTableSink.emitBoundedStream(
           boundedStream, tableEnv.getConfig, tableEnv.streamEnv.getConfig).getTransformation
+
+        if (sinkTransformation.getMaxParallelism > 0) {
+          sinkTransformation.setParallelism(sinkTransformation.getMaxParallelism)
+        } else {
+          val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
+            tableEnv.getConfig.getConf)
+          if (configSinkParallelism > 0) {
+            sinkTransformation.setParallelism(configSinkParallelism)
+          } else if (boundedStream.getParallelism > 0) {
+            sinkTransformation.setParallelism(boundedStream.getParallelism)
+          }
+        }
+        sinkTransformation
 
       case streamTableSink: DataStreamTableSink[T] =>
         // In case of table to bounded stream through BatchTableEnvironment#toBoundedStream, we
@@ -133,6 +147,4 @@ class BatchExecSink[T](
                                    "This is a bug and should not happen. Please file an issue.")
     }
   }
-
-
 }

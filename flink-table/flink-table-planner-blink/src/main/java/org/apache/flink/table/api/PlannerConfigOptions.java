@@ -126,4 +126,10 @@ public class PlannerConfigOptions {
 					.defaultValue(false)
 					.withDescription("Disable union all as breakpoint when constructing RelNodeBlock");
 
+	public static final ConfigOption<Long> SQL_OPTIMIZER_ROWS_PER_LOCALAGG =
+			key("sql.optimizer.rows-per-localAgg")
+					.defaultValue(1000000L)
+					.withDescription("Sets how many rows one localAgg processes. We will infer agg degree to decide whether " +
+							"to use localAgg according to it.");
+
 }

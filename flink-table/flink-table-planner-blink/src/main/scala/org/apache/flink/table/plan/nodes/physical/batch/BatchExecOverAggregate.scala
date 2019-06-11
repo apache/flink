@@ -34,6 +34,7 @@ import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistri
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
+import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
@@ -405,13 +406,13 @@ class BatchExecOverAggregate(
       val windowFrames = createOverWindowFrames(tableEnv)
       new BufferDataOverWindowOperator(
         tableEnv.getConfig.getConf.getInteger(
-          TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * TableConfigOptions.SIZE_IN_MB,
+          TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB,
         windowFrames,
         genComparator,
         inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))
     }
     new OneInputTransformation(
-      input, "OverAggregate", operator, BaseRowTypeInfo.of(outputType), input.getParallelism)
+      input, "OverAggregate", operator, BaseRowTypeInfo.of(outputType), getResource.getParallelism)
   }
 
   def createOverWindowFrames(tableEnv: BatchTableEnvironment): Array[OverWindowFrame] = {

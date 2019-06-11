@@ -87,8 +87,9 @@ class BatchExecBoundedStreamScan(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val config = tableEnv.getConfig
     val batchTransform = boundedStreamTable.dataStream.getTransformation
+    batchTransform.setParallelism(getResource.getParallelism)
     if (needInternalConversion) {
-      ScanUtil.convertToInternalRow(
+      val conversionTransform = ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         batchTransform,
         boundedStreamTable.fieldIndexes,
@@ -97,10 +98,15 @@ class BatchExecBoundedStreamScan(
         getTable.getQualifiedName,
         config,
         None)
+      conversionTransform.setParallelism(getResource.getParallelism)
+      conversionTransform
     } else {
       batchTransform.asInstanceOf[StreamTransformation[BaseRow]]
     }
   }
+
+  def getSourceTransformation: StreamTransformation[_] =
+    boundedStreamTable.dataStream.getTransformation
 
   def needInternalConversion: Boolean = {
     ScanUtil.hasTimeAttributeField(boundedStreamTable.fieldIndexes) ||

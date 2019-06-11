@@ -50,7 +50,9 @@ class TestTableSourceWithTime[T](
   }
 
   override def getBoundedStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[T] = {
-    streamEnv.fromCollection(values, returnType)
+    val dataStream = streamEnv.fromCollection(values, returnType)
+    dataStream.getTransformation.setMaxParallelism(1)
+    dataStream
   }
 
   override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {

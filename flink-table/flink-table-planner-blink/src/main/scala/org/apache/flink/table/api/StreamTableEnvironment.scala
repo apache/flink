@@ -67,7 +67,7 @@ import _root_.scala.collection.JavaConversions._
 abstract class StreamTableEnvironment(
     private[flink] val execEnv: StreamExecutionEnvironment,
     config: TableConfig)
-  extends TableEnvironment(config) {
+  extends TableEnvironment(execEnv, config) {
 
   // prefix  for unique table names.
   override private[flink] val tableNamePrefix = "_DataStreamTable_"

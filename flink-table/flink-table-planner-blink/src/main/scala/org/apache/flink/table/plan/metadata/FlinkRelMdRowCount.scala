@@ -26,10 +26,10 @@ import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util._
 import org.apache.flink.table.JDouble
+import org.apache.flink.table.api.PlannerConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
-import org.apache.flink.table.plan.nodes.exec.NodeResourceConfig
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.plan.util.AggregateUtil.{hasTimeIntervalType, toLong}
@@ -171,7 +171,8 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     } else {
       val inputRowCnt = mq.getRowCount(input)
       val config = rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-      val parallelism = NodeResourceConfig.calOperatorParallelism(inputRowCnt, config.getConf)
+      val parallelism = (inputRowCnt /
+          config.getConf.getLong(PlannerConfigOptions.SQL_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
       if (parallelism == 1) {
         ndvOfGroupKeysOnGlobalAgg
       } else if (grouping.isEmpty) {

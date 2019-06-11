@@ -110,7 +110,7 @@ class BatchExecLimit(
       getOperatorName,
       operator,
       inputType,
-      if (isGlobal) 1 else input.getParallelism)
+      getResource.getParallelism)
   }
 
   private def getOperatorName = {
