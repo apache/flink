@@ -461,7 +461,7 @@ class Csv(FormatDescriptor):
         :param escape_character: Escaping character (e.g. backslash).
         :return: This :class:`Csv` object.
         """
-        if not isinstance(escape_character, (str, unicode)) or len(escape_character) > 1:
+        if not isinstance(escape_character, (str, unicode)) or len(escape_character) != 1:
             raise TypeError("Only one-character string is supported!")
         self._j_csv = self._j_csv.escapeCharacter(escape_character)
         return self
