@@ -103,17 +103,17 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private static final long serialVersionUID = 5167529504848109023L;
 
 	private transient JobConf jobConf;
-	private transient String dbName;
+	private transient String databaseName;
 	private transient String tableName;
-	private transient List<String> partitionCols;
+	private transient List<String> partitionColumns;
 	private transient RowTypeInfo rowTypeInfo;
 	private transient HiveTablePartition hiveTablePartition;
-	private transient Properties tblProperties;
+	private transient Properties tableProperties;
 	private transient boolean overwrite;
 	private transient boolean isPartitioned;
 	private transient boolean isDynamicPartition;
 	// number of non-partitioning columns
-	private transient int numNonPartitionCols;
+	private transient int numNonPartitionColumns;
 
 	private transient AbstractSerDe serializer;
 	//StructObjectInspector represents the hive row structure.
@@ -127,30 +127,30 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient HivePartitionWriter staticWriter;
 
 	// the offset of dynamic partition columns within a row
-	private transient int dynPartOffset;
+	private transient int dynamicPartitionOffset;
 
-	public HiveTableOutputFormat(JobConf jobConf, String dbName, String tableName, List<String> partitionCols,
+	public HiveTableOutputFormat(JobConf jobConf, String databaseName, String tableName, List<String> partitionColumns,
 								RowTypeInfo rowTypeInfo, HiveTablePartition hiveTablePartition,
-								Properties tblProperties, boolean overwrite) {
+								Properties tableProperties, boolean overwrite) {
 		super(jobConf.getCredentials());
 
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(dbName), "DB name is empty");
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "DB name is empty");
 		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(tableName), "Table name is empty");
 		Preconditions.checkNotNull(rowTypeInfo, "RowTypeInfo cannot be null");
 		Preconditions.checkNotNull(hiveTablePartition, "HiveTablePartition cannot be null");
-		Preconditions.checkNotNull(tblProperties, "Table properties cannot be null");
+		Preconditions.checkNotNull(tableProperties, "Table properties cannot be null");
 
 		HadoopUtils.mergeHadoopConf(jobConf);
 		this.jobConf = jobConf;
-		this.dbName = dbName;
+		this.databaseName = databaseName;
 		this.tableName = tableName;
-		this.partitionCols = partitionCols;
+		this.partitionColumns = partitionColumns;
 		this.rowTypeInfo = rowTypeInfo;
 		this.hiveTablePartition = hiveTablePartition;
-		this.tblProperties = tblProperties;
+		this.tableProperties = tableProperties;
 		this.overwrite = overwrite;
-		isPartitioned = partitionCols != null && !partitionCols.isEmpty();
-		isDynamicPartition = isPartitioned && partitionCols.size() > hiveTablePartition.getPartitionSpec().size();
+		isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
+		isDynamicPartition = isPartitioned && partitionColumns.size() > hiveTablePartition.getPartitionSpec().size();
 	}
 
 	//  Custom serialization methods
@@ -163,10 +163,10 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		out.writeObject(overwrite);
 		out.writeObject(rowTypeInfo);
 		out.writeObject(hiveTablePartition);
-		out.writeObject(partitionCols);
-		out.writeObject(dbName);
+		out.writeObject(partitionColumns);
+		out.writeObject(databaseName);
 		out.writeObject(tableName);
-		out.writeObject(tblProperties);
+		out.writeObject(tableProperties);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -186,11 +186,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		overwrite = (boolean) in.readObject();
 		rowTypeInfo = (RowTypeInfo) in.readObject();
 		hiveTablePartition = (HiveTablePartition) in.readObject();
-		partitionCols = (List<String>) in.readObject();
-		dbName = (String) in.readObject();
+		partitionColumns = (List<String>) in.readObject();
+		databaseName = (String) in.readObject();
 		tableName = (String) in.readObject();
 		partitionToWriter = new HashMap<>();
-		tblProperties = (Properties) in.readObject();
+		tableProperties = (Properties) in.readObject();
 	}
 
 	@Override
@@ -199,14 +199,14 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		Path stagingDir = new Path(jobSD.getLocation());
 		FileSystem fs = stagingDir.getFileSystem(jobConf);
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class))) {
-			Table table = client.getTable(dbName, tableName);
+			Table table = client.getTable(databaseName, tableName);
 			if (!isDynamicPartition) {
 				commitJob(stagingDir.toString());
 			}
 			if (isPartitioned) {
 				if (isDynamicPartition) {
 					FileStatus[] generatedParts = HiveStatsUtils.getFileStatusRecurse(stagingDir,
-						partitionCols.size() - hiveTablePartition.getPartitionSpec().size(), fs);
+						partitionColumns.size() - hiveTablePartition.getPartitionSpec().size(), fs);
 					for (FileStatus part : generatedParts) {
 						commitJob(part.getPath().toString());
 						LinkedHashMap<String, String> fullPartSpec = new LinkedHashMap<>();
@@ -246,7 +246,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			serializer = (AbstractSerDe) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
 			ReflectionUtils.setConf(serializer, jobConf);
 			// TODO: support partition properties, for now assume they're same as table properties
-			SerDeUtils.initializeSerDe(serializer, jobConf, tblProperties, null);
+			SerDeUtils.initializeSerDe(serializer, jobConf, tableProperties, null);
 			outputClass = serializer.getSerializedClass();
 		} catch (IllegalAccessException | SerDeException | InstantiationException | ClassNotFoundException e) {
 			throw new FlinkRuntimeException("Error initializing Hive serializer", e);
@@ -267,11 +267,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		if (!isDynamicPartition) {
 			staticWriter = writerForLocation(hiveTablePartition.getStorageDescriptor().getLocation());
 		} else {
-			dynPartOffset = rowTypeInfo.getArity() - partitionCols.size() + hiveTablePartition.getPartitionSpec().size();
+			dynamicPartitionOffset = rowTypeInfo.getArity() - partitionColumns.size() + hiveTablePartition.getPartitionSpec().size();
 		}
 
 		List<ObjectInspector> objectInspectors = new ArrayList<>();
-		for (int i = 0; i < rowTypeInfo.getArity() - partitionCols.size(); i++) {
+		for (int i = 0; i < rowTypeInfo.getArity() - partitionColumns.size(); i++) {
 			objectInspectors.add(HiveTableUtil.getObjectInspector(LegacyTypeInfoDataTypeConverter.toDataType(rowTypeInfo.getTypeAt(i))));
 		}
 
@@ -279,12 +279,12 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()),
 				objectInspectors);
-			numNonPartitionCols = rowTypeInfo.getArity();
+			numNonPartitionColumns = rowTypeInfo.getArity();
 		} else {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
-				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionCols.size()),
+				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionColumns.size()),
 				objectInspectors);
-			numNonPartitionCols = rowTypeInfo.getArity() - partitionCols.size();
+			numNonPartitionColumns = rowTypeInfo.getArity() - partitionColumns.size();
 		}
 	}
 
@@ -296,11 +296,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 				LinkedHashMap<String, String> dynPartSpec = new LinkedHashMap<>();
 				// only need to check the dynamic partitions
 				final int numStaticPart = hiveTablePartition.getPartitionSpec().size();
-				for (int i = dynPartOffset; i < record.getArity(); i++) {
+				for (int i = dynamicPartitionOffset; i < record.getArity(); i++) {
 					// TODO: seems Hive also just calls toString(), need further investigation to confirm
 					// TODO: validate partition value
 					String partVal = record.getField(i).toString();
-					dynPartSpec.put(partitionCols.get(i - dynPartOffset + numStaticPart), partVal);
+					dynPartSpec.put(partitionColumns.get(i - dynamicPartitionOffset + numStaticPart), partVal);
 				}
 				String partName = Warehouse.makePartPath(dynPartSpec);
 				partitionWriter = partitionToWriter.get(partName);
@@ -322,7 +322,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private void loadPartition(Path srcDir, Table table, Map<String, String> partSpec, HiveMetastoreClientWrapper client)
 			throws TException, IOException {
 		Path tblLocation = new Path(table.getSd().getLocation());
-		List<Partition> existingPart = client.listPartitions(dbName, tableName,
+		List<Partition> existingPart = client.listPartitions(databaseName, tableName,
 				new ArrayList<>(partSpec.values()), (short) 1);
 		Path destDir = existingPart.isEmpty() ? new Path(tblLocation, Warehouse.makePartPath(partSpec)) :
 				new Path(existingPart.get(0).getSd().getLocation());
@@ -334,7 +334,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			StorageDescriptor sd = new StorageDescriptor(hiveTablePartition.getStorageDescriptor());
 			sd.setLocation(destDir.toString());
 			partition.setSd(sd);
-			partition.setDbName(dbName);
+			partition.setDbName(databaseName);
 			partition.setTableName(tableName);
 			partition.setCreateTime((int) System.currentTimeMillis());
 			partition.setLastAccessTime((int) System.currentTimeMillis());
@@ -386,8 +386,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 
 	// converts a Row to a list so that Hive can serialize it
 	private Object getConvertedRow(Row record) {
-		List<Object> res = new ArrayList<>(numNonPartitionCols);
-		for (int i = 0; i < numNonPartitionCols; i++) {
+		List<Object> res = new ArrayList<>(numNonPartitionColumns);
+		for (int i = 0; i < numNonPartitionColumns; i++) {
 			res.add(record.getField(i));
 		}
 		return res;
@@ -454,7 +454,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		FileSinkOperator.RecordWriter recordWriter;
 		try {
 			recordWriter = HiveFileFormatUtils.getRecordWriter(clonedConf, outputFormat,
-				outputClass, isCompressed, tblProperties, taskPath, Reporter.NULL);
+				outputClass, isCompressed, tableProperties, taskPath, Reporter.NULL);
 		} catch (HiveException e) {
 			throw new IOException(e);
 		}

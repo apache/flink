@@ -193,7 +193,7 @@ public class HiveTableOutputFormatTest {
 	}
 
 	private HiveCatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
-		if (numPartCols <= 0) {
+		if (numPartCols == 0) {
 			return new HiveCatalogTable(tableSchema, new HashMap<>(), "");
 		}
 		String[] partCols = new String[numPartCols];
