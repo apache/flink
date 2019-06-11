@@ -19,6 +19,8 @@
 package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -111,6 +113,12 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	}
 
 	@Override
+	public TypeInformation<Row> getReturnType() {
+		TableSchema tableSchema = catalogTable.getSchema();
+		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+	}
+
+	@Override
 	public List<Map<String, String>> getPartitions() {
 		if (!initAllPartitions) {
 			initAllPartitions();
@@ -149,6 +157,8 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 			String tableName = tablePath.getObjectName();
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
 			if (partitionColNames != null && partitionColNames.size() > 0) {
+				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 				List<Partition> partitions =
 						client.listPartitions(dbName, tableName, (short) -1);
 				for (Partition partition : partitions) {
@@ -160,7 +170,14 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 						String partitionValue = partition.getValues().get(i);
 						partitionSpec.put(partitionColName, partitionValue);
 						DataType type = catalogTable.getSchema().getFieldDataType(partitionColName).get();
-						Object partitionObject = restorePartitionValueFromFromType(partitionValue, type);
+						Object partitionObject;
+						if (defaultPartitionName.equals(partitionValue)) {
+							LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+							// while this is inline with Hive, seems it should be null for string columns as well
+							partitionObject = typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR ? defaultPartitionName : null;
+						} else {
+							partitionObject = restorePartitionValueFromFromType(partitionValue, type);
+						}
 						partitionColValues.put(partitionColName, partitionObject);
 					}
 					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues);

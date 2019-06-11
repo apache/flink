@@ -90,7 +90,7 @@ object MetadataTestUtil {
         BasicTypeInfo.DOUBLE_TYPE_INFO,
         BasicTypeInfo.INT_TYPE_INFO))
 
-    getDataStreamTable(schema, new FlinkStatistic(null))
+    getDataStreamTable(schema, new FlinkStatistic(TableStats.UNKNOWN))
   }
 
   private def createMyTable1(): DataStreamTable[BaseRow] = {

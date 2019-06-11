@@ -41,7 +41,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
   @Before
   def before(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
     util.addFunction("countFun", new CountAggFunction)
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
@@ -298,6 +298,28 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |FROM MyTable1
         |    GROUP BY TUMBLE(ts, INTERVAL '15' MINUTE)
       """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg() = {
+
+    val sql =
+      """
+        |SELECT
+        |  SUM(correct) AS s,
+        |  AVG(correct) AS a,
+        |  TUMBLE_START(b, INTERVAL '15' MINUTE) AS wStart
+        |FROM (
+        |  SELECT CASE a
+        |      WHEN 1 THEN 1
+        |      ELSE 99
+        |    END AS correct, b
+        |  FROM MyTable
+        |)
+        |GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
+      """.stripMargin
+
     util.verifyPlan(sql)
   }
 }

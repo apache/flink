@@ -137,3 +137,6 @@ deployment:
 catalogs:
   - name: catalog1
     type: DependencyTest
+  - name: simple-catalog
+    type: simple-catalog
+    test-table: test-table

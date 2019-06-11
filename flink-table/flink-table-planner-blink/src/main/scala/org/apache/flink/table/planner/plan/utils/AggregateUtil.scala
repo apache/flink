@@ -673,10 +673,11 @@ object AggregateUtil extends Enumeration {
     * Creates a MiniBatch trigger depends on the config.
     */
   def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
-    val size = tableConfig.getConfiguration.getLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE)
+    val size = tableConfig.getConfiguration.getLong(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
     if (size <= 0 ) {
       throw new IllegalArgumentException(
-        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE + " must be > 0.")
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
     }
     new CountBundleTrigger[BaseRow](size)
   }

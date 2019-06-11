@@ -224,6 +224,16 @@ class TableEnvironment(object):
         j_table_name_array = self._j_tenv.listTables()
         return [item for item in j_table_name_array]
 
+    def list_user_defined_functions(self):
+        """
+        Gets the names of all user defined functions registered in this environment.
+
+        :return: List of the names of all user defined functions registered in this environment.
+        :rtype: list[str]
+        """
+        j_udf_name_array = self._j_tenv.listUserDefinedFunctions()
+        return [item for item in j_udf_name_array]
+
     def explain(self, table=None, extended=False):
         """
         Returns the AST of the specified Table API and SQL queries and the execution plan to compute
@@ -496,6 +506,29 @@ class TableEnvironment(object):
                  table source/sink.
         """
         pass
+
+    def register_java_function(self, name, function_class_name):
+        """
+        Registers a java user defined function under a unique name. Replaces already existing
+        user-defined functions under this name. The acceptable function type contains
+        **ScalarFunction**, **TableFunction** and **AggregateFunction**.
+
+        Example:
+        ::
+
+            >>> table_env.register_java_function("func1", "java.user.defined.function.class.name")
+
+        :param name: The name under which the function is registered.
+        :type name: str
+        :param function_class_name: The java full qualified class name of the function to register.
+                                    The function must have a public no-argument constructor and can
+                                    be founded in current Java classloader.
+        :type function_class_name: str
+        """
+        gateway = get_gateway()
+        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader()\
+            .loadClass(function_class_name).newInstance()
+        self._j_tenv.registerFunction(name, java_function)
 
     def execute(self, job_name):
         """

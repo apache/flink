@@ -18,18 +18,24 @@
 
 package org.apache.flink.batch.connectors.hive;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -44,9 +50,12 @@ import org.junit.runner.RunWith;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
@@ -83,14 +92,14 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		List<Row> toWrite = generateRecords(5);
-		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
-		execEnv.execute();
+		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -104,14 +113,15 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+
 		List<Row> toWrite = generateRecords(5);
-		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
-		execEnv.execute();
+		tableEnv.execute("mytest");
 
 		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
 		assertEquals(toWrite.size(), partitionSpecs.size());
@@ -150,42 +160,54 @@ public class HiveTableSinkTest {
 		row.setField(2, struct);
 		toWrite.add(row);
 
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
-		tableEnv.registerDataSet("complexSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive", "default", "dest");
-		execEnv.execute();
+		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
 		assertEquals("[1,2,3]\t{1:\"a\",2:\"b\"}\t{\"f1\":3,\"f2\":\"c\"}", result.get(0));
+
 		hiveCatalog.dropTable(tablePath, false);
+	}
+
+	@Test
+	public void testWriteNestedComplexType() throws Exception {
+		String dbName = "default";
+		String tblName = "dest";
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
 		// nested complex types
-		builder = new TableSchema.Builder();
+		TableSchema.Builder builder = new TableSchema.Builder();
 		// array of rows
 		builder.fields(new String[]{"a"}, new DataType[]{DataTypes.ARRAY(
 				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING())))});
-		rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
-		row = new Row(rowTypeInfo.getArity());
-		array = new Object[3];
+		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		Row row = new Row(rowTypeInfo.getArity());
+		Object[] array = new Object[3];
 		row.setField(0, array);
 		for (int i = 0; i < array.length; i++) {
-			struct = new Row(2);
+			Row struct = new Row(2);
 			struct.setField(0, 1 + i);
 			struct.setField(1, String.valueOf((char) ('a' + i)));
 			array[i] = struct;
 		}
-		toWrite.clear();
+		List<Row> toWrite = new ArrayList<>();
 		toWrite.add(row);
 
-		tableEnv.registerDataSet("nestedSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
-		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
-		execEnv.execute();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 
-		result = hiveShell.executeQuery("select * from " + tblName);
+		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("nestedSrc", src);
+		tableEnv.registerCatalog("hive", hiveCatalog);
+		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
+		tableEnv.execute("mytest");
+
+		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
 		assertEquals("[{\"f1\":1,\"f2\":\"a\"},{\"f1\":2,\"f2\":\"b\"},{\"f1\":3,\"f2\":\"c\"}]", result.get(0));
 		hiveCatalog.dropTable(tablePath, false);
@@ -198,10 +220,10 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		List<Row> toWrite = generateRecords(1);
-		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("src", src);
 
 		Map<String, String> partSpec = new HashMap<>();
 		partSpec.put("s", "a");
@@ -211,7 +233,7 @@ public class HiveTableSinkTest {
 		hiveTableSink.setStaticPartition(partSpec);
 		tableEnv.registerTableSink("destSink", hiveTableSink);
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		execEnv.execute();
+		tableEnv.execute("mytest");
 
 		// make sure new partition is created
 		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
@@ -228,29 +250,30 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 
 		// write some data and verify
 		List<Row> toWrite = generateRecords(5);
-		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("src", src);
 
 		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
 		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		execEnv.execute();
+		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
 		// write some data to overwrite existing data and verify
 		toWrite = generateRecords(3);
-		tableEnv.registerDataSet("src1", execEnv.fromCollection(toWrite, rowTypeInfo));
+		Table src1 = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
+		tableEnv.registerTable("src1", src1);
 
 		HiveTableSink sink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
 		sink.setOverwrite(true);
 		tableEnv.registerTableSink("destSink1", sink);
 		tableEnv.sqlQuery("select * from src1").insertInto("destSink1");
-		execEnv.execute();
+		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -285,9 +308,11 @@ public class HiveTableSinkTest {
 
 	private void verifyWrittenData(List<Row> expected, List<String> results) throws Exception {
 		assertEquals(expected.size(), results.size());
+		Set<String> expectedSet = new HashSet<>();
 		for (int i = 0; i < results.size(); i++) {
-			assertEquals(expected.get(i).toString().replaceAll(",", "\t"), results.get(i));
+			expectedSet.add(expected.get(i).toString().replaceAll(",", "\t"));
 		}
+		assertEquals(expectedSet, new HashSet<>(results));
 	}
 
 	private List<Row> generateRecords(int numRecords) {
@@ -302,5 +327,37 @@ public class HiveTableSinkTest {
 			res.add(row);
 		}
 		return res;
+	}
+
+	private static class CollectionTableSource extends InputFormatTableSource<Row> {
+
+		private final Collection<Row> data;
+		private final RowTypeInfo rowTypeInfo;
+
+		CollectionTableSource(Collection<Row> data, RowTypeInfo rowTypeInfo) {
+			this.data = data;
+			this.rowTypeInfo = rowTypeInfo;
+		}
+
+		@Override
+		public DataType getProducedDataType() {
+			return TypeConversions.fromLegacyInfoToDataType(rowTypeInfo);
+		}
+
+		@Override
+		public TypeInformation<Row> getReturnType() {
+			return rowTypeInfo;
+		}
+
+		@Override
+		public InputFormat<Row, ?> getInputFormat() {
+			return new CollectionInputFormat<>(data, rowTypeInfo.createSerializer(new ExecutionConfig()));
+		}
+
+		@Override
+		public TableSchema getTableSchema() {
+			return new TableSchema.Builder().fields(rowTypeInfo.getFieldNames(),
+					TypeConversions.fromLegacyInfoToDataType(rowTypeInfo.getFieldTypes())).build();
+		}
 	}
 }

@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, DEFAULT_INPUT1_TERM, DEFAULT_INPUT2_TERM, className, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer
@@ -70,8 +70,8 @@ class NestedLoopJoinCodeGenerator(
     val isFirstRow = newName("isFirstRow")
     val isBinaryRow = newName("isBinaryRow")
 
-    val externalBufferMemorySize = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceUtil.SIZE_IN_MB
+    val externalBufferMemorySize = MemorySize.parse(config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
 
     if (singleRowJoin) {
       ctx.addReusableMember(s"$BASE_ROW $buildRow = null;")

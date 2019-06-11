@@ -39,6 +39,7 @@ class FlinkStatistic(
     relModifiedMonotonicity: RelModifiedMonotonicity = null)
   extends Statistic {
 
+  require(tableStats != null, "tableStats should not be null")
   require(uniqueKeys == null || !uniqueKeys.exists(keys => keys == null || keys.isEmpty),
     "uniqueKeys contains invalid elements!")
 
@@ -56,7 +57,7 @@ class FlinkStatistic(
     * @return The stats of the specified column.
     */
   def getColumnStats(columnName: String): ColumnStats = {
-    if (tableStats != null && tableStats.getColumnStats != null) {
+    if (tableStats != TableStats.UNKNOWN && tableStats.getColumnStats != null) {
       tableStats.getColumnStats.get(columnName)
     } else {
       null
@@ -80,8 +81,14 @@ class FlinkStatistic(
     * @return The number of rows of the table.
     */
   override def getRowCount: Double = {
-    if (tableStats != null) {
-      tableStats.getRowCount.toDouble
+    if (tableStats != TableStats.UNKNOWN) {
+      val rowCount = tableStats.getRowCount.toDouble
+      // rowCount requires non-negative number
+      if (rowCount >= 0) {
+        rowCount
+      } else {
+        null
+      }
     } else {
       null
     }
@@ -111,7 +118,7 @@ class FlinkStatistic(
 
   override def toString: String = {
     val builder = new StringBuilder
-    if (tableStats != null) {
+    if (tableStats != TableStats.UNKNOWN) {
       builder.append(s"TableStats: " +
         s"{rowCount: ${tableStats.getRowCount}, " +
         s"columnStats: ${tableStats.getColumnStats}}, ")
@@ -137,16 +144,20 @@ class FlinkStatistic(
 object FlinkStatistic {
 
   /** Represents a FlinkStatistic that knows nothing about a table */
-  val UNKNOWN: FlinkStatistic = new FlinkStatistic(null)
+  val UNKNOWN: FlinkStatistic = new FlinkStatistic(TableStats.UNKNOWN)
 
   class Builder {
 
-    private var tableStats: TableStats = _
+    private var tableStats: TableStats = TableStats.UNKNOWN
     private var uniqueKeys: util.Set[_ <: util.Set[String]] = _
     private var relModifiedMonotonicity: RelModifiedMonotonicity = _
 
     def tableStats(tableStats: TableStats): Builder = {
-      this.tableStats = tableStats
+      if (tableStats != null) {
+        this.tableStats = tableStats
+      } else {
+        this.tableStats = TableStats.UNKNOWN
+      }
       this
     }
 
@@ -169,7 +180,9 @@ object FlinkStatistic {
     }
 
     def build(): FlinkStatistic = {
-      if (tableStats == null && uniqueKeys == null && relModifiedMonotonicity == null) {
+      if (tableStats == TableStats.UNKNOWN &&
+        uniqueKeys == null &&
+        relModifiedMonotonicity == null) {
         UNKNOWN
       } else {
         new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity)

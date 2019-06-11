@@ -106,9 +106,7 @@ public class StreamSQLTestProgram {
 		String tumbleQuery = String.format(
 			"SELECT " +
 			"  key, " +
-			//TODO: The "WHEN -1 THEN NULL" part is a temporary workaround, to make the test pass, for
-			// https://issues.apache.org/jira/browse/FLINK-12249. We should remove it once the issue is fixed.
-			"  CASE SUM(cnt) / COUNT(*) WHEN 101 THEN 1 WHEN -1 THEN NULL ELSE 99 END AS correct, " +
+			"  CASE SUM(cnt) / COUNT(*) WHEN 101 THEN 1 ELSE 99 END AS correct, " +
 			"  TUMBLE_START(rowtime, INTERVAL '%d' SECOND) AS wStart, " +
 			"  TUMBLE_ROWTIME(rowtime, INTERVAL '%d' SECOND) AS rowtime " +
 			"FROM (%s) " +

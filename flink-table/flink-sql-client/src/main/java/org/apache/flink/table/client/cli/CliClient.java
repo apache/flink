@@ -278,7 +278,7 @@ public class CliClient {
 			case USE_CATALOG:
 				callUseCatalog(cmdCall);
 				break;
-			case USE_DATABASE:
+			case USE:
 				callUseDatabase(cmdCall);
 				break;
 			case DESCRIBE:

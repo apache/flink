@@ -217,6 +217,21 @@ public class ClosureCleanerTest {
 
 		ClosureCleaner.ensureSerializable(recursiveClass);
 	}
+
+	@Test
+	public void testWriteReplace() {
+		WithWriteReplace.SerializablePayload writeReplace =
+			new WithWriteReplace.SerializablePayload(new WithWriteReplace.Payload("text"));
+		Assert.assertEquals("text", writeReplace.get().getRaw());
+		ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.TOP_LEVEL, true);
+	}
+
+	@Test
+	public void testWriteReplaceRecursive() {
+		WithWriteReplace writeReplace = new WithWriteReplace(new WithWriteReplace.Payload("text"));
+		Assert.assertEquals("text", writeReplace.getPayload().getRaw());
+		ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+	}
 }
 
 class CustomMap implements MapFunction<Integer, Integer> {
@@ -234,10 +249,11 @@ class CustomMap implements MapFunction<Integer, Integer> {
 // top level class
 class ComplexMap implements MapFunction<Integer, Integer> {
 
-	static MapFunction<Integer, Integer> map1;
-	transient MapFunction<Integer, Integer> map2;
-	CustomMap map3;
-	LocalMap map4;
+	private static MapFunction<Integer, Integer> map1;
+
+	private transient MapFunction<Integer, Integer> map2;
+	private CustomMap map3;
+	private LocalMap map4;
 
 	class LocalMap implements MapFunction<Integer, Integer> {
 
@@ -253,7 +269,7 @@ class ComplexMap implements MapFunction<Integer, Integer> {
 		}
 	}
 
-	public ComplexMap(MapFunction<Integer, Integer> map2) {
+	ComplexMap(MapFunction<Integer, Integer> map2) {
 		map1 = map2;
 		this.map2 = map2;
 		this.map3 = new CustomMap();
@@ -267,12 +283,13 @@ class ComplexMap implements MapFunction<Integer, Integer> {
 }
 
 class RecursiveClass implements Serializable {
-	RecursiveClass recurse;
 
-	public RecursiveClass() {
+	private RecursiveClass recurse;
+
+	RecursiveClass() {
 	}
 
-	public RecursiveClass(RecursiveClass recurse) {
+	RecursiveClass(RecursiveClass recurse) {
 		this.recurse = recurse;
 	}
 }
@@ -283,8 +300,9 @@ interface MapCreator {
 
 class WrapperMapFunction implements MapFunction<Integer, Integer> {
 
-	MapFunction<Integer, Integer> innerMapFuc;
-	public WrapperMapFunction(MapFunction<Integer, Integer> mapFunction) {
+	private MapFunction<Integer, Integer> innerMapFuc;
+
+	WrapperMapFunction(MapFunction<Integer, Integer> mapFunction) {
 		innerMapFuc = mapFunction;
 	}
 
@@ -314,7 +332,7 @@ class SerializableMapCreator implements MapCreator, Serializable {
 
 	private int add = 0;
 
-	public SerializableMapCreator(int add) {
+	SerializableMapCreator(int add) {
 		this.add = add;
 	}
 
@@ -336,7 +354,7 @@ class NestedSerializableMapCreator implements MapCreator, Serializable {
 	private int add = 0;
 	private InnerSerializableMapCreator inner;
 
-	public NestedSerializableMapCreator(int add) {
+	NestedSerializableMapCreator(int add) {
 		this.add = add;
 		this.inner = new InnerSerializableMapCreator();
 	}
@@ -367,7 +385,7 @@ class NestedNonSerializableMapCreator implements MapCreator {
 	private int add = 0;
 	private InnerSerializableMapCreator inner;
 
-	public NestedNonSerializableMapCreator(int add) {
+	NestedNonSerializableMapCreator(int add) {
 		this.add = add;
 		this.inner = new InnerSerializableMapCreator();
 	}
@@ -444,5 +462,62 @@ class NestedSelfReferencing implements Serializable {
 	public SerializableSupplier<NestedSelfReferencing> getCycle() {
 		return cycle;
 	}
+}
+
+class WithWriteReplace implements Serializable {
+
+	private final SerializablePayload serializablePayload;
+
+	WithWriteReplace(Payload payload) {
+		this.serializablePayload = new SerializablePayload(payload);
+	}
+
+	Payload getPayload() {
+		return serializablePayload.get();
+	}
+
+	static class Payload {
+
+		private final String raw;
+
+		Payload(String raw) {
+			this.raw = raw;
+		}
+
+		String getRaw() {
+			return raw;
+		}
+	}
+
+	static class SerializablePayload implements Serializable {
+
+		private final Payload payload;
+
+		SerializablePayload(Payload payload) {
+			this.payload = payload;
+		}
+
+		private Object writeReplace() {
+			return new SerializedPayload(payload.getRaw());
+		}
+
+		Payload get() {
+			return payload;
+		}
+	}
+
+	private static class SerializedPayload implements Serializable {
+
+		private final String raw;
+
+		private SerializedPayload(String raw) {
+			this.raw = raw;
+		}
+
+		private Object readResolve() throws IOException, ClassNotFoundException {
+			return new Payload(raw);
+		}
+	}
+
 }
 

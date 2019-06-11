@@ -116,9 +116,7 @@ class StreamExecDataStreamScan(
 
     // when there is row time extraction expression, we need internal conversion
     // when the physical type of the input date stream is not BaseRow, we need internal conversion.
-    if (rowtimeExpr.isDefined || ScanUtil.needsConversion(
-      dataStreamTable.dataType,
-      dataStreamTable.dataStream.getType.getTypeClass)) {
+    if (rowtimeExpr.isDefined || ScanUtil.needsConversion(dataStreamTable.dataType)) {
 
       // extract time if the index is -1 or -2.
       val (extractElement, resetElement) =

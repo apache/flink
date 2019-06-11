@@ -53,7 +53,7 @@ class JoinDeriveNullFilterRuleTest extends TableTestBase {
     )
 
     util.tableEnv.getConfig.getConfiguration.setLong(
-      JoinDeriveNullFilterRule.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 2000000)
+      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 2000000)
     util.addTableSource("MyTable1",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING, Types.INT, Types.LONG),
       Array("a1", "b1", "c1", "d1", "e1"),

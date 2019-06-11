@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.dataformat.DataFormatConverters
 import org.apache.flink.table.dataformat.DataFormatConverters.getConverterForDataType
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
+import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils, GeneratedExpression}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
@@ -74,7 +76,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
         val javaTerm = newName("javaResult")
         // it maybe a Internal class, so use resultClass is most safety.
         val javaTypeTerm = resultClass.getCanonicalName
-        val internal = genToInternalIfNeeded(ctx, resultExternalType, resultClass, javaTerm)
+        val internal = genToInternalIfNeeded(ctx, resultExternalType, javaTerm)
         s"""
             |$javaTypeTerm $javaTerm = ($javaTypeTerm) $evalResult;
             |$resultTerm = $javaTerm == null ? null : ($internal);
@@ -106,29 +108,39 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       func: ScalarFunction): Array[GeneratedExpression] = {
-
     // get the expanded parameter types
     var paramClasses = getEvalMethodSignature(func, operands.map(_.resultType).toArray)
+    prepareFunctionArgs(ctx, operands, paramClasses, func.getParameterTypes(paramClasses))
+  }
 
-    val signatureTypes = func
-        .getParameterTypes(paramClasses)
-        .zipWithIndex
-        .map {
-          case (t, i) =>
-            // we don't trust GenericType.
-            if (t.isInstanceOf[GenericTypeInfo[_]]) {
-              fromLogicalTypeToDataType(operands(i).resultType)
-            } else {
-              fromLegacyInfoToDataType(t)
-            }
+}
+
+object ScalarFunctionCallGen {
+
+  def prepareFunctionArgs(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      parameterClasses: Array[Class[_]],
+      parameterTypes: Array[TypeInformation[_]]): Array[GeneratedExpression] = {
+
+    val signatureTypes = parameterTypes.zipWithIndex.map {
+      case (t: GenericTypeInfo[_], i) =>
+        // we don't trust GenericType, like Row and BaseRow and LocalTime
+        val returnType = fromLogicalTypeToDataType(operands(i).resultType)
+        if (operands(i).resultType.supportsOutputConversion(t.getTypeClass)) {
+          returnType.bridgedTo(t.getTypeClass)
+        } else {
+          returnType
         }
+      case (t, _) => fromLegacyInfoToDataType(t)
+    }
 
-    paramClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
+    parameterClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
       if (paramClass.isPrimitive) {
         operandExpr
       } else {
         val externalResultTerm = genToExternalIfNeeded(
-          ctx, signatureTypes(i), paramClass, operandExpr.resultTerm)
+          ctx, signatureTypes(i), operandExpr.resultTerm)
         val exprOrNull = s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
         operandExpr.copy(resultTerm = exprOrNull)
       }

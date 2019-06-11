@@ -63,7 +63,7 @@ class JoinDeriveNullFilterRule
     val mq = FlinkRelMetadataQuery.reuseOrCreate(join.getCluster.getMetadataQuery)
     val conf = FlinkRelOptUtil.getTableConfigFromContext(join)
     val minNullCount = conf.getConfiguration.getLong(
-      JoinDeriveNullFilterRule.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
+      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
 
     def createIsNotNullFilter(input: RelNode, keys: ImmutableIntList): RelNode = {
       val relBuilder = call.builder()
@@ -98,8 +98,8 @@ object JoinDeriveNullFilterRule {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
-    key("sql.optimizer.join.null-filter.threshold")
+  val TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
+    key("table.optimizer.join.null-filter-threshold")
         .defaultValue(JLong.valueOf(2000000L))
         .withDescription("To avoid the impact of null values on the single join node, " +
             "We will add a null filter (possibly be pushed down) before the join to filter" +

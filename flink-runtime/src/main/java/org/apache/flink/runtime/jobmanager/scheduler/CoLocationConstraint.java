@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SharedSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -37,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A CoLocationConstraint manages the location of a set of tasks
  * (Execution Vertices). In co-location groups, the different subtasks of
- * different JobVertices need to be executed on the same {@link Instance}.
+ * different JobVertices need to be executed on the same slot.
  * This is realized by creating a special shared slot that holds these tasks.
  * 
  * <p>This class tracks the location and the shared slot for this set of tasks.

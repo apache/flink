@@ -36,12 +36,12 @@ import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUti
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -219,12 +219,14 @@ class BatchExecSortMergeJoin(
       leftType,
       rightType)
 
-    val externalBufferMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+    val externalBufferMemText = config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+    val externalBufferMemoryInMB = MemorySize.parse(externalBufferMemText).getMebiBytes
     val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
-    val sortMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM)
+    val sortMemText = config.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
+    val sortMemoryInMB = MemorySize.parse(sortMemText).getMebiBytes
     val sortMemory = sortMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {

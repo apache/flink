@@ -127,7 +127,8 @@ class StreamExecLimit(
       tableConfig, "AlwaysEqualsComparator", Array(), Array(), Array(), Array())
 
     val processFunction = if (generateRetraction) {
-      val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.SQL_EXEC_TOPN_CACHE_SIZE)
+      val cacheSize = tableConfig.getConfiguration.getLong(
+        StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
       new AppendOnlyTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,

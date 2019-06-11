@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical
 
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
@@ -38,6 +40,9 @@ abstract class PhysicalTableSourceScan(
     relOptTable: FlinkRelOptTable)
   extends TableScan(cluster, traitSet, relOptTable) {
 
+  // cache table source transformation.
+  protected var sourceTransform: Transformation[_] = _
+
   protected val tableSourceTable: TableSourceTable[_] =
     relOptTable.unwrap(classOf[TableSourceTable[_]])
 
@@ -52,4 +57,12 @@ abstract class PhysicalTableSourceScan(
     super.explainTerms(pw).item("fields", getRowType.getFieldNames.asScala.mkString(", "))
   }
 
+  def getSourceTransformation(
+      streamEnv: StreamExecutionEnvironment): Transformation[_] = {
+    if (sourceTransform == null) {
+      sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
+        getDataStream(streamEnv).getTransformation
+    }
+    sourceTransform
+  }
 }

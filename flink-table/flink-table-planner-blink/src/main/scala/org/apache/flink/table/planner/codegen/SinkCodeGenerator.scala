@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -31,7 +30,6 @@ import org.apache.flink.table.dataformat.util.BaseRowUtil
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternal
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
-import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -41,20 +39,6 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Row
 
 object SinkCodeGenerator {
-
-  private[flink] def extractTableSinkTypeClass(sink: TableSink[_]): Class[_] = {
-    try {
-      sink match {
-        // DataStreamTableSink has no generic class, so we need get the type to get type class.
-        case sink: DataStreamTableSink[_] => sink.getConsumedDataType.getConversionClass
-        case _ => TypeExtractor.createTypeInfo(sink, classOf[TableSink[_]], sink.getClass, 0)
-                  .getTypeClass.asInstanceOf[Class[_]]
-      }
-    } catch {
-      case _: InvalidTypesException =>
-        classOf[Object]
-    }
-  }
 
   /** Code gen a operator to convert internal type rows to external type. **/
   def generateRowConverterOperator[OUT](

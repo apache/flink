@@ -32,13 +32,13 @@ under the License.
 
 	<name>flink</name>
 	<packaging>pom</packaging>
-	<url>http://flink.apache.org</url>
+	<url>https://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>
 
 	<licenses>
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
@@ -86,6 +86,7 @@ under the License.
 		<module>flink-docs</module>
 		<module>flink-python</module>
 		<module>flink-ml-parent</module>
+		<module>flink-walkthroughs</module>
 	</modules>
 
 	<properties>
@@ -1334,6 +1335,8 @@ under the License.
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
+						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/*</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>

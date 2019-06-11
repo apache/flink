@@ -21,8 +21,9 @@ source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
 
-# enable DEBUG logging level to retrieve truncate length later
-sed -i -e 's/#log4j.logger.org.apache.flink=INFO/log4j.logger.org.apache.flink=DEBUG/g' $FLINK_DIR/conf/log4j.properties
+# enable DEBUG logging level for the BucketingSink to retrieve truncate length later
+echo "" >> $FLINK_DIR/conf/log4j.properties
+echo "log4j.logger.org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink=DEBUG" >> $FLINK_DIR/conf/log4j.properties
 
 set_conf_ssl
 start_cluster

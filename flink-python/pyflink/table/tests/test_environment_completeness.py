@@ -43,8 +43,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
         # getCompletionHints has been deprecated. It will be removed in the next release.
         # TODO add TableEnvironment#create method with EnvironmentSettings as a parameter
         return {'registerExternalCatalog', 'getRegisteredExternalCatalog', 'registerCatalog',
-                'getCatalog', 'registerFunction', 'listUserDefinedFunctions', 'listTables',
-                'getCompletionHints', 'create'}
+                'getCatalog', 'registerFunction', 'listTables', 'getCompletionHints', 'create'}
 
 
 if __name__ == '__main__':

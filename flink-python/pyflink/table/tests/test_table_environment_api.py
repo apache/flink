@@ -169,6 +169,19 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
+    def test_register_java_function(self):
+        t_env = self.t_env
+
+        t_env.register_java_function("scalar_func",
+                                     "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.register_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
+
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
+
     def test_create_table_environment(self):
         table_config = TableConfig()
         table_config.set_max_generated_code_length(32000)
@@ -232,6 +245,19 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
         with self.assertRaises(TableException):
             t_env.explain(extended=True)
+
+    def test_register_java_function(self):
+        t_env = self.t_env
+
+        t_env.register_java_function("scalar_func",
+                                     "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.register_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
+
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
 
     def test_create_table_environment(self):
         table_config = TableConfig()

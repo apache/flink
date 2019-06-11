@@ -171,7 +171,12 @@ object UserDefinedFunctionUtils {
       case (t: DataType, i) =>
         // we don't trust GenericType.
         if (fromDataTypeToLogicalType(t).getTypeRoot == LogicalTypeRoot.ANY) {
-          fromLogicalTypeToDataType(expectedTypes(i))
+          val returnType = fromLogicalTypeToDataType(expectedTypes(i))
+          if (expectedTypes(i).supportsOutputConversion(t.getConversionClass)) {
+            returnType.bridgedTo(t.getConversionClass)
+          } else {
+            returnType
+          }
         } else {
           t
         }

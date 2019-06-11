@@ -47,7 +47,6 @@ import org.apache.flink.table.runtime.operators.over.frame.{InsensitiveOverFrame
 import org.apache.flink.table.runtime.operators.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{BIGINT, INTEGER, SMALLINT}
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type._
 import org.apache.calcite.rel._
@@ -60,6 +59,7 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -276,7 +276,7 @@ class BatchExecOverAggregate(
           if (isAllFieldsFromInput) {
             val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
             if (tableConfig.getConfiguration.getBoolean(
-              BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)) {
+              BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)) {
               ImmutableIntList.of(grouping: _*).containsAll(requiredDistribution.getKeys)
             } else {
               requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)
@@ -410,8 +410,9 @@ class BatchExecOverAggregate(
       new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
     } else {
       val windowFrames = createOverWindowFrames(config)
-      managedMemoryInMB = config.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+      val memText = config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+      managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
       new BufferDataOverWindowOperator(
         managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB,
         windowFrames,

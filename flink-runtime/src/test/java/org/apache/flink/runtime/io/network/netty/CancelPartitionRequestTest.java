@@ -109,7 +109,7 @@ public class CancelPartitionRequestTest {
 			}
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
+			verify(view, times(1)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -168,7 +168,7 @@ public class CancelPartitionRequestTest {
 			NettyTestUtil.awaitClose(ch);
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
+			verify(view, times(1)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);

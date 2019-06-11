@@ -215,7 +215,8 @@ public class SingleInputGate extends InputGate {
 		requestPartitions();
 	}
 
-	private void requestPartitions() throws IOException, InterruptedException {
+	@VisibleForTesting
+	void requestPartitions() throws IOException, InterruptedException {
 		synchronized (requestLock) {
 			if (!requestedPartitionsFlag) {
 				if (closeFuture.isDone()) {

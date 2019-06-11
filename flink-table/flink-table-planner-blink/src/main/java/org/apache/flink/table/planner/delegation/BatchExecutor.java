@@ -98,11 +98,11 @@ public class BatchExecutor extends ExecutorBase {
 	}
 
 	private boolean isShuffleModeAllBatch() {
-		String value = tableConfig.getConfiguration().getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE);
+		String value = tableConfig.getConfiguration().getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE);
 		if (value.equalsIgnoreCase(ShuffleMode.BATCH.toString())) {
 			return true;
 		} else if (!value.equalsIgnoreCase(ShuffleMode.PIPELINED.toString())) {
-			throw new IllegalArgumentException(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE.key() +
+			throw new IllegalArgumentException(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.key() +
 					" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
 		}
 		return false;

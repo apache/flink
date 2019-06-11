@@ -141,6 +141,9 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	// to convert Flink object to Hive object
 	private transient HiveObjectConversion[] hiveConversions;
 
+	// used when partition values is null or empty
+	private transient String defaultPartitionName;
+
 	public HiveTableOutputFormat(JobConf jobConf, ObjectPath tablePath, CatalogTable table, HiveTablePartition hiveTablePartition,
 								Properties tableProperties, boolean overwrite) {
 		super(jobConf.getCredentials());
@@ -298,6 +301,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionColumns.size()),
 				objectInspectors);
+			defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+					HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 		}
 	}
 
@@ -310,10 +315,12 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 				// only need to check the dynamic partitions
 				final int numStaticPart = hiveTablePartition.getPartitionSpec().size();
 				for (int i = dynamicPartitionOffset; i < record.getArity(); i++) {
-					// TODO: seems Hive also just calls toString(), need further investigation to confirm
-					// TODO: validate partition value
-					String partVal = record.getField(i).toString();
-					dynPartSpec.put(partitionColumns.get(i - dynamicPartitionOffset + numStaticPart), partVal);
+					Object field = record.getField(i);
+					String partitionValue = field != null ? field.toString() : null;
+					if (partitionValue == null || partitionValue.isEmpty()) {
+						partitionValue = defaultPartitionName;
+					}
+					dynPartSpec.put(partitionColumns.get(i - dynamicPartitionOffset + numStaticPart), partitionValue);
 				}
 				String partName = Warehouse.makePartPath(dynPartSpec);
 				partitionWriter = partitionToWriter.get(partName);

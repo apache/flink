@@ -1,6 +1,6 @@
 ---
-title: "HDFS Connector"
-nav-title: Rolling File Sink
+title: "Hadoop FileSystem Connector"
+nav-title: Hadoop FileSystem
 nav-parent_id: connectors
 nav-pos: 5
 ---
@@ -144,6 +144,6 @@ of the parallel sink instance and `count` is the running number of part files th
 because of the batch size or batch roll over interval.
 
 For in-depth information, please refer to the JavaDoc for
-[BucketingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html).
+[BucketingSink](https://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html).
 
 {% top %}
