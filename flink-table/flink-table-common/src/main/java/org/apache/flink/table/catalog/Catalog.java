@@ -437,8 +437,9 @@ public interface Catalog {
 	 *
 	 * @throws TableNotExistException if the table does not exist in the catalog
 	 * @throws CatalogException	in case of any runtime exception
+	 * @throws TableNotPartitionedException	if the table is not partitioned
 	 */
-	CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException;
+	CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException, TableNotPartitionedException;
 
 	/**
 	 * Get the column statistics of a table.

@@ -1159,12 +1159,13 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException, CatalogException {
+	public CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException,
+			CatalogException, TableNotPartitionedException {
 		Table hiveTable = getHiveTable(tablePath);
 		if (!isTablePartitioned(hiveTable)) {
 			return createCatalogTableStatistics(hiveTable.getParameters());
 		} else {
-			return CatalogTableStatistics.UNKNOWN;
+			throw new TableNotPartitionedException(getName(), tablePath);
 		}
 	}
 
