@@ -23,6 +23,11 @@
             <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.fs.write-buffer-size</h5></td>
+            <td style="word-wrap: break-word;">4096</td>
+            <td>The default write buffer size for file checkpoint output stream created by FsCheckpointStreamFactory. And the final actual write buffer size would consider the maximum of values of this option and option 'state.backend.fs.memory-threshold'.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.incremental</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Option whether the state backend should create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Some state backends may not support incremental checkpoints and ignore this option.</td>
