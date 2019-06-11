@@ -805,7 +805,7 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	private void ensurePartitionedTable(ObjectPath tablePath, Table hiveTable) throws TableNotPartitionedException {
-		if (hiveTable.getPartitionKeysSize() == 0) {
+		if (!isTablePartitioned(hiveTable)) {
 			throw new TableNotPartitionedException(getName(), tablePath);
 		}
 	}
