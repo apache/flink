@@ -36,6 +36,13 @@ class Catalog(object):
     def __init__(self, j_catalog):
         self._j_catalog = j_catalog
 
+    @staticmethod
+    def get(j_catalog):
+        if j_catalog.getClass().getName() == "org.apache.flink.table.catalog.hive.HiveCatalog":
+            return HiveCatalog(j_hive_catalog=j_catalog)
+        else:
+            return Catalog(j_catalog)
+
     def get_default_database(self):
         """
         Get the name of the default database for this catalog. The default database will be the
@@ -60,9 +67,9 @@ class Catalog(object):
         Get a database from this catalog.
 
         :param database_name: Name of the database.
-        :return: The requested database.
+        :return: The requested database :class:`CatalogDatabase`.
         """
-        return CatalogDatabase(self._j_catalog.getDatabase(database_name))
+        return CatalogDatabase.get(self._j_catalog.getDatabase(database_name))
 
     def database_exists(self, database_name):
         """
@@ -78,7 +85,7 @@ class Catalog(object):
         Create a database.
 
         :param name: Name of the database to be created.
-        :param database: The database definition.
+        :param database: The :class:`CatalogDatabase` database definition.
         :param ignore_if_exists: Flag to specify behavior when a database with the given name
                                  already exists:
                                  if set to false, throw a DatabaseAlreadyExistException,
@@ -102,7 +109,7 @@ class Catalog(object):
         Modify an existing database.
 
         :param name: Name of the database to be modified.
-        :param new_database: The new database definition.
+        :param new_database: The new database :class:`CatalogDatabase` definition.
         :param ignore_if_not_exists: Flag to specify behavior when the given database does not
                                      exist:
                                      if set to false, throw an exception,
@@ -133,16 +140,16 @@ class Catalog(object):
         """
         Get a CatalogTable or CatalogView identified by tablePath.
 
-        :param table_path: Path of the table or view.
-        :return: The requested table or view.
+        :param table_path: Path :class:`ObjectPath` of the table or view.
+        :return: The requested table or view :class:`CatalogBaseTable`.
         """
-        return CatalogBaseTable(self._j_catalog.getTable(table_path._j_object_path))
+        return CatalogBaseTable.get(self._j_catalog.getTable(table_path._j_object_path))
 
     def table_exists(self, table_path):
         """
         Check if a table or view exists in this catalog.
 
-        :param table_path: Path of the table or view.
+        :param table_path: Path :class:`ObjectPath` of the table or view.
         :return: true if the given table exists in the catalog false otherwise.
         """
         return self._j_catalog.tableExists(table_path._j_object_path)
@@ -151,7 +158,7 @@ class Catalog(object):
         """
         Drop a table or view.
 
-        :param table_path: Path of the table or view to be dropped.
+        :param table_path: Path :class:`ObjectPath` of the table or view to be dropped.
         :param ignore_if_not_exists: Flag to specify behavior when the table or view does not exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.
@@ -162,7 +169,7 @@ class Catalog(object):
         """
         Rename an existing table or view.
 
-        :param table_path: Path of the table or view to be renamed.
+        :param table_path: Path :class:`ObjectPath` of the table or view to be renamed.
         :param new_table_name: The new name of the table or view.
         :param ignore_if_not_exists: Flag to specify behavior when the table or view does not exist:
                                      if set to false, throw an exception,
@@ -174,8 +181,8 @@ class Catalog(object):
         """
         Create a new table or view.
 
-        :param table_path: Path of the table or view to be created.
-        :param table: The table definition.
+        :param table_path: Path :class:`ObjectPath` of the table or view to be created.
+        :param table: The table definition :class:`CatalogBaseTable`.
         :param ignore_if_exists: Flag to specify behavior when a table or view already exists at
                                  the given path:
                                  if set to false, it throws a TableAlreadyExistException,
@@ -191,8 +198,8 @@ class Catalog(object):
         this doesn't allow alter a regular table to partitioned table, or alter a view to a table,
         and vice versa.
 
-        :param table_path: Path of the table or view to be modified.
-        :param new_table: The new table definition.
+        :param table_path: Path :class:`ObjectPath` of the table or view to be modified.
+        :param new_table: The new table definition :class:`CatalogBaseTable`.
         :param ignore_if_not_exists: Flag to specify behavior when the table or view does not exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.
@@ -204,9 +211,9 @@ class Catalog(object):
         """
         Get CatalogPartitionSpec of all partitions of the table.
 
-        :param table_path: Path of the table.
-        :param partition_spec: The partition spec to list.
-        :return: A list of CatalogPartitionSpec of the table.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: The partition spec :class:`CatalogPartitionSpec` to list.
+        :return: A list of :class:`CatalogPartitionSpec` of the table.
         """
         if partition_spec is None:
             return [CatalogPartitionSpec(p) for p in self._j_catalog.listPartitions(
@@ -220,19 +227,20 @@ class Catalog(object):
         Get a partition of the given table.
         The given partition spec keys and values need to be matched exactly for a result.
 
-        :param table_path: Path of the table.
-        :param partition_spec: The partition spec of partition to get.
-        :return: The requested partition.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: The partition spec :class:`CatalogPartitionSpec` of partition to get.
+        :return: The requested partition :class:`CatalogPartition`.
         """
-        return CatalogPartition(self._j_catalog.getPartition(
+        return CatalogPartition.get(self._j_catalog.getPartition(
             table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
     def partition_exists(self, table_path, partition_spec):
         """
         Check whether a partition exists or not.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition to check.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to
+                               check.
         :return: true if the partition exists.
         """
         return self._j_catalog.partitionExists(
@@ -242,9 +250,9 @@ class Catalog(object):
         """
         Create a partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition.
-        :param partition: The partition to add.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
+        :param partition: The partition :class:`CatalogPartition` to add.
         :param ignore_if_exists: Flag to specify behavior if a table with the given name already
                                  exists:
                                  if set to false, it throws a TableAlreadyExistException,
@@ -259,8 +267,9 @@ class Catalog(object):
         """
         Drop a partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition to drop.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to 
+                               drop.
         :param ignore_if_not_exists: Flag to specify behavior if the database does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
@@ -273,9 +282,10 @@ class Catalog(object):
         """
         Alter a partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition to alter.
-        :param new_partition: New partition to replace the old one.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to 
+                               alter.
+        :param new_partition: New partition :class:`CatalogPartition` to replace the old one.
         :param ignore_if_not_exists: Flag to specify behavior if the database does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
@@ -299,16 +309,16 @@ class Catalog(object):
         """
         Get the function.
 
-        :param function_path: Path of the function.
-        :return: The requested function.
+        :param function_path: Path :class:`ObjectPath` of the function.
+        :return: The requested function :class:`CatalogFunction`.
         """
-        return CatalogFunction(self._j_catalog.getFunction(function_path._j_object_path))
+        return CatalogFunction.get(self._j_catalog.getFunction(function_path._j_object_path))
 
     def function_exists(self, function_path):
         """
         Check whether a function exists or not.
 
-        :param function_path: Path of the function.
+        :param function_path: Path :class:`ObjectPath` of the function.
         :return: true if the function exists in the catalog false otherwise.
         """
         return self._j_catalog.functionExists(function_path._j_object_path)
@@ -317,8 +327,8 @@ class Catalog(object):
         """
         Create a function.
 
-        :param function_path: Path of the function.
-        :param function: The function to be created.
+        :param function_path: Path :class:`ObjectPath` of the function.
+        :param function: The function :class:`CatalogFunction` to be created.
         :param ignore_if_exists: Flag to specify behavior if a function with the given name
                                  already exists:
                                  if set to false, it throws a FunctionAlreadyExistException,
@@ -332,8 +342,8 @@ class Catalog(object):
         """
         Modify an existing function.
 
-        :param function_path: Path of the function.
-        :param new_function: The function to be modified.
+        :param function_path: Path :class:`ObjectPath` of the function.
+        :param new_function: The function :class:`CatalogFunction` to be modified.
         :param ignore_if_not_exists: Flag to specify behavior if the function does not exist:
                                      if set to false, throw an exception
                                      if set to true, nothing happens
@@ -346,7 +356,7 @@ class Catalog(object):
         """
         Drop a function.
 
-        :param function_path: Path of the function to be dropped.
+        :param function_path: Path :class:`ObjectPath` of the function to be dropped.
         :param ignore_if_not_exists: Flag to specify behavior if the function does not exist:
                                      if set to false, throw an exception
                                      if set to true, nothing happens
@@ -357,8 +367,8 @@ class Catalog(object):
         """
         Get the statistics of a table.
 
-        :param table_path: Path of the table.
-        :return: The statistics of the given table.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :return: The statistics :class:`CatalogTableStatistics` of the given table.
         """
         return CatalogTableStatistics(
             j_catalog_table_statistics=self._j_catalog.getTableStatistics(
@@ -368,8 +378,8 @@ class Catalog(object):
         """
         Get the column statistics of a table.
 
-        :param table_path: Path of the table.
-        :return: The column statistics of the given table.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :return: The column statistics :class:`CatalogColumnStatistics` of the given table.
         """
         return CatalogColumnStatistics(
             j_catalog_column_statistics=self._j_catalog.getTableColumnStatistics(
@@ -379,9 +389,9 @@ class Catalog(object):
         """
         Get the statistics of a partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition.
-        :return: The statistics of the given partition.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
+        :return: The statistics :class:`CatalogTableStatistics` of the given partition.
         """
         return CatalogTableStatistics(
             j_catalog_table_statistics=self._j_catalog.getPartitionStatistics(
@@ -391,9 +401,9 @@ class Catalog(object):
         """
         Get the column statistics of a partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition.
-        :return: The column statistics of the given partition.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
+        :return: The column statistics :class:`CatalogColumnStatistics` of the given partition.
         """
         return CatalogColumnStatistics(
             j_catalog_column_statistics=self._j_catalog.getPartitionColumnStatistics(
@@ -403,8 +413,8 @@ class Catalog(object):
         """
         Update the statistics of a table.
 
-        :param table_path: Path of the table.
-        :param table_statistics: New statistics to update.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param table_statistics: New statistics :class:`CatalogTableStatistics` to update.
         :param ignore_if_not_exists: Flag to specify behavior if the table does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
@@ -418,8 +428,8 @@ class Catalog(object):
         """
         Update the column statistics of a table.
 
-        :param table_path: Path of the table.
-        :param column_statistics: New column statistics to update.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param column_statistics: New column statistics :class:`CatalogColumnStatistics` to update.
         :param ignore_if_not_exists: Flag to specify behavior if the column does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
@@ -434,9 +444,9 @@ class Catalog(object):
         """
         Update the statistics of a table partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition.
-        :param partition_statistics: New statistics to update.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
+        :param partition_statistics: New statistics :class:`CatalogTableStatistics` to update.
         :param ignore_if_not_exists: Flag to specify behavior if the partition does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
@@ -452,9 +462,9 @@ class Catalog(object):
         """
         Update the column statistics of a table partition.
 
-        :param table_path: Path of the table.
-        :param partition_spec: Partition spec of the partition.
-        :param column_statistics: New column statistics to update.
+        :param table_path: Path :class:`ObjectPath` of the table.
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
+        :param column_statistics: New column statistics :class:`CatalogColumnStatistics` to update.
         :param ignore_if_not_exists: Flag to specify behavior if the partition does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
@@ -473,6 +483,14 @@ class CatalogDatabase(object):
 
     def __init__(self, j_catalog_database):
         self._j_catalog_database = j_catalog_database
+
+    @staticmethod
+    def get(j_catalog_database):
+        if j_catalog_database.getClass().getName() == \
+                "org.apache.flink.table.catalog.hive.HiveCatalogDatabase":
+            return HiveCatalogDatabase(j_hive_catalog_database=j_catalog_database)
+        else:
+            return CatalogDatabase(j_catalog_database)
 
     def get_properties(self):
         """
@@ -529,6 +547,17 @@ class CatalogBaseTable(object):
 
     def __init__(self, j_catalog_base_table):
         self._j_catalog_base_table = j_catalog_base_table
+
+    @staticmethod
+    def get(j_catalog_base_table):
+        if j_catalog_base_table.getClass().getName() == \
+                "org.apache.flink.table.catalog.hive.HiveCatalogTable":
+            return HiveCatalogTable(j_hive_catalog_table=j_catalog_base_table)
+        elif j_catalog_base_table.getClass().getName() == \
+                "org.apache.flink.table.catalog.hive.HiveCatalogView":
+            return HiveCatalogView(j_hive_catalog_view=j_catalog_base_table)
+        else:
+            return CatalogBaseTable(j_catalog_base_table)
 
     def get_properties(self):
         """
@@ -595,6 +624,14 @@ class CatalogPartition(object):
     def __init__(self, j_catalog_partition):
         self._j_catalog_partition = j_catalog_partition
 
+    @staticmethod
+    def get(j_catalog_partition):
+        if j_catalog_partition.getClass().getName() == \
+                "org.apache.flink.table.catalog.hive.HiveCatalogPartition":
+            return HiveCatalogPartition(j_hive_catalog_partition=j_catalog_partition)
+        else:
+            return CatalogPartition(j_catalog_partition)
+
     def get_properties(self):
         """
         Get a map of properties associated with the partition.
@@ -643,6 +680,14 @@ class CatalogFunction(object):
 
     def __init__(self, j_catalog_function):
         self._j_catalog_function = j_catalog_function
+
+    @staticmethod
+    def get(j_catalog_function):
+        if j_catalog_function.getClass().getName() == \
+                "org.apache.flink.table.catalog.hive.HiveCatalogFunction":
+            return HiveCatalogFunction(j_hive_catalog_function=j_catalog_function)
+        else:
+            return CatalogFunction(j_catalog_function)
 
     def get_class_name(self):
         """
@@ -832,13 +877,16 @@ class HiveCatalog(Catalog):
     A catalog implementation for Hive.
     """
 
-    def __init__(self, catalog_name, default_database="default", hive_site_path=None):
+    def __init__(self, catalog_name=None, default_database="default", hive_site_path=None,
+                 j_hive_catalog=None):
         gateway = get_gateway()
-        hive_site_url = gateway.jvm.java.io.File(hive_site_path).toURI().toURL() \
-            if hive_site_path is not None else None
 
-        j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
-            catalog_name, default_database, hive_site_url)
+        if j_hive_catalog is None:
+            hive_site_url = gateway.jvm.java.io.File(hive_site_path).toURI().toURL() \
+                if hive_site_path is not None else None
+
+            j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
+                catalog_name, default_database, hive_site_url)
         super(HiveCatalog, self).__init__(j_hive_catalog)
 
 
@@ -847,12 +895,16 @@ class HiveCatalogDatabase(CatalogDatabase):
     A catalog database implementation for Hive.
     """
 
-    def __int__(self, properties, location=None, comment=None):
+    def __int__(self, properties, location=None, comment=None, j_hive_catalog_database=None):
         gateway = get_gateway()
-        j_hive_catalog_database = \
-            gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogDatabase(
-                properties, location, comment)
+        if j_hive_catalog_database is None:
+            j_hive_catalog_database = \
+                gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogDatabase(
+                    properties, location, comment)
         super(HiveCatalogDatabase, self).__init__(j_hive_catalog_database)
+
+    def get_location(self):
+        return self._j_catalog_database.getLocation()
 
 
 class HiveCatalogFunction(CatalogFunction):
@@ -860,10 +912,11 @@ class HiveCatalogFunction(CatalogFunction):
     A catalog function implementation for Hive.
     """
 
-    def __int__(self, class_name):
+    def __int__(self, class_name=None, j_hive_catalog_function=None):
         gateway = get_gateway()
-        j_hive_catalog_function = \
-            gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogFunction(class_name)
+        if j_hive_catalog_function is None:
+            j_hive_catalog_function = \
+                gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogFunction(class_name)
         super(HiveCatalogFunction, self).__init__(j_hive_catalog_function)
 
 
@@ -872,12 +925,16 @@ class HiveCatalogPartition(CatalogPartition):
     A CatalogPartition implementation that represents a Partition in Hive.
     """
 
-    def __int__(self, properties, location=None):
+    def __int__(self, properties=None, location=None, j_hive_catalog_partition=None):
         gateway = get_gateway()
-        j_hive_catalog_partition = \
-            gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogPartition(
-                properties, location)
+        if j_hive_catalog_partition is None:
+            j_hive_catalog_partition = \
+                gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogPartition(
+                    properties, location)
         super(HiveCatalogPartition, self).__init__(j_hive_catalog_partition)
+
+    def get_location(self):
+        return self._j_catalog_partition.getLocation()
 
 
 class HiveCatalogTable(CatalogBaseTable):
@@ -885,10 +942,12 @@ class HiveCatalogTable(CatalogBaseTable):
     A Hive catalog table implementation.
     """
 
-    def __init__(self, table_schema, partition_keys, properties, comment):
+    def __init__(self, table_schema=None, partition_keys=None, properties=None, comment=None,
+                 j_hive_catalog_table=None):
         gateway = get_gateway()
-        j_hive_catalog_table = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogTable(
-            table_schema._j_table_schema, partition_keys, properties, comment)
+        if j_hive_catalog_table is None:
+            j_hive_catalog_table = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogTable(
+                table_schema._j_table_schema, partition_keys, properties, comment)
         super(HiveCatalogTable, self).__init__(j_hive_catalog_table)
 
 
@@ -897,8 +956,10 @@ class HiveCatalogView(CatalogBaseTable):
     A Hive catalog view implementation.
     """
 
-    def __init__(self, original_query, expanded_query, table_schema, properties, comment):
+    def __init__(self, original_query=None, expanded_query=None, table_schema=None,
+                 properties=None, comment=None, j_hive_catalog_view=None):
         gateway = get_gateway()
-        j_hive_catalog_view = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogView(
-            original_query, expanded_query, table_schema._j_table_schema, properties, comment)
+        if j_hive_catalog_view is None:
+            j_hive_catalog_view = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogView(
+                original_query, expanded_query, table_schema._j_table_schema, properties, comment)
         super(HiveCatalogView, self).__init__(j_hive_catalog_view)

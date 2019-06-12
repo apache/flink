@@ -20,7 +20,7 @@ import tempfile
 from abc import ABCMeta, abstractmethod
 
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table.catalog import Catalog
+from pyflink.table.catalog import Catalog, HiveCatalog
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDescriptor,
@@ -65,7 +65,7 @@ class TableEnvironment(object):
         All tables registered in the :class:`Catalog` can be accessed.
 
         :param catalog_name: The name under which the catalog will be registered.
-        :param catalog: The catalog to register.
+        :param catalog: The catalog :class:`Catalog` to register.
         """
         self._j_tenv.registerCatalog(catalog_name, catalog._j_catalog)
 
@@ -74,11 +74,12 @@ class TableEnvironment(object):
         Gets a registered :class:`Catalog` by name.
 
         :param catalog_name: The name to look up the :class:`Catalog`.
-        :return:The requested catalog, None if there is no registered catalog with given name.
+        :return: The requested catalog :class:`Catalog`, None if there is no registered catalog
+                 with given name.
         """
         catalog = self._j_tenv.getCatalog(catalog_name)
         if catalog.isPresent():
-            return Catalog(catalog.get())
+            return Catalog.get(catalog.get())
         else:
             return None
 
