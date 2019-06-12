@@ -71,7 +71,7 @@ Calc(select=[b, s])
    +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow], select=[b, COLLECT(b) AS set])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, rowtime], where=[<(b, 3)])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, rowtime])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -158,7 +158,7 @@ Calc(select=[a, s])
    +- GroupAggregate(groupBy=[a], select=[a, COLLECT(b) AS set])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, b], where=[<(a, 5)])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -213,7 +213,7 @@ Calc(select=[b, id, point])
    +- GroupAggregate(groupBy=[b], select=[b, COLLECT(c) AS set])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, c], where=[<(b, 3)])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

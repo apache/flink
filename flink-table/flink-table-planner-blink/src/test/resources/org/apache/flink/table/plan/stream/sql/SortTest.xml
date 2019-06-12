@@ -32,7 +32,7 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- TemporalSort(orderBy=[proctime ASC, c ASC])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -53,7 +53,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[proctime DESC, c ASC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -74,7 +74,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[c ASC, rowtime DESC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -95,7 +95,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[c ASC, proctime ASC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -116,7 +116,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[c ASC, proctime DESC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -136,7 +136,7 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- TemporalSort(orderBy=[rowtime ASC, c ASC])
-   +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -157,7 +157,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[c ASC, rowtime ASC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -178,7 +178,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[c ASC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -199,7 +199,7 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Sort(orderBy=[rowtime DESC, c ASC])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

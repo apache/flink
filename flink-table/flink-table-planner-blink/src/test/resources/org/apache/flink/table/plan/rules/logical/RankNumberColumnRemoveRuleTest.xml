@@ -39,7 +39,7 @@ LogicalProject(a=[$0], rank_num=[$4])
 FlinkLogicalCalc(select=[a, w0$o0])
 +- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, w0$o0])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -66,7 +66,7 @@ LogicalProject(a=[$0], rank_num=[$4])
 FlinkLogicalCalc(select=[a, w0$o0])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, w0$o0])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -93,7 +93,7 @@ LogicalProject(a=[$0])
 FlinkLogicalCalc(select=[a])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -120,7 +120,7 @@ LogicalProject(a=[$0], rank_num=[$4])
 FlinkLogicalCalc(select=[a, 1:BIGINT AS w0$o0])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>

@@ -66,6 +66,6 @@ class TableSourceTable[T](
     * @return new TableSourceTable
     */
   def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreaming, statistic)
+    new TableSourceTable[T](tableSource, isStreaming, statistic)
   }
 }

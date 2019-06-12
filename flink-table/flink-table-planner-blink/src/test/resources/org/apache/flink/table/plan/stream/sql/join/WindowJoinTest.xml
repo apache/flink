@@ -38,10 +38,10 @@ Calc(select=[a, b])
 +- Join(joinType=[InnerJoin], where=[AND(=(a, a0), =($f5, $f50))], select=[a, $f5, a0, b, $f50], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a, $f5]])
    :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS $f5])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a, $f5]])
       +- Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS $f5])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -67,10 +67,10 @@ Calc(select=[a, b])
 +- Join(joinType=[InnerJoin], where=[AND(=(a, a0), =(rowtime0, rowtime00))], select=[a, rowtime0, a0, b, rowtime00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a, rowtime0]])
    :  +- Calc(select=[a, CAST(rowtime) AS rowtime0])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a, rowtime0]])
       +- Calc(select=[a, b, CAST(rowtime) AS rowtime0])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -128,10 +128,10 @@ Calc(select=[a, b0 AS b])
 +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)), LIKE(b, b0))], select=[a, b, rowtime, a0, b0, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b, rowtime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -157,10 +157,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -187,10 +187,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(PROCTIME_MATERIALIZE(proctime), -(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)), <=(PROCTIME_MATERIALIZE(proctime), +(PROCTIME_MATERIALIZE(proctime0), 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -223,10 +223,10 @@ GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow], select=[b, SUM(a
       +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b, rowtime])
-         :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, b, rowtime])
-               +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+               +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -253,10 +253,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -283,10 +283,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -313,10 +313,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(proctime, -(proctime0, 3600000:INTERVAL HOUR)), <=(proctime, +(proctime0, 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, proctime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -343,10 +343,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, rowtime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -373,10 +373,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, rowtime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -409,10 +409,10 @@ GroupWindowAggregate(groupBy=[b0], window=[TumblingGroupWindow], select=[b0, SUM
       +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b, rowtime])
-         :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, b, rowtime])
-               +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+               +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -439,10 +439,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, rowtime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -468,10 +468,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, rowtime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -498,10 +498,10 @@ Calc(select=[a, b])
 +- WindowJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, rowtime])
-   :     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+   :     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_1]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

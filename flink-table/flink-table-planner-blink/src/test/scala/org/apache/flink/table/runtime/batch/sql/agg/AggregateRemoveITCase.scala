@@ -40,7 +40,7 @@ class AggregateRemoveITCase extends BatchTestBase {
         row(6, 3, "C", "Hello world")),
       new RowTypeInfo(Types.INT, Types.INT, Types.STRING, Types.STRING),
       "a, b, c, d",
-      Array(true, true, true),
+      Array(true, true, true, true),
       FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build()
     )
 

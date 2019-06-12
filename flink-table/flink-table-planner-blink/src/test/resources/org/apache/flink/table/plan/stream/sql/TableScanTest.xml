@@ -44,7 +44,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c])
+DataStreamScan(table=[[DataStreamTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

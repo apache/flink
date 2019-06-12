@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api
 
+import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.jobgraph.ScheduleMode
@@ -25,17 +26,18 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.operations.DataStreamQueryOperation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.process.DAGProcessContext
 import org.apache.flink.table.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
-import org.apache.flink.table.plan.schema.{TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources._
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.PlanUtil
 import org.apache.flink.util.InstantiationUtil
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
@@ -74,6 +76,8 @@ class BatchTableEnvironment(
 
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
+  override private[flink] def isBatch = true
+
   /**
     * Checks if the chosen table name is valid.
     *
@@ -86,6 +90,20 @@ class BatchTableEnvironment(
         throw new TableException(s"Illegal Table name. " +
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
+    }
+  }
+
+  override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
+    // TODO TableSourceUtil.validateTableSource(tableSource)
+    tableSource match {
+      // check for proper batch table source
+      case boundedTableSource: StreamTableSource[_] if boundedTableSource.isBounded => // ok
+      // a lookupable table source can also be registered in the env
+      case _: LookupableTableSource[_] => // ok
+      // not a batch table source
+      case _ =>
+        throw new TableException("Only LookupableTableSouce and BatchTableSource can be " +
+          "registered in BatchTableEnvironment.")
     }
   }
 
@@ -248,63 +266,36 @@ class BatchTableEnvironment(
     sb.toString()
   }
 
-  /**
-    * Registers an internal bounded [[StreamTableSource]] in this [[TableEnvironment]]'s catalog
-    * without name checking. Registered tables can be referenced in SQL queries.
-    *
-    * @param name        The name under which the [[TableSource]] is registered.
-    * @param tableSource The [[TableSource]] to register.
-    * @param replace     Whether to replace the registered table.
-    */
-  override protected def registerTableSourceInternal(
-      name: String,
-      tableSource: TableSource[_],
-      statistic: FlinkStatistic,
-      replace: Boolean = false): Unit = {
+  @VisibleForTesting
+  private[flink] def asQueryOperation[T](
+      boundedStream: DataStream[T],
+      fields: Option[Array[String]],
+      fieldNullables: Option[Array[Boolean]] = None,
+      statistic: Option[FlinkStatistic] = None): DataStreamQueryOperation[T] = {
+    val streamType = boundedStream.getType
 
-    def register(): Unit = {
-      // check if a table (source or sink) is registered
-      getTable(name) match {
-        // table source and/or sink is registered
-        case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
-
-          // wrapper contains source
-          case Some(_: TableSourceTable[_]) if !replace =>
-            throw new TableException(s"Table '$name' already exists. " +
-              s"Please choose a different name.")
-
-          // wrapper contains only sink (not source)
-          case _ =>
-            val enrichedTable = new TableSourceSinkTable(
-              Some(new TableSourceTable(tableSource, false, statistic)),
-              table.tableSinkTable)
-            replaceRegisteredTable(name, enrichedTable)
+    // get field names and types for all non-replaced fields
+    val (indices, names) = fields match {
+      case Some(f) =>
+        fieldNullables match {
+          case Some(nulls) => require(nulls.length == f.length,
+            "length of `fields` and length of `fieldNullables` should be equal")
+          case _ => // do nothing
         }
-
-        // no table is registered
-        case _ =>
-          val newTable = new TableSourceSinkTable(
-            Some(new TableSourceTable(tableSource, false, statistic)),
-            None)
-          registerTableInternal(name, newTable)
-      }
+        val fieldIndexes = f.indices.toArray
+        (fieldIndexes, f)
+      case None =>
+        val (fieldNames, fieldIndexes) = getFieldInfo[T](fromLegacyInfoToDataType(streamType))
+        (fieldIndexes, fieldNames)
     }
 
-    tableSource match {
-
-      // check for proper batch table source
-      case boundedTableSource: StreamTableSource[_] if boundedTableSource.isBounded =>
-        register()
-
-      // a lookupable table source can also be registered in the env
-      case _: LookupableTableSource[_] =>
-        register()
-
-      // not a batch table source
-      case _ =>
-        throw new TableException("Only LookupableTableSouce and BatchTableSource can be " +
-          "registered in BatchTableEnvironment.")
-    }
+    val dataStreamTable = new DataStreamQueryOperation(
+      boundedStream,
+      indices,
+      TableEnvironment.calculateTableSchema(streamType, indices, names),
+      fieldNullables.getOrElse(Array.fill(indices.length)(true)),
+      statistic.getOrElse(FlinkStatistic.UNKNOWN))
+    dataStreamTable
   }
 
 }

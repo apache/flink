@@ -55,9 +55,7 @@ class StreamTableEnvironment @Deprecated() (
     * @return The converted [[Table]].
     */
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream)
-    scan(name)
+    new TableImpl(this, asQueryOperation(dataStream, None))
   }
 
   /**
@@ -78,10 +76,7 @@ class StreamTableEnvironment @Deprecated() (
   def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
     // TODO: use ExpressionParser instead after we introduce [Expression]
     val exprs = fields.split(",").map(_.trim)
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, exprs)
-    scan(name)
+    new TableImpl(this, asQueryOperation(dataStream, Some(exprs)))
   }
 
   /**
@@ -97,9 +92,7 @@ class StreamTableEnvironment @Deprecated() (
     * @tparam T The type of the [[DataStream]] to register.
     */
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream)
+    registerTable(name, fromDataStream(dataStream))
   }
 
   /**
@@ -121,12 +114,8 @@ class StreamTableEnvironment @Deprecated() (
     */
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: String): Unit = {
     // TODO: use ExpressionParser instead after we introduce [Expression]
-    val exprs = fields.split(",").map(_.trim)
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, exprs)
+    registerTable(name, fromDataStream(dataStream, fields))
   }
-
 }
 
 object StreamTableEnvironment {

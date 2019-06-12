@@ -24,16 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironment}
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironment, TableImpl}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.CollectTableSink
-import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-import org.apache.flink.util.AbstractID
-import _root_.java.util.{ArrayList => JArrayList}
-
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.util.AbstractID
+
+import _root_.java.util.{ArrayList => JArrayList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -150,12 +147,8 @@ object BatchTableEnvUtil {
       fieldNames: Option[Array[String]],
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
-    val (typeFieldNames, fieldIdxs) =
-      tEnv.getFieldInfo(fromLegacyInfoToDataType(boundedStream.getTransformation.getOutputType))
-    val boundedStreamTable = new DataStreamTable[T](
-      boundedStream, fieldIdxs, fieldNames.getOrElse(typeFieldNames), fieldNullables)
-    val withStatistic = boundedStreamTable.copy(statistic.getOrElse(FlinkStatistic.UNKNOWN))
-    tEnv.registerTableInternal(name, withStatistic)
+    val queryOperation = tEnv.asQueryOperation(boundedStream, fieldNames, fieldNullables, statistic)
+    tEnv.registerTable(name, new TableImpl(tEnv, queryOperation))
   }
 
   /**
