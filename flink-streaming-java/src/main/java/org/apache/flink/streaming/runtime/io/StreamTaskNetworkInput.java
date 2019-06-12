@@ -53,6 +53,8 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
+	private final int inputIndex;
+
 	private int lastChannel = UNSPECIFIED;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
@@ -63,7 +65,8 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 	public StreamTaskNetworkInput(
 			CheckpointBarrierHandler barrierHandler,
 			TypeSerializer<?> inputSerializer,
-			IOManager ioManager) {
+			IOManager ioManager,
+			int inputIndex) {
 		this.barrierHandler = barrierHandler;
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
 			new StreamElementSerializer<>(inputSerializer));
@@ -74,6 +77,8 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
 				ioManager.getSpillingDirectoriesPaths());
 		}
+
+		this.inputIndex = inputIndex;
 	}
 
 	@Override
@@ -129,6 +134,11 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 	@Override
 	public int getLastChannel() {
 		return lastChannel;
+	}
+
+	@Override
+	public int getInputIndex() {
+		return inputIndex;
 	}
 
 	@Override

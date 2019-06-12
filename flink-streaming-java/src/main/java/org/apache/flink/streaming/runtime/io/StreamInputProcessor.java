@@ -107,7 +107,7 @@ public class StreamInputProcessor<IN> {
 			inputGate,
 			taskManagerConfig,
 			taskName);
-		this.input = new StreamTaskNetworkInput(barrierHandler, inputSerializer, ioManager);
+		this.input = new StreamTaskNetworkInput(barrierHandler, inputSerializer, ioManager, 0);
 
 		this.lock = checkNotNull(lock);
 
