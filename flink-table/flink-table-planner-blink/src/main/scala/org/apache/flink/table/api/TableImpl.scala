@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.calcite.FlinkTypeFactory._
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.{Expression, LookupCallResolver}
 import org.apache.flink.table.functions.TemporalTableFunction
-import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.operations.OperationExpressionsUtils._
+import org.apache.flink.table.operations.{OperationTreeBuilder, QueryOperation}
+import org.apache.flink.table.plan.QueryOperationConverter
 
 import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
 
 /**
   * The implementation of the [[Table]].
@@ -37,23 +38,23 @@ import _root_.scala.collection.JavaConversions._
   * implemented when we support full stack Table API for Blink planner.
   *
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
-  * @param relNode  The Calcite RelNode representation
+  * @param operationTree logical representation
   */
-class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table {
+class TableImpl(val tableEnv: TableEnvironment, operationTree: QueryOperation) extends Table {
 
-  private lazy val tableSchema: TableSchema = {
-    val rowType = relNode.getRowType
-    val builder = TableSchema.builder()
-    rowType.getFieldList.foreach { field =>
-      builder.field(field.getName, fromLogicalTypeToDataType(toLogicalType(field.getType)))
-    }
-    builder.build()
-  }
+  private val operationTreeBuilder: OperationTreeBuilder = tableEnv.operationTreeBuilder
+
+  private lazy val tableSchema: TableSchema = operationTree.getTableSchema
+
+  private val toRelNodeConverter = new QueryOperationConverter(
+    tableEnv.getRelBuilder, tableEnv.functionCatalog)
+
+  private[flink] val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
 
   /**
     * Returns the Calcite RelNode represent this Table.
     */
-  def getRelNode: RelNode = relNode
+  def getRelNode: RelNode = operationTree.accept(toRelNodeConverter)
 
   override def getSchema: TableSchema = tableSchema
 
@@ -61,7 +62,20 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
 
   override def select(fields: String): Table = ???
 
-  override def select(fields: Expression*): Table = ???
+  override def select(fields: Expression*): Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(callResolver)).asJava
+    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
+
+    if (!extracted.getWindowProperties.isEmpty) {
+      throw new ValidationException("Window properties can only be used on windowed tables.")
+    }
+
+    if (!extracted.getAggregations.isEmpty) {
+      throw new TableException("Not supported yet!");
+    } else {
+      wrap(operationTreeBuilder.project(expressionsWithResolvedCalls, operationTree))
+    }
+  }
 
   override def createTemporalTableFunction(
     timeAttribute: String,
@@ -208,7 +222,7 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
 
   override def flatMap(tableFunction: Expression): Table = ???
 
-  override def getQueryOperation: QueryOperation = ???
+  override def getQueryOperation: QueryOperation = operationTree
 
   override def aggregate(aggregateFunction: String): AggregatedTable = ???
 
@@ -217,4 +231,8 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
   override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = ???
 
   override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = ???
+
+  private def wrap(operation: QueryOperation): Table = {
+    new TableImpl(tableEnv, operation)
+  }
 }

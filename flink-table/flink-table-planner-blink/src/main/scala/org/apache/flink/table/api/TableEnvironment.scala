@@ -32,6 +32,7 @@ import org.apache.flink.table.calcite._
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, extractResultTypeFromTableFunction, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.operations.{OperationTreeBuilder, PlannerQueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
@@ -80,7 +81,7 @@ abstract class TableEnvironment(
 
   protected val DEFAULT_JOB_NAME = "Flink Exec Table Job"
 
-  private val functionCatalog = new FunctionCatalog
+  private[flink] val functionCatalog = new FunctionCatalog
 
   private val plannerContext: PlannerContext =
     new PlannerContext(
@@ -96,6 +97,8 @@ abstract class TableEnvironment(
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = plannerContext.createRelBuilder()
+
+  private[flink] val operationTreeBuilder = new OperationTreeBuilder(this)
 
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   @VisibleForTesting
@@ -337,7 +340,7 @@ abstract class TableEnvironment(
       val table = schema.getTable(tableName)
       if (table != null) {
         val scan = getRelBuilder.scan(JArrays.asList(tablePath: _*)).build()
-        return Some(new TableImpl(this, scan))
+        return Some(new TableImpl(this, new PlannerQueryOperation(scan)))
       }
     }
     None
@@ -433,7 +436,7 @@ abstract class TableEnvironment(
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, relational.project())
+      new TableImpl(this, new PlannerQueryOperation(relational.project()))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
