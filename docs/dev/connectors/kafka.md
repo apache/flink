@@ -92,12 +92,6 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
         However for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated
         flink-connector-kafka-0.11{{ site.scala_version_suffix }} and flink-connector-kafka-0.10{{ site.scala_version_suffix }} respectively.
-        <div class="alert alert-warning">
-          <strong>Attention:</strong> as of Flink 1.7 the universal Kafka connector is considered to be
-          in a <strong>BETA</strong> status and might not be as stable as the 0.11 connector.
-          In case of problems with the universal connector, you can try to use flink-connector-kafka-0.11{{ site.scala_version_suffix }}
-          which should be compatible with all of the Kafka versions starting from 0.11.
-        </div>
         </td>
     </tr>
   </tbody>
