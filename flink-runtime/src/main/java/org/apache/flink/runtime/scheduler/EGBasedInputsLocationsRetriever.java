@@ -51,7 +51,7 @@ public class EGBasedInputsLocationsRetriever implements InputsLocationsRetriever
 		ExecutionVertex ev = getExecutionVertex(executionVertexId);
 
 		List<Collection<ExecutionVertexID>> resultPartitionProducers = new ArrayList<>(ev.getNumberOfInputs());
-		for (int i = 0 ; i < ev.getNumberOfInputs(); i++) {
+		for (int i = 0; i < ev.getNumberOfInputs(); i++) {
 			ExecutionEdge[] inputEdges = ev.getInputEdges(i);
 			List<ExecutionVertexID> producers = new ArrayList<>(inputEdges.length);
 			for (ExecutionEdge inputEdge : inputEdges) {
