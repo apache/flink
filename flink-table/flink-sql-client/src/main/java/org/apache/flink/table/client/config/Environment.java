@@ -242,4 +242,12 @@ public class Environment {
 
 		return enrichedEnv;
 	}
+
+	/**
+	 * Should re-new a TableEnvironment object for the execution mode is change.
+	 */
+	public static boolean isRenew(Environment before, Environment after) {
+		return ((before.getExecution().isBatchExecution() && after.getExecution().isStreamingExecution())
+				|| (before.getExecution().isStreamingExecution() && after.getExecution().isBatchExecution()));
+	}
 }

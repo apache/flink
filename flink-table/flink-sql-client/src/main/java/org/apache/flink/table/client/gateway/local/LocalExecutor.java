@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -484,14 +485,22 @@ public class LocalExecutor implements Executor {
 	private synchronized ExecutionContext<?> getOrCreateExecutionContext(SessionContext session) throws SqlExecutionException {
 		if (executionContext == null || !executionContext.getSessionContext().equals(session)) {
 			try {
-				executionContext = new ExecutionContext<>(defaultEnvironment, session, dependencies,
-					flinkConfig, commandLineOptions, commandLines);
+				if (executionContext == null || Environment.isRenew(executionContext.getMergedEnvironment(), session.getEnvironment())) {
+					executionContext = new ExecutionContext<>(defaultEnvironment, session, dependencies,
+						flinkConfig, commandLineOptions, commandLines);
+				}
 			} catch (Throwable t) {
 				// catch everything such that a configuration does not crash the executor
 				throw new SqlExecutionException("Could not create execution context.", t);
 			}
 		}
 		return executionContext;
+	}
+
+	@VisibleForTesting
+	TableEnvironment getTableEnvironment(SessionContext sesson) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(sesson);
+		return context.createEnvironmentInstance().getTableEnvironment();
 	}
 
 	// --------------------------------------------------------------------------------------------
