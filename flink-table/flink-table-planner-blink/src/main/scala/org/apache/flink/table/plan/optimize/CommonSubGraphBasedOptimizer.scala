@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.plan.schema.IntermediateRelTable
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, IntermediateRelTable}
 
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 
 import java.util
+import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
 
@@ -38,7 +41,7 @@ import scala.collection.JavaConversions._
   * 1. Decompose [[RelNode]] DAG into multiple [[RelNodeBlock]]s, and build [[RelNodeBlock]] DAG.
   * Each [[RelNodeBlock]] has only one sink output, and represents a common sub-graph.
   * 2. optimize recursively each [[RelNodeBlock]] from leaf block to root(sink) block,
-  * and register the optimized result of non-root block as an [[IntermediateRelTable]].
+  * and wrap the optimized result of non-root block as an [[IntermediateRelTable]].
   * 3. expand [[IntermediateRelTable]] into RelNode tree in each [[RelNodeBlock]].
   *
   * Currently, we choose this strategy based on the following considerations:
@@ -52,6 +55,16 @@ import scala.collection.JavaConversions._
   * 2. the optimization result is local optimal (in sub-graph), not global optimal.
   */
 abstract class CommonSubGraphBasedOptimizer extends Optimizer {
+
+  /**
+    * ID for IntermediateRelTable.
+    */
+  private val NEXT_ID = new AtomicInteger(0)
+
+  protected def createUniqueIntermediateRelTableName: String = {
+    val id = NEXT_ID.getAndIncrement()
+    s"IntermediateRelTable_$id"
+  }
 
   /**
     * Generates the optimized [[RelNode]] DAG from the original relational nodes.
@@ -78,6 +91,18 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
     * @return optimized [[RelNodeBlock]]s.
     */
   protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock]
+
+  /**
+    * Returns a new table scan which wraps the given IntermediateRelTable.
+    */
+  protected def wrapIntermediateRelTableToTableScan(
+      relTable: IntermediateRelTable,
+      name: String): TableScan = {
+    val cluster = relTable.relNode.getCluster
+    val table = FlinkRelOptTable.create(
+      null, relTable.getRowType(cluster.getTypeFactory), Collections.singletonList(name), relTable)
+    new LogicalTableScan(cluster, cluster.traitSet, table)
+  }
 
   /**
     * Expand [[IntermediateRelTable]] in each RelNodeBlock.

@@ -103,8 +103,8 @@ import scala.collection.mutable
   * }}}
   *
   * The optimizing order is from child block to parent. The optimized result (RelNode)
-  * will be registered into tables first, and then be converted to a new TableScan which is the
-  * new output node of current block and is also the input of its parent blocks.
+  * will be wrapped as an IntermediateRelTable first, and then be converted to a new TableScan
+  * which is the new output node of current block and is also the input of its parent blocks.
   *
   * @param outputNode A RelNode of the output in the block, which could be a [[Sink]] or
   * other RelNode which data outputs to multiple [[Sink]]s.
