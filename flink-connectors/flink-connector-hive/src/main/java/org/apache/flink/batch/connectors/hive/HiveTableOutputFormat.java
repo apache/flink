@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -329,15 +330,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		moveFiles(srcDir, destDir);
 		// register new partition if it doesn't exist
 		if (existingPart.isEmpty()) {
-			Partition partition = new Partition();
-			partition.setValues(new ArrayList<>(partSpec.values()));
 			StorageDescriptor sd = new StorageDescriptor(hiveTablePartition.getStorageDescriptor());
 			sd.setLocation(destDir.toString());
-			partition.setSd(sd);
-			partition.setDbName(databaseName);
-			partition.setTableName(tableName);
-			partition.setCreateTime((int) System.currentTimeMillis());
-			partition.setLastAccessTime((int) System.currentTimeMillis());
+			Partition partition = HiveTableUtil.createHivePartition(databaseName, tableName,
+					new ArrayList<>(partSpec.values()), sd, new HashMap<>());
+			partition.setValues(new ArrayList<>(partSpec.values()));
 			client.add_partition(partition);
 		}
 	}
