@@ -17,25 +17,23 @@ Assume that the job jar is stored under `<COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS>
 
 If you want to build the Flink image from the version you have checked out locally run:
 
-    build.sh --from-local-dist --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] [--opt-jars <COMMA_SEPARATED_OPT_JARS>] --image-name <IMAGE_NAME>
+    build.sh --from-local-dist --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] --image-name <IMAGE_NAME>
     
 Note that you first need to call `mvn package -pl flink-dist -am` to build the Flink binaries.
 
 If you want to build the Flink image from an archive stored under `<PATH_TO_ARCHIVE>` run:
 
-    build.sh --from-archive <PATH_TO_ARCHIVE> --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] [--opt-jars <COMMA_SEPARATED_OPT_JARS>] --image-name <IMAGE_NAME>
+    build.sh --from-archive <PATH_TO_ARCHIVE> --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] --image-name <IMAGE_NAME>
 
 If you want to build the Flink image for a specific version of Flink/Hadoop/Scala run:
 
-    build.sh --from-release --flink-version 1.6.0 --hadoop-version 2.8 --scala-version 2.11 --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] [--opt-jars <COMMA_SEPARATED_OPT_JARS>] --image-name <IMAGE_NAME>
+    build.sh --from-release --flink-version 1.6.0 --hadoop-version 2.8 --scala-version 2.11 --job-artifacts <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> [--with-python2|--with-python3] --image-name <IMAGE_NAME>
 
 Please note that from Flink-1.8, hadoop version is optional and you could build the Flink image without providing any hadoop version.
     
 The script will try to download the released version from the Apache archive.
 
 The artifacts specified in <COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS> will be copied to directory /opt/artifacts of the built image.
-
-<COMMA_SEPARATED_OPT_JARS> specifies the optional jars to be used in directory <FLINK_HOME>/opt/. For example, `--opt-jars table` can be specified if the table jar is needed.
 
 ## Deploying via Docker compose
 

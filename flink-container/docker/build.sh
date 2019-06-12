@@ -20,9 +20,9 @@
 usage() {
   cat <<HERE
 Usage:
-  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] [--opt-jars <comma-separated-opt-jars>] --from-local-dist [--image-name <image>]
-  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] [--opt-jars <comma-separated-opt-jars>] --from-archive <path-to-dist-archive> [--image-name <image>]
-  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] [--opt-jars <comma-separated-opt-jars>] --from-release --flink-version <x.x.x> --scala-version <x.xx> [--hadoop-version <x.x>] [--image-name <image>]
+  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] --from-local-dist [--image-name <image>]
+  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] --from-archive <path-to-dist-archive> [--image-name <image>]
+  build.sh --job-artifacts <comma-separated-paths-to-job-artifacts> [--with-python2|--with-python3] --from-release --flink-version <x.x.x> --scala-version <x.xx> [--hadoop-version <x.x>] [--image-name <image>]
   build.sh --help
 
   If the --image-name flag is not used the built image name will be 'flink-job'.
@@ -44,10 +44,6 @@ key="$1"
     ;;
     --with-python3)
     PYTHON_VERSION="3"
-    ;;
-    --opt-jars)
-    OPT_JARS="$2"
-    shift
     ;;
     --from-local-dist)
     FROM_LOCAL="true"
@@ -188,4 +184,4 @@ else
 
 fi
 
-docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_artifacts="${JOB_ARTIFACTS_TARGET}" --build-arg opt_jars="${OPT_JARS}" --build-arg hadoop_jar="${SHADED_HADOOP}" --build-arg python_version="${PYTHON_VERSION}" -t "${IMAGE_NAME}" .
+docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_artifacts="${JOB_ARTIFACTS_TARGET}" --build-arg hadoop_jar="${SHADED_HADOOP}" --build-arg python_version="${PYTHON_VERSION}" -t "${IMAGE_NAME}" .

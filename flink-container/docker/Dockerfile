@@ -33,7 +33,6 @@ ENV PATH $PATH:$FLINK_HOME/bin
 ARG flink_dist=NOT_SET
 ARG job_artifacts=NOT_SET
 ARG python_version=NOT_SET
-ARG opt_jars=NOT_SET
 # hadoop jar is optional
 ARG hadoop_jar=NOT_SET*
 
@@ -53,11 +52,6 @@ RUN set -x && \
   ln -s $FLINK_INSTALL_PATH/flink-[0-9]* $FLINK_HOME && \
   for jar in $FLINK_JOB_ARTIFACTS_DIR/*.jar; do [ -f "$jar" ] || continue; ln -s $jar $FLINK_LIB_DIR; done && \
   if [ -n "$python_version" ]; then ln -s $FLINK_OPT_DIR/flink-python-*-java-binding.jar $FLINK_LIB_DIR; fi && \
-  OIFS=$IFS && IFS=',' && \
-  for expected_jar in $opt_jars; do \
-    for jar in $FLINK_OPT_DIR/*.jar; do if echo "$jar" | grep -q "$expected_jar"; then ln -s $jar $FLINK_LIB_DIR; fi done \
-  done && \
-  IFS=$OIFS && \
   if [ -f ${FLINK_INSTALL_PATH}/flink-shaded-hadoop* ]; then ln -s ${FLINK_INSTALL_PATH}/flink-shaded-hadoop* $FLINK_LIB_DIR; fi && \
   addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
   chown -R flink:flink ${FLINK_INSTALL_PATH}/flink-* && \
