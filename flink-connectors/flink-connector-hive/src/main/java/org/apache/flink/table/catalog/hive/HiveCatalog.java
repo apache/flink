@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogPartition;
@@ -84,6 +85,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -111,6 +113,7 @@ public class HiveCatalog extends AbstractCatalog {
 	private static final String FLINK_FUNCTION_PREFIX = "flink:";
 
 	private final HiveConf hiveConf;
+	private final Map<ObjectPath, ConnectorCatalogTable> connectorTables;
 
 	private HiveMetastoreClientWrapper client;
 
@@ -127,6 +130,8 @@ public class HiveCatalog extends AbstractCatalog {
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
+
+		connectorTables = new ConcurrentHashMap<>();
 	}
 
 	private static HiveConf createHiveConf(URL hiveSiteUrl) {
@@ -157,6 +162,9 @@ public class HiveCatalog extends AbstractCatalog {
 			client = null;
 			LOG.info("Close connection to Hive metastore");
 		}
+
+		LOG.info("Dropping all ConnectorCatalogTables");
+		connectorTables.clear();
 	}
 
 	// ------ databases ------
@@ -299,6 +307,12 @@ public class HiveCatalog extends AbstractCatalog {
 	public CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException, CatalogException {
 		checkNotNull(tablePath, "tablePath cannot be null");
 
+		ConnectorCatalogTable table = connectorTables.get(tablePath);
+
+		if (table != null) {
+			return table;
+		}
+
 		Table hiveTable = getHiveTable(tablePath);
 		return instantiateHiveCatalogTable(hiveTable);
 	}
@@ -311,6 +325,20 @@ public class HiveCatalog extends AbstractCatalog {
 
 		if (!databaseExists(tablePath.getDatabaseName())) {
 			throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
+		}
+
+		if (table instanceof ConnectorCatalogTable) {
+			ConnectorCatalogTable connectorTable = connectorTables.get(tablePath);
+
+			if (connectorTable != null && !tableExistsInHiveMetastore(tablePath)) {
+				if (!ignoreIfExists) {
+					throw new TableAlreadyExistException(getName(), tablePath);
+				}
+			} else {
+				connectorTables.put(tablePath, (ConnectorCatalogTable) table);
+			}
+
+			return;
 		}
 
 		Table hiveTable = instantiateHiveTable(tablePath, table);
@@ -332,11 +360,19 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(tablePath, "tablePath cannot be null");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(newTableName), "newTableName cannot be null or empty");
 
+		ObjectPath newPath = new ObjectPath(tablePath.getDatabaseName(), newTableName);
+
+		ConnectorCatalogTable connectorTable = connectorTables.get(tablePath);
+
+		if (connectorTable != null) {
+			connectorTables.put(newPath, connectorTable);
+			return;
+		}
+
 		try {
 			// alter_table() doesn't throw a clear exception when target table doesn't exist.
 			// Thus, check the table existence explicitly
 			if (tableExists(tablePath)) {
-				ObjectPath newPath = new ObjectPath(tablePath.getDatabaseName(), newTableName);
 				// alter_table() doesn't throw a clear exception when new table already exists.
 				// Thus, check the table existence explicitly
 				if (tableExists(newPath)) {
@@ -360,6 +396,20 @@ public class HiveCatalog extends AbstractCatalog {
 			throws TableNotExistException, CatalogException {
 		checkNotNull(tablePath, "tablePath cannot be null");
 		checkNotNull(newCatalogTable, "newCatalogTable cannot be null");
+
+		if (newCatalogTable instanceof ConnectorCatalogTable) {
+			ConnectorCatalogTable connectorTable = connectorTables.get(tablePath);
+
+			if (connectorTable == null) {
+				if (!ignoreIfNotExists) {
+					throw new TableNotExistException(getName(), tablePath);
+				}
+			} else {
+				connectorTables.put(tablePath, (ConnectorCatalogTable) newCatalogTable);
+			}
+
+			return;
+		}
 
 		Table hiveTable;
 		try {
@@ -398,6 +448,12 @@ public class HiveCatalog extends AbstractCatalog {
 	public void dropTable(ObjectPath tablePath, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException {
 		checkNotNull(tablePath, "tablePath cannot be null");
 
+		ConnectorCatalogTable connectorTable = connectorTables.remove(tablePath);
+
+		if (connectorTable != null) {
+			return;
+		}
+
 		try {
 			client.dropTable(
 				tablePath.getDatabaseName(),
@@ -420,14 +476,25 @@ public class HiveCatalog extends AbstractCatalog {
 	public List<String> listTables(String databaseName) throws DatabaseNotExistException, CatalogException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
+		List<String> result = new ArrayList<>();
+
 		try {
-			return client.getAllTables(databaseName);
+			result.addAll(client.getAllTables(databaseName));
 		} catch (UnknownDBException e) {
 			throw new DatabaseNotExistException(getName(), databaseName);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list tables in database %s", databaseName), e);
 		}
+
+		result.addAll(
+			connectorTables.keySet().stream()
+				.filter(p -> p.getDatabaseName().equals(databaseName))
+				.map(p -> p.getObjectName())
+				.collect(Collectors.toList())
+		);
+
+		return result;
 	}
 
 	@Override
@@ -446,6 +513,12 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public boolean tableExists(ObjectPath tablePath) throws CatalogException {
+		checkNotNull(tablePath, "tablePath cannot be null");
+
+		return connectorTables.containsKey(tablePath) || tableExistsInHiveMetastore(tablePath);
+	}
+
+	private boolean tableExistsInHiveMetastore(ObjectPath tablePath) {
 		checkNotNull(tablePath, "tablePath cannot be null");
 
 		try {
