@@ -53,4 +53,22 @@ public class RestartBackoffTimeStrategyOptions {
 		.key("restart-backoff-time-strategy.failure-rate.backoff-time")
 		.defaultValue(0L)
 		.withDescription("Backoff time in milliseconds between two consecutive restart attempts.");
+
+	/**
+	 * Maximum number of attempts the fixed delay restart strategy will try before failing a job.
+	 */
+	@PublicEvolving
+	public static final ConfigOption<Integer> RESTART_BACKOFF_TIME_STRATEGY_FIXED_DELAY_ATTEMPTS = ConfigOptions
+		.key("restart-backoff-time-strategy.fixed-delay.attempts")
+		.defaultValue(Integer.MAX_VALUE)
+		.withDescription("Maximum number of attempts the fixed delay restart strategy will try before failing a job.");
+
+	/**
+	 * Backoff time between two consecutive restart attempts in FixedDelayRestartBackoffTimeStrategy.
+	 */
+	@PublicEvolving
+	public static final ConfigOption<Long> RESTART_BACKOFF_TIME_STRATEGY_FIXED_DELAY_BACKOFF_TIME = ConfigOptions
+		.key("restart-backoff-time-strategy.fixed-delay.backoff-time")
+		.defaultValue(0L)
+		.withDescription("Backoff time in milliseconds between two consecutive restart attempts.");
 }
