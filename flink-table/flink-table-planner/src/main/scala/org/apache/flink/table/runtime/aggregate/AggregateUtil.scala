@@ -37,7 +37,7 @@ import org.apache.flink.table.api.dataview.DataViewSpec
 import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.AggregationCodeGenerator
+import org.apache.flink.table.codegen.{AggregationCodeGenerator, GeneratedTableAggregationsFunction}
 import org.apache.flink.table.expressions.PlannerExpressionUtils.isTimeIntervalLiteral
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
@@ -225,19 +225,21 @@ object AggregateUtil {
       accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
     )
 
-    val genAggregations = generator
-      .genAggregationsOrTableAggregations(outputType, groupings.length, namedAggregates)
     val aggregationStateType: RowTypeInfo = new RowTypeInfo(aggregateMetadata
       .getAggregatesAccumulatorTypes: _*)
 
     if (isTableAggregate) {
+      val genAggregations = generator
+        .genAggregationsOrTableAggregations(outputType, groupings.length, namedAggregates, true)
       new GroupTableAggProcessFunction[K](
-        genAggregations,
+        genAggregations.asInstanceOf[GeneratedTableAggregationsFunction],
         aggregationStateType,
         generateRetraction,
         groupings.length,
         queryConfig)
     } else {
+      val genAggregations = generator
+        .genAggregationsOrTableAggregations(outputType, groupings.length, namedAggregates, false)
       new GroupAggProcessFunction[K](
         genAggregations,
         aggregationStateType,
@@ -1212,7 +1214,8 @@ object AggregateUtil {
     val genAggregations = generator.genAggregationsOrTableAggregations(
       outputType,
       groupingKeys.length,
-      namedAggregates)
+      namedAggregates,
+      false)
     val aggFunction = new AggregateAggFunction(genAggregations, isTableAggregate)
 
     (aggFunction, accumulatorRowType)

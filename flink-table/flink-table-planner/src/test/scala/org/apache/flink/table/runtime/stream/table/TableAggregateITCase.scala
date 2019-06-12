@@ -19,13 +19,12 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{StreamQueryConfig, Types, ValidationException}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.table.utils.{Top3, Top3WithMapView}
+import org.apache.flink.table.utils.{EmptyTableAggFuncWithoutEmit, Top3, Top3WithMapView}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -140,12 +139,6 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
     val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
-    tEnv.registerTableSink(
-      "retractSink",
-      new TestRetractSink().configure(
-        Array[String]("v1", "v2"),
-        Array[TypeInformation[_]](Types.INT, Types.INT)))
-
     val top3 = new Top3
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     source
@@ -153,7 +146,29 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
       .select('b, 'a.sum as 'a)
       .flatAggregate(top3('a) as ('v1, 'v2))
       .select('v1, 'v2)
-      .insertInto("retractSink")
+      .toRetractStream[Row]
+
+    env.execute()
+  }
+
+  @Test
+  def testTableAggFunctionWithoutEmitValueMethod(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Function class 'org.apache.flink.table.utils." +
+      "EmptyTableAggFuncWithoutEmit' does not implement at least one method named 'emitValue' " +
+      "which is public, not abstract and (in case of table functions) not static.")
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.clear
+
+    val func = new EmptyTableAggFuncWithoutEmit
+    val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    source
+      .flatAggregate(func('a) as ('v1, 'v2))
+      .select('v1, 'v2)
+      .toRetractStream[Row]
 
     env.execute()
   }
