@@ -22,9 +22,9 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{StreamQueryConfig, Types, ValidationException}
+import org.apache.flink.table.api.{StreamQueryConfig, ValidationException}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.table.utils.{EmptyTableAggFuncWithoutEmit, Top3, Top3WithMapView}
+import org.apache.flink.table.utils.{EmptyTableAggFuncWithoutEmit, Top3, Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -44,6 +44,44 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val top3 = new Top3
+    val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val resultTable = source.groupBy('b)
+      .flatAggregate(top3('a))
+      .select('b, 'f0, 'f1)
+      .as('category, 'v1, 'v2)
+
+    val results = resultTable.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,1,1",
+      "2,2,2",
+      "2,3,3",
+      "3,4,4",
+      "3,5,5",
+      "3,6,6",
+      "4,10,10",
+      "4,9,9",
+      "4,8,8",
+      "5,15,15",
+      "5,14,14",
+      "5,13,13",
+      "6,21,21",
+      "6,20,20",
+      "6,19,19"
+    ).sorted
+    assertEquals(expected, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testEmitRetractValueIncrementally(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.clear
+
+    val top3 = new Top3WithEmitRetractValue
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val resultTable = source.groupBy('b)
       .flatAggregate(top3('a))
