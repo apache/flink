@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -626,6 +628,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			vertex.getExecutionGraph().getJobMasterMainThreadExecutor(),
 			producedPartitionsCache -> {
 				producedPartitions = producedPartitionsCache;
+				startTrackingPartitions(location.getResourceID(), producedPartitionsCache.values());
 				return this;
 			});
 	}
@@ -811,7 +814,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished/failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
-				sendReleaseIntermediateResultPartitionsRpcCall();
 
 				return;
 			}
@@ -844,8 +846,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				break;
 			case FINISHED:
 			case FAILED:
-				sendReleaseIntermediateResultPartitionsRpcCall();
-				break;
 			case CANCELED:
 				break;
 			default:
@@ -1170,6 +1170,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private void finishCancellation() {
 		releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
 		vertex.getExecutionGraph().deregisterExecution(this);
+		// release partitions on TM in case the Task finished while we where already CANCELING
+		stopTrackingAndReleasePartitions();
 	}
 
 	void cachePartitionInfo(PartitionInfo partitionInfo) {
@@ -1228,6 +1230,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				releaseAssignedResource(t);
 				vertex.getExecutionGraph().deregisterExecution(this);
+				stopTrackingAndReleasePartitions();
 
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
 					if (LOG.isDebugEnabled()) {
@@ -1323,23 +1326,25 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void sendReleaseIntermediateResultPartitionsRpcCall() {
+	private void startTrackingPartitions(final ResourceID taskExecutorId, final Collection<ResultPartitionDeploymentDescriptor> partitions) {
+		PartitionTracker partitionTracker = vertex.getExecutionGraph().getPartitionTracker();
+		for (ResultPartitionDeploymentDescriptor partition : partitions) {
+			partitionTracker.startTrackingPartition(
+				taskExecutorId,
+				partition);
+		}
+	}
+
+	private void stopTrackingAndReleasePartitions() {
 		LOG.info("Discarding the results produced by task execution {}.", attemptId);
-		final LogicalSlot slot = assignedResource;
+		if (producedPartitions != null && producedPartitions.size() > 0) {
+			final PartitionTracker partitionTracker = getVertex().getExecutionGraph().getPartitionTracker();
+			final List<ResultPartitionID> producedPartitionIds = producedPartitions.values().stream()
+				.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+				.map(ShuffleDescriptor::getResultPartitionID)
+				.collect(Collectors.toList());
 
-		if (slot != null) {
-			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
-
-			Collection<IntermediateResultPartition> partitions = vertex.getProducedPartitions().values();
-			Collection<ResultPartitionID> partitionIds = new ArrayList<>(partitions.size());
-			for (IntermediateResultPartition partition : partitions) {
-				partitionIds.add(new ResultPartitionID(partition.getPartitionId(), attemptId));
-			}
-
-			if (!partitionIds.isEmpty()) {
-				// TODO For some tests this could be a problem when querying too early if all resources were released
-				taskManagerGateway.releasePartitions(getVertex().getJobId(), partitionIds);
-			}
+			partitionTracker.stopTrackingAndReleasePartitions(producedPartitionIds);
 		}
 	}
 

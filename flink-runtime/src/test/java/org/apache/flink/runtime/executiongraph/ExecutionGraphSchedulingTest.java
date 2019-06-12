@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -591,7 +592,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			VoidBlobWriter.getInstance(),
 			timeout,
 			log,
-			NettyShuffleMaster.INSTANCE);
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.INSTANCE);
 	}
 
 	private SimpleSlot createSlot(TaskManagerGateway taskManager, JobID jobId) {

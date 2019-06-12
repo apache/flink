@@ -64,8 +64,11 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TestingPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -307,7 +310,8 @@ public class JobMasterTest extends TestLogger {
 				testingFatalErrorHandler,
 				JobMasterTest.class.getClassLoader(),
 				schedulerNGFactory,
-				NettyShuffleMaster.INSTANCE) {
+				NettyShuffleMaster.INSTANCE,
+				NoOpPartitionTracker.FACTORY) {
 				@Override
 				public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
 					declineCheckpointMessageFuture.complete(declineCheckpoint.getReason());
@@ -1623,7 +1627,8 @@ public class JobMasterTest extends TestLogger {
 			testingFatalErrorHandler,
 			JobMasterTest.class.getClassLoader(),
 			schedulerNGFactory,
-			NettyShuffleMaster.INSTANCE) {
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.FACTORY) {
 
 			@Override
 			public CompletableFuture<String> triggerSavepoint(
@@ -1786,6 +1791,48 @@ public class JobMasterTest extends TestLogger {
 		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
 		rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 		return testingResourceManagerGateway;
+	}
+
+	@Test
+	public void testPartitionTableCleanupOnDisconnect() throws Exception {
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobGraph jobGraph = createSingleVertexJobGraph();
+
+		final CompletableFuture<ResourceID> partitionCleanupTaskExecutorId = new CompletableFuture<>();
+		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		partitionTracker.setStopTrackingAllPartitionsConsumer(partitionCleanupTaskExecutorId::complete);
+
+		final JobMaster jobMaster = new JobMasterBuilder()
+			.withConfiguration(configuration)
+			.withJobGraph(jobGraph)
+			.withHighAvailabilityServices(haServices)
+			.withJobManagerSharedServices(jobManagerSharedServices)
+			.withHeartbeatServices(heartbeatServices)
+			.withOnCompletionActions(new TestingOnCompletionActions())
+			.withPartitionTrackerFactory(ignored -> partitionTracker)
+			.createJobMaster();
+
+		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
+		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
+			.createTestingTaskExecutorGateway();
+
+		try {
+			jobMaster.start(jobMasterId).get();
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			// register a slot to establish a connection
+			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+			registerSlotsAtJobMaster(1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+
+			jobMasterGateway.disconnectTaskManager(taskManagerLocation.getResourceID(), new Exception("test"));
+			disconnectTaskExecutorFuture.get();
+
+			assertThat(partitionCleanupTaskExecutorId.get(), equalTo(taskManagerLocation.getResourceID()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
 	}
 
 	/**
@@ -2092,6 +2139,8 @@ public class JobMasterTest extends TestLogger {
 
 		private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
 
+		private PartitionTrackerFactory partitionTrackerFactory = NoOpPartitionTracker.FACTORY;
+
 		private JobMasterBuilder withConfiguration(Configuration configuration) {
 			this.configuration = configuration;
 			return this;
@@ -2132,6 +2181,11 @@ public class JobMasterTest extends TestLogger {
 			return this;
 		}
 
+		private JobMasterBuilder withPartitionTrackerFactory(PartitionTrackerFactory partitionTrackerFactory) {
+			this.partitionTrackerFactory = partitionTrackerFactory;
+			return this;
+		}
+
 		private JobMaster createJobMaster() throws Exception {
 			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 			final SchedulerNGFactory schedulerNGFactory = new LegacySchedulerFactory(
@@ -2152,7 +2206,8 @@ public class JobMasterTest extends TestLogger {
 				testingFatalErrorHandler,
 				JobMasterTest.class.getClassLoader(),
 				schedulerNGFactory,
-				shuffleMaster);
+				shuffleMaster,
+				partitionTrackerFactory);
 		}
 	}
 
