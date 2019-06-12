@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.taskexecutor.partition;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.util.Preconditions;
 
@@ -34,25 +33,25 @@ import java.util.concurrent.ConcurrentHashMap;
  * Thread-safe Utility for tracking partitions.
  */
 @ThreadSafe
-public class PartitionTable {
+public class PartitionTable<K> {
 
-	private final Map<JobID, Set<ResultPartitionID>> trackedPartitionsPerJob = new ConcurrentHashMap<>(8);
+	private final Map<K, Set<ResultPartitionID>> trackedPartitionsPerJob = new ConcurrentHashMap<>(8);
 
 	/**
-	 * Returns whether any partitions are being tracked for the given job.
+	 * Returns whether any partitions are being tracked for the given key.
 	 */
-	public boolean hasTrackedPartitions(JobID jobId) {
-		return trackedPartitionsPerJob.containsKey(jobId);
+	public boolean hasTrackedPartitions(K key) {
+		return trackedPartitionsPerJob.containsKey(key);
 	}
 
 	/**
-	 * Starts the tracking of the given partition for the given job.
+	 * Starts the tracking of the given partition for the given key.
 	 */
-	public void startTrackingPartitions(JobID jobId, Collection<ResultPartitionID> newPartitionIds) {
-		Preconditions.checkNotNull(jobId);
+	public void startTrackingPartitions(K key, Collection<ResultPartitionID> newPartitionIds) {
+		Preconditions.checkNotNull(key);
 		Preconditions.checkNotNull(newPartitionIds);
 
-		trackedPartitionsPerJob.compute(jobId, (ignored, partitionIds) -> {
+		trackedPartitionsPerJob.compute(key, (ignored, partitionIds) -> {
 			if (partitionIds == null) {
 				partitionIds = new HashSet<>(8);
 			}
@@ -62,28 +61,28 @@ public class PartitionTable {
 	}
 
 	/**
-	 * Stops the tracking of all partition for the given job.
+	 * Stops the tracking of all partition for the given key.
 	 */
-	public Collection<ResultPartitionID> stopTrackingPartitions(JobID jobId) {
-		Preconditions.checkNotNull(jobId);
+	public Collection<ResultPartitionID> stopTrackingPartitions(K key) {
+		Preconditions.checkNotNull(key);
 
-		Set<ResultPartitionID> storedPartitions = trackedPartitionsPerJob.remove(jobId);
+		Set<ResultPartitionID> storedPartitions = trackedPartitionsPerJob.remove(key);
 		return storedPartitions == null
 			? Collections.emptyList()
 			: storedPartitions;
 	}
 
 	/**
-	 * Stops the tracking of the given set of partitions for the given job.
+	 * Stops the tracking of the given set of partitions for the given key.
 	 */
-	public void stopTrackingPartitions(JobID jobId, Collection<ResultPartitionID> partitionIds) {
-		Preconditions.checkNotNull(jobId);
+	public void stopTrackingPartitions(K key, Collection<ResultPartitionID> partitionIds) {
+		Preconditions.checkNotNull(key);
 		Preconditions.checkNotNull(partitionIds);
 
-		// If the JobID is unknown we do not fail here, in line with ShuffleEnvironment#releaseFinishedPartitions
+		// If the key is unknown we do not fail here, in line with ShuffleEnvironment#releaseFinishedPartitions
 		trackedPartitionsPerJob.computeIfPresent(
-			jobId,
-			(key, resultPartitionIDS) -> {
+			key,
+			(ignored, resultPartitionIDS) -> {
 				resultPartitionIDS.removeAll(partitionIds);
 				return resultPartitionIDS.isEmpty()
 					? null

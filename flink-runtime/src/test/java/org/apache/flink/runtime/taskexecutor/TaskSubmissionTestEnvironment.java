@@ -207,7 +207,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			null,
 			blobCacheService,
 			testingFatalErrorHandler,
-			new PartitionTable()
+			new PartitionTable<>()
 		);
 	}
 
