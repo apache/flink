@@ -32,14 +32,12 @@ import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.operations.{CatalogQueryOperation, OperationTreeBuilder, PlannerQueryOperation, TableSourceQueryOperation}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
-import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.StringUtils
 
 import _root_.scala.collection.JavaConverters._
@@ -101,13 +99,9 @@ abstract class TableEnvImpl(
   }
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = {
-    // check if class could be instantiated
-    checkForInstantiation(function.getClass)
-
     functionCatalog.registerScalarFunction(
       name,
-      function,
-      planningConfigurationBuilder.getTypeFactory)
+      function)
   }
 
   /**
@@ -115,23 +109,18 @@ abstract class TableEnvImpl(
     * user-defined functions under this name.
     */
   private[flink] def registerTableFunctionInternal[T: TypeInformation](
-    name: String, function: TableFunction[T]): Unit = {
-    // check if class not Scala object
-    checkNotSingleton(function.getClass)
-    // check if class could be instantiated
-    checkForInstantiation(function.getClass)
-
-    val typeInfo: TypeInformation[_] = if (function.getResultType != null) {
-      function.getResultType
-    } else {
-      implicitly[TypeInformation[T]]
-    }
+      name: String,
+      function: TableFunction[T])
+    : Unit = {
+    val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+      .getReturnTypeOfTableFunction(
+        function,
+        implicitly[TypeInformation[T]])
 
     functionCatalog.registerTableFunction(
       name,
       function,
-      typeInfo,
-      planningConfigurationBuilder.getTypeFactory)
+      resultTypeInfo)
   }
 
   /**
@@ -139,17 +128,16 @@ abstract class TableEnvImpl(
     * user-defined functions under this name.
     */
   private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
-      name: String, function: UserDefinedAggregateFunction[T, ACC]): Unit = {
-    // check if class not Scala object
-    checkNotSingleton(function.getClass)
-    // check if class could be instantiated
-    checkForInstantiation(function.getClass)
+      name: String,
+      function: UserDefinedAggregateFunction[T, ACC])
+    : Unit = {
+    val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+      .getReturnTypeOfAggregateFunction(
+        function,
+        implicitly[TypeInformation[T]])
 
-    val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
-      function,
-      implicitly[TypeInformation[T]])
-
-    val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
+    val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper
+      .getAccumulatorTypeOfAggregateFunction(
       function,
       implicitly[TypeInformation[ACC]])
 
@@ -157,8 +145,7 @@ abstract class TableEnvImpl(
       name,
       function,
       resultTypeInfo,
-      accTypeInfo,
-      planningConfigurationBuilder.getTypeFactory)
+      accTypeInfo)
   }
 
   override def registerCatalog(catalogName: String, catalog: Catalog): Unit = {

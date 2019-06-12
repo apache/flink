@@ -30,7 +30,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.ApiExpressionUtils.call
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
+import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.Preconditions
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -74,7 +75,7 @@ object RexProgramExtractor {
   def extractConjunctiveConditions(
       rexProgram: RexProgram,
       rexBuilder: RexBuilder,
-      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
+      catalog: FunctionDefinitionCatalog): (Array[Expression], Array[RexNode]) = {
 
     rexProgram.getCondition match {
       case condition: RexLocalRef =>
@@ -147,7 +148,7 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
   */
 class RexNodeToExpressionConverter(
     inputNames: Array[String],
-    functionCatalog: FunctionCatalog)
+    functionCatalog: FunctionDefinitionCatalog)
     extends RexVisitor[Option[Expression]] {
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
@@ -276,16 +277,12 @@ class RexNodeToExpressionConverter(
   private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
     // TODO we assume only planner expression as a temporary solution to keep the old interfaces
     val expressionBridge = new ExpressionBridge[PlannerExpression](
-      functionCatalog, PlannerExpressionConverter.INSTANCE)
-    Try(functionCatalog.lookupFunction(name)) match {
-      case Success(f: FunctionDefinition) =>
-        try {
-          Some(expressionBridge.bridge(call(f, operands: _*)))
-        } catch {
-          case _: Exception => None
-        }
-      case Failure(_) => None
-    }
+      functionCatalog,
+      PlannerExpressionConverter.INSTANCE)
+    JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(name))
+      .flatMap(definition =>
+        Try(expressionBridge.bridge(call(definition, operands: _*))).toOption
+      )
   }
 
   private def replace(str: String): String = {

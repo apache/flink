@@ -16,115 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.validate
+package org.apache.flink.table.catalog
+
+import _root_.java.util.{List => JList}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlReturnTypeInference, SqlTypeTransforms}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api._
+import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{createAggregateSqlFunction, createScalarSqlFunction, createTableSqlFunction}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 
 import _root_.scala.collection.JavaConversions._
-import _root_.scala.collection.mutable
-
-/**
-  * A catalog for looking up (user-defined) functions, used during validation phases
-  * of both Table API and SQL API.
-  */
-class FunctionCatalog extends FunctionDefinitionCatalog {
-
-  private val tableApiFunctions = mutable.HashMap.empty[String, FunctionDefinition]
-  BuiltInFunctionDefinitions.getDefinitions.foreach { functionDefinition =>
-    tableApiFunctions.put(normalizeName(functionDefinition.getName), functionDefinition)
-  }
-
-  private val sqlFunctions = mutable.ListBuffer[SqlFunction]()
-
-  def registerScalarFunction(
-      name: String,
-      function: ScalarFunction,
-      typeFactory: FlinkTypeFactory)
-    : Unit = {
-    registerFunction(
-      name,
-      new ScalarFunctionDefinition(name, function),
-      createScalarSqlFunction(name, name, function, typeFactory)
-    )
-  }
-
-  def registerTableFunction(
-      name: String,
-      function: TableFunction[_],
-      resultType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-    : Unit = {
-    registerFunction(
-      name,
-      new TableFunctionDefinition(name, function, resultType),
-      createTableSqlFunction(name, name, function, resultType, typeFactory)
-    )
-  }
-
-  def registerAggregateFunction(
-      name: String,
-      function: UserDefinedAggregateFunction[_, _],
-      resultType: TypeInformation[_],
-      accType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory)
-    : Unit = {
-    registerFunction(
-      name,
-      new AggregateFunctionDefinition(name, function, resultType, accType),
-      createAggregateSqlFunction(
-        name,
-        name,
-        function,
-        resultType,
-        accType,
-        typeFactory)
-    )
-  }
-
-  private def registerFunction(
-      name: String,
-      functionDefinition: FunctionDefinition,
-      sqlFunction: SqlFunction): Unit = {
-    tableApiFunctions.put(normalizeName(name), functionDefinition)
-    sqlFunctions --= sqlFunctions.filter(_.getName == sqlFunction.getName)
-    sqlFunctions += sqlFunction
-  }
-
-  def getUserDefinedFunctions: Seq[String] = {
-    sqlFunctions.map(_.getName)
-  }
-
-  def getSqlOperatorTable: SqlOperatorTable =
-    ChainedSqlOperatorTable.of(
-      new BasicOperatorTable(),
-      new ListSqlOperatorTable(sqlFunctions)
-    )
-
-  /**
-    * Lookup a function by name and operands and return the [[FunctionDefinition]].
-    */
-  override def lookupFunction(name: String): FunctionDefinition = {
-    tableApiFunctions.getOrElse(
-      normalizeName(name),
-      throw new ValidationException(s"Undefined function: $name"))
-  }
-
-  private def normalizeName(name: String): String = {
-    name.toUpperCase
-  }
-}
 
 class BasicOperatorTable extends ReflectiveSqlOperatorTable {
 
@@ -335,7 +239,7 @@ object BasicOperatorTable {
     SqlKind.TUMBLE,
     null,
     OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
-    override def getAuxiliaryFunctions: _root_.java.util.List[SqlGroupedWindowFunction] =
+    override def getAuxiliaryFunctions: JList[SqlGroupedWindowFunction] =
       Seq(
         TUMBLE_START,
         TUMBLE_END,
@@ -448,5 +352,4 @@ object BasicOperatorTable {
     ) {
       override def isDeterministic: Boolean = false
     }
-
 }

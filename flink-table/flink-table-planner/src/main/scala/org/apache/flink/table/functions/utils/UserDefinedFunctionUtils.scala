@@ -46,37 +46,6 @@ import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
 
-  /**
-    * Checks if a user-defined function can be easily instantiated.
-    */
-  def checkForInstantiation(clazz: Class[_]): Unit = {
-    if (!InstantiationUtil.isPublic(clazz)) {
-      throw new ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
-    }
-    else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw new ValidationException(
-        s"Function class ${clazz.getCanonicalName} is no proper class," +
-        " it is either abstract, an interface, or a primitive type.")
-    }
-    else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw new ValidationException(
-        s"The class ${clazz.getCanonicalName} is an inner class, but not statically accessible.")
-    }
-  }
-
-  /**
-    * Check whether this is a Scala object. It is forbidden to use [[TableFunction]] implemented
-    * by a Scala object, since concurrent risks.
-    */
-  def checkNotSingleton(clazz: Class[_]): Unit = {
-    // TODO it is not a good way to check singleton. Maybe improve it further.
-    if (clazz.getFields.map(_.getName) contains "MODULE$") {
-      throw new ValidationException(
-        s"TableFunction implemented by class ${clazz.getCanonicalName} " +
-          s"is a Scala object, it is forbidden since concurrent risks.")
-    }
-  }
-
   // ----------------------------------------------------------------------------------------------
   // Utilities for user-defined methods
   // ----------------------------------------------------------------------------------------------
@@ -560,90 +529,6 @@ object UserDefinedFunctionUtils {
           "MapView and ListView only supported in accumulators of POJO type.")
       case _ => (accType, None)
     }
-  }
-
-  /**
-    * Tries to infer the TypeInformation of an AggregateFunction's return type.
-    *
-    * @param aggregateFunction The AggregateFunction for which the return type is inferred.
-    * @param extractedType The implicitly inferred type of the result type.
-    *
-    * @return The inferred result type of the AggregateFunction.
-    */
-  def getResultTypeOfAggregateFunction(
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      extractedType: TypeInformation[_] = null)
-    : TypeInformation[_] = {
-
-    val resultType = aggregateFunction.getResultType
-    if (resultType != null) {
-      resultType
-    } else if (extractedType != null) {
-      extractedType
-    } else {
-      try {
-        extractTypeFromAggregateFunction(aggregateFunction, 0)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new TableException(
-            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              "You can override AggregateFunction.getResultType() to specify the type.",
-            ite
-          )
-      }
-    }
-  }
-
-  /**
-    * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
-    *
-    * @param aggregateFunction The AggregateFunction for which the accumulator type is inferred.
-    * @param extractedType The implicitly inferred type of the accumulator type.
-    *
-    * @return The inferred accumulator type of the AggregateFunction.
-    */
-  def getAccumulatorTypeOfAggregateFunction(
-    aggregateFunction: UserDefinedAggregateFunction[_, _],
-    extractedType: TypeInformation[_] = null)
-  : TypeInformation[_] = {
-
-    val accType = aggregateFunction.getAccumulatorType
-    if (accType != null) {
-      accType
-    } else if (extractedType != null) {
-      extractedType
-    } else {
-      try {
-        extractTypeFromAggregateFunction(aggregateFunction, 1)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new TableException(
-            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              "You can override AggregateFunction.getAccumulatorType() to specify the type.",
-            ite
-          )
-      }
-    }
-  }
-
-  /**
-    * Internal method to extract a type from an AggregateFunction's type parameters.
-    *
-    * @param aggregateFunction The AggregateFunction for which the type is extracted.
-    * @param parameterTypePos The position of the type parameter for which the type is extracted.
-    *
-    * @return The extracted type.
-    */
-  @throws(classOf[InvalidTypesException])
-  private def extractTypeFromAggregateFunction(
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      parameterTypePos: Int): TypeInformation[_] = {
-
-    TypeExtractor.createTypeInfo(
-      aggregateFunction,
-      classOf[UserDefinedAggregateFunction[_, _]],
-      aggregateFunction.getClass,
-      parameterTypePos).asInstanceOf[TypeInformation[_]]
   }
 
   /**

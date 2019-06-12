@@ -27,13 +27,15 @@ import org.apache.flink.table.calcite.FlinkRelBuilderFactory;
 import org.apache.flink.table.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.FlinkTypeSystem;
+import org.apache.flink.table.catalog.BasicOperatorTable;
 import org.apache.flink.table.catalog.CatalogReader;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.plan.cost.DataSetCostFactory;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
-import org.apache.flink.table.validate.FunctionCatalog;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -222,13 +224,18 @@ public class PlanningConfigurationBuilder {
 	 * Returns the operator table for this environment including a custom Calcite configuration.
 	 */
 	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig, FunctionCatalog functionCatalog) {
+		SqlOperatorTable baseOperatorTable = ChainedSqlOperatorTable.of(
+			new BasicOperatorTable(),
+			new FunctionCatalogOperatorTable(functionCatalog, typeFactory)
+		);
+
 		return JavaScalaConversionUtil.toJava(calciteConfig.sqlOperatorTable()).map(operatorTable -> {
 				if (calciteConfig.replacesSqlOperatorTable()) {
 					return operatorTable;
 				} else {
-					return ChainedSqlOperatorTable.of(functionCatalog.getSqlOperatorTable(), operatorTable);
+					return ChainedSqlOperatorTable.of(baseOperatorTable, operatorTable);
 				}
 			}
-		).orElseGet(functionCatalog::getSqlOperatorTable);
+		).orElse(baseOperatorTable);
 	}
 }

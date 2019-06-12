@@ -27,8 +27,7 @@ import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -1104,12 +1103,9 @@ trait ImplicitExpressionConversions {
       * Calls a table function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      val resultType = if (t.getResultType == null) {
-        implicitly[TypeInformation[T]]
-      } else {
-        t.getResultType
-      }
-      call(new TableFunctionDefinition(t.getClass.getName, t, resultType), params: _*)
+      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+        .getReturnTypeOfTableFunction(t, implicitly[TypeInformation[T]])
+      call(new TableFunctionDefinition(t.getClass.getName, t, resultTypeInfo), params: _*)
     }
   }
 
@@ -1117,13 +1113,11 @@ trait ImplicitExpressionConversions {
       (val a: UserDefinedAggregateFunction[T, ACC]) {
 
     private def createFunctionDefinition(): AggregateFunctionDefinition = {
-      val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
-        a,
-        implicitly[TypeInformation[T]])
+      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+        .getReturnTypeOfAggregateFunction(a, implicitly[TypeInformation[T]])
 
-      val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
-        a,
-        implicitly[TypeInformation[ACC]])
+      val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper.
+        getAccumulatorTypeOfAggregateFunction(a, implicitly[TypeInformation[ACC]])
 
       new AggregateFunctionDefinition(a.getClass.getName, a, resultTypeInfo, accTypeInfo)
     }
