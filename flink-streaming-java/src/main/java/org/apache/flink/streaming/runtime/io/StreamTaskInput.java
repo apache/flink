@@ -35,4 +35,9 @@ public interface StreamTaskInput extends NullableAsyncDataInput<StreamElement>, 
 	 * it is unspecified.
 	 */
 	int getLastChannel();
+
+	/**
+	 * Returns the input index of this input.
+	 */
+	int getInputIndex();
 }
