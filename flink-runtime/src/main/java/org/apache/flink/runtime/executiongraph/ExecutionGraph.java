@@ -926,9 +926,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				schedulingFuture = newSchedulingFuture;
 				newSchedulingFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
-						if (throwable != null && !(throwable instanceof CancellationException)) {
-							// only fail if the scheduling future was not canceled
-							failGlobal(ExceptionUtils.stripCompletionException(throwable));
+						if (throwable != null) {
+							final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+							if (!(strippedThrowable instanceof CancellationException)) {
+								// only fail if the scheduling future was not canceled
+								failGlobal(strippedThrowable);
+							}
 						}
 					});
 			} else {
