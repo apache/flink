@@ -38,18 +38,18 @@ import java.util.stream.Collectors;
  */
 class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
 
-	private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByVertex;
+	private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer;
 
 	private final Map<ExecutionVertexID, CompletableFuture<TaskManagerLocation>> taskManagerLocationsByVertex = new HashMap<>();
 
-	TestingInputsLocationsRetriever(final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByVertex) {
-		this.producersByVertex = new HashMap<>(producersByVertex);
+	TestingInputsLocationsRetriever(final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer) {
+		this.producersByConsumer = new HashMap<>(producersByConsumer);
 	}
 
 	@Override
 	public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(final ExecutionVertexID executionVertexId) {
 		final Map<JobVertexID, List<ExecutionVertexID>> executionVerticesByJobVertex =
-				producersByVertex.getOrDefault(executionVertexId, Collections.emptyList())
+				producersByConsumer.getOrDefault(executionVertexId, Collections.emptyList())
 						.stream()
 						.collect(Collectors.groupingBy(ExecutionVertexID::getJobVertexId));
 
@@ -77,10 +77,10 @@ class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
 
 	static class Builder {
 
-		private final Map<ExecutionVertexID, List<ExecutionVertexID>> consumerToProducers = new HashMap<>();
+		private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer = new HashMap<>();
 
 		public Builder connectConsumerToProducer(final ExecutionVertexID consumer, final ExecutionVertexID producer) {
-			consumerToProducers.compute(consumer, (key, producers) -> {
+			producersByConsumer.compute(consumer, (key, producers) -> {
 				if (producers == null) {
 					producers = new ArrayList<>();
 				}
@@ -91,7 +91,7 @@ class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
 		}
 
 		public TestingInputsLocationsRetriever build() {
-			return new TestingInputsLocationsRetriever(consumerToProducers);
+			return new TestingInputsLocationsRetriever(producersByConsumer);
 		}
 
 	}
