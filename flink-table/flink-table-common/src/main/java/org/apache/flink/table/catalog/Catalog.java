@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.factories.TableFactory;
@@ -504,7 +505,7 @@ public interface Catalog {
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
-		throws TableNotExistException, CatalogException;
+		throws TableNotExistException, CatalogException, TablePartitionedException;
 
 	/**
 	 * Update the statistics of a table partition.

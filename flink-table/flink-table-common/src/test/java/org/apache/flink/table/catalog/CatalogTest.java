@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
@@ -1359,5 +1360,9 @@ public abstract class CatalogTest {
 
 	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
 		assertEquals(expected.getProperties(), actual.getProperties());
+	}
+
+	protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
+		CatalogTestUtil.checkEquals(cs1, cs2);
 	}
 }
