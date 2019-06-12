@@ -184,7 +184,7 @@ public class CountWithTimeoutFunction
 {% highlight scala %}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction.Context
 import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext
