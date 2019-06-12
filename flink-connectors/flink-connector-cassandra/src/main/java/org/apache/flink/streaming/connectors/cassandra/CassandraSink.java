@@ -399,6 +399,19 @@ public class CassandraSink<IN> {
 		}
 
 		/**
+		 * Enables ignoring null values, treats null values as unset and avoids writing null fields
+		 * and creating tombstones.
+		 *
+		 * <p>This call has no effect if {@link CassandraSinkBuilder#enableWriteAheadLog()} is called.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> enableIgnoreNullFields() {
+			this.configBuilder.setIgnoreNullFields(true);
+			return this;
+		}
+
+		/**
 		 * Finalizes the configuration of this sink.
 		 *
 		 * @return finalized sink
