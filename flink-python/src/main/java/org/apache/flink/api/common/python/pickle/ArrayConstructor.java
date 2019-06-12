@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.bridge.pickle;
+package org.apache.flink.api.common.python.pickle;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

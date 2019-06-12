@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.client;
+package org.apache.flink.client.python;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;

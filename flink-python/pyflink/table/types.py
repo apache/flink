@@ -1305,7 +1305,7 @@ def _is_instance_of(java_data_type, java_class):
         raise TypeError(
             "java_class must be a string, a JavaClass, or a JavaObject")
 
-    return gateway.jvm.org.apache.flink.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
+    return gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
         param, java_data_type)
 
 

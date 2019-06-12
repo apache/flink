@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.bridge.pickle;
+package org.apache.flink.api.common.python.pickle;
 
 import org.apache.commons.lang3.ArrayUtils;
 

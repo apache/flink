@@ -64,7 +64,7 @@ def launch_gateway():
         raise Exception("Windows system is not supported currently.")
     script = "./bin/pyflink-gateway-server.sh"
     command = [os.path.join(FLINK_HOME, script)]
-    command += ['-c', 'org.apache.flink.python.client.PythonGatewayServer']
+    command += ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
 
     # Create a temporary directory where the gateway server should write the connection information.
     conn_info_dir = tempfile.mkdtemp()
@@ -114,10 +114,10 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
-    java_import(gateway.jvm, "org.apache.flink.table.python.*")
     java_import(gateway.jvm, "org.apache.flink.table.types.*")
     java_import(gateway.jvm, "org.apache.flink.table.types.logical.*")
-    java_import(gateway.jvm, "org.apache.flink.python.bridge.*")
+    java_import(gateway.jvm, "org.apache.flink.table.util.python.*")
+    java_import(gateway.jvm, "org.apache.flink.api.common.python.*")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.TypeInformation")
     java_import(gateway.jvm, "org.apache.flink.api.common.typeinfo.Types")
     java_import(gateway.jvm, "org.apache.flink.api.java.ExecutionEnvironment")
