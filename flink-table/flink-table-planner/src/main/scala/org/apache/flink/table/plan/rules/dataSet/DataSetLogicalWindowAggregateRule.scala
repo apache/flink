@@ -24,11 +24,11 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.BasicOperatorTable
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.rules.common.LogicalWindowAggregateRule
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-import org.apache.flink.table.validate.BasicOperatorTable
 
 class DataSetLogicalWindowAggregateRule
   extends LogicalWindowAggregateRule("DataSetLogicalWindowAggregateRule") {

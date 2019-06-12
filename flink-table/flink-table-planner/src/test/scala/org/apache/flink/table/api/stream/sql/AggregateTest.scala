@@ -66,7 +66,7 @@ class AggregateTest extends TableTestBase {
     val aggFunctionDefinition = streamUtil
       .tableEnv
       .functionCatalog
-      .lookupFunction("udag")
+      .lookupFunction("udag").get()
       .asInstanceOf[AggregateFunctionDefinition]
 
     val typeInfo = aggFunctionDefinition.getAccumulatorTypeInfo
@@ -80,7 +80,7 @@ class AggregateTest extends TableTestBase {
     val aggFunctionDefinition2 = streamUtil
       .tableEnv
       .functionCatalog
-      .lookupFunction("udag2")
+      .lookupFunction("udag2").get()
       .asInstanceOf[AggregateFunctionDefinition]
 
     val typeInfo2 = aggFunctionDefinition2.getAccumulatorTypeInfo

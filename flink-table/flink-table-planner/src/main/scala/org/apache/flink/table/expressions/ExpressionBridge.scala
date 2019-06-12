@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 
 /**
   * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
   */
 class ExpressionBridge[E <: Expression](
-    functionCatalog: FunctionCatalog,
+    functionCatalog: FunctionDefinitionCatalog,
     finalVisitor: ExpressionVisitor[E]) {
 
   private val callResolver = new LookupCallResolver(functionCatalog)

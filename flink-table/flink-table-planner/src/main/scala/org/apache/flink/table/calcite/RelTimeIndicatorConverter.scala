@@ -29,10 +29,10 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable.FINAL
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
+import org.apache.flink.table.catalog.BasicOperatorTable
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel._
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
