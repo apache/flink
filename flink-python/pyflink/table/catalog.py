@@ -268,7 +268,7 @@ class Catalog(object):
         Drop a partition.
 
         :param table_path: Path :class:`ObjectPath` of the table.
-        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to 
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to
                                drop.
         :param ignore_if_not_exists: Flag to specify behavior if the database does not exist:
                                      if set to false, throw an exception,
@@ -283,7 +283,7 @@ class Catalog(object):
         Alter a partition.
 
         :param table_path: Path :class:`ObjectPath` of the table.
-        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to 
+        :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to
                                alter.
         :param new_partition: New partition :class:`CatalogPartition` to replace the old one.
         :param ignore_if_not_exists: Flag to specify behavior if the database does not exist:

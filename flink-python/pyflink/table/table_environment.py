@@ -20,7 +20,7 @@ import tempfile
 from abc import ABCMeta, abstractmethod
 
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table.catalog import Catalog, HiveCatalog
+from pyflink.table.catalog import Catalog
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDescriptor,
