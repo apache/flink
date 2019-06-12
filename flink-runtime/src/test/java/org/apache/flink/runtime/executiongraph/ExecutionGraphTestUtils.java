@@ -33,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -411,7 +412,8 @@ public class ExecutionGraphTestUtils {
 			VoidBlobWriter.getInstance(),
 			timeout,
 			TEST_LOGGER,
-			NettyShuffleMaster.INSTANCE);
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.INSTANCE);
 	}
 
 	public static JobVertex createNoOpVertex(int parallelism) {

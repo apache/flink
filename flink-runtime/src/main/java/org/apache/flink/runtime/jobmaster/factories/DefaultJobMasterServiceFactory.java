@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.factories;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -106,6 +107,11 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 			fatalErrorHandler,
 			userCodeClassloader,
 			schedulerNGFactory,
-			shuffleMaster);
+			shuffleMaster,
+			lookup -> new PartitionTrackerImpl(
+				jobGraph.getJobID(),
+				shuffleMaster,
+				lookup
+			));
 	}
 }

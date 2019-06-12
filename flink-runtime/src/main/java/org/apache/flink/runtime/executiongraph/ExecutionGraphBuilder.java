@@ -43,6 +43,7 @@ import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -94,7 +95,8 @@ public class ExecutionGraphBuilder {
 			BlobWriter blobWriter,
 			Time allocationTimeout,
 			Logger log,
-			ShuffleMaster<?> shuffleMaster) throws JobExecutionException, JobException {
+			ShuffleMaster<?> shuffleMaster,
+			PartitionTracker partitionTracker) throws JobExecutionException, JobException {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
 
@@ -135,7 +137,8 @@ public class ExecutionGraphBuilder {
 					blobWriter,
 					allocationTimeout,
 					shuffleMaster,
-					forcePartitionReleaseOnConsumption);
+					forcePartitionReleaseOnConsumption,
+					partitionTracker);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

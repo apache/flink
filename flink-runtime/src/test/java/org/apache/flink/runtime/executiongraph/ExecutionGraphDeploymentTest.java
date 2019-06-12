@@ -42,6 +42,7 @@ import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -824,7 +825,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			blobWriter,
 			timeout,
 			LoggerFactory.getLogger(getClass()),
-			NettyShuffleMaster.INSTANCE);
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.INSTANCE);
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

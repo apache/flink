@@ -39,6 +39,8 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -195,6 +197,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private Map<String, Object> accumulators;
 
+	private final PartitionTracker partitionTracker;
+
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
@@ -212,7 +216,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			FatalErrorHandler fatalErrorHandler,
 			ClassLoader userCodeLoader,
 			SchedulerNGFactory schedulerNGFactory,
-			ShuffleMaster<?> shuffleMaster) throws Exception {
+			ShuffleMaster<?> shuffleMaster,
+			PartitionTrackerFactory partitionTrackerFactory) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
 
@@ -242,6 +247,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPool);
 
 		this.registeredTaskManagers = new HashMap<>(4);
+		this.partitionTracker = checkNotNull(partitionTrackerFactory)
+			.create(resourceID -> {
+				Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(resourceID);
+				if (taskManagerInfo == null) {
+					return Optional.empty();
+				}
+
+				return Optional.of(taskManagerInfo.f1);
+			});
 
 		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
 
@@ -272,7 +286,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			blobWriter,
 			jobManagerJobMetricGroup,
 			jobMasterConfiguration.getSlotRequestTimeout(),
-			shuffleMaster);
+			shuffleMaster,
+			partitionTracker);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -409,6 +424,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 		slotPool.releaseTaskManager(resourceID, cause);
+		partitionTracker.stopTrackingPartitionsFor(resourceID);
 
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerConnection = registeredTaskManagers.remove(resourceID);
 

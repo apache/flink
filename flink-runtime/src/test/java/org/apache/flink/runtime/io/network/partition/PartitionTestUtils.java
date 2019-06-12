@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
+import java.util.EnumSet;
+import java.util.Optional;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -97,6 +100,37 @@ public class PartitionTestUtils {
 		return new ResultPartitionDeploymentDescriptor(
 			partitionDescriptor,
 			shuffleDescriptor,
+			1,
+			true,
+			releaseType);
+	}
+
+	public static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(ResultPartitionID resultPartitionId, ShuffleDescriptor.ReleaseType releaseType, boolean hasLocalResources) {
+		return new ResultPartitionDeploymentDescriptor(
+			new PartitionDescriptor(
+				new IntermediateDataSetID(),
+				resultPartitionId.getPartitionId(),
+				ResultPartitionType.BLOCKING,
+				1,
+				0),
+			new ShuffleDescriptor() {
+				@Override
+				public ResultPartitionID getResultPartitionID() {
+					return resultPartitionId;
+				}
+
+				@Override
+				public Optional<ResourceID> storesLocalResourcesOn() {
+					return hasLocalResources
+						? Optional.of(ResourceID.generate())
+						: Optional.empty();
+				}
+
+				@Override
+				public EnumSet<ReleaseType> getSupportedReleaseTypes() {
+					return EnumSet.of(releaseType);
+				}
+			},
 			1,
 			true,
 			releaseType);
