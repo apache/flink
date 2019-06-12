@@ -96,31 +96,6 @@ public class InfluxdbReporterTest extends TestLogger {
 
 	@Test
 	public void testMetricReporting() throws Exception {
-		MetricRegistryImpl metricRegistry = createMetricRegistry("");
-		try {
-			String metricName = "TestCounter";
-			Counter counter = registerTestMetric(metricName, metricRegistry);
-			counter.inc(42);
-
-			stubFor(post(urlPathEqualTo("/write"))
-				.willReturn(aResponse()
-					.withStatus(200)));
-
-			InfluxdbReporter reporter = (InfluxdbReporter) metricRegistry.getReporters().get(0);
-			reporter.report();
-
-			verify(postRequestedFor(urlPathEqualTo("/write"))
-				.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
-				.withQueryParam("rp", equalTo(""))
-				.withHeader("Content-Type", containing("text/plain"))
-				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
-		} finally {
-			metricRegistry.shutdown().get();
-		}
-	}
-
-	@Test
-	public void testMetricReportingWithRetentionPolicy() throws Exception {
 		String retentionPolicy = "one_hour";
 		MetricRegistryImpl metricRegistry = createMetricRegistry(retentionPolicy);
 		try {

@@ -53,8 +53,8 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getStrin
 public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implements Scheduled {
 
 	private String database;
-	private InfluxDB influxDB;
 	private String retentionPolicy;
+	private InfluxDB influxDB;
 
 	public InfluxdbReporter() {
 		super(new MeasurementInfoProvider());
@@ -76,12 +76,12 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 		String password = getString(config, PASSWORD);
 
 		this.database = database;
+		this.retentionPolicy = getString(config, RETENTION_POLICY);
 		if (username != null && password != null) {
 			influxDB = InfluxDBFactory.connect(url, username, password);
 		} else {
 			influxDB = InfluxDBFactory.connect(url);
 		}
-		this.retentionPolicy = getString(config, RETENTION_POLICY);
 
 		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{}}", host, port, database, retentionPolicy);
 	}
