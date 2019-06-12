@@ -96,10 +96,10 @@ abstract class TableTestUtil(test: TableTestBase) {
   // scala env
   val env = new StreamExecutionEnvironment(javaEnv)
 
-  def getTableEnv: TableEnvironment
-
   // a counter for unique table names
   private var counter = 0
+
+  def getTableEnv: TableEnvironment
 
   /**
     * Create a [[TestTableSource]] with the given schema,
@@ -153,7 +153,15 @@ abstract class TableTestUtil(test: TableTestBase) {
       name: String,
       types: Array[TypeInformation[_]],
       fields: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
+    val tableEnv = getTableEnv
+    val schema = new TableSchema(fields, types)
+    val isBatch = tableEnv.isBatch
+    val tableSource = new TestTableSource(isBatch, schema)
+    val table = new TableSourceTable[BaseRow](tableSource, isBatch, statistic)
+    tableEnv.registerTableInternal(name, table)
+    tableEnv.scan(name)
+  }
 
   /**
     * Create a [[DataStream]] with the given schema,
@@ -490,19 +498,6 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
     tableEnv.scan(name)
   }
 
-  override def addTableSource(
-      name: String,
-      types: Array[TypeInformation[_]],
-      names: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
-    val tableEnv = getTableEnv
-    val schema = new TableSchema(names, types)
-    val tableSource = new TestTableSource(true, schema)
-    val table = new TableSourceTable[BaseRow](tableSource, true, statistic)
-    tableEnv.registerTableInternal(name, table)
-    tableEnv.scan(name)
-  }
-
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
@@ -600,19 +595,6 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
       Seq(),
       typeInfo,
       fields.map(_.name).mkString(", "))
-    tableEnv.scan(name)
-  }
-
-  override def addTableSource(
-      name: String,
-      types: Array[TypeInformation[_]],
-      names: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
-    val tableEnv = getTableEnv
-    val schema = new TableSchema(names, types)
-    val tableSource = new TestTableSource(true, schema)
-    val table = new TableSourceTable[BaseRow](tableSource, false, statistic)
-    tableEnv.registerTableInternal(name, table)
     tableEnv.scan(name)
   }
 

@@ -19,10 +19,8 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, TableImpl}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.types.utils.TypeConversions
 
 object StreamTableEnvUtil {
 
@@ -42,13 +40,8 @@ object StreamTableEnvUtil {
       fieldNames: Option[Array[String]],
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
-    val (typeFieldNames, fieldIdxs) =
-      tEnv.getFieldInfo(
-        TypeConversions.fromLegacyInfoToDataType(dataStream.getTransformation.getOutputType))
-    val boundedStreamTable = new DataStreamTable[T](
-      dataStream, fieldIdxs, fieldNames.getOrElse(typeFieldNames), fieldNullables)
-    val withStatistic = boundedStreamTable.copy(statistic.getOrElse(FlinkStatistic.UNKNOWN))
-    tEnv.registerTableInternal(name, withStatistic)
+    val queryOperation = tEnv.asQueryOperation(dataStream, fieldNames, fieldNullables, statistic)
+    tEnv.registerTable(name, new TableImpl(tEnv, queryOperation))
   }
 
 }

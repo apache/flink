@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.flink.table.plan.stats.FlinkStatistic
+
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.RelOptTable.ToRelContext
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.TranslatableTable
-import org.apache.calcite.schema.impl.AbstractTable
 
 /**
  * A [[org.apache.calcite.schema.Table]] implementation for registering
@@ -34,7 +35,7 @@ import org.apache.calcite.schema.impl.AbstractTable
  *
  * @see [[DataStreamTable]]
  */
-class RelTable(relNode: RelNode) extends AbstractTable with TranslatableTable {
+class RelTable(relNode: RelNode) extends FlinkTable with TranslatableTable {
 
   override def getJdbcTableType: TableType = ???
 
@@ -43,4 +44,8 @@ class RelTable(relNode: RelNode) extends AbstractTable with TranslatableTable {
   override def toRel(context: ToRelContext, relOptTable: RelOptTable): RelNode = {
     relNode
   }
+
+  override def getStatistic: FlinkStatistic = FlinkStatistic.UNKNOWN
+
+  override def copy(statistic: FlinkStatistic): FlinkTable = this
 }

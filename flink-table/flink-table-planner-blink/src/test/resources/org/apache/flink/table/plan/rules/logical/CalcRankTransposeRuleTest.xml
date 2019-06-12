@@ -71,7 +71,7 @@ LogicalProject(rank_num=[$4], rowtime=[$3], a=[$0], rank_num0=[$4], a0=[$0], ran
 FlinkLogicalCalc(select=[rank_num1 AS rank_num, rowtime, a, rank_num1 AS rank_num0, a AS a0, rank_num1])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, rank_num1])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -98,7 +98,7 @@ LogicalProject(a=[$0])
 FlinkLogicalCalc(select=[a])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -125,7 +125,7 @@ LogicalProject(rowtime=[$3])
 FlinkLogicalCalc(select=[rowtime])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
    +- FlinkLogicalCalc(select=[a, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -152,7 +152,7 @@ LogicalProject(rowtime=[$3], c=[$2])
 FlinkLogicalCalc(select=[rowtime, c], where=[>(a, 10)])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, c, rowtime])
    +- FlinkLogicalCalc(select=[a, c, rowtime])
-      +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+      +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -178,7 +178,7 @@ LogicalProject(a=[$0], rowtime=[$3])
       <![CDATA[
 FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
 +- FlinkLogicalCalc(select=[a, rowtime])
-   +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+   +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -270,7 +270,7 @@ LogicalProject(a=[$0], rowtime=[$3], rank_num=[$4])
       <![CDATA[
 FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, w0$o0])
 +- FlinkLogicalCalc(select=[a, rowtime])
-   +- FlinkLogicalDataStreamTableScan(table=[[_DataStreamTable_0]])
+   +- FlinkLogicalDataStreamTableScan(table=[[MyTable]])
 ]]>
     </Resource>
   </TestCase>

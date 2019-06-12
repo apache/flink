@@ -44,7 +44,7 @@ Calc(select=[/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2) AS EXPR$0, /(-($f0,
 +- GroupWindowAggregate(window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[SUM($f2) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, c, *(CAST(c), CAST(c)) AS $f2])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -71,7 +71,7 @@ Calc(select=[EXPR$0, +(CAST(w$end), 60000:INTERVAL MINUTE) AS EXPR$1])
 +- GroupWindowAggregate(window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -101,7 +101,7 @@ Calc(select=[EXPR$0, CAST(w$start) AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(F
 +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 60000, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, a])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -130,7 +130,7 @@ Calc(select=[EXPR$0, wAvg, CAST(w$start) AS EXPR$2, CAST(w$end) AS EXPR$3])
 +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, proctime, 3600000, 900000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[proctime, c, a])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -163,7 +163,7 @@ Calc(select=[EXPR$0])
       +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow], select=[a, b, c])
          +- Exchange(distribution=[hash[a, b, c]])
             +- Calc(select=[a, b, c, rowtime])
-               +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+               +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -207,7 +207,7 @@ Union(all=[true], union=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
 :  +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 3600000, 60000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$2, SUM(c) AS EXPR$3, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
 :     +- Exchange(distribution=[single], reuse_id=[1])
 :        +- Calc(select=[rowtime, c])
-:           +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+:           +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 +- Calc(select=[CAST(w$start) AS EXPR$0, CAST(w$end) AS EXPR$1, EXPR$2, EXPR$3])
    +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 86400000, 60000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$2, SUM(c) AS EXPR$3, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
       +- Reused(reference_id=[1])
@@ -259,7 +259,7 @@ Join(joinType=[InnerJoin], where=[=(he1, he2)], select=[hs1, he1, c1, s1, hs2, h
 :     +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 3600000, 60000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS c1, SUM(c) AS s1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
 :        +- Exchange(distribution=[single], reuse_id=[1])
 :           +- Calc(select=[rowtime, c])
-:              +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+:              +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 +- Exchange(distribution=[hash[he2]])
    +- Calc(select=[CAST(w$start) AS hs2, CAST(w$end) AS he2, c2, s2])
       +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, rowtime, 86400000, 60000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS c2, SUM(c) AS s2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
@@ -303,7 +303,7 @@ Calc(select=[w$rowtime AS EXPR$0, CAST(w$end) AS EXPR$1, a])
          +- GroupWindowAggregate(window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[single])
                +- Calc(select=[rowtime, a])
-                  +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+                  +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -336,7 +336,7 @@ Calc(select=[EXPR$0])
       +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow], select=[a, b, c, COUNT(*) AS d])
          +- Exchange(distribution=[hash[a, b, c]])
             +- Calc(select=[a, b, c, rowtime])
-               +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+               +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -365,7 +365,7 @@ Calc(select=[EXPR$0, wAvg, CAST(w$start) AS EXPR$2, CAST(w$end) AS EXPR$3])
 +- GroupWindowAggregate(window=[SessionGroupWindow('w$, proctime, 900000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[proctime, c, a])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -399,7 +399,7 @@ Calc(select=[EXPR$0])
          +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, b, c, COUNT(*) AS d, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[hash[a, b, c]])
                +- Calc(select=[a, b, c, rowtime])
-                  +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+                  +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -434,7 +434,7 @@ Calc(select=[EXPR$0])
          +- GroupWindowAggregate(groupBy=[a, b, c], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, b, c, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[hash[a, b, c]])
                +- Calc(select=[a, b, c, rowtime])
-                  +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+                  +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -463,7 +463,7 @@ Calc(select=[EXPR$0, wAvg, CAST(w$start) AS EXPR$2, CAST(w$end) AS EXPR$3])
 +- GroupWindowAggregate(window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, c, a])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

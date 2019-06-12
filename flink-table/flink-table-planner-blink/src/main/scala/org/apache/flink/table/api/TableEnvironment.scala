@@ -21,6 +21,7 @@ package org.apache.flink.table.api
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.graph.StreamGraph
@@ -32,12 +33,13 @@ import org.apache.flink.table.calcite._
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, extractResultTypeFromTableFunction, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.operations.{DataStreamQueryOperation, PlannerQueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.reuse.SubplanReuser
-import org.apache.flink.table.plan.schema.RelTable
+import org.apache.flink.table.plan.schema.{RelTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.SameRelObjectShuttle
 import org.apache.flink.table.planner.PlannerContext
@@ -47,6 +49,7 @@ import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToL
 import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformationAnyType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 
@@ -129,6 +132,11 @@ abstract class TableEnvironment(
 
   /** Returns specific query [[Optimizer]] depends on the concrete type of this TableEnvironment. */
   protected def getOptimizer: Optimizer
+
+  /**
+    * Returns true if this is a batch TableEnvironment.
+    */
+  private[flink] def isBatch: Boolean
 
   /**
     * Triggers the program execution.
@@ -269,14 +277,18 @@ abstract class TableEnvironment(
     * @param table The table to register.
     */
   def registerTable(name: String, table: Table): Unit = {
-
     // check that table belongs to this table environment
     if (table.asInstanceOf[TableImpl].tableEnv != this) {
       throw new TableException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
-    checkValidTableName(name)
+    // TODO improve this
+    table.getQueryOperation match {
+      case dsq: DataStreamQueryOperation[_] => dsq.setQualifiedName(List(name))
+      case _ => // do nothing
+    }
+
     val tableTable = new RelTable(table.asInstanceOf[TableImpl].getRelNode)
     registerTableInternal(name, tableTable)
   }
@@ -337,7 +349,7 @@ abstract class TableEnvironment(
       val table = schema.getTable(tableName)
       if (table != null) {
         val scan = getRelBuilder.scan(JArrays.asList(tablePath: _*)).build()
-        return Some(new TableImpl(this, scan))
+        return Some(new TableImpl(this, new PlannerQueryOperation(scan)))
       }
     }
     None
@@ -433,7 +445,7 @@ abstract class TableEnvironment(
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, relational.project())
+      new TableImpl(this, new PlannerQueryOperation(relational.project()))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -785,7 +797,40 @@ abstract class TableEnvironment(
       name: String,
       tableSource: TableSource[_],
       statistic: FlinkStatistic,
-      replace: Boolean): Unit
+      replace: Boolean): Unit = {
+    validateTableSource(tableSource)
+    // register
+    getTable(name) match {
+      // check if a table (source or sink) is registered
+      case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+        // wrapper contains source
+        case Some(_: TableSourceTable[_]) if !replace =>
+          throw new TableException(s"Table '$name' already exists. " +
+            s"Please choose a different name.")
+        // wrapper contains only sink (not source)
+        case Some(_: TableSourceTable[_]) =>
+          val enrichedTable = new TableSourceSinkTable(
+            Some(new TableSourceTable(tableSource, !isBatch, statistic)),
+            table.tableSinkTable)
+          replaceRegisteredTable(name, enrichedTable)
+      }
+      // no table is registered
+      case _ =>
+        val newTable = new TableSourceSinkTable(
+          Some(new TableSourceTable(tableSource, !isBatch, statistic)),
+          None)
+        registerTableInternal(name, newTable)
+    }
+  }
+
+  /**
+    * Perform batch or streaming specific validations of the [[TableSource]].
+    * This method should throw [[ValidationException]] if the [[TableSource]] cannot be used
+    * in this [[TableEnvironment]].
+    *
+    * @param tableSource table source to validate
+    */
+  protected def validateTableSource(tableSource: TableSource[_]): Unit
 
 }
 
@@ -859,6 +904,75 @@ object TableEnvironment {
       case t: RowType => t.getChildren.toArray(Array[LogicalType]())
       case t => Array(t)
     }
+  }
+
+  /**
+    * Derives [[TableSchema]] out of a [[TypeInformation]]. It is complementary to other
+    * methods in this class. This also performs translation from time indicator markers such as
+    * [[TimeIndicatorTypeInfo#ROWTIME_STREAM_MARKER]] etc. to a corresponding
+    * [[TimeIndicatorTypeInfo]].
+    *
+    * TODO remove this method and use FieldInfoUtils utility methods when [Expression] is ready
+    *
+    * @param typeInfo input type info to calculate fields type infos from
+    * @param fieldIndexes indices within the typeInfo of the resulting Table schema
+    * @param fieldNames names of the fields of the resulting schema
+    * @return calculates resulting schema
+    */
+  private[flink] def calculateTableSchema(
+      typeInfo: TypeInformation[_],
+      fieldIndexes: Array[Int],
+      fieldNames: Array[String]): TableSchema = {
+    if (fieldIndexes.length != fieldNames.length) {
+      throw new TableException(String.format(
+        "Number of field names and field indexes must be equal.\n" +
+          "Number of names is %s, number of indexes is %s.\n" +
+          "List of column names: %s.\n" +
+          "List of column indexes: %s.",
+        s"${fieldNames.length}",
+        s"${fieldIndexes.length}",
+        fieldNames.mkString(", "),
+        fieldIndexes.mkString(", ")))
+    }
+    // check uniqueness of field names
+    val duplicatedNames = fieldNames.diff(fieldNames.distinct).distinct
+    if (duplicatedNames.length != 0) {
+      throw new TableException(String.format(
+        "Field names must be unique.\n" +
+          "List of duplicate fields: [%s].\n" +
+          "List of all fields: [%s].",
+        duplicatedNames.mkString(", "), fieldNames.mkString(", ")))
+    }
+    val fieldIndicesCount = fieldIndexes.count(_ >= 0)
+    val types = typeInfo match {
+      case ct: CompositeType[_] =>
+        // it is ok to leave out fields
+        if (fieldIndicesCount > ct.getArity) {
+          throw new TableException(
+            String.format("Arity of type (%s) must not be greater than number of field names %s.",
+              ct.getFieldNames.mkString(", "), fieldNames.mkString(", ")))
+        }
+        fieldIndexes.map(idx => extractTimeMarkerType(idx).getOrElse(ct.getTypeAt(idx)))
+      case _ =>
+        if (fieldIndicesCount > 1) {
+          throw new TableException(
+            "Non-composite input type may have only a single field and its index must be 0.")
+        }
+        fieldIndexes.map(idx => extractTimeMarkerType(idx).getOrElse(typeInfo))
+    }
+    new TableSchema(fieldNames, types)
+  }
+
+  private def extractTimeMarkerType(idx: Int): Option[TypeInformation[_]] = idx match {
+    case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
+      Some(TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+    case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
+      Some(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
+    case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER |
+         TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
+      Some(Types.SQL_TIMESTAMP)
+    case _ =>
+      None
   }
 
   /**

@@ -19,24 +19,25 @@
 package org.apache.flink.table.plan.stream.sql.join
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.table.api._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.sources._
-import org.apache.flink.api.scala._
 import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
 
+import _root_.java.lang.{Long => JLong}
+import _root_.java.sql.Timestamp
 import _root_.java.util
 import _root_.java.util.concurrent.CompletableFuture
 import _root_.java.util.{Collection => JCollection}
-import _root_.java.lang.{Long => JLong}
-import _root_.java.sql.Timestamp
 
 import _root_.scala.annotation.varargs
 
@@ -213,8 +214,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T JOIN nonTemporal " +
         "FOR SYSTEM_TIME AS OF T.rowtime AS D ON T.a = D.id",
-      "Table 'nonTemporal' is not a temporal table",
-      classOf[ValidationException])
+      "Temporal table join only support join on a LookupableTableSource",
+      classOf[TableException])
   }
 
   @Test

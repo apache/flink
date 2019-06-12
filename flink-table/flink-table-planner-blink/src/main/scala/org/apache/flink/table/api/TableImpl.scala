@@ -18,15 +18,11 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 
 import org.apache.calcite.rel.RelNode
-
-import _root_.scala.collection.JavaConversions._
 
 /**
   * The implementation of the [[Table]].
@@ -37,23 +33,20 @@ import _root_.scala.collection.JavaConversions._
   * implemented when we support full stack Table API for Blink planner.
   *
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
-  * @param relNode  The Calcite RelNode representation
+  * @param operationTree logical representation
   */
-class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table {
+class TableImpl(val tableEnv: TableEnvironment, operationTree: QueryOperation) extends Table {
 
-  private lazy val tableSchema: TableSchema = {
-    val rowType = relNode.getRowType
-    val builder = TableSchema.builder()
-    rowType.getFieldList.foreach { field =>
-      builder.field(field.getName, fromLogicalTypeToDataType(toLogicalType(field.getType)))
-    }
-    builder.build()
-  }
+  private lazy val tableSchema: TableSchema = operationTree.getTableSchema
 
   /**
     * Returns the Calcite RelNode represent this Table.
     */
-  def getRelNode: RelNode = relNode
+  def getRelNode: RelNode = {
+    tableEnv.getRelBuilder.queryOperation(operationTree).build()
+  }
+
+  override def getQueryOperation: QueryOperation = operationTree
 
   override def getSchema: TableSchema = tableSchema
 
@@ -207,8 +200,6 @@ class TableImpl(val tableEnv: TableEnvironment, relNode: RelNode) extends Table 
   override def flatMap(tableFunction: String): Table = ???
 
   override def flatMap(tableFunction: Expression): Table = ???
-
-  override def getQueryOperation: QueryOperation = ???
 
   override def aggregate(aggregateFunction: String): AggregatedTable = ???
 

@@ -49,7 +49,7 @@ LogicalSort(offset=[10], fetch=[10])
 Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[10])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -69,7 +69,7 @@ LogicalSort(fetch=[10])
 Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -276,7 +276,7 @@ LogicalSort(offset=[1], fetch=[10])
 Calc(select=[a, c])
 +- Limit(offset=[1], fetch=[10])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -296,7 +296,7 @@ LogicalSort(offset=[0], fetch=[10])
 Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -316,7 +316,7 @@ LogicalSort(fetch=[5])
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime])
 +- Limit(offset=[0], fetch=[5])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -336,7 +336,7 @@ LogicalSort(fetch=[2])
 Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, c])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -356,7 +356,7 @@ LogicalSort(fetch=[2])
 Calc(select=[PROCTIME_MATERIALIZE(proctime) AS desc, c])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -376,7 +376,7 @@ LogicalSort(fetch=[2])
 Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS desc])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -396,7 +396,7 @@ LogicalSort(fetch=[2])
 Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -416,7 +416,7 @@ LogicalSort(fetch=[2])
 Calc(select=[rowtime, c])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -436,7 +436,7 @@ LogicalSort(fetch=[2])
 Calc(select=[rowtime AS desc, c])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -456,7 +456,7 @@ LogicalSort(fetch=[2])
 Calc(select=[c, rowtime AS desc])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -476,7 +476,7 @@ LogicalSort(fetch=[2])
 Calc(select=[c, rowtime])
 +- Limit(offset=[0], fetch=[2])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -496,7 +496,7 @@ LogicalSort(offset=[2])
 Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, c])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -516,7 +516,7 @@ LogicalSort(offset=[2])
 Calc(select=[rowtime AS desc, c])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -536,7 +536,7 @@ LogicalSort(offset=[2])
 Calc(select=[PROCTIME_MATERIALIZE(proctime) AS desc, c])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -556,7 +556,7 @@ LogicalSort(offset=[2])
 Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS desc])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -576,7 +576,7 @@ LogicalSort(offset=[2])
 Calc(select=[c, PROCTIME_MATERIALIZE(proctime) AS proctime])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -596,7 +596,7 @@ LogicalSort(offset=[2])
 Calc(select=[rowtime, c])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -616,7 +616,7 @@ LogicalSort(offset=[2])
 Calc(select=[c, rowtime AS desc])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -636,7 +636,7 @@ LogicalSort(offset=[10])
 Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -656,7 +656,7 @@ LogicalSort(offset=[2])
 Calc(select=[c, rowtime])
 +- Limit(offset=[2], fetch=[unlimited])
    +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

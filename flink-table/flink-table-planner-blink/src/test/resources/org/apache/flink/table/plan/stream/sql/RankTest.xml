@@ -64,7 +64,7 @@ Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
                +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
                   +- Exchange(distribution=[hash[a, b, cn]], updateAsRetraction=[true], accMode=[Acc])
                      +- Calc(select=[a, b, _UTF-16LE'cn' AS cn], updateAsRetraction=[true], accMode=[Acc])
-                        +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+                        +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -93,7 +93,7 @@ Calc(select=[a, b, c, 1:BIGINT AS w0$o0])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -119,7 +119,7 @@ Calc(select=[a, rk, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], select=[a, b, c, rk])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -148,7 +148,7 @@ Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime ASC], select=[a, b, c, proctime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -177,7 +177,7 @@ Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime DESC], select=[a, b, c, proctime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -206,7 +206,7 @@ Calc(select=[a, b, c])
 +- Deduplicate(keepLastRow=[false], key=[a], order=[PROCTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -235,7 +235,7 @@ Calc(select=[a, b, c])
 +- Deduplicate(keepLastRow=[true], key=[a], order=[PROCTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -264,7 +264,7 @@ Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime ASC], select=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -293,7 +293,7 @@ Calc(select=[a, b, c])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -321,7 +321,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
 Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
 +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
    +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -349,7 +349,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
 Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
 +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
    +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-      +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+      +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -385,7 +385,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
    +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -421,7 +421,7 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -525,7 +525,7 @@ GroupAggregate(select=[MAX_RETRACT(a) AS EXPR$0], updateAsRetraction=[false], ac
             +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
                +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
                   +- Calc(select=[a, b], updateAsRetraction=[true], accMode=[Acc])
-                     +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+                     +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -561,7 +561,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
    +- GroupAggregate(groupBy=[a, b], select=[a, b, INCR_SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -597,7 +597,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
          +- Calc(select=[a, b, CASE(>(c, 10), 1, <(c, 0), 0, null:INTEGER) AS $f2])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -635,7 +635,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], updateAsRetraction=[false], accMode=[Acc])
       +- Exchange(distribution=[hash[a, b]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], where=[>=(c, 0)], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -671,7 +671,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
          +- Calc(select=[a, b, c, IS TRUE(AND(>=(c, 0), <(a, 0))) AS $f3])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -707,7 +707,7 @@ Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankS
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
          +- Calc(select=[a, b, c, IS TRUE(AND(<=(c, 0), <(a, 0))) AS $f3])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -743,7 +743,7 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
          +- Calc(select=[a, b, IF(>(c, 10), 1, 0) AS $f2])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -772,7 +772,7 @@ Calc(select=[a, b, c, 10:BIGINT AS row_num], updateAsRetraction=[false], accMode
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
       +- Calc(select=[a, b, c], updateAsRetraction=[false], accMode=[Acc])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -812,7 +812,7 @@ Calc(select=[a, b, count_c, w0$o0], updateAsRetraction=[false], accMode=[Acc])
       +- GroupAggregate(groupBy=[a, b, cn], select=[a, b, cn, COUNT(*) AS count_c], updateAsRetraction=[false], accMode=[Acc])
          +- Exchange(distribution=[hash[a, b, cn]], updateAsRetraction=[true], accMode=[Acc])
             +- Calc(select=[a, b, _UTF-16LE'cn' AS cn], updateAsRetraction=[true], accMode=[Acc])
-               +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+               +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -848,7 +848,7 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
    +- GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(b) AS b, SUM(c) AS sum_c], updateAsRetraction=[true], accMode=[AccRetract])
       +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc])
          +- Calc(select=[a, b, c], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
+            +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>
@@ -879,7 +879,7 @@ Calc(select=[row_num, a, c], where=[IS NOT NULL(b)], updateAsRetraction=[false],
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], updateAsRetraction=[false], accMode=[Acc])
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[false], accMode=[Acc])
       +- Calc(select=[a, b, c], where=[>(c, 1000)], updateAsRetraction=[false], accMode=[Acc])
-         +- DataStreamScan(table=[[_DataStreamTable_0]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
+         +- DataStreamScan(table=[[MyTable]], fields=[a, b, c, proctime, rowtime], updateAsRetraction=[false], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>

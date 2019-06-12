@@ -19,9 +19,8 @@ package org.apache.flink.table.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.asScalaStream
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment, asScalaStream}
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableImpl}
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 /**
@@ -60,10 +59,7 @@ class StreamTableEnvironment @deprecated(
     * @return The converted [[Table]].
     */
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream)
-    scan(name)
+    new TableImpl(this, asQueryOperation(dataStream.javaStream, None))
   }
 
   /**
@@ -84,9 +80,7 @@ class StreamTableEnvironment @deprecated(
   // TODO: Change fields type to `Expression*` after introducing [Expression]
   def fromDataStream[T](dataStream: DataStream[T], fields: Symbol*): Table = {
     val exprs = fields.map(_.name).toArray
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream.javaStream, exprs)
-    scan(name)
+    new TableImpl(this, asQueryOperation(dataStream.javaStream, Some(exprs)))
   }
 
   /**
@@ -102,9 +96,7 @@ class StreamTableEnvironment @deprecated(
     * @tparam T The type of the [[DataStream]] to register.
     */
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream)
+    registerTable(name, fromDataStream(dataStream))
   }
 
   /**
@@ -127,8 +119,7 @@ class StreamTableEnvironment @deprecated(
   // TODO: Change fields type to `Expression*` after introducing [Expression]
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: Symbol*): Unit = {
     val exprs = fields.map(_.name).toArray
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream.javaStream, exprs)
+    registerTable(name, fromDataStream(dataStream, fields: _*))
   }
 
   /**
