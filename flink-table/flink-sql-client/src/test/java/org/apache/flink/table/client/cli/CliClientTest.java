@@ -281,6 +281,11 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public List<Row> retrieveResult(String resultId) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException {
 			// nothing to do
 		}

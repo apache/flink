@@ -83,6 +83,7 @@ public class CliResultViewTest {
 		final ResultDescriptor descriptor = new ResultDescriptor(
 			"result-id",
 			TableSchema.builder().field("Null Field", Types.STRING()).build(),
+			false,
 			false);
 
 		Thread resultViewRunner = null;
@@ -190,6 +191,11 @@ public class CliResultViewTest {
 		@Override
 		public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
 			return Collections.singletonList(new Row(1));
+		}
+
+		@Override
+		public List<Row> retrieveResult(String resultId) throws SqlExecutionException {
+			return null;
 		}
 
 		@Override

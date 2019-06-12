@@ -51,6 +51,7 @@ import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.BasicResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
+import org.apache.flink.table.client.gateway.local.result.FinalizedResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -365,6 +366,19 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<Row> retrieveResult(String resultId) throws SqlExecutionException {
+		final DynamicResult<?> result = resultStore.getResult(resultId);
+		if (result == null) {
+			throw new SqlExecutionException("Could not find a result with result identifier '" + resultId + "'.");
+		}
+
+		if (!result.isFinalized()) {
+			throw new SqlExecutionException("Invalid result retrieval mode.");
+		}
+		return ((FinalizedResult<?>) result).retrieveResult();
+	}
+
+	@Override
 	public void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
 		cancelQueryInternal(context, resultId);
@@ -513,7 +527,8 @@ public class LocalExecutor implements Executor {
 		return new ResultDescriptor(
 			resultId,
 			removeTimeAttributes(table.getSchema()),
-			result.isMaterialized());
+			result.isMaterialized(),
+			result.isFinalized());
 	}
 
 	/**

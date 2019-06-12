@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,44 +19,18 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
+import org.apache.flink.types.Row;
+
+import java.util.List;
+
 /**
- * Basic result of a table program that has been submitted to a cluster.
+ * A result that represented as the finalized result consisting all latest insert records.
  *
  * @param <C> cluster id to which this result belongs to
  */
-public class BasicResult<C> implements Result<C> {
-
-	protected C clusterId;
-	protected String webInterfaceUrl;
-
-	@Override
-	public void setClusterInformation(C clusterId, String webInterfaceUrl) {
-		if (this.clusterId != null || this.webInterfaceUrl != null) {
-			throw new IllegalStateException("Cluster information is already present.");
-		}
-		this.clusterId = clusterId;
-		this.webInterfaceUrl = webInterfaceUrl;
-	}
-
-	public C getClusterId() {
-		if (this.clusterId == null) {
-			throw new IllegalStateException("Cluster ID has not been set.");
-		}
-		return clusterId;
-	}
-
-	public String getWebInterfaceUrl() {
-		if (this.webInterfaceUrl == null) {
-			throw new IllegalStateException("Cluster web interface URL has not been set.");
-		}
-		return webInterfaceUrl;
-	}
-
+public interface FinalizedResult<C> extends DynamicResult<C> {
 	/**
-	 * Result types.
+	 * Retrieves all available result records.
 	 */
-	public enum ResultType {
-		MATERIALIZED,
-		FINALIZED
-	}
+	List<Row> retrieveResult();
 }

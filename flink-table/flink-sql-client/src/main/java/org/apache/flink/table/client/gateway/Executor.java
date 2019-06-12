@@ -108,6 +108,11 @@ public interface Executor {
 	List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
 
 	/**
+	 * Returns the finalized rows. Throws an exception if the Finalized Result has been removed.
+	 */
+	List<Row> retrieveResult(String resultId) throws SqlExecutionException;
+
+	/**
 	 * Cancels a table program and stops the result retrieval. Blocking until cancellation command has
 	 * been sent to cluster.
 	 */

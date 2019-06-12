@@ -31,10 +31,13 @@ public class ResultDescriptor {
 
 	private final boolean isMaterialized;
 
-	public ResultDescriptor(String resultId, TableSchema resultSchema, boolean isMaterialized) {
+	private final boolean isFinalized;
+
+	public ResultDescriptor(String resultId, TableSchema resultSchema, boolean isMaterialized, boolean isFinalized) {
 		this.resultId = resultId;
 		this.resultSchema = resultSchema;
 		this.isMaterialized = isMaterialized;
+		this.isFinalized = isFinalized;
 	}
 
 	public String getResultId() {
@@ -47,5 +50,9 @@ public class ResultDescriptor {
 
 	public boolean isMaterialized() {
 		return isMaterialized;
+	}
+
+	public boolean isFinalized() {
+		return isFinalized;
 	}
 }

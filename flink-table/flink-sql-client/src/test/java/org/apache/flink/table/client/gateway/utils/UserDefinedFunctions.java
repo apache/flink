@@ -48,6 +48,27 @@ public class UserDefinedFunctions {
 	}
 
 	/**
+	 * The scalar function for SQL Client test.
+	 */
+	public static class TimeConsumingUDF extends ScalarFunction {
+
+		private int timeConsuming;
+
+		public TimeConsumingUDF(Integer timeConsuming) {
+			this.timeConsuming = timeConsuming;
+		}
+
+		public String eval(Integer i) {
+			try {
+				Thread.sleep(timeConsuming * 1000);
+			} catch (final InterruptedException e) {
+				// ignore
+			}
+			return String.format("%d-sleeping-%d-seconds", i, timeConsuming);
+		}
+	}
+
+	/**
 	 * The aggregate function for SQL Client test.
 	 */
 	public static class AggregateUDF extends AggregateFunction<Long, Long> {

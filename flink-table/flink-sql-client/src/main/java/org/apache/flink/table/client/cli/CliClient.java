@@ -28,6 +28,7 @@ import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.types.Row;
 
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -464,6 +465,7 @@ public class CliClient {
 	}
 
 	private void callSelect(SqlCommandCall cmdCall) {
+		final long start = System.currentTimeMillis();
 		final ResultDescriptor resultDesc;
 		try {
 			resultDesc = executor.executeQuery(context, cmdCall.operands[0]);
@@ -471,21 +473,30 @@ public class CliClient {
 			printExecutionException(e);
 			return;
 		}
-		final CliResultView view;
-		if (resultDesc.isMaterialized()) {
-			view = new CliTableResultView(this, resultDesc);
+		final long end = System.currentTimeMillis();
+
+		if (resultDesc.isFinalized()) {
+			printRows(resultDesc, start, end);
+			executor.cancelQuery(context, resultDesc.getResultId());
+		} else if (resultDesc.isMaterialized()) {
+			final CliResultView view;
+			if (resultDesc.isMaterialized()) {
+				view = new CliTableResultView(this, resultDesc);
+			} else {
+				view = new CliChangelogResultView(this, resultDesc);
+			}
+
+			// enter view
+			try {
+				view.open();
+
+				// view left
+				printInfo(CliStrings.MESSAGE_RESULT_QUIT);
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		} else {
-			view = new CliChangelogResultView(this, resultDesc);
-		}
-
-		// enter view
-		try {
-			view.open();
-
-			// view left
-			printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
+			throw new SqlExecutionException("Unsupported result type");
 		}
 	}
 
@@ -611,6 +622,20 @@ public class CliClient {
 	private void printInfo(String message) {
 		terminal.writer().println(CliStrings.messageInfo(message).toAnsi());
 		terminal.flush();
+	}
+
+	/**
+	 * Output Results in non-interactive way.
+	 *
+	 * @return
+	 */
+	void printRows(final ResultDescriptor desc, long start, long end) {
+		final String msg = "Time taken: %.03f seconds, Fetched %d row(s).";
+		List<Row> result = this.executor.retrieveResult(desc.getResultId());
+		terminal.writer().println("OK");
+		result.forEach((row) -> terminal.writer().println(row.toString()));
+		terminal.writer().println(String.format(msg, (end - start) / 1000.0, result.size()));
+		terminal.writer().flush();
 	}
 
 	// --------------------------------------------------------------------------------------------

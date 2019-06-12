@@ -52,6 +52,11 @@ public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C> impl
 	}
 
 	@Override
+	public boolean isFinalized() {
+		return false;
+	}
+
+	@Override
 	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges() {
 		synchronized (resultLock) {
 			// retrieval thread is alive return a record if available

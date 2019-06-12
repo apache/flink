@@ -108,6 +108,10 @@ public class ExecutionEntry extends ConfigEntry {
 
 	public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
+	private static final String EXECUTION_INTERACTIVE_VIEW_ENABLED = "interactive-view.enabled";
+
+	private static final String EXECUTION_MAX_QUERY_TIMEOUT_MS = "max-query-timeout-ms";
+
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
 	}
@@ -152,6 +156,8 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
 		properties.validateString(EXECUTION_CURRENT_CATALOG, true, 1);
 		properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
+		properties.validateBoolean(EXECUTION_INTERACTIVE_VIEW_ENABLED, true);
+		properties.validateInt(EXECUTION_MAX_QUERY_TIMEOUT_MS, true, -1);
 	}
 
 	public EnvironmentSettings getEnvironmentSettings() {
@@ -310,6 +316,12 @@ public class ExecutionEntry extends ConfigEntry {
 		return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
 	}
 
+	public int getMaxQueryTimeoutMs() {
+		// defaultValue -1 means do not timeout
+		return properties.getOptionalInt(EXECUTION_MAX_QUERY_TIMEOUT_MS)
+			.orElseGet(() -> useDefaultValue(EXECUTION_MAX_QUERY_TIMEOUT_MS, -1));
+	}
+
 	public boolean isChangelogMode() {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)
 			.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_CHANGELOG))
@@ -320,6 +332,11 @@ public class ExecutionEntry extends ConfigEntry {
 		return properties.getOptionalString(EXECUTION_RESULT_MODE)
 			.map((v) -> v.equals(EXECUTION_RESULT_MODE_VALUE_TABLE))
 			.orElse(false);
+	}
+
+	public boolean isInteractiveViewEnabled() {
+		return properties.getOptionalBoolean(EXECUTION_INTERACTIVE_VIEW_ENABLED)
+			.orElseGet(() -> useDefaultValue(EXECUTION_INTERACTIVE_VIEW_ENABLED, true));
 	}
 
 	public Map<String, String> asTopLevelMap() {

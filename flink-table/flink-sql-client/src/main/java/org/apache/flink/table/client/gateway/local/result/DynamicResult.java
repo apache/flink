@@ -39,6 +39,11 @@ public interface DynamicResult<C> extends Result<C> {
 	boolean isMaterialized();
 
 	/**
+	 * Returns whether this result is finalized such that all results can be retrieved at one time.
+	 */
+	boolean isFinalized();
+
+	/**
 	 * Returns the output type as defined by the query.
 	 */
 	TypeInformation<Row> getOutputType();

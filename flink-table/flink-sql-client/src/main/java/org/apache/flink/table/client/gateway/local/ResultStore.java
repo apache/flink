@@ -28,9 +28,11 @@ import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.local.result.BasicResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectStreamResult;
+import org.apache.flink.table.client.gateway.local.result.CollectBatchResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
-import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
+import org.apache.flink.table.client.gateway.local.result.FinalizedCollectStreamResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
 
 import java.net.InetAddress;
@@ -69,12 +71,21 @@ public class ResultStore {
 			if (env.getExecution().isChangelogMode()) {
 				return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
 			} else {
-				return new MaterializedCollectStreamResult<>(
-					outputType,
-					config,
-					gatewayAddress,
-					gatewayPort,
-					env.getExecution().getMaxTableResultRows());
+				if (env.getExecution().isInteractiveViewEnabled()) {
+					return new MaterializedCollectStreamResult<>(
+						outputType,
+						config,
+						gatewayAddress,
+						gatewayPort,
+						env.getExecution().getMaxTableResultRows());
+				} else {
+					return new FinalizedCollectStreamResult<>(
+						outputType,
+						config,
+						gatewayAddress,
+						gatewayPort,
+						env.getExecution().getMaxQueryTimeoutMs());
+				}
 			}
 
 		} else {
@@ -82,7 +93,12 @@ public class ResultStore {
 			if (!env.getExecution().isTableMode()) {
 				throw new SqlExecutionException("Results of batch queries can only be served in table mode.");
 			}
-			return new MaterializedCollectBatchResult<>(outputType, config);
+
+			if (env.getExecution().isInteractiveViewEnabled()) {
+				return new CollectBatchResult<>(outputType, config, BasicResult.ResultType.MATERIALIZED);
+			} else {
+				return new CollectBatchResult<>(outputType, config, BasicResult.ResultType.FINALIZED);
+			}
 		}
 	}
 

@@ -138,6 +138,11 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	}
 
 	@Override
+	public boolean isFinalized() {
+		return false;
+	}
+
+	@Override
 	public TypedResult<Integer> snapshot(int pageSize) {
 		if (pageSize < 1) {
 			throw new SqlExecutionException("Page size must be greater than 0.");
