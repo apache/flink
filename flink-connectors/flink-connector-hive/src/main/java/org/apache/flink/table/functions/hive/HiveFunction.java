@@ -33,9 +33,6 @@ public interface HiveFunction {
 	 * Set arguments and argTypes for Function instance.
 	 * In this way, the correct method can be really deduced by the function instance.
 	 *
-	 * <p>Framework should guarantee that this is always called
-	 * before {@link #getHiveResultType(Object[] constantArguments, DataType[] argTypes)}.
-	 *
 	 * @param constantArguments arguments of a function call (only literal arguments
 	 *                  are passed, nulls for non-literal ones)
 	 * @param argTypes types of arguments
@@ -49,9 +46,6 @@ public interface HiveFunction {
 	 * is defined in eval(), for example, if eval() is "public Integer eval(Double)", the
 	 * argTypes would be Class[Double]. However, in our wrapper, the signature of eval() is
 	 * "public Object eval(Object... args)", which means we cannot get any info from the interface.
-	 *
-	 * <p>Framework should guarantee that this is always called
-	 * 	 after {@link #setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes)}.
 	 *
 	 * @param constantArguments arguments of a function call (only literal arguments
 	 *                  are passed, nulls for non-literal ones)
