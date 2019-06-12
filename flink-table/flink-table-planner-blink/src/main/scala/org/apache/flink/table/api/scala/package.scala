@@ -58,7 +58,7 @@ import _root_.scala.language.implicitConversions
   * }}}
   *
   */
-package object scala {
+package object scala extends ImplicitExpressionConversions {
 
   implicit def table2TableConversions(table: Table): TableConversions = {
     new TableConversions(table)
