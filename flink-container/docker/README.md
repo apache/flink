@@ -13,7 +13,7 @@ Install the most recent stable version of [Docker](https://docs.docker.com/insta
 Images are based on the official Java Alpine (OpenJDK 8) image.
 
 Before building the image, one needs to build the user code jars for the job.
-Assume that the job jar is stored under `<COMMA_SEPARATED_PATH_TO_JOB_ARTIFACTS>`
+A Flink job can consist of multiple artifacts. In order to specify the required artifacts, they need to be passed to `--job-artifacts` of the build script. The individual paths are comma separated.
 
 If you want to build the Flink image from the version you have checked out locally run:
 
