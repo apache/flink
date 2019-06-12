@@ -27,7 +27,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.table.utils.{Top3WithMapView}
+import org.apache.flink.table.utils.{Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
 import org.junit.Test
 
@@ -87,6 +87,59 @@ class TableAggregateHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(1: JInt, 2: JInt, 2: JInt), 1))
     expectedOutput.add(new StreamRecord(CRow(1: JInt, 2: JInt, 2: JInt), 1))
     expectedOutput.add(new StreamRecord(CRow(1: JInt, 3: JInt, 3: JInt), 1))
+
+    // ingest data with key value of 2
+    testHarness.processElement(new StreamRecord(CRow(2: JInt, 2: JInt), 1))
+    expectedOutput.add(new StreamRecord(CRow(2: JInt, 2: JInt, 2: JInt), 1))
+
+    // trigger cleanup timer
+    testHarness.setProcessingTime(3002)
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 2: JInt), 1))
+    expectedOutput.add(new StreamRecord(CRow(1: JInt, 2: JInt, 2: JInt), 1))
+
+    val result = testHarness.getOutput
+
+    verify(expectedOutput, result)
+    testHarness.close()
+  }
+
+  @Test
+  def testTableAggregateEmitRetractValueIncrementally(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    val top3 = new Top3WithEmitRetractValue
+    val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    val resultTable = source
+      .groupBy('a)
+      .flatAggregate(top3('b) as ('b1, 'b2))
+      .select('a, 'b1, 'b2)
+
+    val testHarness = createHarnessTester[Int, CRow, CRow](
+      resultTable.toRetractStream[Row](queryConfig), "groupBy: (a)")
+
+    testHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // register cleanup timer with 3001
+    testHarness.setProcessingTime(1)
+
+    // input with two columns: key and value
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 1: JInt), 1))
+    // output with three columns: key, value, value. The value is in the top3 of the key
+    expectedOutput.add(new StreamRecord(CRow(1: JInt, 1: JInt, 1: JInt), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 2: JInt), 1))
+    expectedOutput.add(new StreamRecord(CRow(1: JInt, 2: JInt, 2: JInt), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 3: JInt), 1))
+    expectedOutput.add(new StreamRecord(CRow(1: JInt, 3: JInt, 3: JInt), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 2: JInt), 1))
+    expectedOutput.add(new StreamRecord(CRow(false, 1: JInt, 1: JInt, 1: JInt), 1))
+    expectedOutput.add(new StreamRecord(CRow(1: JInt, 2: JInt, 2: JInt), 1))
 
     // ingest data with key value of 2
     testHarness.processElement(new StreamRecord(CRow(2: JInt, 2: JInt), 1))

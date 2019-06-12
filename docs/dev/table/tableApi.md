@@ -2643,46 +2643,63 @@ Table table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally.</p>
 {% highlight java %}
-    public class MyMinMaxAcc {
-        public int min = 0;
-        public int max = 0;
+/**
+ * Accumulator for Top2.
+ */
+public class Top2Accum {
+    public Integer first;
+    public Integer second;
+}
+
+/**
+ * The top2 user-defined table aggregate function.
+ */
+public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2Accum> {
+
+    @Override
+    public Top2Accum createAccumulator() {
+        Top2Accum acc = new Top2Accum();
+        acc.first = Integer.MIN_VALUE;
+        acc.second = Integer.MIN_VALUE;
+        return acc;
     }
 
-    public class MyMinMax extends TableAggregateFunction<Row, MyMinMaxAcc> {
 
-        public void accumulate(MyMinMaxAcc acc, int value) {
-            if (value < acc.min) {
-                acc.min = value;
-            }
-            if (value > acc.max) {
-                acc.max = value;
-            }
-        }
-
-        @Override
-        public MyMinMaxAcc createAccumulator() {
-            return new MyMinMaxAcc();
-        }
-
-        public void emitValue(MyMinMaxAcc acc, Collector<Row> out) {
-            out.collect(Row.of(acc.min, acc.min));
-            out.collect(Row.of(acc.max, acc.max));
-        }
-
-        @Override
-        public TypeInformation<Row> getResultType() {
-            return new RowTypeInfo(Types.INT, Types.INT);
+    public void accumulate(Top2Accum acc, Integer v) {
+        if (v > acc.first) {
+            acc.second = acc.first;
+            acc.first = v;
+        } else if (v > acc.second) {
+            acc.second = v;
         }
     }
+
+    public void merge(Top2Accum acc, java.lang.Iterable<Top2Accum> iterable) {
+        for (Top2Accum otherAcc : iterable) {
+            accumulate(acc, otherAcc.first);
+            accumulate(acc, otherAcc.second);
+        }
+    }
+
+    public void emitValue(Top2Accum acc, Collector<Tuple2<Integer, Integer>> out) {
+        // emit the value and rank
+        if (acc.first != Integer.MIN_VALUE) {
+            out.collect(Tuple2.of(acc.first, 1));
+        }
+        if (acc.second != Integer.MIN_VALUE) {
+            out.collect(Tuple2.of(acc.second, 2));
+        }
+    }
+}
     
-TableAggregateFunction tableAggFunc = new MyMinMax();
-tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+tEnv.registerFunction("top2", new Top2());
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .groupBy("a")
-    .flatAggregate("tableAggFunc(b) as (x, y)")
-    .select("a, x, y");
+    .groupBy("key")
+    .flatAggregate("top2(a) as (v, rank)")
+    .select("key, v, rank");
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
@@ -2697,14 +2714,13 @@ Table result = orders
       <td>
         <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
 {% highlight java %}
-TableAggregateFunction tableAggFunc = new MyMinMax();
-tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+tableEnv.registerFunction("top2", new Top2());
 Table orders = tableEnv.scan("Orders");
 Table result = orders
     .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
     .groupBy("a, w") // group by key and window
-    .flatAggregate("tableAggFunc(b) as (x, y)")
-    .select("a, w.start, w.end, w.rowtime, x, y"); // access window properties and aggregate results
+    .flatAggregate("top2(b) as (v, rank)")
+    .select("a, w.start, w.end, w.rowtime, v, rank"); // access window properties and aggregate results
 {% endhighlight %}
       </td>
     </tr>
@@ -2832,43 +2848,67 @@ val table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally.</p>
 {% highlight scala %}
-case class MyMinMaxAcc(var min: Int, var max: Int)
+import java.lang.{Integer => JInteger}
+import org.apache.flink.table.api.Types
+import org.apache.flink.table.functions.TableAggregateFunction
 
-class MyMinMax extends TableAggregateFunction[Row, MyMinMaxAcc] {
+/**
+ * Accumulator for top2.
+ */
+class Top2Accum {
+  var first: JInteger = _
+  var second: JInteger = _
+}
 
-  def accumulate(acc: MyMinMaxAcc, value: Int): Unit = {
-    if (value < acc.min) {
-      acc.min = value
+/**
+ * The top2 user-defined table aggregate function.
+ */
+class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum] {
+
+  override def createAccumulator(): Top2Accum = {
+    val acc = new Top2Accum
+    acc.first = Int.MinValue
+    acc.second = Int.MinValue
+    acc
+  }
+
+  def accumulate(acc: Top2Accum, v: Int) {
+    if (v > acc.first) {
+      acc.second = acc.first
+      acc.first = v
+    } else if (v > acc.second) {
+      acc.second = v
     }
-    if (value > acc.max) {
-      acc.max = value
+  }
+
+  def merge(acc: Top2Accum, its: JIterable[Top2Accum]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val top2 = iter.next()
+      accumulate(acc, top2.first)
+      accumulate(acc, top2.second)
     }
   }
 
-  def resetAccumulator(acc: MyMinMaxAcc): Unit = {
-    acc.min = 0
-    acc.max = 0
-  }
-
-  override def createAccumulator(): MyMinMaxAcc = MyMinMaxAcc(0, 0)
-
-  def emitValue(acc: MyMinMaxAcc, out: Collector[Row]): Unit = {
-    out.collect(Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.min)))
-    out.collect(Row.of(Integer.valueOf(acc.max), Integer.valueOf(acc.max)))
-  }
-
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.INT, Types.INT)
+  def emitValue(acc: Top2Accum, out: Collector[JTuple2[JInteger, JInteger]]): Unit = {
+    // emit the value and rank
+    if (acc.first != Int.MinValue) {
+      out.collect(JTuple2.of(acc.first, 1))
+    }
+    if (acc.second != Int.MinValue) {
+      out.collect(JTuple2.of(acc.second, 2))
+    }
   }
 }
 
-val tableAggFunc = new MyMinMax
+val top2 = new Top2
 val orders: Table = tableEnv.scan("Orders")
 val result = orders
-    .groupBy('a)
-    .flatAggregate(tableAggFunc('b) as ('x, 'y))
-    .select('a, 'x, 'y)
+    .groupBy('key)
+    .flatAggregate(top2('a) as ('v, 'rank))
+    .select('key, 'v, 'rank)
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
@@ -2882,13 +2922,13 @@ val result = orders
       <td>
         <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
 {% highlight scala %}
-val tableAggFunc = new MyMinMax
+val top2 = new Top2
 val orders: Table = tableEnv.scan("Orders")
 val result = orders
     .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
     .groupBy('a, 'w) // group by key and window
-    .flatAggregate(tableAggFunc('b) as ('x, 'y))
-    .select('a, w.start, 'w.end, 'w.rowtime, 'x, 'y) // access window properties and aggregate results
+    .flatAggregate(top2('b) as ('v, 'rank))
+    .select('a, w.start, 'w.end, 'w.rowtime, 'v, 'rank) // access window properties and aggregate results
 
 {% endhighlight %}
       </td>
