@@ -180,7 +180,7 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
     else
         echo "=============================================================================="
         echo "Previous build failure detected, skipping cache setup."
-        echo "=============================================================================="
+        echo "==============================================================================="
     fi
 elif [ $STAGE != "$STAGE_CLEANUP" ]; then
 	if ! [ -e $CACHE_FLINK_DIR ]; then
