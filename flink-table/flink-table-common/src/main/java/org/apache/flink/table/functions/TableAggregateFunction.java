@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
  * <ul>
  *     <li>createAccumulator</li>
  *     <li>accumulate</li>
- *     <li>emitValue</li>
+ *     <li>emitValue or emitUpdateWithRetract</li>
  * </ul>
  *
  * <p>There is another method that can be optional to have:
@@ -80,6 +80,28 @@ import org.apache.flink.util.Collector;
  * }
  * </pre>
  *
+ * <pre>
+ * {@code
+ * Called every time when an aggregation result should be materialized. The returned value could
+ * be either an early and incomplete result (periodically emitted as data arrive) or the final
+ * result of the aggregation.
+ *
+ * Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated.
+ * This method outputs data incrementally in retract mode, i.e., once there is an update, we have
+ * to retract old records before sending new updated ones. The emitUpdateWithRetract method will be
+ * used in preference to the emitValue method if both methods are defined in the table aggregate
+ * function, because the method is treated to be more efficient than emitValue as it can output
+ * values incrementally.
+ *
+ * param: accumulator           the accumulator which contains the current aggregated results
+ * param: out                   the retractable collector used to output data. Use collect method
+ *                              to output(add) records and use retract method to retract(delete)
+ *                              records.
+ *
+ * public void emitUpdateWithRetract(ACC accumulator, RetractableCollector<T> out)
+ * }
+ * </pre>
+ *
  * @param <T>   the type of the table aggregation result
  * @param <ACC> the type of the table aggregation accumulator. The accumulator is used to keep the
  *              aggregated values which are needed to compute an aggregation result.
@@ -91,7 +113,7 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
 
 	/**
 	 * Collects a record and forwards it. The collector can output retract messages with the retract
-	 * method. Note: only use it in {@code emitRetractValueIncrementally}.
+	 * method. Note: only use it in {@code emitUpdateWithRetract}.
 	 */
 	public interface RetractableCollector<T> extends Collector<T> {
 
