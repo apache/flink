@@ -50,7 +50,7 @@ public class ExecutionVertexSchedulingRequirements {
 
 	private final Collection<TaskManagerLocation> preferredLocations;
 
-	public ExecutionVertexSchedulingRequirements(
+	private ExecutionVertexSchedulingRequirements(
 			ExecutionVertexID executionVertexId,
 			AllocationID previousAllocationId,
 			ResourceProfile resourceProfile,

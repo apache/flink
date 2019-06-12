@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -40,18 +40,16 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayDeque;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.contains;
@@ -69,25 +67,11 @@ import static org.junit.Assert.fail;
  */
 public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
-	private ParamsCapturedTestingSlotProvider slotProvider;
-
-	private Queue<CompletableFuture<LogicalSlot>> slotFutures;
-
-	private List<SlotRequestId> receivedSlotRequestIds;
-
-	private List<SlotRequestId> cancelledSlotRequestIds;
+	private AllocationToggableSlotProvider slotProvider;
 
 	@Before
 	public void setUp() throws Exception {
-		receivedSlotRequestIds = new ArrayList<>();
-		cancelledSlotRequestIds = new ArrayList<>();
-		slotFutures = new ArrayDeque<>();
-
-		slotProvider = new ParamsCapturedTestingSlotProvider(slotRequestId -> {
-			receivedSlotRequestIds.add(slotRequestId);
-			return slotFutures.poll();
-		});
-		slotProvider.setSlotCanceller(slotRequestId -> cancelledSlotRequestIds.add(slotRequestId));
+		slotProvider = new AllocationToggableSlotProvider();
 	}
 
 	/**
@@ -95,8 +79,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 */
 	@Test
 	public void testConsumersAssignedToSlotsAfterProducers() {
-		slotFutures.add(CompletableFuture.completedFuture(new TestingLogicalSlot()));
-		slotFutures.add(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
 		final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
 
@@ -130,16 +112,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 */
 	@Test
 	public void testAllocateSlotsParameters() throws Exception {
-		slotFutures.add(CompletableFuture.completedFuture(new TestingLogicalSlot()));
-		final CompletableFuture<ScheduledUnit> taskFuture = new CompletableFuture<>();
-		final CompletableFuture<SlotProfile> slotProfileFuture = new CompletableFuture<>();
-
-		slotProvider.setRequestSlotParamsCapture((slotRequestIdScheduledUnitSlotProfileTuple3) -> {
-			taskFuture.complete(slotRequestIdScheduledUnitSlotProfileTuple3.f1);
-			slotProfileFuture.complete(slotRequestIdScheduledUnitSlotProfileTuple3.f2);
-		});
-
-		final ExecutionVertexID executionVertexId1 = new ExecutionVertexID(new JobVertexID(), 0);
+		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		final AllocationID allocationId = new AllocationID();
 		final SlotSharingGroupId sharingGroupId = new SlotSharingGroupId();
 		final ResourceProfile resourceProfile = new ResourceProfile(0.5, 250);
@@ -150,7 +123,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Arrays.asList(
 				new ExecutionVertexSchedulingRequirements.Builder()
-						.withExecutionVertexId(executionVertexId1)
+						.withExecutionVertexId(executionVertexId)
 						.withPreviousAllocationId(allocationId)
 						.withSlotSharingGroupId(sharingGroupId)
 						.withPreferredLocations(taskManagerLocations)
@@ -160,9 +133,10 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		);
 
 		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+		assertThat(slotProvider.getSlotAllocationRequests(), hasSize(1));
 
-		ScheduledUnit expectedTask = taskFuture.get();
-		SlotProfile expectedSlotProfile = slotProfileFuture.get();
+		ScheduledUnit expectedTask = slotProvider.getSlotAllocationRequests().get(0).f1;
+		SlotProfile expectedSlotProfile = slotProvider.getSlotAllocationRequests().get(0).f2;
 
 		assertEquals(sharingGroupId, expectedTask.getSlotSharingGroupId());
 		assertEquals(coLocationConstraint, expectedTask.getCoLocationConstraint());
@@ -182,7 +156,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		ExecutionVertexID inValidExecutionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		executionSlotAllocator.cancel(inValidExecutionVertexId);
 
-		assertThat(cancelledSlotRequestIds, is(empty()));
+		assertThat(slotProvider.getCancelledSlotRequestIds(), is(empty()));
 	}
 
 	/**
@@ -190,7 +164,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 */
 	@Test
 	public void testCancelFulfilledSlotRequest() {
-		slotFutures.add(CompletableFuture.completedFuture(new TestingLogicalSlot()));
 		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
 
 		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
@@ -201,35 +174,33 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 
 		executionSlotAllocator.cancel(producerId);
 
-		assertThat(cancelledSlotRequestIds, is(empty()));
+		assertThat(slotProvider.getCancelledSlotRequestIds(), is(empty()));
 	}
 
 	/**
 	 * Tests that cancels a slot request which has not been fulfilled.
 	 */
 	@Test
-	public void testCancelUnFulfilledSlotRequest() {
-		slotFutures.add(new CompletableFuture<>());
+	public void testCancelUnFulfilledSlotRequest() throws Exception {
 		final ExecutionVertexID producerId = new ExecutionVertexID(new JobVertexID(), 0);
 
 		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
+		slotProvider.disableSlotAllocation();
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
 				createSchedulingRequirements(producerId);
 		Collection<SlotExecutionVertexAssignment> assignments = executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
 
 		executionSlotAllocator.cancel(producerId);
 
-		assertThat(cancelledSlotRequestIds, hasSize(1));
-		assertThat(cancelledSlotRequestIds, contains(receivedSlotRequestIds.toArray()));
+		assertThat(slotProvider.getCancelledSlotRequestIds(), hasSize(1));
+		assertThat(slotProvider.getCancelledSlotRequestIds(), contains(slotProvider.getReceivedSlotRequestIds().toArray()));
 
 		try {
 			assignments.iterator().next().getLogicalSlotFuture().get();
 			fail("Expect a CancellationException but got nothing.");
 		} catch (CancellationException e) {
-			//
-		} catch (Exception e) {
-			fail("Expect an CancellationException but got " + e);
+			// Expected exception
 		}
 	}
 
@@ -238,19 +209,19 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 */
 	@Test
 	public void testStop() throws Exception {
-		slotFutures.add(new CompletableFuture<>());
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 
 		final DefaultExecutionSlotAllocator executionSlotAllocator = createExecutionSlotAllocator();
 
+		slotProvider.disableSlotAllocation();
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
 				createSchedulingRequirements(executionVertexId);
 		executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
 
 		executionSlotAllocator.stop().get();
 
-		assertThat(cancelledSlotRequestIds, hasSize(1));
-		assertThat(cancelledSlotRequestIds, contains(receivedSlotRequestIds.toArray()));
+		assertThat(slotProvider.getCancelledSlotRequestIds(), hasSize(1));
+		assertThat(slotProvider.getCancelledSlotRequestIds(), contains(slotProvider.getReceivedSlotRequestIds().toArray()));
 		assertEquals(0, executionSlotAllocator.getNumberOfPendingSlotAssignments());
 	}
 
@@ -311,22 +282,54 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 						executionVertexId)));
 	}
 
-	private class ParamsCapturedTestingSlotProvider extends TestingSlotProvider {
+	private static class AllocationToggableSlotProvider implements SlotProvider {
 
-		private Consumer<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> paramsCapture = (ignored) -> {};
+		private final List<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> slotAllocationRequests = new ArrayList<>();
 
-		public ParamsCapturedTestingSlotProvider(Function<SlotRequestId, CompletableFuture<LogicalSlot>> slotFutureCreator) {
-			super(slotFutureCreator);
-		}
+		private final List<SlotRequestId> cancelledSlotRequestIds = new ArrayList<>();
 
-		public void setRequestSlotParamsCapture(Consumer<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> paramsCapture) {
-			this.paramsCapture = paramsCapture;
+		private boolean slotAllocationDisabled;
+
+		@Override
+		public CompletableFuture<LogicalSlot> allocateSlot(
+				SlotRequestId slotRequestId,
+				ScheduledUnit task,
+				SlotProfile slotProfile,
+				boolean allowQueued,
+				Time timeout) {
+
+			slotAllocationRequests.add(Tuple3.of(slotRequestId, task, slotProfile));
+			if (slotAllocationDisabled) {
+				return new CompletableFuture<>();
+			} else {
+				return CompletableFuture.completedFuture(new TestingLogicalSlot());
+			}
 		}
 
 		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, SlotProfile slotProfile, boolean allowQueued, Time timeout) {
-			paramsCapture.accept(Tuple3.of(slotRequestId, task, slotProfile));
-			return super.allocateSlot(slotRequestId, task, slotProfile, allowQueued, timeout);
+		public void cancelSlotRequest(
+				final SlotRequestId slotRequestId,
+				@Nullable final SlotSharingGroupId slotSharingGroupId,
+				final Throwable cause) {
+			cancelledSlotRequestIds.add(slotRequestId);
+		}
+
+		public List<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> getSlotAllocationRequests() {
+			return Collections.unmodifiableList(slotAllocationRequests);
+		}
+
+		public List<SlotRequestId> getReceivedSlotRequestIds() {
+			return slotAllocationRequests.stream()
+					.map(requestTuple -> requestTuple.f0)
+					.collect(Collectors.toList());
+		}
+
+		public List<SlotRequestId> getCancelledSlotRequestIds() {
+			return Collections.unmodifiableList(cancelledSlotRequestIds);
+		}
+
+		public void disableSlotAllocation() {
+			slotAllocationDisabled = true;
 		}
 	}
 }

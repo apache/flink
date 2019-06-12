@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -37,35 +38,41 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for the calculation of preferred locations based on inputs in {@link DefaultExecutionSlotAllocator}.
  */
-public class PreferredLocationsCalculationTest extends TestLogger {
+public class DefaultExecutionSlotAllocatorPreferredLocationsTest extends TestLogger {
 
 	/**
 	 * Tests that the input edge will be ignored if it has too many different locations.
 	 */
 	@Test
-	public void testIgnoreEdgeOfTooManyLocations() {
+	public void testIgnoreEdgeOfTooManyLocations() throws Exception {
 		final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
+		final List<ExecutionVertexID> producerIds = new ArrayList<>(ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1);
 
 		TestingInputsLocationsRetriever.Builder locationRetrieverBuilder = new TestingInputsLocationsRetriever.Builder();
 		JobVertexID jobVertexID = new JobVertexID();
-		for (int i = 0; i < 9; i++) {
+		for (int i = 0; i < ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1; i++) {
 			final ExecutionVertexID producerId = new ExecutionVertexID(jobVertexID, i);
 			locationRetrieverBuilder.connectConsumerToProducer(consumerId, producerId);
+			producerIds.add(producerId);
 		}
 
 		final TestingInputsLocationsRetriever inputsLocationsRetriever = locationRetrieverBuilder.build();
 
+		for (int i = 0; i < ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER + 1; i++) {
+			inputsLocationsRetriever.markScheduled(producerIds.get(i));
+		}
+
 		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
 				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(consumerId, inputsLocationsRetriever);
 
-		assertThat(preferredLocations.getNow(null), hasSize(0));
+		assertThat(preferredLocations.get(), hasSize(0));
 	}
 
 	/**
 	 * Tests that will choose the locations on the edge which has less different number.
 	 */
 	@Test
-	public void testChooseLocationsOnEdgeWithLessDifferentNumber() {
+	public void testChooseLocationsOnEdgeWithLessDifferentNumber() throws Exception {
 		final ExecutionVertexID consumerId = new ExecutionVertexID(new JobVertexID(), 0);
 
 		TestingInputsLocationsRetriever.Builder locationRetrieverBuilder = new TestingInputsLocationsRetriever.Builder();
@@ -103,7 +110,7 @@ public class PreferredLocationsCalculationTest extends TestLogger {
 		CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
 				DefaultExecutionSlotAllocator.getPreferredLocationsBasedOnInputs(consumerId, inputsLocationsRetriever);
 
-		assertThat(preferredLocations.getNow(null), containsInAnyOrder(expectedLocations.toArray()));
+		assertThat(preferredLocations.get(), containsInAnyOrder(expectedLocations.toArray()));
 	}
 
 }
