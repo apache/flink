@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
@@ -1067,6 +1068,9 @@ public abstract class CatalogTest {
 		assertEquals(2, catalog.listPartitions(path1, createPartitionSpecSubset()).size());
 		assertEquals(1, catalog.listPartitions(path1, createAnotherPartitionSpecSubset()).size());
 	}
+
+
+	// ------ table and column stats ------
 
 	// ------ utilities ------
 
