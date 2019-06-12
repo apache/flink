@@ -51,7 +51,7 @@ if __name__ == "__main__":
     env = get_environment()
 
     if len(sys.argv) != 5:
-    	sys.exit("Usage: ./bin/pyflink.sh WebLogAnalysis <docments path> <ranks path> <visits path> <output path>")
+    	sys.exit("Usage: ./bin/pyflink.sh WebLogAnalysis <documents path> <ranks path> <visits path> <output path>")
 
     documents = env \
         .read_csv(sys.argv[1], "\n", "|") \
