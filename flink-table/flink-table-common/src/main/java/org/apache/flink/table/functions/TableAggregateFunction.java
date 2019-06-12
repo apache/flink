@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.Collector;
 
 /**
  * Base class for user-defined table aggregates.
@@ -88,4 +89,17 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
 
+	/**
+	 * Collects a record and forwards it. The collector can output retract messages with the retract
+	 * method. Note: only use it in {@code emitRetractValueIncrementally}.
+	 */
+	public interface RetractableCollector<T> extends Collector<T> {
+
+		/**
+		 * Retract a record.
+		 *
+		 * @param record The record to retract.
+		 */
+		void retract(T record);
+	}
 }
