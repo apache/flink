@@ -37,7 +37,7 @@ class Catalog(object):
         self._j_catalog = j_catalog
 
     @staticmethod
-    def get(j_catalog):
+    def _get(j_catalog):
         if j_catalog.getClass().getName() == "org.apache.flink.table.catalog.hive.HiveCatalog":
             return HiveCatalog(j_hive_catalog=j_catalog)
         else:
@@ -69,7 +69,7 @@ class Catalog(object):
         :param database_name: Name of the database.
         :return: The requested database :class:`CatalogDatabase`.
         """
-        return CatalogDatabase.get(self._j_catalog.getDatabase(database_name))
+        return CatalogDatabase._get(self._j_catalog.getDatabase(database_name))
 
     def database_exists(self, database_name):
         """
@@ -143,7 +143,7 @@ class Catalog(object):
         :param table_path: Path :class:`ObjectPath` of the table or view.
         :return: The requested table or view :class:`CatalogBaseTable`.
         """
-        return CatalogBaseTable.get(self._j_catalog.getTable(table_path._j_object_path))
+        return CatalogBaseTable._get(self._j_catalog.getTable(table_path._j_object_path))
 
     def table_exists(self, table_path):
         """
@@ -231,7 +231,7 @@ class Catalog(object):
         :param partition_spec: The partition spec :class:`CatalogPartitionSpec` of partition to get.
         :return: The requested partition :class:`CatalogPartition`.
         """
-        return CatalogPartition.get(self._j_catalog.getPartition(
+        return CatalogPartition._get(self._j_catalog.getPartition(
             table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
     def partition_exists(self, table_path, partition_spec):
@@ -312,7 +312,7 @@ class Catalog(object):
         :param function_path: Path :class:`ObjectPath` of the function.
         :return: The requested function :class:`CatalogFunction`.
         """
-        return CatalogFunction.get(self._j_catalog.getFunction(function_path._j_object_path))
+        return CatalogFunction._get(self._j_catalog.getFunction(function_path._j_object_path))
 
     def function_exists(self, function_path):
         """
@@ -485,7 +485,7 @@ class CatalogDatabase(object):
         self._j_catalog_database = j_catalog_database
 
     @staticmethod
-    def get(j_catalog_database):
+    def _get(j_catalog_database):
         if j_catalog_database.getClass().getName() == \
                 "org.apache.flink.table.catalog.hive.HiveCatalogDatabase":
             return HiveCatalogDatabase(j_hive_catalog_database=j_catalog_database)
@@ -549,7 +549,7 @@ class CatalogBaseTable(object):
         self._j_catalog_base_table = j_catalog_base_table
 
     @staticmethod
-    def get(j_catalog_base_table):
+    def _get(j_catalog_base_table):
         if j_catalog_base_table.getClass().getName() == \
                 "org.apache.flink.table.catalog.hive.HiveCatalogTable":
             return HiveCatalogTable(j_hive_catalog_table=j_catalog_base_table)
@@ -625,7 +625,7 @@ class CatalogPartition(object):
         self._j_catalog_partition = j_catalog_partition
 
     @staticmethod
-    def get(j_catalog_partition):
+    def _get(j_catalog_partition):
         if j_catalog_partition.getClass().getName() == \
                 "org.apache.flink.table.catalog.hive.HiveCatalogPartition":
             return HiveCatalogPartition(j_hive_catalog_partition=j_catalog_partition)
@@ -682,7 +682,7 @@ class CatalogFunction(object):
         self._j_catalog_function = j_catalog_function
 
     @staticmethod
-    def get(j_catalog_function):
+    def _get(j_catalog_function):
         if j_catalog_function.getClass().getName() == \
                 "org.apache.flink.table.catalog.hive.HiveCatalogFunction":
             return HiveCatalogFunction(j_hive_catalog_function=j_catalog_function)
