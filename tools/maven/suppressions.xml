@@ -35,7 +35,10 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]connectors[\\/].*.java"
 		checks="MethodNameCheck|ParameterName"/>
-
+	    <!-- RexNodeConverter has to use guava directly -->
+	    <suppress
+			files="RexNodeConverter.java"
+			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress
 			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormatBase.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java|CassandraPojoOutputFormat.java"

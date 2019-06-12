@@ -18,6 +18,14 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.util.Preconditions;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
 
 /**
@@ -25,7 +33,44 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_
  */
 public class InternalFunctionDefinitions {
 
-	public static final FunctionDefinition THROW_EXCEPTION =
-		new FunctionDefinition("throwException", SCALAR_FUNCTION);
+	public static final FunctionDefinition THROW_EXCEPTION = new FunctionDefinition("throwException", SCALAR_FUNCTION);
 
+	public static final FunctionDefinition DENSE_RANK = new FunctionDefinition("DENSE_RANK", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition FIRST_VALUE = new FunctionDefinition("FIRST_VALUE", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition STDDEV = new FunctionDefinition("STDDEV", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition LEAD = new FunctionDefinition("LEAD", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition LAG = new FunctionDefinition("LAG", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition LAST_VALUE = new FunctionDefinition("LAST_VALUE", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition RANK = new FunctionDefinition("RANK", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition ROW_NUMBER = new FunctionDefinition("ROW_NUMBER", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition SINGLE_VALUE = new FunctionDefinition("SINGLE_VALUE", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition CONCAT_AGG = new FunctionDefinition("CONCAT_AGG", AGGREGATE_FUNCTION);
+
+	public static final FunctionDefinition VARIANCE = new FunctionDefinition("VARIANCE", AGGREGATE_FUNCTION);
+
+	public static List<FunctionDefinition> getDefinitions() {
+		final Field[] fields = InternalFunctionDefinitions.class.getFields();
+		final List<FunctionDefinition> list = new ArrayList<>(fields.length);
+		for (Field field : fields) {
+			if (FunctionDefinition.class.isAssignableFrom(field.getType())) {
+				try {
+					final FunctionDefinition funcDef = (FunctionDefinition) field.get(InternalFunctionDefinitions.class);
+					list.add(Preconditions.checkNotNull(funcDef));
+				} catch (IllegalAccessException e) {
+					throw new TableException(
+							"The function definition for field " + field.getName() + " is not accessible.", e);
+				}
+			}
+		}
+		return list;
+	}
 }

@@ -1084,6 +1084,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SIN = SqlStdOperatorTable.SIN;
 	public static final SqlFunction COS = SqlStdOperatorTable.COS;
 	public static final SqlFunction TAN = SqlStdOperatorTable.TAN;
+	public static final SqlFunction TRUNCATE = SqlStdOperatorTable.TRUNCATE;
 	public static final SqlFunction COT = SqlStdOperatorTable.COT;
 	public static final SqlFunction ASIN = SqlStdOperatorTable.ASIN;
 	public static final SqlFunction ACOS = SqlStdOperatorTable.ACOS;
