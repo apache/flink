@@ -43,7 +43,7 @@ public class PartitionTableTest extends TestLogger {
 
 	@Test
 	public void testEmptyTable() {
-		final PartitionTable table = new PartitionTable();
+		final PartitionTable<JobID> table = new PartitionTable<>();
 
 		// an empty table should always return an empty collection
 		Collection<ResultPartitionID> partitionsForNonExistingJob = table.stopTrackingPartitions(JOB_ID);
@@ -55,7 +55,7 @@ public class PartitionTableTest extends TestLogger {
 
 	@Test
 	public void testStartTrackingPartition() {
-		final PartitionTable table = new PartitionTable();
+		final PartitionTable<JobID> table = new PartitionTable<>();
 
 		table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
 
@@ -64,7 +64,7 @@ public class PartitionTableTest extends TestLogger {
 
 	@Test
 	public void testStopTrackingAllPartitions() {
-		final PartitionTable table = new PartitionTable();
+		final PartitionTable<JobID> table = new PartitionTable<>();
 
 		table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
 
@@ -76,7 +76,7 @@ public class PartitionTableTest extends TestLogger {
 	@Test
 	public void testStopTrackingPartitions() {
 		final ResultPartitionID partitionId2 = new ResultPartitionID();
-		final PartitionTable table = new PartitionTable();
+		final PartitionTable<JobID> table = new PartitionTable<>();
 
 		table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
 		table.startTrackingPartitions(JOB_ID, Collections.singletonList(partitionId2));

@@ -1868,7 +1868,7 @@ public class TaskExecutorTest extends TestLogger {
 			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
-			new PartitionTable());
+			new PartitionTable<>());
 	}
 
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
@@ -1886,7 +1886,7 @@ public class TaskExecutorTest extends TestLogger {
 			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler,
-			new PartitionTable());
+			new PartitionTable<>());
 	}
 
 	private static final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {

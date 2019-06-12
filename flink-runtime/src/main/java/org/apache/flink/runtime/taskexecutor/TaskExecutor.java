@@ -208,7 +208,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The heartbeat manager for resource manager in the task manager. */
 	private HeartbeatManager<Void, SlotReport> resourceManagerHeartbeatManager;
 
-	private final PartitionTable partitionTable;
+	private final PartitionTable<JobID> partitionTable;
 
 	// --------- resource manager --------
 
@@ -238,7 +238,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
-			PartitionTable partitionTable) {
+			PartitionTable<JobID> partitionTable) {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 

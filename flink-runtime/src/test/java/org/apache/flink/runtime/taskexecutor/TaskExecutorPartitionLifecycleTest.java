@@ -148,7 +148,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			.setTaskSlotTable(createTaskSlotTable())
 			.build();
 
-		final PartitionTable partitionTable = new PartitionTable();
+		final PartitionTable<JobID> partitionTable = new PartitionTable<>();
 		final ResultPartitionID resultPartitionId = new ResultPartitionID();
 
 		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTable);
@@ -267,7 +267,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			})
 			.build();
 
-		final PartitionTable partitionTable = new PartitionTable();
+		final PartitionTable<JobID> partitionTable = new PartitionTable<>();
 
 		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTable);
 
@@ -385,7 +385,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		}
 	}
 
-	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, PartitionTable partitionTable) throws IOException {
+	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, PartitionTable<JobID> partitionTable) throws IOException {
 		return new TestingTaskExecutor(
 			RPC,
 			TaskManagerConfiguration.fromConfiguration(new Configuration()),

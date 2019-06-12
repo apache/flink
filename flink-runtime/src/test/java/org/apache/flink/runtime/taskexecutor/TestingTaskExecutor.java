@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -46,7 +47,7 @@ class TestingTaskExecutor extends TaskExecutor {
 			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
-			PartitionTable partitionTable) {
+			PartitionTable<JobID> partitionTable) {
 		super(
 			rpcService,
 			taskManagerConfiguration,
