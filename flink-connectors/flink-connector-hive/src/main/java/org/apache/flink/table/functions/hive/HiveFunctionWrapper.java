@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+
 import org.apache.hadoop.hive.ql.exec.UDF;
 
 import java.io.Serializable;
