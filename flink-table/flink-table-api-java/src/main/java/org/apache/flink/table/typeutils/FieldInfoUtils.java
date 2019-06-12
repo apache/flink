@@ -68,7 +68,8 @@ public class FieldInfoUtils {
 
 	/**
 	 * Describes fields' names, indices and {@link DataType}s extracted from a {@link TypeInformation} and possibly
-	 * transformed via {@link Expression} application.
+	 * transformed via {@link Expression} application. It is in fact a mapping between {@link TypeInformation} of an
+	 * input and {@link TableSchema} of a {@link org.apache.flink.table.api.Table} that can be created out of it.
 	 *
 	 * @see FieldInfoUtils#getFieldsInfo(TypeInformation)
 	 * @see FieldInfoUtils#getFieldsInfo(TypeInformation, Expression[])
@@ -84,13 +85,25 @@ public class FieldInfoUtils {
 				int[] indices,
 				DataType[] fieldTypes,
 				boolean isRowtimeDefined) {
+			validateEqualLength(fieldNames, indices, fieldTypes);
+			validateNamesUniqueness(fieldNames);
+
+			this.isRowtimeDefined = isRowtimeDefined;
+			this.fieldNames = fieldNames;
+			this.indices = indices;
+			this.fieldTypes = fieldTypes;
+		}
+
+		private void validateEqualLength(String[] fieldNames, int[] indices, DataType[] fieldTypes) {
 			if (fieldNames.length != indices.length || indices.length != fieldTypes.length) {
 				throw new TableException(String.format("Mismatched number of indices, names and types:\n" +
 					"Names: %s\n" +
 					"Indices: %s\n" +
 					"Types: %s", Arrays.toString(fieldNames), Arrays.toString(indices), Arrays.toString(fieldTypes)));
 			}
+		}
 
+		private void validateNamesUniqueness(String[] fieldNames) {
 			// check uniqueness of field names
 			Set<String> duplicatedNames = findDuplicates(fieldNames);
 			if (duplicatedNames.size() != 0) {
@@ -102,11 +115,6 @@ public class FieldInfoUtils {
 					String.join(", ", duplicatedNames),
 					String.join(", ", fieldNames)));
 			}
-
-			this.isRowtimeDefined = isRowtimeDefined;
-			this.fieldNames = fieldNames;
-			this.indices = indices;
-			this.fieldTypes = fieldTypes;
 		}
 
 		public String[] getFieldNames() {
@@ -165,11 +173,12 @@ public class FieldInfoUtils {
 	}
 
 	/**
-	 * Returns field names and field positions for a given {@link TypeInformation}.
+	 * Returns a {@link TypeInfoSchema} for a given {@link TypeInformation}.
 	 *
-	 * @param inputType The TypeInformation extract the field names and positions from.
+	 * @param inputType The TypeInformation to extract the mapping from.
 	 * @param <A> The type of the TypeInformation.
-	 * @return A tuple of two arrays holding the field names and corresponding field positions.
+	 * @return A description of the input that enables creation of a {@link TableSchema}.
+	 * @see TypeInfoSchema
 	 */
 	public static <A> TypeInfoSchema getFieldsInfo(TypeInformation<A> inputType) {
 
@@ -187,18 +196,34 @@ public class FieldInfoUtils {
 	}
 
 	/**
-	 * Returns field names and field positions for a given {@link TypeInformation} and array of
-	 * {@link Expression}. It does not handle time attributes but considers them in indices.
+	 * Returns a {@link TypeInfoSchema} for a given {@link TypeInformation}.
+	 * It gives control of the process of mapping {@link TypeInformation} to {@link TableSchema}
+	 * (via {@link TypeInfoSchema}).
 	 *
-	 * @param inputType The {@link TypeInformation} against which the {@link Expression}s are evaluated.
-	 * @param exprs     The expressions that define the field names.
+	 * <p>Possible operations via the expressions include:
+	 * <ul>
+	 *     <li>specifying rowtime & proctime attributes via .proctime, .rowtime
+	 *          <ul>
+	 *              <li>There can be only a single rowtime and/or a single proctime attribute</li>
+	 *              <li>Proctime attribute can only be appended to the end of the expression list</li>
+	 *              <li>Rowtime attribute can replace an input field if the input field has a compatible type.
+	 *              See {@link TimestampType}.</li>
+	 *          </ul>
+	 *     </li>
+	 *     <li>renaming fields by position (this cannot be mixed with referencing by name)</li>
+	 *     <li>renaming & projecting fields by name (this cannot be mixed with referencing by position)</li>
+	 * </ul>
+	 *
+	 * @param inputType The TypeInformation to extract the mapping from.
+	 * @param expressions Expressions to apply while extracting the mapping.
 	 * @param <A> The type of the TypeInformation.
-	 * @return A tuple of two arrays holding the field names and corresponding field positions.
+	 * @return A description of the input that enables creation of a {@link TableSchema}.
+	 * @see TypeInfoSchema
 	 */
-	public static <A> TypeInfoSchema getFieldsInfo(TypeInformation<A> inputType, Expression[] exprs) {
+	public static <A> TypeInfoSchema getFieldsInfo(TypeInformation<A> inputType, Expression[] expressions) {
 		validateInputTypeInfo(inputType);
 
-		final List<FieldInfo> fieldInfos = extractFieldInformation(inputType, exprs);
+		final List<FieldInfo> fieldInfos = extractFieldInformation(inputType, expressions);
 
 		validateNoStarReference(fieldInfos);
 		boolean isRowtimeAttribute = checkIfRowtimeAttribute(fieldInfos);
@@ -436,10 +461,9 @@ public class FieldInfoUtils {
 
 		private FieldInfo visitAlias(CallExpression call) {
 			List<Expression> children = call.getChildren();
-			String newName = ExpressionUtils.extractValue(children.get(1), String.class).orElseThrow(() ->
-					new ValidationException("Alias expects string literal as new name. Got: " + children.get(1)));
+			String newName = extractAlias(children.get(1));
 
-			Expression child = call.getChildren().get(0);
+			Expression child = children.get(0);
 			if (isProcTimeExpression(child)) {
 				validateProcTimeAttributeAppended(call);
 				return createTimeAttributeField(getChildAsReference(child), TimestampKind.PROCTIME, newName);
@@ -489,7 +513,7 @@ public class FieldInfoUtils {
 			this.ct = ct;
 		}
 
-		private ValidationException noFieldFound(String name) {
+		private ValidationException fieldNotFound(String name) {
 			return new ValidationException(format(
 				"%s is not a field of type %s. Expected: %s}",
 				name,
@@ -517,11 +541,9 @@ public class FieldInfoUtils {
 
 		private FieldInfo visitAlias(CallExpression call) {
 			List<Expression> children = call.getChildren();
-			Expression child = children.get(0);
-			String newName = ExpressionUtils.extractValue(children.get(1), String.class)
-				.orElseThrow(() ->
-					new TableException("Alias expects string literal as new name. Got: " + children.get(1)));
+			String newName = extractAlias(children.get(1));
 
+			Expression child = children.get(0);
 			if (child instanceof UnresolvedReferenceExpression) {
 				return createFieldInfo((UnresolvedReferenceExpression) child, newName);
 			} else if (isRowTimeExpression(child)) {
@@ -540,7 +562,7 @@ public class FieldInfoUtils {
 					alias != null ? alias : fieldName,
 					idx,
 					fromLegacyInfoToDataType(ct.getTypeAt(idx))))
-				.orElseThrow(() -> noFieldFound(fieldName));
+				.orElseThrow(() -> fieldNotFound(fieldName));
 		}
 
 		private FieldInfo createProctimeFieldInfo(Expression expression, @Nullable String alias) {
@@ -580,6 +602,11 @@ public class FieldInfoUtils {
 		protected FieldInfo defaultMethod(Expression expression) {
 			throw new ValidationException("Field reference expression or alias on field expression expected.");
 		}
+	}
+
+	private static String extractAlias(Expression aliasExpr) {
+		return ExpressionUtils.extractValue(aliasExpr, String.class)
+			.orElseThrow(() -> new TableException("Alias expects string literal as new name. Got: " + aliasExpr));
 	}
 
 	private static void checkRowtimeType(TypeInformation<?> type) {
