@@ -142,11 +142,11 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>py4j</pattern>
-									<shadedPattern>org.apache.flink.python.shaded.py4j</shadedPattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>net.razorvine</pattern>
-									<shadedPattern>org.apache.flink.python.shaded.net.razorvine</shadedPattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.net.razorvine</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

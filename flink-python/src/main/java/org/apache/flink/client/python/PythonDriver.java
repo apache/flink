@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.client;
+package org.apache.flink.client.python;
 
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -33,7 +33,7 @@ import java.util.List;
  * A main class used to launch Python applications. It executes python as a
  * subprocess and then has it connect back to the JVM to access system properties, etc.
  */
-public class PythonDriver {
+public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
 	public static void main(String[] args) {

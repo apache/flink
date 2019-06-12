@@ -780,7 +780,7 @@ public class CliFrontend {
 				jarFile = getJarFile(jarFilePath);
 			}
 			// The entry point class of python job is PythonDriver
-			entryPointClass = "org.apache.flink.python.client.PythonDriver";
+			entryPointClass = "org.apache.flink.client.python.PythonDriver";
 		} else {
 			if (jarFilePath == null) {
 				throw new IllegalArgumentException("Java program should be specified a JAR file.");

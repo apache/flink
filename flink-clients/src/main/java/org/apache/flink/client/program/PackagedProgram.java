@@ -182,7 +182,7 @@ public class PackagedProgram {
 	 */
 	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		// Whether the job is a Python job.
-		isPython = entryPointClassName != null && entryPointClassName.equals("org.apache.flink.python.client.PythonDriver");
+		isPython = entryPointClassName != null && entryPointClassName.equals("org.apache.flink.client.python.PythonDriver");
 
 		URL jarFileUrl = null;
 		if (jarFile != null) {
@@ -248,7 +248,7 @@ public class PackagedProgram {
 
 		// load the entry point class
 		this.mainClass = entryPointClass;
-		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.python.client.PythonDriver");
+		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.client.python.PythonDriver");
 
 		// if the entry point is a program, instantiate the class and get the plan
 		if (Program.class.isAssignableFrom(this.mainClass)) {

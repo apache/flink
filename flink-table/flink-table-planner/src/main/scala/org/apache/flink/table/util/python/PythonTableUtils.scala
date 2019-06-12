@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.python
+package org.apache.flink.table.util.python
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
@@ -27,8 +27,8 @@ import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, 
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{Table, Types}
 import org.apache.flink.table.api.java.{BatchTableEnvironment, StreamTableEnvironment}
+import org.apache.flink.table.api.{Table, Types}
 import org.apache.flink.types.Row
 
 object PythonTableUtils {

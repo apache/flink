@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.bridge;
+package org.apache.flink.api.common.python;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.python.pickle.ArrayConstructor;
+import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.bridge.pickle.ArrayConstructor;
-import org.apache.flink.python.bridge.pickle.ByteArrayConstructor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;

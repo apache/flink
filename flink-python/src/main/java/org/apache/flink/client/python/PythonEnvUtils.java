@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.client;
+package org.apache.flink.client.python;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileSystem;
