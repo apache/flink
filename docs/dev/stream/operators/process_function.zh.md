@@ -146,6 +146,11 @@ public class CountWithTimeoutFunction
         if (current == null) {
             current = new CountWithTimestamp();
             current.key = value.f0;
+        } else if (current.lastModified + 60000 > ctx.timestamp()) {
+        // Only emits a key/count pair whenever a minute passes (in event time) without an update for that key,
+        // so delete useless timers. 
+        // Registering too much useless timers maybe cause problems in terms of allocated objects. 
+            ctx.timerService().deleteEventTimeTimer(current.lastModified + 60000);
         }
 
         // update the state's count
@@ -223,6 +228,12 @@ class CountWithTimeoutFunction extends KeyedProcessFunction[Tuple, (String, Stri
       case null =>
         CountWithTimestamp(value._1, 1, ctx.timestamp)
       case CountWithTimestamp(key, count, lastModified) =>
+        if (lastModified + 60000 > ctx.timestamp) {
+           // Only emits a key/count pair whenever a minute passes (in event time) without an update for that key,
+           // so delete useless timers.
+           // Registering too much useless timers maybe cause problems in terms of allocated objects.
+           ctx.timerService.deleteEventTimeTimer(current.lastModified + 60000)
+        } 
         CountWithTimestamp(key, count + 1, ctx.timestamp)
     }
 
