@@ -95,7 +95,8 @@ class Rowtime(Descriptor):
         API record into the rowtime attribute and thus preserves the assigned timestamps from the
         source.
 
-        ..note::
+        .. note::
+
             This extractor only works in streaming environments.
 
         :return: This rowtime descriptor.
@@ -174,7 +175,8 @@ class Schema(Descriptor):
     """
     Describes a schema of a table.
 
-    ..note::
+    .. note::
+
         Field names are matched by the exact name by default (case sensitive).
     """
 
@@ -220,7 +222,8 @@ class Schema(Descriptor):
 
         E.g. field("myString", Types.STRING).from_origin_field("CSV_MY_STRING")
 
-        ..note::
+        .. note::
+
             Field names are matched by the exact name by default (case sensitive).
 
         :param origin_field_name: The origin field name.
@@ -269,13 +272,15 @@ class OldCsv(FormatDescriptor):
     """
     Format descriptor for comma-separated values (CSV).
 
-    ..note::
+    .. note::
+
         This descriptor describes Flink's non-standard CSV table source/sink. In the future, the
         descriptor will be replaced by a proper RFC-compliant version. Use the RFC-compliant `Csv`
         format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use
         the old one for stream/batch filesystem operations for now.
 
-    ..note::
+    .. note::
+
         Deprecated: use the RFC-compliant `Csv` format instead when writing to Kafka.
     """
 
@@ -295,8 +300,8 @@ class OldCsv(FormatDescriptor):
         return self
 
     def line_delimiter(self, delimiter):
-        """
-        Sets the line delimiter, "\n" by default.
+        r"""
+        Sets the line delimiter, "\\n" by default.
 
         :param delimiter: The line delimiter.
         :return: This :class:`OldCsv` object.
@@ -379,7 +384,8 @@ class Csv(FormatDescriptor):
     This descriptor aims to comply with RFC-4180 ("Common Format and MIME Type for
     Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
 
-    ..note::
+    .. note::
+
         This descriptor does not describe Flink's old non-standard CSV table
         source/sink. Currently, this descriptor can be used when writing to Kafka. The old one is
         still available as :class:`OldCsv` for stream/batch filesystem operations.
@@ -403,8 +409,8 @@ class Csv(FormatDescriptor):
         return self
 
     def line_delimiter(self, delimiter):
-        """
-        Sets the line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed).
+        r"""
+        Sets the line delimiter ("\\n" by default; otherwise "\\r" or "\\r\\n" are allowed).
 
         :param delimiter: The line delimiter.
         :return: This :class:`Csv` object.
@@ -774,8 +780,8 @@ class Kafka(ConnectorDescriptor):
 
         see :func:`pyflink.table.table_descriptor.Kafka.start_from_specific_offsets`
 
-        :param partition:
-        :param specific_offset:
+        :param partition: Partition id.
+        :param specific_offset: Specified offset in given partition.
         :return: This object.
         """
         self._j_kafka = self._j_kafka.startFromSpecificOffset(int(partition), int(specific_offset))
@@ -787,7 +793,8 @@ class Kafka(ConnectorDescriptor):
 
         This strategy ensures that each Flink partition ends up in one Kafka partition.
 
-        ..note::
+        .. note::
+
             One Kafka partition can contain multiple Flink partitions. Examples:
 
             More Flink partitions than Kafka partitions. Some (or all) Kafka partitions contain
@@ -820,7 +827,8 @@ class Kafka(ConnectorDescriptor):
         This strategy ensures that records will be distributed to Kafka partitions in a
         round-robin fashion.
 
-        ..note::
+        .. note::
+
             This strategy is useful to avoid an unbalanced partitioning. However, it will cause a
             lot of network connections between all the Flink instances and all the Kafka brokers.
 
@@ -980,7 +988,8 @@ class Elasticsearch(ConnectorDescriptor):
         Disables flushing on checkpoint. When disabled, a sink will not wait for all pending action
         requests to be acknowledged by Elasticsearch on checkpoints.
 
-        ..note::
+        .. note::
+
             If flushing on checkpoint is disabled, a Elasticsearch sink does NOT
             provide any strong guarantees for at-least-once delivery of action requests.
 

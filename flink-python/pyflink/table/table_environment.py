@@ -134,10 +134,12 @@ class TableEnvironment(object):
 
         Scanning a directly registered table
         ::
+
             >>> tab = t_env.scan("tableName")
 
         Scanning a table from a registered catalog
         ::
+
             >>> tab = t_env.scan("catalogName", "dbName", "tableName")
 
         :param table_path: The path of the table to scan.
@@ -157,10 +159,11 @@ class TableEnvironment(object):
 
         Example:
         ::
+
             >>> tab = t_env.scan("tableName")
             >>> t_env.insert_into(tab, "print")
 
-        :param table The :class:`Table` to write to the sink.
+        :param table: :class:`Table` to write to the sink.
         :param table_path: The first part of the path of the registered :class:`TableSink` to which
                the :class:`Table` is written. This is to ensure at least the name of the
                :class:`Table` is provided.
@@ -200,8 +203,8 @@ class TableEnvironment(object):
         called, for example when it is embedded into a String.
 
         Hence, SQL queries can directly reference a :class:`Table` as follows:
-
         ::
+
             >>> table = ...
             # the table is not registered to the table environment
             >>> t_env.sql_query("SELECT * FROM %s" % table)
@@ -216,15 +219,16 @@ class TableEnvironment(object):
         """
         Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
 
-        ..note::
+        .. note::
+
             Currently only SQL INSERT statements are supported.
 
         All tables referenced by the query must be registered in the TableEnvironment.
         A :class:`Table` is automatically registered when its :func:`~Table.__str__` method is
         called, for example when it is embedded into a String.
         Hence, SQL queries can directly reference a :class:`Table` as follows:
-
         ::
+
             # register the table sink into which the result is inserted.
             >>> t_env.register_table_sink("sink_table", field_names, fields_types, table_sink)
             >>> source_table = ...
@@ -244,7 +248,8 @@ class TableEnvironment(object):
         """
         Gets the current default catalog name of the current session.
 
-        :return The current default catalog name that is used for the path resolution.
+        :return: The current default catalog name that is used for the path resolution.
+
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
         """
         self._j_tenv.getCurrentCatalog()
@@ -293,6 +298,7 @@ class TableEnvironment(object):
         :param: catalog_name: The name of the catalog to set as the current default catalog.
         :throws: CatalogException thrown if a catalog with given name could not be set as the
                  default one
+
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
         """
         self._j_tenv.useCatalog(catalog_name)
@@ -301,7 +307,8 @@ class TableEnvironment(object):
         """
         Gets the current default database name of the running session.
 
-        :return The name of the current database of the current catalog.
+        :return: The name of the current database of the current catalog.
+
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
         """
         self._j_tenv.getCurrentCatalog()
@@ -348,6 +355,7 @@ class TableEnvironment(object):
 
         :throws: CatalogException thrown if the given catalog and database could not be set as
                 the default ones
+
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
 
         :param: database_name: The name of the database to set as the current database.
@@ -390,16 +398,17 @@ class TableEnvironment(object):
         The following example shows how to read from a connector using a JSON format and
         registering a table source as "MyTable":
         ::
-            >>> table_env\
+
+            >>> table_env\\
             ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11"))\
+            ...              .version("0.11"))\\
             ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                 .fail_on_missing_field(False))\
+            ...                 .json_schema("{...}")
+            ...                 .fail_on_missing_field(False))\\
             ...     .with_schema(Schema()
             ...                 .field("user-name", "VARCHAR")
             ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL"))\
+            ...                 .field("count", "DECIMAL"))\\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -555,16 +564,17 @@ class StreamTableEnvironment(TableEnvironment):
         The following example shows how to read from a connector using a JSON format and
         registering a table source as "MyTable":
         ::
-            >>> table_env\
+
+            >>> table_env\\
             ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11"))\
+            ...              .version("0.11"))\\
             ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                 .fail_on_missing_field(False))\
+            ...                 .json_schema("{...}")
+            ...                 .fail_on_missing_field(False))\\
             ...     .with_schema(Schema()
             ...                 .field("user-name", "VARCHAR")
             ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL"))\
+            ...                 .field("count", "DECIMAL"))\\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -620,16 +630,17 @@ class BatchTableEnvironment(TableEnvironment):
         The following example shows how to read from a connector using a JSON format and
         registering a table source as "MyTable":
         ::
-            >>> table_env\
+
+            >>> table_env\\
             ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11"))\
+            ...              .version("0.11"))\\
             ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                 .fail_on_missing_field(False))\
+            ...                 .json_schema("{...}")
+            ...                 .fail_on_missing_field(False))\\
             ...     .with_schema(Schema()
             ...                 .field("user-name", "VARCHAR")
             ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL"))\
+            ...                 .field("count", "DECIMAL"))\\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
