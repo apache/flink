@@ -146,8 +146,8 @@ object CodeGenUtils {
     case INTERVAL_YEAR_MONTH => className[JInt]
     case INTERVAL_DAY_TIME => className[JLong]
 
-    case VARCHAR => BINARY_STRING
-    case VARBINARY => "byte[]"
+    case VARCHAR | CHAR => BINARY_STRING
+    case VARBINARY | BINARY => "byte[]"
 
     case DECIMAL => className[Decimal]
     case ARRAY => className[BinaryArray]
@@ -178,7 +178,7 @@ object CodeGenUtils {
     case FLOAT => "-1.0f"
     case DOUBLE => "-1.0d"
     case BOOLEAN => "false"
-    case VARCHAR => s"$BINARY_STRING.EMPTY_UTF8"
+    case VARCHAR | CHAR => s"$BINARY_STRING.EMPTY_UTF8"
 
     case DATE | TIME_WITHOUT_TIME_ZONE => "-1"
     case TIMESTAMP_WITHOUT_TIME_ZONE => "-1L"
@@ -205,8 +205,8 @@ object CodeGenUtils {
     case BIGINT => s"${className[JLong]}.hashCode($term)"
     case FLOAT => s"${className[JFloat]}.hashCode($term)"
     case DOUBLE => s"${className[JDouble]}.hashCode($term)"
-    case VARCHAR => s"$term.hashCode()"
-    case VARBINARY => s"${className[MurmurHashUtil]}.hashUnsafeBytes(" +
+    case VARCHAR | CHAR => s"$term.hashCode()"
+    case VARBINARY | BINARY => s"${className[MurmurHashUtil]}.hashUnsafeBytes(" +
       s"$term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
     case DECIMAL => s"$term.hashCode()"
     case DATE => s"${className[JInt]}.hashCode($term)"
@@ -330,8 +330,8 @@ object CodeGenUtils {
       throw new CodeGenException(s"Comparable type expected, but was '${genExpr.resultType}'.")
     }
 
-  def requireString(genExpr: GeneratedExpression): Unit =
-    if (!TypeCheckUtils.isVarchar(genExpr.resultType)) {
+  def requireCharacterString(genExpr: GeneratedExpression): Unit =
+    if (!TypeCheckUtils.isCharacterString(genExpr.resultType)) {
       throw new CodeGenException("String expression type expected.")
     }
 
@@ -392,8 +392,8 @@ object CodeGenUtils {
       case BIGINT => s"$rowTerm.getLong($indexTerm)"
       case FLOAT => s"$rowTerm.getFloat($indexTerm)"
       case DOUBLE => s"$rowTerm.getDouble($indexTerm)"
-      case VARCHAR => s"$rowTerm.getString($indexTerm)"
-      case VARBINARY => s"$rowTerm.getBinary($indexTerm)"
+      case VARCHAR | CHAR => s"$rowTerm.getString($indexTerm)"
+      case VARBINARY | BINARY => s"$rowTerm.getBinary($indexTerm)"
       case DECIMAL =>
         val dt = t.asInstanceOf[DecimalType]
         s"$rowTerm.getDecimal($indexTerm, ${dt.getPrecision}, ${dt.getScale})"
@@ -616,8 +616,8 @@ object CodeGenUtils {
       case FLOAT => s"$writerTerm.writeFloat($indexTerm, $fieldValTerm)"
       case DOUBLE => s"$writerTerm.writeDouble($indexTerm, $fieldValTerm)"
       case BOOLEAN => s"$writerTerm.writeBoolean($indexTerm, $fieldValTerm)"
-      case VARBINARY => s"$writerTerm.writeBinary($indexTerm, $fieldValTerm)"
-      case VARCHAR => s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
+      case VARBINARY | BINARY => s"$writerTerm.writeBinary($indexTerm, $fieldValTerm)"
+      case VARCHAR | CHAR => s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
       case DECIMAL =>
         val dt = t.asInstanceOf[DecimalType]
         s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${dt.getPrecision})"

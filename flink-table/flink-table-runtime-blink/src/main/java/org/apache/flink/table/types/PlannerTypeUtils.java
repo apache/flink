@@ -24,6 +24,9 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.util.List;
 
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
+
 /**
  * Utilities for {@link LogicalType} and {@link DataType}..
  */
@@ -74,15 +77,19 @@ public class PlannerTypeUtils {
 	 * 2.Join keys.
 	 */
 	public static boolean isInteroperable(LogicalType t1, LogicalType t2) {
+		if (t1.getTypeRoot().getFamilies().contains(CHARACTER_STRING) &&
+				t2.getTypeRoot().getFamilies().contains(CHARACTER_STRING)) {
+			return true;
+		}
+		if (t1.getTypeRoot().getFamilies().contains(BINARY_STRING) &&
+				t2.getTypeRoot().getFamilies().contains(BINARY_STRING)) {
+			return true;
+		}
 		if (t1.getTypeRoot() != t2.getTypeRoot()) {
 			return false;
 		}
 
 		switch (t1.getTypeRoot()) {
-			// VARCHAR VARBINARY ignore length.
-			case VARCHAR:
-			case VARBINARY:
-				return true;
 			case ARRAY:
 			case MAP:
 			case MULTISET:

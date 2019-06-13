@@ -136,6 +136,7 @@ public class DataFormatConverters {
 		Class<?> clazz = dataType.getConversionClass();
 		LogicalType logicalType = dataType.getLogicalType();
 		switch (logicalType.getTypeRoot()) {
+			case CHAR:
 			case VARCHAR:
 				if (clazz == String.class) {
 					return StringConverter.INSTANCE;
@@ -144,6 +145,7 @@ public class DataFormatConverters {
 				} else {
 					throw new RuntimeException("Not support class for VARCHAR: " + clazz);
 				}
+			case BINARY:
 			case VARBINARY:
 				return PrimitiveByteArrayConverter.INSTANCE;
 			case DECIMAL:

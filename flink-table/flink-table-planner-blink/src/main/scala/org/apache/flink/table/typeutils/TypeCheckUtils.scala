@@ -52,9 +52,14 @@ object TypeCheckUtils {
     case _ => false
   }
 
-  def isVarchar(dataType: LogicalType): Boolean = dataType.getTypeRoot == VARCHAR
+  def isCharacterString(dataType: LogicalType): Boolean =
+    dataType.getTypeRoot.getFamilies.contains(LogicalTypeFamily.CHARACTER_STRING)
 
-  def isBinary(dataType: LogicalType): Boolean = dataType.getTypeRoot == BINARY
+  def isBinaryString(dataType: LogicalType): Boolean =
+    dataType.getTypeRoot.getFamilies.contains(LogicalTypeFamily.BINARY_STRING)
+
+  def isTimestamp(dataType: LogicalType): Boolean =
+    dataType.getTypeRoot == TIMESTAMP_WITHOUT_TIME_ZONE
 
   def isBoolean(dataType: LogicalType): Boolean = dataType.getTypeRoot == BOOLEAN
 
@@ -77,8 +82,7 @@ object TypeCheckUtils {
 
   def isMutable(dataType: LogicalType): Boolean = dataType.getTypeRoot match {
     // the internal representation of String is BinaryString which is mutable
-    case VARCHAR => true
-    case ARRAY | MULTISET | MAP | ROW | ANY => true
+    case VARCHAR | CHAR | ARRAY | MULTISET | MAP | ROW | ANY => true
     case _ => false
   }
 

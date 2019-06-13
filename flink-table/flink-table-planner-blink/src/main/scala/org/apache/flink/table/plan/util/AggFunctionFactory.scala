@@ -284,7 +284,7 @@ class AggFunctionFactory(
           new DoubleMinWithRetractAggFunction
         case BOOLEAN =>
           new BooleanMinWithRetractAggFunction
-        case VARCHAR =>
+        case VARCHAR | CHAR =>
           new StringMinWithRetractAggFunction
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
@@ -315,7 +315,7 @@ class AggFunctionFactory(
           new MinAggFunction.DoubleMinAggFunction
         case BOOLEAN =>
           new MinAggFunction.BooleanMinAggFunction
-        case VARCHAR =>
+        case VARCHAR | CHAR =>
           new MinAggFunction.StringMinAggFunction
         case DATE =>
           new MinAggFunction.DateMinAggFunction

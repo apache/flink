@@ -357,10 +357,8 @@ object FunctionGenerator {
     Seq(BIGINT),
     BuiltInMethods.HEX_LONG)
 
-  addSqlFunctionMethod(
-    HEX,
-    Seq(VARCHAR),
-    BuiltInMethods.HEX_STRING)
+  addSqlFunctionMethod(HEX, Seq(VARCHAR), BuiltInMethods.HEX_STRING)
+  addSqlFunctionMethod(HEX, Seq(CHAR), BuiltInMethods.HEX_STRING)
 
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
@@ -606,73 +604,6 @@ object FunctionGenerator {
     Seq(BIGINT, BIGINT),
     BuiltInMethods.BITXOR_LONG)
 
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, VARCHAR),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, BOOLEAN),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, INTEGER),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, SMALLINT),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, INTEGER),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, BIGINT),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, FLOAT),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, DOUBLE),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, DATE),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, TIME_WITHOUT_TIME_ZONE),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(VARCHAR, DECIMAL),
-    new PrintCallGen())
-
-  addSqlFunction(
-    PRINT,
-    Seq(
-      VARCHAR,
-      VARBINARY),
-    new PrintCallGen())
-
   addSqlFunctionMethod(
     NOW,
     Seq(),
@@ -698,16 +629,6 @@ object FunctionGenerator {
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE,
       TIMESTAMP_WITHOUT_TIME_ZONE),
     BuiltInMethods.DATEDIFF_T_T)
-
-  addSqlFunction(
-    IF,
-    Seq(BOOLEAN, VARCHAR, VARCHAR),
-    new IfCallGen())
-
-  addSqlFunction(
-    IF,
-    Seq(BOOLEAN, BOOLEAN, BOOLEAN),
-    new IfCallGen())
 
   // This sequence must be in sync with [[NumericOrDefaultReturnTypeInference]]
   val numericTypes = Seq(
@@ -749,6 +670,14 @@ object FunctionGenerator {
       BOOLEAN,
       VARBINARY,
       VARBINARY),
+    new IfCallGen())
+
+  addSqlFunction(
+    IF,
+    Seq(
+      BOOLEAN,
+      BINARY,
+      BINARY),
     new IfCallGen())
 
   addSqlFunctionMethod(
@@ -837,6 +766,11 @@ object FunctionGenerator {
 
   addSqlFunction(
     HASH_CODE,
+    Seq(BINARY),
+    new HashCodeCallGen())
+
+  addSqlFunction(
+    HASH_CODE,
     Seq(DECIMAL),
     new HashCodeCallGen())
 
@@ -864,37 +798,6 @@ object FunctionGenerator {
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE),
     BuiltInMethods.TIMESTAMP_TO_BIGINT)
 
-  // Date/Time & BinaryString Converting -- start
-  addSqlFunctionMethod(
-    TO_DATE,
-    Seq(VARCHAR),
-    BuiltInMethod.STRING_TO_DATE.method)
-
-  addSqlFunctionMethod(
-    TO_DATE,
-    Seq(VARCHAR, VARCHAR),
-    BuiltInMethods.STRING_TO_DATE_WITH_FORMAT)
-
-  addSqlFunctionMethod(
-    TO_TIMESTAMP,
-    Seq(VARCHAR),
-    BuiltInMethods.STRING_TO_TIMESTAMP)
-
-  addSqlFunctionMethod(
-    TO_TIMESTAMP,
-    Seq(VARCHAR, VARCHAR),
-    BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
-
-  addSqlFunctionMethod(
-    UNIX_TIMESTAMP,
-    Seq(VARCHAR),
-    BuiltInMethods.UNIX_TIMESTAMP_STR)
-
-  addSqlFunctionMethod(
-    UNIX_TIMESTAMP,
-    Seq(VARCHAR, VARCHAR),
-    BuiltInMethods.UNIX_TIMESTAMP_FORMAT)
-
   INTEGRAL_TYPES foreach (
     dt => addSqlFunctionMethod(
       FROM_UNIXTIME,
@@ -912,108 +815,20 @@ object FunctionGenerator {
     Seq(DECIMAL),
     BuiltInMethods.FROM_UNIXTIME_AS_DECIMAL)
 
-  addSqlFunctionMethod(
-    FROM_UNIXTIME,
-    Seq(BIGINT, VARCHAR),
-    BuiltInMethods.FROM_UNIXTIME_FORMAT)
+  addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, VARCHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
+  addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, CHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
+
+  addSqlFunctionMethod(DATE_SUB, Seq(VARCHAR, INTEGER), BuiltInMethods.DATE_SUB_S)
+  addSqlFunctionMethod(DATE_SUB, Seq(CHAR, INTEGER), BuiltInMethods.DATE_SUB_S)
 
   addSqlFunctionMethod(
-    DATEDIFF,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, VARCHAR),
-    BuiltInMethods.DATEDIFF_T_S)
+    DATE_SUB, Seq(TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER), BuiltInMethods.DATE_SUB_T)
+
+  addSqlFunctionMethod(DATE_ADD, Seq(VARCHAR, INTEGER), BuiltInMethods.DATE_ADD_S)
+  addSqlFunctionMethod(DATE_ADD, Seq(CHAR, INTEGER), BuiltInMethods.DATE_ADD_S)
 
   addSqlFunctionMethod(
-    DATEDIFF,
-    Seq(VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE),
-    BuiltInMethods.DATEDIFF_S_T)
-
-  addSqlFunctionMethod(
-    DATEDIFF,
-    Seq(VARCHAR, VARCHAR),
-    BuiltInMethods.DATEDIFF_S_S)
-
-  addSqlFunctionMethod(
-    DATE_FORMAT,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, VARCHAR),
-    BuiltInMethods.DATE_FORMAT_LONG_STRING)
-
-  addSqlFunctionMethod(
-    DATE_FORMAT,
-    Seq(VARCHAR, VARCHAR),
-    BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
-
-  addSqlFunctionMethod(
-    DATE_FORMAT,
-    Seq(
-      VARCHAR,
-      VARCHAR,
-      VARCHAR),
-    BuiltInMethods.DATE_FORMAT_STRING_STRING_STRING)
-
-  addSqlFunctionMethod(
-    DATE_SUB,
-    Seq(VARCHAR, INTEGER),
-    BuiltInMethods.DATE_SUB_S)
-
-  addSqlFunctionMethod(
-    DATE_SUB,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER),
-    BuiltInMethods.DATE_SUB_T)
-
-  addSqlFunctionMethod(
-    DATE_ADD,
-    Seq(VARCHAR, INTEGER),
-    BuiltInMethods.DATE_ADD_S)
-
-  addSqlFunctionMethod(
-    DATE_ADD,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER),
-    BuiltInMethods.DATE_ADD_T)
-
-  addSqlFunctionMethod(
-    TO_TIMESTAMP_TZ,
-    Seq(
-      VARCHAR,
-      VARCHAR),
-    BuiltInMethods.STRING_TO_TIMESTAMP_TZ)
-
-  addSqlFunctionMethod(
-    TO_TIMESTAMP_TZ,
-    Seq(
-      VARCHAR,
-      VARCHAR,
-      VARCHAR),
-    BuiltInMethods.STRING_TO_TIMESTAMP_FORMAT_TZ)
-
-  addSqlFunctionMethod(
-    DATE_FORMAT_TZ,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE, VARCHAR),
-    BuiltInMethods.DATE_FORMAT_LONG_ZONE)
-
-  addSqlFunctionMethod(
-    DATE_FORMAT_TZ,
-    Seq(
-      TIMESTAMP_WITHOUT_TIME_ZONE,
-      VARCHAR,
-      VARCHAR),
-    BuiltInMethods.DATE_FORMAT_LONG_STRING_ZONE)
-
-  addSqlFunctionMethod(
-    CONVERT_TZ,
-    Seq(
-      VARCHAR,
-      VARCHAR,
-      VARCHAR),
-    BuiltInMethods.CONVERT_TZ)
-
-  addSqlFunctionMethod(
-    CONVERT_TZ,
-    Seq(
-      VARCHAR,
-      VARCHAR,
-      VARCHAR,
-      VARCHAR),
-    BuiltInMethods.CONVERT_FORMAT_TZ)
+    DATE_ADD, Seq(TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER), BuiltInMethods.DATE_ADD_T)
 
   // ----------------------------------------------------------------------------------------------
 
@@ -1071,18 +886,14 @@ object FunctionGenerator {
   private def addSqlFunctionMethod(
     sqlOperator: SqlOperator,
     operandTypes: Seq[LogicalTypeRoot],
-    method: Method)
-  : Unit = {
+    method: Method): Unit = {
     sqlFunctions((sqlOperator, operandTypes)) = new MethodCallGen(method)
   }
 
   private def addSqlFunction(
     sqlOperator: SqlOperator,
     operandTypes: Seq[LogicalTypeRoot],
-    callGenerator: CallGenerator)
-  : Unit = {
+    callGenerator: CallGenerator): Unit = {
     sqlFunctions((sqlOperator, operandTypes)) = callGenerator
   }
-
-
 }
