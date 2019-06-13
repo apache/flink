@@ -45,6 +45,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 
@@ -57,6 +58,8 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
 import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGATE_FUNCTION;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
+import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.SLIDE;
+import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
@@ -108,6 +111,49 @@ public class AggregateOperationFactory {
 		TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 
 		return new AggregateQueryOperation(groupings, aggregates, child, tableSchema);
+	}
+
+	/**
+	 * Creates a valid {@link WindowAggregateQueryOperation} operation.
+	 *
+	 * @param groupings expressions describing grouping key of aggregates
+	 * @param aggregates expressions describing aggregation functions
+	 * @param windowProperties expressions describing window properties
+	 * @param window grouping window of this aggregation
+	 * @param child relational operation on top of which to apply the aggregation
+	 * @return valid window aggregate operation
+	 */
+	public QueryOperation createWindowAggregate(
+			List<Expression> groupings,
+			List<Expression> aggregates,
+			List<Expression> windowProperties,
+			ResolvedGroupWindow window,
+			QueryOperation child) {
+		validateGroupings(groupings);
+		validateAggregates(aggregates);
+		validateWindowProperties(windowProperties, window);
+
+		DataType[] fieldTypes = concat(
+				groupings.stream().map(ExpressionTypeInfer::infer),
+				aggregates.stream().map(ExpressionTypeInfer::infer),
+				windowProperties.stream().map(ExpressionTypeInfer::infer)
+		).toArray(DataType[]::new);
+
+		String[] fieldNames = concat(
+				groupings.stream().map(expr -> extractName(expr).orElseGet(expr::toString)),
+				aggregates.stream().flatMap(this::extractAggregateNames),
+				windowProperties.stream().map(expr -> extractName(expr).orElseGet(expr::toString))
+		).toArray(String[]::new);
+
+		TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
+
+		return new WindowAggregateQueryOperation(
+				groupings,
+				aggregates,
+				windowProperties,
+				window,
+				child,
+				tableSchema);
 	}
 
 	/**
@@ -303,6 +349,23 @@ public class AggregateOperationFactory {
 			throw new ValidationException(exceptionMessage);
 		}
 		return (ValueLiteralExpression) expression;
+	}
+
+	private void validateWindowProperties(List<Expression> windowProperties, ResolvedGroupWindow window) {
+		if (!windowProperties.isEmpty()) {
+			if (window.getType() == TUMBLE || window.getType() == SLIDE) {
+				DataType resultType = window.getSize().map(ExpressionTypeInfer::infer).get();
+				if (resultType.getLogicalType().getTypeRoot() == LogicalTypeRoot.BIGINT) {
+					throw new ValidationException(String.format("Window start and Window end cannot be selected " +
+							"for a row-count %s window.", window.getType().toString().toLowerCase()));
+				}
+			}
+		}
+	}
+
+	private static <T> Stream<T> concat(Stream<T> first, Stream<T> second, Stream<T> third) {
+		Stream<T> firstConcat = Stream.concat(first, second);
+		return Stream.concat(firstConcat, third);
 	}
 
 	private void validateGroupings(List<Expression> groupings) {

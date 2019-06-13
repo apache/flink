@@ -30,6 +30,7 @@ import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.InternalFunctionDefinitions;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedAggInputReference;
 import org.apache.flink.table.expressions.ResolvedAggLocalReference;
 import org.apache.flink.table.expressions.ResolvedDistinctKeyReference;
@@ -39,12 +40,15 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.typeutils.TypeCoercion;
 
 import java.util.Arrays;
@@ -288,6 +292,22 @@ public class ExpressionTypeInfer implements ExpressionVisitor<DataType> {
 		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.VAR_SAMP, FIRST_CHILD_INFER);
 		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.COLLECT,
 				call -> DataTypes.MULTISET(infer(call.getChildren().get(0))));
+
+		// window
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.WINDOW_START, TIMESTAMP_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.WINDOW_END, TIMESTAMP_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.ROWTIME, call -> {
+			DataType childDataType = infer(call.getChildren().get(0));
+			LogicalType childType = childDataType.getLogicalType();
+			if (childType instanceof TimestampType &&
+					((TimestampType) childType).getKind() == TimestampKind.ROWTIME) {
+				return childDataType;
+			} else {
+				return DataTypes.TIMESTAMP(3);
+			}
+		});
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.PROCTIME,
+				call -> new AtomicDataType(new TimestampType(true, TimestampKind.PROCTIME, 3)));
 	}
 
 	private ExpressionTypeInfer() {}
@@ -345,6 +365,8 @@ public class ExpressionTypeInfer implements ExpressionVisitor<DataType> {
 			return fromLogicalToDataType(((ResolvedAggLocalReference) other).getResultType());
 		} else if (other instanceof ResolvedDistinctKeyReference) {
 			return fromLogicalToDataType(((ResolvedDistinctKeyReference) other).getResultType());
+		} else if (other instanceof LocalReferenceExpression) {
+			return ((LocalReferenceExpression) other).getOutputDataType();
 		} else {
 			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
 		}

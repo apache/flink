@@ -19,11 +19,13 @@
 package org.apache.flink.table.operations
 
 import org.apache.flink.table.api.{OverWindow, StreamTableEnvironment, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{GroupWindow, StreamTableEnvironment, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.expressions.{ApiExpressionDefaultVisitor, AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
+import org.apache.flink.table.expressions.{AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LocalReferenceExpression, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType
@@ -338,5 +340,37 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     }
 
     override protected def defaultMethod(expression: Expression): Void = null
+  }
+
+  def windowAggregate(
+      groupingExpressions: JList[Expression],
+      window: GroupWindow,
+      windowProperties: JList[Expression],
+      aggregates: JList[Expression],
+      child: QueryOperation)
+  : QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver)
+
+    val resolverWithWindowReferences = resolverFor(tableCatalog, functionCatalog, child)
+        .withLocalReferences(
+          new LocalReferenceExpression(
+            resolvedWindow.getAlias,
+            resolvedWindow.getTimeAttribute.getOutputDataType))
+        .build
+
+    val convertedGroupings = resolverWithWindowReferences.resolve(groupingExpressions)
+
+    val convertedAggregates = resolverWithWindowReferences.resolve(aggregates)
+
+    val convertedProperties = resolverWithWindowReferences.resolve(windowProperties)
+
+    aggregateOperationFactory.createWindowAggregate(
+      convertedGroupings,
+      convertedAggregates,
+      convertedProperties,
+      resolvedWindow,
+      child)
   }
 }

@@ -342,7 +342,9 @@ class TableImpl(
     tableName: String,
     conf: QueryConfig): Unit = ???
 
-  override def window(groupWindow: GroupWindow): GroupWindowedTable = ???
+  override def window(window: GroupWindow): GroupWindowedTable = {
+    new GroupWindowedTableImpl(this, window)
+  }
 
   override def window(overWindows: OverWindow*): OverWindowedTable = {
     new OverWindowedTableImpl(this, overWindows)
@@ -489,5 +491,71 @@ class OverWindowedTableImpl(
           tableImpl.operationTree,
           overWindows.asJava)
     )
+  }
+}
+
+/**
+  * The implementation of a [[GroupWindowedTable]] that has been windowed for [[GroupWindow]]s.
+  */
+class GroupWindowedTableImpl(
+    private[flink] val table: Table,
+    private[flink] val window: GroupWindow)
+    extends GroupWindowedTable {
+
+  override def groupBy(fields: String): WindowGroupedTable = {
+    groupBy(ExpressionParser.parseExpressionList(fields).asScala: _*)
+  }
+
+  override def groupBy(fields: Expression*): WindowGroupedTable = {
+    val fieldsWithoutWindow = fields.filterNot(window.getAlias.equals(_))
+    if (fields.size != fieldsWithoutWindow.size + 1) {
+      throw new ValidationException("GroupBy must contain exactly one window alias.")
+    }
+
+    new WindowGroupedTableImpl(table, fieldsWithoutWindow, window)
+  }
+}
+
+/**
+  * The implementation of a [[WindowGroupedTable]] that has been windowed and grouped for
+  * [[GroupWindow]]s.
+  */
+class WindowGroupedTableImpl(
+    private[flink] val table: Table,
+    private[flink] val groupKeys: Seq[Expression],
+    private[flink] val window: GroupWindow)
+    extends WindowGroupedTable {
+
+  private val tableImpl = table.asInstanceOf[TableImpl]
+
+  override def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
+  }
+
+  override def select(fields: Expression*): Table = {
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
+    val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
+
+    new TableImpl(tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder.project(
+        extracted.getProjections,
+        tableImpl.operationTreeBuilder.windowAggregate(
+          groupKeys.asJava,
+          window,
+          extracted.getWindowProperties,
+          extracted.getAggregations,
+          tableImpl.operationTree
+        ),
+        // required for proper resolution of the time attribute in multi-windows
+        explicitAlias = true
+      ))
+  }
+
+  override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = {
+    flatAggregate(ExpressionParser.parseExpression(tableAggregateFunction))
+  }
+
+  override def flatAggregate(tableAggregateFunction: Expression): FlatAggregateTable = {
+    throw new UnsupportedOperationException
   }
 }
