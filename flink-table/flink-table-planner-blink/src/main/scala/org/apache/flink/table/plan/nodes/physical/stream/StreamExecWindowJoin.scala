@@ -340,12 +340,11 @@ class StreamExecWindowJoin(
       new KeyedCoProcessOperatorWithWatermarkDelay(rowJoinFunc, rowJoinFunc.getMaxOutputDelay)
         .asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
-      leftPlan.getParallelism
+      getResource.getParallelism
     )
 
-    if (leftKeys.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
     }
 
     // set KeyType and Selector for state

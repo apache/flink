@@ -94,7 +94,8 @@ class TestPreserveWMTableSource[T](
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
-    execEnv.addSource(new EventTimeSourceFunction[T](values)).setParallelism(1).returns(returnType)
+    execEnv.addSource(new EventTimeSourceFunction[T](values)).
+        setParallelism(1).setMaxParallelism(1).returns(returnType)
   }
 
   override def getReturnType: TypeInformation[T] = returnType

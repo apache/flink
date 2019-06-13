@@ -146,14 +146,13 @@ class StreamExecTemporalSort(
       val sortOperator = new ProcTimeSortOperator(BaseRowTypeInfo.of(inputType), rowComparator)
       val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-      // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
+      // as input node is singleton exchange, its parallelism is 1.
       val ret = new OneInputTransformation(
         input,
         "ProcTimeSortOperator",
         sortOperator,
         outputRowTypeInfo,
-        1)
-      ret.setMaxParallelism(1)
+        getResource.getParallelism)
 
       val selector = NullBinaryRowKeySelector.INSTANCE
       ret.setStateKeySelector(selector)
@@ -188,14 +187,16 @@ class StreamExecTemporalSort(
       BaseRowTypeInfo.of(inputType), rowTimeIdx, rowComparator)
     val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
     val ret = new OneInputTransformation(
       input,
       "RowTimeSortOperator",
       sortOperator,
       outputRowTypeInfo,
-      1)
-    ret.setMaxParallelism(1)
+      getResource.getParallelism)
+
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
 
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)

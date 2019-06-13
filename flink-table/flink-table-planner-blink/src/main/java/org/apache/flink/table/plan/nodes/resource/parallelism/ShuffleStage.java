@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
+package org.apache.flink.table.plan.nodes.resource.parallelism;
 
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 
@@ -33,15 +33,25 @@ public class ShuffleStage {
 	// parallelism of this shuffleStage.
 	private int parallelism = -1;
 
+	private int maxParallelism = Integer.MAX_VALUE;
+
 	// whether this parallelism is final, if it is final, it can not be changed.
 	private boolean isFinalParallelism = false;
 
 	public void addNode(ExecNode<?, ?> node) {
 		execNodeSet.add(node);
+		if (node.getResource().getMaxParallelism() > 0 &&
+				node.getResource().getMaxParallelism() < maxParallelism) {
+			maxParallelism = node.getResource().getMaxParallelism();
+		}
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
 	public void addNodeSet(Set<ExecNode<?, ?>> nodeSet) {
-		execNodeSet.addAll(nodeSet);
+		nodeSet.forEach(this::addNode);
 	}
 
 	public void removeNode(ExecNode<?, ?> node) {

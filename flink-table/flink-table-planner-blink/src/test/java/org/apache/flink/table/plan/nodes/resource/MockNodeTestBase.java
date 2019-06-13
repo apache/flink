@@ -24,6 +24,14 @@ import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamSc
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecCalc;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecUnion;
+import org.apache.flink.table.plan.nodes.physical.batch.BatchExecValues;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecCalc;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecExchange;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecUnion;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecValues;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelDistribution;
@@ -35,6 +43,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,8 +53,13 @@ import static org.mockito.Mockito.when;
 public class MockNodeTestBase {
 
 	protected List<ExecNode> nodeList;
+	private final boolean isBatch;
 
-	protected void updateNode(int index, ExecNode<?, ?> node) {
+	public MockNodeTestBase(boolean isBatch) {
+		this.isBatch = isBatch;
+	}
+
+	private void updateNode(int index, ExecNode<?, ?> node) {
 		nodeList.set(index, node);
 		NodeResource resource = new NodeResource();
 		when(node.getResource()).thenReturn(resource);
@@ -54,21 +68,100 @@ public class MockNodeTestBase {
 			StreamTransformation transformation = mock(StreamTransformation.class);
 			when(((BatchExecTableSourceScan) node).getSourceTransformation(any())).thenReturn(transformation);
 			when(transformation.getMaxParallelism()).thenReturn(-1);
+		} else if (node instanceof StreamExecTableSourceScan) {
+			StreamTransformation transformation = mock(StreamTransformation.class);
+			when(((StreamExecTableSourceScan) node).getSourceTransformation(any())).thenReturn(transformation);
+			when(transformation.getMaxParallelism()).thenReturn(-1);
 		} else if (node instanceof BatchExecBoundedStreamScan) {
 			StreamTransformation transformation = mock(StreamTransformation.class);
 			when(((BatchExecBoundedStreamScan) node).getSourceTransformation()).thenReturn(transformation);
+		} else if (node instanceof StreamExecDataStreamScan) {
+			StreamTransformation transformation = mock(StreamTransformation.class);
+			when(((StreamExecDataStreamScan) node).getSourceTransformation()).thenReturn(transformation);
 		} else if (node instanceof BatchExecExchange) {
 			RelDistribution distribution = mock(RelDistribution.class);
 			when(distribution.getType()).thenReturn(RelDistribution.Type.BROADCAST_DISTRIBUTED);
 			when(((BatchExecExchange) node).getDistribution()).thenReturn(distribution);
+		} else if (node instanceof StreamExecExchange) {
+			RelDistribution distribution = mock(RelDistribution.class);
+			when(distribution.getType()).thenReturn(RelDistribution.Type.BROADCAST_DISTRIBUTED);
+			when(((StreamExecExchange) node).getDistribution()).thenReturn(distribution);
 		}
+	}
+
+	protected ExecNode<?, ?> updateCalc(int index) {
+		ExecNode<?, ?> node = isBatch ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
+		updateNode(index, node);
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateValues(int index) {
+		ExecNode<?, ?> node = isBatch ? mock(BatchExecValues.class) : mock(StreamExecValues.class);
+		updateNode(index, node);
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateUnion(int index) {
+		ExecNode<?, ?> node = isBatch ? mock(BatchExecUnion.class) : mock(StreamExecUnion.class);
+		updateNode(index, node);
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateExchange(int index) {
+		ExecNode<?, ?> node = isBatch ? mock(BatchExecExchange.class, RETURNS_DEEP_STUBS) :
+				mock(StreamExecExchange.class, RETURNS_DEEP_STUBS);
+		updateNode(index, node);
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateExchange(int index, RelDistribution.Type type) {
+		ExecNode<?, ?> node = updateExchange(index);
+		if (isBatch) {
+			when(((BatchExecExchange) node).getDistribution().getType()).thenReturn(type);
+		} else {
+			when(((StreamExecExchange) node).getDistribution().getType()).thenReturn(type);
+		}
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateTableSource(int index) {
+		ExecNode<?, ?> node = isBatch ? mock(BatchExecTableSourceScan.class) : mock(StreamExecTableSourceScan.class);
+		updateNode(index, node);
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateTableSource(int index, int maxParallelism) {
+		ExecNode<?, ?> node = updateTableSource(index);
+		if (isBatch) {
+			when(((BatchExecTableSourceScan) node).getSourceTransformation(any()).getMaxParallelism()).thenReturn(maxParallelism);
+		} else {
+			when(((StreamExecTableSourceScan) node).getSourceTransformation(any()).getMaxParallelism()).thenReturn(maxParallelism);
+		}
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateStreamScan(int index) {
+		ExecNode<?, ?> node = isBatch ? mock(BatchExecBoundedStreamScan.class) : mock(StreamExecDataStreamScan.class);
+		updateNode(index, node);
+		return node;
+	}
+
+	protected ExecNode<?, ?> updateStreamScan(int index, int parallelism) {
+		ExecNode<?, ?> node = updateStreamScan(index);
+		if (isBatch) {
+			when(((BatchExecBoundedStreamScan) nodeList.get(4)).getSourceTransformation().getParallelism()).thenReturn(parallelism);
+		} else {
+			when(((StreamExecDataStreamScan) nodeList.get(4)).getSourceTransformation().getParallelism()).thenReturn(parallelism);
+		}
+		return node;
 	}
 
 	protected void createNodeList(int num) {
 		nodeList = new LinkedList<>();
 		for (int i = 0; i < num; i++) {
-			ExecNode<?, ?>  node = mock(BatchExecCalc.class);
+			ExecNode<?, ?>  node = isBatch ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
 			when(node.getInputNodes()).thenReturn(new ArrayList<>());
+			when(node.getResource()).thenReturn(new NodeResource());
 			when(node.toString()).thenReturn("id: " + i);
 			nodeList.add(node);
 		}

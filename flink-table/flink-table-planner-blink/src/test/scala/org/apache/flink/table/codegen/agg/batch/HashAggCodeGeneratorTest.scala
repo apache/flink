@@ -123,7 +123,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
     val auxGrouping = if (isMerge) Array(1) else Array(4)
     val generator = new HashAggCodeGenerator(
       ctx, relBuilder, aggInfoList, iType, oType, Array(0), auxGrouping, isMerge, isFinal)
-    val genOp = generator.genWithKeys(100 * 32 * 1024, 0)
+    val genOp = generator.genWithKeys(100 * 32 * 1024)
     (new CodeGenOperatorFactory[BaseRow](genOp), iType, oType)
   }
 

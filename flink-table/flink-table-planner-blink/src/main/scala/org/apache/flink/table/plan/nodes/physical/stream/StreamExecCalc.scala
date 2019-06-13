@@ -116,11 +116,16 @@ class StreamExecCalc(
       retainHeader = true,
       "StreamExecCalc"
     )
-    new OneInputTransformation(
+    val ret = new OneInputTransformation(
       inputTransform,
       RelExplainUtil.calcToString(calcProgram, getExpressionString),
       substituteStreamOperator,
       BaseRowTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      getResource.getParallelism)
+
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+    ret
   }
 }

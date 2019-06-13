@@ -283,11 +283,10 @@ class StreamExecOverAggregate(
       "OverAggregate",
       operator,
       returnTypeInfo,
-      inputDS.getParallelism)
+      getResource.getParallelism)
 
-    if (partitionKeys.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
     }
 
     // set KeyType and Selector for state

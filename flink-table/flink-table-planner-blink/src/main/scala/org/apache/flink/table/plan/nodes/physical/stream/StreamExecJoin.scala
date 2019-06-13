@@ -187,11 +187,10 @@ class StreamExecJoin(
       getJoinOperatorName(),
       operator,
       returnType,
-      leftTransform.getParallelism)
+      getResource.getParallelism)
 
-    if (leftJoinKey.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
     }
 
     // set KeyType and Selector for state

@@ -26,6 +26,8 @@ public class NodeResource {
 	// node parallelism
 	private int parallelism = -1;
 
+	private int maxParallelism = -1;
+
 	public int getParallelism() {
 		return parallelism;
 	}
@@ -34,10 +36,21 @@ public class NodeResource {
 		this.parallelism = parallelism;
 	}
 
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	public void setMaxParallelism(int maxParallelism) {
+		this.maxParallelism = maxParallelism;
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("{");
 		sb.append("parallelism=").append(parallelism);
+		if (maxParallelism > 0) {
+			sb.append(", maxParallelism=").append(maxParallelism);
+		}
 		sb.append("}");
 		return sb.toString();
 	}

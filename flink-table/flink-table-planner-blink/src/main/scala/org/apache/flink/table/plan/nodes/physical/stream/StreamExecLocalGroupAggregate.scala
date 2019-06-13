@@ -148,7 +148,11 @@ class StreamExecLocalGroupAggregate(
       "LocalGroupAggregate",
       operator,
       BaseRowTypeInfo.of(outRowType),
-      inputTransformation.getParallelism)
+      getResource.getParallelism)
+
+    if (getResource.getMaxParallelism > 0) {
+      transformation.setMaxParallelism(getResource.getMaxParallelism)
+    }
 
     transformation
   }

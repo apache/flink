@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
@@ -134,11 +134,9 @@ abstract class BatchExecHashAggregateBase(
     } else {
       val reservedManagedMem = tableEnv.config.getConf.getInteger(
         TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
-      val maxManagedMem = tableEnv.config.getConf.getInteger(
-        TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM) * NodeResourceConfig.SIZE_IN_MB
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal
-      ).genWithKeys(reservedManagedMem, maxManagedMem)
+      ).genWithKeys(reservedManagedMem)
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
     new OneInputTransformation(

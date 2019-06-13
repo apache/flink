@@ -28,8 +28,9 @@ import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
-import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
+import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
+import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -92,17 +93,20 @@ class BatchExecSink[T](
         }
         val sinkTransformation = dsSink.getTransformation
 
-        if (sinkTransformation.getMaxParallelism > 0) {
-          sinkTransformation.setParallelism(sinkTransformation.getMaxParallelism)
-        } else {
-          val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
-            tableEnv.getConfig.getConf)
-          if (configSinkParallelism > 0) {
+        val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
+          tableEnv.getConfig.getConf)
+
+        val maxSinkParallelism = sinkTransformation.getMaxParallelism
+
+        // only set user's parallelism when user defines a sink parallelism
+        if (configSinkParallelism > 0) {
+          // set the parallelism when user's parallelism is not larger than max parallelism
+          // or max parallelism is not set
+          if (maxSinkParallelism < 0 || configSinkParallelism <= maxSinkParallelism) {
             sinkTransformation.setParallelism(configSinkParallelism)
-          } else if (boundedStream.getParallelism > 0) {
-            sinkTransformation.setParallelism(boundedStream.getParallelism)
           }
         }
+
         sinkTransformation
 
       case dsTableSink: DataStreamTableSink[T] =>

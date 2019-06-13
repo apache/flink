@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
+package org.apache.flink.table.plan.nodes.resource.parallelism;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
+import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,43 +33,63 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Parallelism calculator for shuffle stage.
+ * Parallelism calculator for shuffleStages.
  */
-public class BatchShuffleStageParallelismCalculator {
-	private static final Logger LOG = LoggerFactory.getLogger(BatchShuffleStageParallelismCalculator.class);
+public class ShuffleStageParallelismCalculator {
+	private static final Logger LOG = LoggerFactory.getLogger(ShuffleStageParallelismCalculator.class);
 	private final Configuration tableConf;
 	private final int envParallelism;
 
-	public BatchShuffleStageParallelismCalculator(Configuration tableConf, int envParallelism) {
+	private ShuffleStageParallelismCalculator(Configuration tableConf, int envParallelism) {
 		this.tableConf = tableConf;
 		this.envParallelism = envParallelism;
 	}
 
-	public void calculate(Collection<ShuffleStage> shuffleStages) {
+	public static void calculate(Configuration tableConf, int envParallelism, Collection<ShuffleStage> shuffleStages) {
+		new ShuffleStageParallelismCalculator(tableConf, envParallelism).calculate(shuffleStages);
+	}
+
+	private void calculate(Collection<ShuffleStage> shuffleStages) {
 		Set<ShuffleStage> shuffleStageSet = new HashSet<>(shuffleStages);
 		shuffleStageSet.forEach(this::calculate);
 	}
 
+	/**
+	 * If there are source nodes in a shuffleStage, its parallelism is the max parallelism of source
+	 * nodes. Otherwise, its parallelism is the default operator parallelism.
+	 */
 	@VisibleForTesting
 	protected void calculate(ShuffleStage shuffleStage) {
 		if (shuffleStage.isFinalParallelism()) {
 			return;
 		}
 		Set<ExecNode<?, ?>> nodeSet = shuffleStage.getExecNodeSet();
-		int maxSourceParallelism = -1;
+		int sourceParallelism = -1;
+		int maxParallelism = shuffleStage.getMaxParallelism();
 		for (ExecNode<?, ?> node : nodeSet) {
+			// only infer batch source according to rowCount.
 			if (node instanceof BatchExecTableSourceScan) {
 				int result = calculateSource((BatchExecTableSourceScan) node);
-				if (result > maxSourceParallelism) {
-					maxSourceParallelism = result;
+				if (result > sourceParallelism) {
+					sourceParallelism = result;
+				}
+			} else if (node instanceof StreamExecTableSourceScan) {
+				int result = NodeResourceConfig.getSourceParallelism(tableConf, envParallelism);
+				if (result > sourceParallelism) {
+					sourceParallelism = result;
 				}
 			}
 		}
-		if (maxSourceParallelism > 0) {
-			shuffleStage.setParallelism(maxSourceParallelism, false);
+		int shuffleStageParallelism;
+		if (sourceParallelism > 0) {
+			shuffleStageParallelism = sourceParallelism;
 		} else {
-			shuffleStage.setParallelism(NodeResourceConfig.getOperatorDefaultParallelism(getTableConf(), envParallelism), false);
+			shuffleStageParallelism = NodeResourceConfig.getOperatorDefaultParallelism(getTableConf(), envParallelism);
 		}
+		if (shuffleStageParallelism > maxParallelism) {
+			shuffleStageParallelism = maxParallelism;
+		}
+		shuffleStage.setParallelism(shuffleStageParallelism, false);
 	}
 
 	private int calculateSource(BatchExecTableSourceScan tableSourceScan) {
