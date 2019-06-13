@@ -33,6 +33,7 @@ import scala.collection.{Seq, mutable}
 
 object TestData {
 
+  val type1 = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO)
   val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO)
   val type5 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO,
     LONG_TYPE_INFO)
@@ -50,6 +51,17 @@ object TestData {
     LONG_TYPE_INFO)
   val type3WithTimestamp = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO,
     TIMESTAMP)
+
+  val nullablesOfData1 = Array(false, false, false)
+
+  lazy val data1: Seq[Row] = Seq(
+    row(2, "a", 6),
+    row(4, "b", 8),
+    row(6, "c", 10),
+    row(1, "a", 5),
+    row(3, "b", 7),
+    row(5, "c", 9)
+  )
 
   lazy val nullData3: Seq[Row] = data3 ++ Seq(
     row(null, 999L, "NullTuple"),

@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
+import org.apache.flink.table.plan.logical.LogicalOverWindow;
 
 import java.util.List;
 import java.util.Optional;
@@ -64,5 +65,9 @@ public interface ResolverRule {
 		 */
 		Optional<LocalReferenceExpression> getLocalReference(String alias);
 
+		/**
+		 * Lookup for over windows.
+		 */
+		Optional<LogicalOverWindow> getOverWindow(Expression alias);
 	}
 }

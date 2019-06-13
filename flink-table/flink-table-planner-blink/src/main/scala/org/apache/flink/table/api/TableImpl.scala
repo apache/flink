@@ -344,7 +344,9 @@ class TableImpl(
 
   override def window(groupWindow: GroupWindow): GroupWindowedTable = ???
 
-  override def window(overWindows: OverWindow*): OverWindowedTable = ???
+  override def window(overWindows: OverWindow*): OverWindowedTable = {
+    new OverWindowedTableImpl(this, overWindows)
+  }
 
   override def addColumns(fields: String): Table = ???
 
@@ -462,5 +464,30 @@ class AggregatedTableImpl(
           tableImpl.operationTree
         )
       ))
+  }
+}
+
+/**
+  * The implementation of an [[OverWindowedTable]] that has been windowed for [[OverWindow]]s.
+  */
+class OverWindowedTableImpl(
+    private[flink] val table: Table,
+    private[flink] val overWindows: Seq[OverWindow])
+  extends OverWindowedTable{
+
+  private val tableImpl = table.asInstanceOf[TableImpl]
+
+  override def select(fields: String): Table = {
+    select(ExpressionParser.parseExpressionList(fields).asScala: _*)
+  }
+
+  override def select(fields: Expression*): Table = {
+    new TableImpl(
+      tableImpl.tableEnv,
+      tableImpl.operationTreeBuilder
+        .project(fields.asJava,
+          tableImpl.operationTree,
+          overWindows.asJava)
+    )
   }
 }

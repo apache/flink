@@ -20,6 +20,23 @@ package org.apache.flink.table.plan.logical
 
 import org.apache.flink.table.expressions._
 
+import java.util.{List => JList, Optional}
+
+// ------------------------------------------------------------------------------------------------
+// Over windows
+// ------------------------------------------------------------------------------------------------
+
+case class LogicalOverWindow(
+    alias: Expression,
+    partitionBy: JList[Expression],
+    orderBy: Expression,
+    preceding: Expression,
+    following: Optional[Expression])
+
+// ------------------------------------------------------------------------------------------------
+// Group windows
+// ------------------------------------------------------------------------------------------------
+
 /**
   * Logical super class for group windows.
   *

@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
+import org.apache.flink.table.util.CountAggFunction
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
 
@@ -2459,50 +2460,3 @@ class CountAccumulator extends JTuple1[Long] {
   f0 = 0L //count
 }
 
-class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
-
-  def accumulate(acc: CountAccumulator, value: Any): Unit = {
-    if (value != null) {
-      acc.f0 += 1L
-    }
-  }
-
-  def accumulate(acc: CountAccumulator): Unit = {
-    acc.f0 += 1L
-  }
-
-  def retract(acc: CountAccumulator, value: Any): Unit = {
-    if (value != null) {
-      acc.f0 -= 1L
-    }
-  }
-
-  def retract(acc: CountAccumulator): Unit = {
-    acc.f0 -= 1L
-  }
-
-  override def getValue(acc: CountAccumulator): JLong = {
-    acc.f0
-  }
-
-  def merge(acc: CountAccumulator, its: JIterable[CountAccumulator]): Unit = {
-    val iter = its.iterator()
-    while (iter.hasNext) {
-      acc.f0 += iter.next().f0
-    }
-  }
-
-  override def createAccumulator(): CountAccumulator = {
-    new CountAccumulator
-  }
-
-  def resetAccumulator(acc: CountAccumulator): Unit = {
-    acc.f0 = 0L
-  }
-
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo(classOf[CountAccumulator], Types.LONG)
-  }
-
-  override def getResultType: TypeInformation[JLong] = Types.LONG
-}

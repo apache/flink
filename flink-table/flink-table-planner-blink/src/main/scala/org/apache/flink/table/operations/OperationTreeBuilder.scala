@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.operations
 
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{OverWindow, StreamTableEnvironment, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
-import org.apache.flink.table.expressions.{AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
+import org.apache.flink.table.expressions.{ApiExpressionDefaultVisitor, AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType
@@ -33,8 +33,9 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
+import org.apache.flink.util.Preconditions
 
-import java.util.{Optional, List => JList}
+import java.util.{Collections, Optional, List => JList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -54,6 +55,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   private val aggregateOperationFactory = new AggregateOperationFactory(isStreaming)
   private val joinOperationFactory = new JoinOperationFactory()
 
+  private val noWindowPropertyChecker = new NoWindowPropertyChecker(
+    "Window start and end properties are not available for Over windows.")
+
   private val tableCatalog = new TableReferenceLookup {
     override def lookupTable(name: String): Optional[TableReferenceExpression] =
       JavaScalaConversionUtil
@@ -65,17 +69,34 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       projectList: JList[Expression],
       child: QueryOperation,
       explicitAlias: Boolean = false): QueryOperation = {
-    projectInternal(projectList, child, explicitAlias)
+    projectInternal(projectList, child, explicitAlias, Collections.emptyList())
+  }
+
+  def project(
+      projectList: JList[Expression],
+      child: QueryOperation,
+      overWindows: JList[OverWindow]): QueryOperation = {
+
+    Preconditions.checkArgument(!overWindows.isEmpty)
+
+    projectList.asScala.map(_.accept(noWindowPropertyChecker))
+
+    projectInternal(projectList,
+      child,
+      explicitAlias = true,
+      overWindows)
   }
 
   private def projectInternal(
       projectList: JList[Expression],
       child: QueryOperation,
-      explicitAlias: Boolean): QueryOperation = {
+      explicitAlias: Boolean,
+      overWindows: JList[OverWindow]): QueryOperation = {
 
-    validateProjectList(projectList)
+    validateProjectList(projectList, overWindows)
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).build
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).withOverWindows(overWindows)
+      .build
     val projections = resolver.resolve(projectList)
     projectionOperationFactory.create(projections, child, explicitAlias)
   }
@@ -85,7 +106,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     * properties should exist in the window operators and aggregate functions should exist in
     * the aggregate operators.
     */
-  private def validateProjectList(projectList: JList[Expression]): Unit = {
+  private def validateProjectList(
+      projectList: JList[Expression],
+      overWindows: JList[OverWindow]): Unit = {
 
     val callResolver = new LookupCallResolver(functionCatalog)
     val expressionsWithResolvedCalls = projectList.map(_.accept(callResolver)).asJava
@@ -95,7 +118,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     }
 
     // aggregate functions can't exist in the plain project except for the over window case
-    if (!extracted.getAggregations.isEmpty) {
+    if (!extracted.getAggregations.isEmpty && overWindows.isEmpty) {
       throw new ValidationException("Aggregate functions are not supported in the select right" +
         " after the aggregate or flatAggregate operation.")
     }
@@ -300,5 +323,20 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     val temporalTable = calculatedTableFactory.create(resolvedFunction)
 
     join(left, temporalTable, joinType, condition, correlated = true)
+  }
+
+  class NoWindowPropertyChecker(val exceptionMessage: String)
+    extends ApiExpressionDefaultVisitor[Void] {
+    override def visitCall(call: CallExpression): Void = {
+      val functionDefinition = call.getFunctionDefinition
+      if (BuiltInFunctionDefinitions.WINDOW_PROPERTIES
+        .contains(functionDefinition)) {
+        throw new ValidationException(exceptionMessage)
+      }
+      call.getChildren.asScala.foreach(expr => expr.accept(this))
+      null
+    }
+
+    override protected def defaultMethod(expression: Expression): Void = null
   }
 }

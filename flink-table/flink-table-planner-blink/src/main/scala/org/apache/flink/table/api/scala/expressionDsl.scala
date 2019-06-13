@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.expressions.InternalFunctionDefinitions._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
@@ -264,6 +265,16 @@ trait ImplicitExpressionOperations {
     * Returns multiset aggregate of a given expression.
     */
   def collect: Expression = call(COLLECT, expr)
+
+  /*
+   * Returns row_number aggregate of a given expression.
+   */
+  def rowNumber: Expression = call(ROW_NUMBER, expr)
+
+  /*
+   * Returns rank aggregate of a given expression.
+   */
+  def rank: Expression = call(RANK, expr)
 
   /**
     * Converts a value to a given data type.

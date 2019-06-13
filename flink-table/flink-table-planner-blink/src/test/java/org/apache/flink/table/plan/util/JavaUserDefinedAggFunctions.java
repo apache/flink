@@ -371,4 +371,34 @@ public class JavaUserDefinedAggFunctions {
 			acc.count = 0;
 		}
 	}
+
+	/**
+	 * CountDistinct aggregate with retract.
+	 */
+	public static class CountDistinctWithRetractAndReset extends CountDistinct {
+
+		//Overloaded retract method
+		public void retract(CountDistinctAccum accumulator, long id) {
+			try {
+				Integer cnt = accumulator.map.get(String.valueOf(id));
+				if (cnt != null) {
+					cnt -= 1;
+					if (cnt <= 0) {
+						accumulator.map.remove(String.valueOf(id));
+						accumulator.count -= 1;
+					} else {
+						accumulator.map.put(String.valueOf(id), cnt);
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		//Overloaded retract method
+		public void resetAccumulator(CountDistinctAccum acc) {
+			acc.map.clear();
+			acc.count = 0;
+		}
+	}
 }

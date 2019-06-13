@@ -38,6 +38,11 @@ public final class ResolverRules {
 	public static final ResolverRule LOOKUP_CALL_BY_NAME = new LookupCallByNameRule();
 
 	/**
+	 * Concatenates over aggregations with corresponding over window. See {@link OverWindowResolverRule} for details.
+	 */
+	public static final ResolverRule OVER_WINDOWS = new OverWindowResolverRule();
+
+	/**
 	 * Resolves '*' expressions to corresponding fields of inputs. See {@link StarReferenceFlatteningRule} for details.
 	 */
 	public static final ResolverRule FLATTEN_STAR_REFERENCE = new StarReferenceFlatteningRule();

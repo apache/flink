@@ -25,8 +25,8 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
-import org.apache.flink.table.runtime.batch.sql.CountAggFunction
 import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
+import org.apache.flink.table.util.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit._

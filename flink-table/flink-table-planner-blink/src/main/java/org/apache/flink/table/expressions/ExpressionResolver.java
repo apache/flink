@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.rules.ResolverRule;
 import org.apache.flink.table.expressions.rules.ResolverRules;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.plan.logical.LogicalOverWindow;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ public class ExpressionResolver {
 			ResolverRules.LOOKUP_CALL_BY_NAME,
 			ResolverRules.FLATTEN_STAR_REFERENCE,
 			ResolverRules.EXPAND_COLUMN_FUNCTIONS,
+			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
 			ResolverRules.VERIFY_NO_MORE_UNRESOLVED_EXPRESSIONS);
 	}
@@ -74,6 +76,8 @@ public class ExpressionResolver {
 	private final FunctionDefinitionCatalog functionLookup;
 
 	private final Map<String, LocalReferenceExpression> localReferences;
+
+	private final Map<Expression, LogicalOverWindow> overWindows;
 
 	private final Function<List<Expression>, List<Expression>> resolveFunction;
 
@@ -93,6 +97,7 @@ public class ExpressionResolver {
 			LocalReferenceExpression::getName,
 			Function.identity()
 		));
+		this.overWindows = prepareOverWindows(overWindows);
 	}
 
 	/**
@@ -135,6 +140,15 @@ public class ExpressionResolver {
 			);
 	}
 
+	private Map<Expression, LogicalOverWindow> prepareOverWindows(List<OverWindow> overWindows) {
+		return overWindows.stream()
+				.map(this::resolveOverWindow)
+				.collect(Collectors.toMap(
+						LogicalOverWindow::alias,
+						Function.identity()
+				));
+	}
+
 	private List<Expression> prepareExpressions(List<Expression> expressions) {
 		return expressions.stream()
 			.flatMap(e -> lookupCall(e).stream())
@@ -166,6 +180,16 @@ public class ExpressionResolver {
 		return expressions;
 	}
 
+	private LogicalOverWindow resolveOverWindow(OverWindow overWindow) {
+		return new LogicalOverWindow(
+				overWindow.getAlias(),
+				prepareExpressions(overWindow.getPartitioning()),
+				resolveFieldsInSingleExpression(overWindow.getOrder()),
+				resolveFieldsInSingleExpression(overWindow.getPreceding()),
+				overWindow.getFollowing().map(this::resolveFieldsInSingleExpression)
+		);
+	}
+
 	private class ExpressionResolverContext implements ResolverRule.ResolutionContext {
 
 		@Override
@@ -186,6 +210,11 @@ public class ExpressionResolver {
 		@Override
 		public Optional<LocalReferenceExpression> getLocalReference(String alias) {
 			return Optional.ofNullable(localReferences.get(alias));
+		}
+
+		@Override
+		public Optional<LogicalOverWindow> getOverWindow(Expression alias) {
+			return Optional.ofNullable(overWindows.get(alias));
 		}
 	}
 
