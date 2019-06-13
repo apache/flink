@@ -66,6 +66,7 @@ public class ExpressionResolver {
 			ResolverRules.EXPAND_COLUMN_FUNCTIONS,
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
+			ResolverRules.FLATTEN_CALL,
 			ResolverRules.VERIFY_NO_MORE_UNRESOLVED_EXPRESSIONS);
 	}
 

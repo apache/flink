@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.operations
 
-import org.apache.flink.table.api.{OverWindow, StreamTableEnvironment, TableEnvironment, ValidationException}
-import org.apache.flink.table.api.{GroupWindow, StreamTableEnvironment, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{GroupWindow, OverWindow, StreamTableEnvironment, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
+import org.apache.flink.table.expressions.ExpressionUtils._
+import org.apache.flink.table.expressions.FunctionDefinition.Type._
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
-import org.apache.flink.table.expressions.{ApiExpressionDefaultVisitor, AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
-import org.apache.flink.table.expressions.{AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LocalReferenceExpression, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
+import org.apache.flink.table.expressions.{AggregateFunctionDefinition, ApiExpressionDefaultVisitor, ApiExpressionUtils, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LocalReferenceExpression, LookupCallResolver, TableFunctionDefinition, TableReferenceExpression, UnresolvedReferenceExpression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType
@@ -126,6 +126,45 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     }
   }
 
+  /**
+    * Adds additional columns. Existing fields will be replaced if replaceIfExist is true.
+    */
+  def addColumns(
+      replaceIfExist: Boolean,
+      fieldLists: JList[Expression],
+      child: QueryOperation): QueryOperation = {
+    val newColumns = if (replaceIfExist) {
+      val fieldNames = child.getTableSchema.getFieldNames.toList.asJava
+      ColumnOperationUtils.addOrReplaceColumns(fieldNames, fieldLists)
+    } else {
+      (new UnresolvedReferenceExpression("*") +: fieldLists.asScala).asJava
+    }
+    project(newColumns, child)
+  }
+
+  def renameColumns(
+      aliases: JList[Expression],
+      child: QueryOperation): QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
+    val validateAliases =
+      ColumnOperationUtils.renameColumns(inputFieldNames, resolver.resolve(aliases))
+
+    project(validateAliases, child)
+  }
+
+  def dropColumns(
+      fieldLists: JList[Expression],
+      child: QueryOperation): QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
+    val finalFields = ColumnOperationUtils.dropFields(inputFieldNames, resolver.resolve(fieldLists))
+
+    project(finalFields, child)
+  }
+
   def alias(
       fields: JList[Expression],
       child: QueryOperation): QueryOperation = {
@@ -174,6 +213,65 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
       right: QueryOperation,
       all: Boolean): QueryOperation = {
     setOperationFactory.create(UNION, left, right, all)
+  }
+
+  def map(mapFunction: Expression, child: QueryOperation): QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedMapFunction = resolveSingleExpression(mapFunction, resolver)
+
+    if (!isFunctionOfType(resolvedMapFunction, SCALAR_FUNCTION)) {
+      throw new ValidationException("Only ScalarFunction can be used in the map operator.")
+    }
+
+    val expandedFields = new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
+      List(resolvedMapFunction).asJava)
+    project(Collections.singletonList(expandedFields), child)
+  }
+
+  def flatMap(tableFunction: Expression, child: QueryOperation): QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedTableFunction = resolveSingleExpression(tableFunction, resolver)
+
+    if (!isFunctionOfType(resolvedTableFunction, TABLE_FUNCTION)) {
+      throw new ValidationException("Only TableFunction can be used in the flatMap operator.")
+    }
+
+    val originFieldNames: Seq[String] =
+      resolvedTableFunction.asInstanceOf[CallExpression].getFunctionDefinition match {
+        case tfd: TableFunctionDefinition =>
+          UserDefinedFunctionUtils.getFieldInfo(fromLegacyInfoToDataType(tfd.getResultType))._1
+      }
+
+    val usedFieldNames = child.getTableSchema.getFieldNames.toBuffer
+    val newFieldNames = originFieldNames.map({ e =>
+      val resultName = getUniqueName(e, usedFieldNames)
+      usedFieldNames.append(resultName)
+      resultName
+    })
+
+    val renamedTableFunction = call(
+      BuiltInFunctionDefinitions.AS,
+      resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
+    val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())
+    val rightNode = dropColumns(
+      child.getTableSchema.getFieldNames.map(a => new UnresolvedReferenceExpression(a)).toList,
+      joinNode)
+    alias(originFieldNames.map(a => new UnresolvedReferenceExpression(a)), rightNode)
+  }
+
+  /**
+    * Return a unique name that does not exist in usedFieldNames according to the input name.
+    */
+  private def getUniqueName(inputName: String, usedFieldNames: Seq[String]): String = {
+    var i = 0
+    var resultName = inputName
+    while (usedFieldNames.contains(resultName)) {
+      resultName = resultName + "_" + i
+      i += 1
+    }
+    resultName
   }
 
   def sort(
