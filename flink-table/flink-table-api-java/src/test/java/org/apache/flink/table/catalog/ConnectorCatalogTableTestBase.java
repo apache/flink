@@ -209,7 +209,7 @@ public abstract class ConnectorCatalogTableTestBase {
 	}
 
 	@Test
-	public void testRenameTable_nonPartitionedTable() throws Exception {
+	public void testRenameTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		ConnectorCatalogTable table = createTable();
 		catalog.createTable(path1, table, false);

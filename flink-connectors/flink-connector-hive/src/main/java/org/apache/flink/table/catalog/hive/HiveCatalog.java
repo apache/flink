@@ -328,9 +328,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 
 		if (table instanceof ConnectorCatalogTable) {
-			ConnectorCatalogTable connectorTable = connectorTables.get(tablePath);
 
-			if (connectorTable != null && !tableExistsInHiveMetastore(tablePath)) {
+			if (tableExists(tablePath)) {
 				if (!ignoreIfExists) {
 					throw new TableAlreadyExistException(getName(), tablePath);
 				}
@@ -362,10 +361,15 @@ public class HiveCatalog extends AbstractCatalog {
 
 		ObjectPath newPath = new ObjectPath(tablePath.getDatabaseName(), newTableName);
 
-		ConnectorCatalogTable connectorTable = connectorTables.get(tablePath);
+		ConnectorCatalogTable connectorTable = connectorTables.remove(tablePath);
 
 		if (connectorTable != null) {
-			connectorTables.put(newPath, connectorTable);
+			if (connectorTables.containsKey(newPath)) {
+				throw new TableAlreadyExistException(getName(), newPath);
+			} else {
+				connectorTables.put(newPath, connectorTable);
+			}
+
 			return;
 		}
 
@@ -515,14 +519,9 @@ public class HiveCatalog extends AbstractCatalog {
 	public boolean tableExists(ObjectPath tablePath) throws CatalogException {
 		checkNotNull(tablePath, "tablePath cannot be null");
 
-		return connectorTables.containsKey(tablePath) || tableExistsInHiveMetastore(tablePath);
-	}
-
-	private boolean tableExistsInHiveMetastore(ObjectPath tablePath) {
-		checkNotNull(tablePath, "tablePath cannot be null");
-
 		try {
-			return client.tableExists(tablePath.getDatabaseName(), tablePath.getObjectName());
+			return connectorTables.containsKey(tablePath)
+				|| client.tableExists(tablePath.getDatabaseName(), tablePath.getObjectName());
 		} catch (UnknownDBException e) {
 			return false;
 		} catch (TException e) {
