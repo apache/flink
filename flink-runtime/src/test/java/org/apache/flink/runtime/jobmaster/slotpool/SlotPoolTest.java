@@ -56,8 +56,8 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.junit.After;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -88,6 +88,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link SlotPool}.
+ */
 public class SlotPoolTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SlotPoolTest.class);
@@ -465,7 +468,7 @@ public class SlotPoolTest extends TestLogger {
 	 * Tests that unused offered slots are directly used to fulfill pending slot
 	 * requests.
 	 *
-	 * Moreover it tests that the old slot request is canceled
+	 * <p>Moreover it tests that the old slot request is canceled
 	 *
 	 * <p>See FLINK-8089, FLINK-8934
 	 */
@@ -542,7 +545,11 @@ public class SlotPoolTest extends TestLogger {
 	}
 
 	/**
+<<<<<<< HEAD:flink-runtime/src/test/java/org/apache/flink/runtime/jobmaster/slotpool/SlotPoolTest.java
 	 * Tests that a SlotPool shutdown releases all registered slots
+=======
+	 * Tests that a SlotPoolImpl shutdown releases all registered slots.
+>>>>>>> 316758f40c... [hotfix] Fix checkstyle violations in SlotPoolTest:flink-runtime/src/test/java/org/apache/flink/runtime/jobmaster/slotpool/SlotPoolTest.java
 	 */
 	@Test
 	public void testShutdownReleasesAllSlots() throws Exception {
@@ -614,8 +621,7 @@ public class SlotPoolTest extends TestLogger {
 		try {
 			final BlockingQueue<AllocationID> freedSlots = new ArrayBlockingQueue<>(1);
 			taskManagerGateway.setFreeSlotFunction(
-				(AllocationID allocationId, Throwable cause) ->
-				{
+				(AllocationID allocationId, Throwable cause) -> {
 					try {
 						freedSlots.put(allocationId);
 						return CompletableFuture.completedFuture(Acknowledge.get());
@@ -770,14 +776,13 @@ public class SlotPoolTest extends TestLogger {
 				failException);
 			assertThat(emptyTaskExecutorFuture.get().get(), is(equalTo(taskManagerLocation.getResourceID())));
 			assertThat(freedSlots.take(), is(equalTo(slotOffer.getAllocationId())));
-
 		} finally {
 			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 
 	/**
-	 * Tests that failing an allocation fails the pending slot request
+	 * Tests that failing an allocation fails the pending slot request.
 	 */
 	@Test
 	public void testFailingAllocationFailsPendingSlotRequests() throws Exception {
