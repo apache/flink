@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * writes them to several memory mapped region, using the {@link BufferToByteBuffer}
  * class.
  *
- * <h2>Useage</h2>
+ * <h2>Usage</h2>
  *
  * <p>The class assumes in the first phase that data is written by repeatedly calling
  * {@link #writeBuffer(Buffer)}. That puts the data into the memory region of the memory
