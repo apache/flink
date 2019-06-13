@@ -26,10 +26,12 @@ import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.expressions.{AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
+import org.apache.flink.table.operations.JoinQueryOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 
 import java.util.{Optional, List => JList}
 
@@ -45,7 +47,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
   private val projectionOperationFactory = new ProjectionOperationFactory()
+  private val calculatedTableFactory = new CalculatedTableFactory()
   private val aggregateOperationFactory = new AggregateOperationFactory(isStreaming)
+  private val joinOperationFactory = new JoinOperationFactory()
 
   private val tableCatalog = new TableReferenceLookup {
     override def lookupTable(name: String): Optional[TableReferenceExpression] =
@@ -229,5 +233,31 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
     // add alias
     aliasBackwardFields(flattenedOperation, alias, groupingExpressions.size())
+  }
+
+  def join(
+      left: QueryOperation,
+      right: QueryOperation,
+      joinType: JoinType,
+      condition: Optional[Expression],
+      correlated: Boolean): QueryOperation = {
+    val resolver = resolverFor(tableCatalog, functionCatalog, left, right).build()
+    val resolvedCondition = toScala(condition).map(expr => resolveSingleExpression(expr, resolver))
+
+    joinOperationFactory
+        .create(left, right, joinType, resolvedCondition.getOrElse(valueLiteral(true)), correlated)
+  }
+
+  def joinLateral(
+      left: QueryOperation,
+      tableFunction: Expression,
+      joinType: JoinType,
+      condition: Optional[Expression]): QueryOperation = {
+    val resolver = resolverFor(tableCatalog, functionCatalog, left).build()
+    val resolvedFunction = resolveSingleExpression(tableFunction, resolver)
+
+    val temporalTable = calculatedTableFactory.create(resolvedFunction)
+
+    join(left, temporalTable, joinType, condition, correlated = true)
   }
 }

@@ -69,7 +69,6 @@ import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.plan.schema.BatchTableSourceTable;
 import org.apache.flink.table.plan.schema.FlinkRelOptTable;
 import org.apache.flink.table.plan.schema.FlinkTable;
-import org.apache.flink.table.plan.schema.FlinkTableFunction;
 import org.apache.flink.table.plan.schema.StreamTableSourceTable;
 import org.apache.flink.table.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
@@ -261,9 +260,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		public <U> RelNode visit(CalculatedQueryOperation<U> calculatedTable) {
 			DataType resultType = fromLegacyInfoToDataType(calculatedTable.getResultType());
 			TableFunction<?> tableFunction = calculatedTable.getTableFunction();
+			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
 
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
-			FlinkTableFunction function = new TypedFlinkTableFunction(tableFunction, resultType);
+			TypedFlinkTableFunction function = new TypedFlinkTableFunction(
+					tableFunction, fieldNames, resultType);
 			TableSqlFunction sqlFunction = new TableSqlFunction(
 					tableFunction.functionIdentifier(),
 					tableFunction.toString(),
@@ -279,7 +280,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					Collections.emptyList(),
 					relBuilder.call(sqlFunction, parameters),
 					function.getElementType(null),
-					function.getRowType(typeFactory, null),
+					function.getRowType(typeFactory, null, null),
 					null);
 		}
 

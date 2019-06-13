@@ -19,12 +19,13 @@
 package org.apache.flink.table.api
 
 import _root_.java.util.Collections.emptyList
-
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, LookupCallResolver}
 import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.operations.JoinQueryOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils._
 import org.apache.flink.table.operations.{OperationTreeBuilder, QueryOperation}
 import org.apache.flink.table.plan.QueryOperationConverter
+import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
 
 import org.apache.calcite.rel.RelNode
 
@@ -62,7 +63,7 @@ class TableImpl(
 
   override def getSchema: TableSchema = tableSchema
 
-  override def printSchema(): Unit = ???
+  override def printSchema(): Unit = print(tableSchema.toString)
 
   override def select(fields: String): Table = {
     select(ExpressionParser.parseExpressionList(fields).asScala: _*)
@@ -134,65 +135,119 @@ class TableImpl(
     new TableImpl(tableEnv, operationTreeBuilder.distinct(operationTree))
   }
 
-  override def join(right: Table): Table = ???
+  override def join(right: Table): Table = {
+    joinInternal(right, None, JoinType.INNER)
+  }
 
-  override def join(
-    right: Table,
-    joinPredicate: String): Table = ???
+  override def join(right: Table, joinPredicate: String): Table = {
+    join(right, ExpressionParser.parseExpression(joinPredicate))
+  }
 
-  override def join(
-    right: Table,
-    joinPredicate: Expression): Table = ???
+  override def join(right: Table, joinPredicate: Expression): Table = {
+    joinInternal(right, Some(joinPredicate), JoinType.INNER)
+  }
 
-  override def leftOuterJoin(right: Table): Table = ???
+  override def leftOuterJoin(right: Table): Table = {
+    joinInternal(right, None, JoinType.LEFT_OUTER)
+  }
 
-  override def leftOuterJoin(
-    right: Table,
-    joinPredicate: String): Table = ???
+  override def leftOuterJoin(right: Table, joinPredicate: String): Table = {
+    leftOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
+  }
 
-  override def leftOuterJoin(
-    right: Table,
-    joinPredicate: Expression): Table = ???
+  override def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
+    joinInternal(right, Some(joinPredicate), JoinType.LEFT_OUTER)
+  }
 
-  override def rightOuterJoin(
-    right: Table,
-    joinPredicate: String): Table = ???
+  override def rightOuterJoin(right: Table, joinPredicate: String): Table = {
+    rightOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
+  }
 
-  override def rightOuterJoin(
-    right: Table,
-    joinPredicate: Expression): Table = ???
+  override def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
+    joinInternal(right, Some(joinPredicate), JoinType.RIGHT_OUTER)
+  }
 
-  override def fullOuterJoin(
-    right: Table,
-    joinPredicate: String): Table = ???
+  override def fullOuterJoin(right: Table, joinPredicate: String): Table = {
+    fullOuterJoin(right, ExpressionParser.parseExpression(joinPredicate))
+  }
 
-  override def fullOuterJoin(
-    right: Table,
-    joinPredicate: Expression): Table = ???
+  override def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
+    joinInternal(right, Some(joinPredicate), JoinType.FULL_OUTER)
+  }
 
-  override def joinLateral(tableFunctionCall: String): Table = ???
+  private def joinInternal(
+      right: Table,
+      joinPredicate: Option[Expression],
+      joinType: JoinType)
+  : Table = {
+    // check that the TableEnvironment of right table is not null
+    // and right table belongs to the same TableEnvironment
+    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
+    }
 
-  override def joinLateral(tableFunctionCall: Expression): Table = ???
+    wrap(operationTreeBuilder.join(
+      this.operationTree,
+      right.getQueryOperation,
+      joinType,
+      toJava(joinPredicate),
+      correlated = false))
+  }
 
-  override def joinLateral(
-    tableFunctionCall: String,
-    joinPredicate: String): Table = ???
+  override def joinLateral(tableFunctionCall: String): Table = {
+    joinLateral(ExpressionParser.parseExpression(tableFunctionCall))
+  }
 
-  override def joinLateral(
-    tableFunctionCall: Expression,
-    joinPredicate: Expression): Table = ???
+  override def joinLateral(tableFunctionCall: Expression): Table = {
+    joinLateralInternal(tableFunctionCall, None, JoinType.INNER)
+  }
 
-  override def leftOuterJoinLateral(tableFunctionCall: String): Table = ???
+  override def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
+    joinLateral(
+      ExpressionParser.parseExpression(tableFunctionCall),
+      ExpressionParser.parseExpression(joinPredicate))
+  }
 
-  override def leftOuterJoinLateral(tableFunctionCall: Expression): Table = ???
+  override def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
+    joinLateralInternal(tableFunctionCall, Some(joinPredicate), JoinType.INNER)
+  }
+
+  override def leftOuterJoinLateral(tableFunctionCall: String): Table = {
+    leftOuterJoinLateral(ExpressionParser.parseExpression(tableFunctionCall))
+  }
+
+  override def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
+    joinLateralInternal(tableFunctionCall, None, JoinType.LEFT_OUTER)
+  }
+
+  override def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
+    leftOuterJoinLateral(
+      ExpressionParser.parseExpression(tableFunctionCall),
+      ExpressionParser.parseExpression(joinPredicate))
+  }
 
   override def leftOuterJoinLateral(
-    tableFunctionCall: String,
-    joinPredicate: String): Table = ???
+      tableFunctionCall: Expression, joinPredicate: Expression): Table = {
+    joinLateralInternal(tableFunctionCall, Some(joinPredicate), JoinType.LEFT_OUTER)
+  }
 
-  override def leftOuterJoinLateral(
-    tableFunctionCall: Expression,
-    joinPredicate: Expression): Table = ???
+  private def joinLateralInternal(
+      callExpr: Expression,
+      joinPredicate: Option[Expression],
+      joinType: JoinType): Table = {
+
+    // check join type
+    if (joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
+      throw new ValidationException(
+        "Table functions are currently only supported for inner and left outer lateral joins.")
+    }
+    wrap(operationTreeBuilder.joinLateral(
+      operationTree,
+      callExpr,
+      joinType,
+      toJava(joinPredicate)
+    ))
+  }
 
   override def minus(right: Table): Table = ???
 
