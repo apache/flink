@@ -36,7 +36,10 @@ __all__ = [
     'Csv',
     'Avro',
     'Json',
-    'FileSystem'
+    'FileSystem',
+    'ConnectTableDescriptor',
+    'StreamTableDescriptor',
+    'BatchTableDescriptor'
 ]
 
 
@@ -95,7 +98,8 @@ class Rowtime(Descriptor):
         API record into the rowtime attribute and thus preserves the assigned timestamps from the
         source.
 
-        ..note::
+        .. note::
+
             This extractor only works in streaming environments.
 
         :return: This rowtime descriptor.
@@ -174,7 +178,8 @@ class Schema(Descriptor):
     """
     Describes a schema of a table.
 
-    ..note::
+    .. note::
+
         Field names are matched by the exact name by default (case sensitive).
     """
 
@@ -188,7 +193,7 @@ class Schema(Descriptor):
         Sets the schema with field names and the types. Required.
 
         This method overwrites existing fields added with
-        :func:`~pyflink.table.table_descriptor.Schema.field`.
+        :func:`~pyflink.table.descriptors.Schema.field`.
 
         :param table_schema: The :class:`TableSchema` object.
         :return: This schema object.
@@ -220,7 +225,8 @@ class Schema(Descriptor):
 
         E.g. field("myString", Types.STRING).from_origin_field("CSV_MY_STRING")
 
-        ..note::
+        .. note::
+
             Field names are matched by the exact name by default (case sensitive).
 
         :param origin_field_name: The origin field name.
@@ -269,13 +275,15 @@ class OldCsv(FormatDescriptor):
     """
     Format descriptor for comma-separated values (CSV).
 
-    ..note::
+    .. note::
+
         This descriptor describes Flink's non-standard CSV table source/sink. In the future, the
         descriptor will be replaced by a proper RFC-compliant version. Use the RFC-compliant `Csv`
         format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use
         the old one for stream/batch filesystem operations for now.
 
-    ..note::
+    .. note::
+
         Deprecated: use the RFC-compliant `Csv` format instead when writing to Kafka.
     """
 
@@ -295,8 +303,8 @@ class OldCsv(FormatDescriptor):
         return self
 
     def line_delimiter(self, delimiter):
-        """
-        Sets the line delimiter, "\n" by default.
+        r"""
+        Sets the line delimiter, "\\n" by default.
 
         :param delimiter: The line delimiter.
         :return: This :class:`OldCsv` object.
@@ -309,10 +317,10 @@ class OldCsv(FormatDescriptor):
         Sets the schema with field names and the types. Required.
 
         This method overwrites existing fields added with
-        :func:`~pyflink.table.table_descriptor.OldCsv.field`.
+        :func:`~pyflink.table.descriptors.OldCsv.field`.
 
         :param table_schema: The :class:`TableSchema` object.
-        :return: This schema object.
+        :return: This :class:`OldCsv` object.
         """
         self._j_csv = self._j_csv.schema(table_schema._j_table_schema)
         return self
@@ -379,7 +387,8 @@ class Csv(FormatDescriptor):
     This descriptor aims to comply with RFC-4180 ("Common Format and MIME Type for
     Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
 
-    ..note::
+    .. note::
+
         This descriptor does not describe Flink's old non-standard CSV table
         source/sink. Currently, this descriptor can be used when writing to Kafka. The old one is
         still available as :class:`OldCsv` for stream/batch filesystem operations.
@@ -403,8 +412,8 @@ class Csv(FormatDescriptor):
         return self
 
     def line_delimiter(self, delimiter):
-        """
-        Sets the line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed).
+        r"""
+        Sets the line delimiter ("\\n" by default; otherwise "\\r" or "\\r\\n" are allowed).
 
         :param delimiter: The line delimiter.
         :return: This :class:`Csv` object.
@@ -747,7 +756,7 @@ class Kafka(ConnectorDescriptor):
         If the provided map of offsets contains entries whose partition is not subscribed by the
         consumer, the entry will be ignored. If the consumer subscribes to a partition that does
         not exist in the provided map of offsets, the consumer will fallback to the default group
-        offset behaviour(see :func:`pyflink.table.table_descriptor.Kafka.start_from_group_offsets`)
+        offset behaviour(see :func:`pyflink.table.descriptors.Kafka.start_from_group_offsets`)
         for that particular partition.
 
         If the specified offset for a partition is invalid, or the behaviour for that partition is
@@ -772,10 +781,10 @@ class Kafka(ConnectorDescriptor):
         Configures to start reading partitions from specific offsets and specifies the given offset
         for the given partition.
 
-        see :func:`pyflink.table.table_descriptor.Kafka.start_from_specific_offsets`
+        see :func:`pyflink.table.descriptors.Kafka.start_from_specific_offsets`
 
-        :param partition:
-        :param specific_offset:
+        :param partition: Partition id.
+        :param specific_offset: Specified offset in given partition.
         :return: This object.
         """
         self._j_kafka = self._j_kafka.startFromSpecificOffset(int(partition), int(specific_offset))
@@ -787,7 +796,8 @@ class Kafka(ConnectorDescriptor):
 
         This strategy ensures that each Flink partition ends up in one Kafka partition.
 
-        ..note::
+        .. note::
+
             One Kafka partition can contain multiple Flink partitions. Examples:
 
             More Flink partitions than Kafka partitions. Some (or all) Kafka partitions contain
@@ -820,7 +830,8 @@ class Kafka(ConnectorDescriptor):
         This strategy ensures that records will be distributed to Kafka partitions in a
         round-robin fashion.
 
-        ..note::
+        .. note::
+
             This strategy is useful to avoid an unbalanced partitioning. However, it will cause a
             lot of network connections between all the Flink instances and all the Kafka brokers.
 
@@ -980,7 +991,8 @@ class Elasticsearch(ConnectorDescriptor):
         Disables flushing on checkpoint. When disabled, a sink will not wait for all pending action
         requests to be acknowledged by Elasticsearch on checkpoints.
 
-        ..note::
+        .. note::
+
             If flushing on checkpoint is disabled, a Elasticsearch sink does NOT
             provide any strong guarantees for at-least-once delivery of action requests.
 
@@ -1061,8 +1073,8 @@ class Elasticsearch(ConnectorDescriptor):
         Sets the maximum number of retries for a backoff attempt when flushing bulk requests.
 
         Make sure to enable backoff by selecting a strategy (
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_constant` or
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_exponential`).
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_constant` or
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_exponential`).
 
         :param max_retries: The maximum number of retries.
         :return: This object.
@@ -1079,8 +1091,8 @@ class Elasticsearch(ConnectorDescriptor):
         (in milliseconds).
 
         Make sure to enable backoff by selecting a strategy (
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_constant` or
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_exponential`).
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_constant` or
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_exponential`).
 
         :param delay: Delay between each backoff attempt (in milliseconds).
         :return: This object.
@@ -1121,9 +1133,9 @@ class ConnectTableDescriptor(Descriptor):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, j_table_descriptor):
-        self._j_table_descriptor = j_table_descriptor
-        super(ConnectTableDescriptor, self).__init__(self._j_table_descriptor)
+    def __init__(self, j_connect_table_descriptor):
+        self._j_connect_table_descriptor = j_connect_table_descriptor
+        super(ConnectTableDescriptor, self).__init__(self._j_connect_table_descriptor)
 
     def with_format(self, format_descriptor):
         """
@@ -1133,8 +1145,8 @@ class ConnectTableDescriptor(Descriptor):
                                  e.g. :class:`OldCsv`.
         :return: This object.
         """
-        self._j_table_descriptor = \
-            self._j_table_descriptor.withFormat(format_descriptor._j_format_descriptor)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.withFormat(format_descriptor._j_format_descriptor)
         return self
 
     def with_schema(self, schema):
@@ -1144,7 +1156,8 @@ class ConnectTableDescriptor(Descriptor):
         :type schema: The :class:`Schema` object for the resulting table.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.withSchema(schema._j_schema)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.withSchema(schema._j_schema)
         return self
 
     def register_table_sink(self, name):
@@ -1155,7 +1168,7 @@ class ConnectTableDescriptor(Descriptor):
         :param name: Table name to be registered in the table environment.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.registerTableSink(name)
+        self._j_connect_table_descriptor = self._j_connect_table_descriptor.registerTableSink(name)
         return self
 
     def register_table_source(self, name):
@@ -1166,7 +1179,8 @@ class ConnectTableDescriptor(Descriptor):
         :param name: Table name to be registered in the table environment.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.registerTableSource(name)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.registerTableSource(name)
         return self
 
     def register_table_source_and_sink(self, name):
@@ -1177,7 +1191,8 @@ class ConnectTableDescriptor(Descriptor):
         :param name: Table name to be registered in the table environment.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.registerTableSourceAndSink(name)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.registerTableSourceAndSink(name)
         return self
 
 
@@ -1247,5 +1262,5 @@ class BatchTableDescriptor(ConnectTableDescriptor):
     """
 
     def __init__(self, j_batch_table_descriptor):
-        self.j_batch_table_descriptor = j_batch_table_descriptor
-        super(BatchTableDescriptor, self).__init__(self.j_batch_table_descriptor)
+        self._j_batch_table_descriptor = j_batch_table_descriptor
+        super(BatchTableDescriptor, self).__init__(self._j_batch_table_descriptor)

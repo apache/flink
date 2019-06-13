@@ -17,8 +17,8 @@
 ################################################################################
 import os
 
-from pyflink.table.table_descriptor import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
-                                            Elasticsearch, Csv, Avro, Json)
+from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
+                                       Elasticsearch, Csv, Avro, Json)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,

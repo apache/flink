@@ -56,18 +56,19 @@ class StreamQueryConfig(QueryConfig):
         When new data arrives for previously cleaned-up state, the new data will be handled as if it
         was the first data. This can result in previous results being overwritten.
 
-        Set to ``datetime.timedelta()``(zero) to never clean-up the state.
+        Set to 0 (zero) to never clean-up the state.
 
         .. note::
+
             Cleaning up state requires additional bookkeeping which becomes less expensive for
             larger differences of minTime and maxTime. The difference between minTime and maxTime
-            must be at least ``datetime.timedelta(minutes=5)``(5 minutes).
+            must be at least 5 minutes.
 
         :param min_time: The minimum time interval for which idle state is retained. Set to
-                         ``datetime.timedelta()``(zero) to never clean-up the state.
+                         0 (zero) to never clean-up the state.
         :param max_time: The maximum time interval for which idle state is retained. Must be at
                          least 5 minutes greater than minTime. Set to
-                         ``datetime.timedelta()``(zero) to never clean-up the state.
+                         0 (zero) to never clean-up the state.
         :return: :class:`StreamQueryConfig`
         """
         #  type: (timedelta, timedelta) -> StreamQueryConfig

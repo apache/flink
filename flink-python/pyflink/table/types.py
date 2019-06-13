@@ -1469,30 +1469,34 @@ class Row(tuple):
     a named argument to represent the value is None or missing. This should be
     explicitly set to None in this case.
 
-    >>> row = Row(name="Alice", age=11)
-    >>> row
-    Row(age=11, name='Alice')
-    >>> row['name'], row['age']
-    ('Alice', 11)
-    >>> row.name, row.age
-    ('Alice', 11)
-    >>> 'name' in row
-    True
-    >>> 'wrong_key' in row
-    False
+    ::
+
+        >>> row = Row(name="Alice", age=11)
+        >>> row
+        Row(age=11, name='Alice')
+        >>> row['name'], row['age']
+        ('Alice', 11)
+        >>> row.name, row.age
+        ('Alice', 11)
+        >>> 'name' in row
+        True
+        >>> 'wrong_key' in row
+        False
 
     Row can also be used to create another Row like class, then it
     could be used to create Row objects, such as
 
-    >>> Person = Row("name", "age")
-    >>> Person
-    <Row(name, age)>
-    >>> 'name' in Person
-    True
-    >>> 'wrong_key' in Person
-    False
-    >>> Person("Alice", 11)
-    Row(name='Alice', age=11)
+    ::
+
+        >>> Person = Row("name", "age")
+        >>> Person
+        <Row(name, age)>
+        >>> 'name' in Person
+        True
+        >>> 'wrong_key' in Person
+        False
+        >>> Person("Alice", 11)
+        Row(name='Alice', age=11)
     """
 
     def __new__(cls, *args, **kwargs):
@@ -1515,15 +1519,18 @@ class Row(tuple):
         """
         Returns as a dict.
 
-        :param recursive: turns the nested Row as dict (default: False).
+        Example:
+        ::
 
-        >>> Row(name="Alice", age=11).as_dict() == {'name': 'Alice', 'age': 11}
-        True
-        >>> row = Row(key=1, value=Row(name='a', age=2))
-        >>> row.as_dict() == {'key': 1, 'value': Row(age=2, name='a')}
-        True
-        >>> row.as_dict(True) == {'key': 1, 'value': {'name': 'a', 'age': 2}}
-        True
+            >>> Row(name="Alice", age=11).as_dict() == {'name': 'Alice', 'age': 11}
+            True
+            >>> row = Row(key=1, value=Row(name='a', age=2))
+            >>> row.as_dict() == {'key': 1, 'value': Row(age=2, name='a')}
+            True
+            >>> row.as_dict(True) == {'key': 1, 'value': {'name': 'a', 'age': 2}}
+            True
+
+        :param recursive: turns the nested Row as dict (default: False).
         """
         if not hasattr(self, "_fields"):
             raise TypeError("Cannot convert a Row class into dict")
