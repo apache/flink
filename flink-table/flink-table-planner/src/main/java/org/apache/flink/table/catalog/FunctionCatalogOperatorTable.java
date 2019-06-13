@@ -40,12 +40,12 @@ import java.util.Optional;
  * Thin adapter between {@link SqlOperatorTable} and {@link FunctionCatalog}.
  */
 @Internal
-public class CatalogOperatorTable implements SqlOperatorTable {
+public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 
 	private final FunctionCatalog functionCatalog;
 	private final FlinkTypeFactory typeFactory;
 
-	public CatalogOperatorTable(
+	public FunctionCatalogOperatorTable(
 			FunctionCatalog functionCatalog,
 			FlinkTypeFactory typeFactory) {
 		this.functionCatalog = functionCatalog;
@@ -98,38 +98,35 @@ public class CatalogOperatorTable implements SqlOperatorTable {
 	}
 
 	private Optional<SqlFunction> convertAggregateFunction(
-		String name,
-		AggregateFunctionDefinition functionDefinition) {
-		AggregateFunctionDefinition aggregateFunctionDefinition = functionDefinition;
+			String name,
+			AggregateFunctionDefinition functionDefinition) {
 		SqlFunction aggregateFunction = UserDefinedFunctionUtils.createAggregateSqlFunction(
 			name,
 			name,
-			aggregateFunctionDefinition.getAggregateFunction(),
-			aggregateFunctionDefinition.getResultTypeInfo(),
-			aggregateFunctionDefinition.getAccumulatorTypeInfo(),
+			functionDefinition.getAggregateFunction(),
+			functionDefinition.getResultTypeInfo(),
+			functionDefinition.getAccumulatorTypeInfo(),
 			typeFactory
 		);
 		return Optional.of(aggregateFunction);
 	}
 
 	private Optional<SqlFunction> convertScalarFunction(String name, ScalarFunctionDefinition functionDefinition) {
-		ScalarFunctionDefinition scalarFunctionDefinition = functionDefinition;
 		SqlFunction scalarFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
 			name,
 			name,
-			scalarFunctionDefinition.getScalarFunction(),
+			functionDefinition.getScalarFunction(),
 			typeFactory
 		);
 		return Optional.of(scalarFunction);
 	}
 
 	private Optional<SqlFunction> convertTableFunction(String name, TableFunctionDefinition functionDefinition) {
-		TableFunctionDefinition tableFunctionDefinition = functionDefinition;
 		SqlFunction tableFunction = UserDefinedFunctionUtils.createTableSqlFunction(
 			name,
 			name,
-			tableFunctionDefinition.getTableFunction(),
-			tableFunctionDefinition.getResultType(),
+			functionDefinition.getTableFunction(),
+			functionDefinition.getResultType(),
 			typeFactory
 		);
 		return Optional.of(tableFunction);

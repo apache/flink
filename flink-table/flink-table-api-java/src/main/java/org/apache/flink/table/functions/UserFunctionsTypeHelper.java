@@ -166,8 +166,8 @@ public class UserFunctionsTypeHelper {
 		// TODO it is not a good way to check singleton. Maybe improve it further.
 		if (Arrays.stream(clazz.getFields()).anyMatch(f -> f.getName().equals("MODULE$"))) {
 			throw new ValidationException(String.format(
-				"TableFunction implemented by class %s " +
-					"is a Scala object, it is forbidden since concurrent risks.", clazz.getCanonicalName()));
+				"TableFunction implemented by class %s is a Scala object. This is forbidden because of concurrency" +
+					" problems when using them.", clazz.getCanonicalName()));
 		}
 	}
 

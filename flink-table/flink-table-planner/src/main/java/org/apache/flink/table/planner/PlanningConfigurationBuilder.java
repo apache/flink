@@ -28,9 +28,9 @@ import org.apache.flink.table.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.FlinkTypeSystem;
 import org.apache.flink.table.catalog.BasicOperatorTable;
-import org.apache.flink.table.catalog.CatalogOperatorTable;
 import org.apache.flink.table.catalog.CatalogReader;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpression;
@@ -226,7 +226,7 @@ public class PlanningConfigurationBuilder {
 	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig, FunctionCatalog functionCatalog) {
 		SqlOperatorTable baseOperatorTable = ChainedSqlOperatorTable.of(
 			new BasicOperatorTable(),
-			new CatalogOperatorTable(functionCatalog, typeFactory)
+			new FunctionCatalogOperatorTable(functionCatalog, typeFactory)
 		);
 
 		return JavaScalaConversionUtil.toJava(calciteConfig.sqlOperatorTable()).map(operatorTable -> {
