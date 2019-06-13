@@ -31,7 +31,8 @@ import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import scala.collection.JavaConverters._
 
 /**
-  * An [[Optimizer]] that can be used for optimizing a streaming plan.
+  * An [[Optimizer]] that can be used for optimizing a streaming plan. Should be used to create an
+  * optimized tree from a logical input tree.
   *
   * @param calciteConfig provider for [[CalciteConfig]]. It is a provider because the
   *                      [[org.apache.flink.table.api.TableConfig]] in a
@@ -68,7 +69,7 @@ class StreamOptimizer(
   }
 
   /**
-    * Returns the decoration rule set for this environment
+    * Returns the decoration rule set for this optimizer
     * including a custom RuleSet configuration.
     */
   protected def getDecoRuleSet: RuleSet = {
@@ -87,17 +88,17 @@ class StreamOptimizer(
   }
 
   /**
-    * Returns the built-in normalization rules that are defined by the environment.
+    * Returns the built-in normalization rules that are defined by the optimizer.
     */
   protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_NORM_RULES
 
   /**
-    * Returns the built-in optimization rules that are defined by the environment.
+    * Returns the built-in optimization rules that are defined by the optimizer.
     */
   protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
 
   /**
-    * Returns the built-in decoration rules that are defined by the environment.
+    * Returns the built-in decoration rules that are defined by the optimizer.
     */
   protected def getBuiltInDecoRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_DECO_RULES
 

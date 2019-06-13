@@ -35,7 +35,7 @@ import scala.collection.JavaConverters._
 /**
   * Common functionalities for both [[StreamOptimizer]] and [[BatchOptimizer]]. An [[Optimizer]]
   * should be used to create an optimized tree from a logical input tree.
-  * See [[StreamOptimizer.optimize]]and [[BatchOptimizer.optimize]]
+  * See [[StreamOptimizer.optimize]] and [[BatchOptimizer.optimize]]
   *
   * @param calciteConfig provider for [[CalciteConfig]]. It is a provider because the
   *                      [[org.apache.flink.table.api.TableConfig]] in a
@@ -50,7 +50,7 @@ abstract class Optimizer(
   protected def materializedConfig: CalciteConfig = calciteConfig.apply()
 
   /**
-    * Returns the normalization rule set for this environment
+    * Returns the normalization rule set for this optimizer
     * including a custom RuleSet configuration.
     */
   protected def getNormRuleSet: RuleSet = {
@@ -69,7 +69,7 @@ abstract class Optimizer(
   }
 
   /**
-    * Returns the logical optimization rule set for this environment
+    * Returns the logical optimization rule set for this optimizer
     * including a custom RuleSet configuration.
     */
   protected def getLogicalOptRuleSet: RuleSet = {
@@ -88,7 +88,7 @@ abstract class Optimizer(
   }
 
   /**
-    * Returns the physical optimization rule set for this environment
+    * Returns the physical optimization rule set for this optimizer
     * including a custom RuleSet configuration.
     */
   protected def getPhysicalOptRuleSet: RuleSet = {
@@ -107,19 +107,19 @@ abstract class Optimizer(
   }
 
   /**
-    * Returns the built-in normalization rules that are defined by the environment.
+    * Returns the built-in normalization rules that are defined by the optimizer.
     */
   protected def getBuiltInNormRuleSet: RuleSet
 
   /**
-    * Returns the built-in logical optimization rules that are defined by the environment.
+    * Returns the built-in logical optimization rules that are defined by the optimizer.
     */
   protected def getBuiltInLogicalOptRuleSet: RuleSet = {
     FlinkRuleSets.LOGICAL_OPT_RULES
   }
 
   /**
-    * Returns the built-in physical optimization rules that are defined by the environment.
+    * Returns the built-in physical optimization rules that are defined by the optimizer.
     */
   protected def getBuiltInPhysicalOptRuleSet: RuleSet
 

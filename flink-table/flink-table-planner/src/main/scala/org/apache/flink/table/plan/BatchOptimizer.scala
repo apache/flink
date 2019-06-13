@@ -27,7 +27,8 @@ import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
 
 /**
-  * An [[Optimizer]] that can be used for optimizing a batch plan.
+  * An [[Optimizer]] that can be used for optimizing a batch plan. Should be used to create an
+  * optimized tree from a logical input tree.
   *
   * @param calciteConfig provider for [[CalciteConfig]]. It is a provider because the
   *                      [[org.apache.flink.table.api.TableConfig]] in a
@@ -56,12 +57,12 @@ class BatchOptimizer(
   }
 
   /**
-    * Returns the built-in normalization rules that are defined by the environment.
+    * Returns the built-in normalization rules that are defined by the optimizer.
     */
   protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASET_NORM_RULES
 
   /**
-    * Returns the built-in optimization rules that are defined by the environment.
+    * Returns the built-in optimization rules that are defined by the optimizer.
     */
   protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
 
