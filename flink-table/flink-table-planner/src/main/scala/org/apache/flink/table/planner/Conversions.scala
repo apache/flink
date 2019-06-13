@@ -26,8 +26,14 @@ import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Row
 
+
 object Conversions {
 
+  /**
+    * Utility method for generating converter [[MapFunction]] that converts from
+    * given input [[TypeInformation]] of type [[Row]] to requested type, based on a
+    * logical [[TableSchema]] of the input type.
+    */
   def generateRowConverterFunction[OUT](
     physicalInputType: TypeInformation[Row],
     logicalInputSchema: TableSchema,
@@ -130,9 +136,9 @@ object Conversions {
 
     val body =
       s"""
-         	|${conversion.code}
-         	|return ${conversion.resultTerm};
-         	|""".stripMargin
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
 
     val generated = generator.generateFunction(
       functionName,

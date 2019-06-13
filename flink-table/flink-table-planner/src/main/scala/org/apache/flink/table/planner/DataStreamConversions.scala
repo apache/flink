@@ -36,18 +36,18 @@ import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFuncti
 object DataStreamConversions {
 
   /**
-    * Translates a logical [[RelNode]] into a [[DataStream]].
+    * Translates a [[DataStream]] of internal [[CRow]] type into a [[DataStream]] of requested type.
     *
-    * @param inputPlan The root node of the relational expression tree.
-    * @param logicalType The row type of the result. Since the logicalPlan can lose the
-    *                    field naming during optimization we pass the row type separately.
-    * @param withChangeFlag Set to true to emit records with change flags.
-    * @param requestedOutputType         The [[TypeInformation]] of the resulting [[DataStream]].
+    * @param inputDataStream     The input [[DataStream]] for the conversion.
+    * @param logicalType         The logical row type of the [[DataStream]]. This is needed because
+    *                            field naming might be lost during optimization.
+    * @param withChangeFlag      Set to true to emit records with change flags.
+    * @param requestedOutputType The [[TypeInformation]] of the resulting [[DataStream]].
     * @tparam A The type of the resulting [[DataStream]].
-    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    * @return The [[DataStream]] of requested type.
     */
   def convert[A](
-      inputPlan: DataStream[CRow],
+      inputDataStream: DataStream[CRow],
       logicalType: TableSchema,
       withChangeFlag: Boolean,
       requestedOutputType: TypeInformation[A],
@@ -66,7 +66,7 @@ object DataStreamConversions {
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
           s"DataStream by casting all other fields to TIMESTAMP.")
     } else if (rowtimeFields.length == 1) {
-      val origRowType = inputPlan.getType.asInstanceOf[CRowTypeInfo].rowType
+      val origRowType = inputDataStream.getType.asInstanceOf[CRowTypeInfo].rowType
       val convFieldTypes = origRowType.getFieldTypes.map { t =>
         if (FlinkTypeFactory.isRowtimeIndicatorType(t)) {
           SqlTimeTypeInfo.TIMESTAMP
@@ -76,7 +76,7 @@ object DataStreamConversions {
       }
       CRowTypeInfo(new RowTypeInfo(convFieldTypes, origRowType.getFieldNames))
     } else {
-      inputPlan.getType
+      inputDataStream.getType
     }
 
     // convert CRow to output type
@@ -96,15 +96,16 @@ object DataStreamConversions {
         config)
     }
 
-    val rootParallelism = inputPlan.getParallelism
+    val rootParallelism = inputDataStream.getParallelism
 
     val withRowtime = if (rowtimeFields.isEmpty) {
       // no rowtime field to set
-      inputPlan.map(conversion)
+      inputDataStream.map(conversion)
     } else {
       // set the only rowtime field as event-time timestamp for DataStream
       // and convert it to SQL timestamp
-      inputPlan.process(new OutputRowtimeProcessFunction[A](conversion, rowtimeFields.head._2))
+      inputDataStream
+        .process(new OutputRowtimeProcessFunction[A](conversion, rowtimeFields.head._2))
     }
 
     withRowtime
@@ -116,19 +117,20 @@ object DataStreamConversions {
   /**
     * Creates a final converter that maps the internal row type to external type.
     *
-    * @param physicalInputType the input of the sink
-    * @param logicalInputSchema the input schema with correct field names (esp. for POJO field mapping)
+    * @param physicalInputType   the input of the sink
+    * @param logicalInputSchema  the input schema with correct field names (esp. for POJO field
+    *                            mapping)
     * @param requestedOutputType the output type of the sink
-    * @param functionName name of the map function. Must not be unique but has to be a
-    *                     valid Java class identifier.
+    * @param functionName        name of the map function. Must not be unique but has to be a
+    *                            valid Java class identifier.
     */
   private def getConversionMapper[OUT](
-    physicalInputType: TypeInformation[CRow],
-    logicalInputSchema: TableSchema,
-    requestedOutputType: TypeInformation[OUT],
-    functionName: String,
-    config: TableConfig)
-  : MapFunction[CRow, OUT] = {
+      physicalInputType: TypeInformation[CRow],
+      logicalInputSchema: TableSchema,
+      requestedOutputType: TypeInformation[OUT],
+      functionName: String,
+      config: TableConfig)
+    : MapFunction[CRow, OUT] = {
 
     val converterFunction = Conversions.generateRowConverterFunction[OUT](
       physicalInputType.asInstanceOf[CRowTypeInfo].rowType,
@@ -151,19 +153,20 @@ object DataStreamConversions {
   /**
     * Creates a converter that maps the internal CRow type to Scala or Java Tuple2 with change flag.
     *
-    * @param physicalInputType the input of the sink
-    * @param logicalInputSchema the input schema with correct field names (esp. for POJO field mapping)
+    * @param physicalInputType   the input of the sink
+    * @param logicalInputSchema  the input schema with correct field names (esp. for POJO field
+    *                            mapping)
     * @param requestedOutputType the output type of the sink.
-    * @param functionName name of the map function. Must not be unique but has to be a
-    *                     valid Java class identifier.
+    * @param functionName        name of the map function. Must not be unique but has to be a
+    *                            valid Java class identifier.
     */
   private def getConversionMapperWithChanges[OUT](
-    physicalInputType: TypeInformation[CRow],
-    logicalInputSchema: TableSchema,
-    requestedOutputType: TypeInformation[OUT],
-    functionName: String,
-    config: TableConfig)
-  : MapFunction[CRow, OUT] = requestedOutputType match {
+      physicalInputType: TypeInformation[CRow],
+      logicalInputSchema: TableSchema,
+      requestedOutputType: TypeInformation[OUT],
+      functionName: String,
+      config: TableConfig)
+    : MapFunction[CRow, OUT] = requestedOutputType match {
 
     // Scala tuple
     case t: CaseClassTypeInfo[_]
