@@ -118,8 +118,7 @@ public class BarrierBufferAlignmentLimitTest {
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		BarrierBuffer buffer = new BarrierBuffer(
 			gate,
-			new BufferSpiller(ioManager, gate.getPageSize()),
-			1000,
+			new BufferSpiller(ioManager, gate.getPageSize(), 1000),
 			"Testing",
 			toNotify);
 
@@ -216,8 +215,7 @@ public class BarrierBufferAlignmentLimitTest {
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		BarrierBuffer buffer = new BarrierBuffer(
 			gate,
-			new BufferSpiller(ioManager, gate.getPageSize()),
-			500,
+			new BufferSpiller(ioManager, gate.getPageSize(), 500),
 			"Testing",
 			toNotify);
 

@@ -68,7 +68,7 @@ public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
 
 	@Override
 	BarrierBuffer createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException {
-		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE), -1, "Testing", toNotify);
+		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE), "Testing", toNotify);
 	}
 
 	@Override

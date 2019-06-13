@@ -30,11 +30,11 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -50,9 +50,12 @@ public abstract class BufferStorageTestBase {
 	@Test
 	public void testRollOverEmptySequences() throws IOException {
 		BufferStorage bufferStorage = createBufferStorage();
-		assertNull(bufferStorage.rollOverReusingResources());
-		assertNull(bufferStorage.rollOverReusingResources());
-		assertNull(bufferStorage.rollOverReusingResources());
+		bufferStorage.rollOver();
+		assertFalse(bufferStorage.pollNext().isPresent());
+		bufferStorage.rollOver();
+		assertFalse(bufferStorage.pollNext().isPresent());
+		bufferStorage.rollOver();
+		assertFalse(bufferStorage.pollNext().isPresent());
 	}
 
 	@Test
@@ -92,31 +95,35 @@ public abstract class BufferStorageTestBase {
 			// reset and create reader
 			bufferRnd.setSeed(bufferSeed);
 
-			BufferOrEventSequence seq = bufferStorage.rollOverReusingResources();
-			seq.open();
+			bufferStorage.rollOver();
 
 			// read and validate the sequence
 
 			int numEvent = 0;
 			for (int i = 0; i < numEventsAndBuffers; i++) {
-				BufferOrEvent next = seq.getNext();
-				assertNotNull(next);
-				if (next.isEvent()) {
+				assertFalse(bufferStorage.isEmpty());
+
+				Optional<BufferOrEvent> next = bufferStorage.pollNext();
+				assertTrue(next.isPresent());
+				BufferOrEvent bufferOrEvent = next.get();
+
+				if (bufferOrEvent.isEvent()) {
 					BufferOrEvent expected = events.get(numEvent++);
-					assertEquals(expected.getEvent(), next.getEvent());
-					assertEquals(expected.getChannelIndex(), next.getChannelIndex());
+					assertEquals(expected.getEvent(), bufferOrEvent.getEvent());
+					assertEquals(expected.getChannelIndex(), bufferOrEvent.getChannelIndex());
 				} else {
-					validateBuffer(next, bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
+					validateBuffer(
+						bufferOrEvent,
+						bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
 			}
 
 			// no further data
-			assertNull(seq.getNext());
+			assertFalse(bufferStorage.pollNext().isPresent());
+			assertTrue(bufferStorage.isEmpty());
 
 			// all events need to be consumed
 			assertEquals(events.size(), numEvent);
-
-			seq.cleanup();
 		}
 	}
 
@@ -126,15 +133,11 @@ public abstract class BufferStorageTestBase {
 
 		final Random rnd = new Random();
 
-		final int maxNumEventsAndBuffers = 30000;
+		final int maxNumEventsAndBuffers = 300;
 		final int maxNumChannels = 1656;
 
-		int sequencesConsumed = 0;
-
-		ArrayDeque<SequenceToConsume> pendingSequences = new ArrayDeque<SequenceToConsume>();
-		SequenceToConsume currentSequence = null;
-		int currentNumEvents = 0;
-		int currentNumRecordAndEvents = 0;
+		ArrayDeque<ArrayDeque<BufferOrEvent>> expectedRolledSequences = new ArrayDeque<>();
+		ArrayDeque<BufferOrEvent> expectedPendingSequence = new ArrayDeque<>();
 
 		BufferStorage bufferStorage = createBufferStorage();
 
@@ -143,7 +146,9 @@ public abstract class BufferStorageTestBase {
 
 			if (round % 2 == 1) {
 				// make this an empty sequence
-				assertNull(bufferStorage.rollOverReusingResources());
+				bufferStorage.rollOver();
+				expectedRolledSequences.addFirst(expectedPendingSequence);
+				expectedPendingSequence = new ArrayDeque<>();
 			} else {
 				// proper spilled sequence
 				final long bufferSeed = rnd.nextLong();
@@ -152,12 +157,12 @@ public abstract class BufferStorageTestBase {
 				final int numEventsAndBuffers = rnd.nextInt(maxNumEventsAndBuffers) + 1;
 				final int numberOfChannels = rnd.nextInt(maxNumChannels) + 1;
 
-				final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
+				final ArrayList<BufferOrEvent> events = new ArrayList<>(128);
 
 				int generated = 0;
 				while (generated < numEventsAndBuffers) {
 
-					if (currentSequence == null || rnd.nextDouble() < 0.5) {
+					if (rnd.nextDouble() < 0.5) {
 						// add a new record
 						boolean isEvent = rnd.nextDouble() < 0.05;
 						BufferOrEvent evt;
@@ -168,96 +173,65 @@ public abstract class BufferStorageTestBase {
 							evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
 						}
 						bufferStorage.add(evt);
+
+						expectedPendingSequence.addLast(evt);
 						generated++;
 					} else {
 						// consume a record
-						BufferOrEvent next = currentSequence.sequence.getNext();
-						assertNotNull(next);
-						if (next.isEvent()) {
-							BufferOrEvent expected = currentSequence.events.get(currentNumEvents++);
-							assertEquals(expected.getEvent(), next.getEvent());
-							assertEquals(expected.getChannelIndex(), next.getChannelIndex());
-						} else {
-							Random validationRnd = currentSequence.bufferRnd;
-							validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numberOfChannels));
-						}
+						bufferStorage.rollOver();
+						expectedRolledSequences.addFirst(expectedPendingSequence);
+						expectedPendingSequence = new ArrayDeque<>();
 
-						currentNumRecordAndEvents++;
-						if (currentNumRecordAndEvents == currentSequence.numBuffersAndEvents) {
-							// done with the sequence
-							currentSequence.sequence.cleanup();
-							sequencesConsumed++;
-
-							// validate we had all events
-							assertEquals(currentSequence.events.size(), currentNumEvents);
-
-							// reset
-							currentSequence = pendingSequences.pollFirst();
-							if (currentSequence != null) {
-								currentSequence.sequence.open();
-							}
-
-							currentNumRecordAndEvents = 0;
-							currentNumEvents = 0;
-						}
+						assertNextBufferOrEvent(expectedRolledSequences, bufferStorage);
 					}
 				}
-
-				// done generating a sequence. queue it for consumption
-				bufferRnd.setSeed(bufferSeed);
-				BufferOrEventSequence seq = bufferStorage.rollOverReusingResources();
-
-				SequenceToConsume stc = new SequenceToConsume(bufferRnd, events, seq, numEventsAndBuffers, numberOfChannels);
-
-				if (currentSequence == null) {
-					currentSequence = stc;
-					stc.sequence.open();
-				} else {
-					pendingSequences.addLast(stc);
-				}
+				bufferStorage.rollOver();
+				expectedRolledSequences.addFirst(expectedPendingSequence);
+				expectedPendingSequence = new ArrayDeque<>();
 			}
 		}
 
 		// consume all the remainder
-		while (currentSequence != null) {
-			// consume a record
-			BufferOrEvent next = currentSequence.sequence.getNext();
-			assertNotNull(next);
-			if (next.isEvent()) {
-				BufferOrEvent expected = currentSequence.events.get(currentNumEvents++);
-				assertEquals(expected.getEvent(), next.getEvent());
-				assertEquals(expected.getChannelIndex(), next.getChannelIndex());
-			} else {
-				Random validationRnd = currentSequence.bufferRnd;
-				validateBuffer(next, validationRnd.nextInt(PAGE_SIZE) + 1, validationRnd.nextInt(currentSequence.numberOfChannels));
-			}
-
-			currentNumRecordAndEvents++;
-			if (currentNumRecordAndEvents == currentSequence.numBuffersAndEvents) {
-				// done with the sequence
-				currentSequence.sequence.cleanup();
-				sequencesConsumed++;
-
-				// validate we had all events
-				assertEquals(currentSequence.events.size(), currentNumEvents);
-
-				// reset
-				currentSequence = pendingSequences.pollFirst();
-				if (currentSequence != null) {
-					currentSequence.sequence.open();
-				}
-
-				currentNumRecordAndEvents = 0;
-				currentNumEvents = 0;
-			}
+		while (!expectedRolledSequences.isEmpty()) {
+			assertNextBufferOrEvent(expectedRolledSequences, bufferStorage);
 		}
-
-		assertEquals(sequences, sequencesConsumed);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
+
+	private static void assertNextBufferOrEvent(
+			ArrayDeque<ArrayDeque<BufferOrEvent>> expectedRolledSequence,
+			BufferStorage bufferStorage) throws IOException {
+		while (!expectedRolledSequence.isEmpty() && expectedRolledSequence.peekFirst().isEmpty()) {
+			expectedRolledSequence.pollFirst();
+		}
+
+		Optional<BufferOrEvent> next = bufferStorage.pollNext();
+		if (expectedRolledSequence.isEmpty()) {
+			assertFalse(next.isPresent());
+			return;
+		}
+
+		while (!next.isPresent() && !bufferStorage.isEmpty()) {
+			next = bufferStorage.pollNext();
+		}
+
+		assertTrue(next.isPresent());
+		BufferOrEvent actualBufferOrEvent = next.get();
+		BufferOrEvent expectedBufferOrEvent = expectedRolledSequence.peekFirst().pollFirst();
+
+		if (expectedBufferOrEvent.isEvent()) {
+			assertEquals(expectedBufferOrEvent.getChannelIndex(), actualBufferOrEvent.getChannelIndex());
+			assertEquals(expectedBufferOrEvent.getEvent(), actualBufferOrEvent.getEvent());
+		} else {
+			validateBuffer(
+				actualBufferOrEvent,
+				expectedBufferOrEvent.getSize(),
+				expectedBufferOrEvent.getChannelIndex());
+		}
+	}
 
 	private static BufferOrEvent generateRandomEvent(Random rnd, int numberOfChannels) {
 		long magicNumber = rnd.nextLong();
@@ -295,31 +269,6 @@ public abstract class BufferStorageTestBase {
 				fail(String.format(
 					"wrong buffer contents at position %s : expected=%d , found=%d", i, expected, seg.get(i)));
 			}
-		}
-	}
-
-	/**
-	 * Wrappers the buffered sequence and related elements for consuming and validation.
-	 */
-	private static class SequenceToConsume {
-
-		final BufferOrEventSequence sequence;
-		final ArrayList<BufferOrEvent> events;
-		final Random bufferRnd;
-		final int numBuffersAndEvents;
-		final int numberOfChannels;
-
-		private SequenceToConsume(
-				Random bufferRnd,
-				ArrayList<BufferOrEvent> events,
-				BufferOrEventSequence sequence,
-				int numBuffersAndEvents,
-				int numberOfChannels) {
-			this.bufferRnd = bufferRnd;
-			this.events = events;
-			this.sequence = sequence;
-			this.numBuffersAndEvents = numBuffersAndEvents;
-			this.numberOfChannels = numberOfChannels;
 		}
 	}
 }
