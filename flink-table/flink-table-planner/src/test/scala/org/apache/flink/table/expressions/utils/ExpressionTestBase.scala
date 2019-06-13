@@ -182,7 +182,7 @@ abstract class ExpressionTestBase {
     val converted = planner.rel(validated).rel
 
     val env = context._2.asInstanceOf[BatchTableEnvImpl]
-    val optimized = env.optimize(converted)
+    val optimized = env.optimizer.optimize(converted)
 
     // throw exception if plan contains more than a calc
     if (!optimized.getInput(0).isInstanceOf[DataSetScan]) {
@@ -200,7 +200,7 @@ abstract class ExpressionTestBase {
       .select(tableApiExpr)
     val converted = env.getRelBuilder.tableOperation(table.getQueryOperation).build()
 
-    val optimized = env.optimize(converted)
+    val optimized = env.optimizer.optimize(converted)
 
     testExprs += ((tableApiExpr.toString, extractRexNode(optimized), expected))
   }

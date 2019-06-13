@@ -290,7 +290,7 @@ case class BatchTableTestUtil(
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = TableTestUtil.toRelNode(resultTable)
-    val optimized = tableEnv.optimize(relNode)
+    val optimized = tableEnv.optimizer.optimize(relNode)
     verifyString(expected, optimized)
   }
 
@@ -300,13 +300,13 @@ case class BatchTableTestUtil(
 
   def verifyJavaTable(resultTable: Table, expected: String): Unit = {
     val relNode = TableTestUtil.toRelNode(resultTable)
-    val optimized = javaTableEnv.optimize(relNode)
+    val optimized = javaTableEnv.optimizer.optimize(relNode)
     verifyString(expected, optimized)
   }
 
   def printTable(resultTable: Table): Unit = {
     val relNode = TableTestUtil.toRelNode(resultTable)
-    val optimized = tableEnv.optimize(relNode)
+    val optimized = tableEnv.optimizer.optimize(relNode)
     println(RelOptUtil.toString(optimized))
   }
 
@@ -392,15 +392,18 @@ case class StreamTableTestUtil(
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = TableTestUtil.toRelNode(resultTable)
-    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = tableEnv.optimizer
+      .optimize(relNode, updatesAsRetraction = false, tableEnv.getRelBuilder)
     verifyString(expected, optimized)
   }
 
   def verify2Tables(resultTable1: Table, resultTable2: Table): Unit = {
     val relNode1 = TableTestUtil.toRelNode(resultTable1)
-    val optimized1 = tableEnv.optimize(relNode1, updatesAsRetraction = false)
+    val optimized1 = tableEnv.optimizer
+      .optimize(relNode1, updatesAsRetraction = false, tableEnv.getRelBuilder)
     val relNode2 = TableTestUtil.toRelNode(resultTable2)
-    val optimized2 = tableEnv.optimize(relNode2, updatesAsRetraction = false)
+    val optimized2 = tableEnv.optimizer
+      .optimize(relNode2, updatesAsRetraction = false, tableEnv.getRelBuilder)
     assertEquals(RelOptUtil.toString(optimized1), RelOptUtil.toString(optimized2))
   }
 
@@ -410,14 +413,16 @@ case class StreamTableTestUtil(
 
   def verifyJavaTable(resultTable: Table, expected: String): Unit = {
     val relNode = TableTestUtil.toRelNode(resultTable)
-    val optimized = javaTableEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = javaTableEnv.optimizer
+      .optimize(relNode, updatesAsRetraction = false, tableEnv.getRelBuilder)
     verifyString(expected, optimized)
   }
 
   // the print methods are for debugging purposes only
   def printTable(resultTable: Table): Unit = {
     val relNode = TableTestUtil.toRelNode(resultTable)
-    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = tableEnv.optimizer
+      .optimize(relNode, updatesAsRetraction = false, tableEnv.getRelBuilder)
     println(RelOptUtil.toString(optimized))
   }
 

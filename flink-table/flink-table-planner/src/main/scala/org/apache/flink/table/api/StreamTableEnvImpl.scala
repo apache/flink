@@ -21,11 +21,9 @@ package org.apache.flink.table.api
 import _root_.java.lang.{Boolean => JBool}
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
-import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.{RuleSet, RuleSets}
+import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -34,15 +32,14 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.operations.{DataStreamQueryOperation, QueryOperation}
-import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
-import org.apache.flink.table.plan.rules.FlinkRuleSets
+import org.apache.flink.table.plan.StreamOptimizer
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
@@ -67,6 +64,12 @@ abstract class StreamTableEnvImpl(
     config: TableConfig,
     catalogManager: CatalogManager)
   extends TableEnvImpl(config, catalogManager) {
+
+  @VisibleForTesting
+  private[flink] val optimizer = new StreamOptimizer(
+    () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
+    planningConfigurationBuilder
+  )
 
   override def queryConfig: StreamQueryConfig = new StreamQueryConfig
 
@@ -158,7 +161,7 @@ abstract class StreamTableEnvImpl(
 
       case upsertSink: UpsertStreamTableSink[_] =>
         // optimize plan
-        val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
+        val optimizedPlan = optimizer.optimize(relNode, updatesAsRetraction = false, getRelBuilder)
         // check for append only table
         val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
         upsertSink.setIsAppendOnly(isAppendOnlyTable)
@@ -187,7 +190,7 @@ abstract class StreamTableEnvImpl(
 
       case appendSink: AppendStreamTableSink[_] =>
         // optimize plan
-        val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
+        val optimizedPlan = optimizer.optimize(relNode, updatesAsRetraction = false, getRelBuilder)
         // verify table is an insert-only (append-only) table
         if (!UpdatingPlanChecker.isAppendOnly(optimizedPlan)) {
           throw new TableException(
@@ -349,82 +352,6 @@ abstract class StreamTableEnvImpl(
   }
 
   /**
-    * Returns the decoration rule set for this environment
-    * including a custom RuleSet configuration.
-    */
-  protected def getDecoRuleSet: RuleSet = {
-    calciteConfig.decoRuleSet match {
-
-      case None =>
-        getBuiltInDecoRuleSet
-
-      case Some(ruleSet) =>
-        if (calciteConfig.replacesDecoRuleSet) {
-          ruleSet
-        } else {
-          RuleSets.ofList((getBuiltInDecoRuleSet.asScala ++ ruleSet.asScala).asJava)
-        }
-    }
-  }
-
-  /**
-    * Returns the built-in normalization rules that are defined by the environment.
-    */
-  protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_NORM_RULES
-
-  /**
-    * Returns the built-in optimization rules that are defined by the environment.
-    */
-  protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
-
-  /**
-    * Returns the built-in decoration rules that are defined by the environment.
-    */
-  protected def getBuiltInDecoRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_DECO_RULES
-
-  /**
-    * Generates the optimized [[RelNode]] tree from the original relational node tree.
-    *
-    * @param relNode The root node of the relational expression tree.
-    * @param updatesAsRetraction True if the sink requests updates as retraction messages.
-    * @return The optimized [[RelNode]] tree
-    */
-  private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
-    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
-    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan, getRelBuilder)
-    val planWithMaterializedTimeAttributes =
-      RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
-    val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
-    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-
-    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
-    optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
-  }
-
-  private[flink] def optimizeDecoratePlan(
-      relNode: RelNode,
-      updatesAsRetraction: Boolean): RelNode = {
-    val decoRuleSet = getDecoRuleSet
-    if (decoRuleSet.iterator().hasNext) {
-      val planToDecorate = if (updatesAsRetraction) {
-        relNode.copy(
-          relNode.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
-          relNode.getInputs)
-      } else {
-        relNode
-      }
-      runHepPlannerSequentially(
-        HepMatchOrder.BOTTOM_UP,
-        decoRuleSet,
-        planToDecorate,
-        planToDecorate.getTraitSet)
-    } else {
-      relNode
-    }
-  }
-
-  /**
     * Translates a [[Table]] into a [[DataStream]].
     *
     * The transformation involves optimizing the relational expression tree as defined by
@@ -444,7 +371,7 @@ abstract class StreamTableEnvImpl(
       updatesAsRetraction: Boolean,
       withChangeFlag: Boolean)(implicit tpe: TypeInformation[A]): DataStream[A] = {
     val relNode = getRelBuilder.tableOperation(tableOperation).build()
-    val dataStreamPlan = optimize(relNode, updatesAsRetraction)
+    val dataStreamPlan = optimizer.optimize(relNode, updatesAsRetraction, getRelBuilder)
 
     val rowType = getResultType(relNode, dataStreamPlan)
 
@@ -579,7 +506,7 @@ abstract class StreamTableEnvImpl(
 
   def explain(table: Table): String = {
     val ast = getRelBuilder.tableOperation(table.getQueryOperation).build()
-    val optimizedPlan = optimize(ast, updatesAsRetraction = false)
+    val optimizedPlan = optimizer.optimize(ast, updatesAsRetraction = false, getRelBuilder)
     val dataStream = translateToCRow(optimizedPlan, queryConfig)
 
     val env = dataStream.getExecutionEnvironment
