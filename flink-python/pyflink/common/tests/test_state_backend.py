@@ -17,8 +17,10 @@
 ################################################################################
 from pyflink.common import (MemoryStateBackend, FsStateBackend, RocksDBStateBackend,
                             PredefinedOptions)
+from pyflink.common.state_backend import _from_j_state_backend, CustomStateBackend
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.util.utils import load_java_class
 
 
 class MemoryStateBackendTests(PyFlinkTestCase):
@@ -45,16 +47,6 @@ class MemoryStateBackendTests(PyFlinkTestCase):
 
         MemoryStateBackend(
             "file://var/checkpoints/", "file://var/savepoints/", 10000000, False)
-
-    def test_configure(self):
-
-        state_backend = MemoryStateBackend()
-
-        assert state_backend.is_using_asynchronous_snapshots() is True
-
-        state_backend = state_backend.configure({"state.backend.async": "False"})
-
-        assert state_backend.is_using_asynchronous_snapshots() is False
 
     def test_is_using_asynchronous_snapshots(self):
 
@@ -97,16 +89,6 @@ class FsStateBackendTests(PyFlinkTestCase):
         FsStateBackend(
             "file://var/checkpoints/", "file://var/savepoints/", 2048, False)
 
-    def test_configure(self):
-
-        state_backend = FsStateBackend("file://var/checkpoints/")
-
-        assert state_backend.is_using_asynchronous_snapshots() is True
-
-        state_backend = state_backend.configure({"state.backend.async": "False"})
-
-        assert state_backend.is_using_asynchronous_snapshots() is False
-
     def test_get_min_file_size_threshold(self):
 
         state_backend = FsStateBackend("file://var/checkpoints/")
@@ -136,16 +118,6 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
 
         RocksDBStateBackend(
             checkpoint_stream_backend=FsStateBackend("file://var/checkpoints/"))
-
-    def test_configure(self):
-
-        state_backend = RocksDBStateBackend("file://var/checkpoints/")
-
-        assert state_backend.is_incremental_checkpoints_enabled() is False
-
-        state_backend = state_backend.configure({"state.backend.incremental": "True"})
-
-        assert state_backend.is_incremental_checkpoints_enabled() is True
 
     def test_get_checkpoint_backend(self):
 
@@ -222,3 +194,18 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
         state_backend.set_number_of_transfering_threads(4)
 
         assert state_backend.get_number_of_transfering_threads() == 4
+
+
+class CustomStateBackendTests(PyFlinkTestCase):
+
+    def test_create_custom_state_backend(self):
+        gateway = get_gateway()
+        JConfiguration = gateway.jvm.org.apache.flink.configuration.Configuration
+        j_config = JConfiguration()
+        j_factory = load_java_class("org.apache.flink.streaming.runtime.tasks."
+                                    "StreamTaskTest$TestMemoryStateBackendFactory").newInstance()
+        context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
+        state_backend = _from_j_state_backend(j_factory.createFromConfig(j_config,
+                                                                         context_classloader))
+
+        assert isinstance(state_backend, CustomStateBackend)

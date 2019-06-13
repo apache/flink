@@ -85,8 +85,6 @@ class CheckpointingMode(object):
             return CheckpointingMode.EXACTLY_ONCE
         elif j_checkpointing_mode == JCheckpointingMode.AT_LEAST_ONCE:
             return CheckpointingMode.AT_LEAST_ONCE
-        elif j_checkpointing_mode is None:
-            return None
         else:
             raise Exception("Unsupported java checkpointing mode: %s" % j_checkpointing_mode)
 

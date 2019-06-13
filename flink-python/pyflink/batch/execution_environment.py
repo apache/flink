@@ -50,25 +50,6 @@ class ExecutionEnvironment(object):
         """
         self._j_execution_environment.setParallelism(parallelism)
 
-    def set_session_timeout(self, timeout):
-        """
-        Sets the session timeout to hold the intermediate results of a job. This only
-        applies the updated timeout in future executions.
-
-        :param timeout: The timeout value, in seconds.
-        """
-        self._j_execution_environment.setSessionTimeout(timeout)
-
-    def get_session_timeout(self):
-        """
-        Gets the session timeout for this environment. The session timeout defines for how long
-        after an execution, the job and its intermediate results will be kept for future
-        interactions.
-
-        :return: The session timeout value, in seconds.
-        """
-        return self._j_execution_environment.getSessionTimeout()
-
     def get_default_local_parallelism(self):
         """
         Gets the default parallelism that will be used for the local execution environment.

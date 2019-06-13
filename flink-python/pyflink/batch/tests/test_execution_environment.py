@@ -19,8 +19,6 @@ import json
 import os
 import tempfile
 
-from py4j.protocol import Py4JJavaError
-
 from pyflink.batch import ExecutionEnvironment
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.table import DataTypes, BatchTableEnvironment, CsvTableSource, CsvTableSink
@@ -39,19 +37,6 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
         parallelism = self.env.get_parallelism()
 
         assert parallelism == 10
-
-    def test_get_session_timeout(self):
-
-        timeout = self.env.get_session_timeout()
-
-        assert timeout == 0
-
-    def test_set_session_timeout(self):
-
-        self.assertRaisesRegexp(Py4JJavaError,
-                                "Support for sessions is currently disabled\\. "
-                                "It will be enabled in future Flink versions\\.",
-                                self.env.set_session_timeout, 1000)
 
     def test_get_set_default_local_parallelism(self):
 

@@ -149,14 +149,6 @@ class ExecutionConfig(object):
         """
         return self._j_execution_config.getLatencyTrackingInterval()
 
-    def is_latency_tracking_configured(self):
-        """
-        Returns whether the latency tracking is configured.
-
-        :return: ``True`` means configured and ``False`` means not configured.
-        """
-        return self._j_execution_config.isLatencyTrackingConfigured()
-
     def get_parallelism(self):
         """
         Gets the parallelism with which operation are executed by default. Operations can
@@ -323,8 +315,6 @@ class ExecutionConfig(object):
             return ExecutionMode.BATCH
         elif j_execution_mode == JExecutionMode.BATCH_FORCED:
             return ExecutionMode.BATCH_FORCED
-        elif j_execution_mode is None:
-            return None
         else:
             raise Exception("Unsupported java exection mode: %s" % j_execution_mode)
 
@@ -369,8 +359,6 @@ class ExecutionConfig(object):
             return InputDependencyConstraint.ANY
         elif j_input_dependency_constraint == JInputDependencyConstraint.ALL:
             return InputDependencyConstraint.ALL
-        elif j_input_dependency_constraint is None:
-            return None
         else:
             raise Exception("Unsupported java input dependency constraint: %s"
                             % j_input_dependency_constraint)

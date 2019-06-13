@@ -21,7 +21,7 @@ from abc import ABCMeta
 from py4j.java_gateway import get_java_class
 
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import to_j_config, load_java_class
+from pyflink.util.utils import load_java_class
 
 __all__ = [
     'StateBackend',
@@ -35,24 +35,14 @@ if sys.version > '3':
     xrange = range
 
 
-def _configure(configurable_state_backend, config):
-    gateway = get_gateway()
-    j_config = to_j_config(config)
-    context_class_loader = gateway.jvm.Thread.currentThread().getContextClassLoader()
-    return configurable_state_backend._j_state_backend.configure(j_config, context_class_loader)
-
-
 def _from_j_state_backend(j_state_backend):
     if j_state_backend is None:
         return None
     gateway = get_gateway()
     JStateBackend = gateway.jvm.org.apache.flink.runtime.state.StateBackend
-    JMemoryStateBackend = gateway.jvm.org.apache.flink.runtime.state.memory \
-        .MemoryStateBackend
-    JFsStateBackend = gateway.jvm.org.apache.flink.runtime.state.filesystem \
-        .FsStateBackend
-    JRocksDBStateBackend = gateway.jvm.org.apache.flink.contrib.streaming.state \
-        .RocksDBStateBackend
+    JMemoryStateBackend = gateway.jvm.org.apache.flink.runtime.state.memory.MemoryStateBackend
+    JFsStateBackend = gateway.jvm.org.apache.flink.runtime.state.filesystem.FsStateBackend
+    JRocksDBStateBackend = gateway.jvm.org.apache.flink.contrib.streaming.state.RocksDBStateBackend
     j_clz = j_state_backend.getClass()
 
     if not get_java_class(JStateBackend).isAssignableFrom(j_clz):
@@ -233,16 +223,6 @@ class MemoryStateBackend(StateBackend):
         self._j_memory_state_backend = j_memory_state_backend
         super(MemoryStateBackend, self).__init__(j_memory_state_backend)
 
-    def configure(self, config):
-        """
-        Creates a copy of this state backend that uses the values defined in the configuration
-        for fields where that were not specified in this state backend.
-
-        :param config: The configuration dict.
-        :return: The re-configured variant of the state backend.
-        """
-        return MemoryStateBackend(j_memory_state_backend=_configure(self, config))
-
     def get_max_state_size(self):
         """
         Gets the maximum size that an individual state can have, as configured in the
@@ -376,16 +356,6 @@ class FsStateBackend(StateBackend):
         self._j_fs_state_backend = j_fs_state_backend
         super(FsStateBackend, self).__init__(j_fs_state_backend)
 
-    def configure(self, config):
-        """
-        Creates a copy of this state backend that uses the values defined in the configuration
-        for fields where that were not specified in this state backend.
-
-        :param config: The configuration dict.
-        :return: The re-configured variant of the state backend.
-        """
-        return FsStateBackend(j_fs_state_backend=_configure(self, config))
-
     def get_checkpoint_path(self):
         """
         Gets the base directory where all the checkpoints are stored.
@@ -489,16 +459,6 @@ class RocksDBStateBackend(StateBackend):
 
         self._j_rocks_db_state_backend = j_rocks_db_state_backend
         super(RocksDBStateBackend, self).__init__(j_rocks_db_state_backend)
-
-    def configure(self, config):
-        """
-        Creates a copy of this state backend that uses the values defined in the configuration
-        for fields where that were not specified in this state backend.
-
-        :param config: The configuration dict.
-        :return: The re-configured variant of the state backend.
-        """
-        return RocksDBStateBackend(j_rocks_db_state_backend=_configure(self, config))
 
     def get_checkpoint_backend(self):
         """

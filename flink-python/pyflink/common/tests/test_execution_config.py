@@ -55,18 +55,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         assert self.execution_config.get_auto_watermark_interval() == 1000
 
-    def test_get_set_latency_tracking_interval(self):
-
-        assert self.execution_config.get_latency_tracking_interval() == 0
-
-        assert self.execution_config.is_latency_tracking_configured() is False
-
-        self.execution_config.set_latency_tracking_interval(1000)
-
-        assert self.execution_config.get_latency_tracking_interval() == 1000
-
-        assert self.execution_config.is_latency_tracking_configured() is True
-
     def test_get_set_parallelism(self):
 
         self.execution_config.set_parallelism(8)
