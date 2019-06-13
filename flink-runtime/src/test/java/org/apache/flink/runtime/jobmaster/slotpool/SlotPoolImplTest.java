@@ -84,7 +84,10 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class SlotPoolTest extends TestLogger {
+/**
+ * Tests for the {@link SlotPoolImpl}.
+ */
+public class SlotPoolImplTest extends TestLogger {
 
 	private final Time timeout = Time.seconds(10L);
 
@@ -431,7 +434,7 @@ public class SlotPoolTest extends TestLogger {
 	 * Tests that unused offered slots are directly used to fulfill pending slot
 	 * requests.
 	 *
-	 * Moreover it tests that the old slot request is canceled
+	 * <p>Moreover it tests that the old slot request is canceled
 	 *
 	 * <p>See FLINK-8089, FLINK-8934
 	 */
@@ -502,7 +505,7 @@ public class SlotPoolTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a SlotPoolImpl shutdown releases all registered slots
+	 * Tests that a SlotPoolImpl shutdown releases all registered slots.
 	 */
 	@Test
 	public void testShutdownReleasesAllSlots() throws Exception {
@@ -565,8 +568,7 @@ public class SlotPoolTest extends TestLogger {
 			timeout)) {
 			final BlockingQueue<AllocationID> freedSlots = new ArrayBlockingQueue<>(1);
 			taskManagerGateway.setFreeSlotFunction(
-				(AllocationID allocationId, Throwable cause) ->
-				{
+				(AllocationID allocationId, Throwable cause) -> {
 					try {
 						freedSlots.put(allocationId);
 						return CompletableFuture.completedFuture(Acknowledge.get());
@@ -711,12 +713,11 @@ public class SlotPoolTest extends TestLogger {
 				failException);
 			assertThat(emptyTaskExecutorFuture.get(), is(equalTo(taskManagerLocation.getResourceID())));
 			assertThat(freedSlots.take(), is(equalTo(slotOffer.getAllocationId())));
-
 		}
 	}
 
 	/**
-	 * Tests that failing an allocation fails the pending slot request
+	 * Tests that failing an allocation fails the pending slot request.
 	 */
 	@Test
 	public void testFailingAllocationFailsPendingSlotRequests() throws Exception {
@@ -792,7 +793,7 @@ public class SlotPoolTest extends TestLogger {
 	private static Collection<Matcher<? super AllocatedSlotInfo>> isEachEqual(Collection<AllocatedSlotInfo> allocatedSlotInfos) {
 		return allocatedSlotInfos
 			.stream()
-			.map(SlotPoolTest::isEqualAllocatedSlotInfo)
+			.map(SlotPoolImplTest::isEqualAllocatedSlotInfo)
 			.collect(Collectors.toList());
 	}
 
