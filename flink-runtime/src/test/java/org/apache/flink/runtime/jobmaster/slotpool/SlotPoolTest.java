@@ -582,7 +582,7 @@ public class SlotPoolTest extends TestLogger {
 				slotPool.offerSlot(taskManagerLocation, taskManagerGateway, slotToExpire),
 				Matchers.is(true));
 
-			clock.advanceTime(timeout.toMilliseconds() - 1L, TimeUnit.MILLISECONDS);
+			clock.advanceTime(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			assertThat(slotPool.offerSlot(taskManagerLocation, taskManagerGateway, slotToNotExpire),
 				Matchers.is(true));
@@ -636,7 +636,7 @@ public class SlotPoolTest extends TestLogger {
 
 			assertThat(slotPool.offerSlot(taskManagerLocation, taskManagerGateway, slotToExpire), Matchers.is(true));
 
-			clock.advanceTime(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			clock.advanceTime(timeout.toMilliseconds() + 1, TimeUnit.MILLISECONDS);
 
 			slotPool.triggerCheckIdleSlot();
 
@@ -650,7 +650,7 @@ public class SlotPoolTest extends TestLogger {
 			scheduler.returnLogicalSlot(logicalSlot);
 
 			// advance the time so that the returned slot is now idling
-			clock.advanceTime(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			clock.advanceTime(timeout.toMilliseconds() + 1, TimeUnit.MILLISECONDS);
 
 			slotPool.triggerCheckIdleSlot();
 
