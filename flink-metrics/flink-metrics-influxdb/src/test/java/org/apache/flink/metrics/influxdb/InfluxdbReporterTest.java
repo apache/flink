@@ -111,10 +111,10 @@ public class InfluxdbReporterTest extends TestLogger {
 			reporter.report();
 
 			verify(postRequestedFor(urlPathEqualTo("/write"))
-					.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
-					.withQueryParam("rp", equalTo(retentionPolicy))
-					.withHeader("Content-Type", containing("text/plain"))
-					.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
+				.withQueryParam("db", equalTo(TEST_INFLUXDB_DB))
+				.withQueryParam("rp", equalTo(retentionPolicy))
+				.withHeader("Content-Type", containing("text/plain"))
+				.withRequestBody(containing("taskmanager_" + metricName + ",host=" + METRIC_HOSTNAME + ",tm_id=" + METRIC_TM_ID + " count=42i")));
 		} finally {
 			metricRegistry.shutdown().get();
 		}
