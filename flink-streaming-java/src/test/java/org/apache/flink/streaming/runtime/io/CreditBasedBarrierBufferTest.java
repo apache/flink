@@ -33,7 +33,7 @@ public class CreditBasedBarrierBufferTest extends BarrierBufferTestBase {
 
 	@Override
 	BarrierBuffer createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) {
-		return new BarrierBuffer(gate, new CachedBufferStorage(PAGE_SIZE), -1, "Testing", toNotify);
+		return new BarrierBuffer(gate, new CachedBufferStorage(PAGE_SIZE), "Testing", toNotify);
 	}
 
 	@Override

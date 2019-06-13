@@ -56,15 +56,13 @@ public class InputProcessorUtil {
 			if (taskManagerConfig.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
 				barrierHandler = new BarrierBuffer(
 					inputGate,
-					new CachedBufferStorage(inputGate.getPageSize()),
-					maxAlign,
+					new CachedBufferStorage(inputGate.getPageSize(), maxAlign, taskName),
 					taskName,
 					checkpointedTask);
 			} else {
 				barrierHandler = new BarrierBuffer(
 					inputGate,
-					new BufferSpiller(ioManager, inputGate.getPageSize()),
-					maxAlign,
+					new BufferSpiller(ioManager, inputGate.getPageSize(), maxAlign, taskName),
 					taskName,
 					checkpointedTask);
 			}
