@@ -100,7 +100,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	private static OneShotLatch triggerLatch;
 
 	/**
-	 * Triggered when {@link CheckpointsInOrderInvokable#notifyCheckpointComplete(long)}
+	 * Triggered when {@link CheckpointsInOrderInvokable#notifyCheckpointCompleteAsync(long)}
 	 * was called {@link #numCalls} times.
 	 */
 	private static OneShotLatch notifyCheckpointCompleteLatch;
@@ -184,7 +184,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
 	/**
 	 * Asserts that {@link AbstractInvokable#triggerCheckpointAsync(CheckpointMetaData, CheckpointOptions, boolean)},
-	 * and {@link AbstractInvokable#notifyCheckpointComplete(long)} are invoked by a thread whose context
+	 * and {@link AbstractInvokable#notifyCheckpointCompleteAsync(long)} are invoked by a thread whose context
 	 * class loader is set to the user code class loader.
 	 */
 	@Test
@@ -332,7 +332,7 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			if (checkpointId != lastCheckpointId && this.error == null) {
 				this.error = new Exception("calls out of order");
 				synchronized (this) {
@@ -341,6 +341,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			} else if (lastCheckpointId == numCalls) {
 				notifyCheckpointCompleteLatch.trigger();
 			}
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -364,10 +365,10 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			classLoaders.add(Thread.currentThread().getContextClassLoader());
 
-			super.notifyCheckpointComplete(checkpointId);
+			return super.notifyCheckpointCompleteAsync(checkpointId);
 		}
 
 		@Override

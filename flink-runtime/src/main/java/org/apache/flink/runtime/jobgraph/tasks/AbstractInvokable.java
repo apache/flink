@@ -56,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Any subclass that supports recoverable state and participates in
  * checkpointing needs to override {@link #triggerCheckpointAsync(CheckpointMetaData, CheckpointOptions, boolean)},
  * {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointOptions, CheckpointMetrics)},
- * {@link #abortCheckpointOnBarrier(long, Throwable)} and {@link #notifyCheckpointComplete(long)}.
+ * {@link #abortCheckpointOnBarrier(long, Throwable)} and {@link #notifyCheckpointCompleteAsync(long)}.
  */
 public abstract class AbstractInvokable {
 
@@ -262,8 +262,10 @@ public abstract class AbstractInvokable {
 	 * the notification from all participating tasks.
 	 *
 	 * @param checkpointId The ID of the checkpoint that is complete.
+	 *
+	 * @return future that completes when the notification has been processed by the task.
 	 */
-	public void notifyCheckpointComplete(long checkpointId) {
-		throw new UnsupportedOperationException(String.format("notifyCheckpointComplete not supported by %s", this.getClass().getName()));
+	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+		throw new UnsupportedOperationException(String.format("notifyCheckpointCompleteAsync not supported by %s", this.getClass().getName()));
 	}
 }
