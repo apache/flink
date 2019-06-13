@@ -20,8 +20,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 
 import static org.junit.Assert.assertEquals;
 
@@ -31,8 +32,8 @@ import static org.junit.Assert.assertEquals;
 public class CreditBasedBarrierBufferTest extends BarrierBufferTestBase {
 
 	@Override
-	public BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException {
-		return new BarrierBuffer(gate, new CachedBufferStorage(PAGE_SIZE));
+	BarrierBuffer createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) {
+		return new BarrierBuffer(gate, new CachedBufferStorage(PAGE_SIZE), -1, "Testing", toNotify);
 	}
 
 	@Override

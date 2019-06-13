@@ -33,6 +33,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -77,7 +79,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	private final ArrayDeque<CheckpointBarrierCount> pendingCheckpoints;
 
 	/** The listener to be notified on complete checkpoints. */
-	private AbstractInvokable toNotifyOnCheckpoint;
+	private final AbstractInvokable toNotifyOnCheckpoint;
 
 	/** The highest checkpoint ID encountered so far. */
 	private long latestPendingCheckpointID = -1;
@@ -85,9 +87,14 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	// ------------------------------------------------------------------------
 
 	public BarrierTracker(InputGate inputGate) {
+		this(inputGate, null);
+	}
+
+	public BarrierTracker(InputGate inputGate, @Nullable AbstractInvokable toNotifyOnCheckpoint) {
 		this.inputGate = inputGate;
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
 		this.pendingCheckpoints = new ArrayDeque<>();
+		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 	}
 
 	@Override
@@ -123,16 +130,6 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 				// some other event
 				return next;
 			}
-		}
-	}
-
-	@Override
-	public void registerCheckpointEventHandler(AbstractInvokable toNotifyOnCheckpoint) {
-		if (this.toNotifyOnCheckpoint == null) {
-			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
-		}
-		else {
-			throw new IllegalStateException("BarrierTracker already has a registered checkpoint notifyee");
 		}
 	}
 

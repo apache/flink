@@ -23,7 +23,6 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -44,10 +43,6 @@ public class BarrierDiscarder implements CheckpointBarrierHandler {
 	 * checkpoint is considered complete.
 	 */
 	private final int totalNumberOfInputChannels;
-
-
-	/** The listener to be notified on complete checkpoints. */
-	private AbstractInvokable toNotifyOnCheckpoint;
 
 	// ------------------------------------------------------------------------
 
@@ -84,16 +79,6 @@ public class BarrierDiscarder implements CheckpointBarrierHandler {
 				// some other event
 				return next;
 			}
-		}
-	}
-
-	@Override
-	public void registerCheckpointEventHandler(AbstractInvokable toNotifyOnCheckpoint) {
-		if (this.toNotifyOnCheckpoint == null) {
-			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
-		}
-		else {
-			throw new IllegalStateException("BarrierDiscarder already has a registered checkpoint notifyee");
 		}
 	}
 

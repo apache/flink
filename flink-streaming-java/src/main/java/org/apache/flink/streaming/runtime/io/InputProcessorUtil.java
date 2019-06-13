@@ -58,22 +58,20 @@ public class InputProcessorUtil {
 					inputGate,
 					new CachedBufferStorage(inputGate.getPageSize()),
 					maxAlign,
-					taskName);
+					taskName,
+					checkpointedTask);
 			} else {
 				barrierHandler = new BarrierBuffer(
 					inputGate,
 					new BufferSpiller(ioManager, inputGate.getPageSize()),
 					maxAlign,
-					taskName);
+					taskName,
+					checkpointedTask);
 			}
 		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
 			barrierHandler = new BarrierTracker(inputGate);
 		} else {
 			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
-		}
-
-		if (checkpointedTask != null) {
-			barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 
 		return barrierHandler;

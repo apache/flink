@@ -41,6 +41,8 @@ import org.hamcrest.Description;
 import org.junit.After;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
@@ -70,12 +72,23 @@ public abstract class BarrierBufferTestBase {
 
 	BarrierBuffer buffer;
 
-	protected BarrierBuffer createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
+	protected BarrierBuffer createBarrierBuffer(
+		int numberOfChannels,
+		BufferOrEvent[] sequence,
+		@Nullable AbstractInvokable toNotify) throws IOException {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, numberOfChannels, Arrays.asList(sequence));
-		return createBarrierBuffer(gate);
+		return createBarrierBuffer(gate, toNotify);
 	}
 
-	abstract BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException;
+	protected BarrierBuffer createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
+		return createBarrierBuffer(numberOfChannels, sequence, null);
+	}
+
+	protected BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException {
+		return createBarrierBuffer(gate, null);
+	}
+
+	abstract BarrierBuffer createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException;
 
 	abstract void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence);
 
@@ -147,10 +160,9 @@ public abstract class BarrierBufferTestBase {
 			createBarrier(4, 0), createBarrier(5, 0), createBarrier(6, 0),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-		buffer = createBarrierBuffer(1, sequence);
-
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		buffer.registerCheckpointEventHandler(handler);
+		buffer = createBarrierBuffer(1, sequence, handler);
+
 		handler.setNextExpectedCheckpointId(1L);
 
 		for (BufferOrEvent boe : sequence) {
@@ -198,10 +210,9 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(0, PAGE_SIZE),
 			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		buffer.registerCheckpointEventHandler(handler);
+		buffer = createBarrierBuffer(3, sequence, handler);
+
 		handler.setNextExpectedCheckpointId(1L);
 
 		// pre checkpoint 1
@@ -292,10 +303,9 @@ public abstract class BarrierBufferTestBase {
 			createBarrier(2, 2),
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2), createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		buffer.registerCheckpointEventHandler(handler);
+		buffer = createBarrierBuffer(3, sequence, handler);
+
 		handler.setNextExpectedCheckpointId(1L);
 
 		// pre-checkpoint 1
@@ -368,10 +378,9 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		buffer.registerCheckpointEventHandler(handler);
+		buffer = createBarrierBuffer(3, sequence, handler);
+
 		handler.setNextExpectedCheckpointId(1L);
 
 		// around checkpoint 1
@@ -461,10 +470,8 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		buffer.registerCheckpointEventHandler(toNotify);
+		buffer = createBarrierBuffer(3, sequence, toNotify);
 
 		long startTs;
 
@@ -548,10 +555,9 @@ public abstract class BarrierBufferTestBase {
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2),
 			createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		buffer.registerCheckpointEventHandler(handler);
+		buffer = createBarrierBuffer(3, sequence, handler);
+
 		handler.setNextExpectedCheckpointId(1L);
 
 		// checkpoint 1
@@ -694,10 +700,9 @@ public abstract class BarrierBufferTestBase {
 			createBarrier(2, 2),
 			createBuffer(2, PAGE_SIZE), createEndOfPartition(2), createBuffer(0, PAGE_SIZE), createEndOfPartition(0)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		buffer.registerCheckpointEventHandler(handler);
+		buffer = createBarrierBuffer(3, sequence, handler);
+
 		handler.setNextExpectedCheckpointId(1L);
 
 		// pre-checkpoint 1
@@ -841,10 +846,8 @@ public abstract class BarrierBufferTestBase {
 			createCancellationBarrier(6, 0),
 			createBuffer(0, PAGE_SIZE)
 		};
-		buffer = createBarrierBuffer(1, sequence);
-
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		buffer.registerCheckpointEventHandler(toNotify);
+		buffer = createBarrierBuffer(1, sequence, toNotify);
 
 		check(sequence[0], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
@@ -902,10 +905,8 @@ public abstract class BarrierBufferTestBase {
 
 			/* 37 */ createBuffer(0, PAGE_SIZE)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		buffer.registerCheckpointEventHandler(toNotify);
+		buffer = createBarrierBuffer(3, sequence, toNotify);
 
 		long startTs;
 
@@ -990,10 +991,8 @@ public abstract class BarrierBufferTestBase {
 				// some more buffers
 			/* 16 */ createBuffer(0, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createBuffer(2, PAGE_SIZE)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		buffer.registerCheckpointEventHandler(toNotify);
+		buffer = createBarrierBuffer(3, sequence, toNotify);
 
 		long startTs;
 
@@ -1074,10 +1073,8 @@ public abstract class BarrierBufferTestBase {
 				// some more buffers
 			/* 18 */ createBuffer(0, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createBuffer(2, PAGE_SIZE)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		buffer.registerCheckpointEventHandler(toNotify);
+		buffer = createBarrierBuffer(3, sequence, toNotify);
 
 		long startTs;
 
@@ -1151,10 +1148,8 @@ public abstract class BarrierBufferTestBase {
 				// some more buffers
 			/* 16 */ createBuffer(0, PAGE_SIZE), createBuffer(1, PAGE_SIZE), createBuffer(2, PAGE_SIZE)
 		};
-		buffer = createBarrierBuffer(3, sequence);
-
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		buffer.registerCheckpointEventHandler(toNotify);
+		buffer = createBarrierBuffer(3, sequence, toNotify);
 
 		long startTs;
 
