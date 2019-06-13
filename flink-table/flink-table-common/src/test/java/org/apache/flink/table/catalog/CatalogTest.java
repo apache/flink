@@ -32,7 +32,10 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
@@ -1071,6 +1074,51 @@ public abstract class CatalogTest {
 
 
 	// ------ table and column stats ------
+	@Test
+	public void testAlterTableColumnStatistics() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createTable();
+		catalog.createTable(path1, catalogTable, false);
+		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
+		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
+		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0, 1000, 3, 0));
+		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataString(15, 5.2, 3, 50));
+		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+		catalog.alterTableColumnStatistics(path1, catalogColumnStatistics, false);
+	}
+
+	@Test
+	public void testAlterPartitionColumnStatistics() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path1, partitionSpec, createPartition(), true);
+		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
+		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
+		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
+		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataString(15, 5.2, 3, 50));
+		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+		catalog.alterPartitionColumnStatistics(path1, partitionSpec, catalogColumnStatistics, false);
+	}
+
+	@Test
+	public void testGetTableColumnStatistics() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createTable();
+		catalog.createTable(path1, catalogTable, false);
+		catalog.getTableColumnStatistics(path1);
+	}
+
+	@Test
+	public void testGetPartitionColumnStatistics() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path1, partitionSpec, createPartition(), true);
+		catalog.getPartitionColumnStatistics(path1, partitionSpec);
+	}
 
 	// ------ utilities ------
 
