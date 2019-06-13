@@ -83,7 +83,7 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 			influxDB = InfluxDBFactory.connect(url);
 		}
 
-		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, retentionPolicy:{}}", host, port, database, retentionPolicy);
+		log.info("Configured InfluxDBReporter with {host:{}, port:{}, db:{}, and retentionPolicy:{}}", host, port, database, retentionPolicy);
 	}
 
 	@Override
