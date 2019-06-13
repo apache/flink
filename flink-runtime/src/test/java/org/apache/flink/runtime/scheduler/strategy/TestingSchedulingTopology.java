@@ -210,8 +210,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 				for (TestingSchedulingExecutionVertex consumer : consumers) {
 					consumer.addConsumedPartition(resultPartition);
 					resultPartition.addConsumer(consumer);
-					resultPartitions.add(resultPartition);
 				}
+				resultPartitions.add(resultPartition);
 			}
 
 			return resultPartitions;
