@@ -81,7 +81,7 @@ object DataStreamConversions {
 
     // convert CRow to output type
     val conversion: MapFunction[CRow, A] = if (withChangeFlag) {
-      DataStreamConversions.getConversionMapperWithChanges(
+      getConversionMapperWithChanges(
         convType,
         logicalType,
         requestedOutputType,

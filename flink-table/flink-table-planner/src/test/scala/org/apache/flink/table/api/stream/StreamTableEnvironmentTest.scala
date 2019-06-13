@@ -26,14 +26,18 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecEnv}
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
 import org.apache.flink.table.api.java.{StreamTableEnvImpl => JStreamTableEnvImpl}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.api.{TableConfig, TableException, Types, ValidationException}
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
+import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.types.Row
 import org.junit.Test
+import org.junit.rules.ExpectedException
 import org.mockito.Mockito.{mock, when}
 
 class StreamTableEnvironmentTest extends TableTestBase {
@@ -66,6 +70,25 @@ class StreamTableEnvironmentTest extends TableTestBase {
       term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
+  }
+
+  @Test
+  def testToAppendSinkOnUpdatingTable(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Table is not an append-only table. Use the toRetractStream()" +
+      " in order to handle add and retract messages.")
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
+
+    t.groupBy('text)
+      .select('text, 'id.count, 'num.sum)
+      .toAppendStream[Row]
+
+    // must fail because table is not append-only
+    env.execute()
   }
 
   @Test

@@ -28,7 +28,7 @@ import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.catalog.CatalogManager
@@ -136,77 +136,111 @@ abstract class StreamTableEnvImpl(
 
     sink match {
 
-      case retractSink: RetractStreamTableSink[_] =>
-        // retraction sink can always be used
-        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-          .asInstanceOf[TypeInformation[T]]
-        // translate the Table into a DataStream and provide the type that the TableSink expects.
-        val result: DataStream[T] =
-          translate(
-            tableOperation,
-            streamQueryConfig,
-            updatesAsRetraction = true,
-            withChangeFlag = true)(outputType)
-        // Give the DataStream to the TableSink to emit it.
-        retractSink.asInstanceOf[RetractStreamTableSink[Any]]
-          .consumeDataStream(result.asInstanceOf[DataStream[JTuple2[JBool, Any]]])
+      case retractSink: RetractStreamTableSink[T] =>
+        writeToRetractSink(retractSink, tableOperation, streamQueryConfig)
 
-      case upsertSink: UpsertStreamTableSink[_] =>
-        // optimize plan
-        val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
-        // check for append only table
-        val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
-        upsertSink.setIsAppendOnly(isAppendOnlyTable)
-        // extract unique key fields
-        val tableKeys: Option[Array[String]] = UpdatingPlanChecker.getUniqueKeyFields(optimizedPlan)
-        // check that we have keys if the table has changes (is not append-only)
-        tableKeys match {
-          case Some(keys) => upsertSink.setKeyFields(keys)
-          case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
-          case None if !isAppendOnlyTable => throw new TableException(
-            "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
-        }
-        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-          .asInstanceOf[TypeInformation[T]]
-        val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
-        // translate the Table into a DataStream and provide the type that the TableSink expects.
-        val result: DataStream[T] =
-          translateOptimized(
-            optimizedPlan,
-            resultType,
-            streamQueryConfig,
-            withChangeFlag = true,
-            updatesAsRetraction = false)(outputType)
-        // Give the DataStream to the TableSink to emit it.
-        upsertSink.asInstanceOf[UpsertStreamTableSink[Any]]
-          .consumeDataStream(result.asInstanceOf[DataStream[JTuple2[JBool, Any]]])
+      case upsertSink: UpsertStreamTableSink[T] =>
+        writeToUpsertSink(upsertSink, tableOperation, relNode, streamQueryConfig)
 
-      case appendSink: AppendStreamTableSink[_] =>
-        // optimize plan
-        val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
-        // verify table is an insert-only (append-only) table
-        if (!UpdatingPlanChecker.isAppendOnly(optimizedPlan)) {
-          throw new TableException(
-            "AppendStreamTableSink requires that Table has only insert changes.")
-        }
-        val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-          .asInstanceOf[TypeInformation[T]]
-        val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
-        // translate the Table into a DataStream and provide the type that the TableSink expects.
-        val result: DataStream[T] =
-          translateOptimized(
-            optimizedPlan,
-            resultType,
-            streamQueryConfig,
-            withChangeFlag = false,
-            updatesAsRetraction = false)(outputType)
-        // Give the DataStream to the TableSink to emit it.
-        appendSink.asInstanceOf[AppendStreamTableSink[T]].consumeDataStream(result)
+      case appendSink: AppendStreamTableSink[T] =>
+        writeToAppendSink(appendSink, tableOperation, relNode, streamQueryConfig)
 
       case _ =>
         throw new TableException("Stream Tables can only be emitted by AppendStreamTableSink, " +
           "RetractStreamTableSink, or UpsertStreamTableSink.")
     }
+  }
+
+  private def writeToRetractSink[T](
+      sink: RetractStreamTableSink[T],
+      tableOperation: QueryOperation,
+      streamQueryConfig: StreamQueryConfig) = {
+    // retraction sink can always be used
+    val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+      .asInstanceOf[TypeInformation[JTuple2[JBool, T]]]
+    // translate the Table into a DataStream and provide the type that the TableSink expects.
+    val result: DataStream[JTuple2[JBool, T]] =
+      translate(
+        tableOperation,
+        streamQueryConfig,
+        updatesAsRetraction = true,
+        withChangeFlag = true)(outputType)
+    // Give the DataStream to the TableSink to emit it.
+    sink.consumeDataStream(result)
+  }
+
+  private def writeToAppendSink[T](
+      sink: AppendStreamTableSink[T],
+      tableOperation: QueryOperation,
+      relNode: RelNode,
+      streamQueryConfig: StreamQueryConfig)
+    : DataStreamSink[_]= {
+    // optimize plan
+    val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
+    // verify table is an insert-only (append-only) table
+    if (!UpdatingPlanChecker.isAppendOnly(optimizedPlan)) {
+      throw new TableException(
+        "AppendStreamTableSink requires that Table has only insert changes.")
+    }
+    val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+      .asInstanceOf[TypeInformation[T]]
+    val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
+    // translate the Table into a DataStream and provide the type that the TableSink expects.
+    val result: DataStream[T] =
+      translateOptimized(
+        optimizedPlan,
+        resultType,
+        outputType,
+        streamQueryConfig,
+        withChangeFlag = false)
+    // Give the DataStream to the TableSink to emit it.
+    sink.consumeDataStream(result)
+  }
+
+  private def writeToUpsertSink[T](
+      sink: UpsertStreamTableSink[T],
+      tableOperation: QueryOperation,
+      relNode: RelNode,
+      streamQueryConfig: StreamQueryConfig)
+    : DataStreamSink[_] = {
+    // optimize plan
+    val optimizedPlan = optimize(relNode, updatesAsRetraction = false)
+    // check for append only table
+    val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
+    sink.setIsAppendOnly(isAppendOnlyTable)
+    // extract unique key fields
+    val tableKeys: Option[Array[String]] = UpdatingPlanChecker.getUniqueKeyFields(optimizedPlan)
+    // check that we have keys if the table has changes (is not append-only)
+    tableKeys match {
+      case Some(keys) => sink.setKeyFields(keys)
+      case None if isAppendOnlyTable => sink.setKeyFields(null)
+      case None if !isAppendOnlyTable => throw new TableException(
+        "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
+    }
+    val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
+      .asInstanceOf[TypeInformation[JTuple2[JBool, T]]]
+    val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
+    // translate the Table into a DataStream and provide the type that the TableSink expects.
+    val result: DataStream[JTuple2[JBool, T]] =
+      translateOptimized(
+        optimizedPlan,
+        resultType,
+        outputType,
+        streamQueryConfig,
+        withChangeFlag = true)
+    // Give the DataStream to the TableSink to emit it.
+    sink.consumeDataStream(result)
+  }
+
+  private def translateOptimized[A](
+      optimizedPlan: RelNode,
+      logicalSchema: TableSchema,
+      tpe: TypeInformation[A],
+      queryConfig: StreamQueryConfig,
+      withChangeFlag: Boolean)
+    : DataStream[A] = {
+    val dataStream = translateToCRow(optimizedPlan, queryConfig)
+    DataStreamConversions.convert(dataStream, logicalSchema, withChangeFlag, tpe, config)
   }
 
   protected def asQueryOperation[T](
@@ -323,6 +357,8 @@ abstract class StreamTableEnvImpl(
     * The transformation involves optimizing the relational expression tree as defined by
     * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
     *
+    * This method is used only by the bridging methods toAppendStream/toRetractStream.
+    *
     * @param tableOperation The root node of the relational expression tree.
     * @param queryConfig The configuration for the query to generate.
     * @param updatesAsRetraction Set to true to encode updates as retraction messages.
@@ -339,19 +375,16 @@ abstract class StreamTableEnvImpl(
     val relNode = getRelBuilder.tableOperation(tableOperation).build()
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
 
+    // if no change flags are requested, verify table is an insert-only (append-only) table.
+    if (!withChangeFlag && !UpdatingPlanChecker.isAppendOnly(dataStreamPlan)) {
+      throw new ValidationException(
+        "Table is not an append-only table. " +
+          "Use the toRetractStream() in order to handle add and retract messages.")
+    }
+
     val logicalSchema = getTableSchema(tableOperation.getTableSchema.getFieldNames, dataStreamPlan)
     val dataStream = translateToCRow(dataStreamPlan, queryConfig)
 
-    DataStreamConversions.convert(dataStream, logicalSchema, withChangeFlag, tpe, config)
-  }
-
-  private def translateOptimized[A](
-      optimizedPlan: RelNode,
-      logicalSchema: TableSchema,
-      queryConfig: StreamQueryConfig,
-      updatesAsRetraction: Boolean,
-      withChangeFlag: Boolean)(implicit tpe: TypeInformation[A]): DataStream[A] = {
-    val dataStream = translateToCRow(optimizedPlan, queryConfig)
     DataStreamConversions.convert(dataStream, logicalSchema, withChangeFlag, tpe, config)
   }
 
@@ -362,7 +395,7 @@ abstract class StreamTableEnvImpl(
     * @param queryConfig  The configuration for the query to generate.
     * @return The [[DataStream]] of type [[CRow]].
     */
-  protected def translateToCRow(
+  private def translateToCRow(
     logicalPlan: RelNode,
     queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
