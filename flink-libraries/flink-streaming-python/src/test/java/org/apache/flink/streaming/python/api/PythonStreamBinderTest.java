@@ -66,7 +66,7 @@ public class PythonStreamBinderTest extends AbstractTestBase {
 		Path testEntryPoint = new Path(getBaseTestPythonDir(), "run_all_tests.py");
 		List<String> testFiles = findTestFiles();
 
-		Preconditions.checkState(testFiles.size() > 0, "No test files were found in {}.", getBaseTestPythonDir());
+		Preconditions.checkState(testFiles.size() > 0, "No test files were found in %s.", getBaseTestPythonDir());
 
 		String[] arguments = new String[1 + 1 + testFiles.size()];
 		arguments[0] = testEntryPoint.getPath();
