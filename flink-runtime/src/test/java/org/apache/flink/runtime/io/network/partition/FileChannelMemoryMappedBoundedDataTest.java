@@ -24,15 +24,15 @@ import java.nio.file.Path;
 /**
  * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
  */
-public class MemoryMappedBuffersTest extends BoundedDataTestBase {
+public class FileChannelMemoryMappedBoundedDataTest extends BoundedDataTestBase {
 
 	@Override
 	protected BoundedData createBoundedData(Path tempFilePath) throws IOException {
-		return MemoryMappedBuffers.create(tempFilePath);
+		return FileChannelMemoryMappedBoundedData.create(tempFilePath);
 	}
 
 	@Override
 	protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException {
-		return MemoryMappedBuffers.createWithRegionSize(tempFilePath, regionSize);
+		return FileChannelMemoryMappedBoundedData.createWithRegionSize(tempFilePath, regionSize);
 	}
 }

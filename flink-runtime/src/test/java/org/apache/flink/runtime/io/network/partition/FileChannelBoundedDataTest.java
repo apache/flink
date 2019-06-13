@@ -18,21 +18,23 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.junit.AssumptionViolatedException;
+
 import java.io.IOException;
 import java.nio.file.Path;
 
 /**
  * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
  */
-public class MemoryMappedBuffersTest extends BoundedDataTestBase {
+public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 
 	@Override
 	protected BoundedData createBoundedData(Path tempFilePath) throws IOException {
-		return MemoryMappedBuffers.create(tempFilePath);
+		return FileChannelBoundedData.create(tempFilePath, BUFFER_SIZE);
 	}
 
 	@Override
 	protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException {
-		return MemoryMappedBuffers.createWithRegionSize(tempFilePath, regionSize);
+		throw new AssumptionViolatedException("FileChannelBoundedData is not region based");
 	}
 }
