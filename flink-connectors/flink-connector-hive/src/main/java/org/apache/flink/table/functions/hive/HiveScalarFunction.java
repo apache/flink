@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
@@ -79,7 +80,8 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 	@Override
 	public void open(FunctionContext context) {
 		openInternal();
-		isArgsSingleArray = argTypes.length == 1 && (argTypes[0] instanceof CollectionDataType);
+		isArgsSingleArray = argTypes.length == 1 &&
+			(argTypes[0] instanceof CollectionDataType && argTypes[0].getLogicalType().getTypeRoot().equals(LogicalTypeRoot.ARRAY));
 	}
 
 	/**
