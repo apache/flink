@@ -130,7 +130,7 @@ final class FileChannelMemoryMappedBoundedData implements BoundedData {
 				.map((bb) -> bb.duplicate().order(ByteOrder.nativeOrder()))
 				.collect(Collectors.toList());
 
-		return new MemoryMappedBuffers.BufferSlicer(buffers);
+		return new MemoryMappedBoundedData.BufferSlicer(buffers);
 	}
 
 	/**

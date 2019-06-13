@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * and {@link BoundedBlockingSubpartitionReader}, such as writing first and reading after.
  * Not obeying these contracts throws NullPointerExceptions.
  */
-final class MemoryMappedBuffers implements BoundedData {
+final class MemoryMappedBoundedData implements BoundedData {
 
 	/** Memory mappings should be at the granularity of page sizes, for efficiency. */
 	private static final int PAGE_SIZE = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
@@ -84,7 +84,7 @@ final class MemoryMappedBuffers implements BoundedData {
 	/** The size of each mapped region. */
 	private final long mappingSize;
 
-	MemoryMappedBuffers(
+	MemoryMappedBoundedData(
 			Path filePath,
 			FileChannel fileChannel,
 			int maxSizePerByteBuffer) throws IOException {
@@ -262,20 +262,20 @@ final class MemoryMappedBuffers implements BoundedData {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates new MemoryMappedBuffers, creating a memory mapped file at the given path.
+	 * Creates new MemoryMappedBoundedData, creating a memory mapped file at the given path.
 	 */
-	public static MemoryMappedBuffers create(Path memMappedFilePath) throws IOException {
+	public static MemoryMappedBoundedData create(Path memMappedFilePath) throws IOException {
 		return createWithRegionSize(memMappedFilePath, Integer.MAX_VALUE);
 	}
 
 	/**
-	 * Creates new MemoryMappedBuffers, creating a memory mapped file at the given path.
+	 * Creates new MemoryMappedBoundedData, creating a memory mapped file at the given path.
 	 * Each mapped region (= ByteBuffer) will be of the given size.
 	 */
-	public static MemoryMappedBuffers createWithRegionSize(Path memMappedFilePath, int regionSize) throws IOException {
+	public static MemoryMappedBoundedData createWithRegionSize(Path memMappedFilePath, int regionSize) throws IOException {
 		final FileChannel fileChannel = FileChannel.open(memMappedFilePath,
 				StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
 
-		return new MemoryMappedBuffers(memMappedFilePath, fileChannel, regionSize);
+		return new MemoryMappedBoundedData(memMappedFilePath, fileChannel, regionSize);
 	}
 }

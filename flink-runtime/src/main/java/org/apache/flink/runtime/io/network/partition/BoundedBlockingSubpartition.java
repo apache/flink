@@ -97,7 +97,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			ResultPartition parent,
 			Path filePath) throws IOException {
 
-		this(index, parent, MemoryMappedBuffers.create(filePath));
+		this(index, parent, MemoryMappedBoundedData.create(filePath));
 	}
 
 	/**
