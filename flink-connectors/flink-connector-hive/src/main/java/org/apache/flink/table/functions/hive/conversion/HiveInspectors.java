@@ -127,9 +127,9 @@ public class HiveInspectors {
 	}
 
 	/**
-	 * Unwraps an object from Hive object to Flink object with an ObjectInspector.
+	 * Converts a Hive object to Flink object with an ObjectInspector.
 	 */
-	public static Object unwrap(ObjectInspector inspector, Object data) {
+	public static Object toFlinkObject(ObjectInspector inspector, Object data) {
 		if (data == null) {
 			return null;
 		}
@@ -188,6 +188,8 @@ public class HiveInspectors {
 					oi.get(data) :
 					oi.getPrimitiveWritableObject(data);
 			}
+
+			// TODO: handle more primitive types like char, varchar, timestamp, date, decimal
 		}
 
 		// TODO: handle complex types like struct, list, and map

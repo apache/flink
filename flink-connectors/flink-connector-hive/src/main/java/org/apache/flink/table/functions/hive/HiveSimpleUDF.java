@@ -109,7 +109,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 		}
 
 		try {
-			return HiveInspectors.unwrap(returnInspector,
+			return HiveInspectors.toFlinkObject(returnInspector,
 				FunctionRegistry.invoke(method, function, conversionHelper.convertIfNecessary(args)));
 		} catch (HiveException e) {
 			throw new FlinkHiveUDFException(e);
