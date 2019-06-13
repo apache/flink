@@ -1155,8 +1155,7 @@ public class HiveCatalog extends AbstractCatalog {
 				List<ColumnStatisticsObj> columnStatisticsObjs = partitionColumnStatistics.get(partName);
 				return new CatalogColumnStatistics(HiveCatalogUtil.createCatalogColumnStats(columnStatisticsObjs));
 			} else {
-				throw new CatalogException(String.format("Failed to get table stats of table %s 's partition %s",
-														tablePath.getFullName(), String.valueOf(partitionSpec)));
+				return CatalogColumnStatistics.UNKNOWN;
 			}
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
 			throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
