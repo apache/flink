@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.AsyncDataInput;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.io.IOException;
 
@@ -32,14 +31,6 @@ import java.io.IOException;
  */
 @Internal
 public interface CheckpointBarrierHandler extends AsyncDataInput<BufferOrEvent> {
-
-	/**
-	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.
-	 *
-	 * @param task The task to notify
-	 */
-	void registerCheckpointEventHandler(AbstractInvokable task);
-
 	/**
 	 * Cleans up all internally held resources.
 	 *

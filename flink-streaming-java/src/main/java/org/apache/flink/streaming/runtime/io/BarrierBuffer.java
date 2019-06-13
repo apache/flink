@@ -33,6 +33,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Optional;
@@ -86,8 +88,8 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 */
 	private BufferOrEventSequence currentBuffered;
 
-	/** Handler that receives the checkpoint notifications. */
-	private AbstractInvokable toNotifyOnCheckpoint;
+	@Nullable
+	private final AbstractInvokable toNotifyOnCheckpoint;
 
 	/** The ID of the checkpoint for which we expect barriers. */
 	private long currentCheckpointId = -1L;
@@ -127,7 +129,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 */
 	@VisibleForTesting
 	BarrierBuffer(InputGate inputGate, BufferStorage bufferStorage) {
-		this (inputGate, bufferStorage, -1, "Testing: No task associated");
+		this (inputGate, bufferStorage, -1, "Testing: No task associated", null);
 	}
 
 	/**
@@ -141,8 +143,14 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
 	 * @param maxBufferedBytes The maximum bytes to be buffered before the checkpoint aborts.
 	 * @param taskName The task name for logging.
+	 * @param toNotifyOnCheckpoint optional Handler that receives the checkpoint notifications.
 	 */
-	BarrierBuffer(InputGate inputGate, BufferStorage bufferStorage, long maxBufferedBytes, String taskName) {
+	BarrierBuffer(
+			InputGate inputGate,
+			BufferStorage bufferStorage,
+			long maxBufferedBytes,
+			String taskName,
+			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
 		checkArgument(maxBufferedBytes == -1 || maxBufferedBytes > 0);
 
 		this.inputGate = inputGate;
@@ -154,6 +162,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		this.queuedBuffered = new ArrayDeque<BufferOrEventSequence>();
 
 		this.taskName = taskName;
+		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 	}
 
 	@Override
@@ -448,16 +457,6 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				new CheckpointException(
 					"Max buffered bytes: " + maxBufferedBytes,
 					CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED));
-		}
-	}
-
-	@Override
-	public void registerCheckpointEventHandler(AbstractInvokable toNotifyOnCheckpoint) {
-		if (this.toNotifyOnCheckpoint == null) {
-			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
-		}
-		else {
-			throw new IllegalStateException("BarrierBuffer already has a registered checkpoint notifyee");
 		}
 	}
 

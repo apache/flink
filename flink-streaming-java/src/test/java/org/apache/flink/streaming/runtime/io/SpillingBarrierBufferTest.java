@@ -22,9 +22,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,8 +67,8 @@ public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
 	}
 
 	@Override
-	public BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException{
-		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE));
+	BarrierBuffer createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException {
+		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE), -1, "Testing", toNotify);
 	}
 
 	@Override
