@@ -21,22 +21,20 @@ package org.apache.flink.table.api
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionDefaultVisitor}
 import org.apache.flink.table.operations.DataSetQueryOperation
-import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.BatchOptimizer
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
-import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
@@ -58,6 +56,11 @@ abstract class BatchTableEnvImpl(
     config: TableConfig,
     catalogManager: CatalogManager)
   extends TableEnvImpl(config, catalogManager) {
+
+  private[flink] val optimizer = new BatchOptimizer(
+    () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
+    planningConfigurationBuilder
+  )
 
   override def queryConfig: BatchQueryConfig = new BatchQueryConfig
 
@@ -178,7 +181,7 @@ abstract class BatchTableEnvImpl(
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
     val ast = getRelBuilder.tableOperation(table.getQueryOperation).build()
-    val optimizedPlan = optimize(ast)
+    val optimizedPlan = optimizer.optimize(ast)
     val dataSet = translate[Row](optimizedPlan, ast.getRowType, queryConfig) (
       new GenericTypeInfo (classOf[Row]))
     dataSet.output(new DiscardingOutputFormat[Row])
@@ -237,31 +240,6 @@ abstract class BatchTableEnvImpl(
   }
 
   /**
-    * Returns the built-in normalization rules that are defined by the environment.
-    */
-  protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASET_NORM_RULES
-
-  /**
-    * Returns the built-in optimization rules that are defined by the environment.
-    */
-  protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
-
-  /**
-    * Generates the optimized [[RelNode]] tree from the original relational node tree.
-    *
-    * @param relNode The original [[RelNode]] tree
-    * @return The optimized [[RelNode]] tree
-    */
-  private[flink] def optimize(relNode: RelNode): RelNode = {
-    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
-    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
-    val normalizedPlan = optimizeNormalizeLogicalPlan(decorPlan)
-    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-    optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASET)
-  }
-
-  /**
     * Translates a [[Table]] into a [[DataSet]].
     *
     * The transformation involves optimizing the relational expression tree as defined by
@@ -277,7 +255,7 @@ abstract class BatchTableEnvImpl(
       table: Table,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val relNode = getRelBuilder.tableOperation(table.getQueryOperation).build()
-    val dataSetPlan = optimize(relNode)
+    val dataSetPlan = optimizer.optimize(relNode)
     translate(dataSetPlan, relNode.getRowType, queryConfig)
   }
 

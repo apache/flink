@@ -79,7 +79,8 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     val converted = planner.rel(validated).rel
 
     val env = context._2
-    val optimized = env.optimize(converted, updatesAsRetraction = false)
+    val optimized = env.optimizer
+      .optimize(converted, updatesAsRetraction = false, env.getRelBuilder)
 
     // throw exception if plan contains more than a match
     if (!optimized.getInput(0).isInstanceOf[DataStreamScan]) {
