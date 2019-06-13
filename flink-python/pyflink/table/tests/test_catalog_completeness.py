@@ -117,11 +117,6 @@ class ObjectPathAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Tes
     def java_class(cls):
         return "org.apache.flink.table.catalog.ObjectPath"
 
-    @classmethod
-    def excluded_methods(cls):
-        # equals/hashCode/toString are not needed in Python API
-        return {'equals', 'hashCode', 'toString'}
-
 
 class CatalogPartitionSpecAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):
     """
@@ -136,11 +131,6 @@ class CatalogPartitionSpecAPICompletenessTests(PythonAPICompletenessTestCase, un
     @classmethod
     def java_class(cls):
         return "org.apache.flink.table.catalog.CatalogPartitionSpec"
-
-    @classmethod
-    def excluded_methods(cls):
-        # equals/hashCode/toString are not needed in Python API
-        return {'equals', 'hashCode', 'toString'}
 
 
 class CatalogColumnStatisticsAPICompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):

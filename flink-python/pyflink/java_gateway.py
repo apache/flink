@@ -27,6 +27,7 @@ from threading import RLock
 
 from py4j.java_gateway import java_import, JavaGateway, GatewayParameters
 from pyflink.find_flink_home import _find_flink_home
+from pyflink.util.exceptions import install_exception_handler
 
 _gateway = None
 _lock = RLock()
@@ -48,6 +49,7 @@ def get_gateway():
 
             # import the flink view
             import_flink_view(_gateway)
+            install_exception_handler()
     return _gateway
 
 

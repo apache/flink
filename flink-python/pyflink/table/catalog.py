@@ -51,6 +51,7 @@ class Catalog(object):
         catalog instance.
 
         :return: The name of the current database.
+        :raise: CatalogException in case of any runtime exception.
         """
         return self._j_catalog.getDefaultDatabase()
 
@@ -59,6 +60,7 @@ class Catalog(object):
         Get the names of all databases in this catalog.
 
         :return: A list of the names of all databases.
+        :raise: CatalogException in case of any runtime exception.
         """
         return list(self._j_catalog.listDatabases())
 
@@ -68,6 +70,8 @@ class Catalog(object):
 
         :param database_name: Name of the database.
         :return: The requested database :class:`CatalogDatabase`.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
         """
         return CatalogDatabase._get(self._j_catalog.getDatabase(database_name))
 
@@ -77,6 +81,7 @@ class Catalog(object):
 
         :param database_name: Name of the database.
         :return: true if the given database exists in the catalog false otherwise.
+        :raise: CatalogException in case of any runtime exception.
         """
         return self._j_catalog.databaseExists(database_name)
 
@@ -90,6 +95,9 @@ class Catalog(object):
                                  already exists:
                                  if set to false, throw a DatabaseAlreadyExistException,
                                  if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseAlreadyExistException if the given database already exists and
+                ignoreIfExists is false.
         """
         self._j_catalog.createDatabase(name, database._j_catalog_database, ignore_if_exists)
 
@@ -101,6 +109,8 @@ class Catalog(object):
         :param ignore_if_exists: Flag to specify behavior when the database does not exist:
                                  if set to false, throw an exception,
                                  if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the given database does not exist.
         """
         self._j_catalog.dropDatabase(name, ignore_if_exists)
 
@@ -114,6 +124,8 @@ class Catalog(object):
                                      exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the given database does not exist.
         """
         self._j_catalog.alterDatabase(name, new_database._j_catalog_database, ignore_if_not_exists)
 
@@ -124,6 +136,8 @@ class Catalog(object):
 
         :param database_name: Name of the given database.
         :return: A list of the names of all tables and views in this database.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
         """
         return list(self._j_catalog.listTables(database_name))
 
@@ -133,6 +147,8 @@ class Catalog(object):
 
         :param database_name: Name of the given database.
         :return: A list of the names of all views in the given database.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
         """
         return list(self._j_catalog.listViews(database_name))
 
@@ -142,6 +158,8 @@ class Catalog(object):
 
         :param table_path: Path :class:`ObjectPath` of the table or view.
         :return: The requested table or view :class:`CatalogBaseTable`.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the target does not exist.
         """
         return CatalogBaseTable._get(self._j_catalog.getTable(table_path._j_object_path))
 
@@ -151,6 +169,7 @@ class Catalog(object):
 
         :param table_path: Path :class:`ObjectPath` of the table or view.
         :return: true if the given table exists in the catalog false otherwise.
+        :raise: CatalogException in case of any runtime exception.
         """
         return self._j_catalog.tableExists(table_path._j_object_path)
 
@@ -162,6 +181,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior when the table or view does not exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table or view does not exist.
         """
         self._j_catalog.dropTable(table_path._j_object_path, ignore_if_not_exists)
 
@@ -174,6 +195,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior when the table or view does not exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table does not exist.
         """
         self._j_catalog.renameTable(table_path._j_object_path, new_table_name, ignore_if_not_exists)
 
@@ -187,6 +210,9 @@ class Catalog(object):
                                  the given path:
                                  if set to false, it throws a TableAlreadyExistException,
                                  if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database in tablePath doesn't exist.
+                TableAlreadyExistException if table already exists and ignoreIfExists is false.
         """
         self._j_catalog.createTable(table_path._j_object_path, table._j_catalog_base_table,
                                     ignore_if_exists)
@@ -203,6 +229,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior when the table or view does not exist:
                                      if set to false, throw an exception,
                                      if set to true, do nothing.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table does not exist.
         """
         self._j_catalog.alterTable(table_path._j_object_path, new_table._j_catalog_base_table,
                                    ignore_if_not_exists)
@@ -214,6 +242,9 @@ class Catalog(object):
         :param table_path: Path :class:`ObjectPath` of the table.
         :param partition_spec: The partition spec :class:`CatalogPartitionSpec` to list.
         :return: A list of :class:`CatalogPartitionSpec` of the table.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException thrown if the table does not exist in the catalog.
+                TableNotPartitionedException thrown if the table is not partitioned.
         """
         if partition_spec is None:
             return [CatalogPartitionSpec(p) for p in self._j_catalog.listPartitions(
@@ -230,6 +261,8 @@ class Catalog(object):
         :param table_path: Path :class:`ObjectPath` of the table.
         :param partition_spec: The partition spec :class:`CatalogPartitionSpec` of partition to get.
         :return: The requested partition :class:`CatalogPartition`.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException thrown if the partition doesn't exist.
         """
         return CatalogPartition._get(self._j_catalog.getPartition(
             table_path._j_object_path, partition_spec._j_catalog_partition_spec))
@@ -242,6 +275,7 @@ class Catalog(object):
         :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition to
                                check.
         :return: true if the partition exists.
+        :raise: CatalogException in case of any runtime exception.
         """
         return self._j_catalog.partitionExists(
             table_path._j_object_path, partition_spec._j_catalog_partition_spec)
@@ -257,6 +291,11 @@ class Catalog(object):
                                  exists:
                                  if set to false, it throws a TableAlreadyExistException,
                                  if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException thrown if the target table does not exist.
+                TableNotPartitionedException thrown if the target table is not partitioned.
+                PartitionSpecInvalidException thrown if the given partition spec is invalid.
+                PartitionAlreadyExistsException thrown if the target partition already exists.
         """
         self._j_catalog.createPartition(table_path._j_object_path,
                                         partition_spec._j_catalog_partition_spec,
@@ -273,6 +312,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the database does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException thrown if the target partition does not exist.
         """
         self._j_catalog.dropPartition(table_path._j_object_path,
                                       partition_spec._j_catalog_partition_spec,
@@ -289,6 +330,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the database does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException thrown if the target partition does not exist.
         """
         self._j_catalog.alterPartition(table_path._j_object_path,
                                        partition_spec._j_catalog_partition_spec,
@@ -302,6 +345,8 @@ class Catalog(object):
 
         :param database_name: Name of the database.
         :return: A list of the names of the functions in this database.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
         """
         return list(self._j_catalog.listFunctions(database_name))
 
@@ -311,6 +356,8 @@ class Catalog(object):
 
         :param function_path: Path :class:`ObjectPath` of the function.
         :return: The requested function :class:`CatalogFunction`.
+        :raise: CatalogException in case of any runtime exception.
+                FunctionNotExistException if the function does not exist in the catalog.
         """
         return CatalogFunction._get(self._j_catalog.getFunction(function_path._j_object_path))
 
@@ -320,6 +367,7 @@ class Catalog(object):
 
         :param function_path: Path :class:`ObjectPath` of the function.
         :return: true if the function exists in the catalog false otherwise.
+        :raise: CatalogException in case of any runtime exception.
         """
         return self._j_catalog.functionExists(function_path._j_object_path)
 
@@ -333,6 +381,9 @@ class Catalog(object):
                                  already exists:
                                  if set to false, it throws a FunctionAlreadyExistException,
                                  if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                FunctionAlreadyExistException if the function already exist.
+                DatabaseNotExistException     if the given database does not exist.
         """
         self._j_catalog.createFunction(function_path._j_object_path,
                                        function._j_catalog_function,
@@ -347,6 +398,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the function does not exist:
                                      if set to false, throw an exception
                                      if set to true, nothing happens
+        :raise: CatalogException in case of any runtime exception.
+                FunctionNotExistException if the function does not exist.
         """
         self._j_catalog.alterFunction(function_path._j_object_path,
                                       new_function._j_catalog_function,
@@ -359,7 +412,9 @@ class Catalog(object):
         :param function_path: Path :class:`ObjectPath` of the function to be dropped.
         :param ignore_if_not_exists: Flag to specify behavior if the function does not exist:
                                      if set to false, throw an exception
-                                     if set to true, nothing happens
+                                     if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                FunctionNotExistException if the function does not exist.
         """
         self._j_catalog.dropFunction(function_path._j_object_path, ignore_if_not_exists)
 
@@ -369,6 +424,8 @@ class Catalog(object):
 
         :param table_path: Path :class:`ObjectPath` of the table.
         :return: The statistics :class:`CatalogTableStatistics` of the given table.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table does not exist in the catalog.
         """
         return CatalogTableStatistics(
             j_catalog_table_statistics=self._j_catalog.getTableStatistics(
@@ -380,6 +437,8 @@ class Catalog(object):
 
         :param table_path: Path :class:`ObjectPath` of the table.
         :return: The column statistics :class:`CatalogColumnStatistics` of the given table.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table does not exist in the catalog.
         """
         return CatalogColumnStatistics(
             j_catalog_column_statistics=self._j_catalog.getTableColumnStatistics(
@@ -392,6 +451,8 @@ class Catalog(object):
         :param table_path: Path :class:`ObjectPath` of the table.
         :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
         :return: The statistics :class:`CatalogTableStatistics` of the given partition.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException if the partition does not exist.
         """
         return CatalogTableStatistics(
             j_catalog_table_statistics=self._j_catalog.getPartitionStatistics(
@@ -404,6 +465,8 @@ class Catalog(object):
         :param table_path: Path :class:`ObjectPath` of the table.
         :param partition_spec: Partition spec :class:`CatalogPartitionSpec` of the partition.
         :return: The column statistics :class:`CatalogColumnStatistics` of the given partition.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException if the partition does not exist.
         """
         return CatalogColumnStatistics(
             j_catalog_column_statistics=self._j_catalog.getPartitionColumnStatistics(
@@ -418,6 +481,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the table does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table does not exist in the catalog.
         """
         self._j_catalog.alterTableStatistics(
             table_path._j_object_path,
@@ -433,6 +498,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the column does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                TableNotExistException if the table does not exist in the catalog.
         """
         self._j_catalog.alterTableColumnStatistics(
             table_path._j_object_path,
@@ -450,6 +517,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the partition does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException if the partition does not exist.
         """
         self._j_catalog.alterPartitionStatistics(
             table_path._j_object_path,
@@ -468,6 +537,8 @@ class Catalog(object):
         :param ignore_if_not_exists: Flag to specify behavior if the partition does not exist:
                                      if set to false, throw an exception,
                                      if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                PartitionNotExistException if the partition does not exist.
         """
         self._j_catalog.alterPartitionColumnStatistics(
             table_path._j_object_path,
@@ -750,6 +821,16 @@ class ObjectPath(object):
         else:
             self._j_object_path = j_object_path
 
+    def __str__(self):
+        return self._j_object_path.toString()
+
+    def __hash__(self):
+        return self._j_object_path.hashCode()
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self._j_object_path.equals(
+            other._j_object_path)
+
     def get_database_name(self):
         return self._j_object_path.getDatabaseName()
 
@@ -778,6 +859,16 @@ class CatalogPartitionSpec(object):
             self._j_catalog_partition_spec = gateway.jvm.CatalogPartitionSpec(partition_spec)
         else:
             self._j_catalog_partition_spec = partition_spec
+
+    def __str__(self):
+        return self._j_catalog_partition_spec.toString()
+
+    def __hash__(self):
+        return self._j_catalog_partition_spec.hashCode()
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self._j_catalog_partition_spec.equals(
+            other._j_catalog_partition_spec)
 
     def get_partition_spec(self):
         """

@@ -16,14 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-from py4j.protocol import Py4JJavaError
-
 from pyflink.java_gateway import get_gateway
 from pyflink.table import TableSchema, DataTypes
 
 from pyflink.table.catalog import ObjectPath, Catalog, CatalogDatabase, CatalogBaseTable, \
     CatalogFunction, CatalogPartition, CatalogPartitionSpec
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.util.exceptions import DatabaseNotExistException, FunctionNotExistException, \
+    PartitionNotExistException, TableNotExistException, DatabaseAlreadyExistException, \
+    FunctionAlreadyExistException, PartitionAlreadyExistsException, PartitionSpecInvalidException, \
+    TableNotPartitionedException, TableAlreadyExistException, DatabaseNotEmptyException
 
 
 class CatalogTestBase(PyFlinkTestCase):
@@ -235,7 +237,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_create_db_database_already_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseAlreadyExistException):
             self.catalog.create_database(self.db1, self.create_db(), False)
 
     def test_create_db_database_already_exist_ignored(self):
@@ -254,7 +256,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertEquals({self.db1, self.catalog.get_default_database()}, set(dbs))
 
     def test_get_db_database_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.get_database("nonexistent")
 
     def test_drop_db(self):
@@ -267,7 +269,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertFalse(self.catalog.database_exists(self.db1))
 
     def test_drop_db_database_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.drop_database(self.db1, False)
 
     def test_drop_db_database_not_exist_ignore(self):
@@ -277,7 +279,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_table(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotEmptyException):
             self.catalog.drop_database(self.db1, True)
 
     def test_alter_db(self):
@@ -293,7 +295,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.check_catalog_database_equals(new_db, self.catalog.get_database(self.db1))
 
     def test_alter_db_database_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.alter_database("nonexistent", self.create_db(), False)
 
     def test_alter_db_database_not_exist_ignored(self):
@@ -344,14 +346,14 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_create_table_database_not_exist_exception(self):
         self.assertFalse(self.catalog.database_exists(self.db1))
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.create_table(self.non_exist_object_path, self.create_table(), False)
 
     def test_create_table_table_already_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_table(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableAlreadyExistException):
             self.catalog.create_table(self.path1, self.create_table(), False)
 
     def test_create_table_table_already_exist_ignored(self):
@@ -369,11 +371,11 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_get_table_table_not_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.get_table(self.non_exist_object_path)
 
     def test_get_table_table_not_exist_exception_no_db(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.get_table(self.non_exist_object_path)
 
     def test_drop_table_non_partitioned_table(self):
@@ -387,7 +389,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertFalse(self.catalog.table_exists(self.path1))
 
     def test_drop_table_table_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.drop_table(self.non_exist_db_path, False)
 
     def test_drop_table_table_not_exist_ignored(self):
@@ -435,7 +437,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.check_catalog_view_equals(new_view, self.catalog.get_table(self.path3))
 
     def test_alter_table_table_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.alter_table(self.non_exist_db_path, self.create_table(), False)
 
     def test_alter_table_table_not_exist_ignored(self):
@@ -459,7 +461,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_rename_table_table_not_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.rename_table(self.path1, self.t2, False)
 
     def test_rename_table_table_not_exist_exception_ignored(self):
@@ -472,7 +474,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_table(self.path1, table, False)
         self.catalog.create_table(self.path3, self.create_another_table(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableAlreadyExistException):
             self.catalog.rename_table(self.path1, self.t2, False)
 
     def test_list_tables(self):
@@ -507,14 +509,14 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_create_view_database_not_exist_exception(self):
         self.assertFalse(self.catalog.database_exists(self.db1))
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.create_table(self.non_exist_object_path, self.create_view(), False)
 
     def test_create_view_table_already_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_view(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableAlreadyExistException):
             self.catalog.create_table(self.path1, self.create_view(), False)
 
     def test_create_view_table_already_exist_ignored(self):
@@ -553,7 +555,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.check_catalog_view_equals(new_view, self.catalog.get_table(self.path1))
 
     def test_alter_view_table_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.alter_table(self.non_exist_db_path, self.create_table(), False)
 
     def test_alter_view_table_not_exist_ignored(self):
@@ -598,7 +600,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_create_function_database_not_exist_exception(self):
         self.assertFalse(self.catalog.database_exists(self.db1))
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.create_function(self.path1, self.create_function(), False)
 
     def test_create_functin_function_already_exist_function(self):
@@ -610,7 +612,7 @@ class CatalogTestBase(PyFlinkTestCase):
         # test 'ignoreIfExist' flag
         self.catalog.create_function(self.path1, self.create_another_function(), True)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(FunctionAlreadyExistException):
             self.catalog.create_function(self.path1, self.create_function(), False)
 
     def test_alter_function(self):
@@ -629,7 +631,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.check_catalog_function_equals(new_func, actual)
 
     def test_alter_function_function_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(FunctionNotExistException):
             self.catalog.alter_function(self.non_exist_object_path, self.create_function(), False)
 
     def test_alter_function_function_not_exist_ignored(self):
@@ -647,17 +649,17 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertEquals(self.path1.get_object_name(), self.catalog.list_functions(self.db1)[0])
 
     def test_list_functions_database_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(DatabaseNotExistException):
             self.catalog.list_functions(self.db1)
 
     def test_get_function_function_not_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(FunctionNotExistException):
             self.catalog.get_function(self.non_exist_object_path)
 
     def test_get_function_function_not_exist_exception_no_db(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(FunctionNotExistException):
             self.catalog.get_function(self.non_exist_object_path)
 
     def test_drop_function(self):
@@ -671,7 +673,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertFalse(self.catalog.function_exists(self.path1))
 
     def test_drop_function_function_not_exist_exception(self):
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(FunctionNotExistException):
             self.catalog.drop_function(self.non_exist_db_path, False)
 
     def test_drop_function_function_not_exist_ignored(self):
@@ -702,7 +704,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_create_partition_table_not_exist_exception(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotExistException):
             self.catalog.create_partition(self.path1, self.create_partition_spec(),
                                           self.create_partition(), False)
 
@@ -710,7 +712,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_database(self.db1, self.create_db(), False)
         self.catalog.create_table(self.path1, self.create_table(), False)
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(TableNotPartitionedException):
             self.catalog.create_partition(self.path1, self.create_partition_spec(),
                                           self.create_partition(), False)
 
@@ -721,7 +723,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_invalid_partition_spec_subset()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionSpecInvalidException):
             self.catalog.create_partition(
                 self.path1, partition_spec, self.create_partition(), False)
 
@@ -732,7 +734,7 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_partition(self.path1, self.create_partition_spec(), partition, False)
 
         partition_spec = self.create_partition_spec()
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionAlreadyExistsException):
             self.catalog.create_partition(
                 self.path1, partition_spec, self.create_partition(), False)
 
@@ -759,7 +761,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.drop_partition(self.path1, partition_spec, False)
 
     def test_drop_partition_table_not_partitioned(self):
@@ -768,7 +770,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.drop_partition(self.path1, partition_spec, False)
 
     def test_drop_partition_partition_spec_invalid(self):
@@ -778,7 +780,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_invalid_partition_spec_subset()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.drop_partition(self.path1, partition_spec, False)
 
     def test_drop_partition_patition_not_exist(self):
@@ -787,7 +789,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.drop_partition(self.path1, partition_spec, False)
 
     def test_drop_partition_patition_not_exist_ignored(self):
@@ -820,7 +822,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.alter_partition(self.path1, partition_spec, self.create_partition(), False)
 
     def test_alter_partition_table_not_partitioned(self):
@@ -829,7 +831,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.alter_partition(self.path1, partition_spec, self.create_partition(), False)
 
     def test_alter_partition_partition_spec_invalid(self):
@@ -839,7 +841,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_invalid_partition_spec_subset()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.alter_partition(self.path1, partition_spec, self.create_partition(), False)
 
     def test_alter_partition_partition_not_exist(self):
@@ -848,7 +850,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.alter_partition(self.path1, partition_spec, self.create_partition(), False)
 
     def test_alter_partition_partition_not_exist_ignored(self):
@@ -860,7 +862,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def test_get_partition_table_not_exists(self):
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.get_partition(self.path1, partition_spec)
 
     def test_get_partition_table_not_partitioned(self):
@@ -869,7 +871,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.get_partition(self.path1, partition_spec)
 
     def test_get_partition_partition_spec_invalid_invalid_partition_spec(self):
@@ -879,7 +881,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_invalid_partition_spec_subset()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.get_partition(self.path1, partition_spec)
 
     def test_get_partition_partition_spec_invalid_size_not_equal(self):
@@ -889,7 +891,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec_subset()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.get_partition(self.path1, partition_spec)
 
     def test_get_partition_partition_not_exist(self):
@@ -898,7 +900,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         partition_spec = self.create_partition_spec()
 
-        with self.assertRaises(Py4JJavaError):
+        with self.assertRaises(PartitionNotExistException):
             self.catalog.get_partition(self.path1, partition_spec)
 
     def test_partition_exists(self):
