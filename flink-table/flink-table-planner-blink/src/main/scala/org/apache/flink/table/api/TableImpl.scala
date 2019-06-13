@@ -249,25 +249,87 @@ class TableImpl(
     ))
   }
 
-  override def minus(right: Table): Table = ???
+  override def minus(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+          "subtracted.")
+    }
+    wrap(operationTreeBuilder.minus(operationTree, rightImpl.operationTree, all = false))
+  }
 
-  override def minusAll(right: Table): Table = ???
+  override def minusAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+          "subtracted.")
+    }
 
-  override def union(right: Table): Table = ???
+    wrap(operationTreeBuilder.minus(operationTree, rightImpl.operationTree, all = true))
+  }
 
-  override def unionAll(right: Table): Table = ???
+  override def union(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+    }
 
-  override def intersect(right: Table): Table = ???
+    wrap(operationTreeBuilder.union(operationTree, rightImpl.operationTree, all = false))
+  }
 
-  override def intersectAll(right: Table): Table = ???
+  override def unionAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (right.asInstanceOf[TableImpl].tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+    }
 
-  override def orderBy(fields: String): Table = ???
+    wrap(operationTreeBuilder.union(operationTree, rightImpl.operationTree, all = true))
+  }
 
-  override def orderBy(fields: Expression*): Table = ???
+  override def intersect(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
+      throw new ValidationException(
+        "Only tables from the same TableEnvironment can be intersected.")
+    }
 
-  override def offset(offset: Int): Table = ???
+    wrap(operationTreeBuilder.intersect(operationTree, rightImpl.operationTree, all = false))
+  }
 
-  override def fetch(fetch: Int): Table = ???
+  override def intersectAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    val rightImpl = right.asInstanceOf[TableImpl]
+    if (rightImpl.tableEnv != this.tableEnv) {
+      throw new ValidationException(
+        "Only tables from the same TableEnvironment can be intersected.")
+    }
+
+    wrap(operationTreeBuilder.intersect(operationTree, rightImpl.operationTree, all = true))
+  }
+
+  override def orderBy(fields: String): Table = {
+    orderBy(ExpressionParser.parseExpressionList(fields).asScala: _*)
+  }
+
+  override def orderBy(fields: Expression*): Table = {
+    wrap(operationTreeBuilder.sort(fields.map(_.accept(callResolver)).asJava, operationTree))
+  }
+
+  override def offset(offset: Int): Table = {
+    wrap(operationTreeBuilder.limitWithOffset(offset, operationTree))
+  }
+
+  override def fetch(fetch: Int): Table = {
+    if (fetch < 0) {
+      throw new ValidationException("FETCH count must be equal or larger than 0.")
+    }
+    wrap(operationTreeBuilder.limitWithFetch(fetch, operationTree))
+  }
 
   override def insertInto(tablePath: String, tablePathContinued: String*): Unit = ???
 
@@ -310,9 +372,13 @@ class TableImpl(
 
   override def getQueryOperation: QueryOperation = operationTree
 
-  override def aggregate(aggregateFunction: String): AggregatedTable = ???
+  override def aggregate(aggregateFunction: String): AggregatedTable = {
+    aggregate(ExpressionParser.parseExpression(aggregateFunction))
+  }
 
-  override def aggregate(aggregateFunction: Expression): AggregatedTable = ???
+  override def aggregate(aggregateFunction: Expression): AggregatedTable = {
+    groupBy().aggregate(aggregateFunction)
+  }
 
   override def flatAggregate(tableAggregateFunction: String): FlatAggregateTable = ???
 

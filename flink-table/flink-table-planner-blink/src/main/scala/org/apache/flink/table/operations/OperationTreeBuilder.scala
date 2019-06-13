@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
+import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.{INTERSECT, MINUS, UNION}
 import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
@@ -47,7 +48,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
   private val projectionOperationFactory = new ProjectionOperationFactory()
+  private val sortOperationFactory = new SortOperationFactory(isStreaming)
   private val calculatedTableFactory = new CalculatedTableFactory()
+  private val setOperationFactory = new SetOperationFactory(isStreaming)
   private val aggregateOperationFactory = new AggregateOperationFactory(isStreaming)
   private val joinOperationFactory = new JoinOperationFactory()
 
@@ -123,9 +126,47 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
   }
 
   def distinct(
-      child: QueryOperation)
-  : QueryOperation = {
+      child: QueryOperation): QueryOperation = {
     new DistinctQueryOperation(child)
+  }
+
+  def minus(
+      left: QueryOperation,
+      right: QueryOperation,
+      all: Boolean): QueryOperation = {
+    setOperationFactory.create(MINUS, left, right, all)
+  }
+
+  def intersect(
+      left: QueryOperation,
+      right: QueryOperation,
+      all: Boolean): QueryOperation = {
+    setOperationFactory.create(INTERSECT, left, right, all)
+  }
+
+  def union(
+      left: QueryOperation,
+      right: QueryOperation,
+      all: Boolean): QueryOperation = {
+    setOperationFactory.create(UNION, left, right, all)
+  }
+
+  def sort(
+      fields: JList[Expression],
+      child: QueryOperation): QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedFields = resolver.resolve(fields)
+
+    sortOperationFactory.createSort(resolvedFields, child)
+  }
+
+  def limitWithOffset(offset: Int, child: QueryOperation): QueryOperation = {
+    sortOperationFactory.createLimitWithOffset(offset, child)
+  }
+
+  def limitWithFetch(fetch: Int, child: QueryOperation): QueryOperation = {
+    sortOperationFactory.createLimitWithFetch(fetch, child)
   }
 
   private def resolveSingleExpression(
