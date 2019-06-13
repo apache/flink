@@ -1335,29 +1335,7 @@ public class CheckpointCoordinator {
 			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED);
 		} else if (cause instanceof CheckpointException) {
 			CheckpointException exception = (CheckpointException) cause;
-			switch (exception.getCheckpointFailureReason()) {
-				case CHECKPOINT_DECLINED_SUBSUMED:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED);
-					break;
-				case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED);
-					break;
-				case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER);
-					break;
-				case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING);
-					break;
-				case CHECKPOINT_DECLINED_TASK_NOT_READY:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY, cause);
-					break;
-				case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM);
-					break;
-
-				default:
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED, cause);
-			}
+			failPendingCheckpoint(pendingCheckpoint, exception.getCheckpointFailureReason(), cause);
 		} else {
 			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.JOB_FAILURE, cause);
 		}

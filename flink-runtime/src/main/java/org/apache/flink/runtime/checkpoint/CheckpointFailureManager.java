@@ -19,6 +19,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -34,15 +36,16 @@ public class CheckpointFailureManager {
 	private final int tolerableCpFailureNumber;
 	private final FailJobCallback failureCallback;
 	private final AtomicInteger continuousFailureCounter;
+	private final ConcurrentMap<Long, Long> countedCheckpointIds;
 
 	public CheckpointFailureManager(int tolerableCpFailureNumber, FailJobCallback failureCallback) {
-		checkArgument(tolerableCpFailureNumber >= 0
-				&& tolerableCpFailureNumber <= UNLIMITED_TOLERABLE_FAILURE_NUMBER,
+		checkArgument(tolerableCpFailureNumber >= 0,
 			"The tolerable checkpoint failure number is illegal, " +
-				"it must be greater than or equal to 0 and less than or equal to " + UNLIMITED_TOLERABLE_FAILURE_NUMBER + ".");
+				"it must be greater than or equal to 0 .");
 		this.tolerableCpFailureNumber = tolerableCpFailureNumber;
 		this.continuousFailureCounter = new AtomicInteger(0);
 		this.failureCallback = checkNotNull(failureCallback);
+		this.countedCheckpointIds = new ConcurrentHashMap<>();
 	}
 
 	/**
@@ -84,7 +87,14 @@ public class CheckpointFailureManager {
 				break;
 
 			case CHECKPOINT_DECLINED:
-				continuousFailureCounter.incrementAndGet();
+				//we should make sure one checkpoint only be counted once
+				if (countedCheckpointIds.containsKey(checkpointId)) {
+					break;
+				} else {
+					continuousFailureCounter.incrementAndGet();
+					countedCheckpointIds.putIfAbsent(checkpointId, checkpointId);
+				}
+
 				break;
 
 			default:
@@ -95,6 +105,7 @@ public class CheckpointFailureManager {
 			&& continuousFailureCounter.get() > tolerableCpFailureNumber) {
 			//clear the counter
 			continuousFailureCounter.set(0);
+			countedCheckpointIds.clear();
 			failureCallback.failJob();
 		}
 	}
@@ -107,6 +118,7 @@ public class CheckpointFailureManager {
 	 */
 	public void handleCheckpointSuccess(long checkpointId) {
 		continuousFailureCounter.set(0);
+		countedCheckpointIds.clear();
 	}
 
 	/**

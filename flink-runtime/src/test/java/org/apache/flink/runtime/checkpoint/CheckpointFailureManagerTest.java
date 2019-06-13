@@ -33,16 +33,16 @@ public class CheckpointFailureManagerTest extends TestLogger {
 		TestFailJobCallback callback = new TestFailJobCallback();
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
 
-		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
+		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 1);
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 2);
 
 		//ignore this
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), -1);
+			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), 3);
 
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 4);
 		assertEquals(1, callback.getInvokeCounter());
 	}
 
@@ -51,19 +51,19 @@ public class CheckpointFailureManagerTest extends TestLogger {
 		TestFailJobCallback callback = new TestFailJobCallback();
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
 
-		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.EXCEPTION), -1);
+		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.EXCEPTION), 1);
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), -1);
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 2);
 
 		//ignore this
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), -1);
+			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), 3);
 
 		//reset
-		failureManager.handleCheckpointSuccess(-1);
+		failureManager.handleCheckpointSuccess(4);
 
 		failureManager.handleCheckpointException(
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED), -1);
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED), 5);
 		assertEquals(0, callback.getInvokeCounter());
 	}
 
@@ -76,6 +76,25 @@ public class CheckpointFailureManagerTest extends TestLogger {
 		}
 
 		assertEquals(1, callback.getInvokeCounter());
+	}
+
+	@Test
+	public void testIgnoreOneCheckpointRepeatedlyCountMultiTimes() {
+		TestFailJobCallback callback = new TestFailJobCallback();
+		CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
+
+		failureManager.handleCheckpointException(new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 1);
+		failureManager.handleCheckpointException(
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 2);
+
+		//ignore this
+		failureManager.handleCheckpointException(
+			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), 3);
+
+		//ignore repeatedly report from one checkpoint
+		failureManager.handleCheckpointException(
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 2);
+		assertEquals(0, callback.getInvokeCounter());
 	}
 
 	/**

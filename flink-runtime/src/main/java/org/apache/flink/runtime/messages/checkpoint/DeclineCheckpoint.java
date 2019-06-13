@@ -43,24 +43,8 @@ public class DeclineCheckpoint extends AbstractCheckpointMessage implements java
 	public DeclineCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, Throwable reason) {
 		super(job, taskExecutionId, checkpointId);
 
-		if (reason == null) {
+		if (reason == null || reason instanceof CheckpointException) {
 			this.reason = reason;
-		} else if (reason.getClass() == CheckpointException.class) {
-			CheckpointException exception = (CheckpointException) reason;
-			switch (exception.getCheckpointFailureReason()) {
-				case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
-				case CHECKPOINT_DECLINED_TASK_NOT_READY:
-				case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-				case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
-				case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
-				case CHECKPOINT_DECLINED_SUBSUMED:
-					this.reason = reason;
-					break;
-
-				default:
-					this.reason = new SerializedThrowable(reason);
-
-			}
 		} else {
 			// some other exception. replace with a serialized throwable, to be on the safe side
 			this.reason = new SerializedThrowable(reason);
