@@ -18,11 +18,14 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An edge in the streaming topology. One edge like this does not necessarily
@@ -70,8 +73,22 @@ public class StreamEdge implements Serializable {
 	 */
 	private final String targetOperatorName;
 
+	private final ShuffleMode shuffleMode;
+
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
+		this(sourceVertex,
+				targetVertex,
+				typeNumber,
+				selectedNames,
+				outputPartitioner,
+				outputTag,
+				ShuffleMode.PIPELINED);
+	}
+
+	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
+			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag,
+			ShuffleMode shuffleMode) {
 		this.sourceId = sourceVertex.getId();
 		this.targetId = targetVertex.getId();
 		this.typeNumber = typeNumber;
@@ -80,6 +97,7 @@ public class StreamEdge implements Serializable {
 		this.outputTag = outputTag;
 		this.sourceOperatorName = sourceVertex.getOperatorName();
 		this.targetOperatorName = targetVertex.getOperatorName();
+		this.shuffleMode = checkNotNull(shuffleMode);
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
 				+ "_" + outputPartitioner;
@@ -107,6 +125,10 @@ public class StreamEdge implements Serializable {
 
 	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;
+	}
+
+	public ShuffleMode getShuffleMode() {
+		return shuffleMode;
 	}
 
 	public void setPartitioner(StreamPartitioner<?> partitioner) {

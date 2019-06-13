@@ -45,6 +45,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -367,5 +370,33 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		OutputFormat<?> sinkFormat2 = outputFormats.get(nameToOperatorIds.get("Sink: sink2")).getUserCodeObject();
 		assertTrue(sinkFormat2 instanceof DiscardingOutputFormat);
+	}
+
+	/**
+	 * Test manually setting shuffle mode.
+	 */
+	@Test
+	public void testShuffleMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Map -> Print, will not chain since the batch data exchange mode
+		DataStream<Integer> mapDataStream = env.fromElements(1, 2, 3)
+			.map((MapFunction<Integer, Integer>) value -> value).setParallelism(2);
+
+		DataStream<Integer> partitionDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				mapDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.BATCH));
+		partitionDataStream.print().setParallelism(2);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(3, verticesSorted.size());
+
+		JobVertex sourceVertex = verticesSorted.get(0);
+		JobVertex mapVertex = verticesSorted.get(1);
+		JobVertex printVertex = verticesSorted.get(2);
+
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, mapVertex.getInputs().get(0).getSource().getResultType());
+		assertEquals(ResultPartitionType.BLOCKING, printVertex.getInputs().get(0).getSource().getResultType());
 	}
 }
