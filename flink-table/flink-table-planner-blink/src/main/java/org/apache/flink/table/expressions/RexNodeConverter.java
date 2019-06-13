@@ -45,6 +45,7 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -280,7 +281,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
 			return relBuilder.getRexBuilder().makeAbstractCast(
 					typeFactory.createFieldTypeFromLogicalType(
-							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+							fromDataTypeToLogicalType(type.getOutputDataType()).copy(child.getType().isNullable())),
 					child);
 		} else if (BuiltInFunctionDefinitions.REINTERPRET_CAST.equals(def)) {
 			RexNode child = call.getChildren().get(0).accept(this);
@@ -288,7 +289,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			RexNode checkOverflow = call.getChildren().get(2).accept(this);
 			return relBuilder.getRexBuilder().makeReinterpretCast(
 					typeFactory.createFieldTypeFromLogicalType(
-							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+							fromDataTypeToLogicalType(type.getOutputDataType()).copy(child.getType().isNullable())),
 					child,
 					checkOverflow);
 		} else if (BuiltInFunctionDefinitions.IN.equals(def)) {
@@ -303,8 +304,9 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.GET.equals(def)) {
 			RexNode child = call.getChildren().get(0).accept(this);
 			ValueLiteralExpression keyLiteral = (ValueLiteralExpression) call.getChildren().get(1);
-			int index = ExpressionUtils.extractValue(keyLiteral, String.class).map(
-					child.getType().getFieldNames()::indexOf).orElse(extractValue(keyLiteral, Integer.class));
+			int index = ExpressionUtils.extractValue(keyLiteral, String.class)
+					.map(child.getType().getFieldNames()::indexOf)
+					.orElseGet(() -> extractValue(keyLiteral, Integer.class));
 			return relBuilder.getRexBuilder().makeFieldAccess(child, index);
 		} else if (BuiltInFunctionDefinitions.TRIM.equals(def)) {
 			ValueLiteralExpression removeLeadingExpr = (ValueLiteralExpression) call.getChildren().get(0);
@@ -569,7 +571,64 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 					TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO);
 			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
 		} else {
-			return relBuilder.literal(extractValue(expr, Object.class));
+			Object object = extractValue(expr, Object.class);
+			if (object instanceof TimePointUnit) {
+				throw new UnsupportedOperationException();
+			} else if (object instanceof TimeIntervalUnit) {
+				TimeUnitRange value;
+				switch ((TimeIntervalUnit) object) {
+					case YEAR:
+						value = TimeUnitRange.YEAR;
+						break;
+					case YEAR_TO_MONTH:
+						value = TimeUnitRange.YEAR_TO_MONTH;
+						break;
+					case QUARTER:
+						value = TimeUnitRange.QUARTER;
+						break;
+					case MONTH:
+						value = TimeUnitRange.MONTH;
+						break;
+					case WEEK:
+						value = TimeUnitRange.WEEK;
+						break;
+					case DAY:
+						value = TimeUnitRange.DAY;
+						break;
+					case DAY_TO_HOUR:
+						value = TimeUnitRange.DAY_TO_HOUR;
+						break;
+					case DAY_TO_MINUTE:
+						value = TimeUnitRange.DAY_TO_MINUTE;
+						break;
+					case DAY_TO_SECOND:
+						value = TimeUnitRange.DAY_TO_SECOND;
+						break;
+					case HOUR:
+						value = TimeUnitRange.HOUR;
+						break;
+					case SECOND:
+						value = TimeUnitRange.SECOND;
+						break;
+					case HOUR_TO_MINUTE:
+						value = TimeUnitRange.HOUR_TO_MINUTE;
+						break;
+					case HOUR_TO_SECOND:
+						value = TimeUnitRange.HOUR_TO_SECOND;
+						break;
+					case MINUTE:
+						value = TimeUnitRange.MINUTE;
+						break;
+					case MINUTE_TO_SECOND:
+						value = TimeUnitRange.MINUTE_TO_SECOND;
+						break;
+					default:
+						throw new UnsupportedOperationException();
+				}
+				return relBuilder.getRexBuilder().makeFlag(value);
+			} else {
+				return relBuilder.literal(extractValue(expr, Object.class));
+			}
 		}
 	}
 

@@ -37,8 +37,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   private val functionCatalog: FunctionDefinitionCatalog = tableEnv.functionCatalog
 
-  private val projectionOperationFactory = new ProjectionOperationFactory(tableEnv.getRelBuilder,
-    functionCatalog)
+  private val projectionOperationFactory = new ProjectionOperationFactory()
 
   private val tableCatalog = new TableReferenceLookup {
     override def lookupTable(name: String): Optional[TableReferenceExpression] =

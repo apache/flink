@@ -79,6 +79,7 @@ public class ClassLogicalTypeConverter {
 				return Float.class;
 			case DOUBLE:
 				return Double.class;
+			case CHAR:
 			case VARCHAR:
 				return String.class;
 			case DECIMAL:
@@ -152,6 +153,7 @@ public class ClassLogicalTypeConverter {
 				return Float.class;
 			case DOUBLE:
 				return Double.class;
+			case CHAR:
 			case VARCHAR:
 				return BinaryString.class;
 			case DECIMAL:

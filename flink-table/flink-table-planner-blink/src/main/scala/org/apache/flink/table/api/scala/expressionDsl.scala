@@ -877,23 +877,23 @@ trait ImplicitExpressionOperations {
 
   // Advanced type helper functions
 
-//  /**
-//    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
-//    * returns it's value.
-//    *
-//    * @param name name of the field (similar to Flink's field expressions)
-//    * @return value of the field
-//    */
-//  def get(name: String): Expression = call(GET, expr, name)
-//
-//  /**
-//    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
-//    * returns it's value.
-//    *
-//    * @param index position of the field
-//    * @return value of the field
-//    */
-//  def get(index: Int): Expression = call(GET, expr, index)
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
+    * returns it's value.
+    *
+    * @param name name of the field (similar to Flink's field expressions)
+    * @return value of the field
+    */
+  def get(name: String): Expression = call(GET, expr, name)
+
+  /**
+    * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
+    * returns it's value.
+    *
+    * @param index position of the field
+    * @return value of the field
+    */
+  def get(index: Int): Expression = call(GET, expr, index)
 
   /**
     * Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
@@ -1392,13 +1392,13 @@ object timestampDiff {
     * @param timePoint2 The second point in time.
     * @return The number of intervals as integer value.
     */
-//  def apply(
-//      timePointUnit: TimePointUnit,
-//      timePoint1: Expression,
-//      timePoint2: Expression)
-//    : Expression = {
-//    call(TIMESTAMP_DIFF, timePointUnit, timePoint1, timePoint2)
-//  }
+  def apply(
+      timePointUnit: TimePointUnit,
+      timePoint1: Expression,
+      timePoint2: Expression)
+    : Expression = {
+    call(TIMESTAMP_DIFF, timePointUnit, timePoint1, timePoint2)
+  }
 }
 
 /**

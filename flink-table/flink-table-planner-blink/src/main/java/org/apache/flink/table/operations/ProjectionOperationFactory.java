@@ -19,11 +19,9 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
@@ -31,11 +29,9 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.FunctionDefinition;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
-import org.apache.flink.table.expressions.RexNodeConverter;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog;
-import org.apache.flink.table.plan.QueryOperationConverter;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
@@ -46,14 +42,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GET;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractNames;
-import static org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
@@ -67,15 +61,6 @@ public final class ProjectionOperationFactory {
 	private final NamingVisitor namingVisitor = new NamingVisitor();
 	private final StripAliases stripAliases = new StripAliases();
 	private int currentFieldIndex = 0;
-	private final RexNodeConverter rexNodeConverter;
-	private final FlinkRelBuilder relBuilder;
-	private final QueryOperationConverter queryOperationConverter;
-
-	public ProjectionOperationFactory(FlinkRelBuilder relBuilder, FunctionDefinitionCatalog functionCatalog) {
-		this.relBuilder = relBuilder;
-		this.rexNodeConverter = new RexNodeConverter(relBuilder);
-		this.queryOperationConverter = new QueryOperationConverter(relBuilder, functionCatalog);
-	}
 
 	public QueryOperation create(
 			List<Expression> projectList,
@@ -93,14 +78,10 @@ public final class ProjectionOperationFactory {
 				.map(expr -> expr.accept(stripAliases))
 				.collect(Collectors.toList());
 		}
-		// TODO assume all fields in projects could be converted to RexNode, Would be remove later
-		relBuilder.push(child.accept(queryOperationConverter));
-		TypeInformation[] fieldTypes = namedExpressions.stream()
-			.map(expr -> fromLogicalTypeToTypeInfo(toLogicalType(expr.accept(rexNodeConverter).getType())))
-			.toArray(TypeInformation[]::new);
-		relBuilder.build();
-		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
-
+		DataType[] fieldTypes = namedExpressions.stream()
+			.map(ExpressionTypeInfer::infer)
+			.toArray(DataType[]::new);
+		TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 		return new ProjectQueryOperation(finalExpression, child, tableSchema);
 	}
 
