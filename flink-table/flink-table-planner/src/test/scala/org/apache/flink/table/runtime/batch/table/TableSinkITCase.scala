@@ -75,9 +75,10 @@ class TableSinkITCase(
   }
 
   @Test
-  def testBoundedTableSink(): Unit = {
+  def testOutputFormatTableSink(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
+    MemoryTableSourceSinkUtil.clear()
 
     val fieldNames = Array("c", "b")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
