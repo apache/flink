@@ -59,6 +59,7 @@ class StreamQueryConfig(QueryConfig):
         Set to ``datetime.timedelta()``(zero) to never clean-up the state.
 
         .. note::
+
             Cleaning up state requires additional bookkeeping which becomes less expensive for
             larger differences of minTime and maxTime. The difference between minTime and maxTime
             must be at least ``datetime.timedelta(minutes=5)``(5 minutes).
