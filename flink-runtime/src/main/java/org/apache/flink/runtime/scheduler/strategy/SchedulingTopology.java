@@ -47,7 +47,8 @@ public interface SchedulingTopology {
 	 * Looks up the {@link SchedulingExecutionVertex} for the given {@link ExecutionVertexID}.
 	 *
 	 * @param executionVertexId identifying the respective scheduling vertex
-	 * @return The respective scheduling vertex or throw {@link Exception} if the vertex does not exist
+	 * @return The respective scheduling vertex
+	 * @throws IllegalArgumentException If the vertex does not exist
 	 */
 	default SchedulingExecutionVertex getVertexOrThrow(ExecutionVertexID executionVertexId) {
 		return getVertex(executionVertexId).orElseThrow(
@@ -66,7 +67,8 @@ public interface SchedulingTopology {
 	 * Looks up the {@link SchedulingResultPartition} for the given {@link IntermediateResultPartitionID}.
 	 *
 	 * @param intermediateResultPartitionId identifying the respective scheduling result partition
-	 * @return The respective scheduling result partition or throw {@link Exception} if the partition does not exist
+	 * @return The respective scheduling result partition
+	 * @throws IllegalArgumentException If the partition does not exist
 	 */
 	default SchedulingResultPartition getResultPartitionOrThrow(IntermediateResultPartitionID intermediateResultPartitionId) {
 		return getResultPartition(intermediateResultPartitionId).orElseThrow(
