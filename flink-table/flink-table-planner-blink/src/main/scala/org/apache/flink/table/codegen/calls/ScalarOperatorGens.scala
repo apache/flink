@@ -325,7 +325,7 @@ object ScalarOperatorGens {
       right: GeneratedExpression)
     : GeneratedExpression = {
     val canEqual = isInteroperable(left.resultType, right.resultType)
-    if (left.resultType.getTypeRoot == VARCHAR && right.resultType.getTypeRoot == VARCHAR) {
+    if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
         (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
       }
@@ -348,14 +348,14 @@ object ScalarOperatorGens {
     }
     // support date/time/timestamp equalTo string.
     // for performance, we cast literal string to literal time.
-    else if (isTimePoint(left.resultType) && right.resultType.getTypeRoot == VARCHAR) {
+    else if (isTimePoint(left.resultType) && isCharacterString(right.resultType)) {
       if (right.literal) {
         generateEquals(ctx, left, generateCastStringLiteralToDateTime(ctx, right, left.resultType))
       } else {
         generateEquals(ctx, left, generateCast(ctx, right, left.resultType))
       }
     }
-    else if (isTimePoint(right.resultType) && left.resultType.getTypeRoot == VARCHAR) {
+    else if (isTimePoint(right.resultType) && isCharacterString(left.resultType)) {
       if (left.literal) {
         generateEquals(
           ctx,
@@ -368,10 +368,10 @@ object ScalarOperatorGens {
     // non comparable types
     else {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
-        if (isReference(left)) {
+        if (isReference(left.resultType)) {
           (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
         }
-        else if (isReference(right)) {
+        else if (isReference(right.resultType)) {
           (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
         }
         else {
@@ -387,7 +387,7 @@ object ScalarOperatorGens {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    if (left.resultType.isInstanceOf[VarCharType] && right.resultType.isInstanceOf[VarCharType]) {
+    if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
         (leftTerm, rightTerm) => s"!$leftTerm.equals($rightTerm)"
       }
@@ -421,10 +421,10 @@ object ScalarOperatorGens {
     // non-comparable types
     else {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
-        if (isReference(left)) {
+        if (isReference(left.resultType)) {
           (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
         }
-        else if (isReference(right)) {
+        else if (isReference(right.resultType)) {
           (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
         }
         else {
@@ -472,7 +472,7 @@ object ScalarOperatorGens {
         }
       }
       // both sides are binary type
-      else if (isBinary(left.resultType) &&
+      else if (isBinaryString(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
         (leftTerm, rightTerm) =>
           s"java.util.Arrays.equals($leftTerm, $rightTerm)"
@@ -497,7 +497,7 @@ object ScalarOperatorGens {
     if (ctx.nullCheck) {
       GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType())
     }
-    else if (!ctx.nullCheck && isReference(operand)) {
+    else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("isNull")
       val operatorCode =
         s"""
@@ -523,7 +523,7 @@ object ScalarOperatorGens {
            |""".stripMargin.trim
       GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
     }
-    else if (!ctx.nullCheck && isReference(operand)) {
+    else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("result")
       val operatorCode =
         s"""
@@ -772,7 +772,7 @@ object ScalarOperatorGens {
       operand.copy(resultType = targetType)
 
     // Date/Time/Timestamp -> String
-    case (_, VARCHAR) if TypeCheckUtils.isTimePoint(operand.resultType) =>
+    case (_, VARCHAR | CHAR) if TypeCheckUtils.isTimePoint(operand.resultType) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         operandTerm =>
           val zoneTerm = ctx.addReusableTimeZone()
@@ -780,7 +780,7 @@ object ScalarOperatorGens {
       }
 
     // Interval Months -> String
-    case (INTERVAL_YEAR_MONTH, VARCHAR) =>
+    case (INTERVAL_YEAR_MONTH, VARCHAR | CHAR) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_YEAR_MONTH_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.YEAR_TO_MONTH)
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
@@ -788,7 +788,7 @@ object ScalarOperatorGens {
       }
 
     // Interval Millis -> String
-    case (INTERVAL_DAY_TIME, VARCHAR) =>
+    case (INTERVAL_DAY_TIME, VARCHAR | CHAR) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_DAY_TIME_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
@@ -796,11 +796,11 @@ object ScalarOperatorGens {
       }
 
     // Array -> String
-    case (ARRAY, VARCHAR) =>
+    case (ARRAY, VARCHAR | CHAR) =>
       generateCastArrayToString(ctx, operand, operand.resultType.asInstanceOf[ArrayType])
 
     // Byte array -> String UTF-8
-    case (VARBINARY, VARCHAR) =>
+    case (VARBINARY, VARCHAR | CHAR) =>
       val charset = classOf[StandardCharsets].getCanonicalName
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms => s"(new String(${terms.head}, $charset.UTF_8))"
@@ -808,14 +808,14 @@ object ScalarOperatorGens {
 
 
     // Map -> String
-    case (MAP, VARCHAR) =>
+    case (MAP, VARCHAR | CHAR) =>
       generateCastMapToString(ctx, operand, operand.resultType.asInstanceOf[MapType])
 
     // composite type -> String
-    case (ROW, VARCHAR) =>
+    case (ROW, VARCHAR | CHAR) =>
       generateCastBaseRowToString(ctx, operand, operand.resultType.asInstanceOf[RowType])
 
-    case (ANY, VARCHAR) =>
+    case (ANY, VARCHAR | CHAR) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms =>
           val converter = DataFormatConverters.getConverterForDataType(
@@ -826,13 +826,13 @@ object ScalarOperatorGens {
 
     // * (not Date/Time/Timestamp) -> String
     // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitly
-    case (_, VARCHAR) =>
+    case (_, VARCHAR | CHAR) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         terms => s""" "" + ${terms.head}"""
       }
 
     // String -> Boolean
-    case (VARCHAR, BOOLEAN) =>
+    case (VARCHAR | CHAR, BOOLEAN) =>
       generateUnaryOperatorIfNotNull(
         ctx,
         targetType,
@@ -842,7 +842,7 @@ object ScalarOperatorGens {
       }
 
     // String -> NUMERIC TYPE (not Character)
-    case (VARCHAR, _)
+    case (VARCHAR | CHAR, _)
       if TypeCheckUtils.isNumeric(targetType) =>
       targetType match {
         case dt: DecimalType =>
@@ -870,7 +870,7 @@ object ScalarOperatorGens {
       }
 
     // String -> Date
-    case (VARCHAR, DATE) =>
+    case (VARCHAR | CHAR, DATE) =>
       generateUnaryOperatorIfNotNull(
         ctx,
         targetType,
@@ -881,7 +881,7 @@ object ScalarOperatorGens {
       }
 
     // String -> Time
-    case (VARCHAR, TIME_WITHOUT_TIME_ZONE) =>
+    case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
         ctx, 
         targetType,
@@ -892,7 +892,7 @@ object ScalarOperatorGens {
       }
 
     // String -> Timestamp
-    case (VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+    case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       generateUnaryOperatorIfNotNull(
         ctx, 
         targetType,
@@ -905,7 +905,7 @@ object ScalarOperatorGens {
       }
 
     // String -> binary
-    case (VARCHAR, VARBINARY) =>
+    case (VARCHAR | CHAR, VARBINARY | BINARY) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
         operandTerm => s"$operandTerm.getBytes()"
       }
@@ -1147,7 +1147,7 @@ object ScalarOperatorGens {
     }
 
     checkArgument(operands(1).literal)
-    checkArgument(operands(1).resultType.isInstanceOf[VarCharType])
+    checkArgument(isCharacterString(operands(1).resultType))
     checkArgument(operands.head.resultType.isInstanceOf[RowType])
 
     val fieldName = operands(1).literalValue.get.toString

@@ -61,9 +61,9 @@ import java.util.stream.Collectors;
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.table.typeutils.TypeCheckUtils.isCharacterString;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTemporal;
 import static org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval;
-import static org.apache.flink.table.typeutils.TypeCheckUtils.isVarchar;
 
 /**
  * Visit expression to generator {@link RexNode}.
@@ -129,12 +129,12 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.IS_NULL.equals(def)) {
 			return relBuilder.isNull(child.get(0));
 		} else if (BuiltInFunctionDefinitions.PLUS.equals(def)) {
-			if (isVarchar(toLogicalType(child.get(0).getType()))) {
+			if (isCharacterString(toLogicalType(child.get(0).getType()))) {
 				return relBuilder.call(
 						FlinkSqlOperatorTable.CONCAT,
 						child.get(0),
 						relBuilder.cast(child.get(1), VARCHAR));
-			} else if (isVarchar(toLogicalType(child.get(1).getType()))) {
+			} else if (isCharacterString(toLogicalType(child.get(1).getType()))) {
 				return relBuilder.call(
 						FlinkSqlOperatorTable.CONCAT,
 						relBuilder.cast(child.get(0), VARCHAR),

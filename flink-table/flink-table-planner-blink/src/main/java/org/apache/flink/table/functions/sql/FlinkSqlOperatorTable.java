@@ -433,7 +433,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction MD5 = new SqlFunction(
 		"MD5",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -443,7 +443,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA1 = new SqlFunction(
 		"SHA1",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -453,7 +453,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA224 = new SqlFunction(
 		"SHA224",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -463,7 +463,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA256 = new SqlFunction(
 		"SHA256",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -473,7 +473,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA384 = new SqlFunction(
 		"SHA384",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -483,7 +483,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA512 = new SqlFunction(
 		"SHA512",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -493,7 +493,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction SHA2 = new SqlFunction(
 		"SHA2",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
@@ -839,11 +839,11 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 				SqlTypeFamily.INTEGER)),
 		SqlFunctionCategory.NUMERIC);
 
-
 	public static final SqlFunction LTRIM = new SqlFunction(
 		"LTRIM",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		ReturnTypes.cascade(ReturnTypes.ARG0, SqlTypeTransforms.TO_NULLABLE,
+			SqlTypeTransforms.TO_VARYING),
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),
@@ -853,7 +853,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction RTRIM = new SqlFunction(
 		"RTRIM",
 		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
+		ReturnTypes.cascade(ReturnTypes.ARG0, SqlTypeTransforms.TO_NULLABLE,
+			SqlTypeTransforms.TO_VARYING),
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING),

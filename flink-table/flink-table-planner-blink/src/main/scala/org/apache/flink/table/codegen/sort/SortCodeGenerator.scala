@@ -410,8 +410,8 @@ class SortCodeGenerator(
     case FLOAT => "Float"
     case DOUBLE => "Double"
     case BOOLEAN => "Boolean"
-    case VARCHAR => "String"
-    case VARBINARY => "Binary"
+    case VARCHAR | CHAR => "String"
+    case VARBINARY | BINARY => "Binary"
     case DECIMAL => "Decimal"
     case DATE => "Int"
     case TIME_WITHOUT_TIME_ZONE => "Int"
@@ -436,7 +436,7 @@ class SortCodeGenerator(
   def supportNormalizedKey(t: LogicalType): Boolean = {
     t.getTypeRoot match {
       case _ if PlannerTypeUtils.isPrimitive(t) => true
-      case VARCHAR | VARBINARY |
+      case VARCHAR | CHAR | VARBINARY | BINARY |
            DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE => true
       case DECIMAL => Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision)
       case _ => false
@@ -458,7 +458,7 @@ class SortCodeGenerator(
       case DATE => 4
       case TIME_WITHOUT_TIME_ZONE => 4
       case DECIMAL if Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
-      case VARCHAR | VARBINARY => Int.MaxValue
+      case VARCHAR | CHAR | VARBINARY | BINARY => Int.MaxValue
     }
   }
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.Types
-import org.apache.flink.api.java.typeutils.MapTypeInfo
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull}
@@ -29,10 +27,14 @@ import org.apache.flink.table.dataformat.DataFormatConverters
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, MapType, VarBinaryType, VarCharType}
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp}
 
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
+import org.apache.calcite.util.BuiltInMethod
+
+import java.lang.reflect.Method
 
 /**
   * Code generator for call with string parameters or return value.
@@ -42,13 +44,18 @@ import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
   * <p>TODO Need to rewrite most of the methods here, calculated directly on the BinaryString
   * instead of convert BinaryString to String.
   */
-object BinaryStringCallGen {
+object StringCallGen {
 
   def generateCallExpression(
       ctx: CodeGeneratorContext,
       operator: SqlOperator,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): Option[GeneratedExpression] = {
+
+    def methodGen(method: Method): GeneratedExpression = {
+      new MethodCallGen(method).generate(ctx, operands, returnType)
+    }
+
     val generator = operator match {
 
       case LIKE =>
@@ -105,7 +112,7 @@ object BinaryStringCallGen {
 
       case KEYVALUE => generateKeyValue(ctx, operands)
 
-      case HASH_CODE if operands.head.resultType.isInstanceOf[VarCharType] =>
+      case HASH_CODE if isCharacterString(operands.head.resultType) =>
         generateHashCode(ctx, operands)
 
       case MD5 => generateMd5(ctx, operands)
@@ -137,11 +144,11 @@ object BinaryStringCallGen {
       case BIN => generateBin(ctx, operands)
 
       case CONCAT_FUNCTION =>
-        operands.foreach(requireString)
+        operands.foreach(requireCharacterString)
         generateConcat(ctx, operands)
 
       case CONCAT_WS =>
-        operands.foreach(requireString)
+        operands.foreach(requireCharacterString)
         generateConcatWs(ctx, operands)
 
       case STR_TO_MAP => generateStrToMap(ctx, operands)
@@ -155,7 +162,7 @@ object BinaryStringCallGen {
       case CONCAT =>
         val left = operands.head
         val right = operands(1)
-        requireString(left)
+        requireCharacterString(left)
         generateArithmeticConcat(ctx, left, right)
 
       case UUID => generateUuid(ctx, operands)
@@ -168,6 +175,101 @@ object BinaryStringCallGen {
 
       case INSTR => generateInstr(ctx, operands)
 
+      case PRINT => new PrintCallGen().generate(ctx, operands, returnType)
+
+      case IF =>
+        requireBoolean(operands.head)
+        new IfCallGen().generate(ctx, operands, returnType)
+
+      // Date/Time & BinaryString Converting -- start
+
+      case TO_DATE if operands.size == 1 && isCharacterString(operands.head.resultType) =>
+        methodGen(BuiltInMethod.STRING_TO_DATE.method)
+
+      case TO_DATE if operands.size == 2 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.STRING_TO_DATE_WITH_FORMAT)
+
+      case TO_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
+        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP)
+
+      case TO_TIMESTAMP if operands.size == 2 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
+
+      case UNIX_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
+        methodGen(BuiltInMethods.UNIX_TIMESTAMP_STR)
+
+      case UNIX_TIMESTAMP if operands.size == 2 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.UNIX_TIMESTAMP_FORMAT)
+
+      case DATEDIFF if isTimestamp(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATEDIFF_T_S)
+
+      case DATEDIFF if isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATEDIFF_S_S)
+
+      case DATEDIFF if isCharacterString(operands.head.resultType) &&
+          isTimestamp(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATEDIFF_S_T)
+
+      case DATE_FORMAT if operands.size == 2 &&
+          isTimestamp(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING)
+
+      case DATE_FORMAT if operands.size == 2 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
+
+      case DATE_FORMAT if operands.size == 3 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) &&
+          isCharacterString(operands(2).resultType) =>
+        methodGen(BuiltInMethods.DATE_FORMAT_STRING_STRING_STRING)
+
+      case TO_TIMESTAMP_TZ if operands.size == 2 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_TZ)
+
+      case TO_TIMESTAMP_TZ if operands.size == 3 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) &&
+          isCharacterString(operands(2).resultType) =>
+        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_FORMAT_TZ)
+
+      case DATE_FORMAT_TZ if operands.size == 2 &&
+          isTimestamp(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATE_FORMAT_LONG_ZONE)
+
+      case DATE_FORMAT_TZ if operands.size == 3 &&
+          isTimestamp(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) &&
+          isCharacterString(operands(2).resultType) =>
+        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING_ZONE)
+
+      case CONVERT_TZ if operands.size == 3 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) &&
+          isCharacterString(operands(2).resultType) =>
+        methodGen(BuiltInMethods.CONVERT_TZ)
+
+      case CONVERT_TZ if operands.size == 4 &&
+          isCharacterString(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) &&
+          isCharacterString(operands(2).resultType) &&
+          isCharacterString(operands(3).resultType) =>
+        methodGen(BuiltInMethods.CONVERT_FORMAT_TZ)
+
       case _ => null
     }
 
@@ -176,7 +278,7 @@ object BinaryStringCallGen {
 
   private def toStringTerms(terms: Seq[String], operands: Seq[GeneratedExpression]) = {
     terms.zipWithIndex.map { case (term, index) =>
-      if (operands(index).resultType.isInstanceOf[VarCharType]) {
+      if (isCharacterString(operands(index).resultType)) {
         s"$term.toString()"
       } else {
         term
@@ -186,7 +288,7 @@ object BinaryStringCallGen {
 
   private def safeToStringTerms(terms: Seq[String], operands: Seq[GeneratedExpression]) = {
     terms.zipWithIndex.map { case (term, index) =>
-      if (operands(index).resultType.isInstanceOf[VarCharType]) {
+      if (isCharacterString(operands(index).resultType)) {
         s"$BINARY_STRING.safeToString($term)"
       } else {
         term

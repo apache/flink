@@ -181,6 +181,7 @@ public interface TypeGetterSetters {
 				return row.getFloat(ordinal);
 			case DOUBLE:
 				return row.getDouble(ordinal);
+			case CHAR:
 			case VARCHAR:
 				return row.getString(ordinal);
 			case DECIMAL:
@@ -193,6 +194,7 @@ public interface TypeGetterSetters {
 				return row.getMap(ordinal);
 			case ROW:
 				return row.getRow(ordinal, ((RowType) type).getFieldCount());
+			case BINARY:
 			case VARBINARY:
 				return row.getBinary(ordinal);
 			case ANY:

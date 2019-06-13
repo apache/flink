@@ -70,10 +70,12 @@ public class TypeInfoDataTypeConverter {
 				return clazz == Decimal.class ?
 						new DecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale()) :
 						new BigDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
+			case CHAR:
 			case VARCHAR: // ignore precision
 				return clazz == BinaryString.class ?
 						BinaryStringTypeInfo.INSTANCE :
 						BasicTypeInfo.STRING_TYPE_INFO;
+			case BINARY:
 			case VARBINARY: // ignore precision
 				return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 			case ARRAY:

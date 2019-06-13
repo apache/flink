@@ -27,7 +27,7 @@ import org.apache.flink.table.typeutils.TypeCheckUtils._
   */
 object TypeCoercion {
 
-  val numericWideningPrecedence: IndexedSeq[LogicalType] =
+  var numericWideningPrecedence: IndexedSeq[LogicalType] =
     IndexedSeq(
       new TinyIntType(),
       new SmallIntType(),
@@ -36,12 +36,14 @@ object TypeCoercion {
       new FloatType(),
       new DoubleType())
 
+  numericWideningPrecedence ++= numericWideningPrecedence.map(_.copy(false))
+
   def widerTypeOf(tp1: LogicalType, tp2: LogicalType): Option[LogicalType] = {
     (tp1.getTypeRoot, tp2.getTypeRoot) match {
       case (_, _) if tp1 == tp2 => Some(tp1)
 
-      case (_, VARCHAR) => Some(tp2)
-      case (VARCHAR, _) => Some(tp1)
+      case (_, VARCHAR | CHAR) => Some(tp2)
+      case (VARCHAR | CHAR, _) => Some(tp1)
 
       case (_, DECIMAL) => Some(tp2)
       case (DECIMAL, _) => Some(tp1)
@@ -63,7 +65,7 @@ object TypeCoercion {
     */
   def canSafelyCast(
       from: LogicalType, to: LogicalType): Boolean = (from.getTypeRoot, to.getTypeRoot) match {
-    case (_, VARCHAR) => true
+    case (_, VARCHAR | CHAR) => true
 
     case (_, DECIMAL) if isNumeric(from) => true
 
@@ -89,14 +91,14 @@ object TypeCoercion {
       from: LogicalType, to: LogicalType): Boolean = (from.getTypeRoot, to.getTypeRoot) match {
     case (_, _) if from == to => true
 
-    case (_, VARCHAR) => true
+    case (_, VARCHAR | CHAR) => true
 
-    case (VARCHAR, _) if isNumeric(to) => true
-    case (VARCHAR, BOOLEAN) => true
-    case (VARCHAR, DECIMAL) => true
-    case (VARCHAR, DATE) => true
-    case (VARCHAR, TIME_WITHOUT_TIME_ZONE) => true
-    case (VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (VARCHAR | CHAR, _) if isNumeric(to) => true
+    case (VARCHAR | CHAR, BOOLEAN) => true
+    case (VARCHAR | CHAR, DECIMAL) => true
+    case (VARCHAR | CHAR, DATE) => true
+    case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) => true
+    case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) => true
 
     case (BOOLEAN, _) if isNumeric(to) => true
     case (BOOLEAN, DECIMAL) => true
