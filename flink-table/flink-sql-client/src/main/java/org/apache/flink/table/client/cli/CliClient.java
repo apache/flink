@@ -45,6 +45,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -234,6 +236,25 @@ public class CliClient {
 					return false;
 			}
 		}).orElse(false);
+	}
+
+	/**
+	 * Submits a SQL file and prints status information and/or errors on the terminal.
+	 *
+	 * @param sqlFile a SQL file to execute
+	 */
+	public void submitSQLFile(URL sqlFile) {
+		final String stmt;
+		try {
+			final Path path = Paths.get(sqlFile.toURI());
+			byte[] encoded = Files.readAllBytes(path);
+			stmt = new String(encoded, Charset.defaultCharset());
+		} catch (final IOException | URISyntaxException e) {
+			printExecutionException(e);
+			return;
+		}
+		final Optional<SqlCommandCall> cmdCall = parseCommand(stmt);
+		cmdCall.ifPresent(this::callCommand);
 	}
 
 	// --------------------------------------------------------------------------------------------

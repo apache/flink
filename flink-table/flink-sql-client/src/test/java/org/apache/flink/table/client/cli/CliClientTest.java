@@ -44,6 +44,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -138,6 +139,12 @@ public class CliClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSQLFileSubmission() {
+		final URL url = getClass().getClassLoader().getResource("one-DML-statement.sql");
+		verifySQLFileSubmission(url, INSERT_INTO_STATEMENT, false, false);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) {
@@ -192,6 +199,32 @@ public class CliClientTest extends TestLogger {
 		}
 	}
 
+	private void verifySQLFileSubmission(URL sqlFile, String statement, boolean failExecution, boolean testFailure) {
+		final SessionContext context = new SessionContext("test-session", new Environment());
+
+		final MockExecutor mockExecutor = new MockExecutor();
+		mockExecutor.failExecution = failExecution;
+
+		CliClient cli = null;
+		try {
+			cli = new CliClient(TerminalUtils.createDummyTerminal(), context, mockExecutor);
+			if (testFailure) {
+				try {
+					cli.submitSQLFile(sqlFile);
+				} catch (Exception ex) {
+					// expected
+				}
+			} else {
+				cli.submitSQLFile(sqlFile);
+				assertEquals(statement, mockExecutor.receivedStatement);
+				assertEquals(context, mockExecutor.receivedContext);
+			}
+		} finally {
+			if (cli != null) {
+				cli.close();
+			}
+		}
+	}
 	// --------------------------------------------------------------------------------------------
 
 	private static class MockExecutor implements Executor {

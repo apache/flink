@@ -118,8 +118,12 @@ public class SqlClient {
 		CliClient cli = null;
 		try {
 			cli = new CliClient(context, executor);
+			// execute sql statements from a file
+			if (options.getSqlFile() != null) {
+				cli.submitSQLFile(options.getSqlFile());
+			}
 			// interactive CLI mode
-			if (options.getUpdateStatement() == null) {
+			else if (options.getUpdateStatement() == null) {
 				cli.open();
 			}
 			// execute single update statement
