@@ -27,25 +27,19 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools._
 import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.operations.{CatalogQueryOperation, OperationTreeBuilder, PlannerQueryOperation, TableSourceQueryOperation}
-import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.validate.FunctionCatalog
-import org.apache.flink.types.Row
 import org.apache.flink.util.StringUtils
 
 import _root_.scala.collection.JavaConverters._
@@ -559,118 +553,5 @@ abstract class TableEnvImpl(
     val currentDatabase = catalogManager.getCurrentDatabase
 
     planningConfigurationBuilder.createFlinkPlanner(currentCatalogName, currentDatabase)
-  }
-
-  protected def generateRowConverterFunction[OUT](
-      inputTypeInfo: TypeInformation[Row],
-      schema: RowSchema,
-      requestedTypeInfo: TypeInformation[OUT],
-      functionName: String)
-    : Option[GeneratedFunction[MapFunction[Row, OUT], OUT]] = {
-
-    // validate that at least the field types of physical and logical type match
-    // we do that here to make sure that plan translation was correct
-    if (schema.typeInfo != inputTypeInfo) {
-      throw new TableException(
-        s"The field types of physical and logical row types do not match. " +
-        s"Physical type is [${schema.typeInfo}], Logical type is [$inputTypeInfo]. " +
-        s"This is a bug and should not happen. Please file an issue.")
-    }
-
-    // generic row needs no conversion
-    if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
-        requestedTypeInfo.getTypeClass == classOf[Row]) {
-      return None
-    }
-
-    val fieldTypes = schema.fieldTypeInfos
-    val fieldNames = schema.fieldNames
-
-    // check for valid type info
-    if (requestedTypeInfo.getArity != fieldTypes.length) {
-      throw new TableException(
-        s"Arity [${fieldTypes.length}] of result [$fieldTypes] does not match " +
-        s"the number[${requestedTypeInfo.getArity}] of requested type [$requestedTypeInfo].")
-    }
-
-    // check requested types
-
-    def validateFieldType(fieldType: TypeInformation[_]): Unit = fieldType match {
-      case _: TimeIndicatorTypeInfo =>
-        throw new TableException("The time indicator type is an internal type only.")
-      case _ => // ok
-    }
-
-    requestedTypeInfo match {
-      // POJO type requested
-      case pt: PojoTypeInfo[_] =>
-        fieldNames.zip(fieldTypes) foreach {
-          case (fName, fType) =>
-            val pojoIdx = pt.getFieldIndex(fName)
-            if (pojoIdx < 0) {
-              throw new TableException(s"POJO does not define field name: $fName")
-            }
-            val requestedTypeInfo = pt.getTypeAt(pojoIdx)
-            validateFieldType(requestedTypeInfo)
-            if (fType != requestedTypeInfo) {
-              throw new TableException(s"Result field does not match requested type. " +
-                s"Requested: $requestedTypeInfo; Actual: $fType")
-            }
-        }
-
-      // Tuple/Case class/Row type requested
-      case tt: TupleTypeInfoBase[_] =>
-        fieldTypes.zipWithIndex foreach {
-          case (fieldTypeInfo, i) =>
-            val requestedTypeInfo = tt.getTypeAt(i)
-            validateFieldType(requestedTypeInfo)
-            if (fieldTypeInfo != requestedTypeInfo) {
-              throw new TableException(s"Result field does not match requested type. " +
-                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
-            }
-        }
-
-      // atomic type requested
-      case t: TypeInformation[_] =>
-        if (fieldTypes.size != 1) {
-          throw new TableException(s"Requested result type is an atomic type but " +
-            s"result[$fieldTypes] has more or less than a single field.")
-        }
-        val requestedTypeInfo = fieldTypes.head
-        validateFieldType(requestedTypeInfo)
-        if (requestedTypeInfo != t) {
-          throw new TableException(s"Result field does not match requested type. " +
-            s"Requested: $t; Actual: $requestedTypeInfo")
-        }
-
-      case _ =>
-        throw new TableException(s"Unsupported result type: $requestedTypeInfo")
-    }
-
-    // code generate MapFunction
-    val generator = new FunctionCodeGenerator(
-      config,
-      false,
-      inputTypeInfo,
-      None,
-      None)
-
-    val conversion = generator.generateConverterResultExpression(
-      requestedTypeInfo,
-      fieldNames)
-
-    val body =
-      s"""
-         |${conversion.code}
-         |return ${conversion.resultTerm};
-         |""".stripMargin
-
-    val generated = generator.generateFunction(
-      functionName,
-      classOf[MapFunction[Row, OUT]],
-      body,
-      requestedTypeInfo)
-
-    Some(generated)
   }
 }
