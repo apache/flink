@@ -1452,7 +1452,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (error == null) {
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			} else {
-				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+				if (taskManagerLocationFuture.isDone()) {
+					try {
+						TaskManagerLocation taskManagerLocation = taskManagerLocationFuture.get();
+						LOG.info("{} ({}) at {} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(),
+							taskManagerLocation.getHostname(), taskManagerLocation.address() + ":" + taskManagerLocation.dataPort(),
+							currentState, targetState, error);
+					} catch (Exception e) {
+						LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+					}
+				} else {
+					LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+				}
 			}
 
 			if (targetState.isTerminal()) {
