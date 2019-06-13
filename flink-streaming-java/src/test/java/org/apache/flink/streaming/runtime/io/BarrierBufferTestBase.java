@@ -58,7 +58,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /**
- * Tests for the behavior of the {@link BarrierBuffer} with different {@link BufferBlocker} implements.
+ * Tests for the behavior of the {@link BarrierBuffer} with different {@link BufferStorage} implements.
  */
 public abstract class BarrierBufferTestBase {
 

@@ -38,7 +38,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link BufferSpiller}.
  */
-public class BufferSpillerTest extends BufferBlockerTestBase {
+public class BufferSpillerTest extends BufferStorageTestBase {
 
 	private static IOManager ioManager;
 
@@ -76,7 +76,7 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 	}
 
 	@Override
-	public BufferBlocker createBufferBlocker() {
+	public BufferStorage createBufferStorage() {
 		return spiller;
 	}
 
