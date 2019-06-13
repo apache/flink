@@ -19,8 +19,10 @@
 package org.apache.flink.table.expressions.validation
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.CompositeTypeTestBase
-import org.junit.Test
+
+import org.junit.{Ignore, Test}
 
 class CompositeAccessValidationTest extends CompositeTypeTestBase {
 
@@ -32,6 +34,28 @@ class CompositeAccessValidationTest extends CompositeTypeTestBase {
   @Test(expected = classOf[ValidationException])
   def testWrongSqlField(): Unit = {
     testSqlApi("f5.test", "13")
+  }
+
+  @Ignore // TODO
+  @Test(expected = classOf[ValidationException])
+  def testWrongIntKeyField(): Unit = {
+    testTableApi('f0.get(555), "'fail'", "fail")
+  }
+
+  @Ignore // TODO
+  @Test(expected = classOf[ValidationException])
+  def testWrongIntKeyField2(): Unit = {
+    testTableApi("fail", "f0.get(555)", "fail")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWrongStringKeyField(): Unit = {
+    testTableApi('f0.get("fghj"), "'fail'", "fail")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWrongStringKeyField2(): Unit = {
+    testTableApi("fail", "f0.get('fghj')", "fail")
   }
 }
 

@@ -19,19 +19,39 @@
 package org.apache.flink.table.expressions.validation
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
-import org.junit.Test
+
+import org.junit.{Ignore, Test}
 
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
+
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testImplicitTypeCastTableApi(): Unit = {
+    testTableApi(array(1.0, 2.0f), "FAIL", "FAIL")
+  }
 
   @Test(expected = classOf[ValidationException])
   def testImplicitTypeCastArraySql(): Unit = {
     testSqlApi("ARRAY['string', 12]", "FAIL")
   }
 
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testObviousInvalidIndexTableApi(): Unit = {
+    testTableApi('f2.at(0), "FAIL", "FAIL")
+  }
+
   @Test(expected = classOf[ValidationException])
   def testEmptyArraySql(): Unit = {
     testSqlApi("ARRAY[]", "FAIL")
+  }
+
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testEmptyArrayTableApi(): Unit = {
+    testTableApi("FAIL", "array()", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -44,11 +64,42 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
     testSqlApi("ARRAY[1, TRUE]", "FAIL")
   }
 
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testDifferentTypesArrayTableApi(): Unit = {
+    testTableApi("FAIL", "array(1, true)", "FAIL")
+  }
+
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedComparison(): Unit = {
+    testAllApis(
+      'f2 <= 'f5.at(1),
+      "f2 <= f5.at(1)",
+      "f2 <= f5[1]",
+      "FAIL")
+  }
+
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testElementNonArray(): Unit = {
+    testTableApi(
+      'f0.element(),
+      "FAIL",
+      "FAIL")
+  }
+
   @Test(expected = classOf[ValidationException])
   def testElementNonArraySql(): Unit = {
     testSqlApi(
       "ELEMENT(f0)",
       "FAIL")
+  }
+
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testCardinalityOnNonArray(): Unit = {
+    testTableApi('f0.cardinality(), "FAIL", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])

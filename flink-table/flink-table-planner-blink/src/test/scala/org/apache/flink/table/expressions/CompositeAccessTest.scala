@@ -18,16 +18,20 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.CompositeTypeTestBase
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class CompositeAccessTest extends CompositeTypeTestBase {
 
   @Test
+  @Ignore("open this case after BLINK-17868111 is resolved") // FIXME
   def testGetField(): Unit = {
 
     // single field by string key
-    testSqlApi(
+    testAllApis(
+      'f0.get("intField"),
+      "f0.get('intField')",
       "testTable.f0.intField",
       "42")
     testSqlApi("f0.intField", "42")
@@ -38,8 +42,16 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f0.booleanField", "true")
     testSqlApi("f0.booleanField", "true")
 
+    // single field by int key
+    testTableApi(
+      'f0.get(0),
+      "f0.get(0)",
+      "42")
+
     // nested single field
-    testSqlApi(
+    testAllApis(
+      'f1.get("objectField").get("intField"),
+      "f1.get('objectField').get('intField')",
       "testTable.f1.objectField.intField",
       "25")
     testSqlApi("f1.objectField.intField", "25")
@@ -50,7 +62,9 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f1.objectField.booleanField", "false")
     testSqlApi("f1.objectField.booleanField", "false")
 
-    testSqlApi(
+    testAllApis(
+      'f2.get(0),
+      "f2.get(0)",
       "testTable.f2._1",
       "a")
     testSqlApi("f2._1", "a")
@@ -64,7 +78,9 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f5", "13")
     testSqlApi("f5", "13")
 
-    testSqlApi(
+    testAllApis(
+      'f7.get("_1"),
+      "get(f7, '_1')",
       "testTable.f7._1",
       "true")
 
@@ -72,66 +88,80 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f6", "MyCaseClass2(null)")
     testSqlApi("f6", "MyCaseClass2(null)")
 
-    // MyCaseClass is converted to BaseRow
-    // so the result of "toString" does'nt contain MyCaseClass prefix
-    testSqlApi(
+    testAllApis(
+      'f1.get("objectField"),
+      "f1.get('objectField')",
       "testTable.f1.objectField",
-      "(25,Timo,false)")
-    testSqlApi("f1.objectField", "(25,Timo,false)")
+      "25,Timo,false")
+    testSqlApi("f1.objectField", "25,Timo,false")
 
-    testSqlApi(
+    testAllApis(
+      'f0,
+      "f0",
       "testTable.f0",
-      "(42,Bob,true)")
-    testSqlApi("f0", "(42,Bob,true)")
+      "42,Bob,true")
+    testSqlApi("f0", "42,Bob,true")
 
     // flattening (test base only returns first column)
-    testSqlApi(
+    testAllApis(
+      'f1.get("objectField").flatten(),
+      "f1.get('objectField').flatten()",
       "testTable.f1.objectField.*",
       "25")
     testSqlApi("f1.objectField.*", "25")
 
-    testSqlApi(
+    testAllApis(
+      'f0.flatten(),
+      "flatten(f0)",
       "testTable.f0.*",
       "42")
     testSqlApi("f0.*", "42")
 
+    testTableApi(12.flatten(), "12.flatten()", "12")
+
+    testTableApi('f5.flatten(), "f5.flatten()", "13")
+
     // array of composites
-    testSqlApi(
+    testAllApis(
+      'f8.at(1).get("_1"),
+      "f8.at(1).get('_1')",
       "f8[1]._1",
       "true"
     )
-
-    testSqlApi(
+    testAllApis(
+      'f8.at(1).get("_2"),
+      "f8.at(1).get('_2')",
       "f8[1]._2",
       "23"
     )
-
-    testSqlApi(
+    testAllApis(
+      'f9.at(2).get("_1"),
+      "f9.at(2).get('_1')",
       "f9[2]._1",
       "null"
     )
-
-    testSqlApi(
+    testAllApis(
+      'f10.at(1).get("stringField"),
+      "f10.at(1).get('stringField')",
       "f10[1].stringField",
       "Bob"
     )
-
-    testSqlApi(
+    testAllApis(
+      'f11.at(1).get("myString"),
+      "f11.at(1).get('myString')",
       "f11[1].myString",
       "Hello"
     )
-
-    testSqlApi(
-      "f11[2]",
-      "null"
-    )
-
-    testSqlApi(
+    testAllApis(
+      'f12.at(1).get("arrayField").at(1).get("stringField"),
+      "f12.at(1).get('arrayField').at(1).get('stringField')",
       "f12[1].arrayField[1].stringField",
       "Alice"
     )
 
-    testSqlApi(
+    testAllApis(
+      'f13.at(1).get("objectField").get("stringField"),
+      "f13.at(1).get('objectField').get('stringField')",
       "f13[1].objectField.stringField",
       "Bob"
     )

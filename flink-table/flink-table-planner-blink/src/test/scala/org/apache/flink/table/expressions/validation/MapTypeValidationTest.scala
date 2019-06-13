@@ -19,23 +19,37 @@
 package org.apache.flink.table.expressions.validation
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.MapTypeTestBase
-import org.junit.Test
+
+import org.junit.{Ignore, Test}
 
 class MapTypeValidationTest extends MapTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testWrongKeyType(): Unit = {
+    //TODO
+//    testAllApis('f2.at(12), "f2.at(12)", "f2[12]", "FAIL")
     testSqlApi("f2[12]", "FAIL")
+  }
+
+  @Ignore //TODO
+  @Test(expected = classOf[ValidationException])
+  def testIncorrectMapTypeComparison(): Unit = {
+    testAllApis('f1 === 'f3, "f1 === f3", "f1 = f3", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedComparisonType(): Unit = {
+    //TODO
+//    testAllApis('f6 !== 'f2, "f6 !== f2", "f6 != f2", "FAIL")
     testSqlApi("f6 <> f2", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testEmptyMap(): Unit = {
+    //TODO
+//    testAllApis("FAIL", "map()", "MAP[]", "FAIL")
     testSqlApi("MAP[]", "FAIL")
   }
 
