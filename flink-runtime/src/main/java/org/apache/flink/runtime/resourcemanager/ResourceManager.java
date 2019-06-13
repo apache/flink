@@ -588,7 +588,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServiceAddressFuture = taskExecutorGateway
 				.requestMetricQueryServiceAddress(timeout)
-				.thenApply(optional -> optional.map(path -> Tuple2.of(tmResourceId, path)));
+				.thenApply(o -> o.toOptional().map(address -> Tuple2.of(tmResourceId, address)));
 
 			metricQueryServiceAddressFutures.add(metricQueryServiceAddressFuture);
 		}
