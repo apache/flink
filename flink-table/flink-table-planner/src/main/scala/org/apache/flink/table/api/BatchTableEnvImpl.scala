@@ -20,7 +20,6 @@ package org.apache.flink.table.api
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.functions.MapFunction
@@ -28,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
@@ -37,16 +37,18 @@ import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema._
+import org.apache.flink.table.planner.Conversions
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, InputFormatTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateInputTypeInfo}
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
+
 /**
   * The abstract base class for the implementation of batch TableEnvironments.
   *
@@ -146,18 +148,19 @@ abstract class BatchTableEnvImpl(
     * @param functionName name of the map function. Must not be unique but has to be a
     *                     valid Java class identifier.
     */
-  protected def getConversionMapper[IN, OUT](
+  private def getConversionMapper[IN, OUT](
       physicalTypeInfo: TypeInformation[IN],
-      schema: RowSchema,
+      schema: TableSchema,
       requestedTypeInfo: TypeInformation[OUT],
       functionName: String)
     : Option[MapFunction[IN, OUT]] = {
 
-    val converterFunction = generateRowConverterFunction[OUT](
+    val converterFunction = Conversions.generateRowConverterFunction[OUT](
       physicalTypeInfo.asInstanceOf[TypeInformation[Row]],
       schema,
       requestedTypeInfo,
-      functionName
+      functionName,
+      config
     )
 
     // add a runner if we need conversion
@@ -179,8 +182,11 @@ abstract class BatchTableEnvImpl(
   private[flink] def explain(table: Table, extended: Boolean): String = {
     val ast = getRelBuilder.tableOperation(table.getQueryOperation).build()
     val optimizedPlan = optimize(ast)
-    val dataSet = translate[Row](optimizedPlan, ast.getRowType, queryConfig) (
-      new GenericTypeInfo (classOf[Row]))
+    val dataSet = translate[Row](
+      optimizedPlan,
+      getTableSchema(table.getQueryOperation.getTableSchema.getFieldNames, optimizedPlan),
+      queryConfig)(
+      new GenericTypeInfo(classOf[Row]))
     dataSet.output(new DiscardingOutputFormat[Row])
     val env = dataSet.getExecutionEnvironment
     val jasonSqlPlan = env.getExecutionPlan
@@ -276,9 +282,13 @@ abstract class BatchTableEnvImpl(
   protected def translate[A](
       table: Table,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    val relNode = getRelBuilder.tableOperation(table.getQueryOperation).build()
+    val queryOperation = table.getQueryOperation
+    val relNode = getRelBuilder.tableOperation(queryOperation).build()
     val dataSetPlan = optimize(relNode)
-    translate(dataSetPlan, relNode.getRowType, queryConfig)
+    translate(
+      dataSetPlan,
+      getTableSchema(queryOperation.getTableSchema.getFieldNames, dataSetPlan),
+      queryConfig)
   }
 
   /**
@@ -294,7 +304,7 @@ abstract class BatchTableEnvImpl(
     */
   protected def translate[A](
       logicalPlan: RelNode,
-      logicalType: RelDataType,
+      logicalType: TableSchema,
       queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     validateInputTypeInfo(tpe)
 
@@ -304,7 +314,7 @@ abstract class BatchTableEnvImpl(
         val conversion =
           getConversionMapper(
             plan.getType,
-            new RowSchema(logicalType),
+            logicalType,
             tpe,
             "DataSetSinkConversion")
         conversion match {
@@ -320,5 +330,17 @@ abstract class BatchTableEnvImpl(
         throw new TableException("Cannot generate DataSet due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
+  }
+
+  /**
+    * Returns the record type of the optimized plan with field names of the logical plan.
+    */
+  private def getTableSchema(originalNames: Array[String], optimizedPlan: RelNode): TableSchema = {
+    val fieldTypes = optimizedPlan.getRowType.getFieldList.asScala.map(_.getType)
+      .map(FlinkTypeFactory.toTypeInfo)
+      .map(TypeConversions.fromLegacyInfoToDataType)
+      .toArray
+
+    TableSchema.builder().fields(originalNames, fieldTypes).build()
   }
 }
