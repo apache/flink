@@ -126,6 +126,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testChainStartEndSetting() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		env.setParallelism(2);
+
 		// fromElements -> CHAIN(Map -> Print)
 		env.fromElements(1, 2, 3)
 			.map(new MapFunction<Integer, Integer>() {
