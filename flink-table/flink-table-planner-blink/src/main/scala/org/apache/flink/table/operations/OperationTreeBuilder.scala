@@ -18,14 +18,17 @@
 
 package org.apache.flink.table.operations
 
-import java.util.{Optional, List => JList}
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
-import org.apache.flink.table.expressions.{Expression, LookupCallResolver, TableReferenceExpression}
+import org.apache.flink.table.expressions.{Expression, ExpressionResolver, LookupCallResolver, TableReferenceExpression}
+import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
+import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
+import java.util.{Optional, List => JList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -86,4 +89,39 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     }
   }
 
+  def alias(
+      fields: JList[Expression],
+      child: QueryOperation): QueryOperation = {
+
+    val newFields = createAliasList(fields, child)
+
+    project(newFields, child, explicitAlias = true)
+  }
+
+  def filter(
+      condition: Expression,
+      child: QueryOperation): QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolvedExpression = resolveSingleExpression(condition, resolver)
+    val returnTypeRoot = ExpressionTypeInfer.infer(resolvedExpression).getLogicalType.getTypeRoot
+    if (returnTypeRoot != LogicalTypeRoot.BOOLEAN) {
+      throw new ValidationException(s"Filter operator requires a boolean expression as input," +
+          s" but $condition is of type $returnTypeRoot")
+    }
+
+    new FilterQueryOperation(resolvedExpression, child)
+  }
+
+  private def resolveSingleExpression(
+      expression: Expression,
+      resolver: ExpressionResolver)
+  : Expression = {
+    val resolvedExpression = resolver.resolve(List(expression).asJava)
+    if (resolvedExpression.size() != 1) {
+      throw new ValidationException("Expected single expression")
+    } else {
+      resolvedExpression.get(0)
+    }
+  }
 }

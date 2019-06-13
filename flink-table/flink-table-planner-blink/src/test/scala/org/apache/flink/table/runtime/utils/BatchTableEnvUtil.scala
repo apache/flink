@@ -28,7 +28,6 @@ import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironmen
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.CollectTableSink
-import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.AbstractID
 import _root_.java.util.{ArrayList => JArrayList}
@@ -186,6 +185,11 @@ object BatchTableEnvUtil {
     */
   def fromCollection[T](tEnv: BatchTableEnvironment,
       data: Iterable[T], typeInfo: TypeInformation[T], fields: String): Table = {
-    fromCollection(tEnv, null, data, typeInfo, parseFieldNames(fields), None)
+    val names = if (fields == null) {
+      TableEnvironment.getFieldNames(fromLegacyInfoToDataType(typeInfo))
+    } else {
+      parseFieldNames(fields)
+    }
+    fromCollection(tEnv, null, data, typeInfo, names, None)
   }
 }
