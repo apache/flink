@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
+package org.apache.flink.table.plan.nodes.resource.parallelism;
 
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecUnion;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecExchange;
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecUnion;
 
 import org.apache.calcite.rel.RelDistribution;
 
@@ -82,8 +84,10 @@ public class ShuffleStageGenerator {
 				shuffleStage.setParallelism(nodeToFinalParallelismMap.get(execNode), true);
 			}
 			nodeShuffleStageMap.put(execNode, shuffleStage);
-		} else if (execNode instanceof BatchExecExchange &&
-				!(((BatchExecExchange) execNode).getDistribution().getType() == RelDistribution.Type.RANGE_DISTRIBUTED)) {
+		} else if ((execNode instanceof BatchExecExchange &&
+				!(((BatchExecExchange) execNode).getDistribution().getType() == RelDistribution.Type.RANGE_DISTRIBUTED))
+				// currently range partition do not exist in StreamExecExchange.
+		|| execNode instanceof StreamExecExchange) {
 			// do nothing
 		} else {
 			Set<ShuffleStage> inputShuffleStages = getInputShuffleStages(execNode);
@@ -138,7 +142,7 @@ public class ShuffleStageGenerator {
 	}
 
 	private static boolean isVirtualNode(ExecNode<?, ?> node) {
-		return node instanceof BatchExecUnion;
+		return node instanceof BatchExecUnion || node instanceof StreamExecUnion;
 	}
 
 	private Map<ExecNode<?, ?>, ShuffleStage> getNodeShuffleStageMap() {

@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -88,11 +89,17 @@ class StreamExecTableSourceScan(
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
+  def getSourceTransformation(
+      streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
+    tableSource.asInstanceOf[StreamTableSource[_]].getDataStream(streamEnv).getTransformation
+  }
+
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
     val config = tableEnv.getConfig
     val sts = tableSource.asInstanceOf[StreamTableSource[_]]
     val inputTransform = sts.getDataStream(tableEnv.execEnv).getTransformation
+    inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
@@ -129,7 +136,7 @@ class StreamExecTableSourceScan(
         }
       val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
         classOf[AbstractProcessStreamOperator[BaseRow]])
-      ScanUtil.convertToInternalRow(
+      val conversionTransform = ScanUtil.convertToInternalRow(
         ctx,
         inputTransform.asInstanceOf[StreamTransformation[Any]],
         fieldIndexes,
@@ -140,6 +147,8 @@ class StreamExecTableSourceScan(
         rowtimeExpression,
         beforeConvert = extractElement,
         afterConvert = resetElement)
+      conversionTransform.setParallelism(getResource.getParallelism)
+      conversionTransform
     } else {
       inputTransform.asInstanceOf[StreamTransformation[BaseRow]]
     }
@@ -168,7 +177,7 @@ class StreamExecTableSourceScan(
       // No need to generate watermarks if no rowtime attribute is specified.
       ingestedTable
     }
-
+    withWatermarks.getTransformation.setParallelism(getResource.getParallelism)
     withWatermarks.getTransformation
   }
 

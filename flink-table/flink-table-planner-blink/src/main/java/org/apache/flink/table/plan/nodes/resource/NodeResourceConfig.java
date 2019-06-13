@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.resource.batch.parallelism;
+package org.apache.flink.table.plan.nodes.resource;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfigOptions;

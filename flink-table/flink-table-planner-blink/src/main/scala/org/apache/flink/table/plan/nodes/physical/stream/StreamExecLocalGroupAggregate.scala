@@ -148,7 +148,7 @@ class StreamExecLocalGroupAggregate(
       "LocalGroupAggregate",
       operator,
       BaseRowTypeInfo.of(outRowType),
-      inputTransformation.getParallelism)
+      getResource.getParallelism)
 
     transformation
   }

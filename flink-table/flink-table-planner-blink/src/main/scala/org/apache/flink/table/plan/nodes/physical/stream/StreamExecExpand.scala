@@ -99,7 +99,7 @@ class StreamExecExpand(
       operatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      getResource.getParallelism)
   }
 
 }

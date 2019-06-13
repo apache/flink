@@ -45,7 +45,6 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 	private static final Logger LOG = LoggerFactory.getLogger(SortOperator.class);
 
 	private final long reservedMemorySize;
-	private final long maxMemorySize;
 	private final long perRequestMemorySize;
 	private GeneratedNormalizedKeyComputer gComputer;
 	private GeneratedRecordComparator gComparator;
@@ -55,10 +54,9 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 	private transient BinaryRowSerializer binarySerializer;
 
 	public SortOperator(
-			long reservedMemorySize, long maxMemorySize, long perRequestMemorySize,
+			long reservedMemorySize, long perRequestMemorySize,
 			GeneratedNormalizedKeyComputer gComputer, GeneratedRecordComparator gComparator) {
 		this.reservedMemorySize = reservedMemorySize;
-		this.maxMemorySize = maxMemorySize;
 		this.perRequestMemorySize = perRequestMemorySize;
 		this.gComputer = gComputer;
 		this.gComparator = gComparator;

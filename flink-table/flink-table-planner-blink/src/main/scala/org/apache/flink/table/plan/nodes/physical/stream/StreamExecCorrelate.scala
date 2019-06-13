@@ -131,7 +131,7 @@ class StreamExecCorrelate(
       condition,
       outputRowType,
       joinType,
-      inputTransformation.getParallelism,
+      getResource.getParallelism,
       retainHeader = true,
       getExpressionString,
       "StreamExecCorrelate")

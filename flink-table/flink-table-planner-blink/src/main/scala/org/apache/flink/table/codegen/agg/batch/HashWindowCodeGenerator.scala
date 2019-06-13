@@ -101,7 +101,6 @@ class HashWindowCodeGenerator(
       outputType: RowType,
       buffLimitSize: Int,
       reservedAggMapMemory: Long,
-      maxManagedMemory: Long,
       windowStart: Long,
       windowSize: Long,
       slideSize: Long): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
@@ -118,7 +117,6 @@ class HashWindowCodeGenerator(
     val aggMapKeyWriter = newName("aggMapKeyWriter")
     val (processElementPerWindow, outputResultFromMap) = genHashWindowAggCodes(
       reservedAggMapMemory,
-      maxManagedMemory,
       buffLimitSize,
       windowSize,
       slideSize,
@@ -728,7 +726,6 @@ class HashWindowCodeGenerator(
 
   private def genHashWindowAggCodes(
       reservedAggMapMemory: Long,
-      maxManagedMemory: Long,
       buffLimitSize: Int,
       windowSize: Long,
       slideSize: Long,
@@ -744,8 +741,7 @@ class HashWindowCodeGenerator(
       ctx, aggMapKeyTypesTerm, aggBufferTypesTerm, aggMapKeyRowType, aggBufferRowType)
     val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
     prepareHashAggMap(
-      ctx, reservedAggMapMemory, maxManagedMemory
-      , aggMapKeyTypesTerm, aggBufferTypesTerm, aggregateMapTerm)
+      ctx, reservedAggMapMemory, aggMapKeyTypesTerm, aggBufferTypesTerm, aggregateMapTerm)
 
     // gen code to do aggregate by window using aggregate map
     val currentAggBufferTerm =

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.process.DAGProcessContext
-import org.apache.flink.table.plan.nodes.resource.batch.parallelism.BatchParallelismProcessor
+import org.apache.flink.table.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.plan.schema.{TableSourceSinkTable, TableSourceTable}
@@ -125,7 +125,7 @@ class BatchTableEnvironment(
     val context = new DAGProcessContext(this)
     // breakup deadlock
     val postNodeDag = new DeadlockBreakupProcessor().process(nodeDag, context)
-    new BatchParallelismProcessor().process(postNodeDag, context)
+    new ParallelismProcessor().process(postNodeDag, context)
   }
 
   /**

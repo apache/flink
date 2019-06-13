@@ -209,12 +209,7 @@ class StreamExecRank(
       rankOpName,
       operator,
       outputRowTypeInfo,
-      tableEnv.execEnv.getParallelism)
-
-    if (partitionKey.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
-    }
+      getResource.getParallelism)
 
     // set KeyType and Selector for state
     val selector = KeySelectorUtil.getBaseRowSelector(partitionKey.toArray, inputRowTypeInfo)

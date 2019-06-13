@@ -129,14 +129,13 @@ class StreamExecSort(
       .asInstanceOf[StreamTransformation[BaseRow]]
     val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    // sets parallelism to 1 since StreamExecSort could only work in global mode.
+    // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(
       input,
       s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
       sortOperator,
       outputRowTypeInfo,
-      1)
-    ret.setMaxParallelism(1)
+      getResource.getParallelism)
     ret
   }
 

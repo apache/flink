@@ -82,7 +82,10 @@ class StreamExecValues(
         getRowType,
         tuples,
         getRelTypeName)
-      tableEnv.execEnv.createInput(inputFormat, inputFormat.getProducedType).getTransformation
+      val transformation = tableEnv.execEnv.createInput(inputFormat,
+        inputFormat.getProducedType).getTransformation
+      transformation.setParallelism(getResource.getParallelism)
+      transformation
     } else {
       // enable this feature when runtime support do checkpoint when source finished
       throw new TableException("Values source input is not supported currently. Probably " +

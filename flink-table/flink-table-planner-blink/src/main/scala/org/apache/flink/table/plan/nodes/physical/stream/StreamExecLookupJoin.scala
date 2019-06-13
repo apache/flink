@@ -96,10 +96,12 @@ class StreamExecLookupJoin(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
       .asInstanceOf[StreamTransformation[BaseRow]]
-    translateToPlanInternal(
+    val transformation = translateToPlanInternal(
       inputTransformation,
       tableEnv.execEnv,
       tableEnv.config,
       tableEnv.getRelBuilder)
+    transformation.setParallelism(getResource.getParallelism)
+    transformation
   }
 }

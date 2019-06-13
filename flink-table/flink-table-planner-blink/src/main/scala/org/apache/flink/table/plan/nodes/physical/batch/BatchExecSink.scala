@@ -28,8 +28,9 @@ import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
-import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
+import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
+import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

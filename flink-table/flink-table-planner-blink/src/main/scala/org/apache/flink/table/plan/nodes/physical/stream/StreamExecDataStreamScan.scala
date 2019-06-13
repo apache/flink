@@ -77,6 +77,9 @@ class StreamExecDataStreamScan(
 
   override def deriveRowType(): RelDataType = outputRowType
 
+  def getSourceTransformation: StreamTransformation[_] =
+    dataStreamTable.dataStream.getTransformation
+
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecDataStreamScan(cluster, traitSet, getTable, getRowType)
   }
@@ -107,6 +110,7 @@ class StreamExecDataStreamScan(
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
     val transform = inputDataStream.getTransformation
+    transform.setParallelism(getResource.getParallelism)
 
     val rowtimeExpr = getRowtimeExpression(tableEnv.getRelBuilder)
 
@@ -125,7 +129,7 @@ class StreamExecDataStreamScan(
         }
       val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
         classOf[AbstractProcessStreamOperator[BaseRow]])
-      ScanUtil.convertToInternalRow(
+      val ret = ScanUtil.convertToInternalRow(
         ctx,
         transform,
         dataStreamTable.fieldIndexes,
@@ -136,6 +140,8 @@ class StreamExecDataStreamScan(
         rowtimeExpr,
         beforeConvert = extractElement,
         afterConvert = resetElement)
+      ret.setParallelism(getResource.getParallelism)
+      ret
     } else {
       transform.asInstanceOf[StreamTransformation[BaseRow]]
     }

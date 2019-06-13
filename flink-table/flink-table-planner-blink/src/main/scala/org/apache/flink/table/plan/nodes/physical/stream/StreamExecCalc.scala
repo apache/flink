@@ -121,6 +121,6 @@ class StreamExecCalc(
       RelExplainUtil.calcToString(calcProgram, getExpressionString),
       substituteStreamOperator,
       BaseRowTypeInfo.of(outputType),
-      inputTransform.getParallelism)
+      getResource.getParallelism)
   }
 }

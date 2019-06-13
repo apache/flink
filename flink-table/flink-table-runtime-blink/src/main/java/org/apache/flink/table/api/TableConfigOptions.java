@@ -112,6 +112,12 @@ public class TableConfigOptions {
 							"If set NONE, parallelism and memory of all node are set by config.\n" +
 							"If set ONLY_SOURCE, only source parallelism is inferred according to statics.\n");
 
+	public static final ConfigOption<Long> SQL_RESOURCE_INFER_ROWS_PER_PARTITION =
+			key("sql.resource.infer.rows-per-partition")
+					.defaultValue(1000000L)
+					.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
+							"to input row count.");
+
 	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_SOURCE_PARALLELISM_MAX =
 			key("sql.resource.infer.source.parallelism.max")
 					.defaultValue(1000)
@@ -145,20 +151,10 @@ public class TableConfigOptions {
 					.defaultValue(32)
 					.withDescription("Sets the table reserved memory size of hashAgg operator. It defines the lower limit.");
 
-	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MAX_MEM =
-			key("sql.resource.hash-agg.table-max-memory-mb")
-					.defaultValue(512)
-					.withDescription("Sets the table max memory size of hashAgg operator. It defines the upper limit.");
-
 	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
 			key("sql.resource.sort.buffer.memory.mb")
 					.defaultValue(32)
 					.withDescription("Sets the buffer reserved memory size for sort. It defines the lower limit for the sort.");
-
-	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MAX_MEM =
-			key("sql.resource.sort.buffer-max-memory-mb")
-					.defaultValue(512)
-					.withDescription("Sets the max buffer memory size for sort. It defines the upper memory for the sort.");
 
 	// ------------------------------------------------------------------------
 	//  Agg Options
@@ -247,15 +243,4 @@ public class TableConfigOptions {
 							"If the configure's value is \"NestedLoopJoin, ShuffleHashJoin\", NestedLoopJoin and ShuffleHashJoin " +
 							"are disabled. If the configure's value is \"HashJoin\", " +
 							"ShuffleHashJoin and BroadcastHashJoin are disabled.");
-
-
-	// ------------------------------------------------------------------------
-	//  prefer and max memory resource Options
-	// ------------------------------------------------------------------------
-
-	public static final ConfigOption<Long> SQL_RESOURCE_INFER_ROWS_PER_PARTITION =
-			key("sql.resource.infer.rows-per-partition")
-					.defaultValue(1000000L)
-					.withDescription("Sets how many rows one partition processes. We will infer parallelism according " +
-							"to input row count.");
 }

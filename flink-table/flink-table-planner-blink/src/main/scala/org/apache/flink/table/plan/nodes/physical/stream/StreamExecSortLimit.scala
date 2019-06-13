@@ -210,14 +210,12 @@ class StreamExecSortLimit(
     val outputRowTypeInfo = BaseRowTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    // sets parallelism to 1 since StreamExecSortLimit could only work in global mode.
     val ret = new OneInputTransformation(
       inputTransform,
       getOperatorName,
       operator,
       outputRowTypeInfo,
-      1)
-    ret.setMaxParallelism(1)
+      getResource.getParallelism)
 
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)

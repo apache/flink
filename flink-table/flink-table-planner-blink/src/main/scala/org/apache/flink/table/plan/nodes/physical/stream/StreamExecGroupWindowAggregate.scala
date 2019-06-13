@@ -234,12 +234,7 @@ class StreamExecGroupWindowAggregate(
       operatorName,
       operator,
       outRowType,
-      inputTransform.getParallelism)
-
-    if (grouping.isEmpty) {
-      transformation.setParallelism(1)
-      transformation.setMaxParallelism(1)
-    }
+      getResource.getParallelism)
 
     val selector = KeySelectorUtil.getBaseRowSelector(grouping, inputRowTypeInfo)
 

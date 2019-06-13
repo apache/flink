@@ -53,7 +53,9 @@ class TableScanITCase extends StreamingTestBase {
           Row.of("Mary", new JLong(1L), new JInt(1)),
           Row.of("Bob", new JLong(2L), new JInt(3))
         )
-        execEnv.fromCollection(data).returns(getReturnType)
+        val dataStream = execEnv.fromCollection(data).returns(getReturnType)
+        dataStream.getTransformation.setMaxParallelism(1)
+        dataStream
       }
 
       override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)

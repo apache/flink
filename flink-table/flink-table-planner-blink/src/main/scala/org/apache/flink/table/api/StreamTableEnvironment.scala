@@ -32,7 +32,10 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.nodes.process.DAGProcessContext
+import org.apache.flink.table.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
+import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
@@ -44,6 +47,7 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.util.PlanUtil
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 
 import _root_.scala.collection.JavaConversions._
@@ -147,6 +151,13 @@ abstract class StreamTableEnvironment(
       isConfigMerged = true
     }
   }
+
+  override private[flink] def translateToExecNodeDag(rels: Seq[RelNode]): Seq[ExecNode[_, _]] = {
+    val nodeDag = super.translateToExecNodeDag(rels)
+    val context = new DAGProcessContext(this)
+    new ParallelismProcessor().process(nodeDag, context)
+  }
+
 
   /**
     * Translates a [[Table]] into a [[DataStream]].
