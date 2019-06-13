@@ -28,6 +28,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
@@ -120,6 +121,14 @@ class StreamExecSink[T](
           throw new TableException("The StreamTableSink#consumeDataStream(DataStream) must be " +
             "implemented and return the sink transformation DataStreamSink. " +
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
+        }
+        if (dsSink.getTransformation.getMaxParallelism > 0) {
+          dsSink.getTransformation.setParallelism(dsSink.getTransformation.getMaxParallelism)
+        } else if (NodeResourceConfig.getSinkParallelism(tableEnv.getConfig.getConf) > 0) {
+          dsSink.getTransformation.setParallelism(
+            NodeResourceConfig.getSinkParallelism(tableEnv.getConfig.getConf))
+        } else if (transformation.getParallelism > 0) {
+          dsSink.getTransformation.setParallelism(transformation.getParallelism)
         }
         dsSink.getTransformation
 

@@ -187,14 +187,12 @@ class StreamExecTemporalSort(
       BaseRowTypeInfo.of(inputType), rowTimeIdx, rowComparator)
     val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    // sets parallelism to 1 since StreamExecTemporalSort could only work in global mode.
     val ret = new OneInputTransformation(
       input,
       "RowTimeSortOperator",
       sortOperator,
       outputRowTypeInfo,
-      1)
-    ret.setMaxParallelism(1)
+      getResource.getParallelism)
 
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)
