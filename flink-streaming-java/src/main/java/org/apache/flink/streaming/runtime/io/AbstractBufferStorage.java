@@ -164,11 +164,6 @@ public abstract class AbstractBufferStorage implements BufferStorage {
 	}
 
 	@Override
-	public long currentBufferedSize() {
-		return currentBuffered != null ? currentBuffered.size() : 0L;
-	}
-
-	@Override
 	public long getMaxBufferedBytes() {
 		return maxBufferedBytes;
 	}

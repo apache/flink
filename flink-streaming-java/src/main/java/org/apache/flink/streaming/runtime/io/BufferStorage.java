@@ -67,8 +67,6 @@ public interface BufferStorage extends AutoCloseable {
 
 	Optional<BufferOrEvent> pollNext() throws IOException;
 
-	long currentBufferedSize();
-
 	long getMaxBufferedBytes();
 
 	/**
