@@ -22,15 +22,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecValues;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecExchange;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecValues;
 
 import org.apache.calcite.rel.RelDistribution;
+import org.apache.calcite.rel.core.Exchange;
+import org.apache.calcite.rel.core.Values;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -73,10 +71,8 @@ public class FinalParallelismSetter {
 			calculateBoundedStreamScan((BatchExecBoundedStreamScan) execNode);
 		} else if (execNode instanceof StreamExecDataStreamScan) {
 			calculateDataStreamScan((StreamExecDataStreamScan) execNode);
-		} else if (execNode instanceof BatchExecValues) {
-			calculateValues((BatchExecValues) execNode);
-		} else if (execNode instanceof StreamExecValues) {
-			calculateValues((StreamExecValues) execNode);
+		} else if (execNode instanceof Values) {
+			calculateValues(execNode);
 		} else {
 			calculateIfSingleton(execNode);
 		}
@@ -117,28 +113,17 @@ public class FinalParallelismSetter {
 	private void calculateIfSingleton(ExecNode<?, ?> execNode) {
 		calculateInputs(execNode);
 		for (ExecNode<?, ?> inputNode : execNode.getInputNodes()) {
-			if (inputNode instanceof BatchExecExchange) {
+			if (inputNode instanceof Exchange &&
+					((Exchange) inputNode).getDistribution().getType() == RelDistribution.Type.SINGLETON) {
 				// set parallelism as 1 to GlobalAggregate and other global node.
-				if (((BatchExecExchange) inputNode).getDistribution().getType() == RelDistribution.Type.SINGLETON) {
-					finalParallelismNodeMap.put(execNode, 1);
-					return;
-				}
-			} else if (inputNode instanceof StreamExecExchange) {
-				// set parallelism as 1 to GlobalAggregate and other global node.
-				if (((StreamExecExchange) inputNode).getDistribution().getType() == RelDistribution.Type.SINGLETON) {
-					finalParallelismNodeMap.put(execNode, 1);
-					return;
-				}
+				finalParallelismNodeMap.put(execNode, 1);
+				return;
 			}
 		}
 	}
 
-	private void calculateValues(BatchExecValues valuesExec) {
-		finalParallelismNodeMap.put(valuesExec, 1);
-	}
-
-	private void calculateValues(StreamExecValues valuesExec) {
-		finalParallelismNodeMap.put(valuesExec, 1);
+	private void calculateValues(ExecNode<?, ?> values) {
+		finalParallelismNodeMap.put(values, 1);
 	}
 
 	private void calculateInputs(ExecNode<?, ?> node) {

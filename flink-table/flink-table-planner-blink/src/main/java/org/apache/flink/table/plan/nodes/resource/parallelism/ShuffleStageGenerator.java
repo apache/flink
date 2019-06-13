@@ -21,10 +21,10 @@ package org.apache.flink.table.plan.nodes.resource.parallelism;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecUnion;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecExchange;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecUnion;
 
 import org.apache.calcite.rel.RelDistribution;
+import org.apache.calcite.rel.core.Exchange;
 
 import java.util.Comparator;
 import java.util.HashSet;
@@ -84,11 +84,8 @@ public class ShuffleStageGenerator {
 				shuffleStage.setParallelism(nodeToFinalParallelismMap.get(execNode), true);
 			}
 			nodeShuffleStageMap.put(execNode, shuffleStage);
-		} else if ((execNode instanceof BatchExecExchange &&
-				!(((BatchExecExchange) execNode).getDistribution().getType() == RelDistribution.Type.RANGE_DISTRIBUTED))
-				// currently range partition do not exist in StreamExecExchange.
-		|| execNode instanceof StreamExecExchange) {
-			// do nothing
+		} else if (execNode instanceof Exchange && !isRangeExchange((Exchange) execNode)) {
+				// do nothing.
 		} else {
 			Set<ShuffleStage> inputShuffleStages = getInputShuffleStages(execNode);
 			Integer parallelism = nodeToFinalParallelismMap.get(execNode);
@@ -96,6 +93,10 @@ public class ShuffleStageGenerator {
 			inputShuffleStage.addNode(execNode);
 			nodeShuffleStageMap.put(execNode, inputShuffleStage);
 		}
+	}
+
+	private boolean isRangeExchange(Exchange exchange) {
+		return exchange.getDistribution().getType() == RelDistribution.Type.RANGE_DISTRIBUTED;
 	}
 
 	private ShuffleStage mergeInputShuffleStages(Set<ShuffleStage> shuffleStageSet, Integer parallelism) {

@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes.resource.parallelism;
 
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.plan.nodes.calcite.Sink;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSink;
@@ -58,7 +59,7 @@ public class ParallelismProcessor implements DAGProcessor {
 	private List<ExecNode<?, ?>> filterSinkNodes(List<ExecNode<?, ?>> sinkNodes) {
 		List<ExecNode<?, ?>> rootNodes = new ArrayList<>();
 		sinkNodes.forEach(s -> {
-			if (s instanceof BatchExecSink || s instanceof StreamExecSink) {
+			if (s instanceof Sink) {
 				rootNodes.add(s.getInputNodes().get(0));
 			} else {
 				rootNodes.add(s);
