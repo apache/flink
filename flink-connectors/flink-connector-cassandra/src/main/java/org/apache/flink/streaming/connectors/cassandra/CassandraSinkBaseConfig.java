@@ -39,7 +39,7 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 	public static final Duration DEFAULT_MAX_CONCURRENT_REQUESTS_TIMEOUT = Duration.ofMillis(Long.MAX_VALUE);
 
 	/**
-	 * The default option to ignore null fields on insert. By default, {@code Boolean.FALSE}.
+	 * The default option to ignore null fields on insertion. By default, {@code Boolean.FALSE}.
 	 */
 	public static final Boolean DEFAULT_IGNORE_NULL_FIELDS = false;
 
