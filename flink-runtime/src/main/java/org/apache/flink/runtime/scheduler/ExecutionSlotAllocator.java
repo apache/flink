@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 public interface ExecutionSlotAllocator {
 
 	/**
-	 * Allocates slots for the given executions.
+	 * Allocates slots for executions.
 	 *
 	 * @param executionVertexSchedulingRequirements The requirements for scheduling the executions.
 	 */

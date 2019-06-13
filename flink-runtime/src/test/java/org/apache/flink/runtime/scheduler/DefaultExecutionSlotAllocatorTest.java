@@ -112,7 +112,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	 * Tests that validate the parameters when calling allocateSlot in SlotProvider.
 	 */
 	@Test
-	public void testAllocateSlotsParameters() throws Exception {
+	public void testAllocateSlotsParameters() {
 		final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 		final AllocationID allocationId = new AllocationID();
 		final SlotSharingGroupId sharingGroupId = new SlotSharingGroupId();
@@ -200,7 +200,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 		try {
 			assignments.iterator().next().getLogicalSlotFuture().get();
 			fail("Expect a CancellationException but got nothing.");
-		} catch (CancellationException e) {
+		} catch (CancellationException ignored) {
 			// Expected exception
 		}
 	}

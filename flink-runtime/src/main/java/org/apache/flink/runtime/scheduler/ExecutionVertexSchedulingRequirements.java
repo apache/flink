@@ -40,22 +40,25 @@ public class ExecutionVertexSchedulingRequirements {
 
 	private final ExecutionVertexID executionVertexId;
 
+	@Nullable
 	private final AllocationID previousAllocationId;
 
 	private final ResourceProfile resourceProfile;
 
+	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
+	@Nullable
 	private final CoLocationConstraint coLocationConstraint;
 
 	private final Collection<TaskManagerLocation> preferredLocations;
 
 	private ExecutionVertexSchedulingRequirements(
 			ExecutionVertexID executionVertexId,
-			AllocationID previousAllocationId,
+			@Nullable AllocationID previousAllocationId,
 			ResourceProfile resourceProfile,
-			SlotSharingGroupId slotSharingGroupId,
-			CoLocationConstraint coLocationConstraint,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
+			@Nullable CoLocationConstraint coLocationConstraint,
 			Collection<TaskManagerLocation> preferredLocations) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.previousAllocationId = previousAllocationId;
