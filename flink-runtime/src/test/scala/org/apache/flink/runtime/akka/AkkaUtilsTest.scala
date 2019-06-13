@@ -209,4 +209,15 @@ class AkkaUtilsTest
     akkaConfig.getInt("akka.actor.default-dispatcher.thread-pool-executor.core-pool-size-max")
       .should(equal(maxThreads))
   }
+
+  test("getAkkaConfig should work with ipv6 addresses") {
+    val ipv6AddressString = "2001:db8:10:11:12:ff00:42:8329"
+    val configuration = new Configuration()
+    val port = 1234
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, ipv6AddressString, port)
+
+    akkaConfig.getString("akka.remote.netty.tcp.hostname") should
+      equal(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString))
+  }
 }
