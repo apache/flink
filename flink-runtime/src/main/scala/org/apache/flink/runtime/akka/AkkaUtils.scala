@@ -556,8 +556,8 @@ object AkkaUtils {
          |  remote {
          |    netty {
          |      tcp {
-         |        hostname = $effectiveHostname
-         |        bind-hostname = $bindAddress
+         |        hostname = "$effectiveHostname"
+         |        bind-hostname = "$bindAddress"
          |      }
          |    }
          |  }
