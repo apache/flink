@@ -18,14 +18,17 @@
 
 package org.apache.flink.table.operations
 
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, ValidationException}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{call, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.catalog.FunctionDefinitionCatalog
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
-import org.apache.flink.table.expressions.{Expression, ExpressionResolver, LookupCallResolver, TableReferenceExpression}
+import org.apache.flink.table.expressions.{AggregateFunctionDefinition, BuiltInFunctionDefinitions, CallExpression, Expression, ExpressionResolver, ExpressionUtils, LookupCallResolver, TableReferenceExpression, UnresolvedReferenceExpression}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.types.logical.LogicalTypeRoot
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import java.util.{Optional, List => JList}
@@ -40,7 +43,9 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
 
   private val functionCatalog: FunctionDefinitionCatalog = tableEnv.functionCatalog
 
+  private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvironment]
   private val projectionOperationFactory = new ProjectionOperationFactory()
+  private val aggregateOperationFactory = new AggregateOperationFactory(isStreaming)
 
   private val tableCatalog = new TableReferenceLookup {
     override def lookupTable(name: String): Optional[TableReferenceExpression] =
@@ -113,15 +118,116 @@ class OperationTreeBuilder(private val tableEnv: TableEnvironment) {
     new FilterQueryOperation(resolvedExpression, child)
   }
 
+  def distinct(
+      child: QueryOperation)
+  : QueryOperation = {
+    new DistinctQueryOperation(child)
+  }
+
   private def resolveSingleExpression(
       expression: Expression,
-      resolver: ExpressionResolver)
-  : Expression = {
+      resolver: ExpressionResolver): Expression = {
     val resolvedExpression = resolver.resolve(List(expression).asJava)
     if (resolvedExpression.size() != 1) {
       throw new ValidationException("Expected single expression")
     } else {
       resolvedExpression.get(0)
     }
+  }
+
+  def resolveExpression(expression: Expression, queryOperation: QueryOperation*): Expression = {
+    val resolver = resolverFor(tableCatalog, functionCatalog, queryOperation: _*).build()
+
+    resolveSingleExpression(expression, resolver)
+  }
+
+  /**
+    * Rename fields in the input [[QueryOperation]].
+    */
+  private def aliasBackwardFields(
+      inputOperation: QueryOperation,
+      alias: Seq[String],
+      aliasStartIndex: Int)
+  : QueryOperation = {
+
+    if (alias.nonEmpty) {
+      val namesBeforeAlias = inputOperation.getTableSchema.getFieldNames
+      val namesAfterAlias = namesBeforeAlias.take(aliasStartIndex) ++ alias ++
+          namesBeforeAlias.takeRight(namesBeforeAlias.length - alias.size - aliasStartIndex)
+      this.alias(namesAfterAlias.map(e =>
+        new UnresolvedReferenceExpression(e)).toList, inputOperation)
+    } else {
+      inputOperation
+    }
+  }
+
+  def aggregate(
+      groupingExpressions: JList[Expression],
+      aggregates: JList[Expression],
+      child: QueryOperation)
+  : QueryOperation = {
+
+    val resolver = resolverFor(tableCatalog, functionCatalog, child).build
+
+    val resolvedGroupings = resolver.resolve(groupingExpressions)
+    val resolvedAggregates = resolver.resolve(aggregates)
+
+    aggregateOperationFactory.createAggregate(resolvedGroupings, resolvedAggregates, child)
+  }
+
+  /**
+    * Row based aggregate that will flatten the output if it is a composite type.
+    */
+  def aggregate(
+      groupingExpressions: JList[Expression],
+      aggregate: Expression,
+      child: QueryOperation)
+  : QueryOperation = {
+    // resolve for java string case, i.e., turn LookupCallExpression to CallExpression.
+    val resolvedAggregate = this.resolveExpression(aggregate, child)
+
+    // extract alias and aggregate function
+    var alias: Seq[String] = Seq()
+    val aggWithoutAlias = resolvedAggregate match {
+      case c: CallExpression
+        if c.getFunctionDefinition.getName == BuiltInFunctionDefinitions.AS.getName =>
+        alias = c.getChildren
+            .drop(1)
+            .map(e => ExpressionUtils.extractValue(e, classOf[String]).get())
+        c.getChildren.get(0)
+      case c: CallExpression
+        if c.getFunctionDefinition.isInstanceOf[AggregateFunctionDefinition] =>
+        if (alias.isEmpty) alias = UserDefinedFunctionUtils.getFieldInfo(
+          fromLegacyInfoToDataType(
+            c.getFunctionDefinition.asInstanceOf[AggregateFunctionDefinition]
+                .getResultTypeInfo))._1
+        c
+      case e => e
+    }
+
+    // turn agg to a named agg, because it will be verified later.
+    var cnt = 0
+    val childNames = child.getTableSchema.getFieldNames
+    while (childNames.contains("TMP_" + cnt)) {
+      cnt += 1
+    }
+    val aggWithNamedAlias = call(
+      BuiltInFunctionDefinitions.AS,
+      aggWithoutAlias,
+      valueLiteral("TMP_" + cnt))
+
+    // get agg table
+    val aggQueryOperation = this.aggregate(groupingExpressions, Seq(aggWithNamedAlias), child)
+
+    // flatten the aggregate function
+    val aggNames = aggQueryOperation.getTableSchema.getFieldNames
+    val flattenExpressions = aggNames.take(groupingExpressions.size())
+        .map(e => new UnresolvedReferenceExpression(e)) ++
+        Seq(new CallExpression(BuiltInFunctionDefinitions.FLATTEN,
+          Seq(new UnresolvedReferenceExpression(aggNames.last))))
+    val flattenedOperation = this.project(flattenExpressions.toList, aggQueryOperation)
+
+    // add alias
+    aliasBackwardFields(flattenedOperation, alias, groupingExpressions.size())
   }
 }

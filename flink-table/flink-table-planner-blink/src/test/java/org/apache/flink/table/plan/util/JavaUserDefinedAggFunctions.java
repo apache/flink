@@ -266,4 +266,109 @@ public class JavaUserDefinedAggFunctions {
 			}
 		}
 	}
+
+	/**
+	 * CountDistinct accumulator.
+	 */
+	public static class CountDistinctAccum {
+		public MapView<String, Integer> map;
+		public long count;
+	}
+
+	/**
+	 * CountDistinct aggregate.
+	 */
+	public static class CountDistinct extends AggregateFunction<Long, CountDistinctAccum> {
+
+		private static final long serialVersionUID = -8369074832279506466L;
+
+		@Override
+		public CountDistinctAccum createAccumulator() {
+			CountDistinctAccum accum = new CountDistinctAccum();
+			accum.map = new MapView<>(
+					org.apache.flink.table.api.Types.STRING(),
+					org.apache.flink.table.api.Types.INT());
+			accum.count = 0L;
+			return accum;
+		}
+
+		//Overloaded accumulate method
+		public void accumulate(CountDistinctAccum accumulator, String id) {
+			try {
+				Integer cnt = accumulator.map.get(id);
+				if (cnt != null) {
+					cnt += 1;
+					accumulator.map.put(id, cnt);
+				} else {
+					accumulator.map.put(id, 1);
+					accumulator.count += 1;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		//Overloaded accumulate method
+		public void accumulate(CountDistinctAccum accumulator, long id) {
+			try {
+				Integer cnt = accumulator.map.get(String.valueOf(id));
+				if (cnt != null) {
+					cnt += 1;
+					accumulator.map.put(String.valueOf(id), cnt);
+				} else {
+					accumulator.map.put(String.valueOf(id), 1);
+					accumulator.count += 1;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		@Override
+		public Long getValue(CountDistinctAccum accumulator) {
+			return accumulator.count;
+		}
+	}
+
+	/**
+	 * CountDistinct aggregate with merge.
+	 */
+	public static class CountDistinctWithMerge extends CountDistinct {
+
+		private static final long serialVersionUID = -9028804545597563968L;
+
+		//Overloaded merge method
+		public void merge(CountDistinctAccum acc, Iterable<CountDistinctAccum> it) {
+			for (CountDistinctAccum mergeAcc : it) {
+				try {
+					Iterable<String> keys = mergeAcc.map.keys();
+					if (keys != null) {
+						for (String key : keys) {
+							Integer cnt = mergeAcc.map.get(key);
+							if (acc.map.contains(key)) {
+								acc.map.put(key, acc.map.get(key) + cnt);
+							} else {
+								acc.map.put(key, cnt);
+								acc.count += 1;
+							}
+						}
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	/**
+	 * CountDistinct aggregate with merge and reset.
+	 */
+	public static class CountDistinctWithMergeAndReset extends CountDistinctWithMerge {
+
+		//Overloaded retract method
+		public void resetAccumulator(CountDistinctAccum acc) {
+			acc.map.clear();
+			acc.count = 0;
+		}
+	}
 }

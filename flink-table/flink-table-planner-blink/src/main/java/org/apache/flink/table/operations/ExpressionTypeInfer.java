@@ -274,6 +274,20 @@ public class ExpressionTypeInfer implements ExpressionVisitor<DataType> {
 					}
 					return DataTypes.ROW(fields);
 				});
+
+		// aggs
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.AVG, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.COUNT, BIGINT_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.MAX, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.MIN, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.SUM, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.SUM0, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.STDDEV_POP, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.STDDEV_SAMP, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.VAR_POP, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.VAR_SAMP, FIRST_CHILD_INFER);
+		CALL_TYPE_INFERENCES.put(BuiltInFunctionDefinitions.COLLECT,
+				call -> DataTypes.MULTISET(infer(call.getChildren().get(0))));
 	}
 
 	private ExpressionTypeInfer() {}

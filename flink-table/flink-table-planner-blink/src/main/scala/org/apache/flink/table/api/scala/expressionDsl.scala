@@ -22,7 +22,6 @@ import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float =
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime}
-
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
@@ -32,7 +31,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccum
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 
 import _root_.scala.language.implicitConversions
 
@@ -1114,35 +1113,36 @@ trait ImplicitExpressionConversions {
     }
   }
 
-//  implicit class UserDefinedAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
-//      (val a: UserDefinedAggregateFunction[T, ACC]) {
-//
-//    private def createFunctionDefinition(): AggregateFunctionDefinition = {
-//      val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
-//        a,
-//        implicitly[TypeInformation[T]])
-//
-//      val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
-//        a,
-//        implicitly[TypeInformation[ACC]])
-//
-//      new AggregateFunctionDefinition(a.getClass.getName, a, resultTypeInfo, accTypeInfo)
-//    }
-//
-//    /**
-//      * Calls an aggregate function for the given parameters.
-//      */
-//    def apply(params: Expression*): Expression = {
-//      call(createFunctionDefinition(), params: _*)
-//    }
-//
-//    /**
-//      * Calculates the aggregate results only for distinct values.
-//      */
-//    def distinct(params: Expression*): Expression = {
-//      call(DISTINCT, apply(params: _*))
-//    }
-//  }
+  implicit class UserDefinedAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
+      (val a: UserDefinedAggregateFunction[T, ACC]) {
+
+    private def createFunctionDefinition(): AggregateFunctionDefinition = {
+      val resultTypeInfo: TypeInformation[_] = fromDataTypeToLegacyInfo(
+        getResultTypeOfAggregateFunction(
+          a, fromLegacyInfoToDataType(implicitly[TypeInformation[T]])))
+
+      val accTypeInfo: TypeInformation[_] = fromDataTypeToLegacyInfo(
+        getAccumulatorTypeOfAggregateFunction(
+          a,
+          fromLegacyInfoToDataType(implicitly[TypeInformation[ACC]])))
+
+      new AggregateFunctionDefinition(a.getClass.getName, a, resultTypeInfo, accTypeInfo)
+    }
+
+    /**
+      * Calls an aggregate function for the given parameters.
+      */
+    def apply(params: Expression*): Expression = {
+      call(createFunctionDefinition(), params: _*)
+    }
+
+    /**
+      * Calculates the aggregate results only for distinct values.
+      */
+    def distinct(params: Expression*): Expression = {
+      call(DISTINCT, apply(params: _*))
+    }
+  }
 
   implicit def tableSymbolToExpression(sym: TableSymbol): Expression =
     valueLiteral(sym)
@@ -1596,7 +1596,7 @@ object nullOf {
     *             for more information.
     */
   def apply(typeInfo: TypeInformation[_]): Expression = {
-    apply(TypeConversions.fromLegacyInfoToDataType(typeInfo))
+    apply(fromLegacyInfoToDataType(typeInfo))
   }
 }
 
