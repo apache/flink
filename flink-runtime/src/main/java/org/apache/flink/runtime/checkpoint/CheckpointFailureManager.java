@@ -19,8 +19,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -36,7 +36,7 @@ public class CheckpointFailureManager {
 	private final int tolerableCpFailureNumber;
 	private final FailJobCallback failureCallback;
 	private final AtomicInteger continuousFailureCounter;
-	private final ConcurrentMap<Long, Long> countedCheckpointIds;
+	private final Set<Long> countedCheckpointIds;
 
 	public CheckpointFailureManager(int tolerableCpFailureNumber, FailJobCallback failureCallback) {
 		checkArgument(tolerableCpFailureNumber >= 0,
@@ -45,7 +45,7 @@ public class CheckpointFailureManager {
 		this.tolerableCpFailureNumber = tolerableCpFailureNumber;
 		this.continuousFailureCounter = new AtomicInteger(0);
 		this.failureCallback = checkNotNull(failureCallback);
-		this.countedCheckpointIds = new ConcurrentHashMap<>();
+		this.countedCheckpointIds = ConcurrentHashMap.newKeySet();
 	}
 
 	/**
@@ -88,11 +88,9 @@ public class CheckpointFailureManager {
 
 			case CHECKPOINT_DECLINED:
 				//we should make sure one checkpoint only be counted once
-				if (countedCheckpointIds.containsKey(checkpointId)) {
-					break;
-				} else {
+				if (tolerableCpFailureNumber != UNLIMITED_TOLERABLE_FAILURE_NUMBER
+					&& countedCheckpointIds.add(checkpointId)) {
 					continuousFailureCounter.incrementAndGet();
-					countedCheckpointIds.putIfAbsent(checkpointId, checkpointId);
 				}
 
 				break;
