@@ -165,11 +165,12 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			try {
 				eventQueue.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
-				super.notifyCheckpointComplete(checkpointId);
+				Future<Void> result = super.notifyCheckpointCompleteAsync(checkpointId);
 				eventQueue.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+				return result;
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				throw new RuntimeException(e);

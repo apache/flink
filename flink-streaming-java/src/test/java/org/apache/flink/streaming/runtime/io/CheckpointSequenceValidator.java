@@ -86,7 +86,7 @@ class CheckpointSequenceValidator extends AbstractInvokable {
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
+	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 		throw new UnsupportedOperationException("should never be called");
 	}
 }

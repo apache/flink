@@ -1197,8 +1197,15 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				@Override
 				public void run() {
 					try {
-						invokable.notifyCheckpointComplete(checkpointID);
-					} catch (Throwable t) {
+						invokable.notifyCheckpointCompleteAsync(checkpointID);
+					}
+					catch (RejectedExecutionException ex) {
+						// This may happen if the mailbox is closed. It means that the task is shutting down, so we just ignore it.
+						LOG.debug(
+							"Notify checkpoint complete {} for {} ({}) was rejected by the mailbox",
+							checkpointID, taskNameWithSubtask, executionId);
+					}
+					catch (Throwable t) {
 						if (getExecutionState() == ExecutionState.RUNNING) {
 							// fail task if checkpoint confirmation failed.
 							failExternally(new RuntimeException(

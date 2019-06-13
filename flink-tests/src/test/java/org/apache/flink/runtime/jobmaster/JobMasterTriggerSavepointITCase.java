@@ -246,7 +246,8 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(final long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(final long checkpointId) {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 

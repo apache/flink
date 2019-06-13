@@ -322,13 +322,13 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (checkpointId == synchronousSavepointId && taskIndex == 0) {
 				throw new RuntimeException("Expected Exception");
 			}
 
-			super.notifyCheckpointComplete(checkpointId);
+			return super.notifyCheckpointCompleteAsync(checkpointId);
 		}
 	}
 
