@@ -32,7 +32,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
-import org.apache.flink.table.expressions.{CallExpression, Expression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionDefaultVisitor}
 import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
@@ -42,10 +42,11 @@ import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, InputFormatTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.table.typeutils.FieldInfoUtils.{calculateTableSchema, getFieldsInfo, validateInputTypeInfo}
+import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateInputTypeInfo}
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 
+import _root_.scala.collection.JavaConverters._
 /**
   * The abstract base class for the implementation of batch TableEnvironments.
   *
@@ -206,21 +207,33 @@ abstract class BatchTableEnvImpl(
 
     val fieldsInfo = fields match {
       case Some(f) =>
-        if (f.exists(f =>
-          f.isInstanceOf[CallExpression] &&
-            TIME_ATTRIBUTES.contains(f.asInstanceOf[CallExpression].getFunctionDefinition))) {
-          throw new ValidationException(
-            ".rowtime and .proctime time indicators are not allowed in a batch environment.")
-        }
-
+        checkNoTimeAttributes(f)
         getFieldsInfo[T](inputType, f)
+
       case None => getFieldsInfo[T](inputType)
     }
 
-    val tableOperation = new DataSetQueryOperation[T](dataSet,
+    val tableOperation = new DataSetQueryOperation[T](
+      dataSet,
       fieldsInfo.getIndices,
-      calculateTableSchema(inputType, fieldsInfo.getIndices, fieldsInfo.getFieldNames))
+      fieldsInfo.toTableSchema)
     tableOperation
+  }
+
+  private def checkNoTimeAttributes[T](f: Array[Expression]) = {
+    if (f.exists(f =>
+      f.accept(new ExpressionDefaultVisitor[Boolean] {
+
+        override def visitCall(call: CallExpression): Boolean = {
+          TIME_ATTRIBUTES.contains(call.getFunctionDefinition) ||
+            call.getChildren.asScala.exists(_.accept(this))
+        }
+
+        override protected def defaultMethod(expression: Expression): Boolean = false
+      }))) {
+      throw new ValidationException(
+        ".rowtime and .proctime time indicators are not allowed in a batch environment.")
+    }
   }
 
   /**
