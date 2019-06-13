@@ -39,20 +39,20 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link BufferBlocker}.
+ * Tests for {@link BufferStorage}.
  */
-public abstract class BufferBlockerTestBase {
+public abstract class BufferStorageTestBase {
 
 	protected static final int PAGE_SIZE = 4096;
 
-	abstract BufferBlocker createBufferBlocker();
+	abstract BufferStorage createBufferStorage();
 
 	@Test
 	public void testRollOverEmptySequences() throws IOException {
-		BufferBlocker bufferBlocker = createBufferBlocker();
-		assertNull(bufferBlocker.rollOverReusingResources());
-		assertNull(bufferBlocker.rollOverReusingResources());
-		assertNull(bufferBlocker.rollOverReusingResources());
+		BufferStorage bufferStorage = createBufferStorage();
+		assertNull(bufferStorage.rollOverReusingResources());
+		assertNull(bufferStorage.rollOverReusingResources());
+		assertNull(bufferStorage.rollOverReusingResources());
 	}
 
 	@Test
@@ -63,7 +63,7 @@ public abstract class BufferBlockerTestBase {
 		final int maxNumEventsAndBuffers = 3000;
 		final int maxNumChannels = 1656;
 
-		BufferBlocker bufferBlocker = createBufferBlocker();
+		BufferStorage bufferStorage = createBufferStorage();
 
 		// do multiple spilling / rolling over rounds
 		for (int round = 0; round < 5; round++) {
@@ -86,13 +86,13 @@ public abstract class BufferBlockerTestBase {
 				} else {
 					evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
 				}
-				bufferBlocker.add(evt);
+				bufferStorage.add(evt);
 			}
 
 			// reset and create reader
 			bufferRnd.setSeed(bufferSeed);
 
-			BufferOrEventSequence seq = bufferBlocker.rollOverReusingResources();
+			BufferOrEventSequence seq = bufferStorage.rollOverReusingResources();
 			seq.open();
 
 			// read and validate the sequence
@@ -136,14 +136,14 @@ public abstract class BufferBlockerTestBase {
 		int currentNumEvents = 0;
 		int currentNumRecordAndEvents = 0;
 
-		BufferBlocker bufferBlocker = createBufferBlocker();
+		BufferStorage bufferStorage = createBufferStorage();
 
 		// do multiple spilling / rolling over rounds
 		for (int round = 0; round < 2 * sequences; round++) {
 
 			if (round % 2 == 1) {
 				// make this an empty sequence
-				assertNull(bufferBlocker.rollOverReusingResources());
+				assertNull(bufferStorage.rollOverReusingResources());
 			} else {
 				// proper spilled sequence
 				final long bufferSeed = rnd.nextLong();
@@ -167,7 +167,7 @@ public abstract class BufferBlockerTestBase {
 						} else {
 							evt = generateRandomBuffer(bufferRnd.nextInt(PAGE_SIZE) + 1, bufferRnd.nextInt(numberOfChannels));
 						}
-						bufferBlocker.add(evt);
+						bufferStorage.add(evt);
 						generated++;
 					} else {
 						// consume a record
@@ -205,7 +205,7 @@ public abstract class BufferBlockerTestBase {
 
 				// done generating a sequence. queue it for consumption
 				bufferRnd.setSeed(bufferSeed);
-				BufferOrEventSequence seq = bufferBlocker.rollOverReusingResources();
+				BufferOrEventSequence seq = bufferStorage.rollOverReusingResources();
 
 				SequenceToConsume stc = new SequenceToConsume(bufferRnd, events, seq, numEventsAndBuffers, numberOfChannels);
 

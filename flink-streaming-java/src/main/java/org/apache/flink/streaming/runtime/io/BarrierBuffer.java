@@ -64,7 +64,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private final int totalNumberOfInputChannels;
 
 	/** To utility to write blocked data to a file channel. */
-	private final BufferBlocker bufferBlocker;
+	private final BufferStorage bufferStorage;
 
 	/**
 	 * The pending blocked buffer/event sequences. Must be consumed before requesting further data
@@ -123,11 +123,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 * <p>There is no limit to how much data may be buffered during an alignment.
 	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
-	 * @param bufferBlocker The buffer blocker to hold the buffers and events for channels with barrier.
+	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
 	 */
 	@VisibleForTesting
-	BarrierBuffer(InputGate inputGate, BufferBlocker bufferBlocker) {
-		this (inputGate, bufferBlocker, -1, "Testing: No task associated");
+	BarrierBuffer(InputGate inputGate, BufferStorage bufferStorage) {
+		this (inputGate, bufferStorage, -1, "Testing: No task associated");
 	}
 
 	/**
@@ -138,11 +138,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 * checkpoint has been cancelled.
 	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
-	 * @param bufferBlocker The buffer blocker to hold the buffers and events for channels with barrier.
+	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
 	 * @param maxBufferedBytes The maximum bytes to be buffered before the checkpoint aborts.
 	 * @param taskName The task name for logging.
 	 */
-	BarrierBuffer(InputGate inputGate, BufferBlocker bufferBlocker, long maxBufferedBytes, String taskName) {
+	BarrierBuffer(InputGate inputGate, BufferStorage bufferStorage, long maxBufferedBytes, String taskName) {
 		checkArgument(maxBufferedBytes == -1 || maxBufferedBytes > 0);
 
 		this.inputGate = inputGate;
@@ -150,7 +150,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
 		this.blockedChannels = new boolean[this.totalNumberOfInputChannels];
 
-		this.bufferBlocker = checkNotNull(bufferBlocker);
+		this.bufferStorage = checkNotNull(bufferStorage);
 		this.queuedBuffered = new ArrayDeque<BufferOrEventSequence>();
 
 		this.taskName = taskName;
@@ -192,7 +192,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			BufferOrEvent bufferOrEvent = next.get();
 			if (isBlocked(bufferOrEvent.getChannelIndex())) {
 				// if the channel is blocked, we just store the BufferOrEvent
-				bufferBlocker.add(bufferOrEvent);
+				bufferStorage.add(bufferOrEvent);
 				checkSizeLimit();
 			}
 			else if (bufferOrEvent.isBuffer()) {
@@ -436,7 +436,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	private void checkSizeLimit() throws Exception {
-		if (maxBufferedBytes > 0 && (numQueuedBytes + bufferBlocker.getBytesBlocked()) > maxBufferedBytes) {
+		if (maxBufferedBytes > 0 && (numQueuedBytes + bufferStorage.getBytesBlocked()) > maxBufferedBytes) {
 			// exceeded our limit - abort this checkpoint
 			LOG.info("{}: Checkpoint {} aborted because alignment volume limit ({} bytes) exceeded.",
 				taskName,
@@ -473,7 +473,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	@Override
 	public void cleanup() throws IOException {
-		bufferBlocker.close();
+		bufferStorage.close();
 		if (currentBuffered != null) {
 			currentBuffered.cleanup();
 		}
@@ -538,7 +538,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 		if (currentBuffered == null) {
 			// common case: no more buffered data
-			currentBuffered = bufferBlocker.rollOverReusingResources();
+			currentBuffered = bufferStorage.rollOverReusingResources();
 			if (currentBuffered != null) {
 				currentBuffered.open();
 			}
@@ -550,7 +550,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 					"Pushing back current alignment buffers and feeding back new alignment data first.", taskName);
 
 			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one
-			BufferOrEventSequence bufferedNow = bufferBlocker.rollOverWithoutReusingResources();
+			BufferOrEventSequence bufferedNow = bufferStorage.rollOverWithoutReusingResources();
 			if (bufferedNow != null) {
 				bufferedNow.open();
 				queuedBuffered.addFirst(currentBuffered);

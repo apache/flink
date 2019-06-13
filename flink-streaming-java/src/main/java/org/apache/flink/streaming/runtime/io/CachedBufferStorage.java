@@ -25,14 +25,16 @@ import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 
 /**
- * The cached buffer blocker takes the buffers and events from a data stream and adds them to a memory queue.
- * After a number of elements have been cached, the blocker can "roll over": It presents the cached
- * elements as a readable sequence, and creates a new memory queue.
+ * The {@link CachedBufferStorage} takes the buffers and events from a data stream and adds them to
+ * a memory queue. After a number of elements have been cached, the {@link CachedBufferStorage}
+ * can "roll over":
+ * It presents the cached elements as a readable sequence, and creates a new memory queue.
  *
- * <p>This buffer blocked can be used in credit-based flow control for better barrier alignment in exactly-once mode.
+ * <p>This {@link CachedBufferStorage} can be used in credit-based flow control for better barrier
+ * alignment in exactly-once mode.
  */
 @Internal
-public class CachedBufferBlocker implements BufferBlocker {
+public class CachedBufferStorage implements BufferStorage {
 
 	/** The page size, to estimate the total cached data size. */
 	private final int pageSize;
@@ -44,11 +46,11 @@ public class CachedBufferBlocker implements BufferBlocker {
 	private ArrayDeque<BufferOrEvent> currentBuffers;
 
 	/**
-	 * Creates a new buffer blocker, caching the buffers or events in memory queue.
+	 * Creates a new {@link CachedBufferStorage}, caching the buffers or events in memory queue.
 	 *
 	 * @param pageSize The page size used to estimate the cached size.
 	 */
-	public CachedBufferBlocker(int pageSize) {
+	public CachedBufferStorage(int pageSize) {
 		this.pageSize = pageSize;
 		this.currentBuffers = new ArrayDeque<BufferOrEvent>();
 	}
@@ -100,7 +102,7 @@ public class CachedBufferBlocker implements BufferBlocker {
 
 	/**
 	 * This class represents a sequence of cached buffers and events, created by the
-	 * {@link CachedBufferBlocker}.
+	 * {@link CachedBufferStorage}.
 	 */
 	public static class CachedBufferOrEventSequence implements BufferOrEventSequence {
 

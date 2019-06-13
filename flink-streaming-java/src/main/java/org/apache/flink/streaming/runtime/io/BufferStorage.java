@@ -24,15 +24,15 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import java.io.IOException;
 
 /**
- * The buffer blocker takes the buffers and events from a data stream and adds them in a sequence.
- * After a number of elements have been added, the blocker can "roll over": It presents the added
- * elements as a readable sequence, and creates a new sequence.
+ * The {@link BufferStorage} takes the buffers and events from a data stream and adds them in a sequence.
+ * After a number of elements have been added, the {@link BufferStorage} can "roll over":
+ * It presents the added elements as a readable sequence, and creates a new sequence.
  */
 @Internal
-public interface BufferBlocker {
+public interface BufferStorage {
 
 	/**
-	 * Adds a buffer or event to the blocker.
+	 * Adds a buffer or event to the {@link BufferStorage}.
 	 *
 	 * @param boe The buffer or event to be added into the blocker.
 	 */

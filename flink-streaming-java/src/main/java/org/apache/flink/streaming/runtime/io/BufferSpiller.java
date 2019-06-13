@@ -40,7 +40,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * The buffer spiller takes the buffers and events from a data stream and adds them to a spill file.
+ * The {@link BufferSpiller} takes the buffers and events from a data stream and adds them to a spill file.
  * After a number of elements have been spilled, the spiller can "roll over": It presents the spilled
  * elements as a readable sequence, and opens a new spill file.
  *
@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Internal
 @Deprecated
-public class BufferSpiller implements BufferBlocker {
+public class BufferSpiller implements BufferStorage {
 
 	/** Size of header in bytes (see add method). */
 	static final int HEADER_SIZE = 9;
@@ -92,7 +92,7 @@ public class BufferSpiller implements BufferBlocker {
 	private long bytesWritten;
 
 	/**
-	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
+	 * Creates a new {@link BufferSpiller}, spilling to one of the I/O manager's temp directories.
 	 *
 	 * @param ioManager The I/O manager for access to the temp directories.
 	 * @param pageSize The page size used to re-create spilled buffers.

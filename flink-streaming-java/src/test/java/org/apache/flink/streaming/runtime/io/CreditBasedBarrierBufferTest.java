@@ -26,13 +26,13 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for the behaviors of the {@link BarrierBuffer} with {@link CachedBufferBlocker}.
+ * Tests for the behaviors of the {@link BarrierBuffer} with {@link CachedBufferStorage}.
  */
 public class CreditBasedBarrierBufferTest extends BarrierBufferTestBase {
 
 	@Override
 	public BarrierBuffer createBarrierBuffer(InputGate gate) throws IOException {
-		return new BarrierBuffer(gate, new CachedBufferBlocker(PAGE_SIZE));
+		return new BarrierBuffer(gate, new CachedBufferStorage(PAGE_SIZE));
 	}
 
 	@Override
