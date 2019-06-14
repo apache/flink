@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -89,6 +90,8 @@ public class StreamGraphGenerator {
 
 	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
+	public static final ScheduleMode DEFAULT_SCHEDULE_MODE = ScheduleMode.EAGER;
+
 	public static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
 
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
@@ -109,6 +112,8 @@ public class StreamGraphGenerator {
 	private boolean chaining = true;
 
 	private boolean isSlotSharingEnabled = true;
+
+	private ScheduleMode scheduleMode = DEFAULT_SCHEDULE_MODE;
 
 	private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
 
@@ -152,6 +157,11 @@ public class StreamGraphGenerator {
 		return this;
 	}
 
+	public StreamGraphGenerator setScheduleMode(ScheduleMode scheduleMode) {
+		this.scheduleMode = scheduleMode;
+		return this;
+	}
+
 	public StreamGraphGenerator setUserArtifacts(Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
 		this.userArtifacts = userArtifacts;
 		return this;
@@ -176,6 +186,7 @@ public class StreamGraphGenerator {
 		streamGraph = new StreamGraph(executionConfig, checkpointConfig);
 		streamGraph.setStateBackend(stateBackend);
 		streamGraph.setChaining(chaining);
+		streamGraph.setScheduleMode(scheduleMode);
 		streamGraph.setUserArtifacts(userArtifacts);
 		streamGraph.setTimeCharacteristic(timeCharacteristic);
 		streamGraph.setJobName(jobName);

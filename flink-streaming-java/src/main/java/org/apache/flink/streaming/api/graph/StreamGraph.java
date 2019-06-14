@@ -32,6 +32,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -87,6 +88,8 @@ public class StreamGraph extends StreamingPlan {
 
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
+
+	private ScheduleMode scheduleMode;
 
 	private boolean chaining;
 
@@ -155,6 +158,14 @@ public class StreamGraph extends StreamingPlan {
 
 	public StateBackend getStateBackend() {
 		return this.stateBackend;
+	}
+
+	public ScheduleMode getScheduleMode() {
+		return scheduleMode;
+	}
+
+	public void setScheduleMode(ScheduleMode scheduleMode) {
+		this.scheduleMode = scheduleMode;
 	}
 
 	public Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> getUserArtifacts() {
