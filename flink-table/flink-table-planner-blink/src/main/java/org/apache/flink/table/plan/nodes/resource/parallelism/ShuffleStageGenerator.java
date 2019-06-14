@@ -104,7 +104,9 @@ public class ShuffleStageGenerator {
 			ShuffleStage resultShuffleStage = new ShuffleStage();
 			resultShuffleStage.setParallelism(parallelism, true);
 			for (ShuffleStage shuffleStage : shuffleStageSet) {
-				if (!shuffleStage.isFinalParallelism() || shuffleStage.getParallelism() == parallelism) {
+				//consider max parallelism.
+				if ((shuffleStage.isFinalParallelism() && shuffleStage.getParallelism() == parallelism)
+					|| (!shuffleStage.isFinalParallelism() && shuffleStage.getMaxParallelism() >= parallelism)) {
 					mergeShuffleStage(resultShuffleStage, shuffleStage);
 				}
 			}
@@ -115,7 +117,9 @@ public class ShuffleStageGenerator {
 					.max(Comparator.comparing(ShuffleStage::getParallelism))
 					.orElse(new ShuffleStage());
 			for (ShuffleStage shuffleStage : shuffleStageSet) {
-				if (!shuffleStage.isFinalParallelism() || shuffleStage.getParallelism() == resultShuffleStage.getParallelism()) {
+				//consider max parallelism.
+				if ((shuffleStage.isFinalParallelism() && shuffleStage.getParallelism() == resultShuffleStage.getParallelism())
+						|| (!shuffleStage.isFinalParallelism() && shuffleStage.getMaxParallelism() >= resultShuffleStage.getParallelism())) {
 					mergeShuffleStage(resultShuffleStage, shuffleStage);
 				}
 			}

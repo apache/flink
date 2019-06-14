@@ -148,7 +148,7 @@ public class ShuffleStageGeneratorTest extends MockNodeTestBase {
 		 */
 		createNodeList(7);
 		ExecNode<?, ?> scan0 = updateTableSource(0);
-		finalParallelismNodeMap.put(scan0, 10);
+		scan0.getResource().setMaxParallelism(10);
 		ExecNode<?, ?> scan1 = updateTableSource(2);
 		finalParallelismNodeMap.put(scan1, 11);
 		updateUnion(4);
@@ -252,7 +252,7 @@ public class ShuffleStageGeneratorTest extends MockNodeTestBase {
 		ExecNode<?, ?> scan0 = updateTableSource(0);
 		ExecNode<?, ?> scan1 = updateTableSource(2);
 		finalParallelismNodeMap.put(scan0, 11);
-		finalParallelismNodeMap.put(scan1, 5);
+		scan1.getResource().setMaxParallelism(5);
 		ExecNode<?, ?> union4 = updateUnion(4);
 		finalParallelismNodeMap.put(union4, 5);
 		updateCalc(5);

@@ -102,6 +102,9 @@ class StreamExecLookupJoin(
       tableEnv.config,
       tableEnv.getRelBuilder)
     transformation.setParallelism(getResource.getParallelism)
+    if (getResource.getMaxParallelism > 0) {
+      transformation.setMaxParallelism(getResource.getMaxParallelism)
+    }
     transformation
   }
 }

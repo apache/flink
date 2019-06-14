@@ -81,14 +81,14 @@ public class FinalParallelismSetter {
 	private void calculateTableSource(BatchExecTableSourceScan tableSourceScan) {
 		StreamTransformation transformation = tableSourceScan.getSourceTransformation(env);
 		if (transformation.getMaxParallelism() > 0) {
-			finalParallelismNodeMap.put(tableSourceScan, transformation.getMaxParallelism());
+			tableSourceScan.getResource().setMaxParallelism(transformation.getMaxParallelism());
 		}
 	}
 
 	private void calculateTableSource(StreamExecTableSourceScan tableSourceScan) {
 		StreamTransformation transformation = tableSourceScan.getSourceTransformation(env);
 		if (transformation.getMaxParallelism() > 0) {
-			finalParallelismNodeMap.put(tableSourceScan, transformation.getMaxParallelism());
+			tableSourceScan.getResource().setMaxParallelism(transformation.getMaxParallelism());
 		}
 	}
 
@@ -117,6 +117,7 @@ public class FinalParallelismSetter {
 					((Exchange) inputNode).getDistribution().getType() == RelDistribution.Type.SINGLETON) {
 				// set parallelism as 1 to GlobalAggregate and other global node.
 				finalParallelismNodeMap.put(execNode, 1);
+				execNode.getResource().setMaxParallelism(1);
 				return;
 			}
 		}
@@ -124,6 +125,7 @@ public class FinalParallelismSetter {
 
 	private void calculateValues(ExecNode<?, ?> values) {
 		finalParallelismNodeMap.put(values, 1);
+		values.getResource().setMaxParallelism(1);
 	}
 
 	private void calculateInputs(ExecNode<?, ?> node) {

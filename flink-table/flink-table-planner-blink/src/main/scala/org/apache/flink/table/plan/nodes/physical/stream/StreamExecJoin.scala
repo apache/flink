@@ -189,6 +189,10 @@ class StreamExecJoin(
       returnType,
       getResource.getParallelism)
 
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
     // set KeyType and Selector for state
     ret.setStateKeySelectors(leftSelect, rightSelect)
     ret.setStateKeyType(leftSelect.getProducedType)

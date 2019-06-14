@@ -136,6 +136,9 @@ class StreamExecSort(
       sortOperator,
       outputRowTypeInfo,
       getResource.getParallelism)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
     ret
   }
 

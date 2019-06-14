@@ -61,6 +61,7 @@ public class ShuffleStageParallelismCalculatorTest {
 	@Test
 	public void testOnlyBatchSource() {
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
+		when(shuffleStage0.getMaxParallelism()).thenReturn(40);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(batchTableSourceScan)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
 		verify(shuffleStage0).setParallelism(30, false);
@@ -69,24 +70,27 @@ public class ShuffleStageParallelismCalculatorTest {
 	@Test
 	public void testOnlyStreamSource() {
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
+		when(shuffleStage0.getMaxParallelism()).thenReturn(20);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(streamTableSourceScan)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
-		verify(shuffleStage0).setParallelism(50, false);
+		verify(shuffleStage0).setParallelism(20, false);
 	}
 
 	@Test
 	public void testBatchSourceAndCalc() {
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
+		when(shuffleStage0.getMaxParallelism()).thenReturn(20);
 		BatchExecCalc calc = mock(BatchExecCalc.class);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(batchTableSourceScan, calc)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
-		verify(shuffleStage0).setParallelism(30, false);
+		verify(shuffleStage0).setParallelism(20, false);
 	}
 
 	@Test
 	public void testStreamSourceAndCalc() {
 		tableConf.setInteger(TableConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 60);
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
+		when(shuffleStage0.getMaxParallelism()).thenReturn(60);
 		StreamExecCalc calc = mock(StreamExecCalc.class);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(streamTableSourceScan, calc)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
@@ -97,6 +101,7 @@ public class ShuffleStageParallelismCalculatorTest {
 	public void testNoSource() {
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
 		BatchExecCalc calc = mock(BatchExecCalc.class);
+		when(shuffleStage0.getMaxParallelism()).thenReturn(Integer.MAX_VALUE);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(calc)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
 		verify(shuffleStage0).setParallelism(50, false);
@@ -107,10 +112,11 @@ public class ShuffleStageParallelismCalculatorTest {
 		tableConf.setString(TableConfigOptions.SQL_RESOURCE_INFER_MODE, NodeResourceConfig.InferMode.NONE.toString());
 		tableConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, -1);
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
+		when(shuffleStage0.getMaxParallelism()).thenReturn(4);
 		BatchExecCalc calc = mock(BatchExecCalc.class);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(batchTableSourceScan, calc)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
-		verify(shuffleStage0).setParallelism(5, false);
+		verify(shuffleStage0).setParallelism(4, false);
 	}
 
 	private Set<ExecNode<?, ?>> getNodeSet(List<ExecNode<?, ?>> nodeList) {

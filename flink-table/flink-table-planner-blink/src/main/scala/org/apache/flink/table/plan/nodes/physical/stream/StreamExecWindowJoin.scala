@@ -343,6 +343,10 @@ class StreamExecWindowJoin(
       getResource.getParallelism
     )
 
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
     // set KeyType and Selector for state
     val leftSelector = KeySelectorUtil.getBaseRowSelector(leftKeys, leftTypeInfo)
     val rightSelector = KeySelectorUtil.getBaseRowSelector(rightKeys, rightTypeInfo)

@@ -217,6 +217,10 @@ class StreamExecSortLimit(
       outputRowTypeInfo,
       getResource.getParallelism)
 
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
     val selector = NullBinaryRowKeySelector.INSTANCE
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)

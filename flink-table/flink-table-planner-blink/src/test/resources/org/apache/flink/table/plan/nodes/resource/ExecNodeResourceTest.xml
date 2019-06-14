@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
@@ -39,7 +39,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
@@ -55,7 +55,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[false], resource=[{parallelism=18}])
          +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])
@@ -73,7 +73,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[false], resource=[{parallelism=18}])
          +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])
@@ -90,7 +90,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sort(orderBy=[e ASC], resource=[{parallelism=1}])
+Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
 +- Exchange(distribution=[single], resource=[{parallelism=-1}])
    +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
       +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
@@ -103,7 +103,7 @@ Sort(orderBy=[e ASC], resource=[{parallelism=1}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sort(orderBy=[e ASC], resource=[{parallelism=1}])
+Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
 +- Exchange(distribution=[single], resource=[{parallelism=-1}])
    +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
       +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
@@ -143,7 +143,7 @@ Sort(orderBy=[e ASC], resource=[{parallelism=8}])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
@@ -159,7 +159,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
@@ -185,7 +185,7 @@ TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a,
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[false], resource=[{parallelism=18}])
          +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])
@@ -203,7 +203,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1}])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1, maxParallelism=1}])
    +- Exchange(distribution=[single], resource=[{parallelism=-1}])
       +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[false], resource=[{parallelism=18}])
          +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])

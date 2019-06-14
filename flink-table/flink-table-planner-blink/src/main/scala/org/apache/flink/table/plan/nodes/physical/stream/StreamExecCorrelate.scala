@@ -121,7 +121,7 @@ class StreamExecCorrelate(
       .asInstanceOf[StreamTransformation[BaseRow]]
     val operatorCtx = CodeGeneratorContext(tableEnv.getConfig)
       .setOperatorBaseClass(classOf[AbstractProcessStreamOperator[_]])
-    CorrelateCodeGenerator.generateCorrelateTransformation(
+    val transform = CorrelateCodeGenerator.generateCorrelateTransformation(
       tableEnv,
       operatorCtx,
       inputTransformation,
@@ -135,5 +135,9 @@ class StreamExecCorrelate(
       retainHeader = true,
       getExpressionString,
       "StreamExecCorrelate")
+    if (getResource.getMaxParallelism > 0) {
+      transform.setMaxParallelism(getResource.getMaxParallelism)
+    }
+    transform
   }
 }

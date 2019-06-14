@@ -211,6 +211,10 @@ class StreamExecRank(
       outputRowTypeInfo,
       getResource.getParallelism)
 
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
     // set KeyType and Selector for state
     val selector = KeySelectorUtil.getBaseRowSelector(partitionKey.toArray, inputRowTypeInfo)
     ret.setStateKeySelector(selector)

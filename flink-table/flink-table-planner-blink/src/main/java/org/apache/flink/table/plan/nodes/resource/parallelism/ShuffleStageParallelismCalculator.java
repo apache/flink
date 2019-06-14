@@ -64,26 +64,32 @@ public class ShuffleStageParallelismCalculator {
 			return;
 		}
 		Set<ExecNode<?, ?>> nodeSet = shuffleStage.getExecNodeSet();
-		int maxSourceParallelism = -1;
+		int sourceParallelism = -1;
+		int maxParallelism = shuffleStage.getMaxParallelism();
 		for (ExecNode<?, ?> node : nodeSet) {
 			// only infer batch source according to rowCount.
 			if (node instanceof BatchExecTableSourceScan) {
 				int result = calculateSource((BatchExecTableSourceScan) node);
-				if (result > maxSourceParallelism) {
-					maxSourceParallelism = result;
+				if (result > sourceParallelism) {
+					sourceParallelism = result;
 				}
 			} else if (node instanceof StreamExecTableSourceScan) {
 				int result = NodeResourceConfig.getSourceParallelism(tableConf, envParallelism);
-				if (result > maxSourceParallelism) {
-					maxSourceParallelism = result;
+				if (result > sourceParallelism) {
+					sourceParallelism = result;
 				}
 			}
 		}
-		if (maxSourceParallelism > 0) {
-			shuffleStage.setParallelism(maxSourceParallelism, false);
+		int shuffleStageParallelism;
+		if (sourceParallelism > 0) {
+			shuffleStageParallelism = sourceParallelism;
 		} else {
-			shuffleStage.setParallelism(NodeResourceConfig.getOperatorDefaultParallelism(getTableConf(), envParallelism), false);
+			shuffleStageParallelism = NodeResourceConfig.getOperatorDefaultParallelism(getTableConf(), envParallelism);
 		}
+		if (shuffleStageParallelism > maxParallelism) {
+			shuffleStageParallelism = maxParallelism;
+		}
+		shuffleStage.setParallelism(shuffleStageParallelism, false);
 	}
 
 	private int calculateSource(BatchExecTableSourceScan tableSourceScan) {

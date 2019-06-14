@@ -285,6 +285,10 @@ class StreamExecOverAggregate(
       returnTypeInfo,
       getResource.getParallelism)
 
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
     // set KeyType and Selector for state
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)

@@ -122,13 +122,18 @@ class StreamExecSink[T](
             "implemented and return the sink transformation DataStreamSink. " +
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
         }
-        if (dsSink.getTransformation.getMaxParallelism > 0) {
-          dsSink.getTransformation.setParallelism(dsSink.getTransformation.getMaxParallelism)
-        } else if (NodeResourceConfig.getSinkParallelism(tableEnv.getConfig.getConf) > 0) {
-          dsSink.getTransformation.setParallelism(
-            NodeResourceConfig.getSinkParallelism(tableEnv.getConfig.getConf))
-        } else if (transformation.getParallelism > 0) {
-          dsSink.getTransformation.setParallelism(transformation.getParallelism)
+        val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
+          tableEnv.getConfig.getConf)
+
+        val maxSinkParallelism = dsSink.getTransformation.getMaxParallelism
+
+        if (maxSinkParallelism > 0 && configSinkParallelism <= maxSinkParallelism) {
+          dsSink.getTransformation.setParallelism(configSinkParallelism)
+        }
+        if (!UpdatingPlanChecker.isAppendOnly(this) &&
+            dsSink.getTransformation.getParallelism != transformation.getParallelism) {
+          throw new TableException("Sink parallelism should be equal to input node when it is not" +
+              " appendStream table sink.")
         }
         dsSink.getTransformation
 

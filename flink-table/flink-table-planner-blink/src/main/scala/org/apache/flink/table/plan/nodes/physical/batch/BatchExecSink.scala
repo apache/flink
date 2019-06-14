@@ -93,17 +93,15 @@ class BatchExecSink[T](
         }
         val sinkTransformation = dsSink.getTransformation
 
-        if (sinkTransformation.getMaxParallelism > 0) {
-          sinkTransformation.setParallelism(sinkTransformation.getMaxParallelism)
-        } else {
-          val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
-            tableEnv.getConfig.getConf)
-          if (configSinkParallelism > 0) {
-            sinkTransformation.setParallelism(configSinkParallelism)
-          } else if (boundedStream.getParallelism > 0) {
-            sinkTransformation.setParallelism(boundedStream.getParallelism)
-          }
+        val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
+          tableEnv.getConfig.getConf)
+
+        val maxSinkParallelism = sinkTransformation.getMaxParallelism
+
+        if (maxSinkParallelism > 0 && configSinkParallelism <= maxSinkParallelism) {
+          sinkTransformation.setParallelism(configSinkParallelism)
         }
+
         sinkTransformation
 
       case dsTableSink: DataStreamTableSink[T] =>

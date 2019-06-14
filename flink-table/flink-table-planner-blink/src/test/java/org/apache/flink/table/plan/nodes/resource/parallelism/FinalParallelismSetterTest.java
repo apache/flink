@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.resource.parallelism;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.BatchTableEnvironment;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.resource.MockNodeTestBase;
 
@@ -44,7 +43,6 @@ import static org.junit.Assert.assertEquals;
 public class FinalParallelismSetterTest extends MockNodeTestBase {
 
 	private StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-	private BatchTableEnvironment tEnv;
 
 	public FinalParallelismSetterTest(boolean isBatch) {
 		super(isBatch);
@@ -64,7 +62,7 @@ public class FinalParallelismSetterTest extends MockNodeTestBase {
 		 *             3, Union
 		 */
 		createNodeList(6);
-		ExecNode<?, ?> scan0 = updateTableSource(0, 5);
+		updateTableSource(0, 5);
 		updateTableSource(1);
 		updateValues(2);
 		updateUnion(3);
@@ -72,8 +70,8 @@ public class FinalParallelismSetterTest extends MockNodeTestBase {
 		updateStreamScan(5);
 		connect(3, 0, 1, 2, 4, 5);
 		Map<ExecNode<?, ?>, Integer> finalParallelismNodeMap = FinalParallelismSetter.calculate(sEnv, Collections.singletonList(nodeList.get(3)));
-		assertEquals(4, finalParallelismNodeMap.size());
-		assertEquals(5, finalParallelismNodeMap.get(nodeList.get(0)).intValue());
+		assertEquals(3, finalParallelismNodeMap.size());
+		assertEquals(5, nodeList.get(0).getResource().getMaxParallelism());
 		assertEquals(1, finalParallelismNodeMap.get(nodeList.get(2)).intValue());
 		assertEquals(7, finalParallelismNodeMap.get(nodeList.get(4)).intValue());
 		assertEquals(21, finalParallelismNodeMap.get(nodeList.get(5)).intValue());
@@ -92,7 +90,7 @@ public class FinalParallelismSetterTest extends MockNodeTestBase {
 		 *          6, Union
 		 */
 		createNodeList(11);
-		ExecNode<?, ?> scan0 = updateTableSource(0, 5);
+		updateTableSource(0, 5);
 		updateExchange(2, RelDistribution.Type.BROADCAST_DISTRIBUTED);
 		updateExchange(3, RelDistribution.Type.SINGLETON);
 		updateExchange(9, RelDistribution.Type.SINGLETON);
@@ -104,8 +102,8 @@ public class FinalParallelismSetterTest extends MockNodeTestBase {
 		connect(7, 8, 9);
 		connect(9, 10);
 		Map<ExecNode<?, ?>, Integer> finalParallelismNodeMap = FinalParallelismSetter.calculate(sEnv, Collections.singletonList(nodeList.get(6)));
-		assertEquals(3, finalParallelismNodeMap.size());
-		assertEquals(5, finalParallelismNodeMap.get(nodeList.get(0)).intValue());
+		assertEquals(2, finalParallelismNodeMap.size());
+		assertEquals(5, nodeList.get(0).getResource().getMaxParallelism());
 		assertEquals(1, finalParallelismNodeMap.get(nodeList.get(5)).intValue());
 		assertEquals(1, finalParallelismNodeMap.get(nodeList.get(7)).intValue());
 	}

@@ -185,6 +185,10 @@ class StreamExecIncrementalGroupAggregate(
       BaseRowTypeInfo.of(outRowType),
       getResource.getParallelism)
 
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
     // set KeyType and Selector for state
     ret.setStateKeySelector(partialKeySelector)
     ret.setStateKeyType(partialKeySelector.getProducedType)

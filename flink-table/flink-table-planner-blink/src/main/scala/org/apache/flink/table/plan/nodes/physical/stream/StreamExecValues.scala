@@ -85,6 +85,9 @@ class StreamExecValues(
       val transformation = tableEnv.execEnv.createInput(inputFormat,
         inputFormat.getProducedType).getTransformation
       transformation.setParallelism(getResource.getParallelism)
+      if (getResource.getMaxParallelism > 0) {
+        transformation.setMaxParallelism(getResource.getMaxParallelism)
+      }
       transformation
     } else {
       // enable this feature when runtime support do checkpoint when source finished

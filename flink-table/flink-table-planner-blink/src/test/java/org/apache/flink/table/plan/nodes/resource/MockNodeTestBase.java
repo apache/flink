@@ -161,6 +161,7 @@ public class MockNodeTestBase {
 		for (int i = 0; i < num; i++) {
 			ExecNode<?, ?>  node = isBatch ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
 			when(node.getInputNodes()).thenReturn(new ArrayList<>());
+			when(node.getResource()).thenReturn(new NodeResource());
 			when(node.toString()).thenReturn("id: " + i);
 			nodeList.add(node);
 		}
