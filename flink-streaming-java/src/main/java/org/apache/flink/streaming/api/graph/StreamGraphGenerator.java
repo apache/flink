@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -197,7 +198,10 @@ public class StreamGraphGenerator {
 
 		if (transform.getBufferTimeout() >= 0) {
 			streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
+		} else {
+			streamGraph.setBufferTimeout(transform.getId(), env.getBufferTimeout());
 		}
+
 		if (transform.getUid() != null) {
 			streamGraph.setTransformationUID(transform.getId(), transform.getUid());
 		}
@@ -490,7 +494,9 @@ public class StreamGraphGenerator {
 			streamGraph.setInputFormat(source.getId(),
 					((InputFormatOperatorFactory<T>) source.getOperatorFactory()).getInputFormat());
 		}
-		streamGraph.setParallelism(source.getId(), source.getParallelism());
+		int parallelism = source.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
+			source.getParallelism() : env.getParallelism();
+		streamGraph.setParallelism(source.getId(), parallelism);
 		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
 		return Collections.singleton(source.getId());
 	}
@@ -517,7 +523,9 @@ public class StreamGraphGenerator {
 			streamGraph.setOutputFormat(sink.getId(), ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
 		}
 
-		streamGraph.setParallelism(sink.getId(), sink.getParallelism());
+		int parallelism = sink.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
+			sink.getParallelism() : env.getParallelism();
+		streamGraph.setParallelism(sink.getId(), parallelism);
 		streamGraph.setMaxParallelism(sink.getId(), sink.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
@@ -565,7 +573,9 @@ public class StreamGraphGenerator {
 			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
 		}
 
-		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
+		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
+			transform.getParallelism() : env.getParallelism();
+		streamGraph.setParallelism(transform.getId(), parallelism);
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
@@ -612,7 +622,9 @@ public class StreamGraphGenerator {
 			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
 		}
 
-		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
+		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
+			transform.getParallelism() : env.getParallelism();
+		streamGraph.setParallelism(transform.getId(), parallelism);
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds1) {
