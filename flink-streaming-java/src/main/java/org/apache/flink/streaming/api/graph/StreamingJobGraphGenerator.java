@@ -598,22 +598,9 @@ public class StreamingJobGraphGenerator {
 				}
 
 				vertex.updateCoLocationGroup(constraint.f1);
+				constraint.f1.addVertex(vertex);
 			}
 		}
-
-		for (Tuple2<StreamNode, StreamNode> pair : streamGraph.getIterationSourceSinkPairs()) {
-
-			CoLocationGroup ccg = new CoLocationGroup();
-
-			JobVertex source = jobVertices.get(pair.f0.getId());
-			JobVertex sink = jobVertices.get(pair.f1.getId());
-
-			ccg.addVertex(source);
-			ccg.addVertex(sink);
-			source.updateCoLocationGroup(ccg);
-			sink.updateCoLocationGroup(ccg);
-		}
-
 	}
 
 	private void configureCheckpointing() {
