@@ -25,6 +25,8 @@ import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
@@ -61,12 +63,13 @@ import org.apache.flink.runtime.iterative.task.IterationIntermediateTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailTask;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.CoGroupDriver;
@@ -947,33 +950,41 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		return vertex;
 	}
 
-	private InputFormatVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
-		final InputFormatVertex vertex = new InputFormatVertex(node.getNodeName());
+	private JobVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
+		final InputOutputFormatVertex vertex = new InputOutputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
+
+		final OperatorID operatorID = new OperatorID();
 
 		vertex.setResources(node.getMinResources(), node.getPreferredResources());
 		vertex.setInvokableClass(DataSourceTask.class);
-		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
+		vertex.setFormatDescription(operatorID, getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 
 		// set user code
-		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
-		config.setStubParameters(node.getProgramOperator().getParameters());
+		new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+			.addInputFormat(operatorID, (UserCodeWrapper<? extends InputFormat<?, ?>>) node.getProgramOperator().getUserCodeWrapper())
+			.addParameters(operatorID, node.getProgramOperator().getParameters())
+			.write(config);
 
 		config.setOutputSerializer(node.getSerializer());
 		return vertex;
 	}
 
 	private JobVertex createDataSinkVertex(SinkPlanNode node) throws CompilerException {
-		final OutputFormatVertex vertex = new OutputFormatVertex(node.getNodeName());
+		final InputOutputFormatVertex vertex = new InputOutputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
+
+		final OperatorID operatorID = new OperatorID();
 
 		vertex.setResources(node.getMinResources(), node.getPreferredResources());
 		vertex.setInvokableClass(DataSinkTask.class);
-		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
-		
+		vertex.setFormatDescription(operatorID, getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
+
 		// set user code
-		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
-		config.setStubParameters(node.getProgramOperator().getParameters());
+		new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+			.addOutputFormat(operatorID, (UserCodeWrapper<? extends OutputFormat<?>>) node.getProgramOperator().getUserCodeWrapper())
+			.addParameters(operatorID, node.getProgramOperator().getParameters())
+			.write(config);
 
 		return vertex;
 	}

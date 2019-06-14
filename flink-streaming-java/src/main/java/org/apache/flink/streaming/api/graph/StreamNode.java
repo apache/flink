@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -76,6 +77,7 @@ public class StreamNode implements Serializable {
 	private final Class<? extends AbstractInvokable> jobVertexClass;
 
 	private InputFormat<?, ?> inputFormat;
+	private OutputFormat<?> outputFormat;
 
 	private String transformationUID;
 	private String userHash;
@@ -266,6 +268,14 @@ public class StreamNode implements Serializable {
 
 	public void setInputFormat(InputFormat<?, ?> inputFormat) {
 		this.inputFormat = inputFormat;
+	}
+
+	public OutputFormat<?> getOutputFormat() {
+		return outputFormat;
+	}
+
+	public void setOutputFormat(OutputFormat<?> outputFormat) {
+		this.outputFormat = outputFormat;
 	}
 
 	public void setSlotSharingGroup(String slotSharingGroup) {
