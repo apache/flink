@@ -93,6 +93,9 @@ public abstract class StateTable<K, N, S>
 		@SuppressWarnings("unchecked")
 		StateMap<K, N, S>[] state = (StateMap<K, N, S>[]) new StateMap[keyContext.getKeyGroupRange().getNumberOfKeyGroups()];
 		this.state = state;
+		for (int i = 0; i < this.state.length; i++) {
+			this.state[i] = createStateMap();
+		}
 	}
 
 	protected abstract StateMap<K, N, S> createStateMap();
@@ -212,12 +215,6 @@ public abstract class StateTable<K, N, S>
 
 		int keyGroup = keyContext.getCurrentKeyGroupIndex();
 		StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroup);
-
-		if (stateMap == null) {
-			stateMap = createStateMap();
-			setMapForKeyGroup(keyGroup, stateMap);
-		}
-
 		stateMap.transform(key, namespace, value, transformation);
 	}
 
@@ -239,9 +236,7 @@ public abstract class StateTable<K, N, S>
 
 	public Stream<K> getKeys(N namespace) {
 		return Arrays.stream(state)
-			.filter(Objects::nonNull)
-			.map(StateMap::iterator)
-			.flatMap(iter -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, 0), false))
+			.flatMap(stateMap -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0), false))
 			.filter(entry -> entry.getNamespace().equals(namespace))
 			.map(StateEntry::getKey);
 	}
@@ -281,12 +276,6 @@ public abstract class StateTable<K, N, S>
 		checkKeyNamespacePreconditions(key, namespace);
 
 		StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-
-		if (stateMap == null) {
-			stateMap = createStateMap();
-			setMapForKeyGroup(keyGroupIndex, stateMap);
-		}
-
 		return stateMap.putAndGetOld(key, namespace, state);
 	}
 
@@ -294,10 +283,7 @@ public abstract class StateTable<K, N, S>
 		checkKeyNamespacePreconditions(key, namespace);
 
 		StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-
-		if (stateMap != null) {
-			stateMap.remove(key, namespace);
-		}
+		stateMap.remove(key, namespace);
 	}
 
 	private S removeAndGetOld(K key, int keyGroupIndex, N namespace) {
@@ -305,7 +291,7 @@ public abstract class StateTable<K, N, S>
 
 		StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
 
-		return stateMap == null ? null : stateMap.removeAndGetOld(key, namespace);
+		return stateMap.removeAndGetOld(key, namespace);
 	}
 
 	// ------------------------------------------------------------------------
@@ -331,18 +317,6 @@ public abstract class StateTable<K, N, S>
 			return state[pos];
 		} else {
 			return null;
-		}
-	}
-
-	/**
-	 * Sets the given map for the given key-group.
-	 */
-	protected void setMapForKeyGroup(int keyGroupId, StateMap<K, N, S> map) {
-		try {
-			state[indexToOffset(keyGroupId)] = map;
-		} catch (ArrayIndexOutOfBoundsException e) {
-			throw new IllegalArgumentException("Key group index " + keyGroupId + " is out of range of key group " +
-				"range [" + keyGroupOffset + ", " + (keyGroupOffset + state.length) + ").");
 		}
 	}
 
@@ -381,12 +355,6 @@ public abstract class StateTable<K, N, S>
 		checkKeyNamespacePreconditions(key, namespace);
 
 		StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroup);
-
-		if (stateMap == null) {
-			stateMap = createStateMap();
-			setMapForKeyGroup(keyGroup, stateMap);
-		}
-
 		stateMap.put(key, namespace, state);
 	}
 
@@ -394,8 +362,7 @@ public abstract class StateTable<K, N, S>
 	public Iterator<StateEntry<K, N, S>> iterator() {
 		return Arrays.stream(state)
 			.filter(Objects::nonNull)
-			.map(StateMap::iterator)
-			.flatMap(iter -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, 0), false))
+			.flatMap(stateMap -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0), false))
 			.iterator();
 	}
 
@@ -405,9 +372,7 @@ public abstract class StateTable<K, N, S>
 	public int sizeOfNamespace(Object namespace) {
 		int count = 0;
 		for (StateMap<K, N, S> stateMap : state) {
-			if (stateMap != null) {
-				count += stateMap.sizeOfNamespace(namespace);
-			}
+			count += stateMap.sizeOfNamespace(namespace);
 		}
 
 		return count;
@@ -438,13 +403,11 @@ public abstract class StateTable<K, N, S>
 		private void next() {
 			while (keyGroupIndex < state.length) {
 				StateMap<K, N, S> stateMap = state[keyGroupIndex++];
-				if (stateMap != null) {
-					StateIncrementalVisitor<K, N, S> visitor =
-						stateMap.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
-					if (visitor.hasNext()) {
-						stateIncrementalVisitor = visitor;
-						return;
-					}
+				StateIncrementalVisitor<K, N, S> visitor =
+					stateMap.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+				if (visitor.hasNext()) {
+					stateIncrementalVisitor = visitor;
+					return;
 				}
 			}
 		}
@@ -452,17 +415,13 @@ public abstract class StateTable<K, N, S>
 		@Override
 		public boolean hasNext() {
 			while (stateIncrementalVisitor == null || !stateIncrementalVisitor.hasNext()) {
-				while (keyGroupIndex < state.length && state[keyGroupIndex] == null) {
-					keyGroupIndex++;
-				}
 				if (keyGroupIndex == state.length) {
 					return false;
 				}
 				StateIncrementalVisitor<K, N, S> visitor =
-					state[keyGroupIndex].getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+					state[keyGroupIndex++].getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
 				if (visitor.hasNext()) {
 					stateIncrementalVisitor = visitor;
-					keyGroupIndex++;
 					break;
 				}
 			}
@@ -475,10 +434,7 @@ public abstract class StateTable<K, N, S>
 				return null;
 			}
 
-			Collection<StateEntry<K, N, S>> collection =
-				stateIncrementalVisitor.nextEntries();
-
-			return collection;
+			return stateIncrementalVisitor.nextEntries();
 		}
 
 		@Override

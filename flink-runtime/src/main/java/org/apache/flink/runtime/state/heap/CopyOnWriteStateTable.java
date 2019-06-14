@@ -69,6 +69,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> {
 			getMetaInfo().getStateSnapshotTransformFactory().createForDeserializedState().orElse(null));
 	}
 
+	@SuppressWarnings("unchecked")
 	CopyOnWriteStateMapSnapshot<K, N, S>[] getStateMapSnapshotArray() {
 		CopyOnWriteStateMapSnapshot<K, N, S>[] snapshotArray =
 			new CopyOnWriteStateMapSnapshot[state.length];
