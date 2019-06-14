@@ -118,7 +118,7 @@ public class ResultPartitionTest {
 
 		assertThat(manager.getUnreleasedPartitions(), contains(partition.getPartitionId()));
 
-		// an externally managed blocking partition should be consumable multiple times
+		// a blocking partition that is not released on consumption should be consumable multiple times
 		for (int x = 0; x < 2; x++) {
 			ResultSubpartitionView subpartitionView1 = partition.createSubpartitionView(0, () -> {});
 			subpartitionView1.notifySubpartitionConsumed();
