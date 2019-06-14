@@ -124,7 +124,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     if (set.getExecutionEnvironment.getConfig.isClosureCleanerEnabled) {
       ClosureCleaner.clean(f,
         checkSerializable,
-        set.getExecutionEnvironment.getConfig.getClosureCleanLevel)
+        set.getExecutionEnvironment.getConfig.getClosureCleanerLevel)
     }
     ClosureCleaner.ensureSerializable(f)
     f
