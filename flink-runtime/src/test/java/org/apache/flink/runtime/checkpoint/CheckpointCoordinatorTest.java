@@ -323,8 +323,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
+		final String errorMsg = "Exceeded checkpoint failure tolerance number!";
+
 		CheckpointFailureManager checkpointFailureManager = new CheckpointFailureManager(0, () -> {
-			throw new RuntimeException("Exceeded checkpoint failure tolerance number!");
+			throw new RuntimeException(errorMsg);
 		});
 
 		// set up the coordinator
@@ -370,7 +372,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		catch (Exception e) {
 			//expected
 			assertTrue(e instanceof RuntimeException);
-			assertEquals("Exceeded checkpoint failure tolerance number!", e.getMessage());
+			assertEquals(errorMsg, e.getMessage());
 		} finally {
 			try {
 				coord.shutdown(JobStatus.FINISHED);

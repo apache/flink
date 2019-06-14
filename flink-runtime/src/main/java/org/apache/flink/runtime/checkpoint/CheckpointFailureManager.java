@@ -58,6 +58,10 @@ public class CheckpointFailureManager {
 	 *                      latest generated checkpoint id as a special flag.
 	 */
 	public void handleCheckpointException(CheckpointException exception, long checkpointId) {
+		if (tolerableCpFailureNumber == UNLIMITED_TOLERABLE_FAILURE_NUMBER) {
+			return;
+		}
+
 		CheckpointFailureReason reason = exception.getCheckpointFailureReason();
 		switch (reason) {
 			case PERIODIC_SCHEDULER_SHUTDOWN:
@@ -88,8 +92,7 @@ public class CheckpointFailureManager {
 
 			case CHECKPOINT_DECLINED:
 				//we should make sure one checkpoint only be counted once
-				if (tolerableCpFailureNumber != UNLIMITED_TOLERABLE_FAILURE_NUMBER
-					&& countedCheckpointIds.add(checkpointId)) {
+				if (countedCheckpointIds.add(checkpointId)) {
 					continuousFailureCounter.incrementAndGet();
 				}
 
@@ -99,11 +102,8 @@ public class CheckpointFailureManager {
 				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + reason.name());
 		}
 
-		if (tolerableCpFailureNumber != UNLIMITED_TOLERABLE_FAILURE_NUMBER
-			&& continuousFailureCounter.get() > tolerableCpFailureNumber) {
-			//clear the counter
-			continuousFailureCounter.set(0);
-			countedCheckpointIds.clear();
+		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
+			clearCount();
 			failureCallback.failJob();
 		}
 	}
@@ -115,6 +115,10 @@ public class CheckpointFailureManager {
 	 *                     checkpoint id sequence.
 	 */
 	public void handleCheckpointSuccess(long checkpointId) {
+		clearCount();
+	}
+
+	private void clearCount() {
 		continuousFailureCounter.set(0);
 		countedCheckpointIds.clear();
 	}

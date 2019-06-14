@@ -1396,13 +1396,7 @@ public class CheckpointCoordinator {
 			final Throwable cause) {
 
 		CheckpointException exception = new CheckpointException(reason, cause);
-
-		if (cause != null) {
-			pendingCheckpoint.abort(reason, cause);
-		} else {
-			pendingCheckpoint.abort(reason);
-		}
-
+		pendingCheckpoint.abort(reason, cause);
 		failureManager.handleCheckpointException(exception, pendingCheckpoint.getCheckpointId());
 	}
 
