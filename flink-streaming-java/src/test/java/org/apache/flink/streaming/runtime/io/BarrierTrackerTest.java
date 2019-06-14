@@ -37,11 +37,7 @@ import java.util.Arrays;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+
 
 /**
  * Tests for the behavior of the barrier tracker.
@@ -355,17 +351,15 @@ public class BarrierTrackerTest {
 			createCancellationBarrier(2L, 2),
 			createBuffer(0)
 		};
-		AbstractInvokable statefulTask = mock(AbstractInvokable.class);
-		tracker = createBarrierTracker(3, sequence, statefulTask);
+		CheckpointSequenceValidator validator =
+			new CheckpointSequenceValidator(-1, -2);
+		tracker = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || (boe.getEvent().getClass() != CheckpointBarrier.class && boe.getEvent().getClass() != CancelCheckpointMarker.class)) {
 				assertEquals(boe, tracker.pollNext().get());
 			}
 		}
-
-		verify(statefulTask, times(1)).abortCheckpointOnBarrier(eq(1L), any(Throwable.class));
-		verify(statefulTask, times(1)).abortCheckpointOnBarrier(eq(2L), any(Throwable.class));
 	}
 
 	// ------------------------------------------------------------------------
