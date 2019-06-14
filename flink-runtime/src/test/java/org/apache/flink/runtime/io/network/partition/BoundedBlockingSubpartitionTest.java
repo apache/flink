@@ -28,7 +28,6 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -76,7 +75,8 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 	@Override
 	ResultSubpartition createSubpartition() throws Exception {
 		final ResultPartition resultPartition = PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING);
-		return new BoundedBlockingSubpartition(0, resultPartition, tmpPath());
+		return BoundedBlockingSubpartition.createWithMemoryMappedFile(
+				0, resultPartition, new File(TMP_DIR.newFolder(), "subpartition"));
 	}
 
 	@Override
@@ -87,12 +87,6 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 				0,
 				resultPartition,
 				new FailingBoundedData());
-	}
-
-	// ------------------------------------------------------------------------
-
-	static Path tmpPath() throws IOException {
-		return new File(TMP_DIR.newFolder(), "subpartition").toPath();
 	}
 
 	// ------------------------------------------------------------------------

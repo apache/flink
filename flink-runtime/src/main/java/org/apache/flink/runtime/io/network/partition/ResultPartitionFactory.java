@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -42,6 +43,7 @@ import java.util.Optional;
  * Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}.
  */
 public class ResultPartitionFactory {
+
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
 
 	@Nonnull
@@ -153,8 +155,9 @@ public class ResultPartitionFactory {
 		int i = 0;
 		try {
 			for (; i < subpartitions.length; i++) {
-				subpartitions[i] = new BoundedBlockingSubpartition(
-					i, parent, ioManager.createChannel().getPathFile().toPath());
+				final File spillFile = ioManager.createChannel().getPathFile();
+				subpartitions[i] =
+						BoundedBlockingSubpartition.createWithFileAndMemoryMappedReader(i, parent, spillFile);
 			}
 		}
 		catch (IOException e) {
