@@ -71,6 +71,9 @@ bin/pyflink-shell.sh local
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("stream_sink")
 >>> st_env.execute()
+>>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
+>>> with open(sink_path, 'r') as f:
+...     print(f.read())
 {% endhighlight %}
 </div>
 <div data-lang="batch" markdown="1">
@@ -101,6 +104,9 @@ bin/pyflink-shell.sh local
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("batch_sink")
 >>> bt_env.execute()
+>>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
+>>> with open(sink_path, 'r') as f:
+...     print(f.read())
 {% endhighlight %}
 </div>
 </div>

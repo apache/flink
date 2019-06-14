@@ -72,6 +72,9 @@ The example below is a simple program in the Python shell:
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("stream_sink")
 >>> st_env.execute()
+>>> # If the job runs in local mode, you can exec following code in Python shell to see the result:
+>>> with open(sink_path, 'r') as f:
+...     print(f.read())
 {% endhighlight %}
 </div>
 <div data-lang="batch" markdown="1">
@@ -102,14 +105,11 @@ The example below is a simple program in the Python shell:
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("batch_sink")
 >>> bt_env.execute()
+>>> # If the job runs in local mode, you can exec following code in Python shell to see the result:
+>>> with open(sink_path, 'r') as f:
+...     print(f.read())
 {% endhighlight %}
 </div>
-# If the job runs in local mode, you can exec following code in Python shell to see the result:
-{% highlight python %}
->>> with open(sink_path, 'r') as f:
-...     print(f.read())    
-{% endhighlight %}
-# If the job runs in remote or yarn mode, you can see the progress in jobmanager/resourcemanager rest page.
 </div>
 
 ## Setup
