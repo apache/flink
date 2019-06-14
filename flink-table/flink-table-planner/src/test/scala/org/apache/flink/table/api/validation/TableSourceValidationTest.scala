@@ -20,6 +20,7 @@ package org.apache.flink.table.api.validation
 
 import java.util
 import java.util.Collections
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -29,11 +30,11 @@ import org.apache.flink.table.api.{TableException, TableSchema, Types, Validatio
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
-import org.apache.flink.table.utils.{TestInputFormatTableSource, TestTableSourceWithTime}
+import org.apache.flink.table.utils.{TableTestBase, TestInputFormatTableSource, TestTableSourceWithTime}
 import org.apache.flink.types.Row
 import org.junit.Test
 
-class TableSourceValidationTest {
+class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testUnresolvedSchemaField(): Unit = {
@@ -125,6 +126,57 @@ class TableSourceValidationTest {
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), proctime = "ptime")
 
     // should fail because processing time field has invalid type
+    tEnv.registerTableSource("testTable", ts)
+  }
+
+  @Test
+  def testDefinedRowtimeDoesNotExist(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException
+      .expectMessage(
+        "Found a rowtime attribute for field 'rowtime' but it does not exist in the Table")
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = StreamTableEnvironment.create(env)
+
+    val schema = new TableSchema(
+      Array("id", "name", "amount"),
+      Array(Types.LONG, Types.STRING, Types.INT))
+
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.STRING, Types.SQL_TIMESTAMP(), Types.INT)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "rowtime", "amount"))
+
+    val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "rowtime")
+
+    // should fail because rowtime field does not exist in the TableSchema
+    tEnv.registerTableSource("testTable", ts)
+  }
+
+  @Test
+  def testDefinedProctimeDoesNotExist(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException
+      .expectMessage(
+        "Found a proctime attribute for field 'proctime' but it does not exist in the Table")
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    val schema = new TableSchema(
+      Array("id", "name", "amount"),
+      Array(Types.LONG, Types.STRING, Types.INT))
+
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.STRING, Types.SQL_TIMESTAMP(), Types.INT)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "proctime", "amount"))
+
+    val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), proctime = "proctime")
+
+    // should fail because proctime field does not exist in the TableSchema
     tEnv.registerTableSource("testTable", ts)
   }
 

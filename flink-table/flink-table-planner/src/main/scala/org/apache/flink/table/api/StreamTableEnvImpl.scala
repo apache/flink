@@ -40,7 +40,7 @@ import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.planner.DataStreamConversions
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.getFieldsInfo
@@ -76,7 +76,7 @@ abstract class StreamTableEnvImpl(
     */
   override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
 
-    TableSourceUtil.validateTableSource(tableSource)
+    TableSourceValidation.validateTableSource(tableSource)
     tableSource match {
 
       // check for proper stream table source

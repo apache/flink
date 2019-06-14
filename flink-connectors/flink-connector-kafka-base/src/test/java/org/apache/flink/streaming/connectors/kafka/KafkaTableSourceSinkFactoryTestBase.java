@@ -49,7 +49,7 @@ import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceUtil;
+import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
@@ -143,7 +143,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceUtil.validateTableSource(expected);
+		TableSourceValidation.validateTableSource(expected);
 
 		// construct table source using descriptors and table source factory
 
