@@ -55,7 +55,7 @@ public class StreamNode implements Serializable {
 	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 	private long bufferTimeout;
 	private final String operatorName;
-	private String slotSharingGroup;
+	private @Nullable String slotSharingGroup;
 	private @Nullable String coLocationGroup;
 	private KeySelector<?, ?> statePartitioner1;
 	private KeySelector<?, ?> statePartitioner2;
@@ -81,7 +81,7 @@ public class StreamNode implements Serializable {
 	@VisibleForTesting
 	public StreamNode(
 			Integer id,
-			String slotSharingGroup,
+			@Nullable String slotSharingGroup,
 			@Nullable String coLocationGroup,
 			StreamOperator<?> operator,
 			String operatorName,
@@ -93,7 +93,7 @@ public class StreamNode implements Serializable {
 
 	public StreamNode(
 		Integer id,
-		String slotSharingGroup,
+		@Nullable String slotSharingGroup,
 		@Nullable String coLocationGroup,
 		StreamOperatorFactory<?> operatorFactory,
 		String operatorName,
@@ -269,10 +269,11 @@ public class StreamNode implements Serializable {
 		this.outputFormat = outputFormat;
 	}
 
-	public void setSlotSharingGroup(String slotSharingGroup) {
+	public void setSlotSharingGroup(@Nullable String slotSharingGroup) {
 		this.slotSharingGroup = slotSharingGroup;
 	}
 
+	@Nullable
 	public String getSlotSharingGroup() {
 		return slotSharingGroup;
 	}

@@ -184,7 +184,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN, OUT> void addSource(Integer vertexID,
-		String slotSharingGroup,
+		@Nullable String slotSharingGroup,
 		@Nullable String coLocationGroup,
 		StreamOperatorFactory<OUT> operatorFactory,
 		TypeInformation<IN> inTypeInfo,
@@ -195,7 +195,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN, OUT> void addSink(Integer vertexID,
-		String slotSharingGroup,
+		@Nullable String slotSharingGroup,
 		@Nullable String coLocationGroup,
 		StreamOperatorFactory<OUT> operatorFactory,
 		TypeInformation<IN> inTypeInfo,
@@ -207,7 +207,7 @@ public class StreamGraph extends StreamingPlan {
 
 	public <IN, OUT> void addOperator(
 			Integer vertexID,
-			String slotSharingGroup,
+			@Nullable String slotSharingGroup,
 			@Nullable String coLocationGroup,
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<IN> inTypeInfo,
@@ -271,7 +271,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	protected StreamNode addNode(Integer vertexID,
-		String slotSharingGroup,
+		@Nullable String slotSharingGroup,
 		@Nullable String coLocationGroup,
 		Class<? extends AbstractInvokable> vertexClass,
 		StreamOperatorFactory<?> operatorFactory,
