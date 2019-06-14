@@ -50,8 +50,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
 
-		StreamGraph streamGraph = this.getStreamGraph();
-		streamGraph.setJobName(jobName);
+		StreamGraph streamGraph = this.getStreamGraph(jobName);
 
 		transformations.clear();
 

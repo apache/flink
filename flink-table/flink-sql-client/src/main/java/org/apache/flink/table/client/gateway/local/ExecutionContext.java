@@ -38,7 +38,6 @@ import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
@@ -376,9 +375,7 @@ public class ExecutionContext<T> {
 
 		private FlinkPlan createPlan(String name, Configuration flinkConfig) {
 			if (streamExecEnv != null) {
-				final StreamGraph graph = streamExecEnv.getStreamGraph();
-				graph.setJobName(name);
-				return graph;
+				return streamExecEnv.getStreamGraph(name);
 			} else {
 				final int parallelism = execEnv.getParallelism();
 				final Plan unoptimizedPlan = execEnv.createProgramPlan();
