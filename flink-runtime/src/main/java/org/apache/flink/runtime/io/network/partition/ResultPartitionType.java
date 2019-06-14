@@ -23,18 +23,41 @@ package org.apache.flink.runtime.io.network.partition;
  */
 public enum ResultPartitionType {
 
+	/**
+	 * Blocking partitions represent blocking data exchanges, where the data stream is first
+	 * fully produced and then consumed. This is an option that is only applicable to bounded
+	 * streams and can be used in bounded stream runtime and recovery.
+	 *
+	 * <p>Blocking partitions can be consumed multiple times and concurrently.
+	 *
+	 * <p>The partition is not automatically released after being consumed (like for example the
+	 * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
+	 * that the partition is no longer needed.
+	 */
 	BLOCKING(false, false, false, false),
 
 	/**
-	 * Blocking partitions with a user specified life cycle.
+	 * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have
+	 * a user-specified life cycle.
 	 *
-	 * <p>Result partitions with BLOCKING_PERSISTENT type means they may be consumed for several times,
-	 * and only for these reasons they will be released
-	 * 1. TaskManager exits.
-	 * 2. An explicit ResultPartition remove request from client.
+	 * <p>BLOCKING_PERSISTENT partitions are dropped upon explicit API calls to the
+	 * JobManager or ResourceManager, rather than by the scheduler.
+	 *
+	 * <p>Otherwise, the partition may only be dropped by safety-nets during failure handling
+	 * scenarios, like when the TaskManager exits or when the TaskManager looses connection
+	 * to JobManager / ResourceManager for too long.
 	 */
 	BLOCKING_PERSISTENT(false, false, false, true),
 
+	/**
+	 * A pipelined streaming data exchange. This is applicable to both bounded and unbounded streams.
+	 *
+	 * <p>Pipelined results can be consumed only once by a single consumer and are automatically
+	 * disposed when the stream has been consumed.
+	 *
+	 * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
+	 * the {@link #PIPELINED_BOUNDED} variant.
+	 */
 	PIPELINED(true, true, false, false),
 
 	/**
