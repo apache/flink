@@ -244,6 +244,28 @@ function install_flake8() {
     fi
 }
 
+# Install sphinx.
+# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
+function install_sphinx() {
+    if [ -f "$SPHINX_PATH" ]; then
+        ${CONDA_PATH} remove sphinx -y -q 2>&1 >/dev/null
+        if [ $? -ne 0 ]; then
+            echo "conda remove sphinx failed \
+            please try to exec the script again.\
+            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+            exit 1
+        fi
+    fi
+
+    ${CONDA_PATH} install -c anaconda sphinx -y -q 2>&1 >/dev/null
+    if [ $? -ne 0 ]; then
+        echo "conda install sphinx failed \
+        please try to exec the script again.\
+        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+        exit 1
+    fi
+}
+
 
 # In this function, the script will prepare all kinds of python environments and checks.
 function install_environment() {
@@ -303,6 +325,15 @@ function install_environment() {
         checkpoint_stage $STAGE $STEP
     fi
     print_function "STEP" "install flake8... [SUCCESS]"
+
+    # step-6 install sphinx
+    print_function "STEP" "installing sphinx..."
+    if [ $STEP -lt 6 ]; then
+        install_sphinx
+        STEP=6
+        checkpoint_stage $STAGE $STEP
+    fi
+    print_function "STEP" "install sphinx... [SUCCESS]"
 
     print_function "STAGE"  "install environment... [SUCCESS]"
 }
@@ -467,6 +498,28 @@ function flake8_check() {
         print_function "STAGE" "flake8 checks... [SUCCESS]"
     fi
 }
+
+# Sphinx check
+function sphinx_check() {
+    export SPHINXBUILD=$SPHINX_PATH
+    # cd to $FLINK_PYTHON_DIR
+    pushd "$FLINK_PYTHON_DIR"/docs &> /dev/null
+    make clean
+
+    # the return value of a pipeline is the status of the last command to exit
+    # with a non-zero status or zero if no command exited with a non-zero status
+    set -o pipefail
+    (SPHINXOPTS="-a -W" make html) 2>&1 | tee -a $LOG_FILE
+
+    SPHINXBUILD_STATUS=$?
+    if [ $SPHINXBUILD_STATUS -ne 0 ]; then
+        print_function "STAGE" "sphinx checks... [FAILED]"
+        # Stop the running script.
+        exit 1;
+    else
+        print_function "STAGE" "sphinx checks... [SUCCESS]"
+    fi
+}
 ###############################################################All Checks Definitions###############################################################
 
 # CURRENT_DIR is "flink/flink-python/dev/"
@@ -484,6 +537,9 @@ TOX_PATH=$CURRENT_DIR/.conda/bin/tox
 
 # flake8 path
 FLAKE8_PATH=$CURRENT_DIR/.conda/bin/flake8
+
+# sphinx path
+SPHINX_PATH=$CURRENT_DIR/.conda/bin/sphinx-build
 
 _OLD_PATH="$PATH"
 
@@ -515,7 +571,7 @@ echo >$LOG_FILE
 CONDA_INSTALL_SH=$CURRENT_DIR/download/miniconda.sh
 
 # stage "install" includes the num of steps.
-STAGE_INSTALL_STEPS=5
+STAGE_INSTALL_STEPS=6
 
 # whether force to restart the script.
 FORCE_START=0
@@ -550,7 +606,7 @@ while getopts "hfi:e:l" arg; do
             EXCLUDE_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
             ;;
         i)
-            SELECT_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
+            INCLUDE_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
             ;;
         l)
             printf "current supported checks includes:\n"

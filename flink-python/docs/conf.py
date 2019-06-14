@@ -44,7 +44,7 @@ except IOError:
           file=sys.stderr)
     sys.exit(-1)
 # The short X.Y version
-version = __version__
+version = __version__  # noqa
 # The full version, including alpha/beta/rc tags
 release = os.environ.get('RELEASE_VERSION', version)
 
@@ -100,7 +100,6 @@ autodoc_docstring_signature = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-# html_theme = 'sphinxdoc'
 html_theme = 'nature'
 
 # Theme options are theme-specific and customize the look and feel of a theme
@@ -123,7 +122,6 @@ html_domain_indices = False
 
 # If false, no index is generated.
 html_use_index = False
-
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
