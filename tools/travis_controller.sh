@@ -126,26 +126,6 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         echo "=============================================================================="
     fi
 
-    if [[ ${PROFILE} == *"jdk9"* ]]; then
-        printf "\n\n==============================================================================\n"
-        printf "Skipping end-to-end tests since they fail on Java 9.\n"
-        printf "==============================================================================\n"
-    else
-        if [ $EXIT_CODE == 0 ]; then
-            printf "\n\n==============================================================================\n"
-            printf "Running end-to-end tests\n"
-            printf "==============================================================================\n"
-
-            FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-
-            EXIT_CODE=$?
-        else
-            printf "\n==============================================================================\n"
-            printf "Previous build failure detected, skipping end-to-end tests.\n"
-            printf "==============================================================================\n"
-        fi
-    fi
-
     if [ $EXIT_CODE == 0 ]; then
         echo "Creating cache build directory $CACHE_FLINK_DIR"
         mkdir -p "$CACHE_FLINK_DIR"
