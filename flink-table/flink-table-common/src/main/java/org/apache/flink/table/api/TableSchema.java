@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -43,7 +44,28 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
- * A table schema that represents a table's structure with field names and data types.
+ * <p>A table schema that represents a table's structure with field names and data types and some
+ * constraint information (e.g. primary key, unique key).</p><br/>
+ *
+ * <p>Concepts about primary key and unique key:</p>
+ * <ul>
+ *     <li>
+ *         Primary key and unique key can consist of single or multiple columns (fields).
+ *     </li>
+ *     <li>
+ *         A primary key or unique key on source will be simply trusted, we won't validate the
+ *         constraint. The primary key and unique key information will then be used for query
+ *         optimization. If a bounded or unbounded table source defines any primary key or
+ *         unique key, it must contain a unique value for each row of data, you cannot have
+ *         two records having the same value of that field(s).
+ *     </li>
+ *     <li>
+ *         A primary key or unique key on sink is a weak constraint. Currently, we won't validate
+ *         the constraint, but we may add some check in the future to validate whether the
+ *         primary/unique key of the query matches the primary/unique key of the sink during
+ *         compile time.
+ *     </li>
+ * </ul>
  */
 @PublicEvolving
 public class TableSchema {
@@ -56,9 +78,15 @@ public class TableSchema {
 
 	private final Map<String, Integer> fieldNameToIndex;
 
-	private TableSchema(String[] fieldNames, DataType[] fieldDataTypes) {
+	private final String[] primaryKey;
+
+	private final String[][] uniqueKeys;
+
+	private TableSchema(String[] fieldNames, DataType[] fieldDataTypes, String[] primaryKey, String[][] uniqueKeys) {
 		this.fieldNames = Preconditions.checkNotNull(fieldNames);
 		this.fieldDataTypes = Preconditions.checkNotNull(fieldDataTypes);
+		this.primaryKey = primaryKey;
+		this.uniqueKeys = uniqueKeys;
 
 		if (fieldNames.length != fieldDataTypes.length) {
 			throw new TableException(
@@ -100,14 +128,22 @@ public class TableSchema {
 	 */
 	@Deprecated
 	public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this(fieldNames, fromLegacyInfoToDataType(fieldTypes));
+		this(fieldNames, fromLegacyInfoToDataType(fieldTypes), null, null);
 	}
 
 	/**
 	 * Returns a deep copy of the table schema.
 	 */
 	public TableSchema copy() {
-		return new TableSchema(fieldNames.clone(), fieldDataTypes.clone());
+		String[] newPrimaryKey = null;
+		if (primaryKey != null) {
+			newPrimaryKey = primaryKey.clone();
+		}
+		String[][] newUniqueKeys = null;
+		if (uniqueKeys != null) {
+			newUniqueKeys = uniqueKeys.clone();
+		}
+		return new TableSchema(fieldNames.clone(), fieldDataTypes.clone(), newPrimaryKey, newUniqueKeys);
 	}
 
 	/**
@@ -206,6 +242,22 @@ public class TableSchema {
 	}
 
 	/**
+	 * Returns primary key defined on the table.
+	 * See the {@link TableSchema} class javadoc for more definition about primary key.
+	 */
+	public Optional<String[]> getPrimaryKey() {
+		return Optional.ofNullable(primaryKey);
+	}
+
+	/**
+	 * Returns unique keys defined on the table.
+	 * See the {@link TableSchema} class javadoc for more definition about unique key.
+	 */
+	public Optional<String[][]> getUniqueKeys() {
+		return Optional.ofNullable(uniqueKeys);
+	}
+
+	/**
 	 * Converts a table schema into a (nested) data type describing a {@link DataTypes#ROW(Field...)}.
 	 */
 	public DataType toRowDataType() {
@@ -231,6 +283,15 @@ public class TableSchema {
 		for (int i = 0; i < fieldNames.length; i++) {
 			sb.append(" |-- ").append(fieldNames[i]).append(": ").append(fieldDataTypes[i]).append('\n');
 		}
+		if (primaryKey != null && primaryKey.length > 0) {
+			sb.append(" |-- ").append("PRIMARY KEY (").append(String.join(", ", primaryKey)).append(")\n");
+		}
+
+		if (uniqueKeys != null && uniqueKeys.length > 0) {
+			for (String[] uniqueKey : uniqueKeys) {
+				sb.append(" |-- ").append("UNIQUE KEY (").append(String.join(", ", uniqueKey)).append(")\n");
+			}
+		}
 		return sb.toString();
 	}
 
@@ -244,13 +305,17 @@ public class TableSchema {
 		}
 		TableSchema schema = (TableSchema) o;
 		return Arrays.equals(fieldNames, schema.fieldNames) &&
-			Arrays.equals(fieldDataTypes, schema.fieldDataTypes);
+			Arrays.equals(fieldDataTypes, schema.fieldDataTypes) &&
+			Arrays.equals(primaryKey, schema.primaryKey) &&
+			Arrays.equals(uniqueKeys, schema.uniqueKeys);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = Arrays.hashCode(fieldNames);
 		result = 31 * result + Arrays.hashCode(fieldDataTypes);
+		result = 31 * result + Arrays.hashCode(primaryKey);
+		result = 31 * result + Arrays.hashCode(uniqueKeys);
 		return result;
 	}
 
@@ -299,6 +364,10 @@ public class TableSchema {
 
 		private List<DataType> fieldDataTypes;
 
+		private List<String> primaryKey;
+
+		private List<List<String>> uniqueKeys;
+
 		public Builder() {
 			fieldNames = new ArrayList<>();
 			fieldDataTypes = new ArrayList<>();
@@ -344,12 +413,65 @@ public class TableSchema {
 		}
 
 		/**
+		 * Add a primary key with the given field names.
+		 * There can only be one PRIMARY KEY for a given table
+		 * See the {@link TableSchema} class javadoc for more definition about primary key.
+		 */
+		public Builder primaryKey(String... fields) {
+			Preconditions.checkArgument(
+				fields != null && fields.length > 0,
+				"The primary key fields shouldn't be null or empty.");
+			Preconditions.checkArgument(
+				primaryKey == null,
+				"A primary key " + primaryKey +
+					" have been defined, can not define another primary key " +
+					Arrays.toString(fields));
+			for (String field : fields) {
+				if (!fieldNames.contains(field)) {
+					throw new IllegalArgumentException("The field '" + field +
+						"' is not existed in the schema.");
+				}
+			}
+			primaryKey = Arrays.asList(fields);
+			return this;
+		}
+
+		/**
+		 * Add an unique key with the given field names.
+		 * There can be more than one UNIQUE KEY for a given table.
+		 * See the {@link TableSchema} class javadoc for more definition about unique key.
+		 */
+		public Builder uniqueKey(String... fields) {
+			Preconditions.checkArgument(
+				fields != null && fields.length > 0,
+				"The unique key fields shouldn't be null or empty.");
+			for (String field : fields) {
+				if (!fieldNames.contains(field)) {
+					throw new IllegalArgumentException("The field '" + field +
+						"' is not existed in the schema.");
+				}
+			}
+			if (uniqueKeys == null) {
+				uniqueKeys = new ArrayList<>();
+			}
+			uniqueKeys.add(Arrays.asList(fields));
+			return this;
+		}
+
+		/**
 		 * Returns a {@link TableSchema} instance.
 		 */
 		public TableSchema build() {
 			return new TableSchema(
 				fieldNames.toArray(new String[0]),
-				fieldDataTypes.toArray(new DataType[0]));
+				fieldDataTypes.toArray(new DataType[0]),
+				primaryKey == null ? null : primaryKey.toArray(new String[0]),
+				// List<List<String>> -> String[][]
+				uniqueKeys == null ? null : uniqueKeys
+					.stream()
+					.map(u -> u.toArray(new String[0]))  // mapping each List to an array
+					.collect(Collectors.toList())        // collecting as a List<String[]>
+					.toArray(new String[uniqueKeys.size()][]));
 		}
 	}
 }
