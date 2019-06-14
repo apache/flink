@@ -61,7 +61,7 @@ AZURE_TEST_DATA_WORDS_URI="wasbs://$IT_CASE_AZURE_CONTAINER@$IT_CASE_AZURE_ACCOU
 function azure_setup {
 
   echo "Copying flink azure jars and writing out configs"
-  add_optional_plugin "azure-fs-hadoop"
+  add_optional_lib "azure-fs-hadoop"
   set_config_key "fs.azure.account.key.$IT_CASE_AZURE_ACCOUNT.blob.core.windows.net" "$IT_CASE_AZURE_ACCESS_KEY"
 }
 
