@@ -32,7 +32,7 @@ Core Classes:
 
     :class:`pyflink.table.TableEnvironment`
 
-    Main entry point for Flink functionality.
+    Main entry point for Flink Table functionality.
 
     :class:`pyflink.table.Table`
 

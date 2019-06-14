@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+from __future__ import print_function
 import os
 import sys
 
@@ -34,8 +35,16 @@ project = u'PyFlink'
 copyright = u''
 author = u'Author'
 
+version_file = os.path.join("..", 'pyflink/version.py')
+try:
+    exec(open(version_file).read())
+except IOError:
+    print("Failed to load PyFlink version file for packaging. " +
+          "'%s' not found!" % version_file,
+          file=sys.stderr)
+    sys.exit(-1)
 # The short X.Y version
-version = '1.0'
+version = __version__
 # The full version, including alpha/beta/rc tags
 release = os.environ.get('RELEASE_VERSION', version)
 
@@ -91,10 +100,8 @@ autodoc_docstring_signature = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-# html_theme = 'alabaster'
-# html_theme = 'classic'
-html_theme = 'sphinxdoc'
-# html_theme = 'nature'
+# html_theme = 'sphinxdoc'
+html_theme = 'nature'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
