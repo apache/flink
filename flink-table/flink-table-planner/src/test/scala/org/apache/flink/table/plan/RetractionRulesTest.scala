@@ -506,8 +506,7 @@ class StreamTableTestForRetractionUtil extends StreamTableTestUtil {
   }
 
   def verifyTableTrait(resultTable: Table, expected: String): Unit = {
-    val optimized = tableEnv.optimizer
-      .optimize(toRelNode(resultTable), updatesAsRetraction = false, tableEnv.getRelBuilder)
+    val optimized = optimize(resultTable)
     val actual = TraitUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),

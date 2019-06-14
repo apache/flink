@@ -26,10 +26,11 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
@@ -84,7 +85,7 @@ class StreamTableSourceScan(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
@@ -92,8 +93,9 @@ class StreamTableSourceScan(
       isStreamTable = true,
       selectedFields)
 
-    val config = tableEnv.getConfig
-    val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
+    val config = planner.getConfig
+    val inputDataStream = tableSource.getDataStream(planner.getExecutionEnvironment)
+      .asInstanceOf[DataStream[Any]]
     val outputSchema = new RowSchema(this.getRowType)
 
     val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType)
@@ -112,7 +114,7 @@ class StreamTableSourceScan(
       tableSource,
       selectedFields,
       cluster,
-      tableEnv.getRelBuilder,
+      planner.getRelBuilder,
       TimeIndicatorTypeInfo.ROWTIME_INDICATOR
     )
 

@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions
+package org.apache.flink.table.planner;
 
-import org.apache.flink.table.catalog.FunctionLookup
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.PlannerConfig;
+import org.apache.flink.table.api.StreamQueryConfig;
 
 /**
-  * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
-  */
-class ExpressionBridge[E <: Expression](
-    functionCatalog: FunctionLookup,
-    finalVisitor: ExpressionVisitor[E]) {
+ * An adapter to {@link PlannerConfig} that enables to pass {@link org.apache.flink.table.api.QueryConfig}
+ * to {@link Planner} via {@link org.apache.flink.table.api.TableConfig}.
+ */
+@Internal
+public class QueryConfigProvider implements PlannerConfig {
+	private StreamQueryConfig config;
 
-  private val callResolver = new LookupCallResolver(functionCatalog)
+	public StreamQueryConfig getConfig() {
+		return config;
+	}
 
-  def bridge(expression: Expression): E = {
-    // resolve calls
-    val resolvedExpressionTree = expression.accept(callResolver)
-
-    // convert to final expressions
-    resolvedExpressionTree.accept(finalVisitor)
-  }
+	public void setConfig(StreamQueryConfig config) {
+		this.config = config;
+	}
 }

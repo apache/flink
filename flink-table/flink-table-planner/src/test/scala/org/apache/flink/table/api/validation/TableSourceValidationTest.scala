@@ -296,22 +296,4 @@ class TableSourceValidationTest extends TableTestBase{
       // should fail, field can be empty
       .build()
   }
-
-  @Test(expected = classOf[TableException])
-  def testBoundedTableSourceForStreamEnv(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-
-    val fieldNames = Array("id", "name")
-    val rowType = new RowTypeInfo(
-      Array(Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      fieldNames)
-    val schema = new TableSchema(
-      fieldNames,
-      Array(Types.LONG, Types.STRING()))
-    val ts = new TestInputFormatTableSource(schema, rowType, Seq[Row]())
-
-    // should fail because InputFormatTableSource is not supported in StreamTableEnvironment
-    tEnv.registerTableSource("testTable", ts)
-  }
 }

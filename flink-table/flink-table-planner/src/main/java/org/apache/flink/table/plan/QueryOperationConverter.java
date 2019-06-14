@@ -20,7 +20,9 @@ package org.apache.flink.table.plan;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.CatalogReader;
@@ -268,9 +270,20 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			if (other instanceof PlannerQueryOperation) {
 				return ((PlannerQueryOperation) other).getCalciteTree();
 			} else if (other instanceof DataStreamQueryOperation) {
-				return convertToDataStreamScan((DataStreamQueryOperation<?>) other);
+				DataStreamQueryOperation<?> dataStreamQueryOperation = (DataStreamQueryOperation<?>) other;
+				return convertToDataStreamScan(
+					dataStreamQueryOperation.getDataStream(),
+					dataStreamQueryOperation.getFieldIndices(),
+					dataStreamQueryOperation.getTableSchema());
 			} else if (other instanceof DataSetQueryOperation) {
 				return convertToDataSetScan((DataSetQueryOperation<?>) other);
+			} else if (other instanceof org.apache.flink.table.operations.scala.DataStreamQueryOperation) {
+				org.apache.flink.table.operations.scala.DataStreamQueryOperation dataStreamQueryOperation =
+					(org.apache.flink.table.operations.scala.DataStreamQueryOperation<?>) other;
+				return convertToDataStreamScan(
+					dataStreamQueryOperation.getDataStream(),
+					dataStreamQueryOperation.getFieldIndices(),
+					dataStreamQueryOperation.getTableSchema());
 			}
 
 			throw new TableException("Unknown table operation: " + other);
@@ -301,17 +314,20 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			);
 		}
 
-		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> tableOperation) {
+		private RelNode convertToDataStreamScan(
+				DataStream<?> dataStream,
+				int[] fieldIndices,
+				TableSchema tableSchema) {
 			RelDataType logicalRowType = relBuilder.getTypeFactory()
-				.buildLogicalRowType(tableOperation.getTableSchema());
+				.buildLogicalRowType(tableSchema);
 			RowSchema rowSchema = new RowSchema(logicalRowType);
 
 			return new FlinkLogicalDataStreamScan(
 				relBuilder.getCluster(),
 				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),
 				relBuilder.getRelOptSchema(),
-				tableOperation.getDataStream(),
-				tableOperation.getFieldIndices(),
+				dataStream,
+				fieldIndices,
 				rowSchema);
 		}
 
