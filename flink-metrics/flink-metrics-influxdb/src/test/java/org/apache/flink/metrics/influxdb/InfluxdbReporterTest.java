@@ -104,8 +104,8 @@ public class InfluxdbReporterTest extends TestLogger {
 			counter.inc(42);
 
 			stubFor(post(urlPathEqualTo("/write"))
-					.willReturn(aResponse()
-							.withStatus(200)));
+				.willReturn(aResponse()
+					.withStatus(200)));
 
 			InfluxdbReporter reporter = (InfluxdbReporter) metricRegistry.getReporters().get(0);
 			reporter.report();
