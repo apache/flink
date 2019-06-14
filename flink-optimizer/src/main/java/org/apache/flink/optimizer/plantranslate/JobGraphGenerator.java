@@ -104,6 +104,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * This component translates the optimizer's resulting {@link org.apache.flink.optimizer.plan.OptimizedPlan}
  * to a {@link org.apache.flink.runtime.jobgraph.JobGraph}. The translation is not strictly a one-to-one,
@@ -484,36 +486,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 
 			// if this is a blocking shuffle vertex, we add one IntermediateDataSetID to its predecessor and return
-			if (node instanceof SinkPlanNode) {
-				Object userCodeObject = node.getProgramOperator().getUserCodeWrapper().getUserCodeObject();
-				if (userCodeObject instanceof BlockingShuffleOutputFormat) {
-					Iterable<Channel> inputIterable = node.getInputs();
-					if (inputIterable == null || inputIterable.iterator() == null ||
-						!inputIterable.iterator().hasNext()) {
-						throw new IllegalStateException("SinkPlanNode must have a input.");
-					}
-					PlanNode precedentNode = inputIterable.iterator().next().getSource();
-					JobVertex precedentVertex;
-					if (vertices.containsKey(precedentNode)) {
-						precedentVertex = vertices.get(precedentNode);
-					} else {
-						precedentVertex = chainedTasks.get(precedentNode).getContainingVertex();
-					}
-					if (precedentVertex == null) {
-						throw new IllegalStateException("Bug: Chained task has not been assigned its containing vertex when connecting.");
-					}
-					precedentVertex.createAndAddResultDataSet(
-						// use specified intermediateDataSetID
-						new IntermediateDataSetID(((BlockingShuffleOutputFormat) userCodeObject).getIntermediateDataSetId()),
-						ResultPartitionType.BLOCKING_PERSISTENT
-					);
-
-					// remove this node so the OutputFormatVertex will not shown in the final JobGraph.
-					vertices.remove(node);
-					return;
-				}
+			if (checkAndConfigurePersistentIntermediateResult(node)) {
+				return;
 			}
-			
+
 			// check if we have an iteration. in that case, translate the step function now
 			if (node instanceof IterationPlanNode) {
 				// prevent nested iterations
@@ -1158,6 +1134,36 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			config.setSpillingThresholdInput(inputNum, this.defaultSortSpillingThreshold);
 			config.setUseLargeRecordHandler(this.useLargeRecordHandler);
 		}
+	}
+
+	private boolean checkAndConfigurePersistentIntermediateResult(PlanNode node) {
+		if (!(node instanceof SinkPlanNode)) {
+			return false;
+		}
+
+		final Object userCodeObject = node.getProgramOperator().getUserCodeWrapper().getUserCodeObject();
+		if (!(userCodeObject instanceof BlockingShuffleOutputFormat)) {
+			return false;
+		}
+
+		final Iterator<Channel> inputIterator = node.getInputs().iterator();
+		checkState(inputIterator.hasNext(), "SinkPlanNode must have a input.");
+
+		final PlanNode predecessorNode = inputIterator.next().getSource();
+		final JobVertex predecessorVertex = (vertices.containsKey(predecessorNode)) ?
+			vertices.get(predecessorNode) :
+			chainedTasks.get(predecessorNode).getContainingVertex();
+
+		checkState(predecessorVertex != null, "Bug: Chained task has not been assigned its containing vertex when connecting.");
+
+		predecessorVertex.createAndAddResultDataSet(
+				// use specified intermediateDataSetID
+				new IntermediateDataSetID(((BlockingShuffleOutputFormat) userCodeObject).getIntermediateDataSetId()),
+				ResultPartitionType.BLOCKING_PERSISTENT);
+
+		// remove this node so the OutputFormatVertex will not shown in the final JobGraph.
+		vertices.remove(node);
+		return true;
 	}
 
 	// ------------------------------------------------------------------------

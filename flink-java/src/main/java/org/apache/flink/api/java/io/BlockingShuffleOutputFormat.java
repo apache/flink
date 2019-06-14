@@ -33,6 +33,8 @@ import java.io.IOException;
 @Internal
 public final class BlockingShuffleOutputFormat<T> implements OutputFormat<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	private final AbstractID intermediateDataSetId;
 
 	private BlockingShuffleOutputFormat(AbstractID intermediateDataSetId) {
@@ -44,16 +46,24 @@ public final class BlockingShuffleOutputFormat<T> implements OutputFormat<T> {
 	}
 
 	@Override
-	public void configure(Configuration parameters) {}
+	public void configure(Configuration parameters) {
+		throw new UnsupportedOperationException();
+	}
 
 	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {}
+	public void open(int taskNumber, int numTasks) throws IOException {
+		throw new UnsupportedOperationException();
+	}
 
 	@Override
-	public void writeRecord(T record) throws IOException {}
+	public void writeRecord(T record) throws IOException {
+		throw new UnsupportedOperationException();
+	}
 
 	@Override
-	public void close() throws IOException {}
+	public void close() throws IOException {
+		throw new UnsupportedOperationException();
+	}
 
 	public AbstractID getIntermediateDataSetId() {
 		return intermediateDataSetId;
