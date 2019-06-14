@@ -307,7 +307,7 @@ public class TableSchema {
 		return Arrays.equals(fieldNames, schema.fieldNames) &&
 			Arrays.equals(fieldDataTypes, schema.fieldDataTypes) &&
 			Arrays.equals(primaryKey, schema.primaryKey) &&
-			Arrays.equals(uniqueKeys, schema.uniqueKeys);
+			Arrays.deepEquals(uniqueKeys, schema.uniqueKeys);
 	}
 
 	@Override
@@ -315,7 +315,7 @@ public class TableSchema {
 		int result = Arrays.hashCode(fieldNames);
 		result = 31 * result + Arrays.hashCode(fieldDataTypes);
 		result = 31 * result + Arrays.hashCode(primaryKey);
-		result = 31 * result + Arrays.hashCode(uniqueKeys);
+		result = 31 * result + Arrays.deepHashCode(uniqueKeys);
 		return result;
 	}
 

@@ -28,15 +28,42 @@ import static org.junit.Assert.assertEquals;
 public class TableSchemaTest {
 
 	@Test
+	public void testEqualsAndHashCode() {
+		// simple test
+		TableSchema schema1 = createBasicTableSchemaBuilder().build();
+		TableSchema schema2 = createBasicTableSchemaBuilder().build();
+		assertEquals(schema1, schema2);
+		assertEquals(schema1.hashCode(), schema2.hashCode());
+
+		// with primary key
+		TableSchema schema3 = createBasicTableSchemaBuilder()
+			.primaryKey("a")
+			.build();
+		TableSchema schema4 = createBasicTableSchemaBuilder()
+			.primaryKey("a")
+			.build();
+		assertEquals(schema3, schema4);
+		assertEquals(schema3.hashCode(), schema4.hashCode());
+
+		// with unique key
+		TableSchema schema5 = createBasicTableSchemaBuilder()
+			.uniqueKey("a", "b")
+			.uniqueKey("b", "c")
+			.build();
+		TableSchema schema6 = createBasicTableSchemaBuilder()
+			.uniqueKey("a", "b")
+			.uniqueKey("b", "c")
+			.build();
+		assertEquals(schema5, schema6);
+		assertEquals(schema5.hashCode(), schema6.hashCode());
+	}
+
+	@Test
 	public void testToString() {
-		TableSchema.Builder builder = TableSchema.builder()
-			.field("a", DataTypes.INT())
-			.field("b", DataTypes.STRING())
-			.field("c", DataTypes.BIGINT());
+		TableSchema.Builder builder = createBasicTableSchemaBuilder();
 
 		String expected = "root\n |-- a: INT\n |-- b: STRING\n |-- c: BIGINT\n";
 		assertEquals(expected, builder.build().toString());
-
 
 		builder.primaryKey("a");
 		String expected2 = expected + " |-- PRIMARY KEY (a)\n";
@@ -51,29 +78,26 @@ public class TableSchemaTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidPrimaryKeyFieldName() {
-		TableSchema.builder()
-			.field("a", DataTypes.INT())
-			.field("b", DataTypes.STRING())
-			.field("c", DataTypes.BIGINT())
+		createBasicTableSchemaBuilder()
 			.primaryKey("a", "d");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidMultiPrimaryKey() {
-		TableSchema.builder()
-			.field("a", DataTypes.INT())
-			.field("b", DataTypes.STRING())
-			.field("c", DataTypes.BIGINT())
+		createBasicTableSchemaBuilder()
 			.primaryKey("a")
 			.primaryKey("b");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidUniqueKeyFieldName() {
-		TableSchema.builder()
+		createBasicTableSchemaBuilder().uniqueKey("a", "d");
+	}
+
+	private TableSchema.Builder createBasicTableSchemaBuilder() {
+		return TableSchema.builder()
 			.field("a", DataTypes.INT())
 			.field("b", DataTypes.STRING())
-			.field("c", DataTypes.BIGINT())
-			.uniqueKey("a", "d");
+			.field("c", DataTypes.BIGINT());
 	}
 }
