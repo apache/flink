@@ -1711,6 +1711,63 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testTaskExecutorNotReleasedOnFailedAllocationIfPartitionIsAllocated() throws Exception {
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+
+		final JobGraph jobGraph = createSingleVertexJobGraph();
+
+		final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+
+		final AtomicBoolean isTrackingPartitions = new AtomicBoolean(true);
+		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		partitionTracker.setIsTrackingPartitionsForFunction(ignored -> isTrackingPartitions.get());
+
+		final JobMaster jobMaster = new JobMasterBuilder()
+			.withConfiguration(configuration)
+			.withJobGraph(jobGraph)
+			.withHighAvailabilityServices(haServices)
+			.withJobManagerSharedServices(jobManagerSharedServices)
+			.withHeartbeatServices(heartbeatServices)
+			.withOnCompletionActions(new TestingOnCompletionActions())
+			.withPartitionTrackerFactory(ignored -> partitionTracker)
+			.createJobMaster();
+
+		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
+		final CompletableFuture<AllocationID> freedSlotFuture = new CompletableFuture<>();
+		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setFreeSlotFunction(
+				(allocationID, throwable) -> {
+					freedSlotFuture.complete(allocationID);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
+			.createTestingTaskExecutorGateway();
+
+		try {
+			jobMaster.start(jobMasterId).get();
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			final Collection<SlotOffer> slotOffers = registerSlotsAtJobMaster(1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+
+			// check that we accepted the offered slot
+			assertThat(slotOffers, hasSize(1));
+			final AllocationID allocationId = slotOffers.iterator().next().getAllocationId();
+
+			jobMasterGateway.notifyAllocationFailure(allocationId, new FlinkException("Fail allocation test exception"));
+
+			// we should free the slot, but not disconnect from the TaskExecutor as we still have an allocated partition
+			assertThat(freedSlotFuture.get(), equalTo(allocationId));
+
+			// trigger some request to guarantee ensure the slotAllocationFailure processing if complete
+			jobMasterGateway.requestJobStatus(Time.seconds(5)).get();
+			assertThat(disconnectTaskExecutorFuture.isDone(), is(false));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
 	/**
 	 * Tests the updateGlobalAggregate functionality
 	 */

@@ -536,7 +536,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
 		final Optional<ResourceID> resourceIdOptional = slotPool.failAllocation(allocationId, cause);
-		resourceIdOptional.ifPresent(this::releaseEmptyTaskManager);
+		resourceIdOptional.ifPresent(taskManagerId -> {
+			if (!partitionTracker.isTrackingPartitionsFor(taskManagerId)) {
+				releaseEmptyTaskManager(taskManagerId);
+			}
+		});
 	}
 
 	private void releaseEmptyTaskManager(ResourceID resourceId) {
