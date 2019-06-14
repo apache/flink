@@ -237,6 +237,6 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 	@VisibleForTesting
 	int getNumberOfPendingSlotAssignments() {
-		return pendingSlotAssignments.size();
+		return pendingSlotAssignments.size() - 1;
 	}
 }
