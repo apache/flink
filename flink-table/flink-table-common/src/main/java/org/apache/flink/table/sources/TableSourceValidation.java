@@ -63,9 +63,47 @@ public class TableSourceValidation {
 		List<RowtimeAttributeDescriptor> rowtimeAttributes = getRowtimeAttributes(tableSource);
 		Optional<String> proctimeAttribute = getProctimeAttribute(tableSource);
 
+		validateSingleRowtimeAttribute(rowtimeAttributes);
+		validateRowtimeAttributesExistInSchema(rowtimeAttributes, schema);
+		validateProctimeAttributesExistInSchema(proctimeAttribute, schema);
 		validateLogicalToPhysicalMapping(tableSource, schema, rowtimeAttributes, proctimeAttribute);
-		validateTimestampExtractor(rowtimeAttributes, tableSource);
+		validateTimestampExtractorArguments(rowtimeAttributes, tableSource);
 		validateNotOverlapping(rowtimeAttributes, proctimeAttribute);
+	}
+
+	private static void validateSingleRowtimeAttribute(List<RowtimeAttributeDescriptor> rowtimeAttributes) {
+		if (rowtimeAttributes.size() > 1) {
+			throw new ValidationException("Currently, only a single rowtime attribute is supported. " +
+				"Please remove all but one RowtimeAttributeDescriptor.");
+		}
+	}
+
+	private static void validateRowtimeAttributesExistInSchema(
+			List<RowtimeAttributeDescriptor> rowtimeAttributes,
+			TableSchema tableSchema) {
+		rowtimeAttributes.forEach(r -> {
+				if (!tableSchema.getFieldDataType(r.getAttributeName()).isPresent()) {
+					throw new ValidationException(String.format(
+						"Found a rowtime attribute for field '%s' but it does not exist in the Table. TableSchema: %s",
+						r.getAttributeName(),
+						tableSchema));
+				}
+			}
+		);
+	}
+
+	private static void validateProctimeAttributesExistInSchema(
+			Optional<String> proctimeAttribute,
+			TableSchema tableSchema) {
+		proctimeAttribute.ifPresent(r -> {
+				if (!tableSchema.getFieldDataType(r).isPresent()) {
+					throw new ValidationException(String.format(
+						"Found a proctime attribute for field '%s' but it does not exist in the Table. TableSchema: %s",
+						r,
+						tableSchema));
+				}
+			}
+		);
 	}
 
 	private static void validateNotOverlapping(
@@ -137,19 +175,16 @@ public class TableSourceValidation {
 				"Type %s of table field '%s' does not " +
 					"match with type '%s; of the field '%s' of the TableSource return type.",
 				logicalType,
-				fieldName,
 				resolvedField.getType(),
+				fieldName,
 				resolvedField.getType()));
 		}
 	}
 
-	private static void validateTimestampExtractor(
+	private static void validateTimestampExtractorArguments(
 			List<RowtimeAttributeDescriptor> descriptors,
 			TableSource<?> tableSource) {
-		if (descriptors.size() > 1) {
-			throw new ValidationException("Currently, only a single rowtime attribute is supported. " +
-					"Please remove all but one RowtimeAttributeDescriptor.");
-		} else if (descriptors.size() == 1) {
+		if (descriptors.size() == 1) {
 			RowtimeAttributeDescriptor descriptor = descriptors.get(0);
 			// look up extractor input fields in return type
 			String[] extractorInputFields = descriptor.getTimestampExtractor().getArgumentFields();
