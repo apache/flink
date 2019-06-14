@@ -119,9 +119,15 @@ abstract class StreamTableEnvironment(
       jobName: Option[String] = None): StreamGraph = {
     mergeParameters()
 
-    val streamGraph = StreamGraphGenerator.generate(execEnv, streamingTransformations.toList)
-    streamGraph.setJobName(jobName.getOrElse(DEFAULT_JOB_NAME))
-    streamGraph
+    new StreamGraphGenerator(
+        streamingTransformations.toList, execEnv.getConfig, execEnv.getCheckpointConfig)
+      .setChaining(execEnv.isChainingEnabled)
+      .setDefaultBufferTimeout(execEnv.getBufferTimeout)
+      .setStateBackend(execEnv.getStateBackend)
+      .setTimeCharacteristic(execEnv.getStreamTimeCharacteristic)
+      .setUserArtifacts(execEnv.getCachedFiles)
+      .setJobName(jobName.getOrElse(DEFAULT_JOB_NAME))
+      .generate()
   }
 
   /**
