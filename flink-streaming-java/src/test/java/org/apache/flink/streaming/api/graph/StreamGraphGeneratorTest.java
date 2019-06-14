@@ -21,8 +21,10 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -49,6 +51,7 @@ import org.apache.flink.streaming.util.NoOpIntMap;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -418,6 +421,30 @@ public class StreamGraphGeneratorTest {
 		}
 		// IllegalArgumentException will be thrown without FLINK-9216
 		env.getStreamGraph().getStreamingPlanAsJSON();
+	}
+
+	/**
+	 * Test iteration job, check slot sharing group and co-location group.
+	 */
+	@Test
+	public void testIteration() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		IterativeStream<Integer> iteration = source.iterate(3000);
+		iteration.name("iteration").setParallelism(2);
+		DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
+		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
+		iteration.closeWith(filter).print();
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		for (Tuple2<StreamNode, StreamNode> iterationPair : streamGraph.getIterationSourceSinkPairs()) {
+			assertNotNull(iterationPair.f0.getCoLocationGroup());
+			assertEquals(iterationPair.f0.getCoLocationGroup(), iterationPair.f1.getCoLocationGroup());
+
+			assertNotNull(iterationPair.f0.getSlotSharingGroup());
+			assertEquals(iterationPair.f0.getSlotSharingGroup(), iterationPair.f1.getSlotSharingGroup());
+		}
 	}
 
 	private static class OutputTypeConfigurableOperationWithTwoInputs

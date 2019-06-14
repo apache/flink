@@ -79,6 +79,10 @@ public class StreamGraph extends StreamingPlan {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
+	public static final String ITERATION_SOURCE_NAME_PREFIX = "IterationSource";
+
+	public static final String ITERATION_SINK_NAME_PREFIX = "IterationSink";
+
 	private String jobName;
 
 	private final ExecutionConfig executionConfig;
@@ -620,12 +624,15 @@ public class StreamGraph extends StreamingPlan {
 		int maxParallelism,
 		ResourceSpec minResources,
 		ResourceSpec preferredResources) {
+
+		final String coLocationGroup = "IterationCoLocationGroup-" + loopId;
+
 		StreamNode source = this.addNode(sourceId,
 			null,
-			null,
+			coLocationGroup,
 			StreamIterationHead.class,
 			null,
-			"IterationSource-" + loopId);
+			ITERATION_SOURCE_NAME_PREFIX + "-" + loopId);
 		sources.add(source.getId());
 		setParallelism(source.getId(), parallelism);
 		setMaxParallelism(source.getId(), maxParallelism);
@@ -633,10 +640,10 @@ public class StreamGraph extends StreamingPlan {
 
 		StreamNode sink = this.addNode(sinkId,
 			null,
-			null,
+			coLocationGroup,
 			StreamIterationTail.class,
 			null,
-			"IterationSink-" + loopId);
+			ITERATION_SINK_NAME_PREFIX + "-" + loopId);
 		sinks.add(sink.getId());
 		setParallelism(sink.getId(), parallelism);
 		setMaxParallelism(sink.getId(), parallelism);

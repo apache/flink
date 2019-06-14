@@ -36,6 +36,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -60,6 +62,8 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -397,5 +401,49 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, mapVertex.getInputs().get(0).getSource().getResultType());
 		assertEquals(ResultPartitionType.BLOCKING, printVertex.getInputs().get(0).getSource().getResultType());
+	}
+
+	/**
+	 * Test iteration job, check slot sharing group and co-location group.
+	 */
+	@Test
+	public void testIteration() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+		IterativeStream<Integer> iteration = source.iterate(3000);
+		iteration.name("iteration").setParallelism(2);
+		DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
+		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
+		iteration.closeWith(filter).print();
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		SlotSharingGroup slotSharingGroup = jobGraph.getVerticesAsArray()[0].getSlotSharingGroup();
+		assertNotNull(slotSharingGroup);
+
+		CoLocationGroup iterationSourceCoLocationGroup = null;
+		CoLocationGroup iterationSinkCoLocationGroup = null;
+
+		for (JobVertex jobVertex : jobGraph.getVertices()) {
+			// all vertices have same slot sharing group by default
+			assertEquals(slotSharingGroup, jobVertex.getSlotSharingGroup());
+
+			// all iteration vertices have same co-location group,
+			// others have no co-location group by default
+			if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
+				iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
+				assertTrue(iterationSourceCoLocationGroup.getVertices().contains(jobVertex));
+			} else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
+				iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
+				assertTrue(iterationSinkCoLocationGroup.getVertices().contains(jobVertex));
+			} else {
+				assertNull(jobVertex.getCoLocationGroup());
+			}
+		}
+
+		assertNotNull(iterationSourceCoLocationGroup);
+		assertNotNull(iterationSinkCoLocationGroup);
+		assertEquals(iterationSourceCoLocationGroup, iterationSinkCoLocationGroup);
 	}
 }
