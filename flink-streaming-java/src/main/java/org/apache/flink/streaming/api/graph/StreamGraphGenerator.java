@@ -96,6 +96,8 @@ public class StreamGraphGenerator {
 	/** The default buffer timeout (max delay of records in the network stack). */
 	public static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
 
+	public static final String DEFAULT_SLOT_SHARING_GROUP = "default";
+
 	private final List<StreamTransformation<?>> transformations;
 
 	private final ExecutionConfig executionConfig;
@@ -105,6 +107,8 @@ public class StreamGraphGenerator {
 	private StateBackend stateBackend;
 
 	private boolean chaining = true;
+
+	private boolean isSlotSharingEnabled = true;
 
 	private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
 
@@ -140,6 +144,11 @@ public class StreamGraphGenerator {
 
 	public StreamGraphGenerator setChaining(boolean chaining) {
 		this.chaining = chaining;
+		return this;
+	}
+
+	public StreamGraphGenerator setSlotSharingEnabled(boolean isSlotSharingEnabled) {
+		this.isSlotSharingEnabled = isSlotSharingEnabled;
 		return this;
 	}
 
@@ -457,6 +466,10 @@ public class StreamGraphGenerator {
 		}
 
 		String slotSharingGroup = determineSlotSharingGroup(null, allFeedbackIds);
+		// slot sharing group of iteration node must exist
+		if (slotSharingGroup == null) {
+			slotSharingGroup = "SlotSharingGroup-" + iterate.getId();
+		}
 
 		itSink.setSlotSharingGroup(slotSharingGroup);
 		itSource.setSlotSharingGroup(slotSharingGroup);
@@ -706,6 +719,10 @@ public class StreamGraphGenerator {
 	 * @param inputIds The IDs of the input operations.
 	 */
 	private String determineSlotSharingGroup(String specifiedGroup, Collection<Integer> inputIds) {
+		if (!isSlotSharingEnabled) {
+			return null;
+		}
+
 		if (specifiedGroup != null) {
 			return specifiedGroup;
 		} else {
@@ -715,10 +732,10 @@ public class StreamGraphGenerator {
 				if (inputGroup == null) {
 					inputGroup = inputGroupCandidate;
 				} else if (!inputGroup.equals(inputGroupCandidate)) {
-					return "default";
+					return DEFAULT_SLOT_SHARING_GROUP;
 				}
 			}
-			return inputGroup == null ? "default" : inputGroup;
+			return inputGroup == null ? DEFAULT_SLOT_SHARING_GROUP : inputGroup;
 		}
 	}
 
