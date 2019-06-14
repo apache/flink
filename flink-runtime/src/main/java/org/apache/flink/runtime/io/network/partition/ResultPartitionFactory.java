@@ -57,18 +57,22 @@ public class ResultPartitionFactory {
 
 	private final int floatingNetworkBuffersPerGate;
 
+	private final boolean forcePartitionReleaseOnConsumption;
+
 	public ResultPartitionFactory(
 		@Nonnull ResultPartitionManager partitionManager,
 		@Nonnull IOManager ioManager,
 		@Nonnull BufferPoolFactory bufferPoolFactory,
 		int networkBuffersPerChannel,
-		int floatingNetworkBuffersPerGate) {
+		int floatingNetworkBuffersPerGate,
+		boolean forcePartitionReleaseOnConsumption) {
 
 		this.partitionManager = partitionManager;
 		this.ioManager = ioManager;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.bufferPoolFactory = bufferPoolFactory;
+		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 	}
 
 	public ResultPartition create(
@@ -82,6 +86,7 @@ public class ResultPartitionFactory {
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
+			desc.isReleasedOnConsumption() || forcePartitionReleaseOnConsumption,
 			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
 	}
 
@@ -92,18 +97,28 @@ public class ResultPartitionFactory {
 		@Nonnull ResultPartitionType type,
 		int numberOfSubpartitions,
 		int maxParallelism,
+		boolean releasePartitionOnConsumption,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
-		ResultPartition partition = new ResultPartition(
-			taskNameWithSubtaskAndId,
-			id,
-			type,
-			subpartitions,
-			maxParallelism,
-			partitionManager,
-			bufferPoolFactory);
+		ResultPartition partition = releasePartitionOnConsumption
+			? new ReleaseOnConsumptionResultPartition(
+				taskNameWithSubtaskAndId,
+				id,
+				type,
+				subpartitions,
+				maxParallelism,
+				partitionManager,
+				bufferPoolFactory)
+			: new ResultPartition(
+				taskNameWithSubtaskAndId,
+				id,
+				type,
+				subpartitions,
+				maxParallelism,
+				partitionManager,
+				bufferPoolFactory);
 
 		createSubpartitions(partition, type, subpartitions);
 

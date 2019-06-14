@@ -155,7 +155,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			ioManager,
 			networkBufferPool,
 			config.networkBuffersPerChannel(),
-			config.floatingNetworkBuffersPerGate());
+			config.floatingNetworkBuffersPerGate(),
+			config.isForcePartitionReleaseOnConsumption());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorLocation,

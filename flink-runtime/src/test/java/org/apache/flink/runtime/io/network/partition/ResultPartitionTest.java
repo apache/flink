@@ -37,10 +37,13 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collections;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -98,6 +101,32 @@ public class ResultPartitionTest {
 	@Test
 	public void testAddOnFinishedBlockingPartition() throws Exception {
 		testAddOnFinishedPartition(ResultPartitionType.BLOCKING);
+	}
+
+	@Test
+	public void testBlockingPartitionIsConsumableMultipleTimesIfNotReleasedOnConsumption() throws IOException {
+		ResultPartitionManager manager = new ResultPartitionManager();
+
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.isReleasedOnConsumption(false)
+			.setResultPartitionManager(manager)
+			.setResultPartitionType(ResultPartitionType.BLOCKING)
+			.build();
+
+		manager.registerResultPartition(partition);
+		partition.finish();
+
+		assertThat(manager.getUnreleasedPartitions(), contains(partition.getPartitionId()));
+
+		// a blocking partition that is not released on consumption should be consumable multiple times
+		for (int x = 0; x < 2; x++) {
+			ResultSubpartitionView subpartitionView1 = partition.createSubpartitionView(0, () -> {});
+			subpartitionView1.notifySubpartitionConsumed();
+
+			// partition should not be released on consumption
+			assertThat(manager.getUnreleasedPartitions(), contains(partition.getPartitionId()));
+			assertFalse(partition.isReleased());
+		}
 	}
 
 	/**

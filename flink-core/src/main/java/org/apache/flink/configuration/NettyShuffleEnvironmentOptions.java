@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -208,6 +209,11 @@ public class NettyShuffleEnvironmentOptions {
 			.defaultValue(10000)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
 			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
+
+	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
+	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
+			key("taskmanager.network.partition.force-release-on-consumption")
+			.defaultValue(true);
 
 	// ------------------------------------------------------------------------
 

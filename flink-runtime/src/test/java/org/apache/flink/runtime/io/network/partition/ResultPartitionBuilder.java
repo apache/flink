@@ -55,6 +55,8 @@ public class ResultPartitionBuilder {
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
+	private boolean releasedOnConsumption;
+
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
 		this.partitionId = partitionId;
 		return this;
@@ -112,13 +114,19 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
+	public ResultPartitionBuilder isReleasedOnConsumption(boolean releasedOnConsumption) {
+		this.releasedOnConsumption = releasedOnConsumption;
+		return this;
+	}
+
 	public ResultPartition build() {
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			partitionManager,
 			ioManager,
 			networkBufferPool,
 			networkBuffersPerChannel,
-			floatingNetworkBuffersPerGate);
+			floatingNetworkBuffersPerGate,
+			true);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
@@ -129,6 +137,7 @@ public class ResultPartitionBuilder {
 			partitionType,
 			numberOfSubpartitions,
 			numTargetKeyGroups,
+			releasedOnConsumption,
 			factory);
 	}
 }
