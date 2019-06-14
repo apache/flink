@@ -36,7 +36,7 @@ export PYTHONPATH="$FLINK_OPT_DIR/python/pyflink.zip:$PYTHONPATH"
 PY4J_ZIP=`echo "$FLINK_OPT_DIR"/python/py4j-*-src.zip`
 export PYTHONPATH="$PY4J_ZIP:$PYTHONPATH"
 
-PARSER="org.apache.flink.python.client.PythonShellParser"
+PARSER="org.apache.flink.client.python.PythonShellParser"
 function parse_options() {
     ${JAVA_RUN} ${JVM_ARGS} -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH} ${PARSER} "$@"
     printf "%d\0" $?
