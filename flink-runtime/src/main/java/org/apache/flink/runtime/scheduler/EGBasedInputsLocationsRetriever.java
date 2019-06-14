@@ -79,7 +79,7 @@ public class EGBasedInputsLocationsRetriever implements InputsLocationsRetriever
 
 		ExecutionJobVertex ejv = executionGraph.getJobVertex(executionVertexId.getJobVertexId());
 		if (ejv == null || ejv.getParallelism() <= executionVertexId.getSubtaskIndex()) {
-			throw new IllegalArgumentException(String.format("Failed to find execution {} in execution graph.", executionVertexId));
+			throw new IllegalArgumentException(String.format("Failed to find execution %s in execution graph.", executionVertexId));
 		}
 
 		return ejv.getTaskVertices()[executionVertexId.getSubtaskIndex()];
