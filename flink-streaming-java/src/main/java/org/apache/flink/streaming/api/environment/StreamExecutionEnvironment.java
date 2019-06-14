@@ -1511,10 +1511,19 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public StreamGraph getStreamGraph() {
+		return getStreamGraphGenerator().generate();
+	}
+
+	private StreamGraphGenerator getStreamGraphGenerator() {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		return StreamGraphGenerator.generate(this, transformations);
+		return new StreamGraphGenerator(transformations, config, checkpointCfg)
+			.setStateBackend(defaultStateBackend)
+			.setChaining(isChainingEnabled)
+			.setUserArtifacts(cacheFile)
+			.setTimeCharacteristic(timeCharacteristic)
+			.setDefaultBufferTimeout(bufferTimeout);
 	}
 
 	/**
