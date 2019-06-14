@@ -23,7 +23,7 @@ import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{TableSource, TableSourceUtil, TableSourceValidation}
 
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to
@@ -35,7 +35,7 @@ class TableSourceTable[T](
     val statistic: FlinkStatistic)
   extends AbstractTable {
 
-  TableSourceUtil.validateTableSource(tableSource)
+  TableSourceValidation.validateTableSource(tableSource)
 
   /**
     * Returns statistics of current table
