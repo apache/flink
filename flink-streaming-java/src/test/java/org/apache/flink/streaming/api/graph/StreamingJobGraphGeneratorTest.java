@@ -126,7 +126,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testDisabledCheckpointing() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamGraph streamGraph = new StreamGraph(env);
+		StreamGraph streamGraph = new StreamGraph(env.getConfig(), env.getCheckpointConfig());
 		assertFalse("Checkpointing enabled", streamGraph.getCheckpointConfig().isCheckpointingEnabled());
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);

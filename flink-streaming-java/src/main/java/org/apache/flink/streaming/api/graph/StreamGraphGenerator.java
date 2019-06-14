@@ -105,9 +105,11 @@ public class StreamGraphGenerator {
 	 * Private constructor. The generator should only be invoked using {@link #generate}.
 	 */
 	private StreamGraphGenerator(StreamExecutionEnvironment env) {
-		this.streamGraph = new StreamGraph(env);
-		this.streamGraph.setChaining(env.isChainingEnabled());
-		this.streamGraph.setStateBackend(env.getStateBackend());
+		streamGraph = new StreamGraph(env.getConfig(), env.getCheckpointConfig());
+		streamGraph.setChaining(env.isChainingEnabled());
+		streamGraph.setStateBackend(env.getStateBackend());
+		streamGraph.setUserArtifacts(env.getCachedFiles());
+		streamGraph.setTimeCharacteristic(env.getStreamTimeCharacteristic());
 		this.env = env;
 		this.alreadyTransformed = new HashMap<>();
 	}

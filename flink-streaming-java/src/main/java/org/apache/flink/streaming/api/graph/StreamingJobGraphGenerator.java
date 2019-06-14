@@ -164,7 +164,7 @@ public class StreamingJobGraphGenerator {
 
 		configureCheckpointing();
 
-		JobGraphGenerator.addUserArtifactEntries(streamGraph.getEnvironment().getCachedFiles(), jobGraph);
+		JobGraphGenerator.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
 
 		// set the ExecutionConfig last when it has been finalized
 		try {
@@ -464,7 +464,7 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
-		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
+		config.setTimeCharacteristic(streamGraph.getTimeCharacteristic());
 
 		final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
