@@ -21,18 +21,29 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -40,6 +51,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -308,5 +320,52 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 				assertTrue(jobVertex.getMinResources().equals(resource5));
 			}
 		}
+	}
+
+	@Test
+	public void testInputOutputFormat() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Long> source = env.addSource(
+			new InputFormatSourceFunction<>(
+				new TypeSerializerInputFormat<>(TypeInformation.of(Long.class)),
+				TypeInformation.of(Long.class)),
+			TypeInformation.of(Long.class)).name("source");
+
+		source.writeUsingOutputFormat(new DiscardingOutputFormat<>()).name("sink1");
+		source.writeUsingOutputFormat(new DiscardingOutputFormat<>()).name("sink2");
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+		assertEquals(1, jobGraph.getNumberOfVertices());
+
+		JobVertex jobVertex = jobGraph.getVertices().iterator().next();
+		assertTrue(jobVertex instanceof InputOutputFormatVertex);
+
+		InputOutputFormatContainer formatContainer = new InputOutputFormatContainer(
+			new TaskConfig(jobVertex.getConfiguration()), Thread.currentThread().getContextClassLoader());
+		Map<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> inputFormats = formatContainer.getInputFormats();
+		Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats = formatContainer.getOutputFormats();
+		assertEquals(1, inputFormats.size());
+		assertEquals(2, outputFormats.size());
+
+		Map<String, OperatorID> nameToOperatorIds = new HashMap<>();
+		StreamConfig headConfig = new StreamConfig(jobVertex.getConfiguration());
+		nameToOperatorIds.put(headConfig.getOperatorName(), headConfig.getOperatorID());
+
+		Map<Integer, StreamConfig> chainedConfigs = headConfig
+			.getTransitiveChainedTaskConfigs(Thread.currentThread().getContextClassLoader());
+		for (StreamConfig config : chainedConfigs.values()) {
+			nameToOperatorIds.put(config.getOperatorName(), config.getOperatorID());
+		}
+
+		InputFormat<?, ?> sourceFormat = inputFormats.get(nameToOperatorIds.get("Source: source")).getUserCodeObject();
+		assertTrue(sourceFormat instanceof TypeSerializerInputFormat);
+
+		OutputFormat<?> sinkFormat1 = outputFormats.get(nameToOperatorIds.get("Sink: sink1")).getUserCodeObject();
+		assertTrue(sinkFormat1 instanceof DiscardingOutputFormat);
+
+		OutputFormat<?> sinkFormat2 = outputFormats.get(nameToOperatorIds.get("Sink: sink2")).getUserCodeObject();
+		assertTrue(sinkFormat2 instanceof DiscardingOutputFormat);
 	}
 }

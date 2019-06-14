@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -41,12 +42,16 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	/**
 	 * Create a SimpleOperatorFactory from existed StreamOperator.
 	 */
+	@SuppressWarnings("unchecked")
 	public static <OUT> SimpleOperatorFactory<OUT> of(StreamOperator<OUT> operator) {
 		if (operator == null) {
 			return null;
 		} else if (operator instanceof StreamSource &&
 				((StreamSource) operator).getUserFunction() instanceof InputFormatSourceFunction) {
 			return new SimpleInputFormatOperatorFactory<OUT>((StreamSource) operator);
+		} else if (operator instanceof StreamSink &&
+			((StreamSink) operator).getUserFunction() instanceof OutputFormatSinkFunction) {
+			return new SimpleOutputFormatOperatorFactory<>((StreamSink) operator);
 		} else if (operator instanceof AbstractUdfStreamOperator) {
 			return new SimpleUdfStreamOperatorFactory<OUT>((AbstractUdfStreamOperator) operator);
 		} else {
