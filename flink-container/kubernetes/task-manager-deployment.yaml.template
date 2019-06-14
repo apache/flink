@@ -19,17 +19,17 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: flink-task-manager
+  name: ${FLINK_APPLICATION_NAME}-task-manager
 spec:
   replicas: ${FLINK_JOB_PARALLELISM}
   template:
     metadata:
       labels:
-        app: flink
+        app: ${FLINK_APPLICATION_NAME}
         component: task-manager
     spec:
       containers:
       - name: flink-task-manager
         image: ${FLINK_IMAGE_NAME}
         imagePullPolicy: IfNotPresent
-        args: ["task-manager", "-Djobmanager.rpc.address=flink-job-cluster"]
+        args: ["task-manager", "-Djobmanager.rpc.address=${FLINK_APPLICATION_NAME}-master"]

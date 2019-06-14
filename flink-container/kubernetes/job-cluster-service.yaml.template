@@ -19,10 +19,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: flink-job-cluster
+  name: ${FLINK_APPLICATION_NAME}-master
   labels:
-    app: flink
-    component: job-cluster
+    app: ${FLINK_APPLICATION_NAME}
+    component: master
 spec:
   ports:
   - name: rpc
@@ -37,5 +37,5 @@ spec:
     nodePort: 30081
   type: NodePort
   selector:
-    app: flink
-    component: job-cluster
+    app: ${FLINK_APPLICATION_NAME}
+    component: master

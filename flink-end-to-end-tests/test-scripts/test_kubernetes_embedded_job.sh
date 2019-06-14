@@ -30,11 +30,12 @@ export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
 export OUTPUT_FILE=kubernetes_wc_out
 export FLINK_JOB_PARALLELISM=1
 export FLINK_JOB_ARGUMENTS='"--output", "/tmp/kubernetes_wc_out"'
+export FLINK_APPLICATION_NAME="test-application"
 
 function cleanup {
-    kubectl delete job flink-job-cluster
-    kubectl delete service flink-job-cluster
-    kubectl delete deployment flink-task-manager
+    kubectl delete job ${FLINK_APPLICATION_NAME}-master
+    kubectl delete service ${FLINK_APPLICATION_NAME}-master
+    kubectl delete deployment ${FLINK_APPLICATION_NAME}-task-manager
     rm -rf ${OUTPUT_VOLUME}
 }
 
@@ -67,10 +68,10 @@ cd "$DOCKER_MODULE_DIR"
 cd "$END_TO_END_DIR"
 
 
-kubectl create -f ${KUBERNETES_MODULE_DIR}/job-cluster-service.yaml
-envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS}' < ${KUBERNETES_MODULE_DIR}/job-cluster-job.yaml.template | kubectl create -f -
-envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM}' < ${KUBERNETES_MODULE_DIR}/task-manager-deployment.yaml.template | kubectl create -f -
-kubectl wait --for=condition=complete job/flink-job-cluster --timeout=1h
+envsubst '${FLINK_APPLICATION_NAME}' < ${KUBERNETES_MODULE_DIR}/job-cluster-service.yaml.template | kubectl create -f -
+envsubst '${FLINK_APPLICATION_NAME} ${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS}' < ${KUBERNETES_MODULE_DIR}/job-cluster-job.yaml.template | kubectl create -f -
+envsubst '${FLINK_APPLICATION_NAME} ${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM}' < ${KUBERNETES_MODULE_DIR}/task-manager-deployment.yaml.template | kubectl create -f -
+kubectl wait --for=condition=complete job/${FLINK_APPLICATION_NAME}-master --timeout=1h
 kubectl cp `kubectl get pods | awk '/task-manager/ {print $1}'`:/tmp/${OUTPUT_FILE} ${OUTPUT_VOLUME}/${OUTPUT_FILE}
 
 check_result_hash "WordCount" ${OUTPUT_VOLUME}/${OUTPUT_FILE} "e682ec6622b5e83f2eb614617d5ab2cf"

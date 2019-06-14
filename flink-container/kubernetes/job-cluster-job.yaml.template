@@ -19,21 +19,29 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: flink-job-cluster
+  name: ${FLINK_APPLICATION_NAME}-master
 spec:
   template:
     metadata:
       labels:
-        app: flink
-        component: job-cluster
+        app: ${FLINK_APPLICATION_NAME}
+        component: master
     spec:
       restartPolicy: OnFailure
       containers:
       - name: flink-job-cluster
         image: ${FLINK_IMAGE_NAME}
         imagePullPolicy: IfNotPresent
-        args: ["job-cluster", "-Djobmanager.rpc.address=flink-job-cluster",
-               "-Dparallelism.default=${FLINK_JOB_PARALLELISM}", "-Dblob.server.port=6124", "-Dqueryable-state.server.ports=6125", ${FLINK_JOB_ARGUMENTS}]
+        args: ["job-cluster",
+               "--job-id-seed", "$(FLINK_APPLICATION_NAME)",
+               "-Djobmanager.rpc.address=${FLINK_APPLICATION_NAME}-master",
+               "-Dparallelism.default=${FLINK_JOB_PARALLELISM}",
+               "-Dblob.server.port=6124",
+               "-Dqueryable-state.server.ports=6125",
+               ${FLINK_JOB_ARGUMENTS}]
+        env:
+        - name: FLINK_APPLICATION_NAME
+          value: ${FLINK_APPLICATION_NAME}
         ports:
         - containerPort: 6123
           name: rpc
