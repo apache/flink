@@ -20,7 +20,9 @@ package org.apache.flink.table.plan;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.CatalogReader;
@@ -42,9 +44,9 @@ import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DataSetQueryOperation;
-import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
+import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.PlannerQueryOperation;
@@ -52,6 +54,7 @@ import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationDefaultVisitor;
 import org.apache.flink.table.operations.QueryOperationVisitor;
+import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -267,10 +270,21 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		public RelNode visit(QueryOperation other) {
 			if (other instanceof PlannerQueryOperation) {
 				return ((PlannerQueryOperation) other).getCalciteTree();
-			} else if (other instanceof DataStreamQueryOperation) {
-				return convertToDataStreamScan((DataStreamQueryOperation<?>) other);
+			} else if (other instanceof JavaDataStreamQueryOperation) {
+				JavaDataStreamQueryOperation<?> dataStreamQueryOperation = (JavaDataStreamQueryOperation<?>) other;
+				return convertToDataStreamScan(
+					dataStreamQueryOperation.getDataStream(),
+					dataStreamQueryOperation.getFieldIndices(),
+					dataStreamQueryOperation.getTableSchema());
 			} else if (other instanceof DataSetQueryOperation) {
 				return convertToDataSetScan((DataSetQueryOperation<?>) other);
+			} else if (other instanceof ScalaDataStreamQueryOperation) {
+				ScalaDataStreamQueryOperation dataStreamQueryOperation =
+					(ScalaDataStreamQueryOperation<?>) other;
+				return convertToDataStreamScan(
+					dataStreamQueryOperation.getDataStream(),
+					dataStreamQueryOperation.getFieldIndices(),
+					dataStreamQueryOperation.getTableSchema());
 			}
 
 			throw new TableException("Unknown table operation: " + other);
@@ -301,17 +315,20 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			);
 		}
 
-		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> tableOperation) {
+		private RelNode convertToDataStreamScan(
+				DataStream<?> dataStream,
+				int[] fieldIndices,
+				TableSchema tableSchema) {
 			RelDataType logicalRowType = relBuilder.getTypeFactory()
-				.buildLogicalRowType(tableOperation.getTableSchema());
+				.buildLogicalRowType(tableSchema);
 			RowSchema rowSchema = new RowSchema(logicalRowType);
 
 			return new FlinkLogicalDataStreamScan(
 				relBuilder.getCluster(),
 				relBuilder.getCluster().traitSet().replace(FlinkConventions.LOGICAL()),
 				relBuilder.getRelOptSchema(),
-				tableOperation.getDataStream(),
-				tableOperation.getFieldIndices(),
+				dataStream,
+				fieldIndices,
 				rowSchema);
 		}
 

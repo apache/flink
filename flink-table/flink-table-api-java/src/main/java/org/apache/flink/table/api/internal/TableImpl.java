@@ -427,7 +427,7 @@ public class TableImpl implements Table {
 	public OverWindowedTable window(OverWindow... overWindows) {
 
 		if (overWindows.length != 1) {
-			throw new TableException("Over-Windows are currently only supported single window.");
+			throw new TableException("Currently, only a single over window is supported.");
 		}
 
 		return new OverWindowedTableImpl(this, Arrays.asList(overWindows));

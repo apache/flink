@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.api.java
+package org.apache.flink.table.api.java.internal
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
+import org.apache.flink.table.api.java.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
@@ -34,11 +36,11 @@ import _root_.scala.collection.JavaConverters._
   * @param config The configuration of the TableEnvironment.
   * @deprecated This constructor will be removed. Use [[BatchTableEnvironment#create()]] instead.
   */
-class BatchTableEnvImpl(
+class BatchTableEnvironmentImpl(
     execEnv: ExecutionEnvironment,
     config: TableConfig,
     catalogManager: CatalogManager)
-  extends org.apache.flink.table.api.BatchTableEnvImpl(
+  extends BatchTableEnvImpl(
     execEnv,
     config,
     catalogManager)

@@ -16,27 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api
+package org.apache.flink.table.api.internal
 
 import _root_.java.util.Optional
-import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan._
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools._
+import org.apache.calcite.tools.FrameworkConfig
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.internal.TableImpl
-import org.apache.flink.table.calcite._
+import org.apache.flink.table.api._
+import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
-import org.apache.flink.table.functions._
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sinks.{TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.StringUtils
@@ -44,7 +43,7 @@ import org.apache.flink.util.StringUtils
 import _root_.scala.collection.JavaConverters._
 
 /**
-  * The abstract base class for the implementation of batch and stream TableEnvironments.
+  * The abstract base class for the implementation of batch TableEnvironment.
   *
   * @param config The configuration of the TableEnvironment
   */
@@ -65,10 +64,20 @@ abstract class TableEnvImpl(
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
 
-  // a counter for unique attribute names
-  private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
+  private def tableLookup: TableReferenceLookup = {
+    new TableReferenceLookup {
+      override def lookupTable(name: String): Optional[TableReferenceExpression] = {
+        JavaScalaConversionUtil
+          .toJava(scanInternal(Array(name)).map(t => new TableReferenceExpression(name, t)))
+      }
+    }
+  }
 
-  private[flink] val operationTreeBuilder = new OperationTreeBuilderImpl(this)
+  private[flink] val operationTreeBuilder = new OperationTreeBuilderImpl(
+    tableLookup,
+    expressionBridge,
+    functionCatalog,
+    !isBatch)
 
   protected val planningConfigurationBuilder: PlanningConfigurationBuilder =
     new PlanningConfigurationBuilder(
@@ -86,7 +95,6 @@ abstract class TableEnvImpl(
 
   private[flink] def queryConfig: QueryConfig = this match {
     case _: BatchTableEnvImpl => new BatchQueryConfig
-    case _: StreamTableEnvImpl => new StreamQueryConfig
     case _ => null
   }
 
@@ -356,9 +364,7 @@ abstract class TableEnvImpl(
     }
   }
 
-  override def listUserDefinedFunctions(): Array[String] = {
-    functionCatalog.getUserDefinedFunctions
-  }
+  override def listUserDefinedFunctions(): Array[String] = functionCatalog.getUserDefinedFunctions
 
   override def explain(table: Table): String
 
@@ -431,18 +437,21 @@ abstract class TableEnvImpl(
     */
   private[flink] def writeToSink[T](table: Table, sink: TableSink[T], conf: QueryConfig): Unit
 
-  override def insertInto(
-      table: Table,
-      queryConfig: QueryConfig,
-      sinkPath: String,
-      sinkPathContinued: String*)
-    : Unit = insertInto(table, queryConfig, sinkPath +: sinkPathContinued: _*)
 
   override def insertInto(
-      table: Table,
-      sinkPath: String,
-      sinkPathContinued: String*)
-    : Unit = insertInto(table, queryConfig, sinkPath +: sinkPathContinued: _*)
+    table: Table,
+    queryConfig: QueryConfig,
+    path: String,
+    pathContinued: String*): Unit = {
+    insertInto(table, queryConfig, path +: pathContinued: _*)
+  }
+
+  override def insertInto(
+    table: Table,
+    path: String,
+    pathContinued: String*): Unit = {
+    insertInto(table, queryConfig, path, pathContinued: _*)
+  }
 
   /**
     * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
@@ -468,29 +477,7 @@ abstract class TableEnvImpl(
 
       case Some(tableSink) =>
         // validate schema of source table and table sink
-        val srcFieldTypes = table.getSchema.getFieldTypes
-        val sinkFieldTypes = tableSink.getTableSchema.getFieldTypes
-
-        if (srcFieldTypes.length != sinkFieldTypes.length ||
-          srcFieldTypes.zip(sinkFieldTypes).exists { case (srcF, snkF) => srcF != snkF }) {
-
-          val srcFieldNames = table.getSchema.getFieldNames
-          val sinkFieldNames = tableSink.getTableSchema.getFieldNames
-
-          // format table and table sink schema strings
-          val srcSchema = srcFieldNames.zip(srcFieldTypes)
-            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
-            .mkString("[", ", ", "]")
-          val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-            .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
-            .mkString("[", ", ", "]")
-
-          throw new ValidationException(
-            s"Field types of query result and registered TableSink " +
-              s"$sinkTablePath do not match.\n" +
-              s"Query result schema: $srcSchema\n" +
-              s"TableSink schema:    $sinkSchema")
-        }
+        TableSinkUtils.validateSink(table.getQueryOperation, sinkTablePath.asJava, tableSink)
         // emit the table to the configured table sink
         writeToSink(table, tableSink, conf)
     }

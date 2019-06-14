@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream,
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions.PlannerExpressionUtils._
 import org.apache.flink.table.expressions.ResolvedFieldReference
@@ -35,6 +35,7 @@ import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.nodes.datastream.DataStreamGroupWindowAggregateBase._
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger
@@ -105,10 +106,10 @@ abstract class DataStreamGroupWindowAggregateBase(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(input)
 
@@ -186,7 +187,7 @@ abstract class DataStreamGroupWindowAggregateBase(
 
       val (aggFunction, accumulatorRowType) =
         AggregateUtil.createDataStreamGroupWindowAggregateFunction(
-          tableEnv.getConfig,
+          planner.getConfig,
           false,
           inputSchema.typeInfo,
           None,
@@ -197,7 +198,7 @@ abstract class DataStreamGroupWindowAggregateBase(
           schema.relDataType,
           grouping,
           needMerge,
-          tableEnv.getConfig)
+          planner.getConfig)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, outRowType)
@@ -217,7 +218,7 @@ abstract class DataStreamGroupWindowAggregateBase(
 
       val (aggFunction, accumulatorRowType) =
         AggregateUtil.createDataStreamGroupWindowAggregateFunction(
-          tableEnv.getConfig,
+          planner.getConfig,
           false,
           inputSchema.typeInfo,
           None,
@@ -228,7 +229,7 @@ abstract class DataStreamGroupWindowAggregateBase(
           schema.relDataType,
           Array[Int](),
           needMerge,
-          tableEnv.getConfig)
+          planner.getConfig)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, outRowType)
