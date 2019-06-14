@@ -100,7 +100,7 @@ public class EGBasedInputsLocationsRetrieverTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that when exection is not scheduled, getting task manager location will return null.
+	 * Tests that it can get the task manager location in an Execution.
 	 */
 	@Test
 	public void testGetTaskManagerLocationWhenScheduled() throws Exception {
