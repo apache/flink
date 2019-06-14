@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
-import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -77,7 +76,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 
 	// ------ table and column stats ------
 	@Test
-	public void testAlter_GET_TableColumnStatistics() throws Exception {
+	public void testAlterTableColumnStatistics() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable catalogTable = createTable();
 		catalog.createTable(path1, catalogTable, false);
@@ -87,11 +86,12 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataString(15, 5.2, 3, 50));
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterTableColumnStatistics(path1, catalogColumnStatistics, false);
-		CatalogTestUtil.checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
+
+		checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
 	}
 
 	@Test
-	public void testAlter_GET_PartitionColumnStatistics() throws Exception {
+	public void testAlterPartitionColumnStatistics() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable catalogTable = createPartitionedTable();
 		catalog.createTable(path1, catalogTable, false);
@@ -101,7 +101,8 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterPartitionColumnStatistics(path1, partitionSpec, catalogColumnStatistics, false);
-		CatalogTestUtil.checkEquals(catalogColumnStatistics, catalog.getPartitionColumnStatistics(path1, partitionSpec));
+
+		checkEquals(catalogColumnStatistics, catalog.getPartitionColumnStatistics(path1, partitionSpec));
 	}
 
 	// ------ utils ------

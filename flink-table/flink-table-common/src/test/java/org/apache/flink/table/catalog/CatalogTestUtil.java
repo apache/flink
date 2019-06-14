@@ -61,7 +61,7 @@ public class CatalogTestUtil {
 		assertEquals(ts1.getProperties(), ts2.getProperties());
 	}
 
-	public static void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
+	static void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {
 		checkEquals(cs1.getColumnStatisticsData(), cs2.getColumnStatisticsData());
 		assertEquals(cs1.getProperties(), cs2.getProperties());
 	}

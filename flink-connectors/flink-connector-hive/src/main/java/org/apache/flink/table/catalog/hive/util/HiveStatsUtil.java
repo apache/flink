@@ -26,18 +26,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.CharType;
-import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.FloatType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.BooleanColumnStatsData;
@@ -57,36 +46,34 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Utils to for HiveCatalog.
  */
-public class HiveCatalogUtil {
-	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalogUtil.class);
+public class HiveStatsUtil {
+	private static final Logger LOG = LoggerFactory.getLogger(HiveStatsUtil.class);
 
-	private HiveCatalogUtil() {}
+	private HiveStatsUtil() {}
 
 	/**
 	 * Create a map of Flink column stats from the given Hive column stats.
 	 */
-	public static Map<String, CatalogColumnStatisticsDataBase> createCatalogColumnStats(List<ColumnStatisticsObj> hiveColStats) {
+	public static Map<String, CatalogColumnStatisticsDataBase> createCatalogColumnStats(@Nonnull List<ColumnStatisticsObj> hiveColStats) {
+		checkNotNull(hiveColStats, "hiveColStats can not be null");
 		Map<String, CatalogColumnStatisticsDataBase> colStats = new HashMap<>();
-
-		if (hiveColStats != null) {
-			for (ColumnStatisticsObj colStatsObj : hiveColStats) {
-				CatalogColumnStatisticsDataBase columnStats =
-						createTableColumnStats(
-								HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(colStatsObj.getColType())),
-								colStatsObj.getStatsData());
-
-				if (colStats != null) {
-					colStats.put(colStatsObj.getColName(), columnStats);
-				}
-			}
+		for (ColumnStatisticsObj colStatsObj : hiveColStats) {
+			CatalogColumnStatisticsDataBase columnStats = createTableColumnStats(
+					HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(colStatsObj.getColType())),
+					colStatsObj.getStatsData());
+			colStats.put(colStatsObj.getColName(), columnStats);
 		}
 
 		return colStats;
@@ -123,9 +110,8 @@ public class HiveCatalogUtil {
 		for (FieldSchema field : sd.getCols()) {
 			String hiveColName = field.getName();
 			String hiveColType = field.getType();
-
-			if (colStats.containsKey(hiveColName)) {
-				CatalogColumnStatisticsDataBase flinkColStat = colStats.get(field.getName());
+			CatalogColumnStatisticsDataBase flinkColStat = colStats.get(field.getName());
+			if (null != flinkColStat) {
 				ColumnStatisticsData statsData =
 						getColumnStatisticsData(HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(hiveColType)), flinkColStat);
 				ColumnStatisticsObj columnStatisticsObj = new ColumnStatisticsObj(hiveColName, hiveColType, statsData);
@@ -149,7 +135,7 @@ public class HiveCatalogUtil {
 		} else if (stats.isSetBooleanStats()) {
 			BooleanColumnStatsData booleanStats = stats.getBooleanStats();
 			return new CatalogColumnStatisticsDataBoolean(
-					booleanStats.getNumFalses(),
+					booleanStats.getNumTrues(),
 					booleanStats.getNumFalses(),
 					booleanStats.getNumNulls());
 		} else if (stats.isSetDateStats()) {
@@ -162,24 +148,29 @@ public class HiveCatalogUtil {
 		} else if (stats.isSetDoubleStats()) {
 				DoubleColumnStatsData doubleStats = stats.getDoubleStats();
 				return new CatalogColumnStatisticsDataDouble(
-						doubleStats.getLowValue(), doubleStats.getHighValue(),
-						doubleStats.getNumDVs(), doubleStats.getNumNulls());
+						doubleStats.getLowValue(),
+						doubleStats.getHighValue(),
+						doubleStats.getNumDVs(),
+						doubleStats.getNumNulls());
 		} else if (stats.isSetLongStats()) {
 				LongColumnStatsData longColStats = stats.getLongStats();
 				return new CatalogColumnStatisticsDataLong(
-						longColStats.getLowValue(), longColStats.getHighValue(),
-						longColStats.getNumDVs(), longColStats.getNumNulls());
+						longColStats.getLowValue(),
+						longColStats.getHighValue(),
+						longColStats.getNumDVs(),
+						longColStats.getNumNulls());
 		} else if (stats.isSetStringStats()) {
 			StringColumnStatsData stringStats = stats.getStringStats();
 			return new CatalogColumnStatisticsDataString(
-					stringStats.getMaxColLen(), stringStats.getAvgColLen(),
-					stringStats.getNumDVs(), stringStats.getNumNulls());
+					stringStats.getMaxColLen(),
+					stringStats.getAvgColLen(),
+					stringStats.getNumDVs(),
+					stringStats.getNumNulls());
 		} else {
 			LOG.warn("Flink does not support converting ColumnStatisticsData '{}' for Hive column type '{}' yet.", stats, colType);
 			return null;
 		}
 	}
-
 
 	/**
 	 * Convert Flink ColumnStats to Hive ColumnStatisticsData according to Hive column type.
@@ -187,13 +178,14 @@ public class HiveCatalogUtil {
 	 * For example, for SHORT and Long columns, the max and min of their ColumnStats should be of type SHORT and LONG.
 	 */
 	private static ColumnStatisticsData getColumnStatisticsData(DataType colType, CatalogColumnStatisticsDataBase colStat) {
-		LogicalType colLogicalType = colType.getLogicalType();
-		if (colLogicalType instanceof CharType || colLogicalType instanceof VarCharType) {
+		LogicalTypeRoot type = colType.getLogicalType().getTypeRoot();
+		if (type.equals(LogicalTypeRoot.CHAR)
+			|| type.equals(LogicalTypeRoot.VARCHAR)) {
 			if (colStat instanceof CatalogColumnStatisticsDataString) {
 				CatalogColumnStatisticsDataString stringColStat = (CatalogColumnStatisticsDataString) colStat;
 				return ColumnStatisticsData.stringStats(new StringColumnStatsData(stringColStat.getMaxLength(), stringColStat.getAvgLength(), stringColStat.getNullCount(), stringColStat.getNdv()));
 			}
-		} else if (colLogicalType instanceof BooleanType) {
+		} else if (type.equals(LogicalTypeRoot.BOOLEAN)) {
 			if (colStat instanceof CatalogColumnStatisticsDataBoolean) {
 				CatalogColumnStatisticsDataBoolean booleanColStat = (CatalogColumnStatisticsDataBoolean) colStat;
 				BooleanColumnStatsData boolStats = new BooleanColumnStatsData(
@@ -202,9 +194,13 @@ public class HiveCatalogUtil {
 						booleanColStat.getNullCount());
 				return ColumnStatisticsData.booleanStats(boolStats);
 			}
-		} else if (colLogicalType instanceof TinyIntType || colLogicalType instanceof SmallIntType ||
-				colLogicalType instanceof IntType || colLogicalType instanceof BigIntType ||
-				colLogicalType instanceof TimestampType) {
+		} else if (type.equals(LogicalTypeRoot.TINYINT)
+				|| type.equals(LogicalTypeRoot.SMALLINT)
+				|| type.equals(LogicalTypeRoot.INTEGER)
+				|| type.equals(LogicalTypeRoot.BIGINT)
+				|| type.equals(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+				|| type.equals(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
+				|| type.equals(LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE)) {
 			if (colStat instanceof CatalogColumnStatisticsDataLong) {
 				CatalogColumnStatisticsDataLong longColStat = (CatalogColumnStatisticsDataLong) colStat;
 				LongColumnStatsData longColumnStatsData = new LongColumnStatsData(longColStat.getNullCount(), longColStat.getNdv());
@@ -212,7 +208,8 @@ public class HiveCatalogUtil {
 				longColumnStatsData.setLowValue(longColStat.getMin());
 				return ColumnStatisticsData.longStats(longColumnStatsData);
 			}
-		} else if (colLogicalType instanceof FloatType || colLogicalType instanceof DoubleType) {
+		} else if (type.equals(LogicalTypeRoot.FLOAT)
+				|| type.equals(LogicalTypeRoot.DOUBLE)) {
 			if (colStat instanceof CatalogColumnStatisticsDataDouble) {
 				CatalogColumnStatisticsDataDouble doubleColumnStatsData = (CatalogColumnStatisticsDataDouble) colStat;
 				DoubleColumnStatsData floatStats = new DoubleColumnStatsData(doubleColumnStatsData.getNullCount(), doubleColumnStatsData.getNdv());
@@ -220,7 +217,7 @@ public class HiveCatalogUtil {
 				floatStats.setLowValue(doubleColumnStatsData.getMin());
 				return ColumnStatisticsData.doubleStats(floatStats);
 			}
-		} else if (colLogicalType instanceof DateType) {
+		} else if (type.equals(LogicalTypeRoot.DATE)) {
 			if (colStat instanceof CatalogColumnStatisticsDataDate) {
 				CatalogColumnStatisticsDataDate dateColumnStatsData = (CatalogColumnStatisticsDataDate) colStat;
 				DateColumnStatsData dateStats = new DateColumnStatsData(dateColumnStatsData.getNullCount(), dateColumnStatsData.getNdv());

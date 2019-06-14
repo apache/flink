@@ -492,7 +492,7 @@ public interface Catalog {
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
-		throws TableNotExistException, CatalogException;
+		throws TableNotExistException, CatalogException, TableNotPartitionedException;
 
 	/**
 	 * Update the statistics of a table partition.
