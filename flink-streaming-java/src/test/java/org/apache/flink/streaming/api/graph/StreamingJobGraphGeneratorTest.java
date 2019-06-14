@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -58,6 +59,7 @@ import org.junit.Test;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -501,5 +503,35 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertNotNull(iterationSourceCoLocationGroup);
 		assertNotNull(iterationSinkCoLocationGroup);
 		assertEquals(iterationSourceCoLocationGroup, iterationSinkCoLocationGroup);
+	}
+
+	/**
+	 * Test default schedule mode.
+	 */
+	@Test
+	public void testDefaultScheduleMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// use eager schedule mode by default
+		StreamGraph streamGraph = new StreamGraphGenerator(Collections.emptyList(),
+			env.getConfig(), env.getCheckpointConfig())
+			.generate();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+		assertEquals(ScheduleMode.EAGER, jobGraph.getScheduleMode());
+	}
+
+	/**
+	 * Test schedule mode is configurable or not.
+	 */
+	@Test
+	public void testSetScheduleMode() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		StreamGraph streamGraph = new StreamGraphGenerator(Collections.emptyList(),
+			env.getConfig(), env.getCheckpointConfig())
+			.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES)
+			.generate();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+		assertEquals(ScheduleMode.LAZY_FROM_SOURCES, jobGraph.getScheduleMode());
 	}
 }
