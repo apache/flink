@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
@@ -86,7 +87,7 @@ public class HiveStatsUtil {
 			Table hiveTable,
 			Map<String, CatalogColumnStatisticsDataBase> colStats) {
 		ColumnStatisticsDesc desc = new ColumnStatisticsDesc(true, hiveTable.getDbName(), hiveTable.getTableName());
-		return createColumnStatistics(colStats, hiveTable.getSd(), desc);
+		return createHiveColumnStatistics(colStats, hiveTable.getSd(), desc);
 	}
 
 	/**
@@ -98,10 +99,10 @@ public class HiveStatsUtil {
 			Map<String, CatalogColumnStatisticsDataBase> colStats) {
 		ColumnStatisticsDesc desc = new ColumnStatisticsDesc(false, hivePartition.getDbName(), hivePartition.getTableName());
 		desc.setPartName(partName);
-		return createColumnStatistics(colStats, hivePartition.getSd(), desc);
+		return createHiveColumnStatistics(colStats, hivePartition.getSd(), desc);
 	}
 
-	private static ColumnStatistics createColumnStatistics(
+	private static ColumnStatistics createHiveColumnStatistics(
 			Map<String, CatalogColumnStatisticsDataBase> colStats,
 			StorageDescriptor sd,
 			ColumnStatisticsDesc desc) {
@@ -226,7 +227,7 @@ public class HiveStatsUtil {
 				return ColumnStatisticsData.dateStats(dateStats);
 			}
 		}
-		LOG.warn("Flink does not support converting ColumnStats '{}' for Hive column type '{}' yet.", colStat, colType);
-		return new ColumnStatisticsData();
+		throw new CatalogException(String.format("Flink does not support converting ColumnStats '%s' for Hive column " +
+												"type '%s' yet", colStat, colType));
 	}
 }
