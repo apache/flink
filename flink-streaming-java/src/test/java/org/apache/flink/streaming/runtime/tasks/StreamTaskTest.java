@@ -902,7 +902,7 @@ public class StreamTaskTest extends TestLogger {
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 		Executor executor = mock(Executor.class);
 
-		ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+		ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),

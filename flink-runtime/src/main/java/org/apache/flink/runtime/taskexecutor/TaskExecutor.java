@@ -173,7 +173,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final TaskExecutorLocalStateStoresManager localStateStoresManager;
 
 	/** The network component in the task manager. */
-	private final ShuffleEnvironment shuffleEnvironment;
+	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;

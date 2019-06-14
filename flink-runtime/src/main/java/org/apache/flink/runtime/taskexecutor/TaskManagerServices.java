@@ -72,7 +72,7 @@ public class TaskManagerServices {
 	private final TaskManagerLocation taskManagerLocation;
 	private final MemoryManager memoryManager;
 	private final IOManager ioManager;
-	private final ShuffleEnvironment shuffleEnvironment;
+	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 	private final KvStateService kvStateService;
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final TaskSlotTable taskSlotTable;
@@ -85,7 +85,7 @@ public class TaskManagerServices {
 		TaskManagerLocation taskManagerLocation,
 		MemoryManager memoryManager,
 		IOManager ioManager,
-		ShuffleEnvironment shuffleEnvironment,
+		ShuffleEnvironment<?, ?> shuffleEnvironment,
 		KvStateService kvStateService,
 		BroadcastVariableManager broadcastVariableManager,
 		TaskSlotTable taskSlotTable,
@@ -119,7 +119,7 @@ public class TaskManagerServices {
 		return ioManager;
 	}
 
-	public ShuffleEnvironment getShuffleEnvironment() {
+	public ShuffleEnvironment<?, ?> getShuffleEnvironment() {
 		return shuffleEnvironment;
 	}
 

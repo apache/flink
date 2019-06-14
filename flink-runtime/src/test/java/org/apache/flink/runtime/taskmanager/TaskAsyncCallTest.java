@@ -106,7 +106,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
 	private static final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
 
-	private ShuffleEnvironment shuffleEnvironment;
+	private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
 	@Before
 	public void createQueuesAndActors() {

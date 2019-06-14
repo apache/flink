@@ -168,7 +168,7 @@ public class JvmExitOnFatalErrorTest {
 				final MemoryManager memoryManager = new MemoryManager(1024 * 1024, 1);
 				final IOManager ioManager = new IOManagerAsync();
 
-				final ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+				final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig);
 
