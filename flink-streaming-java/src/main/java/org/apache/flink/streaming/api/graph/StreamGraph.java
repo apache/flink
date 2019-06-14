@@ -260,7 +260,7 @@ public class StreamGraph extends StreamingPlan {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
-		StreamNode vertex = new StreamNode(environment,
+		StreamNode vertex = new StreamNode(
 			vertexID,
 			slotSharingGroup,
 			coLocationGroup,

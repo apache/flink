@@ -794,7 +794,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 			StreamEdge outputEdge = new StreamEdge(
 				new StreamNode(
-					null,
 					chainedIndex - 1,
 					null,
 					null,
@@ -804,7 +803,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null
 				),
 				new StreamNode(
-					null,
 					chainedIndex,
 					null,
 					null,
