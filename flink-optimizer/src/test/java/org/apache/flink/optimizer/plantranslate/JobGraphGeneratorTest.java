@@ -131,12 +131,7 @@ public class JobGraphGeneratorTest {
 		DataSink<Long> sink = startOfIteration.closeWith(feedback).output(new DiscardingOutputFormat<Long>());
 		sinkMethod.invoke(sink, resource7);
 
-		Plan plan = env.createProgramPlan();
-		Optimizer pc = new Optimizer(new Configuration());
-		OptimizedPlan op = pc.compile(plan);
-
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		JobGraph jobGraph = jgg.compileJobGraph(op);
+		JobGraph jobGraph = compileJob(env);
 
 		JobVertex sourceMapFilterVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		JobVertex iterationHeadVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
@@ -210,12 +205,7 @@ public class JobGraphGeneratorTest {
 				output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 		sinkMethod.invoke(sink, resource6);
 
-		Plan plan = env.createProgramPlan();
-		Optimizer pc = new Optimizer(new Configuration());
-		OptimizedPlan op = pc.compile(plan);
-
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		JobGraph jobGraph = jgg.compileJobGraph(op);
+		JobGraph jobGraph = compileJob(env);
 
 		JobVertex sourceMapVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		JobVertex iterationHeadVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
@@ -298,12 +288,7 @@ public class JobGraphGeneratorTest {
 		ds.output(new DiscardingOutputFormat())
 			.setParallelism(1);
 
-		Plan plan = env.createProgramPlan();
-		Optimizer pc = new Optimizer(new Configuration());
-		OptimizedPlan op = pc.compile(plan);
-
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		JobGraph jobGraph = jgg.compileJobGraph(op);
+		JobGraph jobGraph = compileJob(env);
 
 		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
@@ -338,5 +323,14 @@ public class JobGraphGeneratorTest {
 		org.apache.flink.core.fs.Path filePath = new org.apache.flink.core.fs.Path(entry.filePath);
 		assertTrue(filePath.getFileSystem().exists(filePath));
 		assertFalse(filePath.getFileSystem().getFileStatus(filePath).isDir());
+	}
+
+	private static JobGraph compileJob(ExecutionEnvironment env) {
+		Plan plan = env.createProgramPlan();
+		Optimizer pc = new Optimizer(new Configuration());
+		OptimizedPlan op = pc.compile(plan);
+
+		JobGraphGenerator jgg = new JobGraphGenerator();
+		return jgg.compileJobGraph(op);
 	}
 }
