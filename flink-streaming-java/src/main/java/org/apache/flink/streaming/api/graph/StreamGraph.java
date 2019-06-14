@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -33,6 +34,7 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -66,6 +68,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Class representing the streaming topology. It contains all the information
  * necessary to build the jobgraph for the execution.
@@ -78,11 +82,14 @@ public class StreamGraph extends StreamingPlan {
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
-	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
 
 	private boolean chaining;
+
+	private Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts;
+
+	private TimeCharacteristic timeCharacteristic;
 
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
@@ -96,10 +103,9 @@ public class StreamGraph extends StreamingPlan {
 	private StateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
-	public StreamGraph(StreamExecutionEnvironment environment) {
-		this.environment = environment;
-		this.executionConfig = environment.getConfig();
-		this.checkpointConfig = environment.getCheckpointConfig();
+	public StreamGraph(ExecutionConfig executionConfig, CheckpointConfig checkpointConfig) {
+		this.executionConfig = checkNotNull(executionConfig);
+		this.checkpointConfig = checkNotNull(checkpointConfig);
 
 		// create an empty new stream graph.
 		clear();
@@ -118,10 +124,6 @@ public class StreamGraph extends StreamingPlan {
 		iterationSourceSinkPairs = new HashSet<>();
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
-	}
-
-	public StreamExecutionEnvironment getEnvironment() {
-		return environment;
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -150,6 +152,22 @@ public class StreamGraph extends StreamingPlan {
 
 	public StateBackend getStateBackend() {
 		return this.stateBackend;
+	}
+
+	public Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> getUserArtifacts() {
+		return userArtifacts;
+	}
+
+	public void setUserArtifacts(Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts) {
+		this.userArtifacts = userArtifacts;
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		return timeCharacteristic;
+	}
+
+	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
+		this.timeCharacteristic = timeCharacteristic;
 	}
 
 	// Checkpointing

@@ -282,7 +282,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	}
 
 	public static void addUserArtifactEntries(Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts, JobGraph jobGraph) {
-		if (!userArtifacts.isEmpty()) {
+		if (userArtifacts != null && !userArtifacts.isEmpty()) {
 			try {
 				java.nio.file.Path tmpDir = Files.createTempDirectory("flink-distributed-cache-" + jobGraph.getJobID());
 				for (Tuple2<String, DistributedCache.DistributedCacheEntry> originalEntry : userArtifacts) {
