@@ -314,7 +314,6 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 				final Throwable cause) {
 			cancelledSlotRequestIds.add(slotRequestId);
 		}
-		assertFalse(preferredLocationsOfConsumer1.isDone());
 
 		public List<Tuple3<SlotRequestId, ScheduledUnit, SlotProfile>> getSlotAllocationRequests() {
 			return Collections.unmodifiableList(slotAllocationRequests);
