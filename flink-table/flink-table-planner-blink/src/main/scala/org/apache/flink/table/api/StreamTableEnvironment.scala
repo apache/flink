@@ -490,7 +490,6 @@ abstract class StreamTableEnvironment(
   override protected def registerTableSourceInternal(
       name: String,
       tableSource: TableSource[_],
-      statistic: FlinkStatistic,
       replace: Boolean = false): Unit = {
 
     // TODO `TableSourceUtil.hasRowtimeAttribute` depends on [Expression]
@@ -521,7 +520,7 @@ abstract class StreamTableEnvironment(
           // wrapper contains only sink (not source)
           case Some(_: TableSourceTable[_]) =>
             val enrichedTable = new TableSourceSinkTable(
-              Some(new TableSourceTable(tableSource, true, statistic)),
+              Some(new TableSourceTable(tableSource, true)),
               table.tableSinkTable)
             replaceRegisteredTable(name, enrichedTable)
         }
@@ -529,7 +528,7 @@ abstract class StreamTableEnvironment(
         // no table is registered
         case _ =>
           val newTable = new TableSourceSinkTable(
-            Some(new TableSourceTable(tableSource, true, statistic)),
+            Some(new TableSourceTable(tableSource, true)),
             None)
           registerTableInternal(name, newTable)
       }

@@ -65,12 +65,6 @@ class TableSourceSinkTable[T1, T2](
     case _ => false
   }
 
-  override def copy(statistic: FlinkStatistic): FlinkTable = {
-    new TableSourceSinkTable[T1, T2](
-      tableSourceTable.map(source => source.copy(statistic)),
-      tableSinkTable.map(sink => sink.copy(statistic).asInstanceOf[TableSinkTable[T2]]))
-  }
-
   // Look up the tableSourceTable and tableSinkTable to find proper table type, this method must be
   // invoked every time to decide if the table source or sink can be deterministic.
   override def unwrap[T](clazz: Class[T]): T = {

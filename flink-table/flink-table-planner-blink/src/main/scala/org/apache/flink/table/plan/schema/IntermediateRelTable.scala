@@ -50,15 +50,6 @@ class IntermediateRelTable(
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = relNode.getRowType
 
   /**
-    * Creates a copy of this table, changing statistic.
-    *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
-    */
-  override def copy(statistic: FlinkStatistic): FlinkTable =
-    new IntermediateRelTable(relNode, isAccRetract, statistic)
-
-  /**
     * Returns statistics of current table
     *
     * @return statistics of current table

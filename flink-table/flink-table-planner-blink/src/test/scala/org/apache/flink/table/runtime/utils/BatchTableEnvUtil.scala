@@ -73,7 +73,9 @@ object BatchTableEnvUtil {
     * @return The converted [[Table]].
     */
   def registerCollection[T](tEnv: BatchTableEnvironment,
-      tableName: String, data: Iterable[T], typeInfo: TypeInformation[T],
+      tableName: String,
+      data: Iterable[T],
+      typeInfo: TypeInformation[T],
       fieldNames: String): Unit = {
     registerCollection(
       tEnv, tableName, data, typeInfo, Some(parseFieldNames(fieldNames)), None, None)

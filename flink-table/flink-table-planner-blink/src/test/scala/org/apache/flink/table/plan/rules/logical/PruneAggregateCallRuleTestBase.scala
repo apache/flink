@@ -20,10 +20,8 @@ package org.apache.flink.table.plan.rules.logical
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
-import com.google.common.collect.ImmutableSet
 import org.junit.{Before, Test}
 
 /**
@@ -37,7 +35,8 @@ abstract class PruneAggregateCallRuleTestBase extends TableTestBase {
     util.addTableSource("T1",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.INT),
       Array("a1", "b1", "c1", "d1"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a1"))).build()
+      null,
+      Set("a1")
     )
     util.addTableSource[(Int, Int, String, Long)]("T2", 'a2, 'b2, 'c2, 'd2)
   }

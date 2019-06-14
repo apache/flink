@@ -28,7 +28,6 @@ import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToL
 import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -36,6 +35,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.{JHashSet, JSet}
 
 import java.sql.Timestamp
 
@@ -43,6 +44,35 @@ import scala.collection.JavaConversions._
 
 /** Util class for [[TableSource]]. */
 object TableSourceUtil {
+
+
+  /**
+    * Gets unique keys from a [[TableSource]]. It will extract primary key and unique key from
+    * the table schema and combine them to a result unique keys.
+    */
+  def getUniqueKeys(tableSource: TableSource[_]): Option[JSet[ImmutableBitSet]] = {
+    val ukSet = new JHashSet[ImmutableBitSet]()
+    val schema = tableSource.getTableSchema
+    // add primary key to the result set
+    val pk = schema.getPrimaryKey
+    if (pk.isPresent) {
+      val fieldIndexes = pk.get().map(k => schema.getFieldNames.indexOf(k))
+      ukSet.add(ImmutableBitSet.of(fieldIndexes: _*))
+    }
+    // add unique keys to the result set
+    val uks = schema.getUniqueKeys
+    if (uks.isPresent) {
+      uks.get().foreach { uk =>
+        val fieldIndexes = uk.map(k => schema.getFieldNames.indexOf(k))
+        ukSet.add(ImmutableBitSet.of(fieldIndexes: _*))
+      }
+    }
+    if (ukSet.isEmpty) {
+      None
+    } else {
+      Some(ukSet)
+    }
+  }
 
   /**
     * Computes the indices that map the input type of the DataStream to the schema of the table.

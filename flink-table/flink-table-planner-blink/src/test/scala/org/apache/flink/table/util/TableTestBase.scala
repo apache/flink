@@ -33,7 +33,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks._
@@ -41,14 +41,12 @@ import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.{LegacyTypeInfoDataTypeConverter, TypeConversions}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
@@ -136,7 +134,23 @@ abstract class TableTestUtil(test: TableTestBase) {
     val dataType = TypeConversions.fromLegacyInfoToDataType(typeInfo)
     val tableEnv = getTableEnv
     val (fieldNames, _) = tableEnv.getFieldInfo(dataType, fields.map(_.name).toArray)
-    addTableSource(name, fieldTypes, fieldNames)
+    addTableSource(name, fieldTypes, fieldNames, null)
+  }
+
+  /**
+    * Create a [[TestTableSource]] with the given schema, table stats and unique keys,
+    * and registers this TableSource under given name into the TableEnvironment's catalog.
+    *
+    * @param name table name
+    * @param types field types
+    * @param fields field names
+    * @return returns the registered [[Table]].
+    */
+  def addTableSource(
+      name: String,
+      types: Array[TypeInformation[_]],
+      fields: Array[String]): Table = {
+    addTableSource(name, types, fields, null)
   }
 
   /**
@@ -147,13 +161,15 @@ abstract class TableTestUtil(test: TableTestBase) {
     * @param types field types
     * @param fields field names
     * @param statistic statistic of current table
+    * @param uniqueKeys unique keys of current table
     * @return returns the registered [[Table]].
     */
   def addTableSource(
       name: String,
       types: Array[TypeInformation[_]],
       fields: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table
+      statistic: TableStats,
+      uniqueKeys: Set[String]*): Table
 
   /**
     * Create a [[DataStream]] with the given schema,
@@ -493,12 +509,17 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
   override def addTableSource(
       name: String,
       types: Array[TypeInformation[_]],
-      names: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
+      fields: Array[String],
+      statistic: TableStats,
+      uniqueKeys: Set[String]*): Table = {
     val tableEnv = getTableEnv
-    val schema = new TableSchema(names, types)
-    val tableSource = new TestTableSource(true, schema)
-    val table = new TableSourceTable[BaseRow](tableSource, true, statistic)
+    val builder = TableSchema.builder()
+      .fields(fields, types.map(LegacyTypeInfoDataTypeConverter.toDataType))
+    if (uniqueKeys != null && uniqueKeys.nonEmpty) {
+      uniqueKeys.foreach(uk => builder.uniqueKey(uk.toArray: _*))
+    }
+    val tableSource = new TestTableSource(false, builder.build(), Option(statistic))
+    val table = new TableSourceTable[BaseRow](tableSource, true)
     tableEnv.registerTableInternal(name, table)
     tableEnv.scan(name)
   }
@@ -606,12 +627,17 @@ case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
   override def addTableSource(
       name: String,
       types: Array[TypeInformation[_]],
-      names: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
+      fields: Array[String],
+      statistic: TableStats,
+      uniqueKeys: Set[String]*): Table = {
     val tableEnv = getTableEnv
-    val schema = new TableSchema(names, types)
-    val tableSource = new TestTableSource(true, schema)
-    val table = new TableSourceTable[BaseRow](tableSource, false, statistic)
+    val builder = TableSchema.builder()
+      .fields(fields, types.map(LegacyTypeInfoDataTypeConverter.toDataType))
+    if (uniqueKeys != null && uniqueKeys.nonEmpty) {
+      uniqueKeys.foreach(uk => builder.uniqueKey(uk.toArray: _*))
+    }
+    val tableSource = new TestTableSource(true, builder.build(), Option(statistic))
+    val table = new TableSourceTable[BaseRow](tableSource, false)
     tableEnv.registerTableInternal(name, table)
     tableEnv.scan(name)
   }

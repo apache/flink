@@ -22,10 +22,9 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.plan.rules.logical.FlinkAggregateRemoveRule
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
-import com.google.common.collect.ImmutableSet
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
@@ -37,33 +36,26 @@ abstract class AggregateReduceGroupingTestBase extends TableTestBase {
     util.addTableSource("T1",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.STRING),
       Array("a1", "b1", "c1", "d1"),
-      FlinkStatistic.builder()
-        .tableStats(new TableStats(100000000))
-        .uniqueKeys(ImmutableSet.of(ImmutableSet.of("a1")))
-        .build()
+      new TableStats(100000000),
+      Set("a1")
     )
     util.addTableSource("T2",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING),
       Array("a2", "b2", "c2"),
-      FlinkStatistic.builder()
-        .tableStats(new TableStats(100000000))
-        .uniqueKeys(ImmutableSet.of(ImmutableSet.of("b2"), ImmutableSet.of("a2", "b2")))
-        .build()
+      new TableStats(100000000),
+      Set("b2"),
+      Set("a2", "b2")
     )
     util.addTableSource("T3",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.LONG),
       Array("a3", "b3", "c3", "d3"),
-      FlinkStatistic.builder()
-        .tableStats(new TableStats(1000))
-        .build()
+      new TableStats(1000)
     )
     util.addTableSource("T4",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.SQL_TIMESTAMP),
       Array("a4", "b4", "c4", "d4"),
-      FlinkStatistic.builder()
-        .tableStats(new TableStats(100000000))
-        .uniqueKeys(ImmutableSet.of(ImmutableSet.of("a4")))
-        .build()
+      new TableStats(100000000),
+      Set("a4")
     )
   }
 

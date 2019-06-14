@@ -35,12 +35,12 @@ class RemoveShuffleTest extends TableTestBase {
     util.addTableSource("x",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("a", "b", "c"),
-      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
+      new TableStats(100L)
     )
     util.addTableSource("y",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("d", "e", "f"),
-      FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
+      new TableStats(100L)
     )
     util.tableEnv.getConfig.getConf.setBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)

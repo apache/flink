@@ -20,17 +20,16 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{TableConfig, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableConfig, TableSchema}
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkContextImpl, FlinkTypeSystem}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.cost.FlinkCostFactory
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty, Lex}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.ConventionTraitDef
@@ -40,6 +39,7 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks}
+import org.apache.flink.table.util.TestTableSource
 import org.mockito.Mockito.{mock, when}
 
 import java.util.{Collections, Properties}
@@ -85,7 +85,9 @@ object MetadataTestUtil {
   def initRootSchema(): SchemaPlus = {
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
     rootSchema.add("student", createStudentTable())
+    rootSchema.add("studentSource", createStudentTableSource())
     rootSchema.add("emp", createEmpTable())
+    rootSchema.add("empSource", createEmpTableSource())
     rootSchema.add("MyTable1", createMyTable1())
     rootSchema.add("MyTable2", createMyTable2())
     rootSchema.add("MyTable3", createMyTable3())
@@ -121,6 +123,22 @@ object MetadataTestUtil {
     getDataStreamTable(schema, new FlinkStatistic(tableStats, uniqueKeys))
   }
 
+  private def createStudentTableSource(): TableSourceTable[BaseRow] = {
+    val schema = TableSchema.builder()
+      .field("id", DataTypes.BIGINT())
+      .field("name", DataTypes.STRING())
+      .field("score", DataTypes.DOUBLE())
+      .field("age", DataTypes.INT())
+      .field("height", DataTypes.DOUBLE())
+      .field("sex", DataTypes.STRING())
+      .field("class", DataTypes.INT())
+      .uniqueKey("id")
+      .build()
+    val tableSource = new TestTableSource(true, schema)
+    new TableSourceTable[BaseRow](tableSource, false)
+  }
+
+
   private def createEmpTable(): DataStreamTable[BaseRow] = {
     val schema = new TableSchema(
       Array("empno", "ename", "job", "mgr", "hiredate", "sal", "comm", "deptno"),
@@ -135,6 +153,21 @@ object MetadataTestUtil {
         BasicTypeInfo.INT_TYPE_INFO))
 
     getDataStreamTable(schema, new FlinkStatistic(null))
+  }
+
+  private def createEmpTableSource(): TableSourceTable[BaseRow] = {
+    val schema = TableSchema.builder()
+      .field("empno", DataTypes.INT())
+      .field("ename", DataTypes.STRING())
+      .field("job", DataTypes.STRING())
+      .field("mgr", DataTypes.INT())
+      .field("hiredate", DataTypes.DATE())
+      .field("sal", DataTypes.DOUBLE())
+      .field("comm", DataTypes.DOUBLE())
+      .field("deptno", DataTypes.INT())
+      .build()
+    val tableSource = new TestTableSource(true, schema)
+    new TableSourceTable[BaseRow](tableSource, false)
   }
 
   private def createMyTable1(): DataStreamTable[BaseRow] = {

@@ -748,9 +748,6 @@ abstract class TableEnvironment(
     registerTableSourceInternal(
       name,
       tableSource,
-      FlinkStatistic.builder()
-        .tableStats(tableSource.getTableStats.orElse(null))
-        .build(),
       replace = false)
   }
 
@@ -767,9 +764,6 @@ abstract class TableEnvironment(
     registerTableSourceInternal(
       name,
       tableSource,
-      FlinkStatistic.builder()
-        .tableStats(tableSource.getTableStats.orElse(null))
-        .build(),
       replace = true)
   }
 
@@ -784,7 +778,6 @@ abstract class TableEnvironment(
   protected def registerTableSourceInternal(
       name: String,
       tableSource: TableSource[_],
-      statistic: FlinkStatistic,
       replace: Boolean): Unit
 
 }

@@ -33,14 +33,6 @@ abstract class FlinkTable extends AbstractTable with TemporalTable {
   override def getStatistic: FlinkStatistic = ???
 
   /**
-    * Creates a copy of this table, changing statistic.
-    *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
-    */
-  def copy(statistic: FlinkStatistic): FlinkTable
-
-  /**
     * Currently we do not need this, so we hard code it as default.
     */
   override def getSysStartFieldName: String = "sys_start"

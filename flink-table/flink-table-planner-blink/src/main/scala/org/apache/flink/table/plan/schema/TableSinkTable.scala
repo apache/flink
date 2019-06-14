@@ -45,8 +45,4 @@ class TableSinkTable[T](
     * @return statistics of current table
     */
   override def getStatistic: FlinkStatistic = statistic
-
-  override def copy(statistic: FlinkStatistic): FlinkTable = {
-    new TableSinkTable[T](tableSink, statistic)
-  }
 }

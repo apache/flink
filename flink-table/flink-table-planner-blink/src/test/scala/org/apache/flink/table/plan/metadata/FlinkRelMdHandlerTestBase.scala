@@ -138,6 +138,15 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val studentStreamScan: StreamExecDataStreamScan =
     createDataStreamScan(ImmutableList.of("student"), streamPhysicalTraits)
 
+  protected lazy val studentTableSourceLogicalScan: LogicalTableScan =
+    createTableSourceScan(ImmutableList.of("studentSource"), logicalTraits)
+  protected lazy val studentTableSourceFlinkLogicalScan: FlinkLogicalTableSourceScan =
+    createTableSourceScan(ImmutableList.of("studentSource"), flinkLogicalTraits)
+  protected lazy val studentTableSourceBatchScan: BatchExecTableSourceScan =
+    createTableSourceScan(ImmutableList.of("studentSource"), batchPhysicalTraits)
+  protected lazy val studentTableSourceStreamScan: StreamExecTableSourceScan =
+    createTableSourceScan(ImmutableList.of("studentSource"), streamPhysicalTraits)
+
   protected lazy val empLogicalScan: LogicalTableScan =
     createDataStreamScan(ImmutableList.of("emp"), logicalTraits)
   protected lazy val empFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
@@ -146,6 +155,15 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("emp"), batchPhysicalTraits)
   protected lazy val empStreamScan: StreamExecDataStreamScan =
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
+
+  protected lazy val empTableSourceLogicalScan: LogicalTableScan =
+    createTableSourceScan(ImmutableList.of("empSource"), logicalTraits)
+  protected lazy val empTableSourceFlinkLogicalScan: FlinkLogicalTableSourceScan =
+    createTableSourceScan(ImmutableList.of("empSource"), flinkLogicalTraits)
+  protected lazy val empTableSourceBatchScan: BatchExecTableSourceScan =
+    createTableSourceScan(ImmutableList.of("empSource"), batchPhysicalTraits)
+  protected lazy val empTableSourceStreamScan: StreamExecTableSourceScan =
+    createTableSourceScan(ImmutableList.of("empSource"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
@@ -2059,6 +2077,27 @@ class FlinkRelMdHandlerTestBase {
         new BatchExecBoundedStreamScan(cluster, traitSet, table, table.getRowType)
       case FlinkConventions.STREAM_PHYSICAL =>
         new StreamExecDataStreamScan(cluster, traitSet, table, table.getRowType)
+      case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
+    }
+    scan.asInstanceOf[T]
+  }
+
+  protected def createTableSourceScan[T](
+      tableNames: util.List[String], traitSet: RelTraitSet): T = {
+    val table = relBuilder.getRelOptSchema.asInstanceOf[CalciteCatalogReader].getTable(tableNames)
+      .asInstanceOf[FlinkRelOptTable]
+    val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
+    val scan = conventionTrait match {
+      case Convention.NONE =>
+        relBuilder.clear()
+        val scan = relBuilder.scan(tableNames).build()
+        scan.copy(traitSet, scan.getInputs)
+      case FlinkConventions.LOGICAL =>
+        new FlinkLogicalTableSourceScan(cluster, traitSet, table)
+      case FlinkConventions.BATCH_PHYSICAL =>
+        new BatchExecTableSourceScan(cluster, traitSet, table)
+      case FlinkConventions.STREAM_PHYSICAL =>
+        new StreamExecTableSourceScan(cluster, traitSet, table)
       case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
     }
     scan.asInstanceOf[T]

@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.resource
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, Types}
 import org.apache.flink.table.plan.nodes.resource.batch.parallelism.NodeResourceConfig
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}
@@ -44,11 +44,13 @@ class BatchExecResourceTest(inferMode: String) extends TableTestBase {
     val table3Stats = new TableStats(5000000)
     util.addTableSource("table3",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
-      Array("a", "b", "c"), FlinkStatistic.builder().tableStats(table3Stats).build())
+      Array("a", "b", "c"),
+      table3Stats)
     val table5Stats = new TableStats(8000000)
     util.addTableSource("Table5",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.INT, Types.STRING, Types.LONG),
-      Array("d", "e", "f", "g", "h"), FlinkStatistic.builder().tableStats(table5Stats).build())
+      Array("d", "e", "f", "g", "h"),
+      table5Stats)
     BatchExecResourceTest.setResourceConfig(util.getTableEnv.getConfig)
   }
 
@@ -92,7 +94,7 @@ class BatchExecResourceTest(inferMode: String) extends TableTestBase {
     util.addTableSource("table4",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
       Array("a", "b", "c"),
-      FlinkStatistic.builder().tableStats(statsOfTable4).build())
+      statsOfTable4)
 
     val sqlQuery = "SELECT sum(a) as sum_a, g FROM " +
         "(SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), Table5 " +

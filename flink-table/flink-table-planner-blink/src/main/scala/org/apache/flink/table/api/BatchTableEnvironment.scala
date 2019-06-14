@@ -31,7 +31,6 @@ import org.apache.flink.table.plan.nodes.resource.batch.parallelism.BatchParalle
 import org.apache.flink.table.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.plan.schema.{TableSourceSinkTable, TableSourceTable}
-import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources._
@@ -262,7 +261,6 @@ class BatchTableEnvironment(
   override protected def registerTableSourceInternal(
       name: String,
       tableSource: TableSource[_],
-      statistic: FlinkStatistic,
       replace: Boolean = false): Unit = {
 
     def register(): Unit = {
@@ -279,7 +277,7 @@ class BatchTableEnvironment(
           // wrapper contains only sink (not source)
           case _ =>
             val enrichedTable = new TableSourceSinkTable(
-              Some(new TableSourceTable(tableSource, false, statistic)),
+              Some(new TableSourceTable(tableSource, false)),
               table.tableSinkTable)
             replaceRegisteredTable(name, enrichedTable)
         }
@@ -287,7 +285,7 @@ class BatchTableEnvironment(
         // no table is registered
         case _ =>
           val newTable = new TableSourceSinkTable(
-            Some(new TableSourceTable(tableSource, false, statistic)),
+            Some(new TableSourceTable(tableSource, false)),
             None)
           registerTableInternal(name, newTable)
       }

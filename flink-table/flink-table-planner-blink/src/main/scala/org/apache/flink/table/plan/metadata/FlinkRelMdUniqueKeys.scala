@@ -26,9 +26,8 @@ import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.rank.RankType
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
 import org.apache.flink.table.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
-
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.volcano.RelSubset
@@ -67,8 +66,12 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   private def getTableUniqueKeys(
       tableSource: TableSource[_],
       relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
-    // TODO get uniqueKeys from TableSchema of TableSource
-
+    if (tableSource != null) {
+      val uniqueKeySet = TableSourceUtil.getUniqueKeys(tableSource)
+      if (uniqueKeySet.isDefined) {
+        return uniqueKeySet.get
+      }
+    }
     relOptTable match {
       case table: FlinkRelOptTable => table.uniqueKeysSet.orNull
       case _ => null

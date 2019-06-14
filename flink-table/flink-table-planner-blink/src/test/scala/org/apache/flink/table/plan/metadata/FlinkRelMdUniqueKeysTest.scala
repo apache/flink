@@ -43,6 +43,27 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUniqueKeysOnTableSourceScan(): Unit = {
+    Array(
+      studentTableSourceLogicalScan,
+      studentTableSourceFlinkLogicalScan,
+      studentTableSourceBatchScan,
+      studentTableSourceStreamScan
+    ).foreach { scan =>
+      assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(scan).toSet)
+    }
+
+    Array(
+      empTableSourceLogicalScan,
+      empTableSourceFlinkLogicalScan,
+      empTableSourceBatchScan,
+      empTableSourceStreamScan
+    ).foreach { scan =>
+      assertNull(mq.getUniqueKeys(scan))
+    }
+  }
+
+  @Test
   def testGetUniqueKeysOnValues(): Unit = {
     assertNull(mq.getUniqueKeys(logicalValues))
     assertNull(mq.getUniqueKeys(emptyValues))

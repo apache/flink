@@ -75,7 +75,8 @@ class FlinkAggregateInnerJoinTransposeRuleTest extends TableTestBase {
     util.addTableSource("T2",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING),
       Array("a2", "b2", "c2"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("b2"))).build()
+      null,
+      Set("b2")
     )
   }
 

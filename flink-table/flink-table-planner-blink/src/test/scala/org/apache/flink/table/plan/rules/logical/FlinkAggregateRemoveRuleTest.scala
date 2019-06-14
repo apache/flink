@@ -25,10 +25,8 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCalc, FlinkLogicalExpand, FlinkLogicalJoin, FlinkLogicalSink, FlinkLogicalTableSourceScan, FlinkLogicalValues}
 import org.apache.flink.table.plan.optimize.program._
 import org.apache.flink.table.plan.rules.FlinkBatchRuleSets
-import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.util.TableTestBase
 
-import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.{FilterCalcMergeRule, FilterToCalcRule, ProjectCalcMergeRule, ProjectToCalcRule, ReduceExpressionsRule}
 import org.apache.calcite.tools.RuleSets
@@ -87,12 +85,14 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
     util.addTableSource("MyTable2",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING),
       Array("a", "b", "c"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a"))).build()
+      null,
+      Set("a")
     )
     util.addTableSource("MyTable3",
       Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.STRING),
       Array("a", "b", "c", "d"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a"))).build()
+      null,
+      Set("a")
     )
   }
 

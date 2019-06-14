@@ -19,9 +19,12 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.table.{JHashSet, JSet}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
+
+import java.util
 
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to
@@ -29,9 +32,10 @@ import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
   */
 class TableSourceTable[T](
     val tableSource: TableSource[T],
-    val isStreaming: Boolean,
-    val statistic: FlinkStatistic)
+    val isStreaming: Boolean)
   extends FlinkTable {
+
+  lazy val statistic: FlinkStatistic = buildStatistic()
 
   // TODO implements this
   // TableSourceUtil.validateTableSource(tableSource)
@@ -42,16 +46,6 @@ class TableSourceTable[T](
       None,
       streaming = false,
       typeFactory.asInstanceOf[FlinkTypeFactory])
-  }
-
-  /**
-    * Creates a copy of this table, changing statistic.
-    *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
-    */
-  override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreaming, statistic)
   }
 
   /**
@@ -66,6 +60,28 @@ class TableSourceTable[T](
     * @return new TableSourceTable
     */
   def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreaming, statistic)
+    new TableSourceTable(tableSource, isStreaming)
+  }
+
+  private def buildStatistic(): FlinkStatistic = {
+    // combine primary key and unique keys together
+    val ukSet = new JHashSet[JSet[String]]()
+    val schema = tableSource.getTableSchema
+    if (schema.getPrimaryKey.isPresent) {
+      val pk = util.Arrays.asList(schema.getPrimaryKey.get(): _*)
+      ukSet.add(new JHashSet[String](pk))
+    }
+    if (schema.getUniqueKeys.isPresent) {
+      schema.getUniqueKeys.get().foreach { uk =>
+        ukSet.add(new JHashSet[String](util.Arrays.asList(uk: _*)))
+      }
+    }
+    // build FlinkStatistic
+    val builder = FlinkStatistic.builder()
+      .tableStats(tableSource.getTableStats.orElse(null))
+    if (!ukSet.isEmpty) {
+      builder.uniqueKeys(ukSet)
+    }
+    builder.build()
   }
 }
