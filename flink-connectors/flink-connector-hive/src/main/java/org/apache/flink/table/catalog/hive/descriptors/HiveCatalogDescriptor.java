@@ -51,6 +51,7 @@ public class HiveCatalogDescriptor extends CatalogDescriptor {
 	}
 
 	public HiveCatalogDescriptor hiveVersion(String hiveVersion) {
+		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion));
 		this.hiveVersion = hiveVersion;
 		return this;
 	}

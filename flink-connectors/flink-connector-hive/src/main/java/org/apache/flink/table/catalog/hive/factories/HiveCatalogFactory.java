@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.hive.factories;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -83,7 +84,7 @@ public class HiveCatalogFactory implements CatalogFactory {
 
 		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_SITE_PATH);
 
-		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(null);
+		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(HiveShimLoader.getHiveVersion());
 
 		return new HiveCatalog(name, defaultDatabase, loadHiveSiteUrl(hiveSitePath.orElse(null)), version);
 	}

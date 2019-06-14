@@ -115,7 +115,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl, @Nullable String hiveVersion) {
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl, String hiveVersion) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
 			createHiveConf(hiveSiteUrl),
@@ -127,6 +127,7 @@ public class HiveCatalog extends AbstractCatalog {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be empty");
 		this.hiveVersion = hiveVersion;
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);

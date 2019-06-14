@@ -86,7 +86,7 @@ public class HiveInputFormatTest {
 		);
 		//Now we used metaStore client to create hive table instead of using hiveCatalog for it doesn't support set
 		//serDe temporarily.
-		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf);
+		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf, null);
 		org.apache.hadoop.hive.metastore.api.Table tbl = new org.apache.hadoop.hive.metastore.api.Table();
 		tbl.setDbName(dbName);
 		tbl.setTableName(tblName);

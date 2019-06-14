@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -43,6 +44,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Wrapper class for Hive Metastore Client, which embeds a HiveShim layer to handle different Hive versions.
  * Methods provided mostly conforms to IMetaStoreClient interfaces except those that require shims.
@@ -58,8 +61,9 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 
 	public HiveMetastoreClientWrapper(HiveConf hiveConf, String hiveVersion) {
 		this.hiveConf = Preconditions.checkNotNull(hiveConf, "HiveConf cannot be null");
-		client = createMetastoreClient();
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be empty");
 		this.hiveVersion = hiveVersion;
+		client = createMetastoreClient();
 	}
 
 	@Override
