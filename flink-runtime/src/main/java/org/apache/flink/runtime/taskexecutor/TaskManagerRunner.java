@@ -26,6 +26,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -118,7 +119,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	private boolean shutdown;
 
-	public TaskManagerRunner(Configuration configuration, ResourceID resourceId) throws Exception {
+	public TaskManagerRunner(Configuration configuration, ResourceID resourceId, PluginManager pluginManager) throws Exception {
 		this.configuration = checkNotNull(configuration);
 		this.resourceId = checkNotNull(resourceId);
 
@@ -139,7 +140,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		metricRegistry = new MetricRegistryImpl(
 			MetricRegistryConfiguration.fromConfiguration(configuration),
-			ReporterSetup.fromConfiguration(configuration));
+			ReporterSetup.fromConfiguration(configuration, pluginManager));
 
 		final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, rpcService.getAddress());
 		metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId);
@@ -307,8 +308,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		return GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir(), dynamicProperties);
 	}
 
-	public static void runTaskManager(Configuration configuration, ResourceID resourceId) throws Exception {
-		final TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, resourceId);
+	public static void runTaskManager(Configuration configuration, ResourceID resourceId, PluginManager pluginManager) throws Exception {
+		final TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, resourceId, pluginManager);
 
 		taskManagerRunner.start();
 	}
@@ -317,12 +318,13 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		try {
 			final Configuration configuration = loadConfiguration(args);
 
-			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
+			final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+			FileSystem.initialize(configuration, pluginManager);
 
 			SecurityUtils.install(new SecurityConfiguration(configuration));
 
 			SecurityUtils.getInstalledContext().runSecured(() -> {
-				runTaskManager(configuration, resourceID);
+				runTaskManager(configuration, resourceID, pluginManager);
 				return null;
 			});
 		} catch (Throwable t) {
