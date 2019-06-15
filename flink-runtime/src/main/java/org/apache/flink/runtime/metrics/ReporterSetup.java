@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -31,6 +32,8 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -125,7 +128,7 @@ public final class ReporterSetup {
 		return new ReporterSetup(reporterName, metricConfig, reporter);
 	}
 
-	public static List<ReporterSetup> fromConfiguration(final Configuration configuration) {
+	public static List<ReporterSetup> fromConfiguration(final Configuration configuration, @Nullable final PluginManager pluginManager) {
 		String includedReportersString = configuration.getString(MetricOptions.REPORTERS_LIST, "");
 
 		Set<String> namedReporters = findEnabledReportersInConfiguration(configuration, includedReportersString);

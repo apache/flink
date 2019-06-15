@@ -721,7 +721,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	protected MetricRegistryImpl createMetricRegistry(Configuration config) {
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.fromConfiguration(config),
-			ReporterSetup.fromConfiguration(config));
+			ReporterSetup.fromConfiguration(config, null));
 	}
 
 	/**
