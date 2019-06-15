@@ -38,7 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The barrier buffer is {@link CheckpointBarrierHandler} that blocks inputs with barriers until
+ * The barrier buffer is {@link CheckpointedInputGate} that blocks inputs with barriers until
  * all inputs have received the barrier for a given checkpoint.
  *
  * <p>To avoid back-pressuring the input streams (which may cause distributed deadlocks), the
@@ -46,11 +46,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the blocks are released.
  */
 @Internal
-public class BarrierBuffer implements CheckpointBarrierHandler {
+public class BarrierBuffer implements CheckpointedInputGate {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
 
-	private final CheckpointBarrierAligner barrierAligner;
+	private final CheckpointBarrierHandler barrierHandler;
 
 	/** The gate that the buffer draws its input from. */
 	private final InputGate inputGate;
@@ -77,6 +77,21 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		this (inputGate, bufferStorage, "Testing: No task associated", null);
 	}
 
+	BarrierBuffer(
+			InputGate inputGate,
+			BufferStorage bufferStorage,
+			String taskName,
+			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+		this(
+			inputGate,
+			bufferStorage,
+			new CheckpointBarrierAligner(
+				inputGate.getNumberOfInputChannels(),
+				taskName,
+				toNotifyOnCheckpoint)
+		);
+	}
+
 	/**
 	 * Creates a new checkpoint stream aligner.
 	 *
@@ -86,20 +101,15 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
-	 * @param taskName The task name for logging.
-	 * @param toNotifyOnCheckpoint optional Handler that receives the checkpoint notifications.
+	 * @param barrierHandler Handler that controls which channels are blocked.
 	 */
 	BarrierBuffer(
 			InputGate inputGate,
 			BufferStorage bufferStorage,
-			String taskName,
-			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+			CheckpointBarrierHandler barrierHandler) {
 		this.inputGate = inputGate;
 		this.bufferStorage = checkNotNull(bufferStorage);
-		this.barrierAligner = new CheckpointBarrierAligner(
-			inputGate.getNumberOfInputChannels(),
-			taskName,
-			toNotifyOnCheckpoint);
+		this.barrierHandler = barrierHandler;
 	}
 
 	@Override
@@ -131,11 +141,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			}
 
 			BufferOrEvent bufferOrEvent = next.get();
-			if (barrierAligner.isBlocked(bufferOrEvent.getChannelIndex())) {
+			if (barrierHandler.isBlocked(bufferOrEvent.getChannelIndex())) {
 				// if the channel is blocked, we just store the BufferOrEvent
 				bufferStorage.add(bufferOrEvent);
 				if (bufferStorage.isFull()) {
-					barrierAligner.checkpointSizeLimitExceeded(bufferStorage.getMaxBufferedBytes());
+					barrierHandler.checkpointSizeLimitExceeded(bufferStorage.getMaxBufferedBytes());
 					bufferStorage.rollOver();
 				}
 			}
@@ -146,19 +156,19 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
 				if (!endOfInputGate) {
 					// process barriers only if there is a chance of the checkpoint completing
-					if (barrierAligner.processBarrier(checkpointBarrier, bufferOrEvent.getChannelIndex(), bufferStorage.getPendingBytes())) {
+					if (barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelIndex(), bufferStorage.getPendingBytes())) {
 						bufferStorage.rollOver();
 					}
 				}
 			}
 			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
-				if (barrierAligner.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent())) {
+				if (barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent())) {
 					bufferStorage.rollOver();
 				}
 			}
 			else {
 				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
-					if (barrierAligner.processEndOfPartition()) {
+					if (barrierHandler.processEndOfPartition()) {
 						bufferStorage.rollOver();
 					}
 				}
@@ -178,7 +188,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		} else {
 			// end of input stream. stream continues with the buffered data
 			endOfInputGate = true;
-			barrierAligner.releaseBlocksAndResetBarriers();
+			barrierHandler.releaseBlocksAndResetBarriers();
 			bufferStorage.rollOver();
 			return pollNext();
 		}
@@ -208,13 +218,13 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 *
 	 * @return The ID of the pending of completed checkpoint.
 	 */
-	public long getCurrentCheckpointId() {
-		return barrierAligner.getCurrentCheckpointId();
+	public long getLatestCheckpointId() {
+		return barrierHandler.getLatestCheckpointId();
 	}
 
 	@Override
 	public long getAlignmentDurationNanos() {
-		return barrierAligner.getAlignmentDurationNanos();
+		return barrierHandler.getAlignmentDurationNanos();
 	}
 
 	@Override
@@ -228,6 +238,6 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	@Override
 	public String toString() {
-		return barrierAligner.toString();
+		return barrierHandler.toString();
 	}
 }
