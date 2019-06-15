@@ -171,7 +171,11 @@ object ScalarOperatorGens {
         resultType.getTypeRoot match {
           case DATE =>
             generateOperatorIfNotNull(ctx, new DateType(), left, right) {
-              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+<<<<<<< HEAD
+              (l, r) => s"$l $op (java.lang.Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
+=======
+              (l, r) => s"$l $op (Math.toIntExact($r / ${MILLIS_PER_DAY}L))"
+>>>>>>> 5eb1bbd3cc7... [hotfix][FLINK-11120][table]fix the bug of timestampadd handles time
             }
           case TIMESTAMP_WITHOUT_TIME_ZONE =>
             generateOperatorIfNotNull(ctx, new TimestampType(), left, right) {
@@ -186,7 +190,16 @@ object ScalarOperatorGens {
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
-          (l, r) => s"$l $op ((int) ($r))"
+<<<<<<< HEAD
+          (l, r) => s"java.lang.Math.toIntExact(($l $op $r) % ${MILLIS_PER_DAY}L)"
+=======
+          (l, r) => s"($l $op (Math.toIntExact($r))) % ${MILLIS_PER_DAY}"
+>>>>>>> 5eb1bbd3cc7... [hotfix][FLINK-11120][table]fix the bug of timestampadd handles time
+        }
+
+      case (TIME_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
+        generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
+          (l, r) => s"$l"
         }
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>

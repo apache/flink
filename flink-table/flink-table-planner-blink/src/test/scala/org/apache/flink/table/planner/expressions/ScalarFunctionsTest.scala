@@ -3572,6 +3572,26 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-03-31'.toDate - 1.week",
       "timestampadd(WEEK, -1, date '2016-03-31')",
       "2016-03-24")
+
+    // TIMESTAMPADD with time; returns a time value.The interval is positive.
+    testSqlApi("TIMESTAMPADD(SECOND, 1, time '23:59:59')", "00:00:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '00:00:00')", "00:01:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, 1, time '23:59:59')", "00:00:59")
+    testSqlApi("TIMESTAMPADD(HOUR, 1, time '23:59:59')", "00:59:59")
+    testSqlApi("TIMESTAMPADD(DAY, 15, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, 3, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, 6, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, 1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, 10, time '23:59:59')", "23:59:59")
+    // TIMESTAMPADD with time; returns a time value .The interval is negative.
+    testSqlApi("TIMESTAMPADD(SECOND, -1, time '00:00:00')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MINUTE, -1, time '00:00:00')", "23:59:00")
+    testSqlApi("TIMESTAMPADD(HOUR, -1, time '00:00:00')", "23:00:00")
+    testSqlApi("TIMESTAMPADD(DAY, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(WEEK, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MONTH, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(QUARTER, -1, time '23:59:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(YEAR, -1, time '23:59:59')", "23:59:59")
   }
 
   @Test
