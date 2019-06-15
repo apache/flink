@@ -42,12 +42,12 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link CheckpointBarrierHandler}.
+ * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link CheckpointedInputGate}.
  */
 @Internal
 public final class StreamTaskNetworkInput implements StreamTaskInput {
 
-	private final CheckpointBarrierHandler barrierHandler;
+	private final CheckpointedInputGate barrierHandler;
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
@@ -63,7 +63,7 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	@SuppressWarnings("unchecked")
 	public StreamTaskNetworkInput(
-			CheckpointBarrierHandler barrierHandler,
+			CheckpointedInputGate barrierHandler,
 			TypeSerializer<?> inputSerializer,
 			IOManager ioManager,
 			int inputIndex) {

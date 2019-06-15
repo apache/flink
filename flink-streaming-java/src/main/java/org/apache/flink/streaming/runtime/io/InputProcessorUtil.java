@@ -30,13 +30,13 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import java.io.IOException;
 
 /**
- * Utility for creating {@link CheckpointBarrierHandler} based on checkpoint mode
+ * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
  * for {@link StreamInputProcessor} and {@link StreamTwoInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {
 
-	public static CheckpointBarrierHandler createCheckpointBarrierHandler(
+	public static CheckpointedInputGate createCheckpointBarrierHandler(
 			StreamTask<?, ?> checkpointedTask,
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
@@ -44,7 +44,7 @@ public class InputProcessorUtil {
 			Configuration taskManagerConfig,
 			String taskName) throws IOException {
 
-		CheckpointBarrierHandler barrierHandler;
+		CheckpointedInputGate barrierHandler;
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
 			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
 			if (!(maxAlign == -1 || maxAlign > 0)) {
@@ -67,7 +67,10 @@ public class InputProcessorUtil {
 					checkpointedTask);
 			}
 		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
-			barrierHandler = new BarrierTracker(inputGate);
+			barrierHandler = new BarrierBuffer(
+				inputGate,
+				new EmptyBufferStorage(),
+				new CheckpointBarrierTracker(inputGate.getNumberOfInputChannels(), checkpointedTask));
 		} else {
 			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}

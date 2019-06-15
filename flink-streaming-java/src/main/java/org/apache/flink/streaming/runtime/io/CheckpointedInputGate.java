@@ -19,41 +19,41 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.AsyncDataInput;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 
 /**
- * This class represents a sequence of buffers and events which are blocked by
- * {@link CheckpointedInputGate}. The sequence of buffers and events can be
- * read back using the method {@link #getNext()}.
+ * The {@link CheckpointedInputGate} uses {@link CheckpointBarrierHandler} to handle incoming
+ * {@link org.apache.flink.runtime.io.network.api.CheckpointBarrier} from the {@link org.apache.flink.runtime.io.network.partition.consumer.InputGate}.
  */
 @Internal
-public interface BufferOrEventSequence {
-
+public interface CheckpointedInputGate extends AsyncDataInput<BufferOrEvent> {
 	/**
-	 * Initializes the sequence for reading.
-	 */
-	void open();
-
-	/**
-	 * Gets the next BufferOrEvent from the sequence, or {@code null}, if the
-	 * sequence is exhausted.
+	 * Cleans up all internally held resources.
 	 *
-	 * @return The next BufferOrEvent from the buffered sequence, or {@code null} (end of sequence).
-	 */
-	@Nullable
-	BufferOrEvent getNext() throws IOException;
-
-	/**
-	 * Cleans up all the resources held by the sequence.
+	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
 	void cleanup() throws IOException;
 
 	/**
-	 * Gets the size of the sequence.
+	 * Checks if the barrier handler has buffered any data internally.
+	 * @return {@code True}, if no data is buffered internally, {@code false} otherwise.
 	 */
-	long size();
+	boolean isEmpty();
+
+	/**
+	 * Gets the time that the latest alignment took, in nanoseconds.
+	 * If there is currently an alignment in progress, it will return the time spent in the
+	 * current alignment so far.
+	 *
+	 * @return The duration in nanoseconds
+	 */
+	long getAlignmentDurationNanos();
+
+	/**
+	 * @return number of underlying input channels.
+	 */
+	int getNumberOfInputChannels();
 }

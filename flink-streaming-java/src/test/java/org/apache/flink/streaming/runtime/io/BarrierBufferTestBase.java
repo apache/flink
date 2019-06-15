@@ -483,7 +483,7 @@ public abstract class BarrierBufferTestBase {
 		// align checkpoint 1
 		startTs = System.nanoTime();
 		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(1L, buffer.getCurrentCheckpointId());
+		assertEquals(1L, buffer.getLatestCheckpointId());
 
 		// checkpoint done - replay buffered
 		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
@@ -501,7 +501,7 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 2 aborted, checkpoint 3 started
 		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(3L, buffer.getCurrentCheckpointId());
+		assertEquals(3L, buffer.getLatestCheckpointId());
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		verify(toNotify).abortCheckpointOnBarrier(eq(2L),
 			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)));
@@ -565,7 +565,7 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(1L, buffer.getCurrentCheckpointId());
+		assertEquals(1L, buffer.getLatestCheckpointId());
 
 		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
@@ -574,7 +574,7 @@ public abstract class BarrierBufferTestBase {
 
 		// alignment of checkpoint 2
 		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(2L, buffer.getCurrentCheckpointId());
+		assertEquals(2L, buffer.getLatestCheckpointId());
 		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
@@ -583,7 +583,7 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 2 aborted, checkpoint 4 started. replay buffered
 		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(4L, buffer.getCurrentCheckpointId());
+		assertEquals(4L, buffer.getLatestCheckpointId());
 		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
@@ -651,7 +651,7 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[1], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[2], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(1L, buffer.getCurrentCheckpointId());
+		assertEquals(1L, buffer.getLatestCheckpointId());
 		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
@@ -660,7 +660,7 @@ public abstract class BarrierBufferTestBase {
 		// alignment of checkpoint 2
 		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(2L, buffer.getCurrentCheckpointId());
+		assertEquals(2L, buffer.getLatestCheckpointId());
 
 		// checkpoint 2 completed
 		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
@@ -669,7 +669,7 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 3 skipped, alignment for 4 started
 		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(4L, buffer.getCurrentCheckpointId());
+		assertEquals(4L, buffer.getLatestCheckpointId());
 		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[24], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[26], buffer.pollNext().get(), PAGE_SIZE);
@@ -790,24 +790,24 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 3 alignment
 		check(sequence[7], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(2L, buffer.getCurrentCheckpointId());
+		assertEquals(2L, buffer.getLatestCheckpointId());
 		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[11], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 buffered
 		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(3L, buffer.getCurrentCheckpointId());
+		assertEquals(3L, buffer.getLatestCheckpointId());
 
 		// after checkpoint 4
 		check(sequence[15], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(4L, buffer.getCurrentCheckpointId());
+		assertEquals(4L, buffer.getLatestCheckpointId());
 		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[17], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
 
 		check(sequence[19], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[21], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(5L, buffer.getCurrentCheckpointId());
+		assertEquals(5L, buffer.getLatestCheckpointId());
 		check(sequence[22], buffer.pollNext().get(), PAGE_SIZE);
 	}
 
@@ -837,11 +837,11 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
 		check(sequence[5], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(1L, buffer.getCurrentCheckpointId());
+		assertEquals(1L, buffer.getLatestCheckpointId());
 
 		// alignment of second checkpoint
 		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(2L, buffer.getCurrentCheckpointId());
+		assertEquals(2L, buffer.getLatestCheckpointId());
 
 		// first end-of-partition encountered: checkpoint will not be completed
 		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
@@ -874,7 +874,7 @@ public abstract class BarrierBufferTestBase {
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(5L, buffer.getCurrentCheckpointId());
+		assertEquals(5L, buffer.getLatestCheckpointId());
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(2L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L),
 			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
@@ -882,7 +882,7 @@ public abstract class BarrierBufferTestBase {
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
-		assertEquals(6L, buffer.getCurrentCheckpointId());
+		assertEquals(6L, buffer.getLatestCheckpointId());
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L),
 			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());

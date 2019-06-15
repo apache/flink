@@ -21,8 +21,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -40,7 +38,7 @@ import java.io.IOException;
  * release blocked channels.
  */
 @Internal
-public class CheckpointBarrierAligner {
+public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointBarrierAligner.class);
 
@@ -51,9 +49,6 @@ public class CheckpointBarrierAligner {
 	private final int totalNumberOfInputChannels;
 
 	private final String taskName;
-
-	@Nullable
-	private final AbstractInvokable toNotifyOnCheckpoint;
 
 	/** The ID of the checkpoint for which we expect barriers. */
 	private long currentCheckpointId = -1L;
@@ -77,13 +72,14 @@ public class CheckpointBarrierAligner {
 			int totalNumberOfInputChannels,
 			String taskName,
 			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+		super(toNotifyOnCheckpoint);
 		this.totalNumberOfInputChannels = totalNumberOfInputChannels;
 		this.taskName = taskName;
-		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 
 		this.blockedChannels = new boolean[totalNumberOfInputChannels];
 	}
 
+	@Override
 	public void releaseBlocksAndResetBarriers() throws IOException {
 		LOG.debug("{}: End of stream alignment, feeding buffered data back.", taskName);
 
@@ -100,19 +96,12 @@ public class CheckpointBarrierAligner {
 		}
 	}
 
-	/**
-	 * Checks whether the channel with the given index is blocked.
-	 *
-	 * @param channelIndex The channel index to check.
-	 * @return True if the channel is blocked, false if not.
-	 */
+	@Override
 	public boolean isBlocked(int channelIndex) {
 		return blockedChannels[channelIndex];
 	}
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
+	@Override
 	public boolean processBarrier(CheckpointBarrier receivedBarrier, int channelIndex, long bufferedBytes) throws Exception {
 		final long barrierId = receivedBarrier.getId();
 
@@ -121,7 +110,7 @@ public class CheckpointBarrierAligner {
 			if (barrierId > currentCheckpointId) {
 				// new checkpoint
 				currentCheckpointId = barrierId;
-				notifyCheckpoint(receivedBarrier, bufferedBytes);
+				notifyCheckpoint(receivedBarrier, bufferedBytes, latestAlignmentDurationNanos);
 			}
 			return false;
 		}
@@ -185,7 +174,7 @@ public class CheckpointBarrierAligner {
 			}
 
 			releaseBlocksAndResetBarriers();
-			notifyCheckpoint(receivedBarrier, bufferedBytes);
+			notifyCheckpoint(receivedBarrier, bufferedBytes, latestAlignmentDurationNanos);
 			return true;
 		}
 		return checkpointAborted;
@@ -222,9 +211,7 @@ public class CheckpointBarrierAligner {
 		}
 	}
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
+	@Override
 	public boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
 		final long barrierId = cancelBarrier.getCheckpointId();
 
@@ -300,9 +287,7 @@ public class CheckpointBarrierAligner {
 		return false;
 	}
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
+	@Override
 	public boolean processEndOfPartition() throws Exception {
 		numClosedChannels++;
 
@@ -317,37 +302,12 @@ public class CheckpointBarrierAligner {
 		return false;
 	}
 
-	private void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes) throws Exception {
-		if (toNotifyOnCheckpoint != null) {
-			CheckpointMetaData checkpointMetaData =
-				new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
-
-			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-				.setBytesBufferedInAlignment(bufferedBytes)
-				.setAlignmentDurationNanos(latestAlignmentDurationNanos);
-
-			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-				checkpointMetaData,
-				checkpointBarrier.getCheckpointOptions(),
-				checkpointMetrics);
-		}
-	}
-
-	private void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
-		notifyAbort(checkpointId,
-			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
-	}
-
-	private void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
-		if (toNotifyOnCheckpoint != null) {
-			toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
-		}
-	}
-
-	public long getCurrentCheckpointId() {
+	@Override
+	public long getLatestCheckpointId() {
 		return currentCheckpointId;
 	}
 
+	@Override
 	public long getAlignmentDurationNanos() {
 		if (startOfAlignmentTimestamp <= 0) {
 			return latestAlignmentDurationNanos;
@@ -365,6 +325,7 @@ public class CheckpointBarrierAligner {
 			numClosedChannels);
 	}
 
+	@Override
 	public void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception {
 		releaseBlocksAndResetBarriers();
 		notifyAbort(currentCheckpointId,
