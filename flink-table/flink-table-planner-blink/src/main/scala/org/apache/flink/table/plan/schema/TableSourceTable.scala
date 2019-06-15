@@ -40,7 +40,7 @@ class TableSourceTable[T](
     TableSourceUtil.getRelDataType(
       tableSource,
       None,
-      streaming = false,
+      streaming = isStreaming,
       typeFactory.asInstanceOf[FlinkTypeFactory])
   }
 

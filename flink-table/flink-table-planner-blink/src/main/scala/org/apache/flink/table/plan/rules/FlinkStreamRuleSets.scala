@@ -197,6 +197,9 @@ object FlinkStreamRuleSets {
     * This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]].
     */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
+    // scan optimization
+    PushProjectIntoTableSourceScanRule.INSTANCE,
+
     // reorder sort and projection
     SortProjectTransposeRule.INSTANCE,
     // remove unnecessary sort rule
