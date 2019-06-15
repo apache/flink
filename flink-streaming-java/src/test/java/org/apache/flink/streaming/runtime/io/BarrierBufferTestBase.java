@@ -689,6 +689,25 @@ public abstract class BarrierBufferTestBase {
 	}
 
 	@Test
+	public void testMissingCancellationBarriers() throws Exception {
+		BufferOrEvent[] sequence = {
+			createBarrier(1L, 0),
+			createCancellationBarrier(2L, 0),
+			createCancellationBarrier(3L, 0),
+			createCancellationBarrier(3L, 1),
+			createBuffer(0)
+		};
+		AbstractInvokable validator = new CheckpointSequenceValidator(-3);
+		buffer = createBarrierBuffer(2, sequence, validator);
+
+		for (BufferOrEvent boe : sequence) {
+			if (boe.isBuffer() || (boe.getEvent().getClass() != CheckpointBarrier.class && boe.getEvent().getClass() != CancelCheckpointMarker.class)) {
+				assertEquals(boe, buffer.pollNext().get());
+			}
+		}
+	}
+
+	@Test
 	public void testEarlyCleanup() throws Exception {
 		BufferOrEvent[] sequence = {
 			createBuffer(0), createBuffer(1), createBuffer(2),

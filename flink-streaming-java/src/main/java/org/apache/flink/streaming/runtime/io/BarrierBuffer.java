@@ -330,12 +330,6 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 				startOfAlignmentTimestamp = 0L;
 				latestAlignmentDurationNanos = 0L;
 
-				notifyAbort(currentCheckpointId,
-					new CheckpointException(
-						"Barrier id: " + barrierId,
-						CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED
-					));
-
 				notifyAbortOnCancellationBarrier(barrierId);
 			}
 
@@ -380,11 +374,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private void notifyCheckpoint(CheckpointBarrier checkpointBarrier) throws Exception {
 		if (toNotifyOnCheckpoint != null) {
 			CheckpointMetaData checkpointMetaData =
-					new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
+				new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
 			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-					.setBytesBufferedInAlignment(bufferStorage.currentBufferedSize())
-					.setAlignmentDurationNanos(latestAlignmentDurationNanos);
+				.setBytesBufferedInAlignment(bufferStorage.currentBufferedSize())
+				.setAlignmentDurationNanos(latestAlignmentDurationNanos);
 
 			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
 				checkpointMetaData,
