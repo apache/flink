@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -28,7 +26,6 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import org.junit.After;
 import org.junit.Test;
@@ -40,7 +37,6 @@ import java.util.Arrays;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -404,55 +400,4 @@ public class BarrierTrackerTest {
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
 
-	private static class CheckpointSequenceValidator extends AbstractInvokable {
-
-		private final long[] checkpointIDs;
-
-		private int i = 0;
-
-		private CheckpointSequenceValidator(long... checkpointIDs) {
-			super(new DummyEnvironment("test", 1, 0));
-			this.checkpointIDs = checkpointIDs;
-		}
-
-		@Override
-		public void invoke() {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		@Override
-		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
-			assertTrue("More checkpoints than expected", i < checkpointIDs.length);
-
-			final long expectedId = checkpointIDs[i++];
-			if (expectedId >= 0) {
-				assertEquals("wrong checkpoint id", expectedId, checkpointMetaData.getCheckpointId());
-				assertTrue(checkpointMetaData.getTimestamp() > 0);
-			} else {
-				fail("got 'triggerCheckpointOnBarrier()' when expecting an 'abortCheckpointOnBarrier()'");
-			}
-		}
-
-		@Override
-		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-			assertTrue("More checkpoints than expected", i < checkpointIDs.length);
-
-			final long expectedId = checkpointIDs[i++];
-			if (expectedId < 0) {
-				assertEquals("wrong checkpoint id for checkpoint abort", -expectedId, checkpointId);
-			} else {
-				fail("got 'abortCheckpointOnBarrier()' when expecting an 'triggerCheckpointOnBarrier()'");
-			}
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			throw new UnsupportedOperationException("should never be called");
-		}
-	}
 }
