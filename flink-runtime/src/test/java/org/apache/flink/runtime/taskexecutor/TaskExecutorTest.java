@@ -1698,6 +1698,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		final CountDownLatch slotOfferings = new CountDownLatch(2);
 		final BlockingQueue<AllocationID> failedSlotFutures = new ArrayBlockingQueue<>(2);
+		final ResourceID jobManagerResourceId = ResourceID.generate();
 		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 				.setFailSlotConsumer((resourceID, allocationID, throwable) ->
 					failedSlotFutures.offer(allocationID))
@@ -1705,6 +1706,7 @@ public class TaskExecutorTest extends TestLogger {
 					slotOffers.forEach((ignored) -> slotOfferings.countDown());
 					return CompletableFuture.completedFuture(new ArrayList<>(slotOffers));
 				})
+				.setRegisterTaskManagerFunction((ignoredA, ignoredB) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jobManagerResourceId)))
 				.build();
 		final String jobManagerAddress = jobMasterGateway.getAddress();
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
@@ -1733,7 +1735,7 @@ public class TaskExecutorTest extends TestLogger {
 					new AllocatedSlotInfo(1, allocationIdOnlyInJM)
 			);
 			AllocatedSlotReport allocatedSlotReport = new AllocatedSlotReport(jobId, allocatedSlotInfos);
-			taskExecutorGateway.heartbeatFromJobManager(ResourceID.generate(), allocatedSlotReport);
+			taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, allocatedSlotReport);
 
 			assertThat(failedSlotFutures.take(), is(allocationIdOnlyInJM));
 			assertThat(allocationsNotifiedFree.take(), is(allocationIdOnlyInTM));

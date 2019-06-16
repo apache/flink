@@ -664,8 +664,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public void heartbeatFromJobManager(ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
-		jobManagerHeartbeatManager.receiveHeartbeat(resourceID, allocatedSlotReport);
-		jobManagerHeartbeatManager.requestHeartbeat(resourceID, null);
+		jobManagerHeartbeatManager.requestHeartbeat(resourceID, allocatedSlotReport);
 	}
 
 	@Override
