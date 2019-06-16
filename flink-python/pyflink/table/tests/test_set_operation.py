@@ -16,44 +16,13 @@
 # # limitations under the License.
 ################################################################################
 
-from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
-
-from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 
 
-class StreamTableSetOperationTests(PyFlinkStreamTableTestCase):
+class StreamTableSetOperationTests(PyFlinkBatchTableTestCase):
 
-    def test_union_all(self):
-        t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Hi", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")],
-                                 ['a', 'b', 'c'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
-        result = t1.union_all(t2)
-        result.insert_into("Results")
-        t_env.execute()
-
-        actual = source_sink_utils.results()
-        expected = ['1,Hi,Hello',
-                    '2,Hi,Hello',
-                    '2,Hi,Hello',
-                    '3,Hello,Hello',
-                    '3,Hello,Python',
-                    '4,Hi,Flink']
-        self.assert_equals(actual, expected)
-
-
-class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
-
-    data1 = [(1, "Hi", "Hello"), (1, "Hi", "Hello"), (3, "Hello", "Hello")]
-    data2 = [(3, "Hello", "Hello"), (3, "Hello", "Python"), (4, "Hi", "Flink")]
+    data1 = [(1, "Hi", "Hello")]
+    data2 = [(3, "Hello", "Hello")]
     schema = ["a", "b", "c"]
 
     def test_minus(self):
@@ -62,10 +31,9 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         t2 = t_env.from_elements(self.data2, self.schema)
 
         result = t1.minus(t2)
-        actual = self.collect(result)
 
-        expected = ['1,Hi,Hello']
-        self.assert_equals(actual, expected)
+        self.assertEqual('MINUS', result._j_table.getQueryOperation().getType().toString())
+        self.assertFalse(result._j_table.getQueryOperation().isAll())
 
     def test_minus_all(self):
         t_env = self.t_env
@@ -73,11 +41,8 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         t2 = t_env.from_elements(self.data2, self.schema)
 
         result = t1.minus_all(t2)
-        actual = self.collect(result)
-
-        expected = ['1,Hi,Hello',
-                    '1,Hi,Hello']
-        self.assert_equals(actual, expected)
+        self.assertEqual('MINUS', result._j_table.getQueryOperation().getType().toString())
+        self.assertTrue(result._j_table.getQueryOperation().isAll())
 
     def test_union(self):
         t_env = self.t_env
@@ -85,13 +50,17 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         t2 = t_env.from_elements(self.data2, self.schema)
 
         result = t1.union(t2)
-        actual = self.collect(result)
+        self.assertEqual('UNION', result._j_table.getQueryOperation().getType().toString())
+        self.assertFalse(result._j_table.getQueryOperation().isAll())
 
-        expected = ['1,Hi,Hello',
-                    '3,Hello,Hello',
-                    '3,Hello,Python',
-                    '4,Hi,Flink']
-        self.assert_equals(actual, expected)
+    def test_union_all(self):
+        t_env = self.t_env
+        t1 = t_env.from_elements(self.data1, self.schema)
+        t2 = t_env.from_elements(self.data2, self.schema)
+
+        result = t1.union_all(t2)
+        self.assertEqual('UNION', result._j_table.getQueryOperation().getType().toString())
+        self.assertTrue(result._j_table.getQueryOperation().isAll())
 
     def test_intersect(self):
         t_env = self.t_env
@@ -99,10 +68,8 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         t2 = t_env.from_elements(self.data2, self.schema)
 
         result = t1.intersect(t2)
-        actual = self.collect(result)
-
-        expected = ['3,Hello,Hello']
-        self.assert_equals(actual, expected)
+        self.assertEqual('INTERSECT', result._j_table.getQueryOperation().getType().toString())
+        self.assertFalse(result._j_table.getQueryOperation().isAll())
 
     def test_intersect_all(self):
         t_env = self.t_env
@@ -110,10 +77,8 @@ class BatchTableSetOperationTests(PyFlinkBatchTableTestCase):
         t2 = t_env.from_elements(self.data2, self.schema)
 
         result = t1.intersect_all(t2)
-        actual = self.collect(result)
-
-        expected = ['3,Hello,Hello']
-        self.assert_equals(actual, expected)
+        self.assertEqual('INTERSECT', result._j_table.getQueryOperation().getType().toString())
+        self.assertTrue(result._j_table.getQueryOperation().isAll())
 
 
 if __name__ == '__main__':

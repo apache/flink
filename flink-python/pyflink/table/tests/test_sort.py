@@ -22,15 +22,13 @@ from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 class BatchTableSortTests(PyFlinkBatchTableTestCase):
 
     def test_order_by_offset_fetch(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, "Hello"), (2, "Hello"), (3, "Flink"), (4, "Python")],
-                                ["a", "b"])
+        t = self.t_env.from_elements([(1, "Hello")], ["a", "b"])
+        result = t.order_by("a.desc").offset(2).fetch(2)
 
-        result = t.order_by("a.desc").offset(2).fetch(2).select("a, b")
-        actual = self.collect(result)
-
-        expected = ['2,Hello', '1,Hello']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual(2, query_operation.getOffset())
+        self.assertEqual(2, query_operation.getFetch())
+        self.assertEqual('[desc(a)]', query_operation.getOrder().toString())
 
 
 if __name__ == '__main__':
