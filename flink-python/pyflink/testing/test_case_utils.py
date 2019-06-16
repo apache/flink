@@ -33,6 +33,9 @@ from pyflink.java_gateway import get_gateway
 
 if sys.version_info[0] >= 3:
     xrange = range
+else:
+    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+    unittest.TestCase.assertRegex = unittest.TestCase.assertRegexpMatches
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG

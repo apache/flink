@@ -16,80 +16,34 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
     def test_add_columns(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.select("a").add_columns("a + 1 as b, a + 2 as c")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['1,2,3', '2,3,4']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('[a, plus(a, 1), plus(a, 2)]', query_operation.getProjectList().toString())
 
     def test_add_or_replace_columns(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["b", "a"]
-        field_types = [DataTypes.BIGINT(), DataTypes.BIGINT()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.select("a").add_or_replace_columns("a + 1 as b, a + 2 as a")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['3,2', '4,3']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('[plus(a, 2), plus(a, 1)]', query_operation.getProjectList().toString())
 
     def test_rename_columns(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["d", "e", "f"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
-        result = t.select("a, b, c").rename_columns("a as d, c as f, b as e").select("d, e, f")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['1,Hi,Hello', '2,Hello,Hello']
-        self.assert_equals(actual, expected)
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        result = t.select("a, b, c").rename_columns("a as d, c as f, b as e")
+        table_schema = result._j_table.getQueryOperation().getTableSchema()
+        self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
 
     def test_drop_columns(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["b"]
-        field_types = [DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
-        result = t.select("a, b, c").drop_columns("a, c").select("b")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['Hi', 'Hello']
-        self.assert_equals(actual, expected)
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        result = t.select("a, b, c").drop_columns("a, c")
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('[b]', query_operation.getProjectList().toString())
 
 
 if __name__ == '__main__':

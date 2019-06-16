@@ -16,8 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
@@ -25,117 +23,69 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
 
     def test_join_without_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        result = t1.join(t2, "a = d")
 
-        result = t1.join(t2, "a = d").select("a, b + e")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,HiFlink', '3,HelloPython', '3,HelloFlink']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('INNER', query_operation.getJoinType().toString())
+        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertFalse(query_operation.isCorrelated())
 
     def test_join_with_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        result = t1.join(t2).where("a = d")
 
-        result = t1.join(t2).where("a = d").select("a, b + e")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,HiFlink', '3,HelloPython', '3,HelloFlink']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual('INNER', query_operation.getJoinType().toString())
+        self.assertEqual('true', query_operation.getCondition().toString())
+        self.assertFalse(query_operation.isCorrelated())
 
     def test_left_outer_join_without_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        result = t1.left_outer_join(t2, "a = d")
 
-        result = t1.left_outer_join(t2, "a = d").select("a, b + e")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['1,null', '2,HiFlink', '3,HelloPython', '3,HelloFlink']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())
+        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertFalse(query_operation.isCorrelated())
 
     def test_left_outer_join_with_where(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (3, "Flink")], ['d', 'e'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        result = t1.left_outer_join(t2).where("a = d")
 
-        result = t1.left_outer_join(t2).where("a = d").select("a, b + e")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,HiFlink', '3,HelloPython', '3,HelloFlink']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())
+        self.assertEqual('true', query_operation.getCondition().toString())
+        self.assertFalse(query_operation.isCorrelated())
 
     def test_right_outer_join(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (4, "Flink")], ['d', 'e'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
+        result = t1.right_outer_join(t2, "a = d")
 
-        result = t1.right_outer_join(t2, "a = d").select("d, b + e")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,HiFlink', '3,HelloPython', '4,null']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('RIGHT_OUTER', query_operation.getJoinType().toString())
+        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertFalse(query_operation.isCorrelated())
 
     def test_full_outer_join(self):
         t_env = self.t_env
-        t1 = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hi", "Hello"), (3, "Hello", "Hello")],
-                                 ['a', 'b', 'c'])
-        t2 = t_env.from_elements([(2, "Flink"), (3, "Python"), (4, "Flink")], ['d', 'e'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t1 = t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        t2 = t_env.from_elements([(2, "Flink")], ['d', 'e'])
 
-        result = t1.full_outer_join(t2, "a = d").select("a, d, b + e")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['1,null,null', '2,2,HiFlink', '3,3,HelloPython', 'null,4,null']
-        self.assert_equals(actual, expected)
+        result = t1.full_outer_join(t2, "a = d")
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('FULL_OUTER', query_operation.getJoinType().toString())
+        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertFalse(query_operation.isCorrelated())
 
 
 if __name__ == '__main__':

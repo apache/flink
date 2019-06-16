@@ -22,7 +22,8 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 class TableSchemaTests(PyFlinkTestCase):
 
-    def test_init(self):
+    @staticmethod
+    def test_init():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -32,7 +33,8 @@ class TableSchemaTests(PyFlinkTestCase):
                                                  DataTypes.BIGINT(),
                                                  DataTypes.STRING()]
 
-    def test_copy(self):
+    @staticmethod
+    def test_copy():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -42,7 +44,8 @@ class TableSchemaTests(PyFlinkTestCase):
         copied_schema._j_table_schema = None
         assert schema != copied_schema
 
-    def test_get_field_data_types(self):
+    @staticmethod
+    def test_get_field_data_types():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -66,7 +69,8 @@ class TableSchemaTests(PyFlinkTestCase):
         assert type_by_name_not_exist is None
         assert type_by_index_not_exist is None
 
-    def test_get_field_count(self):
+    @staticmethod
+    def test_get_field_count():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -74,7 +78,8 @@ class TableSchemaTests(PyFlinkTestCase):
 
         assert count == 3
 
-    def test_get_field_names(self):
+    @staticmethod
+    def test_get_field_names():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -82,7 +87,8 @@ class TableSchemaTests(PyFlinkTestCase):
 
         assert names == ["a", "b", "c"]
 
-    def test_get_field_name(self):
+    @staticmethod
+    def test_get_field_name():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -92,7 +98,8 @@ class TableSchemaTests(PyFlinkTestCase):
         assert field_name == "c"
         assert field_name_not_exist is None
 
-    def test_to_row_data_type(self):
+    @staticmethod
+    def test_to_row_data_type():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
@@ -103,7 +110,8 @@ class TableSchemaTests(PyFlinkTestCase):
                                   DataTypes.FIELD("c", DataTypes.STRING())])
         assert row_type == expected
 
-    def test_hash(self):
+    @staticmethod
+    def test_hash():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
         schema2 = TableSchema(["a", "b", "c"],
@@ -111,19 +119,22 @@ class TableSchemaTests(PyFlinkTestCase):
 
         assert hash(schema) == hash(schema2)
 
-    def test_str(self):
+    @staticmethod
+    def test_str():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
         assert str(schema) == "root\n |-- a: INT\n |-- b: BIGINT\n |-- c: STRING\n"
 
-    def test_repr(self):
+    @staticmethod
+    def test_repr():
         schema = TableSchema(["a", "b", "c"],
                              [DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()])
 
         assert repr(schema) == "root\n |-- a: INT\n |-- b: BIGINT\n |-- c: STRING\n"
 
-    def test_builder(self):
+    @staticmethod
+    def test_builder():
         schema_builder = TableSchema.builder()
 
         schema = schema_builder \

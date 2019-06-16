@@ -17,35 +17,18 @@
 ################################################################################
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
 
     def test_print_schema(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello'), (2, 'Hello', 'Hello')],
-                                ['a', 'b', 'c'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by("c").select("a.sum, c as b")
         result.print_schema()
 
     def test_get_schema(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello'), (2, 'Hello', 'Hello')],
-                                ['a', 'b', 'c'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by("c").select("a.sum as a, c as b")
         schema = result.get_schema()
 

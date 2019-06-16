@@ -30,72 +30,31 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_select(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
-        t.select("a + 1, b, c") \
-            .insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,hi,hello', '3,hi,hello']
-        self.assert_equals(actual, expected)
+        t = self.t_env.from_elements([(1, 'hi', 'hello')], ['a', 'b', 'c'])
+        result = t.select("a + 1, b, c")
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('[plus(a, 1), b, c]', query_operation.getProjectList().toString())
 
     def test_alias(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.alias("d, e, f").select("d, e, f")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['1,Hi,Hello', '2,Hi,Hello']
-        self.assert_equals(actual, expected)
+        table_schema = result._j_table.getQueryOperation().getTableSchema()
+        self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
 
     def test_where(self):
         t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
+        t = t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.where("a > 1 && b = 'Hello'")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,Hello,Hello']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual("and(greaterThan(a, 1), equals(b, 'Hello'))",
+                         query_operation.getCondition().toString())
 
     def test_filter(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello')], ['a', 'b', 'c'])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.filter("a > 1 && b = 'Hello'")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['2,Hello,Hello']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual("and(greaterThan(a, 1), equals(b, 'Hello'))",
+                         query_operation.getCondition().toString())
 
     def test_from_element(self):
         t_env = self.t_env

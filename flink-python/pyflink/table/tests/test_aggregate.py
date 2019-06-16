@@ -16,30 +16,18 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_group_by(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hello'), (2, 'Hello', 'Hello')],
-                                ['a', 'b', 'c'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
-
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by("c").select("a.sum, c as b")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['5,Hello']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
+        self.assertEqual("[as(sum(a), 'EXPR$0')]",
+                         query_operation.getAggregateExpressions().toString())
 
 
 if __name__ == '__main__':
