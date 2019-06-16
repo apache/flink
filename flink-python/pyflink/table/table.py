@@ -27,7 +27,7 @@ from pyflink.util.utils import to_jarray
 if sys.version > '3':
     xrange = range
 
-__all__ = ['Table']
+__all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
 
 class Table(object):
@@ -73,7 +73,7 @@ class Table(object):
             >>> tab.select("key, value + 'hello'")
 
         :param fields: Expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.select(fields))
 
@@ -88,7 +88,7 @@ class Table(object):
             >>> tab.alias("a, b")
 
         :param fields: Field list expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(get_method(self._j_table, "as")(fields))
 
@@ -103,7 +103,7 @@ class Table(object):
             >>> tab.filter("name = 'Fred'")
 
         :param predicate: Predicate expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.filter(predicate))
 
@@ -118,7 +118,7 @@ class Table(object):
             >>> tab.where("name = 'Fred'")
 
         :param predicate: Predicate expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.where(predicate))
 
@@ -133,7 +133,7 @@ class Table(object):
             >>> tab.group_by("key").select("key, value.avg")
 
         :param fields: Group keys.
-        :return: The grouped table.
+        :return: The grouped :class:`Table`.
         """
         return GroupedTable(self._j_table.groupBy(fields))
 
@@ -146,7 +146,7 @@ class Table(object):
 
             >>> tab.select("key, value").distinct()
 
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.distinct())
 
@@ -169,7 +169,7 @@ class Table(object):
 
         :param right: Right table.
         :param join_predicate: Optional, the join predicate expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         if join_predicate is not None:
             return Table(self._j_table.join(right._j_table, join_predicate))
@@ -195,7 +195,7 @@ class Table(object):
 
         :param right: Right table.
         :param join_predicate: Optional, the join predicate expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoin(right._j_table))
@@ -220,7 +220,7 @@ class Table(object):
 
         :param right: Right table.
         :param join_predicate: The join predicate expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.rightOuterJoin(right._j_table, join_predicate))
 
@@ -242,7 +242,7 @@ class Table(object):
 
         :param right: Right table.
         :param join_predicate: The join predicate expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate))
 
@@ -263,7 +263,7 @@ class Table(object):
             >>> left.minus(right)
 
         :param right: Right table.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.minus(right._j_table))
 
@@ -285,7 +285,7 @@ class Table(object):
             >>> left.minus_all(right)
 
         :param right: Right table.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.minusAll(right._j_table))
 
@@ -304,7 +304,7 @@ class Table(object):
             >>> left.union(right)
 
         :param right: Right table.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.union(right._j_table))
 
@@ -323,7 +323,7 @@ class Table(object):
             >>> left.union_all(right)
 
         :param right: Right table.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.unionAll(right._j_table))
 
@@ -344,7 +344,7 @@ class Table(object):
             >>> left.intersect(right)
 
         :param right: Right table.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.intersect(right._j_table))
 
@@ -365,7 +365,7 @@ class Table(object):
             >>> left.intersect_all(right)
 
         :param right: Right table.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.intersectAll(right._j_table))
 
@@ -380,7 +380,7 @@ class Table(object):
             >>> tab.order_by("name.desc")
 
         :param fields: Order fields expression string,
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.orderBy(fields))
 
@@ -401,7 +401,7 @@ class Table(object):
             >>> tab.order_by("name.desc").offset(10).fetch(5)
 
         :param offset: Number of records to skip.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.offset(offset))
 
@@ -426,7 +426,7 @@ class Table(object):
             >>> tab.order_by("name.desc").offset(10).fetch(5)
 
         :param fetch: The number of records to return. Fetch must be >= 0.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.fetch(fetch))
 
@@ -451,8 +451,9 @@ class Table(object):
             If the :func:`~pyflink.table.GroupWindowedTable.group_by` only references a GroupWindow
             alias, the streamed table will be processed by a single task, i.e., with parallelism 1.
 
-        :param window: A :class:`GroupWindow` created from :class:`Tumble`, :class:`Session` or
-                        :class:`Slide`.
+        :param window: A :class:`pyflink.table.window.GroupWindow` created from
+                       :class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`
+                       or :class:`pyflink.table.window.Slide`.
         :return: A :class:`GroupWindowedTable`.
         """
         # type: (GroupWindow) -> GroupWindowedTable
@@ -502,7 +503,7 @@ class Table(object):
             >>> tab.add_columns("a + 1 as a1, concat(b, 'sunny') as b1")
 
         :param fields: Column list string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.addColumns(fields))
 
@@ -519,7 +520,7 @@ class Table(object):
             >>> tab.add_or_replace_columns("a + 1 as a1, concat(b, 'sunny') as b1")
 
         :param fields: Column list string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.addOrReplaceColumns(fields))
 
@@ -534,7 +535,7 @@ class Table(object):
             >>> tab.rename_columns("a as a1, b as b1")
 
         :param fields: Column list string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.renameColumns(fields))
 
@@ -548,7 +549,7 @@ class Table(object):
             >>> tab.drop_columns("a, b")
 
         :param fields: Column list string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.dropColumns(fields))
 
@@ -556,7 +557,7 @@ class Table(object):
         """
         Writes the :class:`Table` to a :class:`TableSink` that was registered under
         the specified name. For the path resolution algorithm see
-        :func:`~TableEnvironment.useDatabase`.
+        :func:`~TableEnvironment.use_database`.
 
         Example:
         ::
@@ -611,14 +612,14 @@ class GroupedTable(object):
 
 
         :param fields: Expression string that contains group keys and aggregate function calls.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.select(fields))
 
 
 class GroupWindowedTable(object):
     """
-    A table that has been windowed for :class:`GroupWindow`s.
+    A table that has been windowed for :class:`pyflink.table.window.GroupWindow`.
     """
 
     def __init__(self, java_group_windowed_table):
@@ -649,7 +650,7 @@ class GroupWindowedTable(object):
 
 class WindowGroupedTable(object):
     """
-    A table that has been windowed and grouped for :class:`GroupWindow`s.
+    A table that has been windowed and grouped for :class:`pyflink.table.window.GroupWindow`.
     """
 
     def __init__(self, java_window_grouped_table):
@@ -667,14 +668,14 @@ class WindowGroupedTable(object):
             >>> window_grouped_table.select("key, window.start, value.avg as valavg")
 
         :param fields: Expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.select(fields))
 
 
 class OverWindowedTable(object):
     """
-    A table that has been windowed for :class:`OverWindow`s.
+    A table that has been windowed for :class:`pyflink.table.window.OverWindow`.
 
     Unlike group windows, which are specified in the GROUP BY clause, over windows do not collapse
     rows. Instead over window aggregates compute an aggregate for each input row over a range of
@@ -696,6 +697,6 @@ class OverWindowedTable(object):
             >>> over_windowed_table.select("c, b.count over ow, e.sum over ow")
 
         :param fields: Expression string.
-        :return: Result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_table.select(fields))

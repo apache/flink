@@ -26,3 +26,21 @@ Module contents
     :members:
     :undoc-members:
     :show-inheritance:
+
+pyflink.table.window module
+---------------------------
+.. automodule:: pyflink.table.window
+    :members:
+    :undoc-members:
+
+pyflink.table.table_descriptor module
+-------------------------------------
+.. automodule:: pyflink.table.table_descriptor
+    :members:
+    :undoc-members:
+
+pyflink.table.catalog module
+----------------------------
+.. automodule:: pyflink.table.catalog
+    :members:
+    :undoc-members:

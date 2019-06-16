@@ -36,7 +36,10 @@ __all__ = [
     'Csv',
     'Avro',
     'Json',
-    'FileSystem'
+    'FileSystem',
+    'ConnectTableDescriptor',
+    'StreamTableDescriptor',
+    'BatchTableDescriptor'
 ]
 
 
@@ -317,7 +320,7 @@ class OldCsv(FormatDescriptor):
         :func:`~pyflink.table.table_descriptor.OldCsv.field`.
 
         :param table_schema: The :class:`TableSchema` object.
-        :return: This schema object.
+        :return: This :class:`OldCsv` object.
         """
         self._j_csv = self._j_csv.schema(table_schema._j_table_schema)
         return self
