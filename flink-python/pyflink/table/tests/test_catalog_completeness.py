@@ -19,7 +19,7 @@
 import unittest
 
 from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
-from pyflink.table import Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
+from pyflink.table.catalog import Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition, \
     CatalogFunction, CatalogColumnStatistics, CatalogPartitionSpec, ObjectPath
 
 

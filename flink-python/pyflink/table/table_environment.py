@@ -54,28 +54,35 @@ class TableEnvironment(object):
         """
         Creates a table from a table source.
 
+        Example:
+        ::
+
+            >>> csv_table_source = CsvTableSource(
+            ...     csv_file_path, ['a', 'b'], [DataTypes.STRING(), DataTypes.BIGINT()])
+            ... table_env.from_table_source(csv_table_source)
+
         :param table_source: The table source used as table.
-        :return: The result table.
+        :return: The result :class:`Table`.
         """
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source))
 
     def register_catalog(self, catalog_name, catalog):
         """
-        Registers a :class:`Catalog` under a unique name.
-        All tables registered in the :class:`Catalog` can be accessed.
+        Registers a :class:`pyflink.table.catalog.Catalog` under a unique name.
+        All tables registered in the :class:`pyflink.table.catalog.Catalog` can be accessed.
 
         :param catalog_name: The name under which the catalog will be registered.
-        :param catalog: The catalog :class:`Catalog` to register.
+        :param catalog: The :class:`pyflink.table.catalog.Catalog` to register.
         """
         self._j_tenv.registerCatalog(catalog_name, catalog._j_catalog)
 
     def get_catalog(self, catalog_name):
         """
-        Gets a registered :class:`Catalog` by name.
+        Gets a registered :class:`pyflink.table.catalog.Catalog` by name.
 
-        :param catalog_name: The name to look up the :class:`Catalog`.
-        :return: The requested catalog :class:`Catalog`, None if there is no registered catalog
-                 with given name.
+        :param catalog_name: The name to look up the :class:`pyflink.table.catalog.Catalog`.
+        :return: The requested :class:`pyflink.table.catalog.Catalog`, None if there is no
+                 registered catalog with given name.
         """
         catalog = self._j_tenv.getCatalog(catalog_name)
         if catalog.isPresent():
@@ -125,7 +132,7 @@ class TableEnvironment(object):
         """
         Scans a registered table and returns the resulting :class:`Table`.
         A table to scan must be registered in the TableEnvironment. It can be either directly
-        registered or be an external member of a :class:`Catalog`.
+        registered or be an external member of a :class:`pyflink.table.catalog.Catalog`.
 
         See the documentation of :func:`~pyflink.table.TableEnvironment.use_database` or
         :func:`~pyflink.table.TableEnvironment.use_catalog` for the rules on the path resolution.
@@ -155,7 +162,7 @@ class TableEnvironment(object):
         """
         Writes the :class:`Table` to a :class:`TableSink` that was registered under
         the specified name. For the path resolution algorithm see
-        :func:`~TableEnvironment.useDatabase`.
+        :func:`~TableEnvironment.use_database`.
 
         Example:
         ::
@@ -252,7 +259,7 @@ class TableEnvironment(object):
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
         """
-        self._j_tenv.getCurrentCatalog()
+        return self._j_tenv.getCurrentCatalog()
 
     def use_catalog(self, catalog_name):
         """
@@ -296,8 +303,8 @@ class TableEnvironment(object):
         +----------------+-----------------------------------------+
 
         :param: catalog_name: The name of the catalog to set as the current default catalog.
-        :throws: CatalogException thrown if a catalog with given name could not be set as the
-                 default one
+        :throws: :class:`pyflink.util.exceptions.CatalogException` thrown if a catalog with given
+                 name could not be set as the default one.
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
         """
@@ -311,7 +318,7 @@ class TableEnvironment(object):
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_database`
         """
-        self._j_tenv.getCurrentCatalog()
+        return self._j_tenv.getCurrentDatabase()
 
     def use_database(self, database_name):
         """
@@ -353,8 +360,8 @@ class TableEnvironment(object):
         | cat1.db1.tab1  | cat1.db1.tab1                           |
         +----------------+-----------------------------------------+
 
-        :throws: CatalogException thrown if the given catalog and database could not be set as
-                the default ones
+        :throws: :class:`pyflink.util.exceptions.CatalogException` thrown if the given catalog and
+                 database could not be set as the default ones.
 
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
 
@@ -384,6 +391,12 @@ class TableEnvironment(object):
 
     @abstractmethod
     def query_config(self):
+        """
+        Returns a :class:`StreamQueryConfig` that holds parameters to configure the behavior of
+        streaming queries.
+
+        :return: A new :class:`StreamQueryConfig` or :class:`BatchQueryConfig`.
+        """
         pass
 
     @abstractmethod
@@ -397,6 +410,8 @@ class TableEnvironment(object):
 
         The following example shows how to read from a connector using a JSON format and
         registering a table source as "MyTable":
+
+        Example:
         ::
 
             >>> table_env\\
@@ -412,7 +427,8 @@ class TableEnvironment(object):
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`ConnectTableDescriptor` used to build the table source/sink.
+        :return: A :class:`pyflink.table.table_descriptor.ConnectTableDescriptor` used to build the
+                 table source/sink.
         """
         pass
 
@@ -446,10 +462,15 @@ class TableEnvironment(object):
         """
         Creates a table from a collection of elements.
 
+        Example:
+        ::
+
+            >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
+
         :param elements: The elements to create a table from.
         :param schema: The schema of the table.
         :param verify_schema: Whether to verify the elements against the schema.
-        :return: A Table.
+        :return: The result :class:`Table`.
         """
 
         # verifies the elements against the specified schema
@@ -499,7 +520,7 @@ class TableEnvironment(object):
         Creates a table from a collection of elements.
 
         :param elements: The elements to create a table from.
-        :return: A table.
+        :return: The result :class:`Table`.
         """
 
         # serializes to a file, and we read the file in java

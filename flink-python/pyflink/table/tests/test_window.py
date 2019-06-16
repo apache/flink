@@ -18,9 +18,8 @@
 
 from py4j.protocol import Py4JJavaError
 
-from pyflink.table.window import Session, Slide, Tumble
-from pyflink.table import Over
-from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase
+from pyflink.table.window import Session, Slide, Tumble, Over
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
 
 class StreamTableWindowTests(PyFlinkStreamTableTestCase):
