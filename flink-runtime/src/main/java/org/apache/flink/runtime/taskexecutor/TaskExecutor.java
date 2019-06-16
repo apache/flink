@@ -686,8 +686,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		log.debug("Trigger checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
 
 		final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-		if (advanceToEndOfEventTime && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
-			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+		if (advanceToEndOfEventTime && !checkpointType.isSynchronous()) {
+			throw new IllegalArgumentException("Only synchronous checkpoint/savepoint are allowed to advance the watermark to MAX.");
 		}
 
 		final Task task = taskSlotTable.getTask(executionAttemptID);

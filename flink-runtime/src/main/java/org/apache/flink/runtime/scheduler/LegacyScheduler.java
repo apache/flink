@@ -574,9 +574,10 @@ public class LegacyScheduler implements SchedulerNG {
 	}
 
 	@Override
-	public CompletableFuture<String> stopWithSavepoint(final String targetDirectory, final boolean advanceToEndOfEventTime) {
+	public CompletableFuture<String> stopWithCheckpoint(final boolean isCheckpoint, final String targetDirectory, final boolean advanceToEndOfEventTime) {
 		mainThreadExecutor.assertRunningInMainThread();
 
+		String typeForLog = isCheckpoint ? "checkpoint" : "savepoint";
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 
 		if (checkpointCoordinator == null) {
@@ -584,75 +585,20 @@ public class LegacyScheduler implements SchedulerNG {
 				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
 		}
 
-		if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
-			log.info("Trying to cancel job {} with savepoint, but no savepoint directory configured.", jobGraph.getJobID());
+		if (isCheckpoint) {
+			if (null == checkpointCoordinator.getCheckpointStorage()) {
+				log.info("Trying to cancel job {} with checkpoint, but no checkpoint directory configured.", jobGraph.getJobID());
 
-			return FutureUtils.completedExceptionally(new IllegalStateException(
-				"No savepoint directory configured. You can either specify a directory " +
-					"while cancelling via -s :targetDirectory or configure a cluster-wide " +
-					"default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'."));
-		}
+				return FutureUtils.completedExceptionally(new IllegalStateException(
+					"No checkpoint directory configured. Please specify by key'" + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key() + "'."));
+			}
+		} else {
+			if (targetDirectory == null && !checkpointCoordinator.getCheckpointStorage().hasDefaultSavepointLocation()) {
+				log.info("Trying to cancel job {} with savepoint, but no savepoint directory configured.", jobGraph.getJobID());
 
-		final long now = System.currentTimeMillis();
-
-		// we stop the checkpoint coordinator so that we are guaranteed
-		// to have only the data of the synchronous savepoint committed.
-		// in case of failure, and if the job restarts, the coordinator
-		// will be restarted by the CheckpointCoordinatorDeActivator.
-		checkpointCoordinator.stopCheckpointScheduler();
-
-		final CompletableFuture<String> savepointFuture = checkpointCoordinator
-			.triggerSynchronousSavepoint(now, advanceToEndOfEventTime, targetDirectory)
-			.handle((completedCheckpoint, throwable) -> {
-				if (throwable != null) {
-					log.info("Failed during stopping job {} with a savepoint. Reason: {}", jobGraph.getJobID(), throwable.getMessage());
-					throw new CompletionException(throwable);
-				}
-				return completedCheckpoint.getExternalPointer();
-			});
-
-		final CompletableFuture<JobStatus> terminationFuture = executionGraph
-			.getTerminationFuture()
-			.handle((jobstatus, throwable) -> {
-
-				if (throwable != null) {
-					log.info("Failed during stopping job {} with a savepoint. Reason: {}", jobGraph.getJobID(), throwable.getMessage());
-					throw new CompletionException(throwable);
-				} else if (jobstatus != JobStatus.FINISHED) {
-					log.info("Failed during stopping job {} with a savepoint. Reason: Reached state {} instead of FINISHED.", jobGraph.getJobID(), jobstatus);
-					throw new CompletionException(new FlinkException("Reached state " + jobstatus + " instead of FINISHED."));
-				}
-				return jobstatus;
-			});
-
-		return savepointFuture.thenCompose((path) ->
-			terminationFuture.thenApply((jobStatus -> path)));
-	}
-
-	private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
-		final Optional<Execution> currentExecution = Optional.ofNullable(executionGraph.getRegisteredExecutions().get(
-			executionAttemptID));
-
-		return currentExecution.map(Execution::getAssignedResourceLocation).map(TaskManagerLocation::toString).orElse(
-			"Unknown location");
-	}
-
-	@Override
-	public CompletableFuture<String> stopWithCheckpoint(boolean advanceToEndOfEventTime) {
-		mainThreadExecutor.assertRunningInMainThread();
-
-		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
-
-		if (checkpointCoordinator == null) {
-			return FutureUtils.completedExceptionally(new IllegalStateException(
-				String.format("Job %s is not a streaming job.", jobGraph.getJobID())));
-		}
-
-		if (null == checkpointCoordinator.getCheckpointStorage()) {
-			log.info("Trying to cancel job {} with checkpoint, but no checkpoint directory configured.", jobGraph.getJobID());
-
-			return FutureUtils.completedExceptionally(new IllegalStateException(
-				"No checkpoint directory configured. Please specify by key'" + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key() + "'."));
+				return FutureUtils.completedExceptionally(new IllegalStateException(
+					"No savepoint directory configured. You can either specify a directory " + "while cancelling via -s :targetDirectory or configure a cluster-wide " + "default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'."));
+			}
 		}
 
 		final long now = System.currentTimeMillis();
@@ -664,10 +610,10 @@ public class LegacyScheduler implements SchedulerNG {
 		checkpointCoordinator.stopCheckpointScheduler();
 
 		final CompletableFuture<String> checkpointFuture = checkpointCoordinator
-			.triggerSynchronousCheckpoint(now, advanceToEndOfEventTime)
+			.triggerSynchronousCheckpoint(now, advanceToEndOfEventTime, false, isCheckpoint ? null : targetDirectory)
 			.handle((completedCheckpoint, throwable) -> {
 				if (throwable != null) {
-					log.info("Failed during stopping job {} with a checkpoint. Reason: {}", jobGraph.getJobID(), throwable.getMessage());
+					log.info("Failed during stopping job {} with a {}. Reason: {}", jobGraph.getJobID(), typeForLog, throwable.getMessage());
 					throw new CompletionException(throwable);
 				}
 				return completedCheckpoint.getExternalPointer();
@@ -678,10 +624,10 @@ public class LegacyScheduler implements SchedulerNG {
 			.handle((jobstatus, throwable) -> {
 
 				if (throwable != null) {
-					log.info("Failed during stopping job {} with a checkpoint. Reason: {}", jobGraph.getJobID(), throwable.getMessage());
+					log.info("Failed during stopping job {} with a {}. Reason: {}", jobGraph.getJobID(), typeForLog, throwable.getMessage());
 					throw new CompletionException(throwable);
 				} else if (jobstatus != JobStatus.FINISHED) {
-					log.info("Failed during stopping job {} with a checkpoint. Reason: Reached state {} instead of FINISHED.", jobGraph.getJobID(), jobstatus);
+					log.info("Failed during stopping job {} with a {}. Reason: Reached state {} instead of FINISHED.", jobGraph.getJobID(), typeForLog, jobstatus);
 					throw new CompletionException(new FlinkException("Reached state " + jobstatus + " instead of FINISHED."));
 				}
 				return jobstatus;
@@ -689,5 +635,13 @@ public class LegacyScheduler implements SchedulerNG {
 
 		return checkpointFuture.thenCompose((path) ->
 			terminationFuture.thenApply((jobStatus -> path)));
+	}
+
+	private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
+		final Optional<Execution> currentExecution = Optional.ofNullable(executionGraph.getRegisteredExecutions().get(
+			executionAttemptID));
+
+		return currentExecution.map(Execution::getAssignedResourceLocation).map(TaskManagerLocation::toString).orElse(
+			"Unknown location");
 	}
 }

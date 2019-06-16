@@ -391,7 +391,7 @@ public abstract class ClusterClient<T> {
 	/**
 	 * Stops a program on Flink cluster whose job-manager is configured in this client's configuration.
 	 * Stopping works only for streaming programs. Be aware, that the program might continue to run for
-	 * a while after sending the stop command, because after sources stopped to emit data ll operators
+	 * a while after sending the stop command, because after sources stopped to emit data all operators
 	 * need to finish processing.
 	 *
 	 * @param jobID the job ID of the streaming program to stop

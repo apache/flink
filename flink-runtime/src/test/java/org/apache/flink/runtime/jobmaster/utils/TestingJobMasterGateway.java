@@ -300,14 +300,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public CompletableFuture<String> stopWithSavepoint(@Nullable final String targetDirectory, final boolean advanceToEndOfEventTime, final Time timeout) {
-		return stopWithSavepointFunction.apply(targetDirectory, advanceToEndOfEventTime);
-	}
-
-	@Override
-	public CompletableFuture<String> stopWithCheckpoint(
-		boolean advanceToEndOfEventTime, Time timeout) {
-		return stopWithCheckpointFunction.apply(advanceToEndOfEventTime);
+	public CompletableFuture<String> stopWithCheckpoint(final boolean isCheckpoint, @Nullable final String targetDirectory, final boolean advanceToEndOfEventTime, final Time timeout) {
+		if (isCheckpoint) {
+			return stopWithCheckpointFunction.apply(advanceToEndOfEventTime);
+		} else {
+			return stopWithSavepointFunction.apply(targetDirectory, advanceToEndOfEventTime);
+		}
 	}
 
 	@Override

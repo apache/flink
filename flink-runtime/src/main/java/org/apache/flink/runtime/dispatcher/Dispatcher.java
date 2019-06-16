@@ -580,7 +580,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		return jobMasterGatewayFuture.thenCompose(
 				(JobMasterGateway jobMasterGateway) ->
-						jobMasterGateway.stopWithSavepoint(targetDirectory, advanceToEndOfEventTime, timeout));
+						jobMasterGateway.stopWithCheckpoint(false, targetDirectory, advanceToEndOfEventTime, timeout));
 	}
 
 	@Override
@@ -593,7 +593,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		return jobMasterGatewayFuture.thenCompose(
 			(JobMasterGateway jobMasterGateway) ->
-				jobMasterGateway.stopWithCheckpoint(advanceToEndOfEventTime, timeout));
+				jobMasterGateway.stopWithCheckpoint(true, null, advanceToEndOfEventTime, timeout));
 	}
 
 	@Override
