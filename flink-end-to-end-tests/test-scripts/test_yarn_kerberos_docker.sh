@@ -43,7 +43,8 @@ case $INPUT_TYPE in
         EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
     ;;
     (dummy-fs)
-        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        source "$(dirname "$0")"/common_dummy_fs.sh
+        dummy_fs_setup
         INPUT_ARGS="--input dummy://localhost/words"
         EXPECTED_RESULT_LOG_CONTAINS=("my,1" "dear,2" "world,2")
     ;;
