@@ -127,13 +127,20 @@ class StreamExecSink[T](
 
         val maxSinkParallelism = dsSink.getTransformation.getMaxParallelism
 
-        if (maxSinkParallelism > 0 && configSinkParallelism <= maxSinkParallelism) {
-          dsSink.getTransformation.setParallelism(configSinkParallelism)
+        // only set user's parallelism when user defines a sink parallelism
+        if (configSinkParallelism > 0) {
+          // set the parallelism when user's parallelism is not larger than max parallelism or
+          // max parallelism is not set
+          if (maxSinkParallelism < 0 || configSinkParallelism <= maxSinkParallelism) {
+            dsSink.getTransformation.setParallelism(configSinkParallelism)
+          }
         }
         if (!UpdatingPlanChecker.isAppendOnly(this) &&
             dsSink.getTransformation.getParallelism != transformation.getParallelism) {
-          throw new TableException("Sink parallelism should be equal to input node when it is not" +
-              " appendStream table sink.")
+          throw new TableException(s"The configured sink parallelism should be equal to the" +
+              " input node when input is an update stream. The input parallelism is " +
+              "${transformation.getParallelism}, however the configured sink parallelism is " +
+              "${dsSink.getTransformation.getParallelism}.")
         }
         dsSink.getTransformation
 

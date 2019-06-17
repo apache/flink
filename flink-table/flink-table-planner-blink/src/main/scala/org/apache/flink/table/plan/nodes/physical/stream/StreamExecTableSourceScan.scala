@@ -57,6 +57,9 @@ class StreamExecTableSourceScan(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
+  // cache table source transformation.
+  private var sourceTransform: StreamTransformation[_] = _
+
   override def producesUpdates: Boolean = false
 
   override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
@@ -91,14 +94,17 @@ class StreamExecTableSourceScan(
 
   def getSourceTransformation(
       streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
-    tableSource.asInstanceOf[StreamTableSource[_]].getDataStream(streamEnv).getTransformation
+    if (sourceTransform == null) {
+      sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
+          getDataStream(streamEnv).getTransformation
+    }
+    sourceTransform
   }
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
     val config = tableEnv.getConfig
-    val sts = tableSource.asInstanceOf[StreamTableSource[_]]
-    val inputTransform = sts.getDataStream(tableEnv.execEnv).getTransformation
+    val inputTransform = getSourceTransformation(tableEnv.execEnv)
     inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(

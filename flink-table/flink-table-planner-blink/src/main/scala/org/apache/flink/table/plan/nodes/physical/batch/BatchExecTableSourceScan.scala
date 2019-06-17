@@ -58,6 +58,9 @@ class BatchExecTableSourceScan(
   with BatchPhysicalRel
   with BatchExecNode[BaseRow]{
 
+  // cache table source transformation.
+  private var sourceTransform: StreamTransformation[_] = _
+
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
   }
@@ -85,11 +88,19 @@ class BatchExecTableSourceScan(
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
+  def getSourceTransformation(
+      streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
+    if (sourceTransform == null) {
+      sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
+          getDataStream(streamEnv).getTransformation
+    }
+    sourceTransform
+  }
+
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
     val config = tableEnv.getConfig
-    val bts = tableSource.asInstanceOf[StreamTableSource[_]] // bounded table source
-    val inputTransform = bts.getDataStream(tableEnv.execEnv).getTransformation
+    val inputTransform = getSourceTransformation(tableEnv.execEnv)
     inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
@@ -144,11 +155,6 @@ class BatchExecTableSourceScan(
         TypeExtractor.createTypeInfo(
           tableSource, classOf[StreamTableSource[_]], tableSource.getClass, 0)
           .getTypeClass.asInstanceOf[Class[_]])
-  }
-
-  def getSourceTransformation(
-      streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
-    tableSource.asInstanceOf[StreamTableSource[_]].getDataStream(streamEnv).getTransformation
   }
 
   def getEstimatedRowCount: lang.Double = {

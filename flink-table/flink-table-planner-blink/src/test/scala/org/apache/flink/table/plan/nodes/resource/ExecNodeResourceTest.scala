@@ -18,20 +18,24 @@
 
 package org.apache.flink.table.plan.nodes.resource
 
+import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig.InferMode
 import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment
-import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory
+import org.apache.flink.streaming.api.transformations.{SinkTransformation, SourceTransformation}
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableSchema, Types}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
+import org.junit.Assert.assertEquals
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -118,6 +122,66 @@ class ExecNodeResourceTest(isBatch: Boolean,
         "WHERE b = e group by g"
     testUtil.verifyResource(sqlQuery)
   }
+
+  @Test
+  def testSinkSelfParallelism(): Unit = {
+    val sqlQuery = "SELECT * FROM table3"
+    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), -1)
+
+    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
+    testUtil.getTableEnv.generateStreamGraph()
+    assertEquals(17, tableSink.getSinkTransformation.getParallelism)
+  }
+
+  @Test
+  def testSinkConfigParallelism(): Unit = {
+    testUtil.getTableEnv.getConfig.getConf.setInteger(
+      TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      25
+    )
+    val sqlQuery = "SELECT * FROM table3"
+    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), -1)
+
+    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
+    testUtil.getTableEnv.generateStreamGraph()
+    assertEquals(25, tableSink.getSinkTransformation.getParallelism)
+  }
+
+  @Test
+  def testSinkConfigParallelismWhenMax1(): Unit = {
+    testUtil.getTableEnv.getConfig.getConf.setInteger(
+      TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      25
+    )
+    val sqlQuery = "SELECT * FROM table3"
+    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), 23)
+
+    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
+    testUtil.getTableEnv.generateStreamGraph()
+    assertEquals(17, tableSink.getSinkTransformation.getParallelism)
+  }
+
+  @Test
+  def testSinkConfigParallelismWhenMax2(): Unit = {
+    testUtil.getTableEnv.getConfig.getConf.setInteger(
+      TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      25
+    )
+    val sqlQuery = "SELECT * FROM table3"
+    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), 25)
+
+    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
+    testUtil.getTableEnv.generateStreamGraph()
+    assertEquals(25, tableSink.getSinkTransformation.getParallelism)
+  }
 }
 
 object ExecNodeResourceTest {
@@ -156,11 +220,14 @@ class MockTableSource(isBatch: Boolean, schema: TableSchema)
 
   override def getDataStream(
       execEnv: environment.StreamExecutionEnvironment): DataStream[BaseRow] = {
-    val transformation = mock(classOf[StreamTransformation[BaseRow]])
+    val transformation = mock(classOf[SourceTransformation[BaseRow]])
     when(transformation.getMaxParallelism).thenReturn(-1)
     val bs = mock(classOf[DataStream[BaseRow]])
     when(bs.getTransformation).thenReturn(transformation)
     when(transformation.getOutputType).thenReturn(getReturnType)
+    val factory = mock(classOf[StreamOperatorFactory[BaseRow]])
+    when(factory.isStreamSource).thenReturn(!isBatch)
+    when(transformation.getOperatorFactory).thenReturn(factory)
     bs
   }
 
@@ -171,5 +238,47 @@ class MockTableSource(isBatch: Boolean, schema: TableSchema)
   }
 
   override def getTableSchema: TableSchema = schema
+}
+
+/**
+  * Batch/Stream [[org.apache.flink.table.sinks.TableSink]] for resource testing.
+  */
+class MockTableSink(schema: TableSchema, maxParallelism: Int) extends StreamTableSink[BaseRow]
+with AppendStreamTableSink[BaseRow] {
+
+  private var sinkTransformation:SinkTransformation[BaseRow] = _
+
+  override def emitDataStream(dataStream: DataStream[BaseRow]) = ???
+
+  override def consumeDataStream(dataStream: DataStream[BaseRow]): DataStreamSink[_] = {
+    val outputFormat = mock(classOf[OutputFormat[BaseRow]])
+    val ret = dataStream.writeUsingOutputFormat(outputFormat).name("collect")
+    ret.getTransformation.setParallelism(17)
+    if (maxParallelism > 0) {
+      ret.getTransformation.setMaxParallelism(maxParallelism)
+    }
+    sinkTransformation = ret.getTransformation
+    ret
+  }
+
+  override def configure(fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]):
+  TableSink[BaseRow] = {
+    this
+  }
+
+  @deprecated def getOutputType: TypeInformation[BaseRow] = {
+    val LogicalTypes = schema.getFieldTypes.map(
+      TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType)
+    new BaseRowTypeInfo(LogicalTypes, schema.getFieldNames)
+  }
+
+  @deprecated def getFieldNames: Array[String] = schema.getFieldNames
+
+  /**
+    * @deprecated Use the field types of { @link #getTableSchema()} instead.
+    */
+  @deprecated def getFieldTypes: Array[TypeInformation[_]] = schema.getFieldTypes
+
+  def getSinkTransformation: SinkTransformation[BaseRow] = sinkTransformation
 }
 

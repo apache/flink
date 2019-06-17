@@ -98,8 +98,13 @@ class BatchExecSink[T](
 
         val maxSinkParallelism = sinkTransformation.getMaxParallelism
 
-        if (maxSinkParallelism > 0 && configSinkParallelism <= maxSinkParallelism) {
-          sinkTransformation.setParallelism(configSinkParallelism)
+        // only set user's parallelism when user defines a sink parallelism
+        if (configSinkParallelism > 0) {
+          // set the parallelism when user's parallelism is not larger than max parallelism
+          // or max parallelism is not set
+          if (maxSinkParallelism < 0 || configSinkParallelism <= maxSinkParallelism) {
+            sinkTransformation.setParallelism(configSinkParallelism)
+          }
         }
 
         sinkTransformation
