@@ -97,7 +97,7 @@ abstract class TableEnvImpl(
   override def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
     JavaScalaConversionUtil.toScala(catalogManager.getExternalCatalog(name)) match {
       case Some(catalog) => catalog
-      case None => throw new ExternalCatalogNotExistException(name)
+      case None => throw new CatalogNotExistException(name)
     }
   }
 

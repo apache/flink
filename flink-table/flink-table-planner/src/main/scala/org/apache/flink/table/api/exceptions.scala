@@ -58,33 +58,3 @@ case class CatalogAlreadyExistException(
 
   def this(catalog: String) = this(catalog, null)
 }
-
-/**
-  * Exception for operation on a nonexistent external catalog
-  *
-  * @param catalogName external catalog name
-  * @param cause the cause
-  */
-@deprecated
-case class ExternalCatalogNotExistException(
-    catalogName: String,
-    cause: Throwable)
-    extends RuntimeException(s"External catalog $catalogName does not exist.", cause) {
-
-  def this(catalogName: String) = this(catalogName, null)
-}
-
-/**
-  * Exception for adding an already existent external catalog
-  *
-  * @param catalogName external catalog name
-  * @param cause the cause
-  */
-@deprecated
-case class ExternalCatalogAlreadyExistException(
-    catalogName: String,
-    cause: Throwable)
-    extends RuntimeException(s"External catalog $catalogName already exists.", cause) {
-
-  def this(catalogName: String) = this(catalogName, null)
-}
