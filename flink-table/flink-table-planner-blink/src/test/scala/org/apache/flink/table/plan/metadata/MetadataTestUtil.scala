@@ -138,7 +138,6 @@ object MetadataTestUtil {
     new TableSourceTable[BaseRow](tableSource, false)
   }
 
-
   private def createEmpTable(): DataStreamTable[BaseRow] = {
     val schema = new TableSchema(
       Array("empno", "ename", "job", "mgr", "hiredate", "sal", "comm", "deptno"),

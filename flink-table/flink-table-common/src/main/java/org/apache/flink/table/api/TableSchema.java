@@ -56,14 +56,20 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  *         A primary key or unique key on source will be simply trusted, we won't validate the
  *         constraint. The primary key and unique key information will then be used for query
  *         optimization. If a bounded or unbounded table source defines any primary key or
- *         unique key, it must contain a unique value for each row of data, you cannot have
- *         two records having the same value of that field(s).
+ *         unique key, it must contain a unique value for each row of data. You cannot have
+ *         two records having the same value of that field(s), otherwise, the query result
+ *         may be wrong.
  *     </li>
  *     <li>
  *         A primary key or unique key on sink is a weak constraint. Currently, we won't validate
  *         the constraint, but we may add some check in the future to validate whether the
  *         primary/unique key of the query matches the primary/unique key of the sink during
  *         compile time.
+ *     </li>
+ *     <li>
+ *         The difference between primary key and unique key is that there is only one primary key
+ *         and there can be more than one unique key. And a primary key doesn't need to be declared
+ *         in unique key list again.
  *     </li>
  * </ul>
  */
@@ -364,9 +370,9 @@ public class TableSchema {
 
 		private List<DataType> fieldDataTypes;
 
-		private List<String> primaryKey;
+		private Set<String> primaryKey;
 
-		private List<List<String>> uniqueKeys;
+		private Set<Set<String>> uniqueKeys;
 
 		public Builder() {
 			fieldNames = new ArrayList<>();
@@ -432,7 +438,14 @@ public class TableSchema {
 						"' is not existed in the schema.");
 				}
 			}
-			primaryKey = Arrays.asList(fields);
+			Set<String> keyFields = new HashSet<>(Arrays.asList(fields));
+			if (uniqueKeys != null && !uniqueKeys.isEmpty()) {
+				if (uniqueKeys.contains(keyFields)) {
+					throw new IllegalArgumentException(
+						"The primary key fields have already been declared as unique key.");
+				}
+			}
+			this.primaryKey = keyFields;
 			return this;
 		}
 
@@ -451,10 +464,23 @@ public class TableSchema {
 						"' is not existed in the schema.");
 				}
 			}
-			if (uniqueKeys == null) {
-				uniqueKeys = new ArrayList<>();
+			Set<String> keyFields = new HashSet<>(Arrays.asList(fields));
+			if (primaryKey != null) {
+				if (primaryKey.equals(keyFields)) {
+					throw new IllegalArgumentException(
+						"The unique key fields have already been declared as primary key.");
+				}
 			}
-			uniqueKeys.add(Arrays.asList(fields));
+			if (uniqueKeys != null && !uniqueKeys.isEmpty()) {
+				if (uniqueKeys.contains(keyFields)) {
+					throw new IllegalArgumentException(
+						"The unique key have already been declared.");
+				}
+			}
+			if (uniqueKeys == null) {
+				uniqueKeys = new HashSet<>();
+			}
+			uniqueKeys.add(keyFields);
 			return this;
 		}
 

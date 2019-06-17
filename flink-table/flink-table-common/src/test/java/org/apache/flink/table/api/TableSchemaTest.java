@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.api;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -26,6 +28,9 @@ import static org.junit.Assert.assertEquals;
  * Tests for {@link TableSchema}.
  */
 public class TableSchemaTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testEqualsAndHashCode() {
@@ -59,6 +64,30 @@ public class TableSchemaTest {
 	}
 
 	@Test
+	public void testDuplicatePrimaryKeyAndUniqueKey() {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("The primary key fields have already been declared as unique key");
+		createBasicTableSchemaBuilder()
+			.uniqueKey("a", "b")
+			.primaryKey("a", "b")
+			.build();
+
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("The unique key have already been declared");
+		createBasicTableSchemaBuilder()
+			.uniqueKey("a", "b")
+			.uniqueKey("a", "b")
+			.build();
+
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("The unique key fields have already been declared as primary key");
+		createBasicTableSchemaBuilder()
+			.primaryKey("a", "b")
+			.uniqueKey("a", "b")
+			.build();
+	}
+
+	@Test
 	public void testToString() {
 		TableSchema.Builder builder = createBasicTableSchemaBuilder();
 
@@ -76,21 +105,27 @@ public class TableSchemaTest {
 		assertEquals(expected3, builder.build().toString());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidPrimaryKeyFieldName() {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("The field 'd' is not existed in the schema");
 		createBasicTableSchemaBuilder()
 			.primaryKey("a", "d");
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidMultiPrimaryKey() {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("A primary key [a] have been defined, can not define another primary key [b]");
 		createBasicTableSchemaBuilder()
 			.primaryKey("a")
 			.primaryKey("b");
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidUniqueKeyFieldName() {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("The field 'd' is not existed in the schema");
 		createBasicTableSchemaBuilder().uniqueKey("a", "d");
 	}
 
