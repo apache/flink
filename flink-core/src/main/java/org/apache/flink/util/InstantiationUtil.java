@@ -338,13 +338,23 @@ public final class InstantiationUtil {
 	 * @param classLoader to use for loading the class
 	 * @param <T> type of the instantiated class
 	 * @return Instance of the given class name
-	 * @throws ClassNotFoundException if the class could not be found
+	 * @throws FlinkException if the class could not be found
 	 */
-	public static <T> T instantiate(final String className, final Class<T> targetType, final ClassLoader classLoader) throws ClassNotFoundException {
-		final Class<? extends T> clazz = Class.forName(
-			className,
-			false,
-			classLoader).asSubclass(targetType);
+	public static <T> T instantiate(final String className, final Class<T> targetType, final ClassLoader classLoader) throws FlinkException {
+		final Class<? extends T> clazz;
+		try {
+			clazz = Class.forName(
+				className,
+				false,
+				classLoader).asSubclass(targetType);
+		} catch (ClassNotFoundException e) {
+			throw new FlinkException(
+				String.format(
+					"Could not instantiate class '%s' of type '%s'. Please make sure that this class is on your class path.",
+					className,
+					targetType.getName()),
+				e);
+		}
 
 		return instantiate(clazz);
 	}
