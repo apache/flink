@@ -309,13 +309,13 @@ public class FieldInfoUtils {
 	public static <A> String[] getFieldNames(TypeInformation<A> inputType, List<String> existingNames) {
 		validateInputTypeInfo(inputType);
 
-		final String[] fieldNames;
+		String[] fieldNames;
 		if (inputType instanceof CompositeType) {
 			fieldNames = ((CompositeType<A>) inputType).getFieldNames();
 		} else {
 			int i = 0;
 			String fieldName = ATOMIC_FIELD_NAME;
-			while (existingNames.contains(fieldName)) {
+			while ((null != existingNames) && existingNames.contains(fieldName)) {
 				fieldName = ATOMIC_FIELD_NAME + "_" + i++;
 			}
 			fieldNames = new String[]{fieldName};
