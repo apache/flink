@@ -57,13 +57,12 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_from_table_source(self):
-        t_env = self.t_env
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         csv_source = self.prepare_csv_source(source_path, [], field_types, field_names)
 
-        result = t_env.from_table_source(csv_source)
+        result = self.t_env.from_table_source(csv_source)
         self.assertEqual(
             'TableSource: (fields: [a, b, c])',
             result._j_table.getQueryOperation().asSummaryString())
@@ -154,8 +153,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assert_equals(actual, expected)
 
     def test_query_config(self):
-        t_env = self.t_env
-        query_config = t_env.query_config()
+        query_config = self.t_env.query_config()
 
         query_config.with_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
@@ -163,7 +161,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         assert query_config.get_max_idle_state_retention_time() == 2 * 24 * 3600 * 1000
         assert query_config.get_min_idle_state_retention_time() == 24 * 3600 * 1000
 
-    def test_table_config(self):
+    @staticmethod
+    def test_table_config():
 
         table_config = TableConfig.Builder()\
             .as_streaming_execution()\
@@ -178,7 +177,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         assert table_config.timezone() == "Asia/Shanghai"
         assert table_config.is_stream() is True
 
-    def test_create_table_environment(self):
+    @staticmethod
+    def test_create_table_environment():
         table_config = TableConfig.Builder()\
             .set_parallelism(2)\
             .set_max_generated_code_length(32000)\
