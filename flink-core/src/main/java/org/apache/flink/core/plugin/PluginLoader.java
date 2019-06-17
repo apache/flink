@@ -40,12 +40,20 @@ public class PluginLoader {
 	private final ClassLoader pluginClassLoader;
 
 	@VisibleForTesting
-	public PluginLoader(PluginDescriptor pluginDescriptor, ClassLoader parentClassLoader, String[] alwaysParentFirstPatterns) {
-		this.pluginClassLoader =
-			new ChildFirstClassLoader(
-				pluginDescriptor.getPluginResourceURLs(),
-				parentClassLoader,
-				ArrayUtils.concat(alwaysParentFirstPatterns, pluginDescriptor.getLoaderExcludePatterns()));
+	public PluginLoader(ClassLoader pluginClassLoader) {
+		this.pluginClassLoader = pluginClassLoader;
+	}
+
+	@VisibleForTesting
+	public static ClassLoader createPluginClassLoader(PluginDescriptor pluginDescriptor, ClassLoader parentClassLoader, String[] alwaysParentFirstPatterns) {
+		return new ChildFirstClassLoader(
+			pluginDescriptor.getPluginResourceURLs(),
+			parentClassLoader,
+			ArrayUtils.concat(alwaysParentFirstPatterns, pluginDescriptor.getLoaderExcludePatterns()));
+	}
+
+	public static PluginLoader create(PluginDescriptor pluginDescriptor, ClassLoader parentClassLoader, String[] alwaysParentFirstPatterns) {
+		return new PluginLoader(createPluginClassLoader(pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns));
 	}
 
 	/**
