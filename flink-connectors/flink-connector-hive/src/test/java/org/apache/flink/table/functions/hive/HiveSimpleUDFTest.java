@@ -21,12 +21,20 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.hadoop.hive.ql.udf.UDFBase64;
 import org.apache.hadoop.hive.ql.udf.UDFBin;
+import org.apache.hadoop.hive.ql.udf.UDFConv;
 import org.apache.hadoop.hive.ql.udf.UDFJson;
 import org.apache.hadoop.hive.ql.udf.UDFMinute;
 import org.apache.hadoop.hive.ql.udf.UDFRand;
+import org.apache.hadoop.hive.ql.udf.UDFRegExpExtract;
+import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
 import org.junit.Test;
+
+import java.io.UnsupportedEncodingException;
+import java.sql.Date;
+import java.sql.Timestamp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -35,7 +43,6 @@ import static org.junit.Assert.assertTrue;
  * Test for {@link HiveSimpleUDF}.
  */
 public class HiveSimpleUDFTest {
-
 	@Test
 	public void testUDFRand() {
 		HiveSimpleUDF udf = init(UDFRand.class, new DataType[0]);
@@ -53,7 +60,25 @@ public class HiveSimpleUDFTest {
 	}
 
 	@Test
+	public void testUDFConv() {
+		HiveSimpleUDF udf = init(
+			UDFConv.class,
+			new DataType[]{
+				DataTypes.STRING(),
+				DataTypes.INT(),
+				DataTypes.INT()
+			});
+
+		assertEquals("1", udf.eval("12", 2, 10));
+		assertEquals("-16", udf.eval(-10, 16, -10));
+	}
+
+	@Test
 	public void testUDFJson() {
+		String pattern = "$.owner";
+		String json = "{\"store\": \"test\", \"owner\": \"amy\"}";
+		String expected = "amy";
+
 		HiveSimpleUDF udf = init(
 			UDFJson.class,
 			new DataType[]{
@@ -61,7 +86,36 @@ public class HiveSimpleUDFTest {
 				DataTypes.STRING()
 			});
 
-		assertEquals("amy", udf.eval("{\"store\": \"test\", \"owner\": \"amy\"}", "$.owner"));
+		assertEquals(expected, udf.eval(json, pattern));
+
+		udf = init(
+			UDFJson.class,
+			new DataType[]{
+				DataTypes.CHAR(100),
+				DataTypes.CHAR(pattern.length())
+			});
+
+		assertEquals(expected, udf.eval(json, pattern));
+
+		udf = init(
+			UDFJson.class,
+			new DataType[]{
+				DataTypes.VARCHAR(100),
+				DataTypes.VARCHAR(pattern.length())
+			});
+
+		assertEquals(expected, udf.eval(json, pattern));
+
+		// Test invalid CHAR length
+		udf = init(
+			UDFJson.class,
+			new DataType[]{
+				DataTypes.CHAR(100),
+				DataTypes.CHAR(pattern.length() - 1) // shorter than pattern's length by 1
+			});
+
+		// Cannot find path "$.owne"
+		assertEquals(null, udf.eval(json, pattern));
 	}
 
 	@Test
@@ -73,6 +127,8 @@ public class HiveSimpleUDFTest {
 			});
 
 		assertEquals(17, udf.eval("1969-07-20 20:17:40"));
+		assertEquals(17, udf.eval(Timestamp.valueOf("1969-07-20 20:17:40")));
+		assertEquals(58, udf.eval("12:58:59"));
 	}
 
 	@Test
@@ -84,6 +140,44 @@ public class HiveSimpleUDFTest {
 			});
 
 		assertEquals(29, udf.eval("1969-07-20"));
+		assertEquals(29, udf.eval(Date.valueOf("1969-07-20")));
+		assertEquals(29, udf.eval(Timestamp.valueOf("1969-07-20 00:00:00")));
+		assertEquals(1, udf.eval("1980-12-31 12:59:59"));
+	}
+
+	@Test
+	public void testUDFRegExpExtract() {
+		HiveSimpleUDF udf = init(
+			UDFRegExpExtract.class,
+			new DataType[]{
+				DataTypes.STRING(),
+				DataTypes.STRING(),
+				DataTypes.INT()
+			});
+
+		assertEquals("100", udf.eval("100-200", "(\\d+)-(\\d+)", 1));
+	}
+
+	@Test
+	public void testUDFUnbase64() {
+		HiveSimpleUDF udf = init(
+			UDFBase64.class,
+			new DataType[]{
+				DataTypes.BYTES()
+			});
+
+		assertEquals("Cg==", udf.eval(new byte[] {10}));
+	}
+
+	@Test
+	public void testUDFUnhex() throws UnsupportedEncodingException {
+		HiveSimpleUDF udf = init(
+			UDFUnhex.class,
+			new DataType[]{
+				DataTypes.STRING()
+			});
+
+		assertEquals("MySQL", new String((byte[]) udf.eval("4D7953514C"), "UTF-8"));
 	}
 
 	private HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
