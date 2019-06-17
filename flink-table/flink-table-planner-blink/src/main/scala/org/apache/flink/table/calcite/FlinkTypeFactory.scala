@@ -392,7 +392,12 @@ object FlinkTypeFactory {
         // (in this case, null will be returned when executed in Blink runner),
         // so it infers VARCHAR(0).  But our `VarcharType` not allow precision 0.
         new VarCharType(Math.max(1, relDataType.getPrecision))
-      case BINARY => new BinaryType(relDataType.getPrecision)
+      case BINARY =>
+        if (relDataType.getPrecision == 0) {
+          BinaryType.ofEmptyLiteral
+        } else {
+          new BinaryType(relDataType.getPrecision)
+        }
       case VARBINARY => new VarBinaryType(Math.max(1, relDataType.getPrecision))
       case DECIMAL => new DecimalType(relDataType.getPrecision, relDataType.getScale)
 
