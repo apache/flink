@@ -30,6 +30,8 @@ import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit.{Assert, Ignore, Test}
 
+import java.sql.{Date, Timestamp}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -200,12 +202,11 @@ class CorrelateITCase extends BatchTestBase {
 
     val result = in
         .where('a === 1)
-        .select(UTCDate("1990-10-14") as 'x,
+        .select(Date.valueOf("1990-10-14") as 'x,
                 1000L as 'y,
-                UTCTimestamp("1990-10-14 12:10:10") as 'z)
+                Timestamp.valueOf("1990-10-14 12:10:10") as 'z)
         .joinLateral(func0('x, 'y, 'z) as 's)
         .select('s)
-
 
     val results = executeQuery(result)
     val expected = "1000\n" + "655906210000\n" + "7591\n"

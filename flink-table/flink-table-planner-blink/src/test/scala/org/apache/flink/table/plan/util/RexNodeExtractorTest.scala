@@ -28,9 +28,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREA
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.util.InputTypeBuilder.inputOf
-import org.apache.flink.table.util.IntSumAggFunction
+import org.apache.flink.table.util.{DateTimeTestUtil, IntSumAggFunction}
 
-import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlPostfixOperator
@@ -432,10 +431,9 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       relBuilder,
       functionCatalog)
 
-    val timestamp = new Timestamp(DateTimeUtils.timestampStringToUnixDate("2017-09-10 14:23:01"))
-    val date = new Date(
-      DateTimeUtils.dateStringToUnixDate("2017-09-12") * DateTimeUtils.MILLIS_PER_DAY)
-    val time = new Time(DateTimeUtils.timeStringToUnixDate("14:23:01").longValue())
+    val timestamp = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01")
+    val date = DateTimeTestUtil.localDate("2017-09-12")
+    val time = DateTimeTestUtil.localTime("14:23:01")
 
     {
       val expected = Array[Expression](
@@ -454,7 +452,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       val expected = Array[Expression](
         EqualTo(
           UnresolvedFieldReference("timestamp_col"),
-          Literal(timestamp)
+          Literal(Timestamp.valueOf("2017-09-10 14:23:01"))
         ),
         EqualTo(
           UnresolvedFieldReference("date_col"),

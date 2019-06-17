@@ -304,7 +304,7 @@ class StreamExecGroupWindowAggregate(
     val builder = WindowOperatorBuilder
       .builder()
       .withInputFields(inputFields.toArray)
-    val timeZoneOffset = -config.getTimeZone.getOffset(Calendar.ZONE_OFFSET)
+    val timeZoneOffset = 0
 
     val newBuilder = window match {
       case TumblingGroupWindow(_, timeField, size)

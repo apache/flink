@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.batch.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, LocalTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.expressions.utils.Func1
@@ -28,7 +28,6 @@ import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
-import java.sql.{Date, Time, Timestamp}
 import java.util.TimeZone
 
 class TableSourceTest extends TableTestBase {
@@ -155,18 +154,18 @@ class TableSourceTest extends TableTestBase {
     val rowTypeInfo = new RowTypeInfo(
       Array[TypeInformation[_]](
         BasicTypeInfo.INT_TYPE_INFO,
-        SqlTimeTypeInfo.DATE,
-        SqlTimeTypeInfo.TIME,
-        SqlTimeTypeInfo.TIMESTAMP
+        LocalTimeTypeInfo.LOCAL_DATE,
+        LocalTimeTypeInfo.LOCAL_TIME,
+        LocalTimeTypeInfo.LOCAL_DATE_TIME
       ),
       Array("id", "dv", "tv", "tsv")
     )
 
     val row = new Row(4)
     row.setField(0, 1)
-    row.setField(1, Date.valueOf("2017-01-23"))
-    row.setField(2, Time.valueOf("14:23:02"))
-    row.setField(3, Timestamp.valueOf("2017-01-24 12:45:01.234"))
+    row.setField(1, DateTimeTestUtil.localDate("2017-01-23"))
+    row.setField(2, DateTimeTestUtil.localTime("14:23:02"))
+    row.setField(3, DateTimeTestUtil.localDateTime("2017-01-24 12:45:01.234"))
 
     val tableSource = TestFilterableTableSource(
       isBatch = true, rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))

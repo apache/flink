@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 import java.sql.{Date, Time, Timestamp}
+import java.time.{LocalDate, LocalTime => jLocalTime, LocalDateTime}
 import java.util.{Calendar, TimeZone}
 
 object Literal {
@@ -41,6 +42,9 @@ object Literal {
     case sqlDate: Date => Literal(sqlDate, SqlTimeTypeInfo.DATE)
     case sqlTime: Time => Literal(sqlTime, SqlTimeTypeInfo.TIME)
     case sqlTimestamp: Timestamp => Literal(sqlTimestamp, SqlTimeTypeInfo.TIMESTAMP)
+    case localDate: LocalDate => Literal(localDate, LocalTimeTypeInfo.LOCAL_DATE)
+    case localTime: jLocalTime => Literal(localTime, LocalTimeTypeInfo.LOCAL_TIME)
+    case localDateTime: LocalDateTime => Literal(localDateTime, LocalTimeTypeInfo.LOCAL_DATE_TIME)
   }
 }
 

@@ -20,13 +20,11 @@ package org.apache.flink.table.runtime.window.grouping;
 import org.apache.flink.table.api.window.TimeWindow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.util.RowIterator;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -385,7 +383,7 @@ public class HeapWindowsGroupingTest {
 			if (assignedWindowStart.get(count) == null) {
 				writer.setNullAt(0);
 			} else {
-				writer.writeLong(0, SqlDateTimeUtils.timestampToInternal(new Timestamp(assignedWindowStart.get(count))));
+				writer.writeLong(0, assignedWindowStart.get(count));
 			}
 			writer.complete();
 			count++;

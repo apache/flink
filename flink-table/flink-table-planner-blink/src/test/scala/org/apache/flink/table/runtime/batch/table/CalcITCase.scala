@@ -26,7 +26,6 @@ import org.apache.flink.table.expressions.utils.{Func13, RichFunc1, RichFunc2, R
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.util.DateTimeTestUtil.{UTCDate, UTCTime, UTCTimestamp}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
@@ -34,7 +33,7 @@ import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.{Before, Ignore, Test}
 
-import java.sql.Timestamp
+import java.sql.{Date, Time, Timestamp}
 import java.util
 
 import scala.collection.JavaConverters._
@@ -287,19 +286,19 @@ class CalcITCase extends BatchTestBase {
     val bd2 = BigDecimal("4E+16").bigDecimal
 
     val t = BatchTableEnvUtil.fromCollection(tEnv,
-      Seq(
-        (bd1, bd2, UTCDate("1984-07-12"), UTCTime("14:34:24"), UTCTimestamp("1984-07-12 14:34:24"))
-      ), "_1, _2, _3, _4, _5")
-      .select('_1, '_2, '_3, '_4, '_5, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
-        UTCDate("1984-07-12"), UTCTime("14:34:24"),
-        UTCTimestamp("1984-07-12 14:34:24"))
+      Seq((bd1, bd2, Date.valueOf("1984-07-12"),
+          Time.valueOf("14:34:24"),
+          Timestamp.valueOf("1984-07-12 14:34:24"))), "_1, _2, _3, _4, _5")
+        .select('_1, '_2, '_3, '_4, '_5, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
+          Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
+          Timestamp.valueOf("1984-07-12 14:34:24"))
 
     // inferred Decimal(p,s) from BigDecimal.class
     val bd1x = bd1.setScale(Decimal.DECIMAL_SYSTEM_DEFAULT.getScale)
     val bd2x = bd2.setScale(Decimal.DECIMAL_SYSTEM_DEFAULT.getScale)
 
-    val expected = s"$bd1x,$bd2x,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
-      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
+    val expected = s"$bd1x,$bd2x,1984-07-12,14:34:24,1984-07-12T14:34:24," +
+      "11.2,11.2,1984-07-12,14:34:24,1984-07-12T14:34:24"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -568,7 +567,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testValueConstructor(): Unit = {
     val data = new mutable.MutableList[(String, Int, Timestamp)]
-    data.+=(("foo", 12, UTCTimestamp("1984-07-12 14:34:24")))
+    data.+=(("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24")))
     val t = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c").select(
       row('a, 'b, 'c),
       array(12, 'b),

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
@@ -147,8 +147,9 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testLongAndTemporalTypes(): Unit = {
     registerCollection("myT", Seq(
-      row(UTCDate("1990-10-14"), 1000L, UTCTimestamp("1990-10-14 12:10:10"))),
-      new RowTypeInfo(SqlTimeTypeInfo.DATE, LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP),
+      row(localDate("1990-10-14"), 1000L, localDateTime("1990-10-14 12:10:10"))),
+      new RowTypeInfo(LocalTimeTypeInfo.LOCAL_DATE,
+        LONG_TYPE_INFO, LocalTimeTypeInfo.LOCAL_DATE_TIME),
       "x, y, z")
     registerFunction("func", new JavaTableFunc0)
     checkResult(

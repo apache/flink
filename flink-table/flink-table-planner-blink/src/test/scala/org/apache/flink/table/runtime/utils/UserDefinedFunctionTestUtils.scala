@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.runtime.utils
 
-import java.lang.{Iterable => JIterable}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1, Tuple2}
+import org.apache.flink.api.java.typeutils.{ListTypeInfo, PojoField, PojoTypeInfo, RowTypeInfo}
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
-import com.google.common.base.Charsets
-import com.google.common.io.Files
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{ListTypeInfo, PojoField, PojoTypeInfo, RowTypeInfo}
-import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
 
+import com.google.common.base.Charsets
+import com.google.common.io.Files
+
 import java.io.File
-import java.sql.Timestamp
+import java.lang.{Iterable => JIterable}
+import java.sql.{Date, Timestamp}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicInteger
@@ -200,10 +202,27 @@ object UserDefinedFunctionTestUtils {
   }
 
   object DateFunction extends ScalarFunction {
-    def eval(d: Integer): Integer = d
+    def eval(d: Date): String = d.toString
+  }
 
-    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
-      SqlTimeTypeInfo.DATE
+  object LocalDateFunction extends ScalarFunction {
+    def eval(d: LocalDate): String = d.toString
+  }
+
+  object TimestampFunction extends ScalarFunction {
+    def eval(t: java.sql.Timestamp): String = t.toString
+  }
+
+  object DateTimeFunction extends ScalarFunction {
+    def eval(t: LocalDateTime): String = t.toString
+  }
+
+  object TimeFunction extends ScalarFunction {
+    def eval(t: java.sql.Time): String = t.toString
+  }
+
+  object LocalTimeFunction extends ScalarFunction {
+    def eval(t: LocalTime): String = t.toString
   }
 
   // Understand type: Row wrapped as TypeInfoWrappedDataType.

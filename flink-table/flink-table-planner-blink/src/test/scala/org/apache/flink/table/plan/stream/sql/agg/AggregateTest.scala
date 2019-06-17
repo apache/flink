@@ -38,7 +38,7 @@ class AggregateTest extends TableTestBase {
   util.addTableSource("MyTable1",
     Array[TypeInformation[_]](
       Types.BYTE, Types.SHORT, Types.INT, Types.LONG, Types.FLOAT, Types.DOUBLE, Types.BOOLEAN,
-      Types.STRING, Types.SQL_DATE, Types.SQL_TIME, Types.SQL_TIMESTAMP,
+      Types.STRING, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME,
       DecimalTypeInfo.of(30, 20), DecimalTypeInfo.of(10, 5)),
     Array("byte", "short", "int", "long", "float", "double", "boolean",
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))

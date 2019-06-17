@@ -53,9 +53,13 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -63,6 +67,7 @@ import scala.Product;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Converters between internal data format and java format.
@@ -76,6 +81,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  * In sink, data from internal sql engine need to be provided to user define sink.
  */
 public class DataFormatConverters {
+
+	public static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault();
 
 	private static final Map<DataType, DataFormatConverter> TYPE_TO_CONVERTER;
 	static {
@@ -102,15 +109,15 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TINYINT().bridgedTo(Byte.class), ByteConverter.INSTANCE);
 		t2C.put(DataTypes.TINYINT().bridgedTo(byte.class), ByteConverter.INSTANCE);
 
-		t2C.put(DataTypes.DATE().bridgedTo(Date.class), DateConverter.INSTANCE);
+		t2C.put(DataTypes.DATE().bridgedTo(LocalDate.class), LocalDateConverter.INSTANCE);
 		t2C.put(DataTypes.DATE().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.DATE().bridgedTo(int.class), IntConverter.INSTANCE);
 
-		t2C.put(DataTypes.TIME().bridgedTo(Time.class), TimeConverter.INSTANCE);
+		t2C.put(DataTypes.TIME().bridgedTo(LocalTime.class), LocalTimeConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(int.class), IntConverter.INSTANCE);
 
-		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), TimestampConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), LocalDateTimeConverter.INSTANCE);
 
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
@@ -128,8 +135,21 @@ public class DataFormatConverters {
 	 *                   lost its specific Java format. Only DataType retains all its
 	 *                   Java format information.
 	 */
-	@SuppressWarnings("unchecked")
+	@Deprecated
 	public static DataFormatConverter getConverterForDataType(DataType originDataType) {
+		return getConverterForDataType(originDataType, new Context(DEFAULT_TIME_ZONE));
+	}
+
+	/**
+	 * Get {@link DataFormatConverter} for {@link DataType}.
+	 *
+	 * @param originDataType DataFormatConverter is oriented to Java format, while LogicalType has
+	 *                   lost its specific Java format. Only DataType retains all its
+	 *                   Java format information.
+	 * @param context context for converter.
+	 */
+	@SuppressWarnings("unchecked")
+	public static DataFormatConverter getConverterForDataType(DataType originDataType, Context context) {
 		DataType dataType = originDataType.nullable();
 		DataFormatConverter converter = TYPE_TO_CONVERTER.get(dataType);
 		if (converter != null) {
@@ -176,20 +196,20 @@ public class DataFormatConverters {
 				}
 				if (dataType instanceof CollectionDataType) {
 					return new ObjectArrayConverter(
-							((CollectionDataType) dataType).getElementDataType().bridgedTo(clazz.getComponentType()));
+							((CollectionDataType) dataType).getElementDataType().bridgedTo(clazz.getComponentType()), context);
 				} else {
 					BasicArrayTypeInfo typeInfo =
 							(BasicArrayTypeInfo) ((LegacyTypeInformationType) dataType.getLogicalType()).getTypeInformation();
 					return new ObjectArrayConverter(
 							fromLegacyInfoToDataType(typeInfo.getComponentInfo())
-									.bridgedTo(clazz.getComponentType()));
+									.bridgedTo(clazz.getComponentType()), context);
 				}
 			case MAP:
 				if (clazz == BinaryMap.class) {
 					return BinaryMapConverter.INSTANCE;
 				}
 				KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;
-				return new MapConverter(keyValueDataType.getKeyDataType(), keyValueDataType.getValueDataType());
+				return new MapConverter(keyValueDataType.getKeyDataType(), keyValueDataType.getValueDataType(), context);
 			case MULTISET:
 				if (clazz == BinaryMap.class) {
 					return BinaryMapConverter.INSTANCE;
@@ -197,7 +217,7 @@ public class DataFormatConverters {
 				CollectionDataType collectionDataType = (CollectionDataType) dataType;
 				return new MapConverter(
 						collectionDataType.getElementDataType(),
-						DataTypes.INT().bridgedTo(Integer.class));
+						DataTypes.INT().bridgedTo(Integer.class), context);
 			case ROW:
 			case STRUCTURED_TYPE:
 				CompositeType compositeType = (CompositeType) fromDataTypeToLegacyInfo(dataType);
@@ -207,13 +227,13 @@ public class DataFormatConverters {
 				if (clazz == BaseRow.class) {
 					return new BaseRowConverter(compositeType.getArity());
 				} else if (clazz == Row.class) {
-					return new RowConverter(fieldTypes);
+					return new RowConverter(fieldTypes, context);
 				} else if (Tuple.class.isAssignableFrom(clazz)) {
-					return new TupleConverter((Class<Tuple>) clazz, fieldTypes);
+					return new TupleConverter((Class<Tuple>) clazz, fieldTypes, context);
 				} else if (Product.class.isAssignableFrom(clazz)) {
-					return new CaseClassConverter((TupleTypeInfoBase) compositeType, fieldTypes);
+					return new CaseClassConverter((TupleTypeInfoBase) compositeType, fieldTypes, context);
 				} else {
-					return new PojoConverter((PojoTypeInfo) compositeType, fieldTypes);
+					return new PojoConverter((PojoTypeInfo) compositeType, fieldTypes, context);
 				}
 			case ANY:
 				TypeInformation typeInfo = logicalType instanceof LegacyTypeInformationType ?
@@ -235,6 +255,15 @@ public class DataFormatConverters {
 					return BinaryGenericConverter.INSTANCE;
 				}
 				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+			case DATE:
+				checkArgument(dataType.getConversionClass() == Date.class);
+				return new DateConverter(context.timeZone);
+			case TIME_WITHOUT_TIME_ZONE:
+				checkArgument(dataType.getConversionClass() == Time.class);
+				return new TimeConverter(context.timeZone);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				checkArgument(dataType.getConversionClass() == Timestamp.class);
+				return new TimestampConverter(context.timeZone);
 			default:
 				throw new RuntimeException("Not support dataType: " + dataType);
 		}
@@ -626,24 +655,107 @@ public class DataFormatConverters {
 	}
 
 	/**
+	 * Converter for LocalDate.
+	 */
+	public static final class LocalDateConverter extends DataFormatConverter<Integer, LocalDate> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final LocalDateConverter INSTANCE = new LocalDateConverter();
+
+		private LocalDateConverter() {}
+
+		@Override
+		Integer toInternalImpl(LocalDate value) {
+			return SqlDateTimeUtils.localDateToUnixDate(value);
+		}
+
+		@Override
+		LocalDate toExternalImpl(Integer value) {
+			return SqlDateTimeUtils.unixDateToLocalDate(value);
+		}
+
+		@Override
+		LocalDate toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getInt(column));
+		}
+	}
+
+	/**
+	 * Converter for LocalTime.
+	 */
+	public static final class LocalTimeConverter extends DataFormatConverter<Integer, LocalTime> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final LocalTimeConverter INSTANCE = new LocalTimeConverter();
+
+		private LocalTimeConverter() {}
+
+		@Override
+		Integer toInternalImpl(LocalTime value) {
+			return SqlDateTimeUtils.localTimeToUnixDate(value);
+		}
+
+		@Override
+		LocalTime toExternalImpl(Integer value) {
+			return SqlDateTimeUtils.unixTimeToLocalTime(value);
+		}
+
+		@Override
+		LocalTime toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getInt(column));
+		}
+	}
+
+	/**
+	 * Converter for LocalDateTime.
+	 */
+	public static final class LocalDateTimeConverter extends DataFormatConverter<Long, LocalDateTime> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final LocalDateTimeConverter INSTANCE = new LocalDateTimeConverter();
+
+		private LocalDateTimeConverter() {}
+
+		@Override
+		Long toInternalImpl(LocalDateTime value) {
+			return SqlDateTimeUtils.localDateTimeToUnixTimestamp(value);
+		}
+
+		@Override
+		LocalDateTime toExternalImpl(Long value) {
+			return SqlDateTimeUtils.unixTimestampToLocalDateTime(value);
+		}
+
+		@Override
+		LocalDateTime toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getLong(column));
+		}
+	}
+
+	/**
 	 * Converter for date.
 	 */
 	public static final class DateConverter extends DataFormatConverter<Integer, Date> {
 
 		private static final long serialVersionUID = 1343457113582411650L;
 
-		public static final DateConverter INSTANCE = new DateConverter();
+		private final TimeZone zone;
 
-		private DateConverter() {}
+		public DateConverter(TimeZone zone) {
+			this.zone = zone;
+		}
 
 		@Override
 		Integer toInternalImpl(Date value) {
-			return SqlDateTimeUtils.dateToInternal(value);
+			return SqlDateTimeUtils.dateToInternal(value, zone);
 		}
 
 		@Override
 		Date toExternalImpl(Integer value) {
-			return SqlDateTimeUtils.internalToDate(value);
+			return SqlDateTimeUtils.internalToDate(value, zone);
 		}
 
 		@Override
@@ -659,18 +771,20 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -8061475784916442483L;
 
-		public static final TimeConverter INSTANCE = new TimeConverter();
+		private final TimeZone zone;
 
-		private TimeConverter() {}
+		public TimeConverter(TimeZone zone) {
+			this.zone = zone;
+		}
 
 		@Override
 		Integer toInternalImpl(Time value) {
-			return SqlDateTimeUtils.timeToInternal(value);
+			return SqlDateTimeUtils.timeToInternal(value, zone);
 		}
 
 		@Override
 		Time toExternalImpl(Integer value) {
-			return SqlDateTimeUtils.internalToTime(value);
+			return SqlDateTimeUtils.internalToTime(value, zone);
 		}
 
 		@Override
@@ -686,18 +800,20 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -779956524906131757L;
 
-		public static final TimestampConverter INSTANCE = new TimestampConverter();
+		private final TimeZone zone;
 
-		private TimestampConverter() {}
+		public TimestampConverter(TimeZone zone) {
+			this.zone = zone;
+		}
 
 		@Override
 		Long toInternalImpl(Timestamp value) {
-			return SqlDateTimeUtils.timestampToInternal(value);
+			return SqlDateTimeUtils.timestampToInternal(value, zone);
 		}
 
 		@Override
 		Timestamp toExternalImpl(Long value) {
-			return SqlDateTimeUtils.internalToTimestamp(value);
+			return SqlDateTimeUtils.internalToTimestamp(value, zone);
 		}
 
 		@Override
@@ -902,10 +1018,10 @@ public class DataFormatConverters {
 		private transient BinaryArray reuseArray;
 		private transient BinaryArrayWriter reuseWriter;
 
-		public ObjectArrayConverter(DataType elementType) {
+		public ObjectArrayConverter(DataType elementType, Context context) {
 			this.componentClass = (Class) elementType.getConversionClass();
 			this.elementType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(elementType);
-			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
+			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType, context);
 			this.elementSize = BinaryArray.calculateFixLengthPartSize(this.elementType);
 			this.eleSer = InternalSerializers.create(this.elementType, new ExecutionConfig());
 			this.isEleIndentity = elementConverter instanceof IdentityConverter;
@@ -1020,11 +1136,11 @@ public class DataFormatConverters {
 		private transient BinaryArray reuseVArray;
 		private transient BinaryArrayWriter reuseVWriter;
 
-		public MapConverter(DataType keyTypeInfo, DataType valueTypeInfo) {
+		public MapConverter(DataType keyTypeInfo, DataType valueTypeInfo, Context context) {
 			this.keyType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(keyTypeInfo);
 			this.valueType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(valueTypeInfo);
-			this.keyConverter = DataFormatConverters.getConverterForDataType(keyTypeInfo);
-			this.valueConverter = DataFormatConverters.getConverterForDataType(valueTypeInfo);
+			this.keyConverter = DataFormatConverters.getConverterForDataType(keyTypeInfo, context);
+			this.valueConverter = DataFormatConverters.getConverterForDataType(valueTypeInfo, context);
 			this.keyElementSize = BinaryArray.calculateFixLengthPartSize(keyType);
 			this.valueElementSize = BinaryArray.calculateFixLengthPartSize(valueType);
 			this.keyComponentClass = keyTypeInfo.getConversionClass();
@@ -1105,10 +1221,10 @@ public class DataFormatConverters {
 
 		protected final DataFormatConverter[] converters;
 
-		public AbstractBaseRowConverter(DataType[] fieldTypes) {
+		public AbstractBaseRowConverter(DataType[] fieldTypes, Context context) {
 			converters = new DataFormatConverter[fieldTypes.length];
 			for (int i = 0; i < converters.length; i++) {
-				converters[i] = getConverterForDataType(fieldTypes[i]);
+				converters[i] = getConverterForDataType(fieldTypes[i], context);
 			}
 		}
 
@@ -1144,8 +1260,8 @@ public class DataFormatConverters {
 		private final PojoTypeInfo<T> t;
 		private final PojoField[] fields;
 
-		public PojoConverter(PojoTypeInfo<T> t, DataType[] fieldTypes) {
-			super(fieldTypes);
+		public PojoConverter(PojoTypeInfo<T> t, DataType[] fieldTypes, Context context) {
+			super(fieldTypes, context);
 			this.fields = new PojoField[t.getArity()];
 			for (int i = 0; i < t.getArity(); i++) {
 				fields[i] = t.getPojoFieldAt(i);
@@ -1189,8 +1305,8 @@ public class DataFormatConverters {
 
 		private static final long serialVersionUID = -56553502075225785L;
 
-		public RowConverter(DataType[] fieldTypes) {
-			super(fieldTypes);
+		public RowConverter(DataType[] fieldTypes, Context context) {
+			super(fieldTypes, context);
 		}
 
 		@Override
@@ -1221,8 +1337,8 @@ public class DataFormatConverters {
 
 		private final Class<Tuple> clazz;
 
-		public TupleConverter(Class<Tuple> clazz, DataType[] fieldTypes) {
-			super(fieldTypes);
+		public TupleConverter(Class<Tuple> clazz, DataType[] fieldTypes, Context context) {
+			super(fieldTypes, context);
 			this.clazz = clazz;
 		}
 
@@ -1260,8 +1376,8 @@ public class DataFormatConverters {
 		private final TupleTypeInfoBase t;
 		private final TupleSerializerBase serializer;
 
-		public CaseClassConverter(TupleTypeInfoBase t, DataType[] fieldTypes) {
-			super(fieldTypes);
+		public CaseClassConverter(TupleTypeInfoBase t, DataType[] fieldTypes, Context context) {
+			super(fieldTypes, context);
 			this.t = t;
 			this.serializer = (TupleSerializerBase) t.createSerializer(new ExecutionConfig());
 		}
@@ -1282,6 +1398,18 @@ public class DataFormatConverters {
 				fields[i] = converters[i].toExternal(value, i);
 			}
 			return (Product) serializer.createInstance(fields);
+		}
+	}
+
+	/**
+	 * Context for {@link DataFormatConverter}, now just contains time zone.
+	 */
+	public static class Context implements Serializable{
+
+		private TimeZone timeZone;
+
+		public Context(TimeZone timeZone) {
+			this.timeZone = timeZone;
 		}
 	}
 }

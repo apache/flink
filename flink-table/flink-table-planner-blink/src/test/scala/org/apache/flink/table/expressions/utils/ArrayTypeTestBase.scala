@@ -32,7 +32,7 @@ abstract class ArrayTypeTestBase extends ExpressionTestBase {
     testData.setField(0, null)
     testData.setField(1, 42)
     testData.setField(2, Array(1, 2, 3))
-    testData.setField(3, Array(UTCDate("1984-03-12"), UTCDate("1984-02-10")))
+    testData.setField(3, Array(localDate("1984-03-12"), localDate("1984-02-10")))
     testData.setField(4, null)
     testData.setField(5, Array(Array(1, 2, 3), null))
     testData.setField(6, Array[Integer](1, null, null, 4))
@@ -49,7 +49,7 @@ abstract class ArrayTypeTestBase extends ExpressionTestBase {
       /* 0 */  Types.INT,
       /* 1 */  Types.INT,
       /* 2 */  PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      /* 3 */  ObjectArrayTypeInfo.getInfoFor(Types.SQL_DATE),
+      /* 3 */  ObjectArrayTypeInfo.getInfoFor(Types.LOCAL_DATE),
       /* 4 */  ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
       /* 5 */  ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
       /* 6 */  ObjectArrayTypeInfo.getInfoFor(Types.INT),
