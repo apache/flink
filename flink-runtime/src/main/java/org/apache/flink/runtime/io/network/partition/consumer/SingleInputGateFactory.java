@@ -50,10 +50,10 @@ import static org.apache.flink.runtime.shuffle.ShuffleUtils.applyWithShuffleType
  * Factory for {@link SingleInputGate} to use in {@link NettyShuffleEnvironment}.
  */
 public class SingleInputGateFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGate.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGateFactory.class);
 
 	@Nonnull
-	private final ResourceID taskExecutorLocation;
+	private final ResourceID taskExecutorResourceId;
 
 	private final boolean isCreditBased;
 
@@ -78,13 +78,13 @@ public class SingleInputGateFactory {
 	private final int floatingNetworkBuffersPerGate;
 
 	public SingleInputGateFactory(
-			@Nonnull ResourceID taskExecutorLocation,
+			@Nonnull ResourceID taskExecutorResourceId,
 			@Nonnull NettyShuffleEnvironmentConfiguration networkConfig,
 			@Nonnull ConnectionManager connectionManager,
 			@Nonnull ResultPartitionManager partitionManager,
 			@Nonnull TaskEventPublisher taskEventPublisher,
 			@Nonnull NetworkBufferPool networkBufferPool) {
-		this.taskExecutorLocation = taskExecutorLocation;
+		this.taskExecutorResourceId = taskExecutorResourceId;
 		this.isCreditBased = networkConfig.isCreditBased();
 		this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
 		this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
@@ -194,7 +194,7 @@ public class SingleInputGateFactory {
 			ChannelStatistics channelStatistics,
 			InputChannelMetrics metrics) {
 		ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
-		if (inputChannelDescriptor.isLocalTo(taskExecutorLocation)) {
+		if (inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
 			// Consuming task is deployed to the same TaskManager as the partition => local
 			channelStatistics.numLocalChannels++;
 			return new LocalInputChannel(
@@ -241,9 +241,9 @@ public class SingleInputGateFactory {
 	}
 
 	private static class ChannelStatistics {
-		int numLocalChannels = 0;
-		int numRemoteChannels = 0;
-		int numUnknownChannels = 0;
+		int numLocalChannels;
+		int numRemoteChannels;
+		int numUnknownChannels;
 
 		@Override
 		public String toString() {
