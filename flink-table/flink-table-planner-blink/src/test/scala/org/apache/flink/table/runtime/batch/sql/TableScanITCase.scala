@@ -18,20 +18,22 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.util.TestTableSourceWithTime
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
-import java.sql.Timestamp
 
 import scala.collection.JavaConversions._
 
@@ -75,7 +77,7 @@ class TableScanITCase extends BatchTestBase {
   def testProctimeTableSource(): Unit = {
     val tableName = "MyTable"
     val data = Seq("Mary", "Peter", "Bob", "Liz")
-    val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.SQL_TIMESTAMP))
+    val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(true, schema, returnType, data, null, "ptime")
@@ -95,15 +97,15 @@ class TableScanITCase extends BatchTestBase {
   def testRowtimeTableSource(): Unit = {
     val tableName = "MyTable"
     val data = Seq(
-      row("Mary", new Timestamp(1L), new JInt(10)),
-      row("Bob", new Timestamp(2L), new JInt(20)),
-      row("Mary", new Timestamp(2L), new JInt(30)),
-      row("Liz", new Timestamp(2001L), new JInt(40)))
+      row("Mary", unixTimestampToLocalDateTime(1L), new JInt(10)),
+      row("Bob", unixTimestampToLocalDateTime(2L), new JInt(20)),
+      row("Mary", unixTimestampToLocalDateTime(2L), new JInt(30)),
+      row("Liz", unixTimestampToLocalDateTime(2001L), new JInt(40)))
 
     val fieldNames = Array("name", "rtime", "amount")
-    val schema = new TableSchema(fieldNames, Array(Types.STRING, Types.SQL_TIMESTAMP, Types.INT))
+    val schema = new TableSchema(fieldNames, Array(Types.STRING, LOCAL_DATE_TIME, Types.INT))
     val rowType = new RowTypeInfo(
-      Array(Types.STRING, Types.SQL_TIMESTAMP, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      Array(Types.STRING, LOCAL_DATE_TIME, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(true, schema, rowType, data, "rtime", null)
@@ -112,10 +114,10 @@ class TableScanITCase extends BatchTestBase {
     checkResult(
       s"SELECT * FROM $tableName",
       Seq(
-        row("Mary", new Timestamp(1L), new JInt(10)),
-        row("Mary", new Timestamp(2L), new JInt(30)),
-        row("Bob", new Timestamp(2L), new JInt(20)),
-        row("Liz", new Timestamp(2001L), new JInt(40)))
+        row("Mary", unixTimestampToLocalDateTime(1L), new JInt(10)),
+        row("Mary", unixTimestampToLocalDateTime(2L), new JInt(30)),
+        row("Bob", unixTimestampToLocalDateTime(2L), new JInt(20)),
+        row("Liz", unixTimestampToLocalDateTime(2001L), new JInt(40)))
     )
   }
 

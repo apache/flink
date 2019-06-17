@@ -58,7 +58,7 @@ abstract class AggregateReduceGroupingTestBase extends TableTestBase {
         .build()
     )
     util.addTableSource("T4",
-      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.SQL_TIMESTAMP),
+      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.LOCAL_DATE_TIME),
       Array("a4", "b4", "c4", "d4"),
       FlinkStatistic.builder()
         .tableStats(new TableStats(100000000))

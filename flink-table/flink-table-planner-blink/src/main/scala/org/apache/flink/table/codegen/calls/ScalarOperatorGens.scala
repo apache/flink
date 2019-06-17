@@ -775,8 +775,7 @@ object ScalarOperatorGens {
     case (_, VARCHAR | CHAR) if TypeCheckUtils.isTimePoint(operand.resultType) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         operandTerm =>
-          val zoneTerm = ctx.addReusableTimeZone()
-          s"${internalToStringCode(operand.resultType, operandTerm.head, zoneTerm)}"
+          s"${localTimeToStringCode(operand.resultType, operandTerm.head)}"
       }
 
     // Interval Months -> String
@@ -899,9 +898,9 @@ object ScalarOperatorGens {
         operand, 
         resultNullable = true) {
         operandTerm =>
-          val zoneTerm = ctx.addReusableTimeZone()
-          s"""${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString(),
-             | $zoneTerm)""".stripMargin
+          s"""
+             |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
+           """.stripMargin
       }
 
     // String -> binary
@@ -1656,8 +1655,7 @@ object ScalarOperatorGens {
     val typeTerm = primitiveTypeTermForType(expectType)
     val defaultTerm = primitiveDefaultValue(expectType)
     val term = newName("stringToTime")
-    val zoneTerm = ctx.addReusableTimeZone()
-    val code = stringToInternalCode(expectType, rightTerm, zoneTerm)
+    val code = stringToLocalTimeCode(expectType, rightTerm)
     val stmt = s"$typeTerm $term = ${stringLiteral.nullTerm} ? $defaultTerm : $code;"
     ctx.addReusableMember(stmt)
     stringLiteral.copy(resultType = expectType, resultTerm = term)
@@ -2087,32 +2085,31 @@ object ScalarOperatorGens {
     }
   }
 
-  private def stringToInternalCode(
+  private def stringToLocalTimeCode(
       targetType: LogicalType,
-      operandTerm: String,
-      zoneTerm: String): String =
+      operandTerm: String): String =
     targetType.getTypeRoot match {
       case DATE =>
         s"${qualifyMethod(BuiltInMethod.STRING_TO_DATE.method)}($operandTerm.toString())"
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethod.STRING_TO_TIME.method)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        s"""${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString(),
-           | $zoneTerm)""".stripMargin
+        s"""
+           |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
+           |""".stripMargin
       case _ => throw new UnsupportedOperationException
     }
 
-  private def internalToStringCode(
+  private def localTimeToStringCode(
       fromType: LogicalType,
-      operandTerm: String,
-      zoneTerm: String): String =
+      operandTerm: String): String =
     fromType.getTypeRoot match {
       case DATE =>
         s"${qualifyMethod(BuiltInMethod.UNIX_DATE_TO_STRING.method)}($operandTerm)"
       case TIME_WITHOUT_TIME_ZONE =>
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
-        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, 3, $zoneTerm)"
+        s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, 3)"
     }
 
 }

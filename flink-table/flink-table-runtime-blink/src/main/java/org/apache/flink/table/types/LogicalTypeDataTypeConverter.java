@@ -38,10 +38,6 @@ import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -50,7 +46,6 @@ import static org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromType
 
 /**
  * Converter between {@link DataType} and {@link LogicalType}.
- * TODO change TimestampType default conversion class to {@link LocalDateTime} from {@link Timestamp}.
  *
  * <p>This class is for:
  * 1.Source, Sink.
@@ -60,34 +55,8 @@ import static org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromType
 @Deprecated
 public class LogicalTypeDataTypeConverter {
 
-	/**
-	 * DATE, TIME, TIMESTAMP use {@link Timestamp} instead of {@link LocalDateTime}.
-	 */
 	public static DataType fromLogicalTypeToDataType(LogicalType logicalType) {
-		DataType dataType = TypeConversions.fromLogicalToDataType(logicalType);
-		switch (logicalType.getTypeRoot()) {
-			case DATE:
-				return dataType.bridgedTo(Date.class);
-			case TIME_WITHOUT_TIME_ZONE:
-				return dataType.bridgedTo(Time.class);
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return dataType.bridgedTo(Timestamp.class);
-			case ARRAY:
-				return DataTypes.ARRAY(fromLogicalTypeToDataType(logicalType.getChildren().get(0)));
-			case MAP:
-				return DataTypes.MAP(
-						fromLogicalTypeToDataType(logicalType.getChildren().get(0)),
-						fromLogicalTypeToDataType(logicalType.getChildren().get(1)));
-			case MULTISET:
-				return DataTypes.MULTISET(fromLogicalTypeToDataType(logicalType.getChildren().get(0)));
-			case ROW:
-				RowType rowType = (RowType) logicalType;
-				return DataTypes.ROW(rowType.getFields().stream()
-						.map(rowField -> DataTypes.FIELD(rowField.getName(), fromLogicalTypeToDataType(rowField.getType())))
-						.toArray(DataTypes.Field[]::new));
-			default:
-				return dataType;
-		}
+		return TypeConversions.fromLogicalToDataType(logicalType);
 	}
 
 	/**

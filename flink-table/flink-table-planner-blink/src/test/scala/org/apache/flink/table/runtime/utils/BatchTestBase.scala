@@ -43,7 +43,6 @@ import org.junit.Assert._
 import org.junit.{Assert, Before}
 
 import java.lang.{Iterable => JIterable}
-import java.util.TimeZone
 import java.util.regex.Pattern
 
 import scala.collection.JavaConverters._
@@ -53,7 +52,6 @@ import scala.util.Sorting
 
 class BatchTestBase extends BatchAbstractTestBase {
 
-  TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
   private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
   private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment.create(settings)
   val tEnv: TableEnvironment = testingTableEnv

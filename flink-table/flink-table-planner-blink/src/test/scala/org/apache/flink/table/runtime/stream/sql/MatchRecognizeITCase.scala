@@ -308,7 +308,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     result.addSink(sink)
     env.execute()
 
-    val expected = List("ACME,2,1970-01-01 00:00:03.000")
+    val expected = List("ACME,2,1970-01-01T00:00:03")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -362,8 +362,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List(
-      "ACME,3,1970-01-01 00:00:02.999,1970-01-01 00:00:00.000",
-      "ACME,2,1970-01-01 00:00:05.999,1970-01-01 00:00:03.000")
+      "ACME,3,1970-01-01T00:00:02.999,1970-01-01T00:00",
+      "ACME,2,1970-01-01T00:00:05.999,1970-01-01T00:00:03")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

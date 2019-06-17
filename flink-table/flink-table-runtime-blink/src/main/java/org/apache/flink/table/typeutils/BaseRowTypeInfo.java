@@ -157,11 +157,11 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder("BaseRow");
-		if (types.length > 0) {
-			bld.append('(').append(fieldNames[0]).append(": ").append(types[0]);
+		if (logicalTypes.length > 0) {
+			bld.append('(').append(fieldNames[0]).append(": ").append(logicalTypes[0]);
 
-			for (int i = 1; i < types.length; i++) {
-				bld.append(", ").append(fieldNames[i]).append(": ").append(types[i]);
+			for (int i = 1; i < logicalTypes.length; i++) {
+				bld.append(", ").append(fieldNames[i]).append(": ").append(logicalTypes[i]);
 			}
 
 			bld.append(')');

@@ -1245,21 +1245,21 @@ class OverWindowITCase extends BatchTestBase {
           'a, 'd, '*.count over 'w
         ),
       Seq(
-        row(1, UTCDate("2017-04-08"), 1),
-        row(2, UTCDate("2017-04-08"), 2),
-        row(2, UTCDate("2017-04-09"), 1),
-        row(3, UTCDate("2016-08-08"), 1),
-        row(3, UTCDate("2017-04-10"), 1),
-        row(3, UTCDate("2017-10-11"), 1),
-        row(4, UTCDate("2017-02-06"), 1),
-        row(4, UTCDate("2017-05-19"), 2),
-        row(4, UTCDate("2017-05-20"), 1),
-        row(4, UTCDate("2017-11-11"), 1),
-        row(5, UTCDate("2017-02-02"), 1),
-        row(5, UTCDate("2017-07-01"), 1),
-        row(5, UTCDate("2017-07-20"), 1),
-        row(5, UTCDate("2017-09-08"), 1),
-        row(5, UTCDate("2017-10-01"), 1)
+        row(1, localDate("2017-04-08"), 1),
+        row(2, localDate("2017-04-08"), 2),
+        row(2, localDate("2017-04-09"), 1),
+        row(3, localDate("2016-08-08"), 1),
+        row(3, localDate("2017-04-10"), 1),
+        row(3, localDate("2017-10-11"), 1),
+        row(4, localDate("2017-02-06"), 1),
+        row(4, localDate("2017-05-19"), 2),
+        row(4, localDate("2017-05-20"), 1),
+        row(4, localDate("2017-11-11"), 1),
+        row(5, localDate("2017-02-02"), 1),
+        row(5, localDate("2017-07-01"), 1),
+        row(5, localDate("2017-07-20"), 1),
+        row(5, localDate("2017-09-08"), 1),
+        row(5, localDate("2017-10-01"), 1)
       )
     )
   }

@@ -38,7 +38,7 @@ class CurrentTimePointCallGen(local: Boolean) extends CallGenerator {
       generateNonNullField(returnType, time)
 
     case TIMESTAMP_WITHOUT_TIME_ZONE if local =>
-      val timestamp = ctx.addReusableLocalTimestamp()
+      val timestamp = ctx.addReusableLocalDateTime()
       generateNonNullField(returnType, timestamp)
 
     case DATE =>
@@ -50,6 +50,7 @@ class CurrentTimePointCallGen(local: Boolean) extends CallGenerator {
       generateNonNullField(returnType, time)
 
     case TIMESTAMP_WITHOUT_TIME_ZONE =>
+      // TODO CURRENT_TIMESTAMP should return TIMESTAMP WITH TIME ZONE
       val timestamp = ctx.addReusableTimestamp()
       generateNonNullField(returnType, timestamp)
   }
