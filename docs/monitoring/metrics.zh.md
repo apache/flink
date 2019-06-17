@@ -656,7 +656,7 @@ Parameters:
 - `db` - the InfluxDB database to store metrics
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
-- `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server
+- `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
 
 Example configuration:
 
