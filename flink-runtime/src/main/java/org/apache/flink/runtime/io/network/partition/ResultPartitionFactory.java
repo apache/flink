@@ -42,7 +42,7 @@ import java.util.Optional;
  * Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}.
  */
 public class ResultPartitionFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
 
 	@Nonnull
 	private final ResultPartitionManager partitionManager;

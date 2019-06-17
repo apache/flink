@@ -87,7 +87,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	private final Object lock = new Object();
 
-	private final ResourceID taskExecutorLocation;
+	private final ResourceID taskExecutorResourceId;
 
 	private final NettyShuffleEnvironmentConfiguration config;
 
@@ -106,19 +106,19 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	private boolean isClosed;
 
 	private NettyShuffleEnvironment(
-			ResourceID taskExecutorLocation,
+			ResourceID taskExecutorResourceId,
 			NettyShuffleEnvironmentConfiguration config,
 			NetworkBufferPool networkBufferPool,
 			ConnectionManager connectionManager,
 			ResultPartitionManager resultPartitionManager,
 			ResultPartitionFactory resultPartitionFactory,
 			SingleInputGateFactory singleInputGateFactory) {
-		this.taskExecutorLocation = taskExecutorLocation;
+		this.taskExecutorResourceId = taskExecutorResourceId;
 		this.config = config;
 		this.networkBufferPool = networkBufferPool;
 		this.connectionManager = connectionManager;
 		this.resultPartitionManager = resultPartitionManager;
-		this.inputGatesById = new ConcurrentHashMap<>();
+		this.inputGatesById = new ConcurrentHashMap<>(10);
 		this.resultPartitionFactory = resultPartitionFactory;
 		this.singleInputGateFactory = singleInputGateFactory;
 		this.isClosed = false;
@@ -126,11 +126,11 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	public static NettyShuffleEnvironment create(
 			NettyShuffleEnvironmentConfiguration config,
-			ResourceID taskExecutorLocation,
+			ResourceID taskExecutorResourceId,
 			TaskEventPublisher taskEventPublisher,
 			MetricGroup metricGroup,
 			IOManager ioManager) {
-		checkNotNull(taskExecutorLocation);
+		checkNotNull(taskExecutorResourceId);
 		checkNotNull(ioManager);
 		checkNotNull(taskEventPublisher);
 		checkNotNull(config);
@@ -159,7 +159,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			config.isForcePartitionReleaseOnConsumption());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
-			taskExecutorLocation,
+			taskExecutorResourceId,
 			config,
 			connectionManager,
 			resultPartitionManager,
@@ -167,7 +167,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			networkBufferPool);
 
 		return new NettyShuffleEnvironment(
-			taskExecutorLocation,
+			taskExecutorResourceId,
 			config,
 			networkBufferPool,
 			connectionManager,
@@ -320,7 +320,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 		checkArgument(shuffleDescriptor instanceof NettyShuffleDescriptor,
 			"Tried to update unknown channel with unknown ShuffleDescriptor %s.",
 			shuffleDescriptor.getClass().getName());
-		inputGate.updateInputChannel(taskExecutorLocation, (NettyShuffleDescriptor) shuffleDescriptor);
+		inputGate.updateInputChannel(taskExecutorResourceId, (NettyShuffleDescriptor) shuffleDescriptor);
 		return true;
 	}
 
@@ -358,6 +358,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			LOG.info("Shutting down the network environment and its components.");
 
 			// terminate all network connections
+			//noinspection OverlyBroadCatchBlock
 			try {
 				LOG.debug("Shutting down network connection manager");
 				connectionManager.shutdown();
