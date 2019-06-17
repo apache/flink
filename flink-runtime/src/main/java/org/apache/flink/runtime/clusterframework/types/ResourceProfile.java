@@ -51,10 +51,14 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	private static final long serialVersionUID = 1L;
 
+	/** A ResourceProfile that indicates an unknown set of resources. */
 	public static final ResourceProfile UNKNOWN = new ResourceProfile();
 
 	/** ResourceProfile which matches any other ResourceProfile. */
 	public static final ResourceProfile ANY = new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+
+	/** A ResourceProfile describing zero resources. */
+	public static final ResourceProfile ZERO = new ResourceProfile(0, 0);
 
 	// ------------------------------------------------------------------------
 

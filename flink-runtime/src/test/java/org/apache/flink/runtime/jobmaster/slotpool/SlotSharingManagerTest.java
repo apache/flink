@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
@@ -135,6 +136,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotRequestId singleTaskSlotRequestId = new SlotRequestId();
 		SlotSharingManager.SingleTaskSlot singleTaskSlot = rootSlot.allocateSingleTaskSlot(
 			singleTaskSlotRequestId,
+			ResourceProfile.UNKNOWN,
 			singleTaskSlotGroupId,
 			Locality.LOCAL);
 
@@ -180,6 +182,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotRequestId singleTaskSlotRequestId = new SlotRequestId();
 		SlotSharingManager.SingleTaskSlot singleTaskSlot = rootSlot.allocateSingleTaskSlot(
 			singleTaskSlotRequestId,
+			ResourceProfile.UNKNOWN,
 			new AbstractID(),
 			Locality.LOCAL);
 
@@ -237,6 +240,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		SlotSharingManager.SingleTaskSlot singleTaskSlot1 = multiTaskSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			new AbstractID(),
 			Locality.LOCAL);
 
@@ -284,12 +288,14 @@ public class SlotSharingManagerTest extends TestLogger {
 		Locality locality1 = Locality.LOCAL;
 		SlotSharingManager.SingleTaskSlot singleTaskSlot1 = rootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			new AbstractID(),
 			locality1);
 
 		Locality locality2 = Locality.HOST_LOCAL;
 		SlotSharingManager.SingleTaskSlot singleTaskSlot2 = rootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			new AbstractID(),
 			locality2);
 
@@ -314,6 +320,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		Locality locality3 = Locality.NON_LOCAL;
 		SlotSharingManager.SingleTaskSlot singleTaskSlot3 = rootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			new AbstractID(),
 			locality3);
 
@@ -349,6 +356,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		SlotSharingManager.SingleTaskSlot singleTaskSlot = rootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			new AbstractID(),
 			Locality.LOCAL);
 
@@ -435,6 +443,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		// occupy the resolved root slot
 		resolvedMultiTaskSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			groupId,
 			Locality.UNCONSTRAINED);
 
@@ -491,6 +500,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		// occupy the slot
 		resolvedRootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			groupId,
 			slotInfoAndLocality.getLocality());
 
@@ -525,6 +535,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		// occupy the unresolved slot
 		unresolvedRootSlot.allocateSingleTaskSlot(
 			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
 			groupId,
 			Locality.UNKNOWN);
 
@@ -532,5 +543,66 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		// we should no longer have a free unresolved root slot
 		assertNull(unresolvedRootSlot1);
+	}
+
+	@Test
+	public void testResourceCalculationOnSlotAllocatingAndReleasing() {
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200, Collections.singletonMap("gpu", new GPUResource(2.0)));
+		ResourceProfile rp3 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.singletonMap("gpu", new GPUResource(3.0)));
+
+		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
+
+		SlotSharingManager slotSharingManager = new SlotSharingManager(
+				SLOT_SHARING_GROUP_ID,
+				allocatedSlotActions,
+				SLOT_OWNER);
+
+		SlotSharingManager.MultiTaskSlot unresolvedRootSlot = slotSharingManager.createRootSlot(
+				new SlotRequestId(),
+				new CompletableFuture<>(),
+				new SlotRequestId());
+
+		// Allocates the left subtree.
+		SlotSharingManager.MultiTaskSlot leftMultiTaskSlot =
+				unresolvedRootSlot.allocateMultiTaskSlot(new SlotRequestId(), new SlotSharingGroupId());
+
+		SlotSharingManager.SingleTaskSlot firstChild = leftMultiTaskSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				rp1,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+		SlotSharingManager.SingleTaskSlot secondChild = leftMultiTaskSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				rp2,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+
+		assertEquals(rp1, firstChild.getReservedResources());
+		assertEquals(rp2, secondChild.getReservedResources());
+		assertEquals(rp1.merge(rp2), leftMultiTaskSlot.getReservedResources());
+		assertEquals(rp1.merge(rp2), unresolvedRootSlot.getReservedResources());
+
+		// Allocates the right subtree.
+		SlotSharingManager.SingleTaskSlot thirdChild = unresolvedRootSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				rp3,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+		assertEquals(rp3, thirdChild.getReservedResources());
+		assertEquals(rp1.merge(rp2).merge(rp3), unresolvedRootSlot.getReservedResources());
+
+		// Releases the second child in the left-side tree.
+		secondChild.release(new Throwable("Release for testing"));
+		assertEquals(rp1, leftMultiTaskSlot.getReservedResources());
+		assertEquals(rp1.merge(rp3), unresolvedRootSlot.getReservedResources());
+
+		// Releases the third child in the right-side tree.
+		thirdChild.release(new Throwable("Release for testing"));
+		assertEquals(rp1, unresolvedRootSlot.getReservedResources());
+
+		// Releases the first child in the left-side tree.
+		firstChild.release(new Throwable("Release for testing"));
+		assertEquals(ResourceProfile.ZERO, unresolvedRootSlot.getReservedResources());
 	}
 }
