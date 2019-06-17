@@ -672,7 +672,7 @@ metrics.reporter.influxdb.retentionPolicy: one_hr
 
 {% endhighlight %}
 
-The reporter would send metrics using http protocol with default retention policy defined on InfluxDB server.
+The reporter would send metrics using http protocol to the InfluxDB server with the specified retention policy (or the default policy specified on the server).
 All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported as InfluxDB tags.
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
