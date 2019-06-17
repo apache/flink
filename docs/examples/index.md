@@ -45,4 +45,4 @@ There are also a few blog posts published online that discuss example applicatio
 
 * [Building real-time dashboard applications with Apache Flink, Elasticsearch, and Kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana) is a blog post at elastic.co showing how to build a real-time dashboard solution for streaming data analytics using Apache Flink, Elasticsearch, and Kibana.
 
-* The [Flink training website](http://training.data-artisans.com/) from data Artisans has a number of examples. Check out the hands-on sections and the exercises.
+* The [Flink training website](http://training.ververica.com/) from Ververica has a number of examples. Check out the hands-on sections and the exercises.
