@@ -94,11 +94,6 @@ abstract class TableEnvImpl(
     case _ => false
   }
 
-  private[flink] def queryConfig: QueryConfig = this match {
-    case _: BatchTableEnvImpl => new BatchQueryConfig
-    case _ => null
-  }
-
   override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
     catalogManager.registerExternalCatalog(name, externalCatalog)
   }
@@ -403,10 +398,6 @@ abstract class TableEnvImpl(
   }
 
   override def sqlUpdate(stmt: String): Unit = {
-    sqlUpdate(stmt, this.queryConfig)
-  }
-
-  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
     val planner = getFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(stmt)
@@ -424,7 +415,7 @@ abstract class TableEnvImpl(
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
 
         // insert query result into sink table
-        insertInto(queryResult, config, targetTablePath.asScala:_*)
+        insertInto(queryResult, targetTablePath.asScala:_*)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
@@ -444,25 +435,15 @@ abstract class TableEnvImpl(
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @param conf The [[QueryConfig]] to use.
     * @tparam T The data type that the [[TableSink]] expects.
     */
-  private[flink] def writeToSink[T](table: Table, sink: TableSink[T], conf: QueryConfig): Unit
-
-
-  override def insertInto(
-    table: Table,
-    queryConfig: QueryConfig,
-    path: String,
-    pathContinued: String*): Unit = {
-    insertInto(table, queryConfig, path +: pathContinued: _*)
-  }
+  private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit
 
   override def insertInto(
     table: Table,
     path: String,
     pathContinued: String*): Unit = {
-    insertInto(table, queryConfig, path, pathContinued: _*)
+    insertInto(table, path +: pathContinued: _*)
   }
 
   /**
@@ -470,9 +451,8 @@ abstract class TableEnvImpl(
     *
     * @param table The table to write to the TableSink.
     * @param sinkTablePath The name of the registered TableSink.
-    * @param conf The query configuration to use.
     */
-  private def insertInto(table: Table, conf: QueryConfig, sinkTablePath: String*): Unit = {
+  private def insertInto(table: Table, sinkTablePath: String*): Unit = {
 
     // check that sink table exists
     if (null == sinkTablePath) {
@@ -491,7 +471,7 @@ abstract class TableEnvImpl(
         // validate schema of source table and table sink
         TableSinkUtils.validateSink(table.getQueryOperation, sinkTablePath.asJava, tableSink)
         // emit the table to the configured table sink
-        writeToSink(table, tableSink, conf)
+        writeToSink(table, tableSink)
     }
   }
 

@@ -68,26 +68,26 @@ class BatchTableEnvironmentImpl(
 
   override def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
     // Use the default query config.
-    translate[T](table, queryConfig)(TypeExtractor.createTypeInfo(clazz))
+    translate[T](table)(TypeExtractor.createTypeInfo(clazz))
   }
 
   override def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
     // Use the default batch query config.
-    translate[T](table, queryConfig)(typeInfo)
+    translate[T](table)(typeInfo)
   }
 
   override def toDataSet[T](
       table: Table,
       clazz: Class[T],
       queryConfig: BatchQueryConfig): DataSet[T] = {
-    translate[T](table, queryConfig)(TypeExtractor.createTypeInfo(clazz))
+    translate[T](table)(TypeExtractor.createTypeInfo(clazz))
   }
 
   override def toDataSet[T](
       table: Table,
       typeInfo: TypeInformation[T],
       queryConfig: BatchQueryConfig): DataSet[T] = {
-    translate[T](table, queryConfig)(typeInfo)
+    translate[T](table)(typeInfo)
   }
 
   override def registerFunction[T](name: String, tf: TableFunction[T]): Unit = {
@@ -112,4 +112,14 @@ class BatchTableEnvironmentImpl(
 
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
+
+  override def sqlUpdate(
+    stmt: String,
+    config: BatchQueryConfig): Unit = sqlUpdate(stmt)
+
+  override def insertInto(
+    table: Table,
+    queryConfig: BatchQueryConfig,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
 }

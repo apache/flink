@@ -20,6 +20,7 @@ package org.apache.flink.table.utils
 
 import java.util.Optional
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
@@ -69,8 +70,6 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def sqlUpdate(stmt: String): Unit = ???
 
-  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
-
   override def getConfig: TableConfig = ???
 
   override def registerCatalog(
@@ -89,12 +88,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def insertInto(
     table: Table,
-    queryConfig: QueryConfig,
     sinkPath: String,
     sinkPathContinued: String*): Unit = ???
 
-  override def insertInto(
-    table: Table,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = ???
+  override def execute(jobName: String): JobExecutionResult = ???
 }

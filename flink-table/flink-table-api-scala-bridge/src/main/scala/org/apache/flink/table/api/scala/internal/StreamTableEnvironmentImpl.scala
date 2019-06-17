@@ -18,6 +18,7 @@
 package org.apache.flink.table.api.scala.internal
 
 import org.apache.flink.annotation.Internal
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.scala._
@@ -102,7 +103,9 @@ class StreamTableEnvironmentImpl (
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.APPEND)
-    queryConfigProvider.setConfig(queryConfig)
+    tableConfig.setIdleStateRetentionTime(
+      Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+      Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
     toDataStream(table, modifyOperation)
   }
 
@@ -121,7 +124,9 @@ class StreamTableEnvironmentImpl (
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
 
-    queryConfigProvider.setConfig(queryConfig)
+    tableConfig.setIdleStateRetentionTime(
+        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
     toDataStream(table, modifyOperation)
   }
 
@@ -182,6 +187,8 @@ class StreamTableEnvironmentImpl (
     }
   }
 
+  override protected def shouldTranslateEagerly(): Boolean = true
+
   private def toDataStream[T](
       table: Table,
       modifyOperation: OutputConversionModifyOperation)
@@ -232,6 +239,26 @@ class StreamTableEnvironmentImpl (
       dataStream.javaStream,
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema)
+  }
+
+  override def sqlUpdate(stmt: String, config: StreamQueryConfig): Unit = {
+    tableConfig
+      .setIdleStateRetentionTime(
+        Time.milliseconds(config.getMinIdleStateRetentionTime),
+        Time.milliseconds(config.getMaxIdleStateRetentionTime))
+    sqlUpdate(stmt)
+  }
+
+  override def insertInto(
+      table: Table,
+      queryConfig: StreamQueryConfig,
+      sinkPath: String,
+      sinkPathContinued: String*): Unit = {
+    tableConfig
+      .setIdleStateRetentionTime(
+        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
+    insertInto(table, sinkPath, sinkPathContinued: _*)
   }
 }
 

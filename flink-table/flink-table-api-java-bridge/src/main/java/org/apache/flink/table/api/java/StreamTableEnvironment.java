@@ -19,11 +19,13 @@
 package org.apache.flink.table.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -34,6 +36,7 @@ import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sinks.TableSink;
 
 /**
  * This table environment is the entry point and central context for creating Table & SQL
@@ -448,4 +451,62 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 */
 	@Override
 	StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
+
+	/**
+	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+	 * NOTE: Currently only SQL INSERT statements are supported.
+	 *
+	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
+	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
+	 * called, for example when it is embedded into a String.
+	 * Hence, SQL queries can directly reference a {@link Table} as follows:
+	 *
+	 * <pre>
+	 * {@code
+	 *   // register the configured table sink into which the result is inserted.
+	 *   tEnv.registerTableSink("sinkTable", configuredSink);
+	 *   Table sourceTable = ...
+	 *   String tableName = sourceTable.toString();
+	 *   // sourceTable is not registered to the table environment
+	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
+	 * }
+	 * </pre>
+	 *
+	 * @param stmt The SQL statement to evaluate.
+	 * @param config The {@link QueryConfig} to use.
+	 */
+	void sqlUpdate(String stmt, StreamQueryConfig config);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * @param table The Table to write to the sink.
+	 * @param queryConfig The {@link StreamQueryConfig} to use.
+	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
+	 */
+	void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * <p>It calls the {@link StreamExecutionEnvironment#execute(String)} on the underlying
+	 * {@link StreamExecutionEnvironment}. In contrast to the {@link TableEnvironment} this
+	 * environment translates queries eagerly. Therefore the values in {@link QueryConfig}
+	 * parameter are ignored.
+	 *
+	 * @param jobName Desired name of the job
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Override
+	JobExecutionResult execute(String jobName) throws Exception;
 }

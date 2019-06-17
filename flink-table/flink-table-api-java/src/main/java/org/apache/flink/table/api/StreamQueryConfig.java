@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 
@@ -38,6 +39,15 @@ public class StreamQueryConfig implements QueryConfig {
 	 * State will be cleared and removed if it was not updated for the defined period of time.
 	 */
 	private long maxIdleStateRetentionTime = 0L;
+
+	@Internal
+	public StreamQueryConfig(long minIdleStateRetentionTime, long maxIdleStateRetentionTime) {
+		this.minIdleStateRetentionTime = minIdleStateRetentionTime;
+		this.maxIdleStateRetentionTime = maxIdleStateRetentionTime;
+	}
+
+	public StreamQueryConfig() {
+	}
 
 	/**
 	 * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
