@@ -47,25 +47,8 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 			ResultPartitionManager partitionManager,
 			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 		super(owningTaskName, partitionId, partitionType, subpartitions, numTargetKeyGroups, partitionManager, bufferPoolFactory);
-	}
 
-	/**
-	 * The partition can only be released after each subpartition has been consumed once per pin operation.
-	 */
-	@Override
-	void pin() {
-		while (true) {
-			int refCnt = pendingReferences.get();
-
-			if (refCnt >= 0) {
-				if (pendingReferences.compareAndSet(refCnt, refCnt + subpartitions.length)) {
-					break;
-				}
-			}
-			else {
-				throw new IllegalStateException("Released.");
-			}
-		}
+		pendingReferences.set(subpartitions.length);
 	}
 
 	@Override
