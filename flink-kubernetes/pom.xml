@@ -57,18 +57,18 @@ under the License.
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-core</artifactId>
-			<version>2.7.5</version>
+			<version>${jackson.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
-			<version>2.7.5</version>
+			<version>${jackson.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
-			<version>4.0.0</version>
+			<version>4.2.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -85,17 +85,17 @@ under the License.
 
 		<dependency>
 			<groupId>io.fabric8</groupId>
-			<artifactId>mockwebserver</artifactId>
-			<version>0.1.0</version>
+			<artifactId>kubernetes-server-mock</artifactId>
+			<version>4.2.0</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>com.squareup.okhttp3</groupId>
 					<artifactId>okhttp</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -105,16 +105,35 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>io.fabric8</groupId>
-			<artifactId>kubernetes-server-mock</artifactId>
-			<version>4.0.0</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.2.1</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<relocations>
+								<relocation>
+									<pattern>com.fasterxml.jackson.core</pattern>
+									<shadedPattern>org.apache.flink.kubernetes.shadded.com.fasterxml.jackson.core</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
