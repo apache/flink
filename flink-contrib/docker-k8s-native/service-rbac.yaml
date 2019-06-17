@@ -1,0 +1,54 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# NOTE: The service account `default:default` already exists in k8s cluster.
+# To apply this .yaml, run `kubectl apply -f service-rbac.yaml`.
+# This is needed if the service account of running flink job manager pod does not
+# have permission to start/list pods. In this case, the following errors will be seen
+# when start taskmanager pods.
+#    Forbidden!Configured service account doesn't have access.
+#    Service account may have been revoked.
+#    pods is forbidden: User "system:serviceaccount:default:default"
+#    cannot create resource "pods" in API group "" in the namespace "default".
+#
+# If you want to bind service account to other roles according to your security
+# policy, modify this file acordingly. I use ClusterRole for developing purpose.
+#
+# To create a new account, you could do the following:
+#---
+#apiVersion: v1
+#kind: ServiceAccount
+#metadata:
+#  name: <new-account-name>
+#  namespace: <namespace>
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: service-rbac
+subjects:
+  - kind: ServiceAccount
+    # Reference to upper's `metadata.name`
+    name: default
+    # Reference to upper's `metadata.namespace`
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
