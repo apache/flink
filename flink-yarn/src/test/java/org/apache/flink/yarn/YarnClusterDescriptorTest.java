@@ -100,12 +100,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		configuration.setString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR, "DISABLED");
 
 		try {
-			new YarnClusterDescriptor(
-				configuration,
-				yarnConfiguration,
-				temporaryFolder.getRoot().getAbsolutePath(),
-				yarnClient,
-				true);
+			createYarnClusterDescriptor(configuration);
 			fail("Expected exception not thrown");
 		} catch (final IllegalArgumentException e) {
 			assertThat(e.getMessage(), containsString("cannot be set to DISABLED anymore"));
@@ -117,12 +112,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final Configuration flinkConfiguration = new Configuration();
 		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			flinkConfiguration,
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true);
+		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(flinkConfiguration);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
@@ -154,12 +144,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			configuration,
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true);
+		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(configuration);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
@@ -188,12 +173,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testSetupApplicationMasterContainer() {
 		Configuration cfg = new Configuration();
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			cfg,
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true);
+		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(cfg);
 
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xms424m -Xmx424m";
@@ -439,12 +419,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testExplicitFileShipping() throws Exception {
-		try (YarnClusterDescriptor descriptor = new YarnClusterDescriptor(
-			new Configuration(),
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true)) {
+		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
 
 			File libFile = temporaryFolder.newFile("libFile.jar");
@@ -484,12 +459,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	public void testEnvironmentDirectoryShipping(String environmentVariable) throws Exception {
-		try (YarnClusterDescriptor descriptor = new YarnClusterDescriptor(
-			new Configuration(),
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true)) {
+		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 			File libFile = new File(libFolder, "libFile.jar");
 			libFile.createNewFile();
@@ -520,12 +490,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testYarnClientShutDown() {
-		YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true);
+		YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor();
 
 		yarnClusterDescriptor.close();
 
@@ -545,5 +510,18 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		yarnClusterDescriptor.close();
 
 		assertTrue(closableYarnClient.isInState(Service.STATE.STOPPED));
+	}
+
+	private YarnClusterDescriptor createYarnClusterDescriptor() {
+		return createYarnClusterDescriptor(new Configuration());
+	}
+
+	private YarnClusterDescriptor createYarnClusterDescriptor(Configuration configuration) {
+		return new YarnClusterDescriptor(
+			configuration,
+			yarnConfiguration,
+			temporaryFolder.getRoot().getAbsolutePath(),
+			yarnClient,
+			true);
 	}
 }
