@@ -33,8 +33,7 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 
 	/**
 	 * The total number of references to subpartitions of this result. The result partition can be
-	 * safely released, iff the reference count is zero. A reference count of -1 denotes that the
-	 * result partition has been released.
+	 * safely released, iff the reference count is zero.
 	 */
 	private final AtomicInteger pendingReferences = new AtomicInteger();
 
@@ -53,10 +52,7 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 
 	@Override
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
-		int refCnt = pendingReferences.get();
-
-		checkState(refCnt != -1, "Partition released.");
-		checkState(refCnt > 0, "Partition not pinned.");
+		checkState(pendingReferences.get() > 0, "Partition not pinned.");
 
 		return super.createSubpartitionView(index, availabilityListener);
 	}
