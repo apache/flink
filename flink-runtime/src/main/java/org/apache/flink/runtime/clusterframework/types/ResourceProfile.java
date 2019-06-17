@@ -56,6 +56,8 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	/** ResourceProfile which matches any other ResourceProfile. */
 	public static final ResourceProfile ANY = new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
 
+	public static final ResourceProfile EMPTY = new ResourceProfile(0, 0);
+
 	// ------------------------------------------------------------------------
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */

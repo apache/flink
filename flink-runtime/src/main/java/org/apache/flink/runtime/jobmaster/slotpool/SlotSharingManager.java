@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -293,6 +294,13 @@ public class SlotSharingManager {
 		 * @param cause for the release
 		 */
 		public abstract void release(Throwable cause);
+
+		/**
+		 * Gets the total requested resources of the slot and its descendants.
+		 *
+		 * @return The total requested resources of the slot and its descendants.
+		 */
+		public abstract ResourceProfile getRequestedResources();
 	}
 
 	/**
@@ -315,6 +323,9 @@ public class SlotSharingManager {
 
 		// true if we are currently releasing our children
 		private boolean releasingChildren;
+
+		// the total requested by all the descendants.
+		private ResourceProfile requestedResources;
 
 		private MultiTaskSlot(
 				SlotRequestId slotRequestId,
@@ -354,6 +365,8 @@ public class SlotSharingManager {
 
 			this.children = new HashMap<>(16);
 			this.releasingChildren = false;
+
+			this.requestedResources = ResourceProfile.EMPTY;
 
 			slotContextFuture.whenComplete(
 				(SlotContext ignored, Throwable throwable) -> {
@@ -404,6 +417,7 @@ public class SlotSharingManager {
 		 */
 		SingleTaskSlot allocateSingleTaskSlot(
 				SlotRequestId slotRequestId,
+				ResourceProfile resourceProfile,
 				AbstractID groupId,
 				Locality locality) {
 			Preconditions.checkState(!super.contains(groupId));
@@ -412,6 +426,7 @@ public class SlotSharingManager {
 
 			final SingleTaskSlot leaf = new SingleTaskSlot(
 				slotRequestId,
+				resourceProfile,
 				groupId,
 				this,
 				locality);
@@ -420,6 +435,8 @@ public class SlotSharingManager {
 
 			// register the newly allocated slot also at the SlotSharingManager
 			allTaskSlots.put(slotRequestId, leaf);
+
+			onResourceRequested(resourceProfile);
 
 			return leaf;
 		}
@@ -490,6 +507,11 @@ public class SlotSharingManager {
 			}
 		}
 
+		@Override
+		public ResourceProfile getRequestedResources() {
+			return requestedResources;
+		}
+
 		/**
 		 * Releases the child with the given childGroupId.
 		 *
@@ -501,11 +523,30 @@ public class SlotSharingManager {
 
 				if (child != null) {
 					allTaskSlots.remove(child.getSlotRequestId());
+
+					// Update the resources of this slot and the parents
+					onResourceReleased(child.getRequestedResources());
 				}
 
 				if (children.isEmpty()) {
 					release(new FlinkException("Release multi task slot because all children have been released."));
 				}
+			}
+		}
+
+		private void onResourceRequested(ResourceProfile resourceProfile) {
+			requestedResources = requestedResources.merge(resourceProfile);
+
+			if (parent != null) {
+				parent.onResourceRequested(resourceProfile);
+			}
+		}
+
+		private void onResourceReleased(ResourceProfile resourceProfile) {
+			requestedResources = requestedResources.subtract(resourceProfile);
+
+			if (parent != null) {
+				parent.onResourceReleased(resourceProfile);
 			}
 		}
 
@@ -539,13 +580,18 @@ public class SlotSharingManager {
 		// future containing a LogicalSlot which is completed once the underlying SlotContext future is completed
 		private final CompletableFuture<SingleLogicalSlot> singleLogicalSlotFuture;
 
+		// the resource requested of this slot.
+		private final ResourceProfile resourceProfile;
+
 		private SingleTaskSlot(
 				SlotRequestId slotRequestId,
+				ResourceProfile resourceProfile,
 				AbstractID groupId,
 				MultiTaskSlot parent,
 				Locality locality) {
 			super(slotRequestId, groupId);
 
+			this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
 			this.parent = Preconditions.checkNotNull(parent);
 
 			Preconditions.checkNotNull(locality);
@@ -578,6 +624,11 @@ public class SlotSharingManager {
 			}
 
 			parent.releaseChild(getGroupId());
+		}
+
+		@Override
+		public ResourceProfile getRequestedResources() {
+			return resourceProfile;
 		}
 
 		@Override
