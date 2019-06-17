@@ -91,7 +91,6 @@ class TableConfig(object):
         else:
             raise Exception("TableConfig.max_generated_code_length should be a int value!")
 
-
     def get_built_in_catalog_name(self):
         """
         Gets the specified name of the initial catalog to be created when instantiating

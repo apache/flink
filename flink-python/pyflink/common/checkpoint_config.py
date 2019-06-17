@@ -209,20 +209,8 @@ class CheckpointConfig(object):
                              :data:`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION` or
                              :data:`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION`
         """
-        gateway = get_gateway()
-        JExternalizedCheckpointCleanup = \
-            gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig\
-            .ExternalizedCheckpointCleanup
-        if cleanup_mode == ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION:
-            self._j_checkpoint_config.enableExternalizedCheckpoints(JExternalizedCheckpointCleanup
-                                                                    .DELETE_ON_CANCELLATION)
-        elif cleanup_mode == ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION:
-            self._j_checkpoint_config.enableExternalizedCheckpoints(JExternalizedCheckpointCleanup
-                                                                    .RETAIN_ON_CANCELLATION)
-        else:
-            raise TypeError("Unsupported cleanup mode: %s, supported cleanup modes are: "
-                            "ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION and"
-                            "ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION." % cleanup_mode)
+        self._j_checkpoint_config.enableExternalizedCheckpoints(
+            ExternalizedCheckpointCleanup._to_j_externalized_checkpoint_cleanup(cleanup_mode))
 
     def is_externalized_checkpoints_enabled(self):
         """
@@ -259,19 +247,7 @@ class CheckpointConfig(object):
                  configured.
         """
         cleanup_mode = self._j_checkpoint_config.getExternalizedCheckpointCleanup()
-        gateway = get_gateway()
-        JExternalizedCheckpointCleanup = \
-            gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig\
-            .ExternalizedCheckpointCleanup
-        if cleanup_mode == JExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION:
-            return ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
-        elif cleanup_mode == JExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION:
-            return ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION
-        elif cleanup_mode is None:
-            return None
-        else:
-            raise Exception("Unsupported java externalized checkpoint cleanup mode: %s"
-                            % cleanup_mode)
+        return ExternalizedCheckpointCleanup._from_j_externalized_checkpoint_cleanup(cleanup_mode)
 
 
 class ExternalizedCheckpointCleanup(object):
@@ -305,3 +281,34 @@ class ExternalizedCheckpointCleanup(object):
     DELETE_ON_CANCELLATION = 0
 
     RETAIN_ON_CANCELLATION = 1
+
+    @staticmethod
+    def _from_j_externalized_checkpoint_cleanup(j_cleanup_mode):
+        gateway = get_gateway()
+        JExternalizedCheckpointCleanup = \
+            gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \
+            .ExternalizedCheckpointCleanup
+        if j_cleanup_mode == JExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION:
+            return ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
+        elif j_cleanup_mode == JExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION:
+            return ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION
+        elif j_cleanup_mode is None:
+            return None
+        else:
+            raise Exception("Unsupported java externalized checkpoint cleanup mode: %s"
+                            % j_cleanup_mode)
+
+    @staticmethod
+    def _to_j_externalized_checkpoint_cleanup(cleanup_mode):
+        gateway = get_gateway()
+        JExternalizedCheckpointCleanup = \
+            gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \
+            .ExternalizedCheckpointCleanup
+        if cleanup_mode == ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION:
+            return JExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION
+        elif cleanup_mode == ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION:
+            return JExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
+        else:
+            raise TypeError("Unsupported cleanup mode: %s, supported cleanup modes are: "
+                            "ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION and"
+                            "ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION." % cleanup_mode)

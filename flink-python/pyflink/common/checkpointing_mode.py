@@ -76,8 +76,8 @@ class CheckpointingMode(object):
     EXACTLY_ONCE = 0
     AT_LEAST_ONCE = 1
 
-    @classmethod
-    def _from_j_checkpointing_mode(cls, j_checkpointing_mode):
+    @staticmethod
+    def _from_j_checkpointing_mode(j_checkpointing_mode):
         gateway = get_gateway()
         JCheckpointingMode = \
             gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode
@@ -88,8 +88,8 @@ class CheckpointingMode(object):
         else:
             raise Exception("Unsupported java checkpointing mode: %s" % j_checkpointing_mode)
 
-    @classmethod
-    def _to_j_checkpointing_mode(cls, checkpointing_mode):
+    @staticmethod
+    def _to_j_checkpointing_mode(checkpointing_mode):
         gateway = get_gateway()
         JCheckpointingMode = \
             gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode

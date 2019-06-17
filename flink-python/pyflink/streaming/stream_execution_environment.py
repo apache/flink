@@ -319,18 +319,7 @@ class StreamExecutionEnvironment(object):
 
         :param characteristic: The time characteristic.
         """
-        gateway = get_gateway()
-        JTimeCharacteristic = gateway.jvm.org.apache.flink.streaming.api.TimeCharacteristic
-        if characteristic == TimeCharacteristic.EventTime:
-            j_characteristic = JTimeCharacteristic.EventTime
-        elif characteristic == TimeCharacteristic.IngestionTime:
-            j_characteristic = JTimeCharacteristic.IngestionTime
-        elif characteristic == TimeCharacteristic.ProcessingTime:
-            j_characteristic = JTimeCharacteristic.ProcessingTime
-        else:
-            raise TypeError("Unsupported time characteristic: %s, supported time characteristic "
-                            "are: TimeCharacteristic.EventTime, TimeCharacteristic.IngestionTime, "
-                            "TimeCharacteristic.ProcessingTime." % characteristic)
+        j_characteristic = TimeCharacteristic._to_j_time_characteristic(characteristic)
         self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
 
     def get_stream_time_characteristic(self):
@@ -341,17 +330,8 @@ class StreamExecutionEnvironment(object):
 
         :return: The :class:`TimeCharacteristic`.
         """
-        gateway = get_gateway()
-        JTimeCharacteristic = gateway.jvm.org.apache.flink.streaming.api.TimeCharacteristic
         j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
-        if j_characteristic == JTimeCharacteristic.EventTime:
-            return TimeCharacteristic.EventTime
-        elif j_characteristic == JTimeCharacteristic.ProcessingTime:
-            return TimeCharacteristic.ProcessingTime
-        elif j_characteristic == JTimeCharacteristic.IngestionTime:
-            return TimeCharacteristic.IngestionTime
-        else:
-            raise Exception("Unsupported java time characteristic: %s." % j_characteristic)
+        return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
 
     def get_default_local_parallelism(self):
         """

@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.java_gateway import get_gateway
 
 __all__ = ['ExecutionMode']
 
@@ -68,3 +69,35 @@ class ExecutionMode(object):
     PIPELINED_FORCED = 1
     BATCH = 2
     BATCH_FORCED = 3
+
+    @staticmethod
+    def _from_j_execution_mode(j_execution_mode):
+        gateway = get_gateway()
+        JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
+        if j_execution_mode == JExecutionMode.PIPELINED:
+            return ExecutionMode.PIPELINED
+        elif j_execution_mode == JExecutionMode.PIPELINED_FORCED:
+            return ExecutionMode.PIPELINED_FORCED
+        elif j_execution_mode == JExecutionMode.BATCH:
+            return ExecutionMode.BATCH
+        elif j_execution_mode == JExecutionMode.BATCH_FORCED:
+            return ExecutionMode.BATCH_FORCED
+        else:
+            raise Exception("Unsupported java exection mode: %s" % j_execution_mode)
+
+    @staticmethod
+    def _to_j_execution_mode(execution_mode):
+        gateway = get_gateway()
+        JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
+        if execution_mode == ExecutionMode.PIPELINED:
+            return JExecutionMode.PIPELINED
+        elif execution_mode == ExecutionMode.PIPELINED_FORCED:
+            return JExecutionMode.PIPELINED_FORCED
+        elif execution_mode == ExecutionMode.BATCH:
+            return JExecutionMode.BATCH
+        elif execution_mode == ExecutionMode.BATCH_FORCED:
+            return JExecutionMode.BATCH_FORCED
+        else:
+            raise TypeError("Unsupported execution mode: %s, supported execution modes are: "
+                            "ExecutionMode.PIPELINED, ExecutionMode.PIPELINED_FORCED, "
+                            "ExecutionMode.BATCH and ExecutionMode.BATCH_FORCED." % execution_mode)

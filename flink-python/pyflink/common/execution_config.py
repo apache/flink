@@ -280,20 +280,8 @@ class ExecutionConfig(object):
 
         :param execution_mode: The execution mode to use.
         """
-        gateway = get_gateway()
-        JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
-        if execution_mode == ExecutionMode.PIPELINED:
-            self._j_execution_config.setExecutionMode(JExecutionMode.PIPELINED)
-        elif execution_mode == ExecutionMode.PIPELINED_FORCED:
-            self._j_execution_config.setExecutionMode(JExecutionMode.PIPELINED_FORCED)
-        elif execution_mode == ExecutionMode.BATCH:
-            self._j_execution_config.setExecutionMode(JExecutionMode.BATCH)
-        elif execution_mode == ExecutionMode.BATCH_FORCED:
-            self._j_execution_config.setExecutionMode(JExecutionMode.BATCH_FORCED)
-        else:
-            raise TypeError("Unsupported execution mode: %s, supported execution modes are: "
-                            "ExecutionMode.PIPELINED, ExecutionMode.PIPELINED_FORCED, "
-                            "ExecutionMode.BATCH and ExecutionMode.BATCH_FORCED." % execution_mode)
+        self._j_execution_config.setExecutionMode(
+            ExecutionMode._to_j_execution_mode(execution_mode))
 
     def get_execution_mode(self):
         """
@@ -304,19 +292,8 @@ class ExecutionConfig(object):
 
         :return: The execution mode for the program.
         """
-        gateway = get_gateway()
-        JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
         j_execution_mode = self._j_execution_config.getExecutionMode()
-        if j_execution_mode == JExecutionMode.PIPELINED:
-            return ExecutionMode.PIPELINED
-        elif j_execution_mode == JExecutionMode.PIPELINED_FORCED:
-            return ExecutionMode.PIPELINED_FORCED
-        elif j_execution_mode == JExecutionMode.BATCH:
-            return ExecutionMode.BATCH
-        elif j_execution_mode == JExecutionMode.BATCH_FORCED:
-            return ExecutionMode.BATCH_FORCED
-        else:
-            raise Exception("Unsupported java exection mode: %s" % j_execution_mode)
+        return ExecutionMode._from_j_execution_mode(j_execution_mode)
 
     def set_default_input_dependency_constraint(self, input_dependency_constraint):
         """
@@ -327,19 +304,9 @@ class ExecutionConfig(object):
 
         :param input_dependency_constraint: The input dependency constraint.
         """
-        gateway = get_gateway()
-        JInputDependencyConstraint = gateway.jvm.org.apache.flink.api.common\
-            .InputDependencyConstraint
-        if input_dependency_constraint == InputDependencyConstraint.ANY:
-            self._j_execution_config.setDefaultInputDependencyConstraint(
-                JInputDependencyConstraint.ANY)
-        elif input_dependency_constraint == InputDependencyConstraint.ALL:
-            self._j_execution_config.setDefaultInputDependencyConstraint(
-                JInputDependencyConstraint.ALL)
-        else:
-            raise TypeError("Unsupported input dependency constraint: %s, supported input "
-                            "dependency constraints are: InputDependencyConstraint.ANY and "
-                            "InputDependencyConstraint.ALL." % input_dependency_constraint)
+        self._j_execution_config.setDefaultInputDependencyConstraint(
+            InputDependencyConstraint._to_j_input_dependency_constraint(
+                input_dependency_constraint))
 
     def get_default_input_dependency_constraint(self):
         """
@@ -350,18 +317,10 @@ class ExecutionConfig(object):
 
         :return: The input dependency constraint of this job.
         """
-        gateway = get_gateway()
-        JInputDependencyConstraint = gateway.jvm.org.apache.flink.api.common \
-            .InputDependencyConstraint
         j_input_dependency_constraint = self._j_execution_config\
             .getDefaultInputDependencyConstraint()
-        if j_input_dependency_constraint == JInputDependencyConstraint.ANY:
-            return InputDependencyConstraint.ANY
-        elif j_input_dependency_constraint == JInputDependencyConstraint.ALL:
-            return InputDependencyConstraint.ALL
-        else:
-            raise Exception("Unsupported java input dependency constraint: %s"
-                            % j_input_dependency_constraint)
+        return InputDependencyConstraint._from_j_input_dependency_constraint(
+            j_input_dependency_constraint)
 
     def enable_force_kryo(self):
         """

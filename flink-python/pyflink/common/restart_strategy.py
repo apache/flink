@@ -171,8 +171,8 @@ class RestartStrategies(object):
                 super(RestartStrategies.FallbackRestartStrategyConfiguration, self)\
                     .__init__(j_restart_strategy)
 
-    @classmethod
-    def _from_j_restart_strategy(cls, j_restart_strategy):
+    @staticmethod
+    def _from_j_restart_strategy(j_restart_strategy):
         if j_restart_strategy is None:
             return None
         gateway = get_gateway()
@@ -200,8 +200,8 @@ class RestartStrategies(object):
         else:
             raise Exception("Unsupported java RestartStrategyConfiguration: %s" % clz.getName())
 
-    @classmethod
-    def no_restart(cls):
+    @staticmethod
+    def no_restart():
         """
         Generates NoRestartStrategyConfiguration.
 
@@ -209,12 +209,12 @@ class RestartStrategies(object):
         """
         return RestartStrategies.NoRestartStrategyConfiguration()
 
-    @classmethod
-    def fall_back_restart(cls):
+    @staticmethod
+    def fall_back_restart():
         return RestartStrategies.FallbackRestartStrategyConfiguration()
 
-    @classmethod
-    def fixed_delay_restart(cls, restart_attempts, delay_between_attempts):
+    @staticmethod
+    def fixed_delay_restart(restart_attempts, delay_between_attempts):
         """
         Generates a FixedDelayRestartStrategyConfiguration.
 
@@ -227,8 +227,8 @@ class RestartStrategies(object):
         return RestartStrategies.FixedDelayRestartStrategyConfiguration(restart_attempts,
                                                                         delay_between_attempts)
 
-    @classmethod
-    def failure_rate_restart(cls, failure_rate, failure_interval, delay_interval):
+    @staticmethod
+    def failure_rate_restart(failure_rate, failure_interval, delay_interval):
         """
         Generates a FailureRateRestartStrategyConfiguration.
 
