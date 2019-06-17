@@ -42,6 +42,7 @@ import java.util.Collections;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
@@ -215,6 +216,25 @@ public class ResultPartitionTest {
 	@Test
 	public void testAddOnBlockingPartition() throws Exception {
 		testAddOnPartition(ResultPartitionType.BLOCKING);
+	}
+
+	/**
+	 * Tests {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int, BufferAvailabilityListener)}
+	 * would throw a {@link PartitionNotFoundException} if the registered partition was released from manager
+	 * via {@link ResultPartition#fail(Throwable)} before.
+	 */
+	@Test
+	public void testCreateSubpartitionOnFailingPartition() throws Exception {
+		final ResultPartitionManager manager = new ResultPartitionManager();
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionManager(manager)
+			.build();
+
+		manager.registerResultPartition(partition);
+
+		partition.fail(null);
+
+		verifyCreateSubpartitionViewThrowsException(manager, partition.getPartitionId());
 	}
 
 	/**

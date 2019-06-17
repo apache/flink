@@ -23,6 +23,8 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -59,5 +61,20 @@ public class ResultPartitionManagerTest extends TestLogger {
 
 		partitionManager.registerResultPartition(partition);
 		partitionManager.createSubpartitionView(partition.getPartitionId(), 0, new NoOpBufferAvailablityListener());
+	}
+
+	/**
+	 * Tests {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int, BufferAvailabilityListener)}
+	 * would throw a {@link PartitionNotFoundException} if this partition was already released before.
+	 */
+	@Test
+	public void testCreateViewForReleasedPartition() throws Exception {
+		final ResultPartitionManager partitionManager = new ResultPartitionManager();
+		final ResultPartition partition = createPartition();
+
+		partitionManager.registerResultPartition(partition);
+		partitionManager.releasePartition(partition.getPartitionId(), null);
+
+		verifyCreateSubpartitionViewThrowsException(partitionManager, partition.getPartitionId());
 	}
 }
