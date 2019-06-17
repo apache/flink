@@ -120,11 +120,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** High availability services for leader retrieval and election. */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** The heartbeat manager with task managers. */
-	private final HeartbeatManager<SlotReport, Void> taskManagerHeartbeatManager;
-
-	/** The heartbeat manager with job managers. */
-	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
+	private final HeartbeatServices heartbeatServices;
 
 	/** Registry to use for metrics. */
 	private final MetricRegistry metricRegistry;
@@ -141,6 +137,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
+
+	/** The heartbeat manager with task managers. */
+	private HeartbeatManager<SlotReport, Void> taskManagerHeartbeatManager;
+
+	/** The heartbeat manager with job managers. */
+	private HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
 	/**
 	 * Represents asynchronous state clearing work.
@@ -167,24 +169,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		this.resourceId = checkNotNull(resourceId);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
+		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.slotManager = checkNotNull(slotManager);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.jobManagerMetricGroup = checkNotNull(jobManagerMetricGroup);
-
-		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
-			resourceId,
-			new TaskManagerHeartbeatListener(),
-			rpcService.getScheduledExecutor(),
-			log);
-
-		this.jobManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
-			resourceId,
-			new JobManagerHeartbeatListener(),
-			rpcService.getScheduledExecutor(),
-			log);
 
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.jmResourceIdRegistrations = new HashMap<>(4);
@@ -249,9 +240,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	private void stopResourceManagerServices() throws Exception {
 		Exception exception = null;
 
-		taskManagerHeartbeatManager.stop();
-
-		jobManagerHeartbeatManager.stop();
+		stopHeartbeatServices();
 
 		try {
 			slotManager.close();
@@ -933,6 +922,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			setFencingToken(newResourceManagerId);
 
+			startHeartbeatServices();
+
 			slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
 			return prepareLeadershipAsync().thenApply(ignored -> true);
@@ -955,7 +946,35 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				setFencingToken(null);
 
 				slotManager.suspend();
+
+				stopHeartbeatServices();
 			});
+	}
+
+	private void startHeartbeatServices() {
+		taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
+			resourceId,
+			new TaskManagerHeartbeatListener(),
+			getMainThreadExecutor(),
+			log);
+
+		jobManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
+			resourceId,
+			new JobManagerHeartbeatListener(),
+			getMainThreadExecutor(),
+			log);
+	}
+
+	private void stopHeartbeatServices() {
+		if (taskManagerHeartbeatManager != null) {
+			taskManagerHeartbeatManager.stop();
+			taskManagerHeartbeatManager = null;
+		}
+
+		if (jobManagerHeartbeatManager != null) {
+			jobManagerHeartbeatManager.stop();
+			jobManagerHeartbeatManager = null;
+		}
 	}
 
 	/**
@@ -1103,36 +1122,31 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
+			validateRunsInMainThread();
+			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
 
-					closeTaskManagerConnection(
-							resourceID,
-							new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
-				}
-			});
+			closeTaskManagerConnection(
+				resourceID,
+				new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
 		}
 
 		@Override
-		public void reportPayload(final ResourceID resourceID, final SlotReport slotReport) {
-			runAsync(() -> {
-				final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
+		public void reportPayload(final ResourceID resourceID, final SlotReport payload) {
+			validateRunsInMainThread();
+			final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
 
-				if (workerRegistration == null) {
-					log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
-				} else {
-					InstanceID instanceId = workerRegistration.getInstanceID();
+			if (workerRegistration == null) {
+				log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
+			} else {
+				InstanceID instanceId = workerRegistration.getInstanceID();
 
-					slotManager.reportSlotStatus(instanceId, slotReport);
-				}
-			});
+				slotManager.reportSlotStatus(instanceId, payload);
+			}
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
-			return CompletableFuture.completedFuture(null);
+		public Void retrievePayload(ResourceID resourceID) {
+			return null;
 		}
 	}
 
@@ -1140,19 +1154,18 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-			runAsync(() -> {
-				log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
+			validateRunsInMainThread();
+			log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
 
-				if (jmResourceIdRegistrations.containsKey(resourceID)) {
-					JobManagerRegistration jobManagerRegistration = jmResourceIdRegistrations.get(resourceID);
+			if (jmResourceIdRegistrations.containsKey(resourceID)) {
+				JobManagerRegistration jobManagerRegistration = jmResourceIdRegistrations.get(resourceID);
 
-					if (jobManagerRegistration != null) {
-						closeJobManagerConnection(
-							jobManagerRegistration.getJobID(),
-							new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
-					}
+				if (jobManagerRegistration != null) {
+					closeJobManagerConnection(
+						jobManagerRegistration.getJobID(),
+						new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
 				}
-			});
+			}
 		}
 
 		@Override
@@ -1161,8 +1174,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
-			return CompletableFuture.completedFuture(null);
+		public Void retrievePayload(ResourceID resourceID) {
+			return null;
 		}
 	}
 
