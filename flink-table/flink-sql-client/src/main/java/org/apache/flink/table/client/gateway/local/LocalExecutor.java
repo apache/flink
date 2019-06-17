@@ -35,10 +35,12 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.table.api.QueryConfig;
+import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvImpl;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
@@ -509,7 +511,11 @@ public class LocalExecutor implements Executor {
 		// parse and validate statement
 		try {
 			context.wrapClassLoader(() -> {
-				tableEnv.sqlUpdate(updateStatement, queryConfig);
+				if (tableEnv instanceof StreamTableEnvironment) {
+					((StreamTableEnvironment) tableEnv).sqlUpdate(updateStatement, (StreamQueryConfig) queryConfig);
+				} else {
+					tableEnv.sqlUpdate(updateStatement);
+				}
 				return null;
 			});
 		} catch (Throwable t) {

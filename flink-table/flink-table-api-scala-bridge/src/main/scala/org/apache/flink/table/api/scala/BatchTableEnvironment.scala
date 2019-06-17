@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.{TableEnvironment, _}
@@ -24,6 +25,7 @@ import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.sinks.TableSink
 
 /**
   * The [[TableEnvironment]] for a Scala batch [[ExecutionEnvironment]] that works
@@ -153,6 +155,66 @@ trait BatchTableEnvironment extends TableEnvironment {
   def toDataSet[T: TypeInformation](
     table: Table,
     queryConfig: BatchQueryConfig): DataSet[T]
+
+  /**
+    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * NOTE: Currently only SQL INSERT statements are supported.
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment.
+    * A [[Table]] is automatically registered when its [[Table#toString()]] method is
+    * called, for example when it is embedded into a String.
+    * Hence, SQL queries can directly reference a [[Table]] as follows:
+    *
+    * {{{
+    *   // register the configured table sink into which the result is inserted.
+    *   tEnv.registerTableSink("sinkTable", configuredSink);
+    *   Table sourceTable = ...
+    *   String tableName = sourceTable.toString();
+    *   // sourceTable is not registered to the table environment
+    *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
+    * }}}
+    *
+    * @param stmt   The SQL statement to evaluate.
+    * @param config The [[BatchQueryConfig]] to use.
+    */
+  def sqlUpdate(stmt: String, config: BatchQueryConfig): Unit
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * See the documentation of TableEnvironment#useDatabase or
+    * TableEnvironment.useCatalog(String) for the rules on the path resolution.
+    *
+    * @param table             The Table to write to the sink.
+    * @param queryConfig       The [[BatchQueryConfig]] to use.
+    * @param sinkPath          The first part of the path of the registered [[TableSink]] to
+    *                          which the [[Table]] is written. This is to ensure at least the
+    *                          name of the [[TableSink]] is provided.
+    * @param sinkPathContinued The remaining part of the path of the registered [[TableSink]] to
+    *                          which the [[Table]] is written.
+    */
+  def insertInto(
+    table: Table,
+    queryConfig: BatchQueryConfig,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit
+
+  /**
+    * Triggers the program execution. The environment will execute all parts of
+    * the program.
+    *
+    * The program execution will be logged and displayed with the provided name
+    *
+    * It calls the ExecutionEnvironment#execute on the underlying
+    * [[ExecutionEnvironment]]. In contrast to the [[TableEnvironment]] this
+    * environment translates queries eagerly.
+    *
+    * @param jobName Desired name of the job
+    * @return The result of the job execution, containing elapsed time and accumulators.
+    * @throws Exception which occurs during job execution.
+    */
+  @throws[Exception]
+  override def execute(jobName: String): JobExecutionResult
 
   /**
     * Creates a table source and/or table sink from a descriptor.

@@ -20,6 +20,7 @@ package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -91,14 +92,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		this.executionEnvironment = executionEnvironment;
 	}
 
-	/**
-	 * Creates an instance of a {@link StreamTableEnvironment}. It uses the {@link StreamExecutionEnvironment} for
-	 * executing queries. This is also the {@link StreamExecutionEnvironment} that will be used when converting
-	 * from/to {@link DataStream}.
-	 *
-	 * @param tableConfig The configuration of the TableEnvironment.
-	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 */
 	public static StreamTableEnvironment create(
 			StreamExecutionEnvironment executionEnvironment,
 			EnvironmentSettings settings,
@@ -241,7 +234,9 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			table.getQueryOperation(),
 			TypeConversions.fromLegacyInfoToDataType(typeInfo),
 			OutputConversionModifyOperation.UpdateMode.APPEND);
-		queryConfigProvider.setConfig(queryConfig);
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
+			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
 		return toDataStream(table, modifyOperation);
 	}
 
@@ -273,13 +268,31 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			table.getQueryOperation(),
 			wrapWithChangeFlag(typeInfo),
 			OutputConversionModifyOperation.UpdateMode.RETRACT);
-		queryConfigProvider.setConfig(queryConfig);
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
+			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
 		return toDataStream(table, modifyOperation);
 	}
 
 	@Override
 	public StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
 		return (StreamTableDescriptor) super.connect(connectorDescriptor);
+	}
+
+	@Override
+	public void sqlUpdate(String stmt, StreamQueryConfig config) {
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(config.getMinIdleStateRetentionTime()),
+			Time.milliseconds(config.getMaxIdleStateRetentionTime()));
+		sqlUpdate(stmt);
+	}
+
+	@Override
+	public void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued) {
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
+			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
+		insertInto(table, sinkPath, sinkPathContinued);
 	}
 
 	/**
@@ -303,6 +316,11 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	protected void validateTableSource(TableSource<?> tableSource) {
 		super.validateTableSource(tableSource);
 		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
+	}
+
+	@Override
+	protected boolean isEagerOperationTranslation() {
+		return true;
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
