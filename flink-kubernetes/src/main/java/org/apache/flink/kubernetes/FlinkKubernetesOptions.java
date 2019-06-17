@@ -120,6 +120,28 @@ public class FlinkKubernetesOptions {
 		.desc("the cluster id that will be used for current session.")
 		.build();
 
+	public static final Option KUBERNETES_MODE_OPTION = Option.builder("k8s")
+		.longOpt("KubernetesMode")
+		.required(false)
+		.hasArg(false)
+		.desc("Whether use Kubernetes as resource manager.")
+		.build();
+
+	public static final Option KUBERNETES_CONFIG_FILE_OPTION = Option.builder("kc")
+		.longOpt("kubeConfig")
+		.required(false)
+		.hasArg(true)
+		.argName("ConfigFilePath")
+		.desc("The config file to for K8s API client.")
+		.build();
+
+	public static final Option HELP_OPTION = Option.builder("h")
+		.longOpt("help")
+		.required(false)
+		.hasArg(false)
+		.desc("Help for Kubernetes session CLI.")
+		.build();
+
 	/**
 	 * build FlinkKubernetesOption from commandline.
 	 * */
