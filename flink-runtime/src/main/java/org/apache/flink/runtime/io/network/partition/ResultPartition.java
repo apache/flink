@@ -330,12 +330,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Pins the result partition.
-	 */
-	void pin() {
-	}
-
-	/**
 	 * Notification when a subpartition is released.
 	 */
 	void onConsumedSubpartition(int subpartitionIndex) {

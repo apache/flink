@@ -122,9 +122,6 @@ public class ResultPartitionFactory {
 
 		createSubpartitions(partition, type, subpartitions);
 
-		// Initially, partitions should be consumed once before release.
-		partition.pin();
-
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
 		return partition;
