@@ -164,20 +164,10 @@ public class HighAvailabilityServicesUtils {
 		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
 
-		final HighAvailabilityServicesFactory highAvailabilityServicesFactory;
-
-		try {
-			highAvailabilityServicesFactory = InstantiationUtil.instantiate(
-				haServicesClassName,
-				HighAvailabilityServicesFactory.class,
-				classLoader);
-		} catch (Exception e) {
-			throw new FlinkException(
-				String.format(
-					"Could not instantiate the HighAvailabilityServicesFactory '%s'. Please make sure that this class is on your class path.",
-					haServicesClassName),
-				e);
-		}
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = InstantiationUtil.instantiate(
+			haServicesClassName,
+			HighAvailabilityServicesFactory.class,
+			classLoader);
 
 		try {
 			return highAvailabilityServicesFactory.createHAServices(config, executor);
