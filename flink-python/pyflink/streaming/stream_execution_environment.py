@@ -175,6 +175,10 @@ class StreamExecutionEnvironment(object):
             the moment. For that reason, iterative jobs will not be started if used
             with enabled checkpointing.
 
+        Example:
+        ::
+            >>> env.enable_checkpointing(300000, CheckpointingMode.AT_LEAST_ONCE)
+
         :param interval: Time interval between state checkpoints in milliseconds.
         :param mode: The checkpointing mode, selecting between "exactly once" and "at least once"
                      guaranteed.
@@ -242,6 +246,10 @@ class StreamExecutionEnvironment(object):
 
         see :func:`get_state_backend`
 
+        Example:
+        ::
+            >>> env.set_state_backend(RocksDBStateBackend("file://var/checkpoints/"))
+
         :param state_backend: The :class:`StateBackend`.
         :return: This object.
         """
@@ -253,6 +261,10 @@ class StreamExecutionEnvironment(object):
         """
         Sets the restart strategy configuration. The configuration specifies which restart strategy
         will be used for the execution graph in case of a restart.
+
+        Example:
+        ::
+            >>> env.set_restart_strategy(RestartStrategies.no_restart())
 
         :param restart_strategy_configuration: Restart strategy configuration to be set.
         :return:
@@ -273,6 +285,10 @@ class StreamExecutionEnvironment(object):
         """
         Adds a new Kryo default serializer to the Runtime.
 
+        Example:
+        ::
+            >>> env.add_default_kryo_serializer("com.aaa.bbb.TypeClass", "com.aaa.bbb.Serializer")
+
         :param type_class_name: The full-qualified java class name of the types serialized with the
                                 given serializer.
         :param serializer_class_name: The full-qualified java class name of the serializer to use.
@@ -285,6 +301,11 @@ class StreamExecutionEnvironment(object):
         """
         Registers the given Serializer via its class as a serializer for the given type at the
         KryoSerializer.
+
+        Example:
+        ::
+            >>> env.register_type_with_kryo_serializer("com.aaa.bbb.TypeClass",
+            ...                                        "com.aaa.bbb.Serializer")
 
         :param type_class_name: The full-qualified java class name of the types serialized with
                                 the given serializer.
@@ -302,6 +323,10 @@ class StreamExecutionEnvironment(object):
         type ends up being serialized with Kryo, then it will be registered at Kryo to make
         sure that only tags are written.
 
+        Example:
+        ::
+            >>> env.register_type("com.aaa.bbb.TypeClass")
+
         :param type_class_name: The full-qualified java class name of the type to register.
         """
         type_clz = load_java_class(type_class_name)
@@ -316,6 +341,10 @@ class StreamExecutionEnvironment(object):
         watermark update interval of 200 ms. If this is not applicable for your application
         you should change it using
         :func:`pyflink.common.ExecutionConfig.set_auto_watermark_interval`.
+
+        Example:
+        ::
+            >>> env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
         :param characteristic: The time characteristic.
         """

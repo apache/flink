@@ -74,6 +74,10 @@ class CheckpointConfig(object):
         """
         Sets the checkpointing mode (exactly-once vs. at-least-once).
 
+        Example:
+        ::
+            >>> config.set_checkpointing_mode(CheckpointingMode.AT_LEAST_ONCE)
+
         :param checkpointing_mode: The :class:`CheckpointingMode`.
         """
         self._j_checkpoint_config.setCheckpointingMode(
@@ -172,7 +176,7 @@ class CheckpointConfig(object):
         If this returns true, tasks will fail as a reaction. If this returns false, task will only
         decline the failed checkpoint.
 
-        :return: True if failing on checkpointing errors, false otherwise.
+        :return: ``True`` if failing on checkpointing errors, false otherwise.
         """
         return self._j_checkpoint_config.isFailOnCheckpointingErrors()
 
@@ -183,7 +187,11 @@ class CheckpointConfig(object):
         If this is set to false, the task will only decline a the checkpoint and continue running.
         The default is true.
 
-        :param fail_on_checkpointing_errors: True if failing on checkpointing errors,
+        Example:
+        ::
+            >>> config.set_fail_on_checkpointing_errors(False)
+
+        :param fail_on_checkpointing_errors: ``True`` if failing on checkpointing errors,
                                              false otherwise.
         """
         self._j_checkpoint_config.setFailOnCheckpointingErrors(fail_on_checkpointing_errors)
@@ -205,6 +213,11 @@ class CheckpointConfig(object):
         The target directory for externalized checkpoints is configured via
         ``org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY``.
 
+        Example:
+        ::
+            >>> config.enable_externalized_checkpoints( \
+            ... ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+
         :param cleanup_mode: Externalized checkpoint cleanup behaviour, the mode could be
                              :data:`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION` or
                              :data:`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION`
@@ -216,7 +229,7 @@ class CheckpointConfig(object):
         """
         Returns whether checkpoints should be persisted externally.
 
-        :return: ``True`` if checkpoints should be externalized.
+        :return: ``True`` if checkpoints should be externalized, false otherwise.
         """
         return self._j_checkpoint_config.isExternalizedCheckpointsEnabled()
 
@@ -225,7 +238,7 @@ class CheckpointConfig(object):
         Returns whether a job recovery should fallback to checkpoint when there is a more recent
         savepoint.
 
-        :return: ``True`` if a job recovery should fallback to checkpoint.
+        :return: ``True`` if a job recovery should fallback to checkpoint, false otherwise.
         """
         return self._j_checkpoint_config.isPreferCheckpointForRecovery()
 
@@ -235,7 +248,7 @@ class CheckpointConfig(object):
         savepoint.
 
         :param prefer_checkpoint_for_recovery: ``True`` if a job recovery should fallback to
-                                                checkpoint, false otherwise.
+                                               checkpoint, false otherwise.
         """
         self._j_checkpoint_config.setPreferCheckpointForRecovery(prefer_checkpoint_for_recovery)
 

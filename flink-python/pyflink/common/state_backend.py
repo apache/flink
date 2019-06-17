@@ -187,6 +187,10 @@ class MemoryStateBackend(StateBackend):
         The checkpointed state needs to be send to the JobManager via limited size RPC messages,
         and there and the JobManager needs to be able to hold all aggregated state in its memory.
 
+        Example:
+        ::
+            >>> state_backend = MemoryStateBackend()
+
         :param checkpoint_path: The path to write checkpoint metadata to. If none, the value from
                                 the runtime configuration will be used.
         :param savepoint_path: The path to write savepoints to. If none, the value from
@@ -305,6 +309,11 @@ class FsStateBackend(StateBackend):
         authority (host and port), or that the Hadoop configuration that describes that information
         must be in the classpath.
 
+        Example:
+        ::
+            >>> state_backend = FsStateBackend("file://var/checkpoints/")
+
+
         :param checkpoint_directory_uri: The path to write checkpoint metadata to, required.
         :param default_savepoint_directory_uri: The path to write savepoints to. If none, the value
                                                 from the runtime configuration will be used, or
@@ -421,6 +430,10 @@ class RocksDBStateBackend(StateBackend):
         system host and port in the URI, or have the Hadoop configuration that describes the file
         system (host / high-availability group / possibly credentials) either referenced from the
         Flink config, or included in the classpath.
+
+        Example:
+        ::
+            >>> state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
         :param checkpoint_data_uri: The URI describing the filesystem and path to the checkpoint
                                     data directory.
@@ -552,6 +565,10 @@ class RocksDBStateBackend(StateBackend):
         flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the here specified
         predefined options and customized options.
+
+        Example:
+        ::
+            >>> state_backend.set_predefined_options(PredefinedOptions.SPINNING_DISK_OPTIMIZED)
 
         :param options: The options to set (must not be null), see :class:`PredefinedOptions`.
         """

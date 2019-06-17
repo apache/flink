@@ -278,6 +278,10 @@ class ExecutionConfig(object):
 
         The default execution mode is :data:`ExecutionMode.PIPELINED`.
 
+        Example:
+        ::
+            >>> config.set_execution_mode(ExecutionMode.BATCH)
+
         :param execution_mode: The execution mode to use.
         """
         self._j_execution_config.setExecutionMode(
@@ -301,6 +305,10 @@ class ExecutionConfig(object):
         task should be scheduled considering its inputs status.
 
         The default constraint is :data:`InputDependencyConstraint.ANY`.
+
+        Example:
+        ::
+            >>> config.set_default_input_dependency_constraint(InputDependencyConstraint.ALL)
 
         :param input_dependency_constraint: The input dependency constraint.
         """
@@ -517,6 +525,10 @@ class ExecutionConfig(object):
         """
         Register a custom, serializable user configuration dict.
 
+        Example:
+        ::
+            >>> config.set_global_job_parameters({"environment.checkpoint_interval": "1000"})
+
         :param global_job_parameters_dict: Custom user configuration dict.
         """
         gateway = get_gateway()
@@ -534,6 +546,11 @@ class ExecutionConfig(object):
         """
         Adds a new Kryo default serializer to the Runtime.
 
+        Example:
+        ::
+            >>> config.add_default_kryo_serializer("com.aaa.bbb.PojoClass",
+            ...                                    "com.aaa.bbb.Serializer")
+
         :param type_class_name: The full-qualified java class name of the types serialized with the
                                 given serializer.
         :param serializer_class_name: The full-qualified java class name of the serializer to use.
@@ -546,6 +563,11 @@ class ExecutionConfig(object):
         """
         Registers the given Serializer via its class as a serializer for the given type at the
         KryoSerializer.
+
+        Example:
+        ::
+            >>> config.register_type_with_kryo_serializer("com.aaa.bbb.PojoClass",
+            ...                                           "com.aaa.bbb.Serializer")
 
         :param type_class_name: The full-qualified java class name of the types serialized with
                                 the given serializer.
@@ -562,6 +584,10 @@ class ExecutionConfig(object):
         type ends up being serialized with Kryo, then it will be registered at Kryo to make
         sure that only tags are written.
 
+        Example:
+        ::
+            >>> config.register_pojo_type("com.aaa.bbb.PojoClass")
+
         :param type_class_name: The full-qualified java class name of the type to register.
         """
         type_clz = load_java_class(type_class_name)
@@ -573,6 +599,10 @@ class ExecutionConfig(object):
         serialized as a POJO, then the type is registered with the POJO serializer. If the
         type ends up being serialized with Kryo, then it will be registered at Kryo to make
         sure that only tags are written.
+
+        Example:
+        ::
+            >>> config.register_kryo_type("com.aaa.bbb.KryoClass")
 
         :param type_class_name: The full-qualified java class name of the type to register.
         """
