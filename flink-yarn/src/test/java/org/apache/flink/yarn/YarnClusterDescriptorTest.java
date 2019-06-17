@@ -45,6 +45,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -482,6 +483,27 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			Assert.assertTrue(effectiveShipFiles.contains(libFolder));
 			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
 			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+		}
+	}
+
+	@Test
+	public void testEnvironmentEmptyPluginsShipping() throws Exception {
+		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
+			File pluginsFolder = Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "s0m3_p4th_th4t_sh0uld_n0t_3x1sts").toFile();
+			Set<File> effectiveShipFiles = new HashSet<>();
+
+			final Map<String, String> oldEnv = System.getenv();
+			try {
+				Map<String, String> env = new HashMap<>(1);
+				env.put(ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsFolder.getAbsolutePath());
+				CommonTestUtils.setEnv(env);
+				// only execute part of the deployment to test for shipped files
+				descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+			} finally {
+				CommonTestUtils.setEnv(oldEnv);
+			}
+
+			assertTrue(effectiveShipFiles.isEmpty());
 		}
 	}
 
