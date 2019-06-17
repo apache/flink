@@ -20,9 +20,19 @@ package org.apache.flink.kubernetes;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
+
+import java.util.Properties;
+
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
  * Parameters that will be used in Flink on k8s cluster.
@@ -109,4 +119,36 @@ public class FlinkKubernetesOptions {
 		.argName("clusterid")
 		.desc("the cluster id that will be used for current session.")
 		.build();
+
+	/**
+	 * build FlinkKubernetesOption from commandline.
+	 * */
+	public static FlinkKubernetesOptions fromCommandLine(CommandLine commandLine){
+		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
+		int restPort = Integer.parseInt(restPortString);
+		String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
+		final String imageName = commandLine.getOptionValue(IMAGE_OPTION.getOpt());
+		final String clusterId = commandLine.getOptionValue(CLUSTERID_OPTION.getOpt());
+
+		//hostname = hostname == null ? clusterId : hostname;
+		Configuration configuration = GlobalConfiguration
+			.loadConfiguration(ConfigurationUtils.createConfiguration(dynamicProperties));
+
+		if (hostname != null) {
+			System.out.print("rest.address is: " + hostname);
+			configuration.setString(RestOptions.ADDRESS, hostname);
+		}
+
+		if (restPort == -1) {
+			restPort = RestOptions.PORT.defaultValue();
+			configuration.setInteger(RestOptions.PORT, restPort);
+		}
+
+		FlinkKubernetesOptions options = new FlinkKubernetesOptions(configuration);
+		options.setClusterId(clusterId);
+		options.setImageName(imageName);
+
+		return options;
+	}
 }
