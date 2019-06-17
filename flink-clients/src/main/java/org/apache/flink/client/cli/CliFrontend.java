@@ -513,7 +513,7 @@ public class CliFrontend {
 		if (stopOptions.hasCheckpointFlag()) {
 			LOG.info("Running 'stop-with-checkpoint' command.");
 		} else {
-			LOG.info("Running 'stop-with-checkpoint' command.");
+			LOG.info("Running 'stop-with-savepoint' command.");
 		}
 
 		final String[] cleanedArgs = stopOptions.getArgs();

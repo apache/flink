@@ -131,7 +131,7 @@ public class SynchronousCheckpointITCase {
 					42,
 					156865867234L,
 					new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault()),
-					false);
+					true);
 
 			assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));
 			assertTrue(eventQueue.isEmpty());
