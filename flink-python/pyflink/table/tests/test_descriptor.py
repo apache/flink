@@ -109,8 +109,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_start_from_specific_offsets():
+    def test_start_from_specific_offsets(self):
         kafka = Kafka().start_from_specific_offsets({1: 220, 3: 400})
 
         properties = kafka.to_properties()
@@ -121,7 +120,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                     'connector.specific-offsets.1.offset': '400',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
     def test_start_from_specific_offset(self):
         kafka = Kafka().start_from_specific_offset(3, 300)
