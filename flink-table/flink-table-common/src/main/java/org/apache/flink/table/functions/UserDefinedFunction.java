@@ -27,15 +27,16 @@ import java.io.Serializable;
  * Base class for all user-defined functions.
  *
  * <p>User-defined functions combine the logical definition of a function for validation and planning
- * (see {@link UserDefinedFunctionDefinition}) and contain a corresponding runtime implementation.
+ * and contain a corresponding runtime implementation.
  *
  * @see ScalarFunction
  * @see TableFunction
+ * @see AsyncTableFunction
  * @see AggregateFunction
  * @see TableAggregateFunction
  */
 @PublicEvolving
-public abstract class UserDefinedFunction implements UserDefinedFunctionDefinition, Serializable {
+public abstract class UserDefinedFunction implements FunctionDefinition, Serializable {
 
 	/**
 	 * Returns a unique, serialized representation for this function.
@@ -59,11 +60,6 @@ public abstract class UserDefinedFunction implements UserDefinedFunctionDefiniti
 	 */
 	public void close() throws Exception {
 		// do nothing
-	}
-
-	@Override
-	public UserDefinedFunction createImplementation() {
-		return this;
 	}
 
 	/**

@@ -75,7 +75,10 @@ public class FunctionCatalog implements FunctionLookup {
 
 		registerFunction(
 			name,
-			new TableFunctionDefinition(name, function, resultType)
+			new TableFunctionDefinition(
+				name,
+				function,
+				resultType)
 		);
 	}
 

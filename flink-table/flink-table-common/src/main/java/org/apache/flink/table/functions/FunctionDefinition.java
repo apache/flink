@@ -30,7 +30,7 @@ import java.util.Set;
  * <p>A pure function definition must not contain a runtime implementation. This can be provided by
  * the planner at later stages.
  *
- * @see UserDefinedFunctionDefinition
+ * @see UserDefinedFunction
  */
 @PublicEvolving
 public interface FunctionDefinition {
