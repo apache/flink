@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 
 import java.util.Collections;
@@ -93,9 +94,11 @@ public final class CharType extends LogicalType {
 	 * (i.e., to contain no characters) even though it is not permitted to declare a type that is zero.
 	 *
 	 * <p>This method enables this special kind of character string.
+	 *
+	 * <p>Zero-length character strings have no serializable string representation.
 	 */
 	public static CharType ofEmptyLiteral() {
-		return new CharType(EMPTY_LITERAL_LENGTH, false);
+		return new CharType(EMPTY_LITERAL_LENGTH, true);
 	}
 
 	public int getLength() {
@@ -109,6 +112,15 @@ public final class CharType extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
+		if (length == EMPTY_LITERAL_LENGTH) {
+			throw new TableException(
+				"Zero-length character strings have no serializable string representation.");
+		}
+		return withNullability(FORMAT, length);
+	}
+
+	@Override
+	public String asSummaryString() {
 		return withNullability(FORMAT, length);
 	}
 
