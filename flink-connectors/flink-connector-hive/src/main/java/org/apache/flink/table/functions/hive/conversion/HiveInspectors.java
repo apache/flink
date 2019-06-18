@@ -164,14 +164,14 @@ public class HiveInspectors {
 					return o -> new HiveCharWritable(
 						new HiveChar((String) o, ((CharType) dataType.getLogicalType()).getLength()));
 				} else {
-					return IdentityConversion.INSTANCE;
+					return o -> new HiveChar((String) o, ((CharType) dataType.getLogicalType()).getLength());
 				}
 			} else if (inspector instanceof JavaHiveVarcharObjectInspector) {
 				if (((JavaHiveVarcharObjectInspector) inspector).preferWritable()) {
 					return o -> new HiveVarcharWritable(
 						new HiveVarchar((String) o, ((VarCharType) dataType.getLogicalType()).getLength()));
 				} else {
-					return IdentityConversion.INSTANCE;
+					return o -> new HiveVarchar((String) o, ((VarCharType) dataType.getLogicalType()).getLength());
 				}
 			}
 
