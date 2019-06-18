@@ -65,11 +65,4 @@ public class HiveCatalogTable extends AbstractCatalogTable {
 		return Optional.ofNullable(getComment());
 	}
 
-	@Override
-	public Map<String, String> toProperties() {
-		// TODO: output properties that are used to auto-discover TableFactory for Hive tables.
-		Map<String, String> properties = new HashMap<>();
-		return properties;
-	}
-
 }

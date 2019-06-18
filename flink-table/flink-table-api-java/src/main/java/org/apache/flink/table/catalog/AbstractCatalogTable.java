@@ -19,6 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.config.CatalogTableConfig;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.Schema;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,4 +85,20 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 		return comment;
 	}
 
+	@Override
+	public Map<String, String> toProperties() {
+		DescriptorProperties descriptor = new DescriptorProperties();
+
+		descriptor.putTableSchema(Schema.SCHEMA, getSchema());
+
+		Map<String, String> properties = getProperties();
+		properties.remove(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY);
+
+		descriptor.putPropertiesWithPrefix(CatalogTableConfig.TABLE_PROPERTIES, properties);
+
+		descriptor.putString(CatalogTableConfig.TABLE_COMMENT, getComment());
+		descriptor.putString(CatalogTableConfig.TABLE_PARTITION_KEYS, String.join(",", partitionKeys));
+
+		return descriptor.asMap();
+	}
 }
