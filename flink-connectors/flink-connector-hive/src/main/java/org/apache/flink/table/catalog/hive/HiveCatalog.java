@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogTableConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -488,7 +489,7 @@ public class HiveCatalog extends AbstractCatalog {
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
 		}
-		String comment = properties.remove(HiveTableConfig.TABLE_COMMENT);
+		String comment = properties.remove(CatalogTableConfig.TABLE_COMMENT);
 
 		// Table schema
 		TableSchema tableSchema =
@@ -535,7 +536,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 		// Table comment
-		properties.put(HiveTableConfig.TABLE_COMMENT, table.getComment());
+		properties.put(CatalogTableConfig.TABLE_COMMENT, table.getComment());
 		if (table instanceof GenericCatalogTable || table instanceof GenericCatalogView) {
 			properties = maskFlinkProperties(properties);
 		}

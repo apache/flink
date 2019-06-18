@@ -16,13 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog.config;
+
+import org.apache.flink.table.catalog.CatalogBaseTable;
 
 /**
- * Configs for tables in Hive metastore.
+ * Config for {@link CatalogBaseTable}.
  */
-public class HiveTableConfig {
+public class CatalogTableConfig {
 
-	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
+	// Comment of catalog table
+	public static final String TABLE_COMMENT = "comment";
 
+	// Partition keys of catalog table
+	public static final String TABLE_PARTITION_KEYS = "partition-keys";
+
+	// Prefix for properties of catalog table
+	public static final String TABLE_PROPERTIES = "properties";
 }

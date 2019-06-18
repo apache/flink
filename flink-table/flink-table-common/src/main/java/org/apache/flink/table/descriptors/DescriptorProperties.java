@@ -104,6 +104,18 @@ public class DescriptorProperties {
 	}
 
 	/**
+	 * Adds a properties map by appending the given prefix to element keys.
+	 */
+	public void putPropertiesWithPrefix(String prefix, Map<String, String> prop) {
+		checkNotNull(prefix);
+		checkNotNull(prop);
+
+		for (Map.Entry<String, String> e : prop.entrySet()) {
+			put(String.format("%s.%s", prefix, e.getKey()), e.getValue());
+		}
+	}
+
+	/**
 	 * Adds a class under the given key.
 	 */
 	public void putClass(String key, Class<?> clazz) {
@@ -703,6 +715,16 @@ public class DescriptorProperties {
 	 */
 	public boolean isValue(String key, String value) {
 		return optionalGet(key).orElseThrow(exceptionSupplier(key)).equals(value);
+	}
+
+	/**
+	 * Returns a map of properties whose key starts with the given prefix,
+	 * and the prefix is removed upon return.
+	 */
+	public Map<String, String> getPropertiesWithPrefix(String prefix) {
+		return properties.entrySet().stream()
+			.filter(e -> e.getKey().startsWith(prefix))
+			.collect(Collectors.toMap(e -> e.getKey().substring(prefix.length() + 1), Map.Entry::getValue));
 	}
 
 	// --------------------------------------------------------------------------------------------

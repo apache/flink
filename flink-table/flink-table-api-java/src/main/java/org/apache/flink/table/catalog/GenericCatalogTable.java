@@ -54,13 +54,6 @@ public class GenericCatalogTable extends AbstractCatalogTable {
 	}
 
 	@Override
-	public Map<String, String> toProperties() {
-		// TODO: Filter out ANY properties that are not needed for table discovery.
-		Map<String, String> properties = new HashMap<>();
-		return properties;
-	}
-
-	@Override
 	public Optional<String> getDescription() {
 		return Optional.of(getComment());
 	}
