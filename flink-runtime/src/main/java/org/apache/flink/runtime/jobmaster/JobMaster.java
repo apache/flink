@@ -892,6 +892,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		validateRunsInMainThread();
 
 		if (newJobStatus.isGloballyTerminalState()) {
+			// other terminal job states are handled by the executions
+			if (newJobStatus == JobStatus.FINISHED) {
+				runAsync(() -> registeredTaskManagers.keySet()
+					.forEach(partitionTracker::stopTrackingAndReleasePartitionsFor));
+			}
+
 			final ArchivedExecutionGraph archivedExecutionGraph = schedulerNG.requestJob();
 			scheduledExecutorService.execute(() -> jobCompletionActions.jobReachedGloballyTerminalState(archivedExecutionGraph));
 		}
