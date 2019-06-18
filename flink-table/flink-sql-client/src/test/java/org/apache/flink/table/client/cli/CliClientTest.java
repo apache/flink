@@ -138,6 +138,21 @@ public class CliClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSplitStatements() {
+		final String simpleStats = "INSERT INTO MyTable SELECT * FROM MyOtherTable;\nSELECT * FROM MyOtherTable;";
+		final List<String> expectedSimpleStatements = Arrays.asList(
+			"INSERT INTO MyTable SELECT * FROM MyOtherTable", "\nSELECT * FROM MyOtherTable");
+		final List<String> actualSimpleStatements = CliClient.splitSemiColon(simpleStats);
+		assertTrue(expectedSimpleStatements.equals(actualSimpleStatements));
+
+		final String complexStats = "-- insert data from MyOtherTable to MyTable\nINSERT INTO MyTable SELECT * FROM MyOtherTable;\nSELECT * FROM MyOtherTable WHERE f1 LIKE '%;%';";
+		final List<String> expectedComplexStatements = Arrays.asList(
+			"INSERT INTO MyTable SELECT * FROM MyOtherTable", "\nSELECT * FROM MyOtherTable WHERE f1 LIKE '%;%'");
+		final List<String> actualComplexStatements = CliClient.splitSemiColon(complexStats);
+		assertTrue(expectedComplexStatements.equals(actualComplexStatements));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) {

@@ -641,7 +641,7 @@ public class CliClient {
 	/**
 	 * Split a SemiColon-separated String, but ignore SemiColons in quotes.
 	 */
-	private static List<String> splitSemiColon(String line) {
+	static List<String> splitSemiColon(String line) {
 		boolean inSingleQuotes = false;
 		boolean inDoubleQuotes = false;
 		boolean escape = false;
