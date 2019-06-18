@@ -125,7 +125,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -463,7 +462,6 @@ public class TaskExecutorTest extends TestLogger {
 						heartbeatTimeout,
 						taskManagerLocation.getResourceID(),
 						(HeartbeatListener<SlotReport, Void>) invocation.getArguments()[1],
-						(Executor) invocation.getArguments()[2],
 						(ScheduledExecutor) invocation.getArguments()[2],
 						(Logger) invocation.getArguments()[3]));
 				}
@@ -1837,13 +1835,12 @@ public class TaskExecutorTest extends TestLogger {
 		}
 
 		@Override
-		public <I, O> HeartbeatManager<I, O> createHeartbeatManager(ResourceID resourceId, HeartbeatListener<I, O> heartbeatListener, ScheduledExecutor scheduledExecutor, Logger log) {
+		public <I, O> HeartbeatManager<I, O> createHeartbeatManager(ResourceID resourceId, HeartbeatListener<I, O> heartbeatListener, ScheduledExecutor mainThreadExecutor, Logger log) {
 			return new RecordingHeartbeatManagerImpl<>(
 				heartbeatTimeout,
 				resourceId,
 				heartbeatListener,
-				scheduledExecutor,
-				scheduledExecutor,
+				mainThreadExecutor,
 				log,
 				unmonitoredTargets,
 				monitoredTargets);
@@ -1871,12 +1868,11 @@ public class TaskExecutorTest extends TestLogger {
 				long heartbeatTimeoutIntervalMs,
 				ResourceID ownResourceID,
 				HeartbeatListener<I, O> heartbeatListener,
-				Executor executor,
-				ScheduledExecutor scheduledExecutor,
+				ScheduledExecutor mainThreadExecutor,
 				Logger log,
 				BlockingQueue<ResourceID> unmonitoredTargets,
 				BlockingQueue<ResourceID> monitoredTargets) {
-			super(heartbeatTimeoutIntervalMs, ownResourceID, heartbeatListener, executor, scheduledExecutor, log);
+			super(heartbeatTimeoutIntervalMs, ownResourceID, heartbeatListener, mainThreadExecutor, log);
 			this.unmonitoredTargets = unmonitoredTargets;
 			this.monitoredTargets = monitoredTargets;
 		}

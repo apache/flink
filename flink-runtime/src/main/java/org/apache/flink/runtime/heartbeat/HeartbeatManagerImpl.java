@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -29,7 +30,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -57,15 +57,12 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	private final HeartbeatListener<I, O> heartbeatListener;
 
 	/** Executor service used to run heartbeat timeout notifications. */
-	private final ScheduledExecutor scheduledExecutor;
+	private final ScheduledExecutor mainThreadExecutor;
 
 	protected final Logger log;
 
 	/** Map containing the heartbeat monitors associated with the respective resource ID. */
 	private final ConcurrentHashMap<ResourceID, HeartbeatManagerImpl.HeartbeatMonitor<O>> heartbeatTargets;
-
-	/** Execution context used to run future callbacks. */
-	private final Executor executor;
 
 	/** Running state of the heartbeat manager. */
 	protected volatile boolean stopped;
@@ -74,17 +71,15 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 			long heartbeatTimeoutIntervalMs,
 			ResourceID ownResourceID,
 			HeartbeatListener<I, O> heartbeatListener,
-			Executor executor,
-			ScheduledExecutor scheduledExecutor,
+			ScheduledExecutor mainThreadExecutor,
 			Logger log) {
 		Preconditions.checkArgument(heartbeatTimeoutIntervalMs > 0L, "The heartbeat timeout has to be larger than 0.");
 
 		this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
 		this.ownResourceID = Preconditions.checkNotNull(ownResourceID);
 		this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener, "heartbeatListener");
-		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
+		this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
 		this.log = Preconditions.checkNotNull(log);
-		this.executor = Preconditions.checkNotNull(executor);
 		this.heartbeatTargets = new ConcurrentHashMap<>(16);
 
 		stopped = false;
@@ -96,10 +91,6 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 	ResourceID getOwnResourceID() {
 		return ownResourceID;
-	}
-
-	Executor getExecutor() {
-		return executor;
 	}
 
 	HeartbeatListener<I, O> getHeartbeatListener() {
@@ -123,7 +114,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 				HeartbeatManagerImpl.HeartbeatMonitor<O> heartbeatMonitor = new HeartbeatManagerImpl.HeartbeatMonitor<>(
 					resourceID,
 					heartbeatTarget,
-					scheduledExecutor,
+					mainThreadExecutor,
 					heartbeatListener,
 					heartbeatTimeoutIntervalMs);
 
@@ -174,6 +165,10 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		}
 	}
 
+	ScheduledExecutor getMainThreadExecutor() {
+		return mainThreadExecutor;
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// HeartbeatTarget methods
 	//----------------------------------------------------------------------------------------------
@@ -205,9 +200,10 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 				CompletableFuture<O> futurePayload = heartbeatListener.retrievePayload(requestOrigin);
 
 				if (futurePayload != null) {
-					CompletableFuture<Void> sendHeartbeatFuture = futurePayload.thenAcceptAsync(
-						retrievedPayload ->	heartbeatTarget.receiveHeartbeat(getOwnResourceID(), retrievedPayload),
-						executor);
+					CompletableFuture<Void> sendHeartbeatFuture = FutureUtils.thenAcceptAsyncIfNotDone(
+						futurePayload,
+						mainThreadExecutor,
+						retrievedPayload ->	heartbeatTarget.receiveHeartbeat(getOwnResourceID(), retrievedPayload));
 
 					sendHeartbeatFuture.exceptionally((Throwable failure) -> {
 							log.warn("Could not send heartbeat to target with id {}.", requestOrigin, failure);

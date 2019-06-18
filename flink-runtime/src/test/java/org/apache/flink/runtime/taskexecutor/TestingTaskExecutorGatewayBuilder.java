@@ -32,6 +32,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -54,6 +55,8 @@ public class TestingTaskExecutorGatewayBuilder {
 	private Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
 	private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction = NOOP_FREE_SLOT_FUNCTION;
 	private Supplier<Boolean> canBeReleasedSupplier = () -> true;
+	private Consumer<Exception> disconnectResourceManagerConsumer = ignored -> {};
+	private Consumer<ResourceID> heartbeatResourceManagerConsumer = ignored -> {};
 
 	public TestingTaskExecutorGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -67,6 +70,11 @@ public class TestingTaskExecutorGatewayBuilder {
 
 	public TestingTaskExecutorGatewayBuilder setHeartbeatJobManagerConsumer(BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer) {
 		this.heartbeatJobManagerConsumer = heartbeatJobManagerConsumer;
+		return this;
+	}
+
+	public TestingTaskExecutorGatewayBuilder setHeartbeatResourceManagerConsumer(Consumer<ResourceID> heartbeatResourceManagerConsumer) {
+		this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
 		return this;
 	}
 
@@ -90,6 +98,11 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
+	public TestingTaskExecutorGatewayBuilder setDisconnectResourceManagerConsumer(Consumer<Exception> disconnectResourceManagerConsumer) {
+		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
+		return this;
+	}
+
 	public TestingTaskExecutorGatewayBuilder setCanBeReleasedSupplier(Supplier<Boolean> canBeReleasedSupplier) {
 		this.canBeReleasedSupplier = canBeReleasedSupplier;
 		return this;
@@ -104,6 +117,8 @@ public class TestingTaskExecutorGatewayBuilder {
 			submitTaskConsumer,
 			requestSlotFunction,
 			freeSlotFunction,
-			canBeReleasedSupplier);
+			canBeReleasedSupplier,
+			disconnectResourceManagerConsumer,
+			heartbeatResourceManagerConsumer);
 	}
 }

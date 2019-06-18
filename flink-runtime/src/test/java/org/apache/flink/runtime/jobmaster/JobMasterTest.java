@@ -62,7 +62,6 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -154,6 +153,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -210,8 +210,8 @@ public class JobMasterTest extends TestLogger {
 	public static void setupClass() {
 		rpcService = new TestingRpcService();
 
-		fastHeartbeatServices = new TestingHeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout, rpcService.getScheduledExecutor());
-		heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, rpcService.getScheduledExecutor());
+		fastHeartbeatServices = new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout);
+		heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
 	}
 
 	@Before
@@ -361,13 +361,13 @@ public class JobMasterTest extends TestLogger {
 			// wait for the completion of the registration
 			registrationResponse.get();
 
-			final ResourceID heartbeatResourceId = heartbeatResourceIdFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-			assertThat(heartbeatResourceId, Matchers.equalTo(jmResourceId));
-
 			final JobID disconnectedJobManager = disconnectedJobManagerFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			assertThat(disconnectedJobManager, Matchers.equalTo(jobGraph.getJobID()));
+
+			final ResourceID heartbeatResourceId = heartbeatResourceIdFuture.getNow(null);
+
+			assertThat(heartbeatResourceId, anyOf(nullValue(), equalTo(jmResourceId)));
 		} finally {
 			jobManagerSharedServices.shutdown();
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
