@@ -20,13 +20,10 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link ResultPartitionManager}.
@@ -40,14 +37,9 @@ public class ResultPartitionManagerTest extends TestLogger {
 	@Test
 	public void testThrowPartitionNotFoundException() throws Exception {
 		final ResultPartitionManager partitionManager = new ResultPartitionManager();
-		final ResultPartition partition = PartitionTestUtils.createPartition();
-		try {
-			partitionManager.createSubpartitionView(partition.getPartitionId(), 0, new NoOpBufferAvailablityListener());
+		final ResultPartition partition = createPartition();
 
-			fail("Should throw PartitionNotFoundException for unregistered partition.");
-		} catch (PartitionNotFoundException notFound) {
-			assertThat(partition.getPartitionId(), Matchers.is(notFound.getPartitionId()));
-		}
+		verifyCreateSubpartitionViewThrowsException(partitionManager, partition.getPartitionId());
 	}
 
 	/**
@@ -57,7 +49,7 @@ public class ResultPartitionManagerTest extends TestLogger {
 	@Test
 	public void testCreateViewForRegisteredPartition() throws Exception {
 		final ResultPartitionManager partitionManager = new ResultPartitionManager();
-		final ResultPartition partition = PartitionTestUtils.createPartition();
+		final ResultPartition partition = createPartition();
 
 		partitionManager.registerResultPartition(partition);
 		partitionManager.createSubpartitionView(partition.getPartitionId(), 0, new NoOpBufferAvailablityListener());
