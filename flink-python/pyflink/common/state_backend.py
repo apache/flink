@@ -311,6 +311,7 @@ class FsStateBackend(StateBackend):
 
         Example:
         ::
+
             >>> state_backend = FsStateBackend("file://var/checkpoints/")
 
 
@@ -433,6 +434,7 @@ class RocksDBStateBackend(StateBackend):
 
         Example:
         ::
+
             >>> state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
         :param checkpoint_data_uri: The URI describing the filesystem and path to the checkpoint
@@ -568,6 +570,7 @@ class RocksDBStateBackend(StateBackend):
 
         Example:
         ::
+
             >>> state_backend.set_predefined_options(PredefinedOptions.SPINNING_DISK_OPTIMIZED)
 
         :param options: The options to set (must not be null), see :class:`PredefinedOptions`.

@@ -76,6 +76,7 @@ class CheckpointConfig(object):
 
         Example:
         ::
+
             >>> config.set_checkpointing_mode(CheckpointingMode.AT_LEAST_ONCE)
 
         :param checkpointing_mode: The :class:`CheckpointingMode`.
@@ -189,6 +190,7 @@ class CheckpointConfig(object):
 
         Example:
         ::
+
             >>> config.set_fail_on_checkpointing_errors(False)
 
         :param fail_on_checkpointing_errors: ``True`` if failing on checkpointing errors,
@@ -215,8 +217,9 @@ class CheckpointConfig(object):
 
         Example:
         ::
-            >>> config.enable_externalized_checkpoints( \
-            ... ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+
+            >>> config.enable_externalized_checkpoints(
+            ...     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
         :param cleanup_mode: Externalized checkpoint cleanup behaviour, the mode could be
                              :data:`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION` or

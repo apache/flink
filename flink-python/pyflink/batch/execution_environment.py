@@ -81,6 +81,7 @@ class ExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.set_restart_strategy(RestartStrategies.no_restart())
 
         :param restart_strategy_configuration: Restart strategy configuration to be set.
@@ -103,6 +104,7 @@ class ExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.add_default_kryo_serializer("com.aaa.bbb.TypeClass", "com.aaa.bbb.Serializer")
 
         :param type_class_name: The full-qualified java class name of the types serialized with the
@@ -120,6 +122,7 @@ class ExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.register_type_with_kryo_serializer("com.aaa.bbb.TypeClass",
             ...                                        "com.aaa.bbb.Serializer")
 
@@ -140,6 +143,7 @@ class ExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.register_type("com.aaa.bbb.TypeClass")
 
         :param type_class_name: The full-qualified java class name of the type to register.

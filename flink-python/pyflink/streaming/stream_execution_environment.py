@@ -177,6 +177,7 @@ class StreamExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.enable_checkpointing(300000, CheckpointingMode.AT_LEAST_ONCE)
 
         :param interval: Time interval between state checkpoints in milliseconds.
@@ -219,9 +220,7 @@ class StreamExecutionEnvironment(object):
         """
         Gets the state backend that defines how to store and checkpoint state.
 
-        see :func:`set_state_backend`
-
-        see :func:`set_state_backend_factory`
+        .. seealso:: :func:`set_state_backend`
 
         :return: The :class:`StateBackend`.
         """
@@ -244,10 +243,11 @@ class StreamExecutionEnvironment(object):
         individual nodes and that streaming program can be executed highly available and strongly
         consistent(assuming that Flink is run in high-availability mode).
 
-        see :func:`get_state_backend`
+        .. seealso:: :func:`get_state_backend`
 
         Example:
         ::
+
             >>> env.set_state_backend(RocksDBStateBackend("file://var/checkpoints/"))
 
         :param state_backend: The :class:`StateBackend`.
@@ -264,6 +264,7 @@ class StreamExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.set_restart_strategy(RestartStrategies.no_restart())
 
         :param restart_strategy_configuration: Restart strategy configuration to be set.
@@ -287,6 +288,7 @@ class StreamExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.add_default_kryo_serializer("com.aaa.bbb.TypeClass", "com.aaa.bbb.Serializer")
 
         :param type_class_name: The full-qualified java class name of the types serialized with the
@@ -304,6 +306,7 @@ class StreamExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.register_type_with_kryo_serializer("com.aaa.bbb.TypeClass",
             ...                                        "com.aaa.bbb.Serializer")
 
@@ -325,6 +328,7 @@ class StreamExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.register_type("com.aaa.bbb.TypeClass")
 
         :param type_class_name: The full-qualified java class name of the type to register.
@@ -344,6 +348,7 @@ class StreamExecutionEnvironment(object):
 
         Example:
         ::
+
             >>> env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
         :param characteristic: The time characteristic.
@@ -355,7 +360,7 @@ class StreamExecutionEnvironment(object):
         """
         Gets the time characteristic.
 
-        see :func:`set_stream_time_characteristic`
+        .. seealso:: :func:`set_stream_time_characteristic`
 
         :return: The :class:`TimeCharacteristic`.
         """
