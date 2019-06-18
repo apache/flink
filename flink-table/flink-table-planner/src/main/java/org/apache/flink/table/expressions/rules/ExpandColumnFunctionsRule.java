@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RANGE_TO;
@@ -90,7 +90,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 					.stream()
 					.flatMap(c -> c.accept(this).stream())
 					.toArray(Expression[]::new);
-				result = Collections.singletonList(call(unresolvedCall.getFunctionDefinition(), args));
+				result = Collections.singletonList(unresolvedCall(unresolvedCall.getFunctionDefinition(), args));
 
 				// validate alias
 				if (definition == AS) {

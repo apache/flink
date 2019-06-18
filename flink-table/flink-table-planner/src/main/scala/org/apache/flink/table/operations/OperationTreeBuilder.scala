@@ -22,7 +22,7 @@ import java.util.{Collections, Optional, List => JList}
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.FunctionLookup
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, unresolvedRef, valueLiteral}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind
 import org.apache.flink.table.expressions._
@@ -221,7 +221,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     while (childNames.contains("TMP_" + cnt)) {
       cnt += 1
     }
-    val aggWithNamedAlias = call(
+    val aggWithNamedAlias = unresolvedCall(
       BuiltInFunctionDefinitions.AS,
       aggWithoutAlias,
       valueLiteral("TMP_" + cnt))
@@ -233,7 +233,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val aggNames = aggQueryOperation.getTableSchema.getFieldNames
     val flattenExpressions = aggNames.take(groupingExpressions.size())
       .map(e => unresolvedRef(e)) ++
-      Seq(call(BuiltInFunctionDefinitions.FLATTEN, unresolvedRef(aggNames.last)))
+      Seq(unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, unresolvedRef(aggNames.last)))
     val flattenedOperation = this.project(flattenExpressions.toList, aggQueryOperation)
 
     // add alias
@@ -476,7 +476,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       throw new ValidationException("Only ScalarFunction can be used in the map operator.")
     }
 
-    val expandedFields = call(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction)
+    val expandedFields = unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction)
     project(Collections.singletonList(expandedFields), child)
   }
 
@@ -502,7 +502,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       resultName
     })
 
-    val renamedTableFunction = call(
+    val renamedTableFunction = unresolvedCall(
       BuiltInFunctionDefinitions.AS,
       resolvedTableFunction +: newFieldNames.map(ApiExpressionUtils.valueLiteral(_)): _*)
     val joinNode = joinLateral(child, renamedTableFunction, JoinType.INNER, Optional.empty())
@@ -542,7 +542,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
         val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
         usedFieldNames.append(tempName)
         attrNameCntr += 1
-        call(
+        unresolvedCall(
           BuiltInFunctionDefinitions.AS,
           c,
           valueLiteral(tempName)

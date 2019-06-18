@@ -27,7 +27,7 @@ import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDERING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
 
@@ -139,7 +139,7 @@ public class SortOperationFactory {
 
 		@Override
 		protected Expression defaultMethod(Expression expression) {
-			return call(ORDER_ASC, expression);
+			return unresolvedCall(ORDER_ASC, expression);
 		}
 	}
 }

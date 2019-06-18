@@ -59,11 +59,11 @@ public class ExpressionBuilder {
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, Expression... args) {
-		return ApiExpressionUtils.call(functionDefinition, args);
+		return ApiExpressionUtils.unresolvedCall(functionDefinition, args);
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, List<Expression> args) {
-		return ApiExpressionUtils.call(functionDefinition, args.toArray(new Expression[0]));
+		return ApiExpressionUtils.unresolvedCall(functionDefinition, args.toArray(new Expression[0]));
 	}
 
 	public static Expression and(Expression arg1, Expression arg2) {

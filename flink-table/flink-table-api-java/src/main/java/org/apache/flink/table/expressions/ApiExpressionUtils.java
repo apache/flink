@@ -45,10 +45,6 @@ public final class ApiExpressionUtils {
 		// private
 	}
 
-	public static UnresolvedCallExpression call(FunctionDefinition functionDefinition, Expression... args) {
-		return new UnresolvedCallExpression(functionDefinition, Arrays.asList(args));
-	}
-
 	public static ValueLiteralExpression valueLiteral(Object value) {
 		return new ValueLiteralExpression(value);
 	}
@@ -63,6 +59,10 @@ public final class ApiExpressionUtils {
 
 	public static UnresolvedReferenceExpression unresolvedRef(String name) {
 		return new UnresolvedReferenceExpression(name);
+	}
+
+	public static UnresolvedCallExpression unresolvedCall(FunctionDefinition functionDefinition, Expression... args) {
+		return new UnresolvedCallExpression(functionDefinition, Arrays.asList(args));
 	}
 
 	public static TableReferenceExpression tableRef(String name, Table table) {

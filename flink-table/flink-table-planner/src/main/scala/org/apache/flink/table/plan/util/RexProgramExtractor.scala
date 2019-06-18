@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.FunctionCatalog
-import org.apache.flink.table.expressions.ApiExpressionUtils.call
+import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.util.Preconditions
@@ -281,7 +281,8 @@ class RexNodeToExpressionConverter(
       PlannerExpressionConverter.INSTANCE)
     JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(name))
       .flatMap(result =>
-        Try(expressionBridge.bridge(call(result.getFunctionDefinition, operands: _*))).toOption
+        Try(expressionBridge.bridge(
+          unresolvedCall(result.getFunctionDefinition, operands: _*))).toOption
       )
   }
 

@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
@@ -140,7 +140,7 @@ public class OperationExpressionsUtils {
 	private static List<Expression> nameExpressions(Map<Expression, String> expressions) {
 		return expressions.entrySet()
 			.stream()
-			.map(entry -> call(AS, entry.getKey(), valueLiteral(entry.getValue())))
+			.map(entry -> unresolvedCall(AS, entry.getKey(), valueLiteral(entry.getValue())))
 			.collect(Collectors.toList());
 	}
 
@@ -203,7 +203,7 @@ public class OperationExpressionsUtils {
 				.stream()
 				.map(c -> c.accept(this))
 				.toArray(Expression[]::new);
-			return call(unresolvedCall.getFunctionDefinition(), args);
+			return unresolvedCall(unresolvedCall.getFunctionDefinition(), args);
 		}
 
 		@Override
