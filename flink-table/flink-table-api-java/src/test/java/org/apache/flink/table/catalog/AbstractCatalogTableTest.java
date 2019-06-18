@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.config.CatalogTableConfig;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 
@@ -54,9 +53,6 @@ public class AbstractCatalogTableTest {
 		descriptorProperties.putProperties(table.toProperties());
 
 		assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
-		assertEquals(TEST, descriptorProperties.getString(CatalogTableConfig.TABLE_COMMENT));
-		assertEquals("second,third", descriptorProperties.getString(CatalogTableConfig.TABLE_PARTITION_KEYS));
-		assertEquals(prop, descriptorProperties.getPropertiesWithPrefix(CatalogTableConfig.TABLE_PROPERTIES));
 	}
 
 	private static Map<String, String> createProperties() {

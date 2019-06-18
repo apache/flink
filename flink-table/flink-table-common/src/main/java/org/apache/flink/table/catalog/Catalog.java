@@ -33,8 +33,10 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.factories.TableFactory;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
@@ -42,6 +44,16 @@ import java.util.List;
  */
 @PublicEvolving
 public interface Catalog {
+
+	/**
+	 * Get an optional {@link TableFactory} instance that's responsible for generating source/sink for tables
+	 * stored in this catalog.
+	 *
+	 * @return an optional TableFactory instance
+	 */
+	default Optional<TableFactory> getTableFactory() {
+		return Optional.empty();
+	}
 
 	/**
 	 * Open the catalog. Used for any required preparation in initialization phase.

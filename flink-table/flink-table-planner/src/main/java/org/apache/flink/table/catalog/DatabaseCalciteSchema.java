@@ -22,11 +22,14 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.types.Row;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -39,7 +42,7 @@ import org.apache.calcite.schema.Table;
 
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -101,8 +104,10 @@ class DatabaseCalciteSchema implements Schema {
 	}
 
 	private Table convertCatalogTable(CatalogTable table) {
-		Map<String, String> properties = table.toProperties();
-		TableSource<?> tableSource = TableFactoryUtil.findAndCreateTableSource(properties);
+		Optional<TableFactory> tableFactory = catalog.getTableFactory();
+		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource(table))
+			.orElse(TableFactoryUtil.findAndCreateTableSource(table));
+
 		if (!(tableSource instanceof StreamTableSource)) {
 			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
 		}

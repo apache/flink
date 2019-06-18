@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.sinks.TableSink;
 
 import java.util.Map;
@@ -39,4 +40,15 @@ public interface TableSinkFactory<T> extends TableFactory {
 	 * @return the configured table sink.
 	 */
 	TableSink<T> createTableSink(Map<String, String> properties);
+
+	/**
+	 * Creates and configures a {@link TableSink} based on the given {@link CatalogTable} instance.
+	 *
+	 * @param table {@link CatalogTable} instance.
+	 * @return the configured table sink.
+	 */
+	default TableSink<T> createTableSink(CatalogTable table) {
+		return createTableSink(table.toProperties());
+	}
+
 }
