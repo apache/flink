@@ -58,10 +58,10 @@ class ColumnFunctionsValidationTest extends TableTestBase {
 
   @Test
   def testInvalidParameters(): Unit = {
-    expectedException.expect(classOf[TableException])
+    expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      s"The parameters of $withCol() or $withoutCol() only accept column name or " +
-        "column index, but receive CallExpression.")
+      s"The parameters of $withCol() or $withoutCol() only accept column names or " +
+        "column indices.")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
     val tab = t.select(withColumns(concat('f)))

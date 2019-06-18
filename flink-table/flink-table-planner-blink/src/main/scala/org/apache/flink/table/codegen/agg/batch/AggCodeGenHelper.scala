@@ -28,7 +28,7 @@ import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.codegen._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
+import org.apache.flink.table.expressions.{UnresolvedCallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -256,10 +256,10 @@ object AggCodeGenHelper {
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBufferTypes: Array[Array[LogicalType]]) extends ExpressionVisitor[Expression] {
 
-    override def visit(call: CallExpression): Expression = {
+    override def visit(unresolvedCall: UnresolvedCallExpression): Expression = {
       ApiExpressionUtils.call(
-        call.getFunctionDefinition,
-        call.getChildren.asScala.map(_.accept(this)): _*)
+        unresolvedCall.getFunctionDefinition,
+        unresolvedCall.getChildren.asScala.map(_.accept(this)): _*)
     }
 
     override def visit(valueLiteralExpression: ValueLiteralExpression): Expression = {

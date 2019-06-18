@@ -29,7 +29,7 @@ import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionDefaultVisitor}
+import org.apache.flink.table.expressions.{UnresolvedCallExpression, Expression, ExpressionDefaultVisitor}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.BatchOptimizer
@@ -232,7 +232,7 @@ abstract class BatchTableEnvImpl(
     if (f.exists(f =>
       f.accept(new ExpressionDefaultVisitor[Boolean] {
 
-        override def visit(call: CallExpression): Boolean = {
+        override def visit(call: UnresolvedCallExpression): Boolean = {
           TIME_ATTRIBUTES.contains(call.getFunctionDefinition) ||
             call.getChildren.asScala.exists(_.accept(this))
         }

@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -130,14 +130,14 @@ public final class ColumnOperationUtils {
 
 	private static class RenameColumnExtractor extends ApiExpressionDefaultVisitor<String> {
 		@Override
-		public String visit(CallExpression call) {
-			if (call.getFunctionDefinition() == AS &&
-				call.getChildren().get(0) instanceof FieldReferenceExpression) {
-				FieldReferenceExpression resolvedFieldReference = (FieldReferenceExpression) call.getChildren()
+		public String visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == AS &&
+				unresolvedCall.getChildren().get(0) instanceof FieldReferenceExpression) {
+				FieldReferenceExpression resolvedFieldReference = (FieldReferenceExpression) unresolvedCall.getChildren()
 					.get(0);
 				return resolvedFieldReference.getName();
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 

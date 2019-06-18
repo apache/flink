@@ -21,9 +21,9 @@ package org.apache.flink.table.expressions.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.plan.logical.LogicalOverWindow;
 
@@ -55,10 +55,10 @@ final class OverWindowResolverRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visit(CallExpression call) {
+		public Expression visit(UnresolvedCallExpression unresolvedCall) {
 
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
-				List<Expression> children = call.getChildren();
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
+				List<Expression> children = unresolvedCall.getChildren();
 				Expression alias = children.get(1);
 
 				LogicalOverWindow referenceWindow = resolutionContext.getOverWindow(alias)
@@ -73,11 +73,11 @@ final class OverWindowResolverRule implements ResolverRule {
 
 				newArgs.addAll(referenceWindow.partitionBy());
 
-				return call(call.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
+				return call(unresolvedCall.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
 			} else {
 				return call(
-					call.getFunctionDefinition(),
-					call.getChildren().stream()
+					unresolvedCall.getFunctionDefinition(),
+					unresolvedCall.getChildren().stream()
 						.map(expr -> expr.accept(this))
 						.toArray(Expression[]::new));
 			}

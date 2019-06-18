@@ -79,34 +79,34 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	@Override
-	public RexNode visit(CallExpression call) {
-		switch (call.getFunctionDefinition().getKind()) {
+	public RexNode visit(UnresolvedCallExpression unresolvedCall) {
+		switch (unresolvedCall.getFunctionDefinition().getKind()) {
 			case SCALAR:
-				return visitScalarFunc(call);
+				return visitScalarFunc(unresolvedCall);
 			default: throw new UnsupportedOperationException();
 		}
 	}
 
-	private List<RexNode> convertCallChildren(CallExpression call) {
-		return call.getChildren().stream()
+	private List<RexNode> convertCallChildren(UnresolvedCallExpression unresolvedCall) {
+		return unresolvedCall.getChildren().stream()
 				.map(expression -> expression.accept(RexNodeConverter.this))
 				.collect(Collectors.toList());
 	}
 
-	private RexNode visitScalarFunc(CallExpression call) {
-		FunctionDefinition def = call.getFunctionDefinition();
+	private RexNode visitScalarFunc(UnresolvedCallExpression unresolvedCall) {
+		FunctionDefinition def = unresolvedCall.getFunctionDefinition();
 
-		if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.CAST)) {
-			RexNode child = call.getChildren().get(0).accept(this);
-			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
+		if (unresolvedCall.getFunctionDefinition().equals(BuiltInFunctionDefinitions.CAST)) {
+			RexNode child = unresolvedCall.getChildren().get(0).accept(this);
+			TypeLiteralExpression type = (TypeLiteralExpression) unresolvedCall.getChildren().get(1);
 			return relBuilder.getRexBuilder().makeAbstractCast(
 					typeFactory.createFieldTypeFromLogicalType(
 							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
 					child);
-		} else if (call.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
-			RexNode child = call.getChildren().get(0).accept(this);
-			TypeLiteralExpression type = (TypeLiteralExpression) call.getChildren().get(1);
-			RexNode checkOverflow = call.getChildren().get(2).accept(this);
+		} else if (unresolvedCall.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
+			RexNode child = unresolvedCall.getChildren().get(0).accept(this);
+			TypeLiteralExpression type = (TypeLiteralExpression) unresolvedCall.getChildren().get(1);
+			RexNode checkOverflow = unresolvedCall.getChildren().get(2).accept(this);
 			return relBuilder.getRexBuilder().makeReinterpretCast(
 					typeFactory.createFieldTypeFromLogicalType(
 							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
@@ -114,7 +114,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 					checkOverflow);
 		}
 
-		List<RexNode> child = convertCallChildren(call);
+		List<RexNode> child = convertCallChildren(unresolvedCall);
 		if (BuiltInFunctionDefinitions.IF.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.CASE, child);
 		} else if (BuiltInFunctionDefinitions.IS_NULL.equals(def)) {

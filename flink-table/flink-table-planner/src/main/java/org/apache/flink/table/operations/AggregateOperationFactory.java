@@ -32,13 +32,13 @@ import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -195,7 +195,7 @@ public class AggregateOperationFactory {
 	private Stream<String> extractAggregateNames(Expression expression) {
 		if (isFunctionOfKind(expression, FunctionKind.TABLE_AGGREGATE)) {
 			final TableAggregateFunctionDefinition definition =
-				(TableAggregateFunctionDefinition) ((CallExpression) expression).getFunctionDefinition();
+				(TableAggregateFunctionDefinition) ((UnresolvedCallExpression) expression).getFunctionDefinition();
 			return Arrays.stream(UserDefinedFunctionUtils.getFieldInfo(definition.getResultTypeInfo())._1());
 		} else {
 			return Stream.of(extractName(expression).orElseGet(expression::toString));
@@ -417,25 +417,24 @@ public class AggregateOperationFactory {
 	private class AggregationExpressionValidator extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visit(CallExpression call) {
-			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfKind(call, AGGREGATE) || isFunctionOfKind(call, TABLE_AGGREGATE)) {
+		public Void visit(UnresolvedCallExpression unresolvedCall) {
+			FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
+			if (isFunctionOfKind(unresolvedCall, AGGREGATE) || isFunctionOfKind(unresolvedCall, TABLE_AGGREGATE)) {
 				if (functionDefinition == BuiltInFunctionDefinitions.DISTINCT) {
-					call.getChildren().forEach(expr -> expr.accept(validateDistinct));
+					unresolvedCall.getChildren().forEach(expr -> expr.accept(validateDistinct));
 				} else {
 					if (requiresOver(functionDefinition)) {
 						throw new ValidationException(format(
-							"OVER clause is necessary for window functions: [%s].",
-							call));
+							"OVER clause is necessary for window functions: [%s].", unresolvedCall));
 					}
 
-					call.getChildren().forEach(child -> child.accept(noNestedAggregates));
+					unresolvedCall.getChildren().forEach(child -> child.accept(noNestedAggregates));
 				}
 			} else if (functionDefinition == AS) {
 				// skip alias
-				call.getChildren().get(0).accept(this);
+				unresolvedCall.getChildren().get(0).accept(this);
 			} else {
-				failExpression(call);
+				failExpression(unresolvedCall);
 			}
 			return null;
 		}
@@ -460,14 +459,14 @@ public class AggregateOperationFactory {
 	private class ValidateDistinct extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visit(CallExpression call) {
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.DISTINCT) {
+		public Void visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.DISTINCT) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
-			} else if (!isFunctionOfKind(call, AGGREGATE) && !isFunctionOfKind(call, TABLE_AGGREGATE)) {
+			} else if (!isFunctionOfKind(unresolvedCall, AGGREGATE) && !isFunctionOfKind(unresolvedCall, TABLE_AGGREGATE)) {
 				throw new ValidationException("Distinct operator can only be applied to aggregation expressions!");
 			} else {
-				call.getChildren().forEach(child -> child.accept(noNestedAggregates));
+				unresolvedCall.getChildren().forEach(child -> child.accept(noNestedAggregates));
 			}
 			return null;
 		}
@@ -481,12 +480,12 @@ public class AggregateOperationFactory {
 	private class NoNestedAggregates extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visit(CallExpression call) {
-			if (isFunctionOfKind(call, AGGREGATE) || isFunctionOfKind(call, TABLE_AGGREGATE)) {
+		public Void visit(UnresolvedCallExpression unresolvedCall) {
+			if (isFunctionOfKind(unresolvedCall, AGGREGATE) || isFunctionOfKind(unresolvedCall, TABLE_AGGREGATE)) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
 			}
-			call.getChildren().forEach(expr -> expr.accept(this));
+			unresolvedCall.getChildren().forEach(expr -> expr.accept(this));
 			return null;
 		}
 
@@ -526,19 +525,19 @@ public class AggregateOperationFactory {
 		}
 
 		@Override
-		public Expression visit(CallExpression call) {
-			FunctionDefinition definition = call.getFunctionDefinition();
+		public Expression visit(UnresolvedCallExpression unresolvedCall) {
+			FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
 			if (definition == BuiltInFunctionDefinitions.AS) {
-				return unwrapFromAlias(call);
-			} else if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
-				return call;
+				return unwrapFromAlias(unresolvedCall);
+			} else if (isFunctionOfKind(unresolvedCall, TABLE_AGGREGATE)) {
+				return unresolvedCall;
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 
-		private Expression unwrapFromAlias(CallExpression call) {
-			List<Expression> children = call.getChildren();
+		private Expression unwrapFromAlias(UnresolvedCallExpression unresolvedCall) {
+			List<Expression> children = unresolvedCall.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
 				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
@@ -551,7 +550,7 @@ public class AggregateOperationFactory {
 
 			validateAlias(
 				aliases,
-				(TableAggregateFunctionDefinition) ((CallExpression) children.get(0)).getFunctionDefinition());
+				(TableAggregateFunctionDefinition) ((UnresolvedCallExpression) children.get(0)).getFunctionDefinition());
 			alias = aliases;
 			return children.get(0);
 		}

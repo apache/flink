@@ -21,9 +21,9 @@ package org.apache.flink.table.expressions.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.util.List;
@@ -56,16 +56,16 @@ final class FlattenCallRule implements ResolverRule {
 		}
 
 		@Override
-		public List<Expression> visit(CallExpression call) {
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
-				return executeFlatten(call);
+		public List<Expression> visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
+				return executeFlatten(unresolvedCall);
 			}
 
-			return singletonList(call);
+			return singletonList(unresolvedCall);
 		}
 
-		private List<Expression> executeFlatten(CallExpression call) {
-			Expression arg = call.getChildren().get(0);
+		private List<Expression> executeFlatten(UnresolvedCallExpression unresolvedCall) {
+			Expression arg = unresolvedCall.getChildren().get(0);
 			PlannerExpression plannerExpression = resolutionContext.bridge(arg);
 			plannerExpression.validateInput();
 			TypeInformation<?> resultType = plannerExpression.resultType();

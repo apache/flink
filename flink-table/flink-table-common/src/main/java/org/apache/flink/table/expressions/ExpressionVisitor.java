@@ -27,7 +27,7 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface ExpressionVisitor<R> {
 
-	R visit(CallExpression call);
+	R visit(UnresolvedCallExpression unresolvedCall);
 
 	R visit(ValueLiteralExpression valueLiteralExpression);
 

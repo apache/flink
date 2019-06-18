@@ -144,15 +144,15 @@ public class ExpressionTest {
 	// --------------------------------------------------------------------------------------------
 
 	private static Expression createExpressionTree(Integer nestedValue) {
-		return new CallExpression(
+		return new UnresolvedCallExpression(
 			AND,
 			asList(
 				new ValueLiteralExpression(true),
-				new CallExpression(
+				new UnresolvedCallExpression(
 					EQUALS,
 					asList(
 						new FieldReferenceExpression("field", DataTypes.INT(), 0, 0),
-						new CallExpression(
+						new UnresolvedCallExpression(
 							new ScalarFunctionDefinition("dummy", DUMMY_FUNCTION),
 							singletonList(new ValueLiteralExpression(nestedValue, DataTypes.INT()))
 						)

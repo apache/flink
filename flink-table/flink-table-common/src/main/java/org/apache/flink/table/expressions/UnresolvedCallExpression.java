@@ -29,18 +29,18 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * General expression for calling a function.
+ * Unresolved call expression for calling a function identified by a {@link FunctionDefinition}.
  *
- * <p>The function can be a built-in function or a user-defined function.
+ * <p>This is a purely API facing expression with unvalidated arguments and unknown output data type.
  */
 @PublicEvolving
-public final class CallExpression implements Expression {
+public final class UnresolvedCallExpression implements Expression {
 
 	private final FunctionDefinition functionDefinition;
 
 	private final List<Expression> args;
 
-	public CallExpression(FunctionDefinition functionDefinition, List<Expression> args) {
+	public UnresolvedCallExpression(FunctionDefinition functionDefinition, List<Expression> args) {
 		this.functionDefinition = Preconditions.checkNotNull(functionDefinition);
 		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
@@ -67,7 +67,7 @@ public final class CallExpression implements Expression {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		CallExpression that = (CallExpression) o;
+		UnresolvedCallExpression that = (UnresolvedCallExpression) o;
 		return Objects.equals(functionDefinition, that.functionDefinition) &&
 			Objects.equals(args, that.args);
 	}

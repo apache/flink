@@ -23,12 +23,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 
@@ -119,13 +119,13 @@ public class JoinOperationFactory {
 	private class EquiJoinExistsChecker extends ApiExpressionDefaultVisitor<Boolean> {
 
 		@Override
-		public Boolean visit(CallExpression call) {
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.EQUALS) {
-				return isJoinCondition(call.getChildren().get(0), call.getChildren().get(1));
-			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OR) {
+		public Boolean visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.EQUALS) {
+				return isJoinCondition(unresolvedCall.getChildren().get(0), unresolvedCall.getChildren().get(1));
+			} else if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.OR) {
 				return false;
-			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AND) {
-				return call.getChildren().get(0).accept(this) || call.getChildren().get(1).accept(this);
+			} else if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.AND) {
+				return unresolvedCall.getChildren().get(0).accept(this) || unresolvedCall.getChildren().get(1).accept(this);
 			}
 
 			return false;

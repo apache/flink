@@ -201,12 +201,13 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     // extract alias and aggregate function
     var alias: Seq[String] = Seq()
     val aggWithoutAlias = resolvedAggregate match {
-      case c: CallExpression if c.getFunctionDefinition == BuiltInFunctionDefinitions.AS =>
+      case c: UnresolvedCallExpression
+          if c.getFunctionDefinition == BuiltInFunctionDefinitions.AS =>
         alias = c.getChildren
           .drop(1)
           .map(e => ExpressionUtils.extractValue(e, classOf[String]).get())
         c.getChildren.get(0)
-      case c: CallExpression
+      case c: UnresolvedCallExpression
         if c.getFunctionDefinition.isInstanceOf[AggregateFunctionDefinition] =>
         if (alias.isEmpty) alias = UserDefinedFunctionUtils.getFieldInfo(
           c.getFunctionDefinition.asInstanceOf[AggregateFunctionDefinition].getResultTypeInfo)._1
@@ -489,7 +490,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     }
 
     val originFieldNames: Seq[String] =
-      resolvedTableFunction.asInstanceOf[CallExpression].getFunctionDefinition match {
+      resolvedTableFunction.asInstanceOf[UnresolvedCallExpression].getFunctionDefinition match {
         case tfd: TableFunctionDefinition =>
           UserDefinedFunctionUtils.getFieldInfo(tfd.getResultType)._1
       }
@@ -536,7 +537,8 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     var attrNameCntr: Int = 0
     val usedFieldNames = inputFieldNames.toBuffer
     groupingExpressions.map {
-      case c: CallExpression if c.getFunctionDefinition != BuiltInFunctionDefinitions.AS =>
+      case c: UnresolvedCallExpression
+          if c.getFunctionDefinition != BuiltInFunctionDefinitions.AS =>
         val tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames)
         usedFieldNames.append(tempName)
         attrNameCntr += 1
@@ -570,13 +572,13 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   class NoWindowPropertyChecker(val exceptionMessage: String)
     extends ApiExpressionDefaultVisitor[Void] {
-    override def visit(call: CallExpression): Void = {
-      val functionDefinition = call.getFunctionDefinition
+    override def visit(unresolvedCall: UnresolvedCallExpression): Void = {
+      val functionDefinition = unresolvedCall.getFunctionDefinition
       if (BuiltInFunctionDefinitions.WINDOW_PROPERTIES
         .contains(functionDefinition)) {
         throw new ValidationException(exceptionMessage)
       }
-      call.getChildren.asScala.foreach(expr => expr.accept(this))
+      unresolvedCall.getChildren.asScala.foreach(expr => expr.accept(this))
       null
     }
 

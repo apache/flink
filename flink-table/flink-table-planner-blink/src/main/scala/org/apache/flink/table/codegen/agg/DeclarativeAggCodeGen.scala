@@ -216,7 +216,7 @@ class DeclarativeAggCodeGen(
       isMerge: Boolean = false,
       isDistinctMerge: Boolean = false) extends ExpressionVisitor[Expression] {
 
-    override def visit(call: CallExpression): Expression = {
+    override def visit(call: UnresolvedCallExpression): Expression = {
       ApiExpressionUtils.call(
         call.getFunctionDefinition,
         call.getChildren.asScala.map(_.accept(this)): _*)

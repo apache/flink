@@ -20,12 +20,12 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 
@@ -156,14 +156,14 @@ public class OperationExpressionsUtils {
 		}
 
 		@Override
-		public Void visit(CallExpression call) {
-			FunctionDefinition functionDefinition = call.getFunctionDefinition();
-			if (isFunctionOfKind(call, AGGREGATE)) {
-				aggregates.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);
+		public Void visit(UnresolvedCallExpression unresolvedCall) {
+			FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
+			if (isFunctionOfKind(unresolvedCall, AGGREGATE)) {
+				aggregates.computeIfAbsent(unresolvedCall, expr -> "EXPR$" + uniqueId++);
 			} else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
-				properties.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);
+				properties.computeIfAbsent(unresolvedCall, expr -> "EXPR$" + uniqueId++);
 			} else {
-				call.getChildren().forEach(c -> c.accept(this));
+				unresolvedCall.getChildren().forEach(c -> c.accept(this));
 			}
 			return null;
 		}
@@ -192,18 +192,18 @@ public class OperationExpressionsUtils {
 		}
 
 		@Override
-		public Expression visit(CallExpression call) {
-			if (aggregates.get(call) != null) {
-				return unresolvedRef(aggregates.get(call));
-			} else if (properties.get(call) != null) {
-				return unresolvedRef(properties.get(call));
+		public Expression visit(UnresolvedCallExpression unresolvedCall) {
+			if (aggregates.get(unresolvedCall) != null) {
+				return unresolvedRef(aggregates.get(unresolvedCall));
+			} else if (properties.get(unresolvedCall) != null) {
+				return unresolvedRef(properties.get(unresolvedCall));
 			}
 
-			final Expression[] args = call.getChildren()
+			final Expression[] args = unresolvedCall.getChildren()
 				.stream()
 				.map(c -> c.accept(this))
 				.toArray(Expression[]::new);
-			return call(call.getFunctionDefinition(), args);
+			return call(unresolvedCall.getFunctionDefinition(), args);
 		}
 
 		@Override
@@ -214,9 +214,9 @@ public class OperationExpressionsUtils {
 
 	private static class ExtractNameVisitor extends ApiExpressionDefaultVisitor<Optional<String>> {
 		@Override
-		public Optional<String> visit(CallExpression call) {
-			if (call.getFunctionDefinition().equals(AS)) {
-				return extractValue(call.getChildren().get(1), String.class);
+		public Optional<String> visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == AS) {
+				return extractValue(unresolvedCall.getChildren().get(1), String.class);
 			} else {
 				return Optional.empty();
 			}

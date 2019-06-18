@@ -45,8 +45,8 @@ public final class ApiExpressionUtils {
 		// private
 	}
 
-	public static CallExpression call(FunctionDefinition functionDefinition, Expression... args) {
-		return new CallExpression(functionDefinition, Arrays.asList(args));
+	public static UnresolvedCallExpression call(FunctionDefinition functionDefinition, Expression... args) {
+		return new UnresolvedCallExpression(functionDefinition, Arrays.asList(args));
 	}
 
 	public static ValueLiteralExpression valueLiteral(Object value) {
