@@ -36,7 +36,7 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
 
         parallelism = self.env.get_parallelism()
 
-        assert parallelism == 10
+        self.assertEqual(parallelism, 10)
 
     def test_get_set_default_local_parallelism(self):
 
@@ -44,13 +44,13 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
 
         parallelism = self.env.get_default_local_parallelism()
 
-        assert parallelism == 8
+        self.assertEqual(parallelism, 8)
 
     def test_get_config(self):
 
         execution_config = self.env.get_config()
 
-        assert isinstance(execution_config, ExecutionConfig)
+        self.assertIsInstance(execution_config, ExecutionConfig)
 
     def test_set_get_restart_strategy(self):
 
@@ -58,7 +58,7 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
 
         restart_strategy = self.env.get_restart_strategy()
 
-        assert restart_strategy == RestartStrategies.no_restart()
+        self.assertEqual(restart_strategy, RestartStrategies.no_restart())
 
     def test_add_default_kryo_serializer(self):
 
@@ -66,11 +66,12 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
 
-        dict = self.env.get_config().get_default_kryo_serializer_classes()
+        class_dict = self.env.get_config().get_default_kryo_serializer_classes()
 
-        assert dict == {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                        'org.apache.flink.runtime.state'
-                        '.StateBackendTestBase$CustomKryoTestSerializer'}
+        self.assertEqual(class_dict,
+                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+                          'org.apache.flink.runtime.state'
+                          '.StateBackendTestBase$CustomKryoTestSerializer'})
 
     def test_register_type_with_kryo_serializer(self):
 
@@ -78,11 +79,12 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
             "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
             "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
 
-        dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
+        class_dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
 
-        assert dict == {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                        'org.apache.flink.runtime.state'
-                        '.StateBackendTestBase$CustomKryoTestSerializer'}
+        self.assertEqual(class_dict,
+                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
+                          'org.apache.flink.runtime.state'
+                          '.StateBackendTestBase$CustomKryoTestSerializer'})
 
     def test_register_type(self):
 
@@ -90,7 +92,8 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
 
         type_list = self.env.get_config().get_registered_pojo_types()
 
-        assert type_list == ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"]
+        self.assertEqual(type_list,
+                         ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
 
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()

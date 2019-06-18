@@ -30,94 +30,97 @@ class MemoryStateBackendTests(PyFlinkTestCase):
         JMemoryStateBackend = gateway.jvm.org.apache.flink.runtime.state.memory \
             .MemoryStateBackend
 
-        assert MemoryStateBackend.DEFAULT_MAX_STATE_SIZE == \
-            JMemoryStateBackend.DEFAULT_MAX_STATE_SIZE
+        self.assertEqual(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE,
+                         JMemoryStateBackend.DEFAULT_MAX_STATE_SIZE)
 
     def test_create_memory_state_backend(self):
 
-        MemoryStateBackend("file://var/checkpoints/")
+        self.assertIsNotNone(MemoryStateBackend("file://var/checkpoints/"))
 
-        MemoryStateBackend("file://var/checkpoints/", "file://var/savepoints/")
+        self.assertIsNotNone(MemoryStateBackend("file://var/checkpoints/",
+                                                "file://var/savepoints/"))
 
-        MemoryStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 10000000)
+        self.assertIsNotNone(MemoryStateBackend(
+            "file://var/checkpoints/", "file://var/savepoints/", 10000000))
 
-        MemoryStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 10000000, True)
+        self.assertIsNotNone(MemoryStateBackend(
+            "file://var/checkpoints/", "file://var/savepoints/", 10000000, True))
 
-        MemoryStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 10000000, False)
+        self.assertIsNotNone(MemoryStateBackend(
+            "file://var/checkpoints/", "file://var/savepoints/", 10000000, False))
 
     def test_is_using_asynchronous_snapshots(self):
 
         state_backend = MemoryStateBackend()
 
-        assert state_backend.is_using_asynchronous_snapshots() is True
+        self.assertTrue(state_backend.is_using_asynchronous_snapshots())
 
         state_backend = MemoryStateBackend(using_asynchronous_snapshots=True)
 
-        assert state_backend.is_using_asynchronous_snapshots() is True
+        self.assertTrue(state_backend.is_using_asynchronous_snapshots())
 
         state_backend = MemoryStateBackend(using_asynchronous_snapshots=False)
 
-        assert state_backend.is_using_asynchronous_snapshots() is False
+        self.assertFalse(state_backend.is_using_asynchronous_snapshots())
 
     def test_get_max_state_size(self):
 
         state_backend = MemoryStateBackend()
 
-        assert state_backend.get_max_state_size() == MemoryStateBackend.DEFAULT_MAX_STATE_SIZE
+        self.assertEqual(state_backend.get_max_state_size(),
+                         MemoryStateBackend.DEFAULT_MAX_STATE_SIZE)
 
         state_backend = MemoryStateBackend(max_state_size=50000)
 
-        assert state_backend.get_max_state_size() == 50000
+        self.assertEqual(state_backend.get_max_state_size(), 50000)
 
 
 class FsStateBackendTests(PyFlinkTestCase):
 
     def test_create_fs_state_backend(self):
 
-        FsStateBackend("file://var/checkpoints/")
+        self.assertIsNotNone(FsStateBackend("file://var/checkpoints/"))
 
-        FsStateBackend("file://var/checkpoints/", "file://var/savepoints/")
+        self.assertIsNotNone(FsStateBackend("file://var/checkpoints/", "file://var/savepoints/"))
 
-        FsStateBackend("file://var/checkpoints/", "file://var/savepoints/", 2048)
+        self.assertIsNotNone(FsStateBackend("file://var/checkpoints/",
+                                            "file://var/savepoints/", 2048))
 
-        FsStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 2048, True)
+        self.assertIsNotNone(FsStateBackend(
+            "file://var/checkpoints/", "file://var/savepoints/", 2048, True))
 
-        FsStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 2048, False)
+        self.assertIsNotNone(FsStateBackend(
+            "file://var/checkpoints/", "file://var/savepoints/", 2048, False))
 
     def test_get_min_file_size_threshold(self):
 
         state_backend = FsStateBackend("file://var/checkpoints/")
 
-        assert state_backend.get_min_file_size_threshold() == 1024
+        self.assertEqual(state_backend.get_min_file_size_threshold(), 1024)
 
         state_backend = FsStateBackend("file://var/checkpoints/", file_state_size_threshold=2048)
 
-        assert state_backend.get_min_file_size_threshold() == 2048
+        self.assertEqual(state_backend.get_min_file_size_threshold(), 2048)
 
     def test_get_checkpoint_path(self):
 
         state_backend = FsStateBackend("file://var/checkpoints/")
 
-        assert state_backend.get_checkpoint_path() == "file://var/checkpoints"
+        self.assertEqual(state_backend.get_checkpoint_path(), "file://var/checkpoints")
 
 
 class RocksDBStateBackendTests(PyFlinkTestCase):
 
     def test_create_rocks_db_state_backend(self):
 
-        RocksDBStateBackend("file://var/checkpoints/")
+        self.assertIsNotNone(RocksDBStateBackend("file://var/checkpoints/"))
 
-        RocksDBStateBackend("file://var/checkpoints/", True)
+        self.assertIsNotNone(RocksDBStateBackend("file://var/checkpoints/", True))
 
-        RocksDBStateBackend("file://var/checkpoints/", False)
+        self.assertIsNotNone(RocksDBStateBackend("file://var/checkpoints/", False))
 
-        RocksDBStateBackend(
-            checkpoint_stream_backend=FsStateBackend("file://var/checkpoints/"))
+        self.assertIsNotNone(RocksDBStateBackend(
+            checkpoint_stream_backend=FsStateBackend("file://var/checkpoints/")))
 
     def test_get_checkpoint_backend(self):
 
@@ -125,8 +128,8 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
 
         checkpoint_backend = state_backend.get_checkpoint_backend()
 
-        assert isinstance(checkpoint_backend, FsStateBackend)
-        assert checkpoint_backend.get_checkpoint_path() == "file://var/checkpoints"
+        self.assertIsInstance(checkpoint_backend, FsStateBackend)
+        self.assertEqual(checkpoint_backend.get_checkpoint_path(), "file://var/checkpoints")
 
     def test_get_set_db_storage_paths(self):
 
@@ -136,64 +139,68 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
                                            "file://var/db_storage_dir2/",
                                            "file://var/db_storage_dir3/")
 
-        assert state_backend.get_db_storage_paths() == ['/db_storage_dir1',
-                                                        '/db_storage_dir2',
-                                                        '/db_storage_dir3']
+        self.assertEqual(state_backend.get_db_storage_paths(),
+                         ['/db_storage_dir1',
+                          '/db_storage_dir2',
+                          '/db_storage_dir3'])
 
     def test_get_set_ttl_compaction_filter(self):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
-        assert state_backend.is_ttl_compaction_filter_enabled() is False
+        self.assertFalse(state_backend.is_ttl_compaction_filter_enabled())
 
         state_backend.enable_ttl_compaction_filter()
 
-        assert state_backend.is_ttl_compaction_filter_enabled() is True
+        self.assertTrue(state_backend.is_ttl_compaction_filter_enabled())
 
     def test_get_set_predefined_options(self):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
-        assert state_backend.get_predefined_options() == PredefinedOptions.DEFAULT
+        self.assertEqual(state_backend.get_predefined_options(), PredefinedOptions.DEFAULT)
 
         state_backend.set_predefined_options(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)
 
-        assert state_backend.get_predefined_options() == \
-            PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM
+        self.assertEqual(state_backend.get_predefined_options(),
+                         PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)
 
         state_backend.set_predefined_options(PredefinedOptions.SPINNING_DISK_OPTIMIZED)
 
-        assert state_backend.get_predefined_options() == PredefinedOptions.SPINNING_DISK_OPTIMIZED
+        self.assertEqual(state_backend.get_predefined_options(),
+                         PredefinedOptions.SPINNING_DISK_OPTIMIZED)
 
         state_backend.set_predefined_options(PredefinedOptions.FLASH_SSD_OPTIMIZED)
 
-        assert state_backend.get_predefined_options() == PredefinedOptions.FLASH_SSD_OPTIMIZED
+        self.assertEqual(state_backend.get_predefined_options(),
+                         PredefinedOptions.FLASH_SSD_OPTIMIZED)
 
         state_backend.set_predefined_options(PredefinedOptions.DEFAULT)
 
-        assert state_backend.get_predefined_options() == PredefinedOptions.DEFAULT
+        self.assertEqual(state_backend.get_predefined_options(), PredefinedOptions.DEFAULT)
 
     def test_get_set_options(self):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
-        assert state_backend.get_options() is None
+        self.assertIsNone(state_backend.get_options())
 
         state_backend.set_options(
             "org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory")
 
-        assert state_backend.get_options() == \
-            "org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory"
+        self.assertEqual(state_backend.get_options(),
+                         "org.apache.flink.contrib.streaming.state."
+                         "DefaultConfigurableOptionsFactory")
 
     def test_get_set_number_of_transfering_threads(self):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")
 
-        assert state_backend.get_number_of_transfering_threads() == 1
+        self.assertEqual(state_backend.get_number_of_transfering_threads(), 1)
 
         state_backend.set_number_of_transfering_threads(4)
 
-        assert state_backend.get_number_of_transfering_threads() == 4
+        self.assertEqual(state_backend.get_number_of_transfering_threads(), 4)
 
 
 class CustomStateBackendTests(PyFlinkTestCase):
@@ -208,4 +215,4 @@ class CustomStateBackendTests(PyFlinkTestCase):
         state_backend = _from_j_state_backend(j_factory.createFromConfig(j_config,
                                                                          context_classloader))
 
-        assert isinstance(state_backend, CustomStateBackend)
+        self.assertIsInstance(state_backend, CustomStateBackend)
