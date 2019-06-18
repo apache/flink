@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
@@ -61,7 +62,6 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -564,6 +564,8 @@ public class LogicalTypesTest {
 		testJavaSerializability(anyType);
 
 		testConversions(anyType, new Class[]{Tuple2.class}, new Class[]{Tuple.class});
+
+		testInvalidStringSerializability(anyType);
 	}
 
 	@Test
@@ -603,6 +605,32 @@ public class LogicalTypesTest {
 		testJavaSerializability(symbolType);
 
 		testConversions(symbolType, new Class[]{TimeIntervalUnit.class}, new Class[]{TimeIntervalUnit.class});
+
+		testInvalidStringSerializability(symbolType);
+	}
+
+	@Test
+	public void testEmptyStringLiterals() {
+		final CharType charType = CharType.ofEmptyLiteral();
+		final VarCharType varcharType = VarCharType.ofEmptyLiteral();
+		final BinaryType binaryType = BinaryType.ofEmptyLiteral();
+		final VarBinaryType varBinaryType = VarBinaryType.ofEmptyLiteral();
+
+		// make the types nullable for testing
+		testEquality(charType.copy(true), new CharType(1));
+		testEquality(varcharType.copy(true), new VarCharType(1));
+		testEquality(binaryType.copy(true), new BinaryType(1));
+		testEquality(varBinaryType.copy(true), new VarBinaryType(1));
+
+		testStringSummary(charType, "CHAR(0) NOT NULL");
+		testStringSummary(varcharType, "VARCHAR(0) NOT NULL");
+		testStringSummary(binaryType, "BINARY(0) NOT NULL");
+		testStringSummary(varBinaryType, "VARBINARY(0) NOT NULL");
+
+		testInvalidStringSerializability(charType);
+		testInvalidStringSerializability(varcharType);
+		testInvalidStringSerializability(binaryType);
+		testInvalidStringSerializability(varBinaryType);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -664,11 +692,20 @@ public class LogicalTypesTest {
 	}
 
 	private static void testStringSerializability(LogicalType serializableType, String serializableString) {
-		Assert.assertEquals(serializableString, serializableType.asSerializableString());
+		assertEquals(serializableString, serializableType.asSerializableString());
+	}
+
+	private static void testInvalidStringSerializability(LogicalType nonSerializableType) {
+		try {
+			final String serializedString = nonSerializableType.asSerializableString();
+			fail("No serializablility expected: " + serializedString);
+		} catch (TableException e) {
+			// ok
+		}
 	}
 
 	private static void testStringSummary(LogicalType type, String summaryString) {
-		Assert.assertEquals(summaryString, type.asSummaryString());
+		assertEquals(summaryString, type.asSummaryString());
 	}
 
 	private static void testConversions(LogicalType type, Class[] inputs, Class[] outputs) {

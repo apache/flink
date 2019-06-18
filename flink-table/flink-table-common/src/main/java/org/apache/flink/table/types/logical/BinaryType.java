@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 
 import java.util.Collections;
@@ -91,6 +92,8 @@ public final class BinaryType extends LogicalType {
 	 * For consistent behavior, the same logic applies to binary strings.
 	 *
 	 * <p>This method enables this special kind of binary string.
+	 *
+	 * <p>Zero-length binary strings have no serializable string representation.
 	 */
 	public static BinaryType ofEmptyLiteral() {
 		return new BinaryType(EMPTY_LITERAL_LENGTH, false);
@@ -107,6 +110,15 @@ public final class BinaryType extends LogicalType {
 
 	@Override
 	public String asSerializableString() {
+		if (length == EMPTY_LITERAL_LENGTH) {
+			throw new TableException(
+				"Zero-length binary strings have no serializable string representation.");
+		}
+		return withNullability(FORMAT, length);
+	}
+
+	@Override
+	public String asSummaryString() {
 		return withNullability(FORMAT, length);
 	}
 
