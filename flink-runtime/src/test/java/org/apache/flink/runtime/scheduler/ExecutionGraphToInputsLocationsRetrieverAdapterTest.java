@@ -19,38 +19,38 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
-import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link EGBasedInputsLocationsRetriever}.
+ * Tests for {@link ExecutionGraphToInputsLocationsRetrieverAdapter}.
  */
-public class EGBasedInputsLocationsRetrieverTest extends TestLogger {
+public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLogger {
 
 	/**
 	 * Tests that can get the producers of consumed result partitions.
@@ -64,7 +64,8 @@ public class EGBasedInputsLocationsRetrieverTest extends TestLogger {
 		consumer.connectNewDataSetAsInput(producer2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), producer1, producer2, consumer);
-		final EGBasedInputsLocationsRetriever inputsLocationsRetriever = new EGBasedInputsLocationsRetriever(eg);
+		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
+				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
 		ExecutionVertexID evIdOfProducer1 = new ExecutionVertexID(producer1.getID(), 0);
 		ExecutionVertexID evIdOfProducer2 = new ExecutionVertexID(producer2.getID(), 0);
@@ -79,7 +80,9 @@ public class EGBasedInputsLocationsRetrieverTest extends TestLogger {
 
 		assertThat(producersOfProducer1, is(empty()));
 		assertThat(producersOfProducer2, is(empty()));
-		assertThat(producersOfConsumer, contains(Arrays.asList(evIdOfProducer1), Arrays.asList(evIdOfProducer2)));
+		assertThat(producersOfConsumer, hasSize(2));
+		assertThat(producersOfConsumer, hasItem(Collections.singletonList(evIdOfProducer1)));
+		assertThat(producersOfConsumer, hasItem(Collections.singletonList(evIdOfProducer2)));
 	}
 
 	/**
@@ -90,7 +93,8 @@ public class EGBasedInputsLocationsRetrieverTest extends TestLogger {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
-		final EGBasedInputsLocationsRetriever inputsLocationsRetriever = new EGBasedInputsLocationsRetriever(eg);
+		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
+				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
 		ExecutionVertexID executionVertexId = new ExecutionVertexID(jobVertex.getID(), 0);
 		Optional<CompletableFuture<TaskManagerLocation>> taskManagerLocation =
@@ -107,28 +111,40 @@ public class EGBasedInputsLocationsRetrieverTest extends TestLogger {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
 		final TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlot();
-		final SlotProvider slotProvider = new TestingSlotProvider(
-				(ignored) -> CompletableFuture.completedFuture(testingLogicalSlot));
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
-				new JobID(),
-				slotProvider,
-				new NoRestartStrategy(),
-				jobVertex);
-		eg.scheduleForExecution();
-		final EGBasedInputsLocationsRetriever inputsLocationsRetriever = new EGBasedInputsLocationsRetriever(eg);
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
+		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
+				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
-		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
-				eg,
-				(execution) -> execution.getState() == ExecutionState.DEPLOYING,
-				2000L);
+		final ExecutionVertex onlyExecutionVertex = eg.getAllExecutionVertices().iterator().next();
+		onlyExecutionVertex.deployToSlot(testingLogicalSlot);
 
 		ExecutionVertexID executionVertexId = new ExecutionVertexID(jobVertex.getID(), 0);
 		Optional<CompletableFuture<TaskManagerLocation>> taskManagerLocationOptional =
 				inputsLocationsRetriever.getTaskManagerLocation(executionVertexId);
 
-		CompletableFuture<TaskManagerLocation> taskManagerLocationFuture =
-				taskManagerLocationOptional.orElseThrow(() -> new Exception("The task manager location should not be null"));
-		assertEquals(testingLogicalSlot.getTaskManagerLocation(), taskManagerLocationFuture.get());
+		assertTrue(taskManagerLocationOptional.isPresent());
+
+		final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture = taskManagerLocationOptional.get();
+		assertThat(taskManagerLocationFuture.get(), is(testingLogicalSlot.getTaskManagerLocation()));
 	}
 
+	/**
+	 * Tests that it will throw exception when getting the task manager location of a non existing execution.
+	 */
+	@Test
+	public void testGetNonExistingExecutionVertexWillThrowException() throws Exception {
+		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
+		final ExecutionGraphToInputsLocationsRetrieverAdapter inputsLocationsRetriever =
+				new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
+
+		ExecutionVertexID invalidExecutionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+		try {
+			inputsLocationsRetriever.getTaskManagerLocation(invalidExecutionVertexId);
+			fail("Should throw exception if execution vertex doesn't exist!");
+		} catch (IllegalStateException expected) {
+			// expect this exception
+		}
+	}
 }

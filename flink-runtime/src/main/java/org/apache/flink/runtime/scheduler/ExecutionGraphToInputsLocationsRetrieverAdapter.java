@@ -33,15 +33,16 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An implementation of {@link InputsLocationsRetriever} based on the {@link ExecutionGraph}.
  */
-public class EGBasedInputsLocationsRetriever implements InputsLocationsRetriever {
+public class ExecutionGraphToInputsLocationsRetrieverAdapter implements InputsLocationsRetriever {
 
 	private final ExecutionGraph executionGraph;
 
-	public EGBasedInputsLocationsRetriever(ExecutionGraph executionGraph) {
+	public ExecutionGraphToInputsLocationsRetrieverAdapter(ExecutionGraph executionGraph) {
 		this.executionGraph = checkNotNull(executionGraph);
 	}
 
@@ -76,11 +77,10 @@ public class EGBasedInputsLocationsRetriever implements InputsLocationsRetriever
 	}
 
 	private ExecutionVertex getExecutionVertex(ExecutionVertexID executionVertexId) {
-
 		ExecutionJobVertex ejv = executionGraph.getJobVertex(executionVertexId.getJobVertexId());
-		if (ejv == null || ejv.getParallelism() <= executionVertexId.getSubtaskIndex()) {
-			throw new IllegalArgumentException(String.format("Failed to find execution %s in execution graph.", executionVertexId));
-		}
+
+		checkState(ejv != null && ejv.getParallelism() > executionVertexId.getSubtaskIndex(),
+				"Failed to find execution %s in execution graph.", executionVertexId);
 
 		return ejv.getTaskVertices()[executionVertexId.getSubtaskIndex()];
 	}
