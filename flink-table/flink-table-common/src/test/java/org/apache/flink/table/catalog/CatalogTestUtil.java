@@ -37,7 +37,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Utility class for catalog testing.
- * TODO: Move util methods to CatalogTestBase and remove this class
+ * TODO: Move util methods to CatalogTest and remove this class
  */
 public class CatalogTestUtil {
 	public static void checkEquals(TableStats ts1, TableStats ts2) {
@@ -47,7 +47,10 @@ public class CatalogTestUtil {
 
 	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
 		assertEquals(d1.getComment(), d2.getComment());
-		assertEquals(d1.getProperties(), d2.getProperties());
+
+		// d2 should contain all properties of d1's, and may or may not contain extra properties
+		assertTrue(d2.getProperties().entrySet().containsAll(
+			d1.getProperties().entrySet()));
 	}
 
 	static void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {

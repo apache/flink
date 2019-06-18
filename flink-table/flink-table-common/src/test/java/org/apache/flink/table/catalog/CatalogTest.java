@@ -55,14 +55,13 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Base testing class for unit tests of a specific catalog, like GenericInMemoryCatalog and HiveCatalog.
+ * Class for unit tests to run on catalogs.
  */
-public abstract class CatalogTestBase {
+public abstract class CatalogTest {
 	protected static final String IS_STREAMING = "is_streaming";
 
 	protected final String db1 = "db1";
 	protected final String db2 = "db2";
-	protected final String nonExistentDatabase = "non-existent-db";
 
 	protected final String t1 = "t1";
 	protected final String t2 = "t2";
@@ -202,19 +201,6 @@ public abstract class CatalogTestBase {
 
 		assertFalse(catalog.getDatabase(db1).getProperties().entrySet().containsAll(db.getProperties().entrySet()));
 		CatalogTestUtil.checkEquals(newDb, catalog.getDatabase(db1));
-	}
-
-	@Test
-	public void testAlterDb_differentTypedDb() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage(
-			String.format("Database types don't match. " +
-					"Existing database is '%s' and " +
-					"new database is 'org.apache.flink.table.catalog.CatalogTestBase$TestDatabase'.",
-				createDb().getClass().getName()));
-		catalog.alterDatabase(db1, new TestDatabase(), false);
 	}
 
 	@Test
@@ -410,7 +396,7 @@ public abstract class CatalogTestBase {
 		exception.expectMessage(
 			String.format("Table types don't match. " +
 					"Existing table is '%s' and " +
-					"new table is 'org.apache.flink.table.catalog.CatalogTestBase$TestTable'.",
+					"new table is 'org.apache.flink.table.catalog.CatalogTest$TestTable'.",
 				table.getClass().getName()));
 		catalog.alterTable(path1, new TestTable(), false);
 	}
@@ -679,7 +665,7 @@ public abstract class CatalogTestBase {
 		exception.expectMessage(
 			String.format("Function types don't match. " +
 				"Existing function is '%s' and " +
-				"new function is 'org.apache.flink.table.catalog.CatalogTestBase$TestFunction'.",
+				"new function is 'org.apache.flink.table.catalog.CatalogTest$TestFunction'.",
 				function.getClass().getName()));
 		catalog.alterFunction(path1, new TestFunction(), false);
 	}
@@ -1253,36 +1239,6 @@ public abstract class CatalogTestBase {
 	public static class MyOtherScalarFunction extends ScalarFunction {
 		public String eval(Integer i) {
 			return String.valueOf(i);
-		}
-	}
-
-	/**
-	 * Test database used to assert on database of different class.
-	 */
-	public static class TestDatabase implements CatalogDatabase {
-		@Override
-		public Map<String, String> getProperties() {
-			return null;
-		}
-
-		@Override
-		public String getComment() {
-			return null;
-		}
-
-		@Override
-		public CatalogDatabase copy() {
-			return null;
-		}
-
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
-
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
 		}
 	}
 

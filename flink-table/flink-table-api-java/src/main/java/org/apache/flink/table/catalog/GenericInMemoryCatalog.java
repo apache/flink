@@ -71,7 +71,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 		super(name, defaultDatabase);
 
 		this.databases = new LinkedHashMap<>();
-		this.databases.put(defaultDatabase, new GenericCatalogDatabase(new HashMap<>(), ""));
+		this.databases.put(defaultDatabase, new CatalogDatabaseImpl(new HashMap<>(), null));
 		this.tables = new LinkedHashMap<>();
 		this.functions = new LinkedHashMap<>();
 		this.partitions = new LinkedHashMap<>();

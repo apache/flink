@@ -16,35 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+package org.apache.flink.table.catalog.hive;
 
 /**
- * A generic catalog database implementation.
+ * Configs for database in {@link HiveCatalog}.
  */
-public class GenericCatalogDatabase extends AbstractCatalogDatabase {
-
-	public GenericCatalogDatabase(Map<String, String> properties, String comment) {
-		super(properties, comment);
-		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
-	}
-
-	@Override
-	public GenericCatalogDatabase copy() {
-		return new GenericCatalogDatabase(new HashMap<>(getProperties()), getComment());
-	}
-
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.of(getComment());
-	}
-
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a generic catalog database");
-	}
-
+public class HiveDatabaseConfig {
+	public static final String DATABASE_LOCATION_URI = "database.location_uri";
 }

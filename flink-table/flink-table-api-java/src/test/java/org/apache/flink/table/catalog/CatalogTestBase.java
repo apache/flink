@@ -18,32 +18,30 @@
 
 package org.apache.flink.table.catalog;
 
-import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.HashMap;
 
 /**
- * An abstract class representing a database in a catalog.
+ * Base of tests for any catalog implementations, like GenericInMemoryCatalog and HiveCatalog.
  */
-public abstract class AbstractCatalogDatabase implements CatalogDatabase {
-	// Property of the database
-	private final Map<String, String> properties;
-	// Comment of the database
-	private final String comment;
+public abstract class CatalogTestBase extends CatalogTest {
 
-	public AbstractCatalogDatabase(Map<String, String> properties, String comment) {
-		this.properties = checkNotNull(properties, "properties cannot be null");
-		this.comment = comment;
+	@Override
+	public CatalogDatabase createDb() {
+		return new CatalogDatabaseImpl(
+			new HashMap<String, String>() {{
+				put("k1", "v1");
+			}},
+			TEST_COMMENT
+		);
 	}
 
 	@Override
-	public Map<String, String> getProperties() {
-		return properties;
+	public CatalogDatabase createAnotherDb() {
+		return new CatalogDatabaseImpl(
+			new HashMap<String, String>() {{
+				put("k2", "v2");
+			}},
+			TEST_COMMENT
+		);
 	}
-
-	@Override
-	public String getComment() {
-		return comment;
-	}
-
 }
