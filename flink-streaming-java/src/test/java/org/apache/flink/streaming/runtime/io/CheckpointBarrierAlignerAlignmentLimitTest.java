@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -56,9 +57,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /**
- * Tests for the barrier buffer's maximum limit of buffered/spilled bytes.
+ * Tests for the {@link CheckpointBarrierAligner}'s maximum limit of buffered/spilled bytes.
  */
-public class BarrierBufferAlignmentLimitTest {
+public class CheckpointBarrierAlignerAlignmentLimitTest {
 
 	private static final int PAGE_SIZE = 512;
 
@@ -116,7 +117,7 @@ public class BarrierBufferAlignmentLimitTest {
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		BarrierBuffer buffer = new BarrierBuffer(
+		CheckpointedInputGate buffer = new CheckpointedInputGate(
 			gate,
 			new BufferSpiller(ioManager, gate.getPageSize(), 1000),
 			"Testing",
@@ -139,7 +140,7 @@ public class BarrierBufferAlignmentLimitTest {
 		check(sequence[5], buffer.pollNext().get());
 		validateAlignmentTime(startTs, buffer);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(7L),
-			argThat(new BarrierBufferTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)));
+			argThat(new CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)));
 
 		// playing back buffered events
 		check(sequence[7], buffer.pollNext().get());
@@ -213,7 +214,7 @@ public class BarrierBufferAlignmentLimitTest {
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		AbstractInvokable toNotify = mock(AbstractInvokable.class);
-		BarrierBuffer buffer = new BarrierBuffer(
+		CheckpointedInputGate buffer = new CheckpointedInputGate(
 			gate,
 			new BufferSpiller(ioManager, gate.getPageSize(), 500),
 			"Testing",
@@ -237,7 +238,7 @@ public class BarrierBufferAlignmentLimitTest {
 		check(sequence[4], buffer.pollNext().get());
 		validateAlignmentTime(startTs, buffer);
 		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(3L),
-			argThat(new BarrierBufferTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)));
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED)));
 
 		// replay buffered data - in the middle, the alignment for checkpoint 4 starts
 		check(sequence[6], buffer.pollNext().get());
@@ -314,7 +315,7 @@ public class BarrierBufferAlignmentLimitTest {
 		}
 	}
 
-	private static void validateAlignmentTime(long startTimestamp, BarrierBuffer buffer) {
+	private static void validateAlignmentTime(long startTimestamp, CheckpointedInputGate buffer) {
 		final long elapsed = System.nanoTime() - startTimestamp;
 		assertTrue("wrong alignment time", buffer.getAlignmentDurationNanos() <= elapsed);
 	}

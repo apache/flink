@@ -118,7 +118,7 @@ public class CachedBufferStorage extends AbstractBufferStorage {
 	 */
 	public static class CachedBufferOrEventSequence implements BufferOrEventSequence {
 
-		/** The sequence of buffers and events to be consumed by {@link BarrierBuffer}.*/
+		/** The sequence of buffers and events to be consumed by {@link CheckpointedInputGate}.*/
 		private final ArrayDeque<BufferOrEvent> queuedBuffers;
 
 		/** The total size of the cached data. */

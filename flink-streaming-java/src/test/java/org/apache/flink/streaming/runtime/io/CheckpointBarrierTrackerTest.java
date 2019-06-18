@@ -42,26 +42,26 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the behavior of the barrier tracker.
  */
-public class BarrierTrackerTest {
+public class CheckpointBarrierTrackerTest {
 
 	private static final int PAGE_SIZE = 512;
 
-	private CheckpointedInputGate tracker;
+	private CheckpointedInputGate inputGate;
 
 	@After
 	public void ensureEmpty() throws Exception {
-		assertFalse(tracker.pollNext().isPresent());
-		assertTrue(tracker.isFinished());
-		assertTrue(tracker.isEmpty());
+		assertFalse(inputGate.pollNext().isPresent());
+		assertTrue(inputGate.isFinished());
+		assertTrue(inputGate.isEmpty());
 	}
 
 	@Test
 	public void testSingleChannelNoBarriers() throws Exception {
 		BufferOrEvent[] sequence = { createBuffer(0), createBuffer(0), createBuffer(0) };
-		tracker = createBarrierTracker(1, sequence);
+		inputGate = createBarrierTracker(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
-			assertEquals(boe, tracker.pollNext().get());
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -71,10 +71,10 @@ public class BarrierTrackerTest {
 				createBuffer(1), createBuffer(0), createBuffer(3),
 				createBuffer(1), createBuffer(1), createBuffer(2)
 		};
-		tracker = createBarrierTracker(4, sequence);
+		inputGate = createBarrierTracker(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
-			assertEquals(boe, tracker.pollNext().get());
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -91,11 +91,11 @@ public class BarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 3, 4, 5, 6);
-		tracker = createBarrierTracker(1, sequence, validator);
+		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -113,11 +113,11 @@ public class BarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 3, 4, 6, 7, 10);
-		tracker = createBarrierTracker(1, sequence, validator);
+		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -144,11 +144,11 @@ public class BarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 3, 4);
-		tracker = createBarrierTracker(3, sequence, validator);
+		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -179,11 +179,11 @@ public class BarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 4);
-		tracker = createBarrierTracker(3, sequence, validator);
+		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -253,11 +253,11 @@ public class BarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(2, 3, 4, 5, 7, 8, 9, 10);
-		tracker = createBarrierTracker(3, sequence, validator);
+		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -278,13 +278,13 @@ public class BarrierTrackerTest {
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, -4, 5, -6);
-		tracker = createBarrierTracker(1, sequence, validator);
+		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer()) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
-			assertTrue(tracker.isEmpty());
+			assertTrue(inputGate.isEmpty());
 		}
 	}
 
@@ -327,11 +327,11 @@ public class BarrierTrackerTest {
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, -2, 3, -4, 5, -6);
-		tracker = createBarrierTracker(3, sequence, validator);
+		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer()) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -353,11 +353,11 @@ public class BarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(-1, -2);
-		tracker = createBarrierTracker(3, sequence, validator);
+		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			if (boe.isBuffer() || (boe.getEvent().getClass() != CheckpointBarrier.class && boe.getEvent().getClass() != CancelCheckpointMarker.class)) {
-				assertEquals(boe, tracker.pollNext().get());
+				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
 	}
@@ -374,7 +374,7 @@ public class BarrierTrackerTest {
 			BufferOrEvent[] sequence,
 			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, numberOfChannels, Arrays.asList(sequence));
-		return new BarrierBuffer(
+		return new CheckpointedInputGate(
 			gate,
 			new CachedBufferStorage(PAGE_SIZE, -1, "Testing"),
 			new CheckpointBarrierTracker(gate.getNumberOfInputChannels(), toNotifyOnCheckpoint));
