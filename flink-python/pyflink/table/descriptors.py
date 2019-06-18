@@ -40,7 +40,9 @@ __all__ = [
     'FileSystem',
     'ConnectTableDescriptor',
     'StreamTableDescriptor',
-    'BatchTableDescriptor'
+    'BatchTableDescriptor',
+    'CustomConnectorDescriptor',
+    'CustomFormatDescriptor'
 ]
 
 
@@ -628,7 +630,7 @@ class CustomFormatDescriptor(FormatDescriptor):
         if not isinstance(type, (str, unicode)):
             raise TypeError("type must be of type str.")
         if not isinstance(version, (int, long)):
-            raise TypeError("version must be of type str.")
+            raise TypeError("version must be of type int.")
         gateway = get_gateway()
         super(CustomFormatDescriptor, self).__init__(
             gateway.jvm.CustomFormatDescriptor(type, version))
@@ -1196,7 +1198,7 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         if not isinstance(type, (str, unicode)):
             raise TypeError("type must be of type str.")
         if not isinstance(version, (int, long)):
-            raise TypeError("version must be of type str.")
+            raise TypeError("version must be of type int.")
         if not isinstance(format_needed, bool):
             raise TypeError("format_needed must be of type bool.")
         gateway = get_gateway()

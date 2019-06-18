@@ -358,9 +358,7 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
 class CustomConnectorDescriptorTests(PyFlinkTestCase):
 
     def test_custom_connector(self):
-        custom_connector = CustomConnectorDescriptor('kafka', 1, True)
-
-        custom_connector = custom_connector\
+        custom_connector = CustomConnectorDescriptor('kafka', 1, True) \
             .property('connector.topic', 'topic1')\
             .properties({'connector.version': '0.11', 'connector.startup-mode': 'earliest-offset'})
 
@@ -370,7 +368,7 @@ class CustomConnectorDescriptorTests(PyFlinkTestCase):
                     'connector.topic': 'topic1',
                     'connector.version': '0.11',
                     'connector.startup-mode': 'earliest-offset'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class OldCsvDescriptorTests(PyFlinkTestCase):
@@ -685,10 +683,8 @@ class JsonDescriptorTests(PyFlinkTestCase):
 class CustomFormatDescriptorTests(PyFlinkTestCase):
 
     def test_custom_format_descriptor(self):
-        custom_format = CustomFormatDescriptor('json', 1)
-
-        custom_format = custom_format\
-            .property('format.schema', 'ROW<a INT, b VARCHAR>')\
+        custom_format = CustomFormatDescriptor('json', 1) \
+            .property('format.schema', 'ROW<a INT, b VARCHAR>') \
             .properties({'format.fail-on-missing-field': 'true'})
 
         expected = {'format.fail-on-missing-field': 'true',
@@ -697,7 +693,7 @@ class CustomFormatDescriptorTests(PyFlinkTestCase):
                     'format.type': 'json'}
 
         properties = custom_format.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class RowTimeDescriptorTests(PyFlinkTestCase):
