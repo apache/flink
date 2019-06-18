@@ -77,10 +77,8 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 			writeBytes(pos, javaObject.getBytes());
 		} else {
 			int len = input.getSizeInBytes();
-			if (len <= 7) {
-				byte[] bytes = SegmentsUtil.allocateReuseBytes(len);
-				SegmentsUtil.copyToBytes(input.getSegments(), input.getOffset(), bytes, 0, len);
-				writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
+			if (len <= MAX_FIX_PART_DATA_SIZE) {
+				writeBytesToFixLenPart(segment, getFieldOffset(pos), input.getSegments(), input.getOffset(), len);
 			} else {
 				writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), len);
 			}
@@ -280,12 +278,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	}
 
 	protected static int roundNumberOfBytesToNearestWord(int numBytes) {
-		int remainder = numBytes & 0x07;
-		if (remainder == 0) {
-			return numBytes;
-		} else {
-			return numBytes + (8 - remainder);
-		}
+		return (numBytes + 7) & 0xFFFFFFF8;
 	}
 
 	private static void writeBytesToFixLenPart(
@@ -299,6 +292,27 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 		} else {
 			for (int i = 0; i < len; i++) {
 				sevenBytes |= ((0x00000000000000FFL & bytes[i]) << ((6 - i) * 8L));
+			}
+		}
+
+		final long offsetAndSize = (firstByte << 56) | sevenBytes;
+
+		segment.putLong(fieldOffset, offsetAndSize);
+	}
+
+	private static void writeBytesToFixLenPart(
+		MemorySegment segment, int fieldOffset, MemorySegment[] srcSegments, int srcOffset, int len) {
+		long firstByte = len | 0x80; // first bit is 1, other bits is len
+		long sevenBytes = 0L; // real data
+		if (BinaryRow.LITTLE_ENDIAN) {
+			for (int i = 0; i < len; i++) {
+				byte b = SegmentsUtil.getByte(srcSegments, srcOffset + i);
+				sevenBytes |= ((0x00000000000000FFL & b) << (i * 8L));
+			}
+		} else {
+			for (int i = 0; i < len; i++) {
+				byte b = SegmentsUtil.getByte(srcSegments, srcOffset + i);
+				sevenBytes |= ((0x00000000000000FFL & b) << ((6 - i) * 8L));
 			}
 		}
 
