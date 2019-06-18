@@ -180,7 +180,7 @@ public class HiveSimpleUDFTest {
 		assertEquals("MySQL", new String((byte[]) udf.eval("4D7953514C"), "UTF-8"));
 	}
 
-	private HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
+	protected static HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
 		HiveSimpleUDF udf = new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()));
 
 		// Hive UDF won't have literal args
