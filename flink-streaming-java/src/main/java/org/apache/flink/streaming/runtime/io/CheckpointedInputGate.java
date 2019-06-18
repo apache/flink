@@ -52,6 +52,8 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 	/** The gate that the buffer draws its input from. */
 	private final InputGate inputGate;
 
+	private final int channelIndexOffset;
+
 	private final BufferStorage bufferStorage;
 
 	/** Flag to indicate whether we have drawn all available input. */
@@ -89,6 +91,13 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 		);
 	}
 
+	public CheckpointedInputGate(
+			InputGate inputGate,
+			BufferStorage bufferStorage,
+			CheckpointBarrierHandler barrierHandler) {
+		this(inputGate, bufferStorage, barrierHandler, 0);
+	}
+
 	/**
 	 * Creates a new checkpoint stream aligner.
 	 *
@@ -99,12 +108,16 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
 	 * @param barrierHandler Handler that controls which channels are blocked.
+	 * @param channelIndexOffset Optional offset added to channelIndex returned from the inputGate
+	 *                           before passing it to the barrierHandler.
 	 */
 	public CheckpointedInputGate(
 			InputGate inputGate,
 			BufferStorage bufferStorage,
-			CheckpointBarrierHandler barrierHandler) {
+			CheckpointBarrierHandler barrierHandler,
+			int channelIndexOffset) {
 		this.inputGate = inputGate;
+		this.channelIndexOffset = channelIndexOffset;
 		this.bufferStorage = checkNotNull(bufferStorage);
 		this.barrierHandler = barrierHandler;
 	}
@@ -138,7 +151,7 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 			}
 
 			BufferOrEvent bufferOrEvent = next.get();
-			if (barrierHandler.isBlocked(bufferOrEvent.getChannelIndex())) {
+			if (barrierHandler.isBlocked(offsetChannelIndex(bufferOrEvent.getChannelIndex()))) {
 				// if the channel is blocked, we just store the BufferOrEvent
 				bufferStorage.add(bufferOrEvent);
 				if (bufferStorage.isFull()) {
@@ -153,7 +166,7 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
 				if (!endOfInputGate) {
 					// process barriers only if there is a chance of the checkpoint completing
-					if (barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelIndex(), bufferStorage.getPendingBytes())) {
+					if (barrierHandler.processBarrier(checkpointBarrier, offsetChannelIndex(bufferOrEvent.getChannelIndex()), bufferStorage.getPendingBytes())) {
 						bufferStorage.rollOver();
 					}
 				}
@@ -172,6 +185,10 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 				return next;
 			}
 		}
+	}
+
+	private int offsetChannelIndex(int channelIndex) {
+		return channelIndex + channelIndexOffset;
 	}
 
 	private Optional<BufferOrEvent> handleEmptyBuffer() throws Exception {
