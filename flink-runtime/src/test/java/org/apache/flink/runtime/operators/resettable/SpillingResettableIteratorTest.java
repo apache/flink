@@ -72,7 +72,7 @@ public class SpillingResettableIteratorTest {
 
 	@After
 	public void shutdown() {
-		this.ioman.shutdown();
+		this.ioman.close();
 		if (!this.ioman.isProperlyShutDown()) {
 			Assert.fail("I/O Manager Shutdown was not completed properly.");
 		}

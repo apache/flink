@@ -168,7 +168,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	public void tearDown() {
 		suppressExceptions(senderEnv::close);
 		suppressExceptions(receiverEnv::close);
-		suppressExceptions(ioManager::shutdown);
+		suppressExceptions(ioManager::close);
 	}
 
 	public SerializingLongReceiver createReceiver() throws Exception {

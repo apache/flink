@@ -343,7 +343,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		}
 
 		memManager.shutdown();
-		ioManager.shutdown();
+		ioManager.close();
 
 		checkState(ioManager.isProperlyShutDown(), "IO Manager has not properly shut down.");
 	}

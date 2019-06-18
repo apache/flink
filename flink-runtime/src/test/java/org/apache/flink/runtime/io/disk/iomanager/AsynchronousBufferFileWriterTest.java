@@ -59,7 +59,7 @@ public class AsynchronousBufferFileWriterTest {
 
 	@AfterClass
 	public static void shutdown() {
-		ioManager.shutdown();
+		ioManager.close();
 	}
 
 	@Before

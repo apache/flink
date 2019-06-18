@@ -79,7 +79,7 @@ public class FixedLengthRecordSorterTest {
 		}
 
 		if (this.ioManager != null) {
-			ioManager.shutdown();
+			ioManager.close();
 			ioManager = null;
 		}
 		

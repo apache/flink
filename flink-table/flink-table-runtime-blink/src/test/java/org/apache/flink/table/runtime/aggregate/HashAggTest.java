@@ -95,7 +95,7 @@ public class HashAggTest {
 
 	@After
 	public void afterTest() {
-		this.ioManager.shutdown();
+		this.ioManager.close();
 		if (!this.ioManager.isProperlyShutDown()) {
 			Assert.fail("I/O Manager was not properly shut down.");
 		}

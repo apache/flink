@@ -39,12 +39,11 @@ public class SeekableFileChannelInputViewTest {
 
 	@Test
 	public void testSeek() {
-		final IOManager ioManager = new IOManagerAsync();
 		final int PAGE_SIZE = 16 * 1024;
 		final int NUM_RECORDS = 120000;
 		// integers across 7.x pages (7 pages = 114.688 bytes, 8 pages = 131.072 bytes)
 		
-		try {
+		try (IOManager ioManager = new IOManagerAsync()) {
 			MemoryManager memMan = new MemoryManager(4 * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
@@ -149,9 +148,6 @@ public class SeekableFileChannelInputViewTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			ioManager.shutdown();
 		}
 	}
 }

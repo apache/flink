@@ -100,7 +100,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 		}
 
 		// install a shutdown hook that makes sure the temp directories get deleted
-		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::shutdown, getClass().getSimpleName(), LOG);
+		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::close, getClass().getSimpleName(), LOG);
 	}
 
 	/**
@@ -109,7 +109,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	 * operation.
 	 */
 	@Override
-	public void shutdown() {
+	public void close() {
 		// mark shut down and exit if it already was shut down
 		if (!isShutdown.compareAndSet(false, true)) {
 			return;
@@ -157,7 +157,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 		finally {
 			// make sure we call the super implementation in any case and at the last point,
 			// because this will clean up the I/O directories
-			super.shutdown();
+			super.close();
 		}
 	}
 	
@@ -186,7 +186,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	@Override
 	public void uncaughtException(Thread t, Throwable e) {
 		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Shutting down I/O Manager.", e);
-		shutdown();
+		close();
 	}
 	
 	// ------------------------------------------------------------------------

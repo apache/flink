@@ -74,7 +74,7 @@ public class FileChannelStreamsITCase extends TestLogger {
 
 	@After
 	public void afterTest() {
-		ioManager.shutdown();
+		ioManager.close();
 		assertTrue("I/O Manager was not properly shut down.", ioManager.isProperlyShutDown());
 		assertTrue("The memory has not been properly released", memManager.verifyEmpty());
 	}
