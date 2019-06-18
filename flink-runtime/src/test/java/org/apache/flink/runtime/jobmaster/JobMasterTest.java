@@ -26,6 +26,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -1828,6 +1829,60 @@ public class JobMasterTest extends TestLogger {
 
 			jobMasterGateway.disconnectTaskManager(taskManagerLocation.getResourceID(), new Exception("test"));
 			disconnectTaskExecutorFuture.get();
+
+			assertThat(partitionCleanupTaskExecutorId.get(), equalTo(taskManagerLocation.getResourceID()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	@Test
+	public void testPartitionReleaseOnJobTermination() throws Exception {
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobGraph jobGraph = createSingleVertexJobGraph();
+
+		final CompletableFuture<ResourceID> partitionCleanupTaskExecutorId = new CompletableFuture<>();
+		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(partitionCleanupTaskExecutorId::complete);
+
+		final JobMaster jobMaster = new JobMasterBuilder()
+			.withConfiguration(configuration)
+			.withJobGraph(jobGraph)
+			.withHighAvailabilityServices(haServices)
+			.withJobManagerSharedServices(jobManagerSharedServices)
+			.withHeartbeatServices(heartbeatServices)
+			.withOnCompletionActions(new TestingOnCompletionActions())
+			.withPartitionTrackerFactory(ignord -> partitionTracker)
+			.createJobMaster();
+
+		final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture = new CompletableFuture<>();
+		final CompletableFuture<Tuple2<JobID, Collection<ResultPartitionID>>> releasePartitionsFuture = new CompletableFuture<>();
+		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
+		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setReleasePartitionsConsumer((jobId, partitions) -> releasePartitionsFuture.complete(Tuple2.of(jobId, partitions)))
+			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
+			.setSubmitTaskConsumer((tdd, ignored) -> {
+				taskDeploymentDescriptorFuture.complete(tdd);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			})
+			.createTestingTaskExecutorGateway();
+
+		try {
+			jobMaster.start(jobMasterId).get();
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+			registerSlotsAtJobMaster(1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+
+			// update the execution state of the only execution to FINISHED
+			// this should trigger the job to finish
+			final TaskDeploymentDescriptor taskDeploymentDescriptor = taskDeploymentDescriptorFuture.get();
+			jobMasterGateway.updateTaskExecutionState(
+				new TaskExecutionState(
+					taskDeploymentDescriptor.getJobId(),
+					taskDeploymentDescriptor.getExecutionAttemptId(),
+					ExecutionState.FINISHED));
 
 			assertThat(partitionCleanupTaskExecutorId.get(), equalTo(taskManagerLocation.getResourceID()));
 		} finally {
