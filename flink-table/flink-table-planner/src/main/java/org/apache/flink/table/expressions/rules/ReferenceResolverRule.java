@@ -20,9 +20,9 @@ package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
 import java.util.List;
@@ -54,13 +54,13 @@ final class ReferenceResolverRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visit(CallExpression call) {
-			final Expression[] resolvedArgs = call.getChildren()
+		public Expression visit(UnresolvedCallExpression unresolvedCall) {
+			final Expression[] resolvedArgs = unresolvedCall.getChildren()
 				.stream()
 				.map(expr -> expr.accept(this))
 				.toArray(Expression[]::new);
 
-			return call(call.getFunctionDefinition(), resolvedArgs);
+			return call(unresolvedCall.getFunctionDefinition(), resolvedArgs);
 		}
 
 		@Override

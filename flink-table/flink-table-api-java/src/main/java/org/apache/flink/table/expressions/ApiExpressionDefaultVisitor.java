@@ -27,8 +27,8 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisitor<T> {
 	@Override
-	public T visit(CallExpression call) {
-		return defaultMethod(call);
+	public T visit(UnresolvedCallExpression unresolvedCall) {
+		return defaultMethod(unresolvedCall);
 	}
 
 	@Override

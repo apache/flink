@@ -23,9 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -65,22 +65,22 @@ public class CalculatedTableFactory {
 		}
 
 		@Override
-		public CalculatedQueryOperation<?> visit(CallExpression call) {
-			FunctionDefinition definition = call.getFunctionDefinition();
+		public CalculatedQueryOperation<?> visit(UnresolvedCallExpression unresolvedCall) {
+			FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
 			if (definition.equals(AS)) {
-				return unwrapFromAlias(call);
+				return unwrapFromAlias(unresolvedCall);
 			} else if (definition instanceof TableFunctionDefinition) {
 				return createFunctionCall(
 					(TableFunctionDefinition) definition,
 					Collections.emptyList(),
-					call.getChildren());
+					unresolvedCall.getChildren());
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 
-		private CalculatedQueryOperation<?> unwrapFromAlias(CallExpression call) {
-			List<Expression> children = call.getChildren();
+		private CalculatedQueryOperation<?> unwrapFromAlias(UnresolvedCallExpression unresolvedCall) {
+			List<Expression> children = unresolvedCall.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
 				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
@@ -91,7 +91,7 @@ public class CalculatedTableFactory {
 				throw fail();
 			}
 
-			CallExpression tableCall = (CallExpression) children.get(0);
+			UnresolvedCallExpression tableCall = (UnresolvedCallExpression) children.get(0);
 			TableFunctionDefinition tableFunctionDefinition =
 				(TableFunctionDefinition) tableCall.getFunctionDefinition();
 			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getChildren());

@@ -28,8 +28,8 @@ import org.apache.flink.annotation.Internal;
 public abstract class ExpressionDefaultVisitor<T> implements ExpressionVisitor<T> {
 
 	@Override
-	public T visit(CallExpression call) {
-		return defaultMethod(call);
+	public T visit(UnresolvedCallExpression unresolvedCall) {
+		return defaultMethod(unresolvedCall);
 	}
 
 	@Override

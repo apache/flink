@@ -46,8 +46,8 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
 		return createResolvedCall(result.getFunctionDefinition(), lookupCall.getChildren());
 	}
 
-	public Expression visit(CallExpression call) {
-		return createResolvedCall(call.getFunctionDefinition(), call.getChildren());
+	public Expression visit(UnresolvedCallExpression unresolvedCall) {
+		return createResolvedCall(unresolvedCall.getFunctionDefinition(), unresolvedCall.getChildren());
 	}
 
 	private Expression createResolvedCall(FunctionDefinition functionDefinition, List<Expression> unresolvedChildren) {

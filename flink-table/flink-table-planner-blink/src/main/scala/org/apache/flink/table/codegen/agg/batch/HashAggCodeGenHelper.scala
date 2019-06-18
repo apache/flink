@@ -27,7 +27,7 @@ import org.apache.flink.table.codegen._
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
-import org.apache.flink.table.expressions.{CallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
+import org.apache.flink.table.expressions.{UnresolvedCallExpression, Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, TypeLiteralExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.generated.{NormalizedKeyComputer, RecordComparator}
@@ -332,10 +332,10 @@ object HashAggCodeGenHelper {
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBuffMapping: Array[Array[(Int, LogicalType)]]) extends ExpressionVisitor[Expression] {
 
-    override def visit(call: CallExpression): Expression = {
+    override def visit(unresolvedCall: UnresolvedCallExpression): Expression = {
       ApiExpressionUtils.call(
-        call.getFunctionDefinition,
-        call.getChildren.map(_.accept(this)): _*)
+        unresolvedCall.getFunctionDefinition,
+        unresolvedCall.getChildren.map(_.accept(this)): _*)
     }
 
     override def visit(valueLiteralExpression: ValueLiteralExpression): Expression = {

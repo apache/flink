@@ -21,8 +21,8 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -129,11 +129,11 @@ public class SortOperationFactory {
 	private class OrderWrapper extends ApiExpressionDefaultVisitor<Expression> {
 
 		@Override
-		public Expression visit(CallExpression call) {
-			if (ORDERING.contains(call.getFunctionDefinition())) {
-				return call;
+		public Expression visit(UnresolvedCallExpression unresolvedCall) {
+			if (ORDERING.contains(unresolvedCall.getFunctionDefinition())) {
+				return unresolvedCall;
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 

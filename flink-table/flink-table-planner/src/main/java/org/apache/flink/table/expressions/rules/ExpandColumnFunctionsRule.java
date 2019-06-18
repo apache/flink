@@ -19,12 +19,11 @@
 package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -77,21 +76,21 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		}
 
 		@Override
-		public List<Expression> visit(CallExpression call) {
+		public List<Expression> visit(UnresolvedCallExpression unresolvedCall) {
 
 			List<Expression> result;
 
-			final FunctionDefinition definition = call.getFunctionDefinition();
+			final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
 			if (definition == WITH_COLUMNS) {
-				result = resolveArgsOfColumns(call.getChildren(), false);
+				result = resolveArgsOfColumns(unresolvedCall.getChildren(), false);
 			} else if (definition == WITHOUT_COLUMNS) {
-				result = resolveArgsOfColumns(call.getChildren(), true);
+				result = resolveArgsOfColumns(unresolvedCall.getChildren(), true);
 			} else {
-				Expression[] args = call.getChildren()
+				Expression[] args = unresolvedCall.getChildren()
 					.stream()
 					.flatMap(c -> c.accept(this).stream())
 					.toArray(Expression[]::new);
-				result = Collections.singletonList(call(call.getFunctionDefinition(), args));
+				result = Collections.singletonList(call(unresolvedCall.getFunctionDefinition(), args));
 
 				// validate alias
 				if (definition == AS) {
@@ -166,11 +165,11 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		}
 
 		@Override
-		public List<UnresolvedReferenceExpression> visit(CallExpression call) {
-			if (isIndexRangeCall(call)) {
-				int start = ExpressionUtils.extractValue(call.getChildren().get(0), Integer.class)
+		public List<UnresolvedReferenceExpression> visit(UnresolvedCallExpression unresolvedCall) {
+			if (isIndexRangeCall(unresolvedCall)) {
+				int start = ExpressionUtils.extractValue(unresolvedCall.getChildren().get(0), Integer.class)
 					.orElseThrow(() -> new ValidationException("Constant integer value expected."));
-				int end = ExpressionUtils.extractValue(call.getChildren().get(1), Integer.class)
+				int end = ExpressionUtils.extractValue(unresolvedCall.getChildren().get(1), Integer.class)
 					.orElseThrow(() -> new ValidationException("Constant integer value expected."));
 				Preconditions.checkArgument(
 					start <= end,
@@ -179,9 +178,9 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
 				return inputFieldReferences.subList(start - 1, end);
 
-			} else if (isNameRangeCall(call)) {
-				String startName = ((UnresolvedReferenceExpression) call.getChildren().get(0)).getName();
-				String endName = ((UnresolvedReferenceExpression) call.getChildren().get(1)).getName();
+			} else if (isNameRangeCall(unresolvedCall)) {
+				String startName = ((UnresolvedReferenceExpression) unresolvedCall.getChildren().get(0)).getName();
+				String endName = ((UnresolvedReferenceExpression) unresolvedCall.getChildren().get(1)).getName();
 
 				int start = indexOfName(inputFieldReferences, startName);
 				int end = indexOfName(inputFieldReferences, endName);
@@ -192,24 +191,23 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 
 				return inputFieldReferences.subList(start, end + 1);
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 
 		@Override
 		protected List<UnresolvedReferenceExpression> defaultMethod(Expression expression) {
-			throw new TableException(
-				String.format("The parameters of %s() or %s() only accept column name or column " +
-					"index, but receive %s.",
+			throw new ValidationException(
+				String.format(
+					"The parameters of %s() or %s() only accept column names or column indices.",
 					WITH_COLUMNS.getName(),
-					WITHOUT_COLUMNS.getName(),
-					expression.getClass().getSimpleName()));
+					WITHOUT_COLUMNS.getName()));
 		}
 
 		/**
 		 * Whether the expression is a column index range expression, e.g. withColumns(1 ~ 2).
 		 */
-		private boolean isIndexRangeCall(CallExpression expression) {
+		private boolean isIndexRangeCall(UnresolvedCallExpression expression) {
 			return expression.getFunctionDefinition() == RANGE_TO &&
 				expression.getChildren().get(0) instanceof ValueLiteralExpression &&
 				expression.getChildren().get(1) instanceof ValueLiteralExpression;
@@ -218,7 +216,7 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		/**
 		 * Whether the expression is a column name range expression, e.g. withColumns(a ~ b).
 		 */
-		private boolean isNameRangeCall(CallExpression expression) {
+		private boolean isNameRangeCall(UnresolvedCallExpression expression) {
 			return expression.getFunctionDefinition() == RANGE_TO &&
 				expression.getChildren().get(0) instanceof UnresolvedReferenceExpression &&
 				expression.getChildren().get(1) instanceof UnresolvedReferenceExpression;

@@ -54,8 +54,8 @@ public final class ExpressionUtils {
 	 * @return true if the expression is function call of given type, false otherwise
 	 */
 	public static boolean isFunctionOfKind(Expression expr, FunctionKind kind) {
-		return expr instanceof CallExpression &&
-			((CallExpression) expr).getFunctionDefinition().getKind() == kind;
+		return expr instanceof UnresolvedCallExpression &&
+			((UnresolvedCallExpression) expr).getFunctionDefinition().getKind() == kind;
 	}
 
 	private ExpressionUtils() {

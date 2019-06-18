@@ -21,9 +21,9 @@ package org.apache.flink.table.expressions.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.LookupCallExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
@@ -66,13 +66,13 @@ final class VerifyNoUnresolvedExpressionsRule implements ResolverRule {
 		}
 
 		@Override
-		public Void visit(CallExpression call) {
-			if (call.getFunctionDefinition() == OVER && call.getChildren().size() <= 2) {
-				throw getException("OVER call", call);
-			} else if (call.getFunctionDefinition() == FLATTEN) {
-				throw getException("FLATTEN call", call);
+		public Void visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == OVER && unresolvedCall.getChildren().size() <= 2) {
+				throw getException("OVER call", unresolvedCall);
+			} else if (unresolvedCall.getFunctionDefinition() == FLATTEN) {
+				throw getException("FLATTEN call", unresolvedCall);
 			}
-			call.getChildren().forEach(expr -> expr.accept(this));
+			unresolvedCall.getChildren().forEach(expr -> expr.accept(this));
 
 			return null;
 		}
