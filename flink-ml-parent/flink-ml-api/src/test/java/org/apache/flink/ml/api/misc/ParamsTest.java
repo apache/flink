@@ -22,6 +22,7 @@ import org.apache.flink.ml.api.misc.param.ParamInfo;
 import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.api.misc.param.Params;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -39,7 +40,11 @@ public class ParamsTest {
 
 		ParamInfo<String> optionalWithoutDefault =
 			ParamInfoFactory.createParamInfo("a", String.class).build();
-		assert params.get(optionalWithoutDefault) == null;
+
+		// It should call params.contain to check when get the param in this case.
+		thrown.expect(RuntimeException.class);
+		thrown.expectMessage("Cannot find default value for optional parameter a");
+		params.get(optionalWithoutDefault);
 
 		ParamInfo<String> optionalWithDefault =
 			ParamInfoFactory.createParamInfo("a", String.class).setHasDefaultValue("def").build();
@@ -68,5 +73,98 @@ public class ParamsTest {
 		thrown.expect(RuntimeException.class);
 		thrown.expectMessage("Setting a as a invalid value:0");
 		params.set(intParam, 0);
+	}
+
+	@Test
+	public void getOptionalParam() {
+		ParamInfo <String> key = ParamInfoFactory
+			.createParamInfo("key", String.class)
+			.setHasDefaultValue(null)
+			.setDescription("")
+			.build();
+
+		Params params = new Params();
+		Assert.assertNull(params.get(key));
+
+		String val = "3";
+		params.set(key, val);
+		Assert.assertEquals(params.get(key), val);
+
+		params.set(key, null);
+		Assert.assertNull(params.get(key));
+	}
+
+	@Test
+	public void getOptionalWithoutDefaultParam() {
+		ParamInfo <String> key = ParamInfoFactory
+			.createParamInfo("key", String.class)
+			.setOptional()
+			.setDescription("")
+			.build();
+		Params params = new Params();
+
+		try {
+			String val = params.get(key);
+			Assert.fail("Should throw exception.");
+		} catch (IllegalArgumentException ex) {
+			Assert.assertTrue(ex.getMessage().startsWith("Cannot find default value for optional parameter"));
+		}
+
+		Assert.assertFalse(params.contains(key));
+
+		String val = "3";
+		params.set(key, val);
+		Assert.assertEquals(params.get(key), val);
+
+		Assert.assertTrue(params.contains(key));
+
+		params.set(key, null);
+		Assert.assertNull(params.get(key));
+	}
+
+	@Test
+	public void getRequiredParam() {
+		ParamInfo <String> labelWithRequired = ParamInfoFactory
+			.createParamInfo("label", String.class)
+			.setDescription("")
+			.setRequired()
+			.build();
+		Params params = new Params();
+		try {
+			params.get(labelWithRequired);
+			Assert.fail("failure");
+		} catch (IllegalArgumentException ex) {
+			Assert.assertTrue(ex.getMessage().startsWith("Missing non-optional parameter"));
+		}
+
+		params.set(labelWithRequired, null);
+		Assert.assertNull(params.get(labelWithRequired));
+
+		String val = "3";
+		params.set(labelWithRequired, val);
+		Assert.assertEquals(params.get(labelWithRequired), val);
+	}
+
+	@Test
+	public void testGetAliasParam() {
+		ParamInfo <String> predResultColName = ParamInfoFactory
+			.createParamInfo("predResultColName", String.class)
+			.setDescription("Column name of predicted result.")
+			.setRequired()
+			.setAlias(new String[] {"predColName", "outputColName"})
+			.build();
+
+		Params params = Params.fromJson("{\"predResultColName\":\"\\\"f0\\\"\"}");
+
+		Assert.assertEquals("f0", params.get(predResultColName));
+
+		params = Params.fromJson("{\"predResultColName\":\"\\\"f0\\\"\", \"predColName\":\"\\\"f0\\\"\"}");
+
+		try {
+			params.get(predResultColName);
+			Assert.fail("failure");
+		} catch (IllegalArgumentException ex) {
+			Assert.assertTrue(ex.getMessage().startsWith("Duplicate parameters of predResultColName and predColName"));
+		}
 	}
 }
