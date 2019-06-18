@@ -20,13 +20,11 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
@@ -40,7 +38,6 @@ import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -52,7 +49,7 @@ import static org.junit.Assert.assertEquals;
 public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 
 	@BeforeClass
-	public static void init() throws IOException {
+	public static void init() {
 		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
 	}
@@ -275,24 +272,6 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	// ------ test utils ------
-
-	@Override
-	public CatalogDatabase createDb() {
-		return new GenericCatalogDatabase(
-			new HashMap<String, String>() {{
-				put("k1", "v1");
-			}},
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogDatabase createAnotherDb() {
-		return new GenericCatalogDatabase(
-			new HashMap<String, String>() {{
-				put("k2", "v2");
-			}},
-			TEST_COMMENT);
-	}
 
 	@Override
 	public CatalogTable createTable() {

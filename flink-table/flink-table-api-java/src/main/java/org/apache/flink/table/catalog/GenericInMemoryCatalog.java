@@ -48,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A generic catalog implementation that holds all meta objects in memory.
  */
 public class GenericInMemoryCatalog extends AbstractCatalog {
+	// TODO: remove these and use CatalogConfig.FLINK_IS_GENERIC
 	public static final String FLINK_IS_GENERIC_KEY = "is_generic";
 	public static final String FLINK_IS_GENERIC_VALUE = "true";
 
@@ -71,7 +72,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 		super(name, defaultDatabase);
 
 		this.databases = new LinkedHashMap<>();
-		this.databases.put(defaultDatabase, new GenericCatalogDatabase(new HashMap<>(), ""));
+		this.databases.put(defaultDatabase, new CatalogDatabaseImpl(new HashMap<>(), null));
 		this.tables = new LinkedHashMap<>();
 		this.functions = new LinkedHashMap<>();
 		this.partitions = new LinkedHashMap<>();

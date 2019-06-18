@@ -25,10 +25,10 @@ import org.apache.flink.table.catalog.AbstractCatalogTable;
 import org.apache.flink.table.catalog.AbstractCatalogView;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.GenericCatalogDatabase;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogPartition;
 import org.apache.flink.table.catalog.GenericCatalogTable;
@@ -36,6 +36,7 @@ import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogTableConfig;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -104,6 +105,7 @@ public class HiveCatalog extends AbstractCatalog {
 	// Prefix used to distinguish properties created by Hive and Flink,
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	private static final String FLINK_PROPERTY_PREFIX = "flink.";
+	// TODO: remove this and use CatalogConfig.FLINK_IS_GENERIC
 	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY;
 
 	// Prefix used to distinguish Flink functions from Hive functions.
@@ -172,13 +174,23 @@ public class HiveCatalog extends AbstractCatalog {
 	// ------ databases ------
 
 	@Override
-	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
+	public CatalogDatabase getDatabase(String databaseName)
+			throws DatabaseNotExistException, CatalogException {
 		Database hiveDatabase = getHiveDatabase(databaseName);
 
 		Map<String, String> properties = hiveDatabase.getParameters();
-		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
-		return !isGeneric ? new HiveCatalogDatabase(properties, hiveDatabase.getLocationUri(), hiveDatabase.getDescription()) :
-			new GenericCatalogDatabase(retrieveFlinkProperties(properties), hiveDatabase.getDescription());
+
+		// By default, isGeneric=false
+		boolean isGeneric = Boolean.valueOf(properties.remove(CatalogConfig.FLINK_IS_GENERIC));
+
+		if (isGeneric) {
+			properties = retrieveFlinkProperties(properties);
+		}
+
+		properties.put(HiveDatabaseConfig.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+		properties.put(CatalogConfig.FLINK_IS_GENERIC, String.valueOf(isGeneric));
+
+		return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
 	}
 
 	@Override
@@ -201,25 +213,26 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	private static Database instantiateHiveDatabase(String databaseName, CatalogDatabase database) {
-		if (database instanceof HiveCatalogDatabase) {
-			HiveCatalogDatabase db = (HiveCatalogDatabase) database;
-			return new Database(
-				databaseName,
-				db.getComment(),
-				db.getLocation(),
-				db.getProperties());
-		} else if (database instanceof GenericCatalogDatabase) {
-			GenericCatalogDatabase db = (GenericCatalogDatabase) database;
 
-			return new Database(
-				databaseName,
-				db.getComment(),
-				// HDFS location URI which GenericCatalogDatabase shouldn't care
-				null,
-				maskFlinkProperties(db.getProperties()));
-		} else {
-			throw new CatalogException(String.format("Unsupported catalog database type %s", database.getClass()), null);
+		// By default, isGeneric=false
+		boolean isGeneric = Boolean.valueOf(database.getProperties().remove(CatalogConfig.FLINK_IS_GENERIC));
+
+		Map<String, String> properties = database.getProperties();
+
+		String dbLocationUri = properties.remove(HiveDatabaseConfig.DATABASE_LOCATION_URI);
+
+		if (isGeneric) {
+			properties = maskFlinkProperties(properties);
 		}
+
+		properties.put(CatalogConfig.FLINK_IS_GENERIC, String.valueOf(isGeneric));
+
+		return new Database(
+			databaseName,
+			database.getComment(),
+			dbLocationUri,
+			properties
+		);
 	}
 
 	@Override
@@ -228,27 +241,15 @@ public class HiveCatalog extends AbstractCatalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
-		CatalogDatabase existingDatabase;
-		try {
-			existingDatabase = getDatabase(databaseName);
-		} catch (DatabaseNotExistException e) {
-			if (!ignoreIfNotExists) {
-				throw e;
-			}
-			return;
-		}
-
-		if (existingDatabase.getClass() != newDatabase.getClass()) {
-			throw new CatalogException(
-				String.format("Database types don't match. Existing database is '%s' and new database is '%s'.",
-					existingDatabase.getClass().getName(), newDatabase.getClass().getName())
-			);
-		}
-
 		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
 
 		try {
+			CatalogDatabase existingDatabase = getDatabase(databaseName);
 			client.alterDatabase(databaseName, newHiveDatabase);
+		} catch (DatabaseNotExistException e) {
+			if (!ignoreIfNotExists) {
+				throw new DatabaseNotExistException(getName(), databaseName);
+			}
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
@@ -485,7 +486,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
-		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
+		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.FLINK_IS_GENERIC));
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
 		}

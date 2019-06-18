@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.table.catalog.CatalogTestBase;
+import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.util.StringUtils;
@@ -40,7 +40,7 @@ public class HiveTestUtils {
 	 * Create a HiveCatalog with an embedded Hive Metastore.
 	 */
 	public static HiveCatalog createHiveCatalog() {
-		return createHiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null);
+		return createHiveCatalog(CatalogTest.TEST_CATALOG_NAME, null);
 	}
 
 	public static HiveCatalog createHiveCatalog(String name, String hiveVersion) {
@@ -49,7 +49,7 @@ public class HiveTestUtils {
 	}
 
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
-		return new HiveCatalog(CatalogTestBase.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion());
+		return new HiveCatalog(CatalogTest.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion());
 	}
 
 	public static HiveConf createHiveConf() {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -30,7 +29,6 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
@@ -43,13 +41,13 @@ import static org.junit.Assert.assertTrue;
 public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 
 	@BeforeClass
-	public static void init() throws IOException {
+	public static void init() {
 		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
 	}
 
 	// =====================
-	// HiveCatalog doesn't support streaming table operation. Ignore this test in CatalogTestBase.
+	// HiveCatalog doesn't support streaming table operation. Ignore this test in CatalogTest.
 	// =====================
 
 	public void testCreateTable_Streaming() throws Exception {
@@ -71,26 +69,6 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	}
 
 	// ------ utils ------
-
-	@Override
-	public CatalogDatabase createDb() {
-		return new HiveCatalogDatabase(
-			new HashMap<String, String>() {{
-				put("k1", "v1");
-			}},
-			TEST_COMMENT
-		);
-	}
-
-	@Override
-	public CatalogDatabase createAnotherDb() {
-		return new HiveCatalogDatabase(
-			new HashMap<String, String>() {{
-				put("k2", "v2");
-			}},
-			TEST_COMMENT
-		);
-	}
 
 	@Override
 	public CatalogTable createTable() {

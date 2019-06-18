@@ -19,32 +19,29 @@
 package org.apache.flink.table.catalog;
 
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 /**
- * A generic catalog database implementation.
+ * Base of tests for any catalog implementations, like GenericInMemoryCatalog and HiveCatalog.
  */
-public class GenericCatalogDatabase extends AbstractCatalogDatabase {
+public abstract class CatalogTestBase extends CatalogTest {
 
-	public GenericCatalogDatabase(Map<String, String> properties, String comment) {
-		super(properties, comment);
-		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
+	@Override
+	public CatalogDatabase createDb() {
+		return new CatalogDatabaseImpl(
+			new HashMap<String, String>() {{
+				put("k1", "v1");
+			}},
+			TEST_COMMENT
+		);
 	}
 
 	@Override
-	public GenericCatalogDatabase copy() {
-		return new GenericCatalogDatabase(new HashMap<>(getProperties()), getComment());
+	public CatalogDatabase createAnotherDb() {
+		return new CatalogDatabaseImpl(
+			new HashMap<String, String>() {{
+				put("k2", "v2");
+			}},
+			TEST_COMMENT
+		);
 	}
-
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.of(getComment());
-	}
-
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a generic catalog database");
-	}
-
 }

@@ -104,7 +104,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		exception.expectMessage(
 			String.format("Partition types don't match. " +
 				"Existing partition is '%s' and " +
-				"new partition is 'org.apache.flink.table.catalog.CatalogTestBase$TestPartition'.",
+				"new partition is 'org.apache.flink.table.catalog.CatalogTest$TestPartition'.",
 				partition.getClass().getName()));
 		catalog.alterPartition(path1, partitionSpec, new TestPartition(), false);
 	}
@@ -151,24 +151,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	// ------ utilities ------
-
-	@Override
-	public CatalogDatabase createDb() {
-		return new GenericCatalogDatabase(
-			new HashMap<String, String>() {{
-				put("k1", "v1");
-			}},
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogDatabase createAnotherDb() {
-		return new GenericCatalogDatabase(
-			new HashMap<String, String>() {{
-				put("k2", "v2");
-			}},
-			"this is another database.");
-	}
 
 	@Override
 	public GenericCatalogTable createStreamingTable() {

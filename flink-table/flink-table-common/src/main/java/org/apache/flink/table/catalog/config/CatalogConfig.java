@@ -16,34 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog;
-
-import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+package org.apache.flink.table.catalog.config;
 
 /**
- * An abstract class representing a database in a catalog.
+ * Configs for catalog.
  */
-public abstract class AbstractCatalogDatabase implements CatalogDatabase {
-	// Property of the database
-	private final Map<String, String> properties;
-	// Comment of the database
-	private final String comment;
-
-	public AbstractCatalogDatabase(Map<String, String> properties, String comment) {
-		this.properties = checkNotNull(properties, "properties cannot be null");
-		this.comment = comment;
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	@Override
-	public String getComment() {
-		return comment;
-	}
-
+public class CatalogConfig {
+	public static final String FLINK_IS_GENERIC = "flink.is_generic";
 }
