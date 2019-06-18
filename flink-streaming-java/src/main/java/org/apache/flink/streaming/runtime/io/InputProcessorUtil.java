@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
  * for {@link StreamInputProcessor} and {@link StreamTwoInputProcessor}.
@@ -49,6 +51,45 @@ public class InputProcessorUtil {
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
+	}
+
+	/**
+	 * @return a pair of {@link CheckpointedInputGate} created for two corresponding
+	 * {@link InputGate}s supplied as parameters.
+	 */
+	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
+			AbstractInvokable toNotifyOnCheckpoint,
+			CheckpointingMode checkpointMode,
+			IOManager ioManager,
+			InputGate inputGate1,
+			InputGate inputGate2,
+			Configuration taskManagerConfig,
+			String taskName) throws IOException {
+
+		BufferStorage mainBufferStorage1 = createBufferStorage(
+			checkpointMode, ioManager, inputGate1.getPageSize(), taskManagerConfig, taskName);
+		BufferStorage mainBufferStorage2 = createBufferStorage(
+			checkpointMode, ioManager, inputGate2.getPageSize(), taskManagerConfig, taskName);
+		checkState(mainBufferStorage1.getMaxBufferedBytes() == mainBufferStorage2.getMaxBufferedBytes());
+
+		BufferStorage linkedBufferStorage1 = new LinkedBufferStorage(
+			mainBufferStorage1,
+			mainBufferStorage2,
+			mainBufferStorage1.getMaxBufferedBytes());
+		BufferStorage linkedBufferStorage2 = new LinkedBufferStorage(
+			mainBufferStorage2,
+			mainBufferStorage1,
+			mainBufferStorage1.getMaxBufferedBytes());
+
+		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
+			checkpointMode,
+			inputGate1.getNumberOfInputChannels() + inputGate2.getNumberOfInputChannels(),
+			taskName,
+			toNotifyOnCheckpoint);
+		return new CheckpointedInputGate[] {
+			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
+			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
+		};
 	}
 
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
