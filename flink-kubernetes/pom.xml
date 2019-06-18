@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.version>1.0.1</kubernetes.version>
+		<kubernetes.version>4.2.2</kubernetes.version>
 	</properties>
 
 	<dependencies>
@@ -68,7 +68,7 @@ under the License.
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
-			<version>4.2.2</version>
+			<version>${kubernetes.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -86,7 +86,7 @@ under the License.
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-server-mock</artifactId>
-			<version>4.2.2</version>
+			<version>${kubernetes.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
