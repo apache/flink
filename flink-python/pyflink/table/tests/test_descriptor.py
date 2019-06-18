@@ -27,8 +27,7 @@ from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTable
 
 class FileSystemDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_path():
+    def test_path(self):
         file_system = FileSystem()
 
         file_system = file_system.path("/test.csv")
@@ -37,41 +36,32 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
         expected = {'connector.property-version': '1',
                     'connector.type': 'filesystem',
                     'connector.path': '/test.csv'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class KafkaDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_version():
-        kafka = Kafka()
-
-        kafka = kafka.version("0.11")
+    def test_version(self):
+        kafka = Kafka().version("0.11")
 
         properties = kafka.to_properties()
         expected = {'connector.version': '0.11',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_topic():
-        kafka = Kafka()
-
-        kafka = kafka.topic("topic1")
+    def test_topic(self):
+        kafka = Kafka().topic("topic1")
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.topic': 'topic1',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_properties():
-        kafka = Kafka()
-
-        kafka = kafka.properties({"zookeeper.connect": "localhost:2181",
-                                  "bootstrap.servers": "localhost:9092"})
+    def test_properties(self):
+        kafka = Kafka().properties({"zookeeper.connect": "localhost:2181",
+                                    "bootstrap.servers": "localhost:9092"})
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
@@ -80,62 +70,47 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                     'connector.properties.1.key': 'bootstrap.servers',
                     'connector.properties.1.value': 'localhost:9092',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_property():
-        kafka = Kafka()
-
-        kafka = kafka.property("group.id", "testGroup")
+    def test_property(self):
+        kafka = Kafka().property("group.id", "testGroup")
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.properties.0.key': 'group.id',
                     'connector.properties.0.value': 'testGroup',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_start_from_earliest():
-        kafka = Kafka()
-
-        kafka = kafka.start_from_earliest()
+    def test_start_from_earliest(self):
+        kafka = Kafka().start_from_earliest()
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.startup-mode': 'earliest-offset',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_start_from_latest():
-        kafka = Kafka()
-
-        kafka = kafka.start_from_latest()
+    def test_start_from_latest(self):
+        kafka = Kafka().start_from_latest()
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.startup-mode': 'latest-offset',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_start_from_group_offsets():
-        kafka = Kafka()
-
-        kafka = kafka.start_from_group_offsets()
+    def test_start_from_group_offsets(self):
+        kafka = Kafka().start_from_group_offsets()
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_start_from_specific_offsets():
-        kafka = Kafka()
-
-        kafka = kafka.start_from_specific_offsets({1: 220, 3: 400})
+    def test_start_from_specific_offsets(self):
+        kafka = Kafka().start_from_specific_offsets({1: 220, 3: 400})
 
         properties = kafka.to_properties()
         expected = {'connector.startup-mode': 'specific-offsets',
@@ -145,13 +120,10 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                     'connector.specific-offsets.1.offset': '400',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_start_from_specific_offset():
-        kafka = Kafka()
-
-        kafka = kafka.start_from_specific_offset(3, 300)
+    def test_start_from_specific_offset(self):
+        kafka = Kafka().start_from_specific_offset(3, 300)
 
         properties = kafka.to_properties()
         expected = {'connector.startup-mode': 'specific-offsets',
@@ -159,25 +131,19 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                     'connector.specific-offsets.0.offset': '300',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_sink_partitioner_fixed():
-        kafka = Kafka()
-
-        kafka = kafka.sink_partitioner_fixed()
+    def test_sink_partitioner_fixed(self):
+        kafka = Kafka().sink_partitioner_fixed()
 
         properties = kafka.to_properties()
         expected = {'connector.sink-partitioner': 'fixed',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_sink_partitioner_custom():
-        kafka = Kafka()
-
-        kafka = kafka.sink_partitioner_custom(
+    def test_sink_partitioner_custom(self):
+        kafka = Kafka().sink_partitioner_custom(
             "org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner")
 
         properties = kafka.to_properties()
@@ -187,40 +153,31 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                         'FlinkFixedPartitioner',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_sink_partitioner_round_robin():
-        kafka = Kafka()
-
-        kafka = kafka.sink_partitioner_round_robin()
+    def test_sink_partitioner_round_robin(self):
+        kafka = Kafka().sink_partitioner_round_robin()
 
         properties = kafka.to_properties()
         expected = {'connector.sink-partitioner': 'round-robin',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class ElasticsearchDescriptorTest(PyFlinkTestCase):
 
-    @staticmethod
-    def test_version():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.version("6")
+    def test_version(self):
+        elasticsearch = Elasticsearch().version("6")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.type': 'elasticsearch',
                     'connector.version': '6',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_host():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.host("localhost", 9200, "http")
+    def test_host(self):
+        elasticsearch = Elasticsearch().host("localhost", 9200, "http")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.hosts.0.hostname': 'localhost',
@@ -228,97 +185,73 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
                     'connector.hosts.0.protocol': 'http',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_index():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.index("MyUsers")
+    def test_index(self):
+        elasticsearch = Elasticsearch().index("MyUsers")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.index': 'MyUsers',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_document_type():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.document_type("user")
+    def test_document_type(self):
+        elasticsearch = Elasticsearch().document_type("user")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.document-type': 'user',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_key_delimiter():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.key_delimiter("$")
+    def test_key_delimiter(self):
+        elasticsearch = Elasticsearch().key_delimiter("$")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.key-delimiter': '$',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_key_null_literal():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.key_null_literal("n/a")
+    def test_key_null_literal(self):
+        elasticsearch = Elasticsearch().key_null_literal("n/a")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.key-null-literal': 'n/a',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_failure_handler_fail():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.failure_handler_fail()
+    def test_failure_handler_fail(self):
+        elasticsearch = Elasticsearch().failure_handler_fail()
 
         properties = elasticsearch.to_properties()
         expected = {'connector.failure-handler': 'fail',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_failure_handler_ignore():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.failure_handler_ignore()
+    def test_failure_handler_ignore(self):
+        elasticsearch = Elasticsearch().failure_handler_ignore()
 
         properties = elasticsearch.to_properties()
         expected = {'connector.failure-handler': 'ignore',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_failure_handler_retry_rejected():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.failure_handler_retry_rejected()
+    def test_failure_handler_retry_rejected(self):
+        elasticsearch = Elasticsearch().failure_handler_retry_rejected()
 
         properties = elasticsearch.to_properties()
         expected = {'connector.failure-handler': 'retry-rejected',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_failure_handler_custom():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.failure_handler_custom(
+    def test_failure_handler_custom(self):
+        elasticsearch = Elasticsearch().failure_handler_custom(
             "org.apache.flink.streaming.connectors.elasticsearch.util.IgnoringFailureHandler")
 
         properties = elasticsearch.to_properties()
@@ -328,207 +261,157 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
                         'IgnoringFailureHandler',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_disable_flush_on_checkpoint():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.disable_flush_on_checkpoint()
+    def test_disable_flush_on_checkpoint(self):
+        elasticsearch = Elasticsearch().disable_flush_on_checkpoint()
 
         properties = elasticsearch.to_properties()
         expected = {'connector.flush-on-checkpoint': 'false',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_bulk_flush_max_actions():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_max_actions(42)
+    def test_bulk_flush_max_actions(self):
+        elasticsearch = Elasticsearch().bulk_flush_max_actions(42)
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.max-actions': '42',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_bulk_flush_max_size():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_max_size("42 mb")
+    def test_bulk_flush_max_size(self):
+        elasticsearch = Elasticsearch().bulk_flush_max_size("42 mb")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.max-size': '44040192 bytes',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
+        self.assertEqual(expected, properties)
 
-        assert properties == expected
-
-    @staticmethod
-    def test_bulk_flush_interval():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_interval(2000)
+    def test_bulk_flush_interval(self):
+        elasticsearch = Elasticsearch().bulk_flush_interval(2000)
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.interval': '2000',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_bulk_flush_backoff_exponential():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_backoff_exponential()
+    def test_bulk_flush_backoff_exponential(self):
+        elasticsearch = Elasticsearch().bulk_flush_backoff_exponential()
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.backoff.type': 'exponential',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_bulk_flush_backoff_constant():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_backoff_constant()
+    def test_bulk_flush_backoff_constant(self):
+        elasticsearch = Elasticsearch().bulk_flush_backoff_constant()
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.backoff.type': 'constant',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_bulk_flush_backoff_max_retries():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_backoff_max_retries(3)
+    def test_bulk_flush_backoff_max_retries(self):
+        elasticsearch = Elasticsearch().bulk_flush_backoff_max_retries(3)
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.backoff.max-retries': '3',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_bulk_flush_backoff_delay():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.bulk_flush_backoff_delay(30000)
+    def test_bulk_flush_backoff_delay(self):
+        elasticsearch = Elasticsearch().bulk_flush_backoff_delay(30000)
 
         properties = elasticsearch.to_properties()
         expected = {'connector.bulk-flush.backoff.delay': '30000',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_connection_max_retry_timeout():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.connection_max_retry_timeout(3000)
+    def test_connection_max_retry_timeout(self):
+        elasticsearch = Elasticsearch().connection_max_retry_timeout(3000)
 
         properties = elasticsearch.to_properties()
         expected = {'connector.connection-max-retry-timeout': '3000',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_connection_path_prefix():
-        elasticsearch = Elasticsearch()
-
-        elasticsearch = elasticsearch.connection_path_prefix("/v1")
+    def test_connection_path_prefix(self):
+        elasticsearch = Elasticsearch().connection_path_prefix("/v1")
 
         properties = elasticsearch.to_properties()
         expected = {'connector.connection-path-prefix': '/v1',
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class OldCsvDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_field_delimiter():
-        csv = OldCsv()
-
-        csv = csv.field_delimiter("|")
+    def test_field_delimiter(self):
+        csv = OldCsv().field_delimiter("|")
 
         properties = csv.to_properties()
         expected = {'format.field-delimiter': '|',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_line_delimiter():
-        csv = OldCsv()
-
-        csv = csv.line_delimiter(";")
+    def test_line_delimiter(self):
+        csv = OldCsv().line_delimiter(";")
 
         expected = {'format.type': 'csv',
                     'format.property-version': '1',
                     'format.line-delimiter': ';'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_ignore_parse_errors():
-        csv = OldCsv()
-
-        csv = csv.ignore_parse_errors()
+    def test_ignore_parse_errors(self):
+        csv = OldCsv().ignore_parse_errors()
 
         properties = csv.to_properties()
         expected = {'format.ignore-parse-errors': 'true',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_quote_character():
-        csv = OldCsv()
-
-        csv = csv.quote_character("*")
+    def test_quote_character(self):
+        csv = OldCsv().quote_character("*")
 
         properties = csv.to_properties()
         expected = {'format.quote-character': '*',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_comment_prefix():
-        csv = OldCsv()
-
-        csv = csv.comment_prefix("#")
+    def test_comment_prefix(self):
+        csv = OldCsv().comment_prefix("#")
 
         properties = csv.to_properties()
         expected = {'format.comment-prefix': '#',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_ignore_first_line():
-        csv = OldCsv()
-
-        csv = csv.ignore_first_line()
+    def test_ignore_first_line(self):
+        csv = OldCsv().ignore_first_line()
 
         properties = csv.to_properties()
         expected = {'format.ignore-first-line': 'true',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_field():
+    def test_field(self):
         csv = OldCsv()
 
         csv.field("a", DataTypes.BIGINT())
@@ -544,10 +427,9 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
                     'format.fields.2.type': 'SQL_TIMESTAMP',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_schema():
+    def test_schema(self):
         csv = OldCsv()
         schema = TableSchema(["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
 
@@ -561,171 +443,136 @@ class OldCsvDescriptorTests(PyFlinkTestCase):
                     'format.type': 'csv',
                     'format.property-version': '1'}
 
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class CsvDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_field_delimiter():
-        csv = Csv()
-
-        csv = csv.field_delimiter("|")
+    def test_field_delimiter(self):
+        csv = Csv().field_delimiter("|")
 
         properties = csv.to_properties()
         expected = {'format.field-delimiter': '|',
                     'format.type': 'csv',
                     'format.property-version': '1'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_line_delimiter():
-        csv = Csv()
-
-        csv = csv.line_delimiter(";")
+    def test_line_delimiter(self):
+        csv = Csv().line_delimiter(";")
 
         expected = {'format.line-delimiter': ';',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_quote_character():
-        csv = Csv()
-
-        csv = csv.quote_character("'")
+    def test_quote_character(self):
+        csv = Csv().quote_character("'")
 
         expected = {'format.quote-character': "'",
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_allow_comments():
-        csv = Csv()
-
-        csv = csv.allow_comments()
+    def test_allow_comments(self):
+        csv = Csv().allow_comments()
 
         expected = {'format.allow-comments': 'true',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_ignore_parse_errors():
-        csv = Csv()
-
-        csv = csv.ignore_parse_errors()
+    def test_ignore_parse_errors(self):
+        csv = Csv().ignore_parse_errors()
 
         expected = {'format.ignore-parse-errors': 'true',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_array_element_delimiter():
-        csv = Csv()
-
-        csv = csv.array_element_delimiter("/")
+    def test_array_element_delimiter(self):
+        csv = Csv().array_element_delimiter("/")
 
         expected = {'format.array-element-delimiter': '/',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_escape_character():
-        csv = Csv()
-
-        csv = csv.escape_character("\\")
+    def test_escape_character(self):
+        csv = Csv().escape_character("\\")
 
         expected = {'format.escape-character': '\\',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_null_literal():
-        csv = Csv()
-
-        csv = csv.null_literal("null")
+    def test_null_literal(self):
+        csv = Csv().null_literal("null")
 
         expected = {'format.null-literal': 'null',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_schema():
-        csv = Csv()
-
-        csv = csv.schema(DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
-                                        DataTypes.FIELD("b", DataTypes.STRING())]))
+    def test_schema(self):
+        csv = Csv().schema(DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+                                          DataTypes.FIELD("b", DataTypes.STRING())]))
 
         expected = {'format.schema': 'ROW<a INT, b VARCHAR>',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_derive_schema():
-        csv = Csv()
-
-        csv = csv.derive_schema()
+    def test_derive_schema(self):
+        csv = Csv().derive_schema()
 
         expected = {'format.derive-schema': 'true',
                     'format.property-version': '1',
                     'format.type': 'csv'}
 
         properties = csv.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class AvroDescriptorTest(PyFlinkTestCase):
 
-    @staticmethod
-    def test_record_class():
-        avro = Avro()
-
-        avro = avro.record_class("org.apache.flink.formats.avro.generated.Address")
+    def test_record_class(self):
+        avro = Avro().record_class("org.apache.flink.formats.avro.generated.Address")
 
         expected = {'format.record-class': 'org.apache.flink.formats.avro.generated.Address',
                     'format.property-version': '1',
                     'format.type': 'avro'}
 
         properties = avro.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_avro_schema():
-        avro = Avro()
-
-        avro = avro.avro_schema('{"type":"record",'
-                                '"name":"Address",'
-                                '"namespace":"org.apache.flink.formats.avro.generated",'
-                                '"fields":['
-                                '{"name":"num","type":"int"},'
-                                '{"name":"street","type":"string"},'
-                                '{"name":"city","type":"string"},'
-                                '{"name":"state","type":"string"},'
-                                '{"name":"zip","type":"string"}'
-                                ']}')
+    def test_avro_schema(self):
+        avro = Avro().avro_schema(
+            '{"type":"record",'
+            '"name":"Address",'
+            '"namespace":"org.apache.flink.formats.avro.generated",'
+            '"fields":['
+            '{"name":"num","type":"int"},'
+            '{"name":"street","type":"string"},'
+            '{"name":"city","type":"string"},'
+            '{"name":"state","type":"string"},'
+            '{"name":"zip","type":"string"}'
+            ']}')
 
         expected = {'format.avro-schema': '{"type":"record",'
                                           '"name":"Address",'
@@ -741,44 +588,39 @@ class AvroDescriptorTest(PyFlinkTestCase):
                     'format.type': 'avro'}
 
         properties = avro.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class JsonDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_fail_on_missing_field_true():
-        json = Json()
-
-        json = json.fail_on_missing_field(True)
+    def test_fail_on_missing_field_true(self):
+        json = Json().fail_on_missing_field(True)
 
         expected = {'format.fail-on-missing-field': 'true',
                     'format.property-version': '1',
                     'format.type': 'json'}
 
         properties = json.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_json_schema():
-        json = Json()
-
-        json = json.json_schema("{"
-                                "'title': 'Fruit',"
-                                "'type': 'object',"
-                                "'properties': "
-                                "{"
-                                "'name': {'type': 'string'},"
-                                "'count': {'type': 'integer'},"
-                                "'time': "
-                                "{"
-                                "'description': 'row time',"
-                                "'type': 'string',"
-                                "'format': 'date-time'"
-                                "}"
-                                "},"
-                                "'required': ['name', 'count', 'time']"
-                                "}")
+    def test_json_schema(self):
+        json = Json().json_schema(
+            "{"
+            "'title': 'Fruit',"
+            "'type': 'object',"
+            "'properties': "
+            "{"
+            "'name': {'type': 'string'},"
+            "'count': {'type': 'integer'},"
+            "'time': "
+            "{"
+            "'description': 'row time',"
+            "'type': 'string',"
+            "'format': 'date-time'"
+            "}"
+            "},"
+            "'required': ['name', 'count', 'time']"
+            "}")
 
         expected = {'format.json-schema':
                     "{"
@@ -797,134 +639,106 @@ class JsonDescriptorTests(PyFlinkTestCase):
                     'format.type': 'json'}
 
         properties = json.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_schema():
-        json = Json()
-
-        json = json.schema(DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
-                                          DataTypes.FIELD("b", DataTypes.STRING())]))
+    def test_schema(self):
+        json = Json().schema(DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+                                            DataTypes.FIELD("b", DataTypes.STRING())]))
 
         expected = {'format.schema': 'ROW<a INT, b VARCHAR>',
                     'format.property-version': '1',
                     'format.type': 'json'}
 
         properties = json.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_derive_schema():
-        json = Json()
-
-        json = json.derive_schema()
+    def test_derive_schema(self):
+        json = Json().derive_schema()
 
         expected = {'format.derive-schema': 'true',
                     'format.property-version': '1',
                     'format.type': 'json'}
 
         properties = json.to_properties()
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class RowTimeDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_timestamps_from_field():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.timestamps_from_field("rtime")
+    def test_timestamps_from_field(self):
+        rowtime = Rowtime().timestamps_from_field("rtime")
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.timestamps.type': 'from-field', 'rowtime.timestamps.from': 'rtime'}
-        assert properties == expect
+        expected = {'rowtime.timestamps.type': 'from-field', 'rowtime.timestamps.from': 'rtime'}
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_timestamps_from_source():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.timestamps_from_source()
+    def test_timestamps_from_source(self):
+        rowtime = Rowtime().timestamps_from_source()
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.timestamps.type': 'from-source'}
-        assert properties == expect
+        expected = {'rowtime.timestamps.type': 'from-source'}
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_timestamps_from_extractor():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.timestamps_from_extractor(
+    def test_timestamps_from_extractor(self):
+        rowtime = Rowtime().timestamps_from_extractor(
             "org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor")
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.timestamps.type': 'custom',
-                  'rowtime.timestamps.class':
-                  'org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor',
-                  'rowtime.timestamps.serialized':
-                  'rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
-                  'vbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLm'
-                  'FwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1'
-                  'Y6piFNsGAIAAHhwdAACdHM'}
-        assert properties == expect
+        expected = {
+            'rowtime.timestamps.type': 'custom',
+            'rowtime.timestamps.class':
+                'org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor',
+            'rowtime.timestamps.serialized':
+                'rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
+                'vbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLm'
+                'FwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1'
+                'Y6piFNsGAIAAHhwdAACdHM'}
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_watermarks_periodic_ascending():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.watermarks_periodic_ascending()
+    def test_watermarks_periodic_ascending(self):
+        rowtime = Rowtime().watermarks_periodic_ascending()
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.watermarks.type': 'periodic-ascending'}
-        assert properties == expect
+        expected = {'rowtime.watermarks.type': 'periodic-ascending'}
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_watermarks_periodic_bounded():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.watermarks_periodic_bounded(1000)
+    def test_watermarks_periodic_bounded(self):
+        rowtime = Rowtime().watermarks_periodic_bounded(1000)
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.watermarks.type': 'periodic-bounded',
-                  'rowtime.watermarks.delay': '1000'}
-        assert properties == expect
+        expected = {'rowtime.watermarks.type': 'periodic-bounded',
+                    'rowtime.watermarks.delay': '1000'}
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_watermarks_from_source():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.watermarks_from_source()
+    def test_watermarks_from_source(self):
+        rowtime = Rowtime().watermarks_from_source()
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.watermarks.type': 'from-source'}
-        assert properties == expect
+        expected = {'rowtime.watermarks.type': 'from-source'}
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_watermarks_from_strategy():
-        rowtime = Rowtime()
-
-        rowtime = rowtime.watermarks_from_strategy(
+    def test_watermarks_from_strategy(self):
+        rowtime = Rowtime().watermarks_from_strategy(
             "org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner")
 
         properties = rowtime.to_properties()
-        expect = {'rowtime.watermarks.type': 'custom',
-                  'rowtime.watermarks.class':
-                  'org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner',
-                  'rowtime.watermarks.serialized':
-                  'rO0ABXNyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
-                  'vbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3'
-                  'RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY'
-                  '2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OW'
-                  'aT4CAAB4cA'}
-        assert properties == expect
+        expected = {
+            'rowtime.watermarks.type': 'custom',
+            'rowtime.watermarks.class':
+                'org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner',
+            'rowtime.watermarks.serialized':
+                'rO0ABXNyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
+                'vbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3'
+                'RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY'
+                '2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OW'
+                'aT4CAAB4cA'}
+        self.assertEqual(expected, properties)
 
 
 class SchemaDescriptorTests(PyFlinkTestCase):
 
-    @staticmethod
-    def test_field():
-        schema = Schema()
-
-        schema = schema\
+    def test_field(self):
+        schema = Schema()\
             .field("int_field", DataTypes.INT())\
             .field("long_field", DataTypes.BIGINT())\
             .field("string_field", DataTypes.STRING())\
@@ -960,13 +774,10 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.9.type': 'SMALLINT',
                     'schema.10.name': 'boolean_field',
                     'schema.10.type': 'BOOLEAN'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_field_in_string():
-        schema = Schema()
-
-        schema = schema\
+    def test_field_in_string(self):
+        schema = Schema()\
             .field("int_field", 'INT')\
             .field("long_field", 'BIGINT')\
             .field("string_field", 'VARCHAR')\
@@ -1002,13 +813,10 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.9.type': 'SMALLINT',
                     'schema.10.name': 'boolean_field',
                     'schema.10.type': 'BOOLEAN'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_from_origin_field():
-        schema = Schema()
-
-        schema = schema\
+    def test_from_origin_field(self):
+        schema = Schema()\
             .field("int_field", DataTypes.INT())\
             .field("long_field", DataTypes.BIGINT()).from_origin_field("origin_field_a")\
             .field("string_field", DataTypes.STRING())
@@ -1021,13 +829,10 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.1.from': 'origin_field_a',
                     'schema.2.name': 'string_field',
                     'schema.2.type': 'VARCHAR'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_proctime():
-        schema = Schema()
-
-        schema = schema\
+    def test_proctime(self):
+        schema = Schema()\
             .field("int_field", DataTypes.INT())\
             .field("ptime", DataTypes.BIGINT()).proctime()\
             .field("string_field", DataTypes.STRING())
@@ -1040,13 +845,10 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.1.proctime': 'true',
                     'schema.2.name': 'string_field',
                     'schema.2.type': 'VARCHAR'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_rowtime():
-        schema = Schema()
-
-        schema = schema\
+    def test_rowtime(self):
+        schema = Schema()\
             .field("int_field", DataTypes.INT())\
             .field("long_field", DataTypes.BIGINT())\
             .field("rtime", DataTypes.BIGINT())\
@@ -1068,21 +870,19 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.2.rowtime.watermarks.delay': '5000',
                     'schema.3.name': 'string_field',
                     'schema.3.type': 'VARCHAR'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
-    @staticmethod
-    def test_schema():
-        schema = Schema()
+    def test_schema(self):
         table_schema = TableSchema(["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
 
-        schema = schema.schema(table_schema)
+        schema = Schema().schema(table_schema)
 
         properties = schema.to_properties()
         expected = {'schema.0.name': 'a',
                     'schema.0.type': 'INT',
                     'schema.1.name': 'b',
                     'schema.1.type': 'VARCHAR'}
-        assert properties == expected
+        self.assertEqual(expected, properties)
 
 
 class AbstractTableDescriptorTests(object):
