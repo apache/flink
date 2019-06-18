@@ -43,7 +43,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -152,7 +152,7 @@ public final class ProjectionOperationFactory {
 				rename = Optional.of(getUniqueName());
 			}
 
-			return rename.map(name -> call(AS, unresolvedCall, valueLiteral(name))).orElse(unresolvedCall);
+			return rename.map(name -> unresolvedCall(AS, unresolvedCall, valueLiteral(name))).orElse(unresolvedCall);
 		}
 
 		private Optional<String> nameForGet(UnresolvedCallExpression unresolvedCall) {
@@ -169,7 +169,7 @@ public final class ProjectionOperationFactory {
 
 		@Override
 		public Expression visit(ValueLiteralExpression valueLiteralExpression) {
-			return call(AS, valueLiteralExpression, valueLiteral(getUniqueName()));
+			return unresolvedCall(AS, valueLiteralExpression, valueLiteral(getUniqueName()));
 		}
 
 		@Override

@@ -333,7 +333,7 @@ object HashAggCodeGenHelper {
       aggBuffMapping: Array[Array[(Int, LogicalType)]]) extends ExpressionVisitor[Expression] {
 
     override def visit(unresolvedCall: UnresolvedCallExpression): Expression = {
-      ApiExpressionUtils.call(
+      ApiExpressionUtils.unresolvedCall(
         unresolvedCall.getFunctionDefinition,
         unresolvedCall.getChildren.map(_.accept(this)): _*)
     }

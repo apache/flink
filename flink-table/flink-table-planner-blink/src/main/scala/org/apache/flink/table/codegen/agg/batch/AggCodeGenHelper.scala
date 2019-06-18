@@ -257,7 +257,7 @@ object AggCodeGenHelper {
       aggBufferTypes: Array[Array[LogicalType]]) extends ExpressionVisitor[Expression] {
 
     override def visit(unresolvedCall: UnresolvedCallExpression): Expression = {
-      ApiExpressionUtils.call(
+      ApiExpressionUtils.unresolvedCall(
         unresolvedCall.getFunctionDefinition,
         unresolvedCall.getChildren.asScala.map(_.accept(this)): _*)
     }

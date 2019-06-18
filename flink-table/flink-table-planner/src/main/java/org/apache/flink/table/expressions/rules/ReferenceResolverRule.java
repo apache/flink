@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Resolves {@link UnresolvedReferenceExpression} to either
@@ -60,7 +60,7 @@ final class ReferenceResolverRule implements ResolverRule {
 				.map(expr -> expr.accept(this))
 				.toArray(Expression[]::new);
 
-			return call(unresolvedCall.getFunctionDefinition(), resolvedArgs);
+			return unresolvedCall(unresolvedCall.getFunctionDefinition(), resolvedArgs);
 		}
 
 		@Override

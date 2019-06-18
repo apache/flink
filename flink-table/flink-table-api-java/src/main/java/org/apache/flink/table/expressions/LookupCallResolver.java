@@ -25,7 +25,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.List;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Resolves calls with function names to calls with actual function definitions.
@@ -56,7 +56,7 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
 			.map(child -> child.accept(this))
 			.toArray(Expression[]::new);
 
-		return call(functionDefinition, resolvedChildren);
+		return unresolvedCall(functionDefinition, resolvedChildren);
 	}
 
 	@Override

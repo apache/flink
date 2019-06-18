@@ -90,7 +90,7 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
@@ -393,7 +393,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				return (Expression) new RexPlannerExpression(convertedNode);
 			}).toArray(Expression[]::new);
 
-			UnresolvedCallExpression newCall = call(unresolvedCall.getFunctionDefinition(), newChildren);
+			UnresolvedCallExpression newCall = unresolvedCall(unresolvedCall.getFunctionDefinition(), newChildren);
 			return expressionBridge.bridge(newCall).toRexNode(relBuilder);
 		}
 

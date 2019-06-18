@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 
@@ -70,7 +70,7 @@ public final class AliasOperationUtils {
 				UnresolvedReferenceExpression oldField = unresolvedRef(childNames[idx]);
 				if (idx < fieldAliases.size()) {
 					ValueLiteralExpression alias = fieldAliases.get(idx);
-					return call(BuiltInFunctionDefinitions.AS, oldField, alias);
+					return unresolvedCall(BuiltInFunctionDefinitions.AS, oldField, alias);
 				} else {
 					return oldField;
 				}

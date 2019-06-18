@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Partially defined over window with (optional) partitioning and order.
@@ -83,7 +83,7 @@ public final class OverWindowPartitionedOrdered {
 			alias,
 			partitionBy,
 			orderBy,
-			call(BuiltInFunctionDefinitions.UNBOUNDED_RANGE),
+			unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE),
 			Optional.empty());
 	}
 }

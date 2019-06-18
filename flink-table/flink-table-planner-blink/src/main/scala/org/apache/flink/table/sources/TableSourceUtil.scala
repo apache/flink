@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.ApiExpressionUtils.{call, typeLiteral}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, typeLiteral}
 import org.apache.flink.table.expressions.{PlannerResolvedFieldReference, ResolvedFieldReference, RexNodeConverter}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter
@@ -279,7 +279,7 @@ object TableSourceUtil {
 
       val expression = tsExtractor.getExpression(fieldAccesses)
       // add cast to requested type and convert expression to RexNode
-      val castExpression = call(
+      val castExpression = unresolvedCall(
         BuiltInFunctionDefinitions.CAST,
         expression,
         typeLiteral(DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])))

@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
  * Joins call to {@link BuiltInFunctionDefinitions#OVER} with corresponding over window
@@ -73,9 +73,9 @@ final class OverWindowResolverRule implements ResolverRule {
 
 				newArgs.addAll(referenceWindow.partitionBy());
 
-				return call(unresolvedCall.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
+				return unresolvedCall(unresolvedCall.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
 			} else {
-				return call(
+				return unresolvedCall(
 					unresolvedCall.getFunctionDefinition(),
 					unresolvedCall.getChildren().stream()
 						.map(expr -> expr.accept(this))
@@ -87,9 +87,9 @@ final class OverWindowResolverRule implements ResolverRule {
 			return referenceWindow.following().orElseGet(() -> {
 					PlannerExpression preceding = resolutionContext.bridge(referenceWindow.preceding());
 					if (preceding.resultType() == BasicTypeInfo.LONG_TYPE_INFO) {
-						return call(BuiltInFunctionDefinitions.CURRENT_ROW);
+						return unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW);
 					} else {
-						return call(BuiltInFunctionDefinitions.CURRENT_RANGE);
+						return unresolvedCall(BuiltInFunctionDefinitions.CURRENT_RANGE);
 					}
 				}
 			);

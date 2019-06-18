@@ -35,8 +35,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.call;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.table.util.JavaScalaConversionUtil.toJava;
 
@@ -83,7 +83,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				.mapToObj(idx -> castIfNeeded(args.get(idx), expectedTypes.get(idx)))
 				.toArray(Expression[]::new);
 
-			return call(unresolvedCall.getFunctionDefinition(), newArgs);
+			return unresolvedCall(unresolvedCall.getFunctionDefinition(), newArgs);
 		}
 
 		private Expression validateArguments(UnresolvedCallExpression unresolvedCall, PlannerExpression plannerCall) {
@@ -120,7 +120,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			if (actualType.equals(expectedType)) {
 				return childExpression;
 			} else if (TypeCoercion.canSafelyCast(actualType, expectedType)) {
-				return call(
+				return unresolvedCall(
 					BuiltInFunctionDefinitions.CAST,
 					childExpression,
 					typeLiteral(fromLegacyInfoToDataType(expectedType))
