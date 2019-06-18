@@ -34,7 +34,7 @@ import _root_.scala.collection.JavaConverters._
   */
 class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
-  override def visitCall(call: CallExpression): PlannerExpression = {
+  override def visit(call: CallExpression): PlannerExpression = {
     val func = call.getFunctionDefinition
     val children = call.getChildren.asScala
 
@@ -680,7 +680,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     }
   }
 
-  override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
+  override def visit(literal: ValueLiteralExpression): PlannerExpression = {
     if (hasRoot(literal.getOutputDataType.getLogicalType, SYMBOL)) {
       val plannerSymbol = getSymbol(literal.getValueAs(classOf[TableSymbol]).get())
       return SymbolPlannerExpression(plannerSymbol)
@@ -762,33 +762,33 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       throw new TableException("Unsupported symbol: " + symbol)
   }
 
-  override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {
+  override def visit(fieldReference: FieldReferenceExpression): PlannerExpression = {
     PlannerResolvedFieldReference(
       fieldReference.getName,
       fromDataTypeToLegacyInfo(fieldReference.getOutputDataType))
   }
 
-  override def visitUnresolvedReference(fieldReference: UnresolvedReferenceExpression)
+  override def visit(fieldReference: UnresolvedReferenceExpression)
     : PlannerExpression = {
     UnresolvedFieldReference(fieldReference.getName)
   }
 
-  override def visitTypeLiteral(typeLiteral: TypeLiteralExpression): PlannerExpression = {
+  override def visit(typeLiteral: TypeLiteralExpression): PlannerExpression = {
     throw new TableException("Unsupported type literal expression: " + typeLiteral)
   }
 
-  override def visitTableReference(tableRef: TableReferenceExpression): PlannerExpression = {
+  override def visit(tableRef: TableReferenceExpression): PlannerExpression = {
     TableReference(
       tableRef.asInstanceOf[TableReferenceExpression].getName,
       tableRef.asInstanceOf[TableReferenceExpression].getQueryOperation
     )
   }
 
-  override def visitLocalReference(localReference: LocalReferenceExpression): PlannerExpression =
+  override def visit(localReference: LocalReferenceExpression): PlannerExpression =
     throw new TableException(
       "Local reference should be handled individually by a call: " + localReference)
 
-  override def visitLookupCall(lookupCall: LookupCallExpression): PlannerExpression =
+  override def visit(lookupCall: LookupCallExpression): PlannerExpression =
     throw new TableException("Unsupported function call: " + lookupCall)
 
   override def visitNonApiExpression(other: Expression): PlannerExpression = {

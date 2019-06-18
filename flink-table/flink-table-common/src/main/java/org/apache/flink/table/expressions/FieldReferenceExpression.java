@@ -88,7 +88,7 @@ public final class FieldReferenceExpression implements Expression {
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitFieldReference(this);
+		return visitor.visit(this);
 	}
 
 	@Override

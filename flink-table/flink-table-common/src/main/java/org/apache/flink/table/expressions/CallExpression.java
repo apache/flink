@@ -56,7 +56,7 @@ public final class CallExpression implements Expression {
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitCall(this);
+		return visitor.visit(this);
 	}
 
 	@Override

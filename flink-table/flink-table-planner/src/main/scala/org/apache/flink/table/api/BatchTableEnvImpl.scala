@@ -232,7 +232,7 @@ abstract class BatchTableEnvImpl(
     if (f.exists(f =>
       f.accept(new ExpressionDefaultVisitor[Boolean] {
 
-        override def visitCall(call: CallExpression): Boolean = {
+        override def visit(call: CallExpression): Boolean = {
           TIME_ATTRIBUTES.contains(call.getFunctionDefinition) ||
             call.getChildren.asScala.exists(_.accept(this))
         }

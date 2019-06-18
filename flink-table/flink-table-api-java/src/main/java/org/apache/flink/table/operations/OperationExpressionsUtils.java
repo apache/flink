@@ -151,12 +151,12 @@ public class OperationExpressionsUtils {
 		private final Map<Expression, String> properties = new LinkedHashMap<>();
 
 		@Override
-		public Void visitLookupCall(LookupCallExpression unresolvedCall) {
+		public Void visit(LookupCallExpression unresolvedCall) {
 			throw new IllegalStateException("All calls should be resolved by now. Got: " + unresolvedCall);
 		}
 
 		@Override
-		public Void visitCall(CallExpression call) {
+		public Void visit(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
 			if (isFunctionOfKind(call, AGGREGATE)) {
 				aggregates.computeIfAbsent(call, expr -> "EXPR$" + uniqueId++);
@@ -187,12 +187,12 @@ public class OperationExpressionsUtils {
 		}
 
 		@Override
-		public Expression visitLookupCall(LookupCallExpression unresolvedCall) {
+		public Expression visit(LookupCallExpression unresolvedCall) {
 			throw new IllegalStateException("All calls should be resolved by now. Got: " + unresolvedCall);
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			if (aggregates.get(call) != null) {
 				return unresolvedRef(aggregates.get(call));
 			} else if (properties.get(call) != null) {
@@ -214,7 +214,7 @@ public class OperationExpressionsUtils {
 
 	private static class ExtractNameVisitor extends ApiExpressionDefaultVisitor<Optional<String>> {
 		@Override
-		public Optional<String> visitCall(CallExpression call) {
+		public Optional<String> visit(CallExpression call) {
 			if (call.getFunctionDefinition().equals(AS)) {
 				return extractValue(call.getChildren().get(1), String.class);
 			} else {
@@ -223,17 +223,17 @@ public class OperationExpressionsUtils {
 		}
 
 		@Override
-		public Optional<String> visitLocalReference(LocalReferenceExpression localReference) {
+		public Optional<String> visit(LocalReferenceExpression localReference) {
 			return Optional.of(localReference.getName());
 		}
 
 		@Override
-		public Optional<String> visitTableReference(TableReferenceExpression tableReference) {
+		public Optional<String> visit(TableReferenceExpression tableReference) {
 			return Optional.of(tableReference.getName());
 		}
 
 		@Override
-		public Optional<String> visitFieldReference(FieldReferenceExpression fieldReference) {
+		public Optional<String> visit(FieldReferenceExpression fieldReference) {
 			return Optional.of(fieldReference.getName());
 		}
 

@@ -119,7 +119,7 @@ public class JoinOperationFactory {
 	private class EquiJoinExistsChecker extends ApiExpressionDefaultVisitor<Boolean> {
 
 		@Override
-		public Boolean visitCall(CallExpression call) {
+		public Boolean visit(CallExpression call) {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.EQUALS) {
 				return isJoinCondition(call.getChildren().get(0), call.getChildren().get(1));
 			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OR) {

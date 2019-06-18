@@ -55,7 +55,7 @@ final class OverWindowResolverRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
 				List<Expression> children = call.getChildren();

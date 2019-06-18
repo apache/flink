@@ -387,7 +387,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		private static final int numberOfJoinInputs = 2;
 
 		@Override
-		public RexNode visitCall(CallExpression call) {
+		public RexNode visit(CallExpression call) {
 			final Expression[] newChildren = call.getChildren().stream().map(expr -> {
 				RexNode convertedNode = expr.accept(this);
 				return (Expression) new RexPlannerExpression(convertedNode);
@@ -398,7 +398,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public RexNode visitFieldReference(FieldReferenceExpression fieldReference) {
+		public RexNode visit(FieldReferenceExpression fieldReference) {
 			return relBuilder.field(numberOfJoinInputs, fieldReference.getInputIndex(), fieldReference.getFieldIndex());
 		}
 
@@ -411,7 +411,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	private class AggregateVisitor extends ExpressionDefaultVisitor<AggCall> {
 
 		@Override
-		public AggCall visitCall(CallExpression call) {
+		public AggCall visit(CallExpression call) {
 			if (call.getFunctionDefinition() == AS) {
 				String aggregateName = extractValue(call.getChildren().get(1), String.class)
 					.orElseThrow(() -> new TableException("Unexpected name."));
@@ -433,7 +433,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 	private class TableAggregateVisitor extends AggregateVisitor {
 		@Override
-		public AggCall visitCall(CallExpression call) {
+		public AggCall visit(CallExpression call) {
 			if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				AggFunctionCall aggFunctionCall = (AggFunctionCall) expressionBridge.bridge(call);
 				return aggFunctionCall.toAggCall(aggFunctionCall.toString(), false, relBuilder);

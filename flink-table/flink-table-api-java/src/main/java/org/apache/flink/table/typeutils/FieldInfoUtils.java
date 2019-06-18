@@ -458,13 +458,13 @@ public class FieldInfoUtils {
 		}
 
 		@Override
-		public FieldInfo visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public FieldInfo visit(UnresolvedReferenceExpression unresolvedReference) {
 			String fieldName = unresolvedReference.getName();
 			return new FieldInfo(fieldName, index, fromLegacyInfoToDataType(getTypeAt(unresolvedReference)));
 		}
 
 		@Override
-		public FieldInfo visitCall(CallExpression call) {
+		public FieldInfo visit(CallExpression call) {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
 				return visitAlias(call);
 			} else if (isRowTimeExpression(call)) {
@@ -541,12 +541,12 @@ public class FieldInfoUtils {
 		}
 
 		@Override
-		public FieldInfo visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public FieldInfo visit(UnresolvedReferenceExpression unresolvedReference) {
 			return createFieldInfo(unresolvedReference, null);
 		}
 
 		@Override
-		public FieldInfo visitCall(CallExpression call) {
+		public FieldInfo visit(CallExpression call) {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
 				return visitAlias(call);
 			} else if (isRowTimeExpression(call)) {

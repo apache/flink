@@ -26,23 +26,23 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
-	public abstract R visitTableReference(TableReferenceExpression tableReference);
+	public abstract R visit(TableReferenceExpression tableReference);
 
-	public abstract R visitLocalReference(LocalReferenceExpression localReference);
+	public abstract R visit(LocalReferenceExpression localReference);
 
-	public abstract R visitLookupCall(LookupCallExpression lookupCall);
+	public abstract R visit(LookupCallExpression lookupCall);
 
-	public abstract R visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference);
+	public abstract R visit(UnresolvedReferenceExpression unresolvedReference);
 
 	public final R visit(Expression other) {
 		if (other instanceof TableReferenceExpression) {
-			return visitTableReference((TableReferenceExpression) other);
+			return visit((TableReferenceExpression) other);
 		} else if (other instanceof LocalReferenceExpression) {
-			return visitLocalReference((LocalReferenceExpression) other);
+			return visit((LocalReferenceExpression) other);
 		} else if (other instanceof LookupCallExpression) {
-			return visitLookupCall((LookupCallExpression) other);
+			return visit((LookupCallExpression) other);
 		} else if (other instanceof UnresolvedReferenceExpression) {
-			return visitUnresolvedReference((UnresolvedReferenceExpression) other);
+			return visit((UnresolvedReferenceExpression) other);
 		}
 		return visitNonApiExpression(other);
 	}

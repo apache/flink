@@ -65,7 +65,7 @@ public class CalculatedTableFactory {
 		}
 
 		@Override
-		public CalculatedQueryOperation<?> visitCall(CallExpression call) {
+		public CalculatedQueryOperation<?> visit(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
 				return unwrapFromAlias(call);
