@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.sources.TableSource;
 
 import java.util.Map;
@@ -39,4 +40,9 @@ public interface TableSourceFactory<T> extends TableFactory {
 	 * @return the configured table source.
 	 */
 	TableSource<T> createTableSource(Map<String, String> properties);
+
+	default TableSource<T> createTableSource(CatalogTable table) {
+		return createTableSource(table.toProperties());
+	}
+
 }
