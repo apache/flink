@@ -139,7 +139,7 @@ public final class ProjectionOperationFactory {
 	private class NamingVisitor extends ApiExpressionDefaultVisitor<Expression> {
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
 			final Optional<String> rename;
 			if (functionDefinition.equals(CAST)) {
@@ -168,7 +168,7 @@ public final class ProjectionOperationFactory {
 		}
 
 		@Override
-		public Expression visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
+		public Expression visit(ValueLiteralExpression valueLiteralExpression) {
 			return call(AS, valueLiteralExpression, valueLiteral(getUniqueName()));
 		}
 
@@ -181,7 +181,7 @@ public final class ProjectionOperationFactory {
 	private class StripAliases extends ApiExpressionDefaultVisitor<Expression> {
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			if (call.getFunctionDefinition().equals(AS)) {
 				return call.getChildren().get(0).accept(this);
 			} else {
@@ -198,7 +198,7 @@ public final class ProjectionOperationFactory {
 	private class TransitiveExtractNameVisitor extends ApiExpressionDefaultVisitor<Optional<String>> {
 
 		@Override
-		public Optional<String> visitCall(CallExpression call) {
+		public Optional<String> visit(CallExpression call) {
 			if (call.getFunctionDefinition().equals(GET)) {
 				return extractNameFromGet(call);
 			} else {

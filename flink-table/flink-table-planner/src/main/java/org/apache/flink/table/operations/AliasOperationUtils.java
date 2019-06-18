@@ -80,7 +80,7 @@ public final class AliasOperationUtils {
 	private static class AliasLiteralValidator extends ApiExpressionDefaultVisitor<ValueLiteralExpression> {
 
 		@Override
-		public ValueLiteralExpression visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
+		public ValueLiteralExpression visit(ValueLiteralExpression valueLiteralExpression) {
 			String name = ExpressionUtils.extractValue(valueLiteralExpression, String.class)
 				.orElseThrow(() -> new ValidationException(
 					"Alias accepts only names that are not '*' reference."));
@@ -97,7 +97,7 @@ public final class AliasOperationUtils {
 		}
 
 		@Override
-		public ValueLiteralExpression visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public ValueLiteralExpression visit(UnresolvedReferenceExpression unresolvedReference) {
 
 			if (unresolvedReference.getName().equals(ALL_REFERENCE)) {
 				throw new ValidationException("Alias can not accept '*' as name.");

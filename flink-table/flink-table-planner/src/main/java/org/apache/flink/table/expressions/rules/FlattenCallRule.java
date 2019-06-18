@@ -56,7 +56,7 @@ final class FlattenCallRule implements ResolverRule {
 		}
 
 		@Override
-		public List<Expression> visitCall(CallExpression call) {
+		public List<Expression> visit(CallExpression call) {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
 				return executeFlatten(call);
 			}

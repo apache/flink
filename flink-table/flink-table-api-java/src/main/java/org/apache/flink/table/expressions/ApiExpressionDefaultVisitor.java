@@ -27,42 +27,42 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisitor<T> {
 	@Override
-	public T visitCall(CallExpression call) {
+	public T visit(CallExpression call) {
 		return defaultMethod(call);
 	}
 
 	@Override
-	public T visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
+	public T visit(ValueLiteralExpression valueLiteralExpression) {
 		return defaultMethod(valueLiteralExpression);
 	}
 
 	@Override
-	public T visitFieldReference(FieldReferenceExpression fieldReference) {
+	public T visit(FieldReferenceExpression fieldReference) {
 		return defaultMethod(fieldReference);
 	}
 
 	@Override
-	public T visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+	public T visit(UnresolvedReferenceExpression unresolvedReference) {
 		return defaultMethod(unresolvedReference);
 	}
 
 	@Override
-	public T visitLocalReference(LocalReferenceExpression localReference) {
+	public T visit(LocalReferenceExpression localReference) {
 		return defaultMethod(localReference);
 	}
 
 	@Override
-	public T visitTypeLiteral(TypeLiteralExpression typeLiteral) {
+	public T visit(TypeLiteralExpression typeLiteral) {
 		return defaultMethod(typeLiteral);
 	}
 
 	@Override
-	public T visitTableReference(TableReferenceExpression tableReference) {
+	public T visit(TableReferenceExpression tableReference) {
 		return defaultMethod(tableReference);
 	}
 
 	@Override
-	public T visitLookupCall(LookupCallExpression lookupCall) {
+	public T visit(LookupCallExpression lookupCall) {
 		return defaultMethod(lookupCall);
 	}
 

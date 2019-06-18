@@ -79,7 +79,7 @@ public final class ValueLiteralExpression implements Expression {
 
 	@Override
 	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitValueLiteral(this);
+		return visitor.visit(this);
 	}
 
 	@Override

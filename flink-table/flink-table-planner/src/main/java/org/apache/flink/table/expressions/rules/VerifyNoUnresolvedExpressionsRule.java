@@ -56,17 +56,17 @@ final class VerifyNoUnresolvedExpressionsRule implements ResolverRule {
 	private static class NoUnresolvedCallsChecker extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public Void visit(UnresolvedReferenceExpression unresolvedReference) {
 			throw getException("reference", unresolvedReference);
 		}
 
 		@Override
-		public Void visitLookupCall(LookupCallExpression lookupCall) {
+		public Void visit(LookupCallExpression lookupCall) {
 			throw getException("lookup call", lookupCall);
 		}
 
 		@Override
-		public Void visitCall(CallExpression call) {
+		public Void visit(CallExpression call) {
 			if (call.getFunctionDefinition() == OVER && call.getChildren().size() <= 2) {
 				throw getException("OVER call", call);
 			} else if (call.getFunctionDefinition() == FLATTEN) {

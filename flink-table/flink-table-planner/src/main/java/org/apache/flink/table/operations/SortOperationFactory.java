@@ -129,7 +129,7 @@ public class SortOperationFactory {
 	private class OrderWrapper extends ApiExpressionDefaultVisitor<Expression> {
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			if (ORDERING.contains(call.getFunctionDefinition())) {
 				return call;
 			} else {

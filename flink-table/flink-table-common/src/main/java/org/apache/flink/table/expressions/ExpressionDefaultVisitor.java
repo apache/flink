@@ -28,22 +28,22 @@ import org.apache.flink.annotation.Internal;
 public abstract class ExpressionDefaultVisitor<T> implements ExpressionVisitor<T> {
 
 	@Override
-	public T visitCall(CallExpression call) {
+	public T visit(CallExpression call) {
 		return defaultMethod(call);
 	}
 
 	@Override
-	public T visitValueLiteral(ValueLiteralExpression valueLiteralExpression) {
+	public T visit(ValueLiteralExpression valueLiteralExpression) {
 		return defaultMethod(valueLiteralExpression);
 	}
 
 	@Override
-	public T visitFieldReference(FieldReferenceExpression fieldReference) {
+	public T visit(FieldReferenceExpression fieldReference) {
 		return defaultMethod(fieldReference);
 	}
 
 	@Override
-	public T visitTypeLiteral(TypeLiteralExpression typeLiteral) {
+	public T visit(TypeLiteralExpression typeLiteral) {
 		return defaultMethod(typeLiteral);
 	}
 

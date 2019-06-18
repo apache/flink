@@ -570,7 +570,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   class NoWindowPropertyChecker(val exceptionMessage: String)
     extends ApiExpressionDefaultVisitor[Void] {
-    override def visitCall(call: CallExpression): Void = {
+    override def visit(call: CallExpression): Void = {
       val functionDefinition = call.getFunctionDefinition
       if (BuiltInFunctionDefinitions.WINDOW_PROPERTIES
         .contains(functionDefinition)) {

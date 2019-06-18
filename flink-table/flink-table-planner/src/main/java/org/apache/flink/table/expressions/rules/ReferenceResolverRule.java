@@ -54,7 +54,7 @@ final class ReferenceResolverRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			final Expression[] resolvedArgs = call.getChildren()
 				.stream()
 				.map(expr -> expr.accept(this))
@@ -64,7 +64,7 @@ final class ReferenceResolverRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public Expression visit(UnresolvedReferenceExpression unresolvedReference) {
 			return resolutionContext.referenceLookup().lookupField(unresolvedReference.getName())
 				.map(expr -> (Expression) expr)
 				.orElseGet(() ->

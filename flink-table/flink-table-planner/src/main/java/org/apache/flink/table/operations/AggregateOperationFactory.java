@@ -417,7 +417,7 @@ public class AggregateOperationFactory {
 	private class AggregationExpressionValidator extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visitCall(CallExpression call) {
+		public Void visit(CallExpression call) {
 			FunctionDefinition functionDefinition = call.getFunctionDefinition();
 			if (isFunctionOfKind(call, AGGREGATE) || isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				if (functionDefinition == BuiltInFunctionDefinitions.DISTINCT) {
@@ -460,7 +460,7 @@ public class AggregateOperationFactory {
 	private class ValidateDistinct extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visitCall(CallExpression call) {
+		public Void visit(CallExpression call) {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.DISTINCT) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
@@ -481,7 +481,7 @@ public class AggregateOperationFactory {
 	private class NoNestedAggregates extends ApiExpressionDefaultVisitor<Void> {
 
 		@Override
-		public Void visitCall(CallExpression call) {
+		public Void visit(CallExpression call) {
 			if (isFunctionOfKind(call, AGGREGATE) || isFunctionOfKind(call, TABLE_AGGREGATE)) {
 				throw new ValidationException("It's not allowed to use an aggregate function as " +
 					"input of another aggregate function");
@@ -526,7 +526,7 @@ public class AggregateOperationFactory {
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition == BuiltInFunctionDefinitions.AS) {
 				return unwrapFromAlias(call);

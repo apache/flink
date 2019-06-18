@@ -118,7 +118,7 @@ public final class ColumnOperationUtils {
 	private static class DropColumnsExtractor extends ApiExpressionDefaultVisitor<String> {
 
 		@Override
-		public String visitFieldReference(FieldReferenceExpression fieldReference) {
+		public String visit(FieldReferenceExpression fieldReference) {
 			return fieldReference.getName();
 		}
 
@@ -130,7 +130,7 @@ public final class ColumnOperationUtils {
 
 	private static class RenameColumnExtractor extends ApiExpressionDefaultVisitor<String> {
 		@Override
-		public String visitCall(CallExpression call) {
+		public String visit(CallExpression call) {
 			if (call.getFunctionDefinition() == AS &&
 				call.getChildren().get(0) instanceof FieldReferenceExpression) {
 				FieldReferenceExpression resolvedFieldReference = (FieldReferenceExpression) call.getChildren()

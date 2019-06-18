@@ -39,14 +39,14 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
 		this.functionLookup = functionLookup;
 	}
 
-	public Expression visitLookupCall(LookupCallExpression lookupCall) {
+	public Expression visit(LookupCallExpression lookupCall) {
 		final FunctionLookup.Result result = functionLookup.lookupFunction(lookupCall.getUnresolvedName())
 			.orElseThrow(() -> new ValidationException("Undefined function: " + lookupCall.getUnresolvedName()));
 
 		return createResolvedCall(result.getFunctionDefinition(), lookupCall.getChildren());
 	}
 
-	public Expression visitCall(CallExpression call) {
+	public Expression visit(CallExpression call) {
 		return createResolvedCall(call.getFunctionDefinition(), call.getChildren());
 	}
 

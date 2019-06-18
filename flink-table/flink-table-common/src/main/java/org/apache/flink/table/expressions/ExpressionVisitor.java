@@ -27,13 +27,13 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface ExpressionVisitor<R> {
 
-	R visitCall(CallExpression call);
+	R visit(CallExpression call);
 
-	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
+	R visit(ValueLiteralExpression valueLiteralExpression);
 
-	R visitFieldReference(FieldReferenceExpression fieldReference);
+	R visit(FieldReferenceExpression fieldReference);
 
-	R visitTypeLiteral(TypeLiteralExpression typeLiteral);
+	R visit(TypeLiteralExpression typeLiteral);
 
 	R visit(Expression other);
 }

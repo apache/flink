@@ -63,7 +63,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		}
 
 		@Override
-		public Expression visitCall(CallExpression call) {
+		public Expression visit(CallExpression call) {
 			PlannerExpression plannerCall = resolutionContext.bridge(call);
 			if (plannerCall instanceof InputTypeSpec) {
 				List<TypeInformation<?>> expectedTypes = toJava(((InputTypeSpec) plannerCall).expectedTypes());

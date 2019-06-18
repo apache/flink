@@ -79,7 +79,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	@Override
-	public RexNode visitCall(CallExpression call) {
+	public RexNode visit(CallExpression call) {
 		switch (call.getFunctionDefinition().getKind()) {
 			case SCALAR:
 				return visitScalarFunc(call);
@@ -174,7 +174,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	@Override
-	public RexNode visitValueLiteral(ValueLiteralExpression expr) {
+	public RexNode visit(ValueLiteralExpression expr) {
 		LogicalType type = fromDataTypeToLogicalType(expr.getOutputDataType());
 		RexBuilder rexBuilder = relBuilder.getRexBuilder();
 		FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
@@ -269,12 +269,12 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	@Override
-	public RexNode visitFieldReference(FieldReferenceExpression fieldReference) {
+	public RexNode visit(FieldReferenceExpression fieldReference) {
 		return relBuilder.field(fieldReference.getName());
 	}
 
 	@Override
-	public RexNode visitTypeLiteral(TypeLiteralExpression typeLiteral) {
+	public RexNode visit(TypeLiteralExpression typeLiteral) {
 		throw new UnsupportedOperationException();
 	}
 
