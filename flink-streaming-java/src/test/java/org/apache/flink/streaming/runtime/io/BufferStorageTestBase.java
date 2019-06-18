@@ -244,6 +244,10 @@ public abstract class BufferStorageTestBase {
 		return new BufferOrEvent(evt, channelIndex);
 	}
 
+	public static BufferOrEvent generateRandomBuffer(int size) {
+		return generateRandomBuffer(size, 0);
+	}
+
 	public static BufferOrEvent generateRandomBuffer(int size, int channelIndex) {
 		MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE);
 		for (int i = 0; i < size; i++) {
