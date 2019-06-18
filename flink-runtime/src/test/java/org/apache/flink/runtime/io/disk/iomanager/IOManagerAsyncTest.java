@@ -47,7 +47,7 @@ public class IOManagerAsyncTest {
 
 	@After
 	public void afterTest() {
-		this.ioManager.shutdown();
+		this.ioManager.close();
 		assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
 	}
 

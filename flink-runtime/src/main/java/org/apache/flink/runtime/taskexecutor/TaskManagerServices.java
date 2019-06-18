@@ -179,7 +179,7 @@ public class TaskManagerServices {
 		}
 
 		try {
-			ioManager.shutdown();
+			ioManager.close();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}

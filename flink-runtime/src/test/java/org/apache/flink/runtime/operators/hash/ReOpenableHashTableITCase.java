@@ -83,7 +83,7 @@ public class ReOpenableHashTableITCase extends TestLogger {
 	@After
 	public void afterTest() {
 		if (this.ioManager != null) {
-			this.ioManager.shutdown();
+			this.ioManager.close();
 			if (!this.ioManager.isProperlyShutDown()) {
 				Assert.fail("I/O manager failed to properly shut down.");
 			}

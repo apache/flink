@@ -41,22 +41,18 @@ public class IOManagerTest {
 
 	@Test
 	public void channelEnumerator() throws IOException {
-		IOManager ioMan = null;
+		File tempPath = temporaryFolder.newFolder();
 
-		try {
-			File tempPath = temporaryFolder.newFolder();
+		String[] tempDirs = new String[]{
+			new File(tempPath, "a").getAbsolutePath(),
+			new File(tempPath, "b").getAbsolutePath(),
+			new File(tempPath, "c").getAbsolutePath(),
+			new File(tempPath, "d").getAbsolutePath(),
+			new File(tempPath, "e").getAbsolutePath(),
+		};
 
-			String[] tempDirs = new String[]{
-					new File(tempPath, "a").getAbsolutePath(),
-					new File(tempPath, "b").getAbsolutePath(),
-					new File(tempPath, "c").getAbsolutePath(),
-					new File(tempPath, "d").getAbsolutePath(),
-					new File(tempPath, "e").getAbsolutePath(),
-			};
-
-			int[] counters = new int[tempDirs.length];
-
-			ioMan = new TestIOManager(tempDirs);
+		int[] counters = new int[tempDirs.length];
+		try (IOManager ioMan = new TestIOManager(tempDirs) ) {
 			FileIOChannel.Enumerator enumerator = ioMan.createChannelEnumerator();
 
 			for (int i = 0; i < 3 * tempDirs.length; i++) {
@@ -79,11 +75,6 @@ public class IOManagerTest {
 
 			for (int k = 0; k < tempDirs.length; k++) {
 				assertEquals(3, counters[k]);
-			}
-		}
-		finally {
-			if (ioMan != null) {
-				ioMan.shutdown();
 			}
 		}
 	}

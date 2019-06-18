@@ -58,13 +58,11 @@ public class LargeRecordHandlerITCase extends TestLogger {
 
 	@Test
 	public void testRecordHandlerCompositeKey() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 1000;
 		final int NUM_RECORDS = 10;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
@@ -145,9 +143,6 @@ public class LargeRecordHandlerITCase extends TestLogger {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 	
 	public static final class SomeVeryLongValue implements Value {
@@ -193,15 +188,13 @@ public class LargeRecordHandlerITCase extends TestLogger {
 	
 	@Test
 	public void fileTest() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 4;
 		final int NUM_RECORDS = 10;
 		
 		FileIOChannel.ID channel = null;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
@@ -259,13 +252,6 @@ public class LargeRecordHandlerITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			if (channel != null) {
-				ioMan.deleteChannel(channel);
-			}
-
-			ioMan.shutdown();
 		}
 	}
 

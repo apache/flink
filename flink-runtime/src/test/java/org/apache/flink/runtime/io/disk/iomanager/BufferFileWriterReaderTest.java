@@ -58,7 +58,7 @@ public class BufferFileWriterReaderTest {
 
 	@AfterClass
 	public static void shutdown() {
-		ioManager.shutdown();
+		ioManager.close();
 	}
 
 	@Before

@@ -47,11 +47,9 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 	@Test
 	public void testWithTwoChannelsAndRandomBarriers() {
-		IOManager ioMan = null;
 		NetworkBufferPool networkBufferPool1 = null;
 		NetworkBufferPool networkBufferPool2 = null;
-		try {
-			ioMan = new IOManagerAsync();
+		try (IOManager ioMan = new IOManagerAsync()) {
 
 			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE, 1);
@@ -76,9 +74,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (ioMan != null) {
-				ioMan.shutdown();
-			}
 			if (networkBufferPool1 != null) {
 				networkBufferPool1.destroyAllBufferPools();
 				networkBufferPool1.destroy();

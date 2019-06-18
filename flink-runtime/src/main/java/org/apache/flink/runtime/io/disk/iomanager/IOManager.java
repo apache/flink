@@ -37,7 +37,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * The facade for the provided I/O manager services.
  */
-public abstract class IOManager {
+public abstract class IOManager implements AutoCloseable {
 	protected static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 
 	/** The temporary directories for files. */
@@ -85,7 +85,8 @@ public abstract class IOManager {
 	 * Close method, marks the I/O manager as closed
 	 * and removed all temporary files.
 	 */
-	public void shutdown() {
+	@Override
+	public void close() {
 		// remove all of our temp directories
 		for (File path : paths) {
 			try {

@@ -72,7 +72,7 @@ public class SpillingBufferTest {
 
 	@After
 	public void afterTest() {
-		ioManager.shutdown();
+		ioManager.close();
 		if (!ioManager.isProperlyShutDown()) {
 			Assert.fail("I/O Manager was not properly shut down.");
 		}

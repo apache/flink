@@ -49,7 +49,7 @@ public class SpillingCheckpointBarrierAlignerTest extends CheckpointBarrierAlign
 
 	@AfterClass
 	public static void shutdownIOManager() {
-		ioManager.shutdown();
+		ioManager.close();
 	}
 
 	@Override
