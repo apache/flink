@@ -91,7 +91,10 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 
 		descriptor.putTableSchema(Schema.SCHEMA, getSchema());
 
-		descriptor.putPropertiesWithPrefix(CatalogTableConfig.TABLE_PROPERTIES, getProperties());
+		Map<String, String> properties = getProperties();
+		properties.remove(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY);
+
+		descriptor.putPropertiesWithPrefix(CatalogTableConfig.TABLE_PROPERTIES, properties);
 
 		descriptor.putString(CatalogTableConfig.TABLE_COMMENT, getComment());
 		descriptor.putString(CatalogTableConfig.TABLE_PARTITION_KEYS, String.join(",", partitionKeys));
