@@ -36,9 +36,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the behavior of the {@link BarrierBuffer} with {@link BufferSpiller}.
+ * Tests for the behavior of the {@link CheckpointedInputGate} with {@link BufferSpiller}.
  */
-public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
+public class SpillingCheckpointBarrierAlignerTest extends CheckpointBarrierAlignerTestBase {
 
 	private static IOManager ioManager;
 
@@ -67,8 +67,8 @@ public class SpillingBarrierBufferTest extends BarrierBufferTestBase {
 	}
 
 	@Override
-	BarrierBuffer createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException {
-		return new BarrierBuffer(gate, new BufferSpiller(ioManager, PAGE_SIZE), "Testing", toNotify);
+	CheckpointedInputGate createBarrierBuffer(InputGate gate, @Nullable AbstractInvokable toNotify) throws IOException {
+		return new CheckpointedInputGate(gate, new BufferSpiller(ioManager, PAGE_SIZE), "Testing", toNotify);
 	}
 
 	@Override

@@ -36,7 +36,7 @@ import java.io.IOException;
 @Internal
 public class InputProcessorUtil {
 
-	public static CheckpointedInputGate createCheckpointBarrierHandler(
+	public static CheckpointedInputGate createCheckpointedInputGate(
 			StreamTask<?, ?> checkpointedTask,
 			CheckpointingMode checkpointMode,
 			IOManager ioManager,
@@ -44,7 +44,7 @@ public class InputProcessorUtil {
 			Configuration taskManagerConfig,
 			String taskName) throws IOException {
 
-		CheckpointedInputGate barrierHandler;
+		CheckpointedInputGate checkpointedInputGate;
 		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
 			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
 			if (!(maxAlign == -1 || maxAlign > 0)) {
@@ -54,20 +54,20 @@ public class InputProcessorUtil {
 			}
 
 			if (taskManagerConfig.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL)) {
-				barrierHandler = new BarrierBuffer(
+				checkpointedInputGate = new CheckpointedInputGate(
 					inputGate,
 					new CachedBufferStorage(inputGate.getPageSize(), maxAlign, taskName),
 					taskName,
 					checkpointedTask);
 			} else {
-				barrierHandler = new BarrierBuffer(
+				checkpointedInputGate = new CheckpointedInputGate(
 					inputGate,
 					new BufferSpiller(ioManager, inputGate.getPageSize(), maxAlign, taskName),
 					taskName,
 					checkpointedTask);
 			}
 		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
-			barrierHandler = new BarrierBuffer(
+			checkpointedInputGate = new CheckpointedInputGate(
 				inputGate,
 				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(inputGate.getNumberOfInputChannels(), checkpointedTask));
@@ -75,6 +75,6 @@ public class InputProcessorUtil {
 			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
 
-		return barrierHandler;
+		return checkpointedInputGate;
 	}
 }

@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public final class StreamTaskNetworkInput implements StreamTaskInput {
 
-	private final CheckpointedInputGate barrierHandler;
+	private final CheckpointedInputGate checkpointedInputGate;
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
@@ -63,16 +63,16 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	@SuppressWarnings("unchecked")
 	public StreamTaskNetworkInput(
-			CheckpointedInputGate barrierHandler,
+			CheckpointedInputGate checkpointedInputGate,
 			TypeSerializer<?> inputSerializer,
 			IOManager ioManager,
 			int inputIndex) {
-		this.barrierHandler = barrierHandler;
+		this.checkpointedInputGate = checkpointedInputGate;
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
 			new StreamElementSerializer<>(inputSerializer));
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[barrierHandler.getNumberOfInputChannels()];
+		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[checkpointedInputGate.getNumberOfInputChannels()];
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
 				ioManager.getSpillingDirectoriesPaths());
@@ -99,14 +99,14 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 				}
 			}
 
-			Optional<BufferOrEvent> bufferOrEvent = barrierHandler.pollNext();
+			Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
 			if (bufferOrEvent.isPresent()) {
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
-				if (barrierHandler.isFinished()) {
+				if (checkpointedInputGate.isFinished()) {
 					isFinished = true;
-					checkState(barrierHandler.isAvailable().isDone(), "Finished BarrierHandler should be available");
-					if (!barrierHandler.isEmpty()) {
+					checkState(checkpointedInputGate.isAvailable().isDone(), "Finished BarrierHandler should be available");
+					if (!checkpointedInputGate.isEmpty()) {
 						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
 					}
 				}
@@ -124,7 +124,7 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 		else {
 			// Event received
 			final AbstractEvent event = bufferOrEvent.getEvent();
-			// TODO: with barrierHandler.isFinished() we might not need to support any events on this level.
+			// TODO: with checkpointedInputGate.isFinished() we might not need to support any events on this level.
 			if (event.getClass() != EndOfPartitionEvent.class) {
 				throw new IOException("Unexpected event: " + event);
 			}
@@ -148,7 +148,7 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	@Override
 	public CompletableFuture<?> isAvailable() {
-		return barrierHandler.isAvailable();
+		return checkpointedInputGate.isAvailable();
 	}
 
 	@Override
@@ -162,6 +162,6 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 			deserializer.clear();
 		}
 
-		barrierHandler.cleanup();
+		checkpointedInputGate.cleanup();
 	}
 }

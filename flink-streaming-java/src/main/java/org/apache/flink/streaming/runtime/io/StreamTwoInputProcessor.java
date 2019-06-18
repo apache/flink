@@ -154,7 +154,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
-		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
+		this.barrierHandler = InputProcessorUtil.createCheckpointedInputGate(
 			checkpointedTask,
 			checkpointMode,
 			ioManager,

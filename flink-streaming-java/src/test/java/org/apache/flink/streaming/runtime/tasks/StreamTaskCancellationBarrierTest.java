@@ -31,7 +31,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
-import org.apache.flink.streaming.runtime.io.BarrierBufferTestBase;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher;
 
 import org.junit.Test;
 
@@ -110,7 +111,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		// the decline call should go to the coordinator
 		verify(environment, times(1)).declineCheckpoint(eq(2L),
-			argThat(new BarrierBufferTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// a cancellation barrier should be downstream
 		Object result = testHarness.getOutput().poll();
@@ -155,7 +156,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		// the decline call should go to the coordinator
 		verify(environment, times(1)).declineCheckpoint(eq(2L),
-			argThat(new BarrierBufferTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
+			argThat(new CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// a cancellation barrier should be downstream
 		Object result = testHarness.getOutput().poll();

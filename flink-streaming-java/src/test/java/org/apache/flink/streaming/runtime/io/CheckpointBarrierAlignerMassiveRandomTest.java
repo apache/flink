@@ -41,7 +41,7 @@ import static org.junit.Assert.fail;
  * and randomly generate checkpoint barriers. The two streams are very
  * unaligned, putting heavy work on the BarrierBuffer.
  */
-public class BarrierBufferMassiveRandomTest {
+public class CheckpointBarrierAlignerMassiveRandomTest {
 
 	private static final int PAGE_SIZE = 1024;
 
@@ -62,10 +62,10 @@ public class BarrierBufferMassiveRandomTest {
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
 
-			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, new BufferSpiller(ioMan, myIG.getPageSize()));
+			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, myIG.getPageSize()));
 
 			for (int i = 0; i < 2000000; i++) {
-				BufferOrEvent boe = barrierBuffer.pollNext().get();
+				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
 				if (boe.isBuffer()) {
 					boe.getBuffer().recycleBuffer();
 				}
