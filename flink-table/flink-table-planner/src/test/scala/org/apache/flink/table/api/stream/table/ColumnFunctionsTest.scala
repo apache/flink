@@ -166,8 +166,7 @@ class ColumnFunctionsTest extends TableTestBase {
       unaryNode(
         "DataStreamCorrelate",
         streamTableNode(t),
-        term("invocation",
-          "org$apache$flink$table$utils$TableFunc0$66c197161117984f7d12696fb92d4ba6($2)"),
+        term("invocation", func0.functionIdentifier() + "($2)"),
         term("correlate", "table(TableFunc0(string))"),
         term("select", "int", "long", "string", "name", "age"),
         term("rowType",
