@@ -142,6 +142,20 @@ public class FlinkKubernetesOptions {
 		.desc("Help for Kubernetes session CLI.")
 		.build();
 
+	public static final Option JAR_OPTION = Option.builder("j")
+		.longOpt("jar")
+		.required(false)
+		.hasArg(true)
+		.desc("Path to Flink jar file")
+		.build();
+
+	public static final Option DETACHED_OPTION = Option.builder("d")
+		.longOpt("detached")
+		.required(false)
+		.hasArg(false)
+		.desc("If present, runs the job in detached mode")
+		.build();
+
 	/**
 	 * build FlinkKubernetesOption from commandline.
 	 * */

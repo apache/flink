@@ -46,12 +46,9 @@ import javax.annotation.Nullable;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
-import static org.apache.flink.kubernetes.FlinkKubernetesOptions.CLUSTERID_OPTION;
-import static org.apache.flink.kubernetes.FlinkKubernetesOptions.HELP_OPTION;
-import static org.apache.flink.kubernetes.FlinkKubernetesOptions.IMAGE_OPTION;
-import static org.apache.flink.kubernetes.FlinkKubernetesOptions.KUBERNETES_CONFIG_FILE_OPTION;
-import static org.apache.flink.kubernetes.FlinkKubernetesOptions.KUBERNETES_MODE_OPTION;
+import static org.apache.flink.kubernetes.FlinkKubernetesOptions.*;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
 
 /**
@@ -66,6 +63,12 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 	private static final String ACTION_START = "start";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_STOP = "stop";
+
+	private Properties dynamicProperties;
+
+	public Properties getDynamicProperties() {
+		return dynamicProperties;
+	}
 
 	public KubernetesCustomCli(Configuration configuration) {
 		super(configuration);
@@ -88,7 +91,9 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 			.addOption(IMAGE_OPTION)
 			.addOption(DYNAMIC_PROPERTY_OPTION)
 			.addOption(CLUSTERID_OPTION)
-			.addOption(HELP_OPTION);
+			.addOption(HELP_OPTION)
+			.addOption(JAR_OPTION)
+			.addOption(DETACHED_OPTION);
 	}
 
 	@Override
@@ -101,6 +106,8 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		try {
 			FlinkKubernetesOptions options = FlinkKubernetesOptions.fromCommandLine(commandLine);
 			addBackConfigurations(options, this.configuration);
+
+			dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 
 			return new KubernetesClusterDescriptor(options);
 		} catch (Exception e) {

@@ -36,8 +36,7 @@ import java.util.stream.Collectors;
 /**
  * Task manager specific pod configuration.
  * */
-public class TaskManagerDecorator extends
-	org.apache.flink.kubernetes.kubeclient.fabric8.decorators.Decorator<Pod, FlinkPod> {
+public class TaskManagerDecorator extends Decorator<Pod, FlinkPod> {
 
 	private static final String CONTAINER_NAME = "flink-task-manager";
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.kubernetes.kubeclient.fabric8.FlinkService;
 
 import java.util.List;
@@ -77,6 +78,6 @@ public interface KubeClient extends AutoCloseable {
 	/**
 	 * extract endpoints for access outside cluster.
 	 */
-	Map<Integer, Endpoint> extractEndpoints(FlinkService service);
+	Map<ConfigOption<Integer>, Endpoint> extractEndpoints(FlinkService service);
 
 }

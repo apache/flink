@@ -42,10 +42,7 @@ import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -104,8 +101,15 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	public void createTaskManagerPod(TaskManagerPodParameter parameter) {
 		FlinkPod pod = new FlinkPod(this.flinkKubeOptions);
 
-		String serviceUUID = getFlinkService(this.flinkKubeOptions.getClusterId()).getInternalResource().getMetadata().getUid();
-		flinkKubeOptions.setServiceUUID(serviceUUID);
+		FlinkService service = getFlinkService(this.flinkKubeOptions.getClusterId());
+		//set taskmanager the same uuid with jm service, for gc
+		if (service != null) {
+			flinkKubeOptions.setServiceUUID(service.getInternalResource().getMetadata().getUid());
+		} else {
+			//for test
+			flinkKubeOptions.setServiceUUID(UUID.randomUUID().toString());
+
+		}
 
 		for (Decorator<Pod, FlinkPod> d : this.taskManagerPodDecorators) {
 			pod = d.decorate(pod);
@@ -127,17 +131,19 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 	 */
 	private int getExposedServicePort(Service service, ConfigOption<Integer> configPort) {
 		int port = this.flinkKubeOptions.getServicePort(configPort);
-		for (ServicePort p : service.getSpec().getPorts()) {
-			if (p.getPort() == port) {
-				return p.getNodePort();
+		if (service.getSpec() != null && service.getSpec().getPorts() != null) {
+			for (ServicePort p : service.getSpec().getPorts()) {
+				if (p.getPort() == port) {
+					return p.getNodePort();
+				}
 			}
 		}
 		return port;
 	}
 
 	@Override
-	public Map<Integer, Endpoint> extractEndpoints(FlinkService flinkService) {
-		Map<Integer, Endpoint> endpoints = new HashMap<>();
+	public Map<ConfigOption<Integer>, Endpoint> extractEndpoints(FlinkService flinkService) {
+		Map<ConfigOption<Integer>, Endpoint> endpoints = new HashMap<>();
 		Service service = flinkService.getInternalResource();
 
 		String address = null;
@@ -158,8 +164,8 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 		int restPort = getExposedServicePort(service, RestOptions.PORT);
 		int jobManagerPort = getExposedServicePort(service, JobManagerOptions.PORT);
 
-		endpoints.put(RestOptions.PORT.defaultValue(), new Endpoint(address, restPort));
-		endpoints.put(JobManagerOptions.PORT.defaultValue(), new Endpoint(address, jobManagerPort));
+		endpoints.put(RestOptions.PORT, new Endpoint(address, restPort));
+		endpoints.put(JobManagerOptions.PORT, new Endpoint(address, jobManagerPort));
 
 		return endpoints;
 	}
@@ -179,7 +185,7 @@ public class Fabric8FlinkKubeClient implements KubeClient {
 
 		ActionWatcher<Service> watcher = new ActionWatcher<>(Watcher.Action.ADDED,
 			flinkService.getInternalResource());
-		this.internalClient.services().withName(clusterId).watch(watcher);
+		this.internalClient.services().inNamespace(flinkKubeOptions.getNameSpace()).withName(clusterId).watch(watcher);
 
 		return CompletableFuture.supplyAsync(() -> {
 			Service createdService = watcher.await(1, TimeUnit.MINUTES);

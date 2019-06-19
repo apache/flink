@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -83,7 +84,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 		Configuration configuration = new Configuration(this.options.getConfiguration());
 
 		//now update the access info of new service: JM.addr, JM.port, rest.port
-		Map<Integer, Endpoint> endpointMappings = this.client.extractEndpoints(clusterService);
+		Map<ConfigOption<Integer>, Endpoint> endpointMappings = this.client.extractEndpoints(clusterService);
 
 		if (endpointMappings.containsKey(RestOptions.PORT)) {
 			configuration.setString(RestOptions.ADDRESS, endpointMappings.get(RestOptions.PORT).getAddress());
@@ -112,7 +113,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 	public ClusterClient<String> deploySessionCluster(ClusterSpecification clusterSpecification)
 		throws ClusterDeploymentException {
 
-		String clusterId = this.generateClusterId();
+		String clusterId = options.getClusterId() != null ? options.getClusterId() : generateClusterId();
 		return this.deployClusterInternal(clusterId);
 	}
 

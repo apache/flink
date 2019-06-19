@@ -18,57 +18,36 @@
 
 package org.apache.flink.kubernetes.kubeclient;
 
+import io.fabric8.kubernetes.api.model.*;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
-import org.apache.flink.kubernetes.MixedMockKubernetesServer;
+import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.kubeclient.fabric8.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.fabric8.FlinkService;
 
-import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodList;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceBuilder;
-import io.fabric8.kubernetes.api.model.ServiceList;
-import io.fabric8.kubernetes.api.model.ServicePort;
-import io.fabric8.kubernetes.api.model.WatchEvent;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for Fabric implementation of {@link org.apache.flink.kubernetes.kubeclient.KubeClient}.
  * */
-public class Fabric8ClientTest {
+public class Fabric8ClientTest extends KubernetesTestBase {
 
-	@Rule
-	public MixedMockKubernetesServer server = new MixedMockKubernetesServer(true, true);
-
-	private Fabric8FlinkKubeClient getClient(FlinkKubernetesOptions options){
-		KubernetesClient client = server.getClient();
-		//only support namespace test
-		options.setNameSpace("test");
-		if (options.getServiceUUID() == null) {
-			options.setServiceUUID(UUID.randomUUID().toString());
-		}
-		Fabric8FlinkKubeClient flinkKubeClient = new Fabric8FlinkKubeClient(options, client);
-		flinkKubeClient.initialize();
-		return flinkKubeClient;
-	}
+	private final String clusterId = "abc";
 
 	@Test
 	public void testCreateClusterPod() {
 		FlinkKubernetesOptions options = new FlinkKubernetesOptions(new Configuration());
-		options.setClusterId("abc");
+		options.setClusterId(clusterId);
 		Fabric8FlinkKubeClient flinkKubeClient = this.getClient(options);
 
 		flinkKubeClient.createClusterPod();
@@ -87,43 +66,29 @@ public class Fabric8ClientTest {
 	@Test
 	public void testCreateService() throws  Exception {
 
-		ObjectMeta meta = new ObjectMeta();
-		meta.setResourceVersion("1");
-
-		Service serviceWithIngress = new ServiceBuilder()
-			.withMetadata(meta)
-			.withNewStatus()
-			.withLoadBalancer(new LoadBalancerStatus(Arrays.asList(new LoadBalancerIngress("null", "192.168.0.1"))))
-			.and()
-			.build();
-
-		server.expect()
-			.withPath("/api/v1/namespaces/test/services?watch=true")
-			.andUpgradeToWebSocket()
-			.open()
-			.waitFor(100)
-			.andEmit(new WatchEvent(serviceWithIngress, "ADDED"))
-			.done()
-			.once();
+		setActionWatcher(clusterId);
 
 		FlinkKubernetesOptions options = new FlinkKubernetesOptions(new Configuration());
-		options.setClusterId("abc");
-		Fabric8FlinkKubeClient flinkKubeClient = this.getClient(options);
+		options.setClusterId(clusterId);
+		Fabric8FlinkKubeClient kubeClient = this.getClient(options);
 
-		CompletableFuture<FlinkService> future = flinkKubeClient.createClusterService("abc");
-		KubernetesClient client = server.getClient();
-		ServiceList list = client.services().list();
-		Assert.assertEquals(1, list.getItems().size());
+		CompletableFuture<FlinkService> future = kubeClient.createClusterService(clusterId);
 
-		Service service = list.getItems().get(0);
+		KubernetesClient internalClient = server.getClient();
+		ServiceList serviceList = internalClient.services().list();
+		Assert.assertEquals(1, serviceList.getItems().size());
 
-		Assert.assertEquals("abc", service.getMetadata().getName());
+		Service service = serviceList.getItems().get(0);
+		Assert.assertEquals(clusterId, service.getMetadata().getName());
 		Assert.assertEquals(options.getNameSpace(), service.getMetadata().getNamespace());
 
 		List<ServicePort> ports = service.getSpec().getPorts();
 		Assert.assertEquals(4, ports.size());
-		Assert.assertTrue(ports.stream()
-			.anyMatch(p -> p.getPort() == options.getConfiguration().getInteger(RestOptions.PORT)));
+		assertTrue(ports.stream().anyMatch(p -> p.getPort() == options.getConfiguration().getInteger(RestOptions.PORT)));
+
+		FlinkService flinkService = future.get();
+		Map<ConfigOption<Integer>, Endpoint> endpointMap = kubeClient.extractEndpoints(flinkService);
+		Assert.assertEquals("192.168.0.1", endpointMap.get(RestOptions.PORT).getAddress());
 
 	}
 }

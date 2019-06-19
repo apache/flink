@@ -42,7 +42,6 @@ public class ActionWatcher<T extends HasMetadata> implements Watcher<T> {
 	}
 
 	public void eventReceived(Action action, T resource) {
-
 		if (action == this.expectedAction) {
 			this.reference.set(resource);
 			this.latch.countDown();
