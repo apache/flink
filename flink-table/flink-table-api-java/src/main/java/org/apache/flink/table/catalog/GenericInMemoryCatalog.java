@@ -48,7 +48,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A generic catalog implementation that holds all meta objects in memory.
  */
 public class GenericInMemoryCatalog extends AbstractCatalog {
-	// TODO: remove these and use CatalogConfig.FLINK_IS_GENERIC
 	public static final String FLINK_IS_GENERIC_KEY = "is_generic";
 	public static final String FLINK_IS_GENERIC_VALUE = "true";
 

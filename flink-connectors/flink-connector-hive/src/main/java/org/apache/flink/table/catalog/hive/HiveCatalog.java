@@ -104,7 +104,6 @@ public class HiveCatalog extends AbstractCatalog {
 	// Prefix used to distinguish properties created by Hive and Flink,
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	private static final String FLINK_PROPERTY_PREFIX = "flink.";
-	// TODO: remove this and use CatalogConfig.FLINK_IS_GENERIC
 	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY;
 
 	// Prefix used to distinguish Flink functions from Hive functions.
@@ -173,8 +172,7 @@ public class HiveCatalog extends AbstractCatalog {
 	// ------ databases ------
 
 	@Override
-	public CatalogDatabase getDatabase(String databaseName)
-			throws DatabaseNotExistException, CatalogException {
+	public CatalogDatabase getDatabase(String databaseName) throws DatabaseNotExistException, CatalogException {
 		Database hiveDatabase = getHiveDatabase(databaseName);
 
 		Map<String, String> properties = hiveDatabase.getParameters();

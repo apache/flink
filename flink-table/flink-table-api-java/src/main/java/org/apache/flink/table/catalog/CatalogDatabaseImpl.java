@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +34,7 @@ public class CatalogDatabaseImpl implements CatalogDatabase {
 	// Comment of the database
 	private final String comment;
 
-	public CatalogDatabaseImpl(Map<String, String> properties, String comment) {
+	public CatalogDatabaseImpl(Map<String, String> properties, @Nullable String comment) {
 		this.properties = checkNotNull(properties, "properties cannot be null");
 		this.comment = comment;
 	}
