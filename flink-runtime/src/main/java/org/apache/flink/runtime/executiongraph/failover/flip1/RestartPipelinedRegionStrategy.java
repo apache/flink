@@ -94,66 +94,10 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	// ------------------------------------------------------------------------
 
 	private void buildFailoverRegions() {
-		// currently we let a job with co-location constraints fail as one region
-		// putting co-located vertices in the same region with each other can be a future improvement
-		if (topology.containsCoLocationConstraints()) {
-			buildOneRegionForAllVertices();
-			return;
-		}
-
-		// we use the map (list -> null) to imitate an IdentityHashSet (which does not exist)
-		// this helps to optimize the building performance as it uses reference equality
-		final IdentityHashMap<FailoverVertex, HashSet<FailoverVertex>> vertexToRegion = new IdentityHashMap<>();
-
-		// iterate all the vertices which are topologically sorted
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			HashSet<FailoverVertex> currentRegion = new HashSet<>(1);
-			currentRegion.add(vertex);
-			vertexToRegion.put(vertex, currentRegion);
-
-			for (FailoverEdge inputEdge : vertex.getInputEdges()) {
-				if (inputEdge.getResultPartitionType().isPipelined()) {
-					final FailoverVertex producerVertex = inputEdge.getSourceVertex();
-					final HashSet<FailoverVertex> producerRegion = vertexToRegion.get(producerVertex);
-
-					if (producerRegion == null) {
-						throw new IllegalStateException("Producer task " + producerVertex.getExecutionVertexName()
-							+ " failover region is null while calculating failover region for the consumer task "
-							+ vertex.getExecutionVertexName() + ". This should be a failover region building bug.");
-					}
-
-					// check if it is the same as the producer region, if so skip the merge
-					// this check can significantly reduce compute complexity in All-to-All PIPELINED edge case
-					if (currentRegion != producerRegion) {
-						// merge current region and producer region
-						// merge the smaller region into the larger one to reduce the cost
-						final HashSet<FailoverVertex> smallerSet;
-						final HashSet<FailoverVertex> largerSet;
-						if (currentRegion.size() < producerRegion.size()) {
-							smallerSet = currentRegion;
-							largerSet = producerRegion;
-						} else {
-							smallerSet = producerRegion;
-							largerSet = currentRegion;
-						}
-						for (FailoverVertex v : smallerSet) {
-							vertexToRegion.put(v, largerSet);
-						}
-						largerSet.addAll(smallerSet);
-						currentRegion = largerSet;
-					}
-				}
-			}
-		}
-
-		// find out all the distinct regions
-		final IdentityHashMap<HashSet<FailoverVertex>, Object> distinctRegions = new IdentityHashMap<>();
-		for (HashSet<FailoverVertex> regionVertices : vertexToRegion.values()) {
-			distinctRegions.put(regionVertices, null);
-		}
+		final Set<Set<FailoverVertex>> distinctRegions = PipelinedRegionComputeUtil.computePipelinedRegions(topology);
 
 		// creating all the failover regions and register them
-		for (HashSet<FailoverVertex> regionVertices : distinctRegions.keySet()) {
+		for (Set<FailoverVertex> regionVertices : distinctRegions) {
 			LOG.debug("Creating a failover region with {} vertices.", regionVertices.size());
 			final FailoverRegion failoverRegion = new FailoverRegion(regionVertices);
 			regions.put(failoverRegion, null);
@@ -165,21 +109,6 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		LOG.info("Created {} failover regions.", regions.size());
 	}
 
-	private void buildOneRegionForAllVertices() {
-		LOG.warn("Cannot decompose the topology into individual failover regions due to use of " +
-			"Co-Location constraints (iterations). Job will fail over as one holistic unit.");
-
-		final Set<FailoverVertex> allVertices = new HashSet<>();
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			allVertices.add(vertex);
-		}
-
-		final FailoverRegion region = new FailoverRegion(allVertices);
-		regions.put(region, null);
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			vertexToRegionMap.put(vertex.getExecutionVertexID(), region);
-		}
-	}
 
 	// ------------------------------------------------------------------------
 	//  task failure handling
