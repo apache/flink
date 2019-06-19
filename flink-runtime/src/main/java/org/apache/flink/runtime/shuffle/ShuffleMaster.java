@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -41,4 +44,17 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
 	CompletableFuture<T> registerPartitionWithProducer(
 		PartitionDescriptor partitionDescriptor,
 		ProducerDescriptor producerDescriptor);
+
+	/**
+	 * Release any external resources occupied by the given partition.
+	 *
+	 * <p>This call triggers release of any resources which are occupied by the given partition in the external systems
+	 * outside of the producer executor. This is mostly relevant for the batch jobs and blocking result partitions.
+	 * This method is not called if {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code true}.
+	 * The producer local resources are managed by {@link ShuffleDescriptor#storesLocalResourcesOn()} and
+	 * {@link ShuffleEnvironment#releasePartitions(Collection)}.
+	 *
+	 * @param shuffleDescriptor shuffle descriptor of the result partition to release externally.
+	 */
+	void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor);
 }
