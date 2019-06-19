@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Interface for shuffle deployment descriptor of result partition resource.
@@ -50,4 +54,17 @@ public interface ShuffleDescriptor extends Serializable {
 	default boolean isUnknown() {
 		return false;
 	}
+
+	/**
+	 * Returns the location of the producing task executor if the partition occupies local resources there.
+	 *
+	 * <p>Indicates that this partition occupies local resources in the producing task executor. Such partition requires
+	 * that the task executor is running and being connected to be able to consume the produced data. This is mostly
+	 * relevant for the batch jobs and blocking result partitions which should outlive the producer lifetime and
+	 * be released externally: {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code false}.
+	 * {@link ShuffleEnvironment#releasePartitions(Collection)} can be used to release such kind of partitions locally.
+	 *
+	 * @return the resource id of the producing task executor if the partition occupies local resources there
+	 */
+	Optional<ResourceID> storesLocalResourcesOn();
 }

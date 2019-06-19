@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+
+import java.util.Optional;
 
 /**
  * Unknown {@link ShuffleDescriptor} for which the producer has not been deployed yet.
@@ -47,5 +50,10 @@ public final class UnknownShuffleDescriptor implements ShuffleDescriptor {
 	@Override
 	public boolean isUnknown() {
 		return true;
+	}
+
+	@Override
+	public Optional<ResourceID> storesLocalResourcesOn() {
+		return Optional.empty();
 	}
 }

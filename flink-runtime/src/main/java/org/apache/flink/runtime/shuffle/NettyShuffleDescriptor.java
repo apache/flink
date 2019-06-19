@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.util.Optional;
 
 /**
  * Default implementation of {@link ShuffleDescriptor} for {@link NettyShuffleMaster}.
@@ -55,6 +56,11 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 	@Override
 	public ResultPartitionID getResultPartitionID() {
 		return resultPartitionID;
+	}
+
+	@Override
+	public Optional<ResourceID> storesLocalResourcesOn() {
+		return Optional.of(producerLocation);
 	}
 
 	public boolean isLocalTo(ResourceID consumerLocation) {

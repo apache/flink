@@ -92,6 +92,14 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return sendScheduleOrUpdateConsumersMessage;
 	}
 
+	/**
+	 * Returns whether to release the partition after having been fully consumed once.
+	 *
+	 * <p>Indicates whether the shuffle service should automatically release all partition resources after
+	 * the first full consumption has been acknowledged.
+	 *
+	 * @return whether to release the partition after having been fully consumed once.
+	 */
 	public boolean isReleasedOnConsumption() {
 		return releasedOnConsumption;
 	}
