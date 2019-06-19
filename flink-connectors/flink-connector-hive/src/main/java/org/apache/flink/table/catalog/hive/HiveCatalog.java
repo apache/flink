@@ -35,7 +35,6 @@ import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.config.CatalogTableConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -180,15 +179,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = hiveDatabase.getParameters();
 
-		// By default, isGeneric=false
-		boolean isGeneric = Boolean.valueOf(properties.remove(CatalogConfig.FLINK_IS_GENERIC));
-
-		if (isGeneric) {
-			properties = retrieveFlinkProperties(properties);
-		}
-
 		properties.put(HiveDatabaseConfig.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
-		properties.put(CatalogConfig.FLINK_IS_GENERIC, String.valueOf(isGeneric));
 
 		return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
 	}
@@ -214,18 +205,9 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private static Database instantiateHiveDatabase(String databaseName, CatalogDatabase database) {
 
-		// By default, isGeneric=false
-		boolean isGeneric = Boolean.valueOf(database.getProperties().remove(CatalogConfig.FLINK_IS_GENERIC));
-
 		Map<String, String> properties = database.getProperties();
 
 		String dbLocationUri = properties.remove(HiveDatabaseConfig.DATABASE_LOCATION_URI);
-
-		if (isGeneric) {
-			properties = maskFlinkProperties(properties);
-		}
-
-		properties.put(CatalogConfig.FLINK_IS_GENERIC, String.valueOf(isGeneric));
 
 		return new Database(
 			databaseName,
@@ -490,7 +472,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
-		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.FLINK_IS_GENERIC));
+		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
 		}

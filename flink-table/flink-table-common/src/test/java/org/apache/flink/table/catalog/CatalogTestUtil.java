@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -48,17 +47,10 @@ public class CatalogTestUtil {
 
 	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
 		assertEquals(d1.getComment(), d2.getComment());
-		assertEquals(
-			d1.getProperties().get(CatalogConfig.FLINK_IS_GENERIC),
-			d2.getProperties().get(CatalogConfig.FLINK_IS_GENERIC));
 
-		if (Boolean.valueOf(d1.getProperties().get(CatalogConfig.FLINK_IS_GENERIC))) {
-			assertEquals(d1.getProperties(), d2.getProperties());
-		} else {
-			// d2 should contain all properties of d1's, and may or may not contain extra properties
-			assertTrue(d2.getProperties().entrySet().containsAll(
-				d1.getProperties().entrySet()));
-		}
+		// d2 should contain all properties of d1's, and may or may not contain extra properties
+		assertTrue(d2.getProperties().entrySet().containsAll(
+			d1.getProperties().entrySet()));
 	}
 
 	static void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {
