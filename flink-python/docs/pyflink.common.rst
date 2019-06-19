@@ -16,21 +16,13 @@
     limitations under the License.
    ################################################################################
 
-pyflink package
-===============
+pyflink.common package
+======================
 
-Subpackages
------------
+Module contents
+---------------
 
-.. toctree::
-    :maxdepth: 1
-
-    pyflink.table
-    pyflink.batch
-    pyflink.streaming
-    pyflink.common
-
-.. automodule:: pyflink
+.. automodule:: pyflink.common
     :members:
     :undoc-members:
     :show-inheritance:

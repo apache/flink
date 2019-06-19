@@ -247,7 +247,7 @@ class StreamExecutionEnvironment(object):
 
         The build-in state backend includes:
             :class:`~pyflink.streaming.MemoryStateBackend`,
-            :class:`~pyflink.streaming.FsStateBackend`,
+            :class:`~pyflink.streaming.FsStateBackend`
             and :class:`~pyflink.streaming.RocksDBStateBackend`.
 
         .. seealso:: :func:`get_state_backend`

@@ -553,7 +553,7 @@ class RocksDBStateBackend(StateBackend):
         """
         Enable compaction filter to cleanup state with TTL.
 
-        ..note::
+        .. note::
             User can still decide in state TTL configuration in state descriptor
             whether the filter is active for particular state or not.
         """
@@ -693,7 +693,7 @@ class PredefinedOptions(object):
     Default options for all settings, except that writes are not forced to the
     disk.
 
-    ..note::
+    .. note::
         Because Flink does not rely on RocksDB data on disk for recovery,
         there is no need to sync data to stable storage.
 
