@@ -20,7 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -34,14 +34,14 @@ import java.util.Map;
 @Internal
 public class AggregateQueryOperation implements QueryOperation {
 
-	private final List<Expression> groupingExpressions;
-	private final List<Expression> aggregateExpressions;
+	private final List<ResolvedExpression> groupingExpressions;
+	private final List<ResolvedExpression> aggregateExpressions;
 	private final QueryOperation child;
 	private final TableSchema tableSchema;
 
 	public AggregateQueryOperation(
-			List<Expression> groupingExpressions,
-			List<Expression> aggregateExpressions,
+			List<ResolvedExpression> groupingExpressions,
+			List<ResolvedExpression> aggregateExpressions,
 			QueryOperation child,
 			TableSchema tableSchema) {
 		this.groupingExpressions = groupingExpressions;
@@ -64,11 +64,11 @@ public class AggregateQueryOperation implements QueryOperation {
 		return OperationUtils.formatWithChildren("Aggregate", args, getChildren(), Operation::asSummaryString);
 	}
 
-	public List<Expression> getGroupingExpressions() {
+	public List<ResolvedExpression> getGroupingExpressions() {
 		return groupingExpressions;
 	}
 
-	public List<Expression> getAggregateExpressions() {
+	public List<ResolvedExpression> getAggregateExpressions() {
 		return aggregateExpressions;
 	}
 

@@ -25,7 +25,8 @@ import org.apache.flink.util.Preconditions;
  * Definition of a built-in function. It enables unique identification across different
  * modules by reference equality.
  *
- * <p>Compared to regular {@link FunctionDefinition}, built-in functions have a default name.
+ * <p>Compared to regular {@link FunctionDefinition}, built-in functions have a default name. This
+ * default name is used to lookup the function in a catalog during resolution.
  *
  * <p>Equality is defined by reference equality.
  */

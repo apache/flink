@@ -22,10 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
-import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -35,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.TABLE;
 
@@ -51,12 +52,12 @@ public class CalculatedTableFactory {
 	 * @param callExpr call to table function as expression
 	 * @return valid calculated table
 	 */
-	public QueryOperation create(Expression callExpr, String[] leftTableFieldNames) {
+	public QueryOperation create(ResolvedExpression callExpr, String[] leftTableFieldNames) {
 		FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor(leftTableFieldNames);
 		return callExpr.accept(calculatedTableCreator);
 	}
 
-	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedQueryOperation<?>> {
+	private class FunctionTableCallVisitor extends ResolvedExpressionDefaultVisitor<CalculatedQueryOperation<?>> {
 
 		private String[] leftTableFieldNames;
 
@@ -65,22 +66,22 @@ public class CalculatedTableFactory {
 		}
 
 		@Override
-		public CalculatedQueryOperation<?> visit(UnresolvedCallExpression unresolvedCall) {
-			FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
+		public CalculatedQueryOperation<?> visit(CallExpression call) {
+			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
-				return unwrapFromAlias(unresolvedCall);
+				return unwrapFromAlias(call);
 			} else if (definition instanceof TableFunctionDefinition) {
 				return createFunctionCall(
 					(TableFunctionDefinition) definition,
 					Collections.emptyList(),
-					unresolvedCall.getChildren());
+					call.getResolvedChildren());
 			} else {
-				return defaultMethod(unresolvedCall);
+				return defaultMethod(call);
 			}
 		}
 
-		private CalculatedQueryOperation<?> unwrapFromAlias(UnresolvedCallExpression unresolvedCall) {
-			List<Expression> children = unresolvedCall.getChildren();
+		private CalculatedQueryOperation<?> unwrapFromAlias(CallExpression call) {
+			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
 				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
@@ -91,16 +92,16 @@ public class CalculatedTableFactory {
 				throw fail();
 			}
 
-			UnresolvedCallExpression tableCall = (UnresolvedCallExpression) children.get(0);
+			CallExpression tableCall = (CallExpression) children.get(0);
 			TableFunctionDefinition tableFunctionDefinition =
 				(TableFunctionDefinition) tableCall.getFunctionDefinition();
-			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getChildren());
+			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getResolvedChildren());
 		}
 
 		private CalculatedQueryOperation<?> createFunctionCall(
 				TableFunctionDefinition tableFunctionDefinition,
 				List<String> aliases,
-				List<Expression> parameters) {
+				List<ResolvedExpression> parameters) {
 			TypeInformation<?> resultType = tableFunctionDefinition.getResultType();
 
 			int callArity = resultType.getTotalFields();
@@ -131,7 +132,7 @@ public class CalculatedTableFactory {
 		}
 
 		@Override
-		protected CalculatedQueryOperation<?> defaultMethod(Expression expression) {
+		protected CalculatedQueryOperation<?> defaultMethod(ResolvedExpression expression) {
 			throw fail();
 		}
 

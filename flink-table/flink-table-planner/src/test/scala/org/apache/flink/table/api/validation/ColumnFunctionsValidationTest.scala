@@ -72,7 +72,7 @@ class ColumnFunctionsValidationTest extends TableTestBase {
   def testInvalidRenameColumns(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Invalid AS, parameters are: [a, b, 'a'].")
+      "Invalid alias for a renaming column operation.")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
     val tab = t.renameColumns(withColumns(1 to 2) as 'a) // failed, invalid as

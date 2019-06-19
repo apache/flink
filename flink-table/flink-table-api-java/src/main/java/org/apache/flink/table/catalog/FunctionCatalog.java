@@ -128,6 +128,12 @@ public class FunctionCatalog implements FunctionLookup {
 		if (userCandidate != null) {
 			foundDefinition = Optional.of(userCandidate);
 		} else {
+
+			// TODO once we connect this class with the Catalog APIs we need to make sure that
+			//  built-in functions are present in "root" built-in catalog. This allows to
+			//  overwrite built-in functions but also fallback to the "root" catalog. It should be
+			//  possible to disable the "root" catalog if that is desired.
+
 			foundDefinition = BuiltInFunctionDefinitions.getDefinitions()
 				.stream()
 				.filter(f -> normalizeName(name).equals(normalizeName(f.getName())))

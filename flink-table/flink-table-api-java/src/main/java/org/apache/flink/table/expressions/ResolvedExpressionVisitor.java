@@ -19,37 +19,26 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 
 /**
- * Implementation of {@link ExpressionVisitor} that redirects all calls to {@link #defaultMethod(Expression)}.
+ * A visitor for all {@link ResolvedExpression}s.
+ *
+ * <p>All expressions of this visitor are the output of the API and might be passed to a planner.
  */
 @Internal
-public abstract class ExpressionDefaultVisitor<T> implements ExpressionVisitor<T> {
+public abstract class ResolvedExpressionVisitor<R> implements ExpressionVisitor<R> {
 
-	@Override
-	public T visit(CallExpression call) {
-		return defaultMethod(call);
+	public final R visit(Expression other) {
+		if (other instanceof TableReferenceExpression) {
+			return visit((TableReferenceExpression) other);
+		} else if (other instanceof LocalReferenceExpression) {
+			return visit((LocalReferenceExpression) other);
+		}
+		throw new TableException("Unexpected unresolved expression received: " + other);
 	}
 
-	@Override
-	public T visit(ValueLiteralExpression valueLiteral) {
-		return defaultMethod(valueLiteral);
-	}
+	public abstract R visit(TableReferenceExpression tableReference);
 
-	@Override
-	public T visit(FieldReferenceExpression fieldReference) {
-		return defaultMethod(fieldReference);
-	}
-
-	@Override
-	public T visit(TypeLiteralExpression typeLiteral) {
-		return defaultMethod(typeLiteral);
-	}
-
-	@Override
-	public T visit(Expression other) {
-		return defaultMethod(other);
-	}
-
-	protected abstract T defaultMethod(Expression expression);
+	public abstract R visit(LocalReferenceExpression localReference);
 }

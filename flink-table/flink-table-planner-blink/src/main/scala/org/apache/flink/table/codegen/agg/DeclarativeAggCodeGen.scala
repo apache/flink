@@ -216,11 +216,7 @@ class DeclarativeAggCodeGen(
       isMerge: Boolean = false,
       isDistinctMerge: Boolean = false) extends ExpressionVisitor[Expression] {
 
-    override def visit(call: UnresolvedCallExpression): Expression = {
-      ApiExpressionUtils.unresolvedCall(
-        call.getFunctionDefinition,
-        call.getChildren.asScala.map(_.accept(this)): _*)
-    }
+    override def visit(call: CallExpression): Expression = ???
 
     override def visit(valueLiteralExpression: ValueLiteralExpression): Expression = {
       valueLiteralExpression
@@ -232,6 +228,13 @@ class DeclarativeAggCodeGen(
 
     override def visit(typeLiteral: TypeLiteralExpression): Expression = {
       typeLiteral
+    }
+
+    private def visitUnresolvedCallExpression(
+        unresolvedCall: UnresolvedCallExpression): Expression = {
+      ApiExpressionUtils.unresolvedCall(
+        unresolvedCall.getFunctionDefinition,
+        unresolvedCall.getChildren.asScala.map(_.accept(this)): _*)
     }
 
     private def visitUnresolvedReference(input: UnresolvedReferenceExpression)
@@ -289,6 +292,7 @@ class DeclarativeAggCodeGen(
     override def visit(other: Expression): Expression = {
       other match {
         case u : UnresolvedReferenceExpression => visitUnresolvedReference(u)
+        case u : UnresolvedCallExpression => visitUnresolvedCallExpression(u)
         case _ => other
       }
     }

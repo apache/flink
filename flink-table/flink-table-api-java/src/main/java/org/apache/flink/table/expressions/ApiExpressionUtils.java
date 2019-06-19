@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
@@ -101,5 +102,23 @@ public final class ApiExpressionUtils {
 		return ExpressionUtils.extractValue(e, Long.class)
 			.map(ApiExpressionUtils::valueLiteral)
 			.orElseThrow(() -> new ValidationException("Invalid constant for row interval: " + e));
+	}
+
+	/**
+	 * Checks if the expression is a function call of given type.
+	 *
+	 * @param expr expression to check
+	 * @param kind expected type of function
+	 * @return true if the expression is function call of given type, false otherwise
+	 */
+	public static boolean isFunctionOfKind(Expression expr, FunctionKind kind) {
+		if (expr instanceof UnresolvedCallExpression) {
+			return ((UnresolvedCallExpression) expr).getFunctionDefinition().getKind() == kind;
+		}
+		if (expr instanceof CallExpression) {
+			return ((CallExpression) expr).getFunctionDefinition().getKind() == kind;
+		}
+		return false;
+
 	}
 }

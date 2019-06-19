@@ -19,13 +19,13 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Over, Slide, Table}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Over, Slide, Table}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableFunc0, TableTestBase}
+import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit.Test
 
 /**
@@ -319,40 +319,6 @@ class ColumnFunctionsTest extends TableTestBase {
         "DataStreamCalc",
         streamTableNode(t),
         term("select", "a", "b", "c", "TestFunc$(a, b) AS d")
-      )
-
-    verifyAll(tab1, tab2, expected)
-  }
-
-  @Test
-  def testRenameColumns(): Unit = {
-    val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
-
-    val tab1 = t.renameColumns(withColumns('a) as 'd).select("d, b")
-    val tab2 = t.renameColumns("withColumns(a) as d").select('d, 'b)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        streamTableNode(t),
-        term("select", "a AS d", "b")
-      )
-
-    verifyAll(tab1, tab2, expected)
-  }
-
-  @Test
-  def testDropColumns(): Unit = {
-    val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
-
-    val tab1 = t.dropColumns(withColumns('a to 'b))
-    val tab2 = t.dropColumns("withColumns(a to b)")
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        streamTableNode(t),
-        term("select", "c")
       )
 
     verifyAll(tab1, tab2, expected)

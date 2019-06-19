@@ -30,11 +30,11 @@ import java.util.Objects;
  * Expression that wraps {@link DataType} as a literal.
  *
  * <p>Expressing a type is primarily needed for casting operations. This expression simplifies the
- * {@link Expression} design as it makes {@link UnresolvedCallExpression} the only expression that takes
+ * {@link Expression} design as it makes {@link CallExpression} the only expression that takes
  * subexpressions.
  */
 @PublicEvolving
-public final class TypeLiteralExpression implements Expression {
+public final class TypeLiteralExpression implements ResolvedExpression {
 
 	private final DataType dataType;
 
@@ -42,8 +42,14 @@ public final class TypeLiteralExpression implements Expression {
 		this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
 	}
 
+	@Override
 	public DataType getOutputDataType() {
 		return dataType;
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
 	}
 
 	@Override

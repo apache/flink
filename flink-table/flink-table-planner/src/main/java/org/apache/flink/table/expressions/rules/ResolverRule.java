@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
@@ -61,6 +62,11 @@ public interface ResolverRule {
 		 * Access to available {@link FunctionDefinition}s.
 		 */
 		FunctionLookup functionLookup();
+
+		/**
+		 * Enables the creation of resolved expressions for transformations after the actual resolution.
+		 */
+		ExpressionResolver.PostResolverFactory postResolutionFactory();
 
 		/**
 		 * Access to available local references.

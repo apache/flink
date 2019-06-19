@@ -34,9 +34,18 @@ import _root_.scala.collection.JavaConverters._
   */
 class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
+  override def visit(call: CallExpression): PlannerExpression = {
+    translateCall(call.getFunctionDefinition, call.getChildren.asScala)
+  }
+
   override def visit(unresolvedCall: UnresolvedCallExpression): PlannerExpression = {
-    val func = unresolvedCall.getFunctionDefinition
-    val children = unresolvedCall.getChildren.asScala
+    translateCall(unresolvedCall.getFunctionDefinition, unresolvedCall.getChildren.asScala)
+  }
+
+  private def translateCall(
+      func: FunctionDefinition,
+      children: Seq[Expression])
+    : PlannerExpression = {
 
     // special case: requires individual handling of child expressions
     func match {
