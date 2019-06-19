@@ -18,73 +18,30 @@
 
 package org.apache.flink.table.runtime.join.stream;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.generated.GeneratedJoinCondition;
-import org.apache.flink.table.generated.JoinCondition;
-import org.apache.flink.table.runtime.join.NullAwareJoinHelper;
 import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.join.stream.state.OuterJoinRecordStateViews;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.util.IterableIterator;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Streaming unbounded Join operator which supports INNER/LEFT/RIGHT/FULL JOIN.
  */
-public class StreamingJoinOperator extends AbstractStreamOperator<BaseRow>
-	implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow> {
+public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
 	private static final long serialVersionUID = -376944622236540545L;
-
-	private final BaseRowTypeInfo leftType;
-	private final BaseRowTypeInfo rightType;
-	private final GeneratedJoinCondition generatedJoinCondition;
-
-	private final JoinInputSideSpec leftInputSideSpec;
-	private final JoinInputSideSpec rightInputSideSpec;
 
 	// whether left side is outer side, e.g. left is outer but right is not when LEFT OUTER JOIN
 	private final boolean leftIsOuter;
 	// whether right side is outer side, e.g. right is outer but left is not when RIGHT OUTER JOIN
 	private final boolean rightIsOuter;
-
-	/**
-	 * Should filter null keys.
-	 */
-	private final int[] nullFilterKeys;
-
-	/**
-	 * No keys need to filter null.
-	 */
-	private final boolean nullSafe;
-
-	/**
-	 * Filter null to all keys.
-	 */
-	private final boolean filterAllNulls;
-
-	private final long minRetentionTime;
-	private final boolean stateCleaningEnabled;
-
-	private transient JoinCondition joinCondition;
-	private transient TimestampedCollector<BaseRow> collector;
 
 	private transient JoinedRow outRow;
 	private transient BaseRow leftNullRow;
@@ -105,28 +62,15 @@ public class StreamingJoinOperator extends AbstractStreamOperator<BaseRow>
 			boolean rightIsOuter,
 			boolean[] filterNullKeys,
 			long minRetentionTime) {
-		this.leftType = leftType;
-		this.rightType = rightType;
-		this.generatedJoinCondition = generatedJoinCondition;
-		this.leftInputSideSpec = leftInputSideSpec;
-		this.rightInputSideSpec = rightInputSideSpec;
-		this.minRetentionTime = minRetentionTime;
-		this.stateCleaningEnabled = minRetentionTime > 1;
+		super(leftType, rightType, generatedJoinCondition, leftInputSideSpec, rightInputSideSpec, filterNullKeys, minRetentionTime);
 		this.leftIsOuter = leftIsOuter;
 		this.rightIsOuter = rightIsOuter;
-		this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNullKeys);
-		this.nullSafe = nullFilterKeys.length == 0;
-		this.filterAllNulls = nullFilterKeys.length == filterNullKeys.length;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
 
-		this.joinCondition = new JoinConditionWithNullFilters(
-			generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader()));
-
-		this.collector = new TimestampedCollector<>(output);
 		this.outRow = new JoinedRow();
 		this.leftNullRow = new GenericRow(leftType.getArity());
 		this.rightNullRow = new GenericRow(rightType.getArity());
@@ -183,9 +127,9 @@ public class StreamingJoinOperator extends AbstractStreamOperator<BaseRow>
 	 * Process an input element and output incremental joined records, retraction messages will
 	 * be sent in some scenarios.
 	 *
-	 * <p>Following is the pseudocode to describe the core logic of this method. The logic of this
-	 * method is too complex, so we provide the pseudocode to help understand the logic. We should
-	 * keep sync the following pseudocode with the real logic of the method.
+	 * <p>Following is the pseudo code to describe the core logic of this method. The logic of this
+	 * method is too complex, so we provide the pseudo code to help understand the logic. We should
+	 * keep sync the following pseudo code with the real logic of the method.
 	 *
 	 * <pre>
 	 * if input record is accumulate
@@ -302,6 +246,7 @@ public class StreamingJoinOperator extends AbstractStreamOperator<BaseRow>
 			}
 		} else { // input record is retract
 			// state.retract(record)
+			input.setHeader(BaseRowUtil.ACCUMULATE_MSG);
 			inputSideStateView.retractRecord(input);
 			if (associatedRecords.isEmpty()) { // there is no matched rows on the other side
 				if (inputIsOuter) { // input side is outer
@@ -352,153 +297,4 @@ public class StreamingJoinOperator extends AbstractStreamOperator<BaseRow>
 		}
 		collector.collect(outRow);
 	}
-
-	// ----------------------------------------------------------------------------------------
-	// Utility Classes
-	// ----------------------------------------------------------------------------------------
-
-	private class JoinConditionWithNullFilters implements JoinCondition {
-
-		final JoinCondition backingJoinCondition;
-
-		private JoinConditionWithNullFilters(JoinCondition backingJoinCondition) {
-			this.backingJoinCondition = backingJoinCondition;
-		}
-
-		@Override
-		public boolean apply(BaseRow left, BaseRow right) {
-			if (!nullSafe) { // is not null safe, return false if any null exists
-				// key is always BinaryRow
-				BinaryRow joinKey = (BinaryRow) getCurrentKey();
-				if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
-					// find null present, return false directly
-					return false;
-				}
-			}
-			// test condition
-			return backingJoinCondition.apply(left, right);
-		}
-	}
-
-	/**
-	 * The {@link AssociatedRecords} is the records associated to the input row. It is a wrapper
-	 * of {@code List<OuterRecord>} which provides two helpful methods {@link #getRecords()} and
-	 * {@link #getOuterRecords()}. See the method Javadoc for more details.
-	 */
-	private static final class AssociatedRecords {
-		private final List<OuterRecord> records;
-
-		private AssociatedRecords(List<OuterRecord> records) {
-			checkNotNull(records);
-			this.records = records;
-		}
-
-		public boolean isEmpty() {
-			return records.isEmpty();
-		}
-
-		public int size() {
-			return records.size();
-		}
-
-		/**
-		 * Gets the iterable of records. This is usually be called when the
-		 * {@link AssociatedRecords} is from inner side.
-		 */
-		public Iterable<BaseRow> getRecords() {
-			return new RecordsIterable(records);
-		}
-
-		/**
-		 * Gets the iterable of {@link OuterRecord} which composites record and numOfAssociations.
-		 * This is usually be called when the {@link AssociatedRecords} is from outer side.
-		 */
-		public Iterable<OuterRecord> getOuterRecords() {
-			return records;
-		}
-
-		/**
-		 * Creates an {@link AssociatedRecords} which represents the records associated to the
-		 * input row.
-		 */
-		public static AssociatedRecords of(
-				BaseRow input,
-				boolean inputIsLeft,
-				JoinRecordStateView otherSideStateView,
-				JoinCondition condition) throws Exception {
-			List<OuterRecord> associations = new ArrayList<>();
-			if (otherSideStateView instanceof OuterJoinRecordStateView) {
-				OuterJoinRecordStateView outerStateView = (OuterJoinRecordStateView) otherSideStateView;
-				Iterable<Tuple2<BaseRow, Integer>> records = outerStateView.getRecordsAndNumOfAssociations();
-				for (Tuple2<BaseRow, Integer> record : records) {
-					boolean matched = inputIsLeft ? condition.apply(input, record.f0) : condition.apply(record.f0, input);
-					if (matched) {
-						associations.add(new OuterRecord(record.f0, record.f1));
-					}
-				}
-			} else {
-				Iterable<BaseRow> records = otherSideStateView.getRecords();
-				for (BaseRow record : records) {
-					boolean matched = inputIsLeft ? condition.apply(input, record) : condition.apply(record, input);
-					if (matched) {
-						// use -1 as the default number of associations
-						associations.add(new OuterRecord(record, -1));
-					}
-				}
-			}
-			return new AssociatedRecords(associations);
-		}
-
-	}
-
-	/**
-	 * A lazy Iterable which transform {@code List<OuterReocord>} to {@code Iterable<BaseRow>}.
-	 */
-	private static final class RecordsIterable implements IterableIterator<BaseRow> {
-		private final List<OuterRecord> records;
-		private int index = 0;
-
-		private RecordsIterable(List<OuterRecord> records) {
-			this.records = records;
-		}
-
-		@Override
-		public Iterator<BaseRow> iterator() {
-			index = 0;
-			return this;
-		}
-
-		@Override
-		public boolean hasNext() {
-			return index < records.size();
-		}
-
-		@Override
-		public BaseRow next() {
-			BaseRow row = records.get(index).record;
-			index++;
-			return row;
-		}
-	}
-
-	/**
-	 * An {@link OuterRecord} is a composite of record and {@code numOfAssociations}. The
-	 * {@code numOfAssociations} represents the number of associated records in the other side.
-	 * It is used when the record is from outer side (e.g. left side in LEFT OUTER JOIN).
-	 * When the {@code numOfAssociations} is ZERO, we need to send a null padding row.
-	 * This is useful to avoid recompute the associated numbers every time.
-	 *
-	 * <p>When the record is from inner side (e.g. right side in LEFT OUTER JOIN), the
-	 * {@code numOfAssociations} will always be {@code -1}.
-	 */
-	private static final class OuterRecord {
-		private final BaseRow record;
-		private final int numOfAssociations;
-
-		private OuterRecord(BaseRow record, int numOfAssociations) {
-			this.record = record;
-			this.numOfAssociations = numOfAssociations;
-		}
-	}
-
 }
