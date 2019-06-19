@@ -387,18 +387,23 @@ object FlinkTypeFactory {
           new CharType(relDataType.getPrecision)
         }
       case VARCHAR =>
-        // Calcite will return a varchar RelDataType with precision 0, for example,
-        // SUBSTR('', 2, -1), Calcite infers that the return value must not exist
-        // (in this case, null will be returned when executed in Blink runner),
-        // so it infers VARCHAR(0).  But our `VarcharType` not allow precision 0.
-        new VarCharType(Math.max(1, relDataType.getPrecision))
+        if (relDataType.getPrecision == 0) {
+          VarCharType.ofEmptyLiteral
+        } else {
+          new VarCharType(relDataType.getPrecision)
+        }
       case BINARY =>
         if (relDataType.getPrecision == 0) {
           BinaryType.ofEmptyLiteral
         } else {
           new BinaryType(relDataType.getPrecision)
         }
-      case VARBINARY => new VarBinaryType(Math.max(1, relDataType.getPrecision))
+      case VARBINARY =>
+        if (relDataType.getPrecision == 0) {
+          VarBinaryType.ofEmptyLiteral
+        } else {
+          new VarBinaryType(relDataType.getPrecision)
+        }
       case DECIMAL => new DecimalType(relDataType.getPrecision, relDataType.getScale)
 
       // time indicators
