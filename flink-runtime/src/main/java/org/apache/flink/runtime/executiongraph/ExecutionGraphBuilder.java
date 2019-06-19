@@ -38,6 +38,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
@@ -117,6 +119,9 @@ public class ExecutionGraphBuilder {
 		final int maxPriorAttemptsHistoryLength =
 				jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
+		final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
+			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(jobManagerConfig);
+
 		final boolean forcePartitionReleaseOnConsumption =
 			jobManagerConfig.getBoolean(JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
 
@@ -136,6 +141,7 @@ public class ExecutionGraphBuilder {
 					classLoader,
 					blobWriter,
 					allocationTimeout,
+					partitionReleaseStrategyFactory,
 					shuffleMaster,
 					forcePartitionReleaseOnConsumption,
 					partitionTracker);

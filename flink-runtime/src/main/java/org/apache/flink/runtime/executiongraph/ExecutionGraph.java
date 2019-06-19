@@ -48,6 +48,9 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
+import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.NotReleasingPartitionReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -55,6 +58,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -66,6 +70,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
+import org.apache.flink.runtime.scheduler.adapter.ExecutionGraphToSchedulingTopologyAdapter;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -250,6 +259,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** The total number of vertices currently in the execution graph. */
 	private int numVerticesTotal;
 
+	private final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory;
+
+	private PartitionReleaseStrategy partitionReleaseStrategy;
+
+	private SchedulingTopology schedulingTopology;
+
 	// ------ Configuration of the Execution -------
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
@@ -413,6 +428,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			userClassLoader,
 			blobWriter,
 			allocationTimeout,
+			new NotReleasingPartitionReleaseStrategy.Factory(),
 			NettyShuffleMaster.INSTANCE,
 			true,
 			new PartitionTrackerImpl(
@@ -433,6 +449,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			ClassLoader userClassLoader,
 			BlobWriter blobWriter,
 			Time allocationTimeout,
+			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
 			boolean forcePartitionReleaseOnConsumption,
 			PartitionTracker partitionTracker) throws IOException {
@@ -463,6 +480,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 		this.allocationTimeout = checkNotNull(allocationTimeout);
+
+		this.partitionReleaseStrategyFactory = checkNotNull(partitionReleaseStrategyFactory);
 
 		this.restartStrategy = restartStrategy;
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
@@ -913,6 +932,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
+
+		schedulingTopology = new ExecutionGraphToSchedulingTopologyAdapter(this);
+		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(
+			schedulingTopology,
+			new DefaultFailoverTopology(this));
 	}
 
 	public void scheduleForExecution() throws JobException {
@@ -1605,36 +1629,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		if (attempt != null) {
 			try {
-				Map<String, Accumulator<?, ?>> accumulators;
-
-				switch (state.getExecutionState()) {
-					case RUNNING:
-						return attempt.switchToRunning();
-
-					case FINISHED:
-						// this deserialization is exception-free
-						accumulators = deserializeAccumulators(state);
-						attempt.markFinished(accumulators, state.getIOMetrics());
-						return true;
-
-					case CANCELED:
-						// this deserialization is exception-free
-						accumulators = deserializeAccumulators(state);
-						attempt.completeCancelling(accumulators, state.getIOMetrics());
-						return true;
-
-					case FAILED:
-						// this deserialization is exception-free
-						accumulators = deserializeAccumulators(state);
-						attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics());
-						return true;
-
-					default:
-						// we mark as failed and return false, which triggers the TaskManager
-						// to remove the task
-						attempt.fail(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
-						return false;
-				}
+				final boolean stateUpdated = updateStateInternal(state, attempt);
+				maybeReleasePartitions(attempt);
+				return stateUpdated;
 			}
 			catch (Throwable t) {
 				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
@@ -1647,6 +1644,77 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		else {
 			return false;
 		}
+	}
+
+	private boolean updateStateInternal(final TaskExecutionState state, final Execution attempt) {
+		Map<String, Accumulator<?, ?>> accumulators;
+
+		switch (state.getExecutionState()) {
+			case RUNNING:
+				return attempt.switchToRunning();
+
+			case FINISHED:
+				// this deserialization is exception-free
+				accumulators = deserializeAccumulators(state);
+				attempt.markFinished(accumulators, state.getIOMetrics());
+				return true;
+
+			case CANCELED:
+				// this deserialization is exception-free
+				accumulators = deserializeAccumulators(state);
+				attempt.completeCancelling(accumulators, state.getIOMetrics());
+				return true;
+
+			case FAILED:
+				// this deserialization is exception-free
+				accumulators = deserializeAccumulators(state);
+				attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics());
+				return true;
+
+			default:
+				// we mark as failed and return false, which triggers the TaskManager
+				// to remove the task
+				attempt.fail(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
+				return false;
+		}
+	}
+
+	private void maybeReleasePartitions(final Execution attempt) {
+		final ExecutionVertexID finishedExecutionVertex = attempt.getVertex().getID();
+
+		if (attempt.getState() == ExecutionState.FINISHED) {
+			final List<IntermediateResultPartitionID> releasablePartitions = partitionReleaseStrategy.vertexFinished(finishedExecutionVertex);
+			releasePartitions(releasablePartitions);
+		} else {
+			partitionReleaseStrategy.vertexUnfinished(finishedExecutionVertex);
+		}
+	}
+
+	private void releasePartitions(final List<IntermediateResultPartitionID> releasablePartitions) {
+		if (releasablePartitions.size() > 0) {
+			final List<ResultPartitionID> partitionIds = releasablePartitions.stream()
+				.map(this::createResultPartitionId)
+				.collect(Collectors.toList());
+
+			partitionTracker.stopTrackingAndReleasePartitions(partitionIds);
+		}
+	}
+
+	private ResultPartitionID createResultPartitionId(final IntermediateResultPartitionID resultPartitionId) {
+		final SchedulingResultPartition schedulingResultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
+		final SchedulingExecutionVertex producer = schedulingResultPartition.getProducer();
+		final ExecutionVertexID producerId = producer.getId();
+		final JobVertexID jobVertexId = producerId.getJobVertexId();
+		final ExecutionJobVertex jobVertex = getJobVertex(jobVertexId);
+		checkNotNull(jobVertex, "Unknown job vertex %s", jobVertexId);
+
+		final ExecutionVertex[] taskVertices = jobVertex.getTaskVertices();
+		final int subtaskIndex = producerId.getSubtaskIndex();
+		checkState(subtaskIndex < taskVertices.length, "Invalid subtask index %d for job vertex %s", subtaskIndex, jobVertexId);
+
+		final ExecutionVertex taskVertex = taskVertices[subtaskIndex];
+		final Execution execution = taskVertex.getCurrentExecutionAttempt();
+		return new ResultPartitionID(resultPartitionId, execution.getAttemptId());
 	}
 
 	/**
@@ -1834,5 +1902,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public PartitionTracker getPartitionTracker() {
 		return partitionTracker;
+	}
+
+	PartitionReleaseStrategy getPartitionReleaseStrategy() {
+		return partitionReleaseStrategy;
 	}
 }
