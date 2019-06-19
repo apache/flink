@@ -64,7 +64,7 @@ fi
 
 eval $(minikube docker-env)
 cd "$DOCKER_MODULE_DIR"
-./build.sh --from-local-dist --job-jar ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_IMAGE_NAME}
+./build.sh --from-local-dist --job-artifacts ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_IMAGE_NAME}
 cd "$END_TO_END_DIR"
 
 
