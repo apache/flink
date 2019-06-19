@@ -31,4 +31,5 @@ spec:
       containers:
       - name: flink-task-manager
         image: ${FLINK_IMAGE_NAME}
+        imagePullPolicy: IfNotPresent
         args: ["task-manager", "-Djobmanager.rpc.address=flink-job-cluster"]

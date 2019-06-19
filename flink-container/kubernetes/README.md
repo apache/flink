@@ -17,6 +17,7 @@ The files contain the following variables:
 
 - `${FLINK_IMAGE_NAME}`: Name of the image to use for the container
 - `${FLINK_JOB_PARALLELISM}`: Degree of parallelism with which to start the Flink job and the number of required task managers
+- `${FLINK_JOB_ARGUMENTS}`: Additional arguments to pass to the Flink Job
 
 One way to substitute the variables is to use `envsubst`.
 See [here](https://stackoverflow.com/a/23622446/4815083) for a guide to install it on Mac OS X.
@@ -29,7 +30,7 @@ In non HA mode, you should first start the job cluster service:
 
 In order to deploy the job cluster entrypoint run:
 
-`FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < job-cluster-job.yaml.template | kubectl create -f -`
+`FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> FLINK_JOB_ARGUMENTS=<ARGUMENTS> envsubst < job-cluster-job.yaml.template | kubectl create -f -`
 
 Now you should see the `flink-job-cluster` job being started by calling `kubectl get job`.
 
