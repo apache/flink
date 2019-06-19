@@ -237,7 +237,7 @@ public class StateBackendLoadingTest {
 		config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 		config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		config1.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-		config1.setInteger(CheckpointingOptions.FS_BUFFER_SIZE, minWriteBufferSize);
+		config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 		config1.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
 		final Configuration config2 = new Configuration();
@@ -245,7 +245,7 @@ public class StateBackendLoadingTest {
 		config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 		config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		config2.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-		config1.setInteger(CheckpointingOptions.FS_BUFFER_SIZE, minWriteBufferSize);
+		config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 		config2.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
 		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
@@ -293,7 +293,7 @@ public class StateBackendLoadingTest {
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir); // this should not be picked up
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 20); // this should not be picked up
-		config.setInteger(CheckpointingOptions.FS_BUFFER_SIZE, 3000000); // this should not be picked up
+		config.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
 		final StateBackend loadedBackend =
 				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);

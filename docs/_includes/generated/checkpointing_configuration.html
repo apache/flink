@@ -25,7 +25,7 @@
         <tr>
             <td><h5>state.backend.fs.write-buffer-size</h5></td>
             <td style="word-wrap: break-word;">4096</td>
-            <td>The default write buffer size for file checkpoint output stream created by FsCheckpointStreamFactory. And the final actual write buffer size would consider the maximum of values of this option and option 'state.backend.fs.memory-threshold'.</td>
+            <td>The default size of the write buffer for the checkpoint streams that write to file systems. The actual write buffer size is determined to be the maximum of the value of this option and option 'state.backend.fs.memory-threshold'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.incremental</h5></td>

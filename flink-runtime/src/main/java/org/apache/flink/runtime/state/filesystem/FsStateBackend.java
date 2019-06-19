@@ -383,7 +383,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 		final int bufferSize = original.writeBufferSize >= 0 ?
 			original.writeBufferSize :
-			configuration.getInteger(CheckpointingOptions.FS_BUFFER_SIZE);
+			configuration.getInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
 
 		this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
 	}
@@ -439,14 +439,14 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * Gets the write buffer size for created checkpoint stream.
 	 *
 	 * <p>If not explicitly configured, this is the default value of
-	 * {@link CheckpointingOptions#FS_BUFFER_SIZE}.
+	 * {@link CheckpointingOptions#FS_WRITE_BUFFER_SIZE}.
 	 *
 	 * @return The write buffer size, in bytes.
 	 */
 	public int getWriteBufferSize() {
 		return writeBufferSize >= 0 ?
 			writeBufferSize :
-			CheckpointingOptions.FS_BUFFER_SIZE.defaultValue();
+			CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue();
 	}
 
 	/**
