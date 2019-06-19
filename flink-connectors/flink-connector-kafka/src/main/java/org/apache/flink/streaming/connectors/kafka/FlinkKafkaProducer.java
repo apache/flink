@@ -288,7 +288,10 @@ public class FlinkKafkaProducer<IN>
 	 * 			ID of the Kafka topic.
 	 * @param serializationSchema
 	 * 			User defined (keyless) serialization schema.
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(String brokerList, String topicId, SerializationSchema<IN> serializationSchema) {
 		this(
 			topicId,
@@ -315,7 +318,10 @@ public class FlinkKafkaProducer<IN>
 	 * 			User defined key-less serialization schema.
 	 * @param producerConfig
 	 * 			Properties with the producer configuration.
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig) {
 		this(
 			topicId,
@@ -338,7 +344,10 @@ public class FlinkKafkaProducer<IN>
 	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
 	 *                          If a partitioner is not provided, records will be distributed to Kafka partitions
 	 *                          in a round-robin fashion.
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(
 		String topicId,
 		SerializationSchema<IN> serializationSchema,
@@ -368,7 +377,10 @@ public class FlinkKafkaProducer<IN>
 	 * 			ID of the Kafka topic.
 	 * @param serializationSchema
 	 * 			User defined serialization schema supporting key/value messages
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(String brokerList, String topicId, KeyedSerializationSchema<IN> serializationSchema) {
 		this(
 			topicId,
@@ -395,7 +407,10 @@ public class FlinkKafkaProducer<IN>
 	 * 			User defined serialization schema supporting key/value messages
 	 * @param producerConfig
 	 * 			Properties with the producer configuration.
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig) {
 		this(
 			topicId,
@@ -421,7 +436,10 @@ public class FlinkKafkaProducer<IN>
 	 * 			Properties with the producer configuration.
 	 * @param semantic
 	 * 			Defines semantic that will be used by this producer (see {@link FlinkKafkaProducer.Semantic}).
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(
 		String topicId,
 		KeyedSerializationSchema<IN> serializationSchema,
@@ -453,7 +471,10 @@ public class FlinkKafkaProducer<IN>
 	 *                          (determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If the keys
 	 *                          are {@code null}, then records will be distributed to Kafka partitions in a
 	 *                          round-robin fashion.
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(
 		String defaultTopicId,
 		KeyedSerializationSchema<IN> serializationSchema,
@@ -487,7 +508,10 @@ public class FlinkKafkaProducer<IN>
 	 *                          round-robin fashion.
 	 * @param semantic Defines semantic that will be used by this producer (see {@link FlinkKafkaProducer.Semantic}).
 	 * @param kafkaProducersPoolSize Overwrite default KafkaProducers pool size (see {@link FlinkKafkaProducer.Semantic#EXACTLY_ONCE}).
+	 *
+	 * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties, FlinkKafkaProducer.Semantic)}
 	 */
+	@Deprecated
 	public FlinkKafkaProducer(
 			String defaultTopicId,
 			KeyedSerializationSchema<IN> serializationSchema,
