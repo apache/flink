@@ -112,7 +112,7 @@ public abstract class MemorySegment {
 	 * Constant that flags the byte order. Because this is a boolean constant, the JIT compiler can
 	 * use this well to aggressively eliminate the non-applicable code paths.
 	 */
-	private static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
+	protected static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
 
 	// ------------------------------------------------------------------------
 
@@ -147,6 +147,16 @@ public abstract class MemorySegment {
 	 * Optional owner of the memory segment.
 	 */
 	private final Object owner;
+
+	/**
+	 * Default constructor. Mainly for {@link ContainerMemorySegment}.
+	 */
+	MemorySegment(Object owner) {
+		this.owner = owner;
+		heapMemory = null;
+		addressLimit = -1;
+		size = -1;
+	}
 
 	/**
 	 * Creates a new memory segment that represents the memory of the byte array.
@@ -420,7 +430,7 @@ public abstract class MemorySegment {
 	 *                                   size minus 2.
 	 */
 	@SuppressWarnings("restriction")
-	public final char getChar(int index) {
+	public char getChar(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
 			return UNSAFE.getChar(heapMemory, pos);
@@ -486,7 +496,7 @@ public abstract class MemorySegment {
 	 *                                   size minus 2.
 	 */
 	@SuppressWarnings("restriction")
-	public final void putChar(int index, char value) {
+	public void putChar(int index, char value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
 			UNSAFE.putChar(heapMemory, pos, value);
@@ -552,7 +562,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 2.
 	 */
-	public final short getShort(int index) {
+	public short getShort(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
 			return UNSAFE.getShort(heapMemory, pos);
@@ -618,7 +628,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 2.
 	 */
-	public final void putShort(int index, short value) {
+	public void putShort(int index, short value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
 			UNSAFE.putShort(heapMemory, pos, value);
@@ -688,7 +698,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
-	public final int getInt(int index) {
+	public int getInt(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 4) {
 			return UNSAFE.getInt(heapMemory, pos);
@@ -760,7 +770,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
-	public final void putInt(int index, int value) {
+	public void putInt(int index, int value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 4) {
 			UNSAFE.putInt(heapMemory, pos, value);
@@ -832,7 +842,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
-	public final long getLong(int index) {
+	public long getLong(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 8) {
 			return UNSAFE.getLong(heapMemory, pos);
@@ -904,7 +914,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
-	public final void putLong(int index, long value) {
+	public void putLong(int index, long value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 8) {
 			UNSAFE.putLong(heapMemory, pos, value);
@@ -976,7 +986,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
-	public final float getFloat(int index) {
+	public float getFloat(int index) {
 		return Float.intBitsToFloat(getInt(index));
 	}
 
@@ -1030,7 +1040,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
-	public final void putFloat(int index, float value) {
+	public void putFloat(int index, float value) {
 		putInt(index, Float.floatToRawIntBits(value));
 	}
 
@@ -1084,7 +1094,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
-	public final double getDouble(int index) {
+	public double getDouble(int index) {
 		return Double.longBitsToDouble(getLong(index));
 	}
 
@@ -1138,7 +1148,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
-	public final void putDouble(int index, double value) {
+	public void putDouble(int index, double value) {
 		putLong(index, Double.doubleToRawLongBits(value));
 	}
 
@@ -1365,7 +1375,7 @@ public abstract class MemorySegment {
 	 * @param offset2 Offset of seg2 to start swapping
 	 * @param len Length of the swapped memory region
 	 */
-	public final void swapBytes(byte[] tempBuffer, MemorySegment seg2, int offset1, int offset2, int len) {
+	public void swapBytes(byte[] tempBuffer, MemorySegment seg2, int offset1, int offset2, int len) {
 		if ((offset1 | offset2 | len | (tempBuffer.length - len)) >= 0) {
 			final long thisPos = this.address + offset1;
 			final long otherPos = seg2.address + offset2;
