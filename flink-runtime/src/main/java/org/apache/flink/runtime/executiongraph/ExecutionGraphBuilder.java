@@ -289,11 +289,7 @@ public class ExecutionGraphBuilder {
 			final CheckpointCoordinatorConfiguration chkConfig = snapshotSettings.getCheckpointCoordinatorConfiguration();
 
 			executionGraph.enableCheckpointing(
-				chkConfig.getCheckpointInterval(),
-				chkConfig.getCheckpointTimeout(),
-				chkConfig.getMinPauseBetweenCheckpoints(),
-				chkConfig.getMaxConcurrentCheckpoints(),
-				chkConfig.getCheckpointRetentionPolicy(),
+				chkConfig,
 				triggerVertices,
 				ackVertices,
 				confirmVertices,
@@ -301,8 +297,7 @@ public class ExecutionGraphBuilder {
 				checkpointIdCounter,
 				completedCheckpoints,
 				rootBackend,
-				checkpointStatsTracker,
-				chkConfig.isPreferCheckpointForRecovery());
+				checkpointStatsTracker);
 		}
 
 		// create all the metrics for the Execution Graph

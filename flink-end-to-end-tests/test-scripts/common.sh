@@ -361,7 +361,7 @@ function check_logs_for_exceptions {
    | grep -v "java.io.InvalidClassException: org.apache.flink.formats.avro.typeutils.AvroSerializer" \
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
-   | grep -v "org.apache.flink.runtime.checkpoint.decline" \
+   | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
    | grep -v "org.elasticsearch.ElasticsearchException" \
    | grep -v "Elasticsearch exception" \
    | grep -ic "exception" || true)

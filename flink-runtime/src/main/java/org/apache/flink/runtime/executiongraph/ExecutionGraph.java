@@ -34,8 +34,8 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -72,6 +72,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
@@ -110,7 +111,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -517,11 +517,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	public void enableCheckpointing(
-			long interval,
-			long checkpointTimeout,
-			long minPauseBetweenCheckpoints,
-			int maxConcurrentCheckpoints,
-			CheckpointRetentionPolicy retentionPolicy,
+			CheckpointCoordinatorConfiguration chkConfig,
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
@@ -529,12 +525,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			StateBackend checkpointStateBackend,
-			CheckpointStatsTracker statsTracker,
-			boolean isPreferCheckpointForRecovery) {
-
-		// simple sanity checks
-		checkArgument(interval >= 10, "checkpoint interval must not be below 10ms");
-		checkArgument(checkpointTimeout >= 10, "checkpoint timeout must not be below 10ms");
+			CheckpointStatsTracker statsTracker) {
 
 		checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
 		checkState(checkpointCoordinator == null, "checkpointing already enabled");
@@ -545,14 +536,15 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
+		CheckpointFailureManager failureManager = new CheckpointFailureManager(chkConfig.getTolerableCheckpointFailureNumber(), () ->
+			getJobMasterMainThreadExecutor().execute(() ->
+				failGlobal(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."))
+			));
+
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
 			jobInformation.getJobId(),
-			interval,
-			checkpointTimeout,
-			minPauseBetweenCheckpoints,
-			maxConcurrentCheckpoints,
-			retentionPolicy,
+			chkConfig,
 			tasksToTrigger,
 			tasksToWaitFor,
 			tasksToCommitTo,
@@ -561,7 +553,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			checkpointStateBackend,
 			ioExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
-			isPreferCheckpointForRecovery);
+			failureManager);
 
 		// register the master hooks on the checkpoint coordinator
 		for (MasterTriggerRestoreHook<?> hook : masterHooks) {
@@ -574,7 +566,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		// interval of max long value indicates disable periodic checkpoint,
 		// the CheckpointActivatorDeactivator should be created only if the interval is not max value
-		if (interval != Long.MAX_VALUE) {
+		if (chkConfig.getCheckpointInterval() != Long.MAX_VALUE) {
 			// the periodic checkpoint scheduler is activated and deactivated as a result of
 			// job status changes (running -> on, all other states -> off)
 			registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());

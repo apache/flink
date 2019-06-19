@@ -19,10 +19,11 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
@@ -290,7 +291,8 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	private void notifyAbort(long checkpointId) throws Exception {
 		if (toNotifyOnCheckpoint != null) {
 			toNotifyOnCheckpoint.abortCheckpointOnBarrier(
-					checkpointId, new CheckpointDeclineOnCancellationBarrierException());
+				checkpointId,
+				new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
 		}
 	}
 

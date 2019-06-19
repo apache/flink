@@ -1789,7 +1789,8 @@ public class JobMasterTest extends TestLogger {
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
-			false);
+			false,
+			0);
 		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
 			Collections.emptyList(),
 			Collections.emptyList(),

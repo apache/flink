@@ -803,7 +803,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					1,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					false,
-					false),
+					false,
+					0),
 				null));
 
 		final Time timeout = Time.seconds(10L);

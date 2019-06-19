@@ -20,12 +20,11 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
-import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -50,7 +49,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
@@ -498,7 +496,8 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(3L, buffer.getCurrentCheckpointId());
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		verify(toNotify).abortCheckpointOnBarrier(eq(2L), isA(CheckpointDeclineSubsumedException.class));
+		verify(toNotify).abortCheckpointOnBarrier(eq(2L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)));
 		check(sequence[16], buffer.pollNext().get(), PAGE_SIZE);
 
 		// checkpoint 3 alignment in progress
@@ -506,7 +505,8 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 3 aborted (end of partition)
 		check(sequence[20], buffer.pollNext().get(), PAGE_SIZE);
-		verify(toNotify).abortCheckpointOnBarrier(eq(3L), isA(InputEndOfStreamException.class));
+		verify(toNotify).abortCheckpointOnBarrier(eq(3L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM)));
 
 		// replay buffered data from checkpoint 3
 		check(sequence[18], buffer.pollNext().get(), PAGE_SIZE);
@@ -854,13 +854,15 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[6], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(5L, buffer.getCurrentCheckpointId());
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(2L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(5L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		check(sequence[8], buffer.pollNext().get(), PAGE_SIZE);
 		assertEquals(6L, buffer.getCurrentCheckpointId());
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 	}
 
@@ -923,7 +925,8 @@ public abstract class BarrierBufferTestBase {
 		// canceled checkpoint on last barrier
 		startTs = System.nanoTime();
 		check(sequence[12], buffer.pollNext().get(), PAGE_SIZE);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
 		check(sequence[13], buffer.pollNext().get(), PAGE_SIZE);
 
@@ -938,7 +941,8 @@ public abstract class BarrierBufferTestBase {
 
 		// this checkpoint gets immediately canceled
 		check(sequence[24], buffer.pollNext().get(), PAGE_SIZE);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(4L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		// some buffers
@@ -954,7 +958,8 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[33], buffer.pollNext().get(), PAGE_SIZE);
 
 		check(sequence[37], buffer.pollNext().get(), PAGE_SIZE);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(6L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 	}
 
@@ -1008,7 +1013,8 @@ public abstract class BarrierBufferTestBase {
 
 		// re-read the queued cancellation barriers
 		check(sequence[9], buffer.pollNext().get(), PAGE_SIZE);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(2L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 		assertEquals(0L, buffer.getAlignmentDurationNanos());
 
 		check(sequence[10], buffer.pollNext().get(), PAGE_SIZE);
@@ -1025,7 +1031,8 @@ public abstract class BarrierBufferTestBase {
 
 		// no further checkpoint (abort) notifications
 		verify(toNotify, times(1)).triggerCheckpointOnBarrier(any(CheckpointMetaData.class), any(CheckpointOptions.class), any(CheckpointMetrics.class));
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong(), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(anyLong(),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 	}
 
 	/**
@@ -1085,7 +1092,8 @@ public abstract class BarrierBufferTestBase {
 		// cancelled by cancellation barrier
 		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		verify(toNotify).abortCheckpointOnBarrier(eq(1L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(toNotify).abortCheckpointOnBarrier(eq(1L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// the next checkpoint alignment starts now
 		startTs = System.nanoTime();
@@ -1160,7 +1168,8 @@ public abstract class BarrierBufferTestBase {
 		// future barrier aborts checkpoint
 		startTs = System.nanoTime();
 		check(sequence[3], buffer.pollNext().get(), PAGE_SIZE);
-		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(3L), any(CheckpointDeclineSubsumedException.class));
+		verify(toNotify, times(1)).abortCheckpointOnBarrier(eq(3L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_SUBSUMED)));
 		check(sequence[4], buffer.pollNext().get(), PAGE_SIZE);
 
 		// alignment of next checkpoint
@@ -1327,6 +1336,30 @@ public abstract class BarrierBufferTestBase {
 		@Override
 		public void describeTo(Description description) {
 			description.appendText("CheckpointMetaData - id = " + checkpointId);
+		}
+	}
+
+	/**
+	 * A validation matcher for checkpoint exception against failure reason.
+	 */
+	public static class CheckpointExceptionMatcher extends BaseMatcher<CheckpointException> {
+
+		private final CheckpointFailureReason failureReason;
+
+		public CheckpointExceptionMatcher(CheckpointFailureReason failureReason) {
+			this.failureReason = failureReason;
+		}
+
+		@Override
+		public boolean matches(Object o) {
+			return o != null &&
+				o.getClass() == CheckpointException.class &&
+				((CheckpointException) o).getCheckpointFailureReason().equals(failureReason);
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("CheckpointException - reason = " + failureReason);
 		}
 	}
 }

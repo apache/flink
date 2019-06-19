@@ -406,7 +406,7 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts a checkpoint with reason and cause.
 	 */
-	public void abort(CheckpointFailureReason reason, Throwable cause) {
+	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause) {
 		try {
 			CheckpointException exception = new CheckpointException(reason, cause);
 			onCompletionPromise.completeExceptionally(exception);

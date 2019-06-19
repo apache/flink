@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
@@ -63,6 +64,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -117,8 +119,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
+	private CheckpointFailureManager failureManager;
+
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+	@Before
+	public void setUp() throws Exception {
+		failureManager = new CheckpointFailureManager(0, () -> {});
+	}
 
 	@Test
 	public void testCheckpointAbortsIfTriggerTasksAreNotExecuted() {
@@ -137,13 +146,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 				new ExecutionVertex[] { ackVertex1, ackVertex2 },
 				new ExecutionVertex[] {},
@@ -152,7 +166,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -199,13 +213,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 				new ExecutionVertex[] { ackVertex1, ackVertex2 },
 				new ExecutionVertex[] {},
@@ -214,7 +233,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -252,13 +271,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex ackVertex2 = mock(ExecutionVertex.class);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 				new ExecutionVertex[] { ackVertex1, ackVertex2 },
 				new ExecutionVertex[] {},
@@ -267,7 +291,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			// nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -285,6 +309,77 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException() {
+		final JobID jid = new JobID();
+		final long timestamp = System.currentTimeMillis();
+
+		// create some mock Execution vertices that receive the checkpoint trigger messages
+		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+		final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
+		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
+
+		final String errorMsg = "Exceeded checkpoint failure tolerance number!";
+
+		CheckpointFailureManager checkpointFailureManager = new CheckpointFailureManager(0, () -> {
+			throw new RuntimeException(errorMsg);
+		});
+
+		// set up the coordinator
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+			600000,
+			600000,
+			0,
+			Integer.MAX_VALUE,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
+			new ExecutionVertex[] { vertex1, vertex2 },
+			new ExecutionVertex[] { vertex1, vertex2 },
+			new ExecutionVertex[] { vertex1, vertex2 },
+			new StandaloneCheckpointIDCounter(),
+			new StandaloneCompletedCheckpointStore(1),
+			new MemoryStateBackend(),
+			Executors.directExecutor(),
+			SharedStateRegistry.DEFAULT_FACTORY,
+			checkpointFailureManager);
+
+		try {
+			// trigger the checkpoint. this should succeed
+			assertTrue(coord.triggerCheckpoint(timestamp, false));
+
+			long checkpointId = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
+			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().get(checkpointId);
+
+			// acknowledge from one of the tasks
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId), TASK_MANAGER_LOCATION_INFO);
+			assertFalse(checkpoint.isDiscarded());
+			assertFalse(checkpoint.isFullyAcknowledged());
+
+			// decline checkpoint from the other task
+			coord.receiveDeclineMessage(new DeclineCheckpoint(jid, attemptID1, checkpointId), TASK_MANAGER_LOCATION_INFO);
+
+			fail("Test failed.");
+		}
+		catch (Exception e) {
+			//expected
+			assertTrue(e instanceof RuntimeException);
+			assertEquals(errorMsg, e.getMessage());
+		} finally {
+			try {
+				coord.shutdown(JobStatus.FINISHED);
+			} catch (Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
 		}
 	}
 
@@ -306,13 +401,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
@@ -321,7 +421,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -410,13 +510,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
@@ -425,7 +530,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -531,13 +636,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
 				new ExecutionVertex[] { vertex1, vertex2 },
@@ -546,7 +656,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -700,13 +810,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 				new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
 				new ExecutionVertex[] { commitVertex },
@@ -715,7 +830,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -832,13 +947,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 				new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
 				new ExecutionVertex[] { commitVertex },
@@ -847,7 +967,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -997,14 +1117,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			// set up the coordinator
 			// the timeout for the checkpoint is a 200 milliseconds
-
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				200,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex },
 				new ExecutionVertex[] { ackVertex1, ackVertex2 },
 				new ExecutionVertex[] { commitVertex },
@@ -1013,7 +1137,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			// trigger a checkpoint, partially acknowledged
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
@@ -1077,13 +1201,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex ackVertex2 = mockExecutionVertex(ackAttemptID2);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				200000,
 				200000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex },
 				new ExecutionVertex[] { ackVertex1, ackVertex2 },
 				new ExecutionVertex[] { commitVertex },
@@ -1092,7 +1221,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -1142,13 +1271,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		final long timestamp = 1L;
 
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jobId,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			20000L,
 			20000L,
 			0L,
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jobId,
+			chkConfig,
 			new ExecutionVertex[] { triggerVertex },
 			new ExecutionVertex[] {triggerVertex, ackVertex1, ackVertex2},
 			new ExecutionVertex[0],
@@ -1157,7 +1291,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -1276,13 +1410,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				}
 			}).when(execution).triggerCheckpoint(anyLong(), anyLong(), any(CheckpointOptions.class));
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				10,        // periodic interval is 10 ms
 				200000,    // timeout is very long (200 s)
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex },
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex },
@@ -1291,8 +1430,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
-
+				failureManager);
 
 			coord.startCheckpointScheduler();
 
@@ -1367,13 +1505,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		final long delay = 50;
 
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+			12,           // periodic interval is 12 ms
+			200_000,     // timeout is very long (200 s)
+			delay,       // 50 ms delay between checkpoints
+			1,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
 		final CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
-				2,           // periodic interval is 2 ms
-				200_000,     // timeout is very long (200 s)
-				delay,       // 50 ms delay between checkpoints
-				1,
-				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				chkConfig,
 				new ExecutionVertex[] { vertex },
 				new ExecutionVertex[] { vertex },
 				new ExecutionVertex[] { vertex },
@@ -1382,7 +1525,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 		try {
 			coord.startCheckpointScheduler();
@@ -1442,13 +1585,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
 			new ExecutionVertex[] { vertex1, vertex2 },
 			new ExecutionVertex[] { vertex1, vertex2 },
 			new ExecutionVertex[] { vertex1, vertex2 },
@@ -1457,7 +1605,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1595,13 +1743,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		StandaloneCheckpointIDCounter counter = new StandaloneCheckpointIDCounter();
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
 			new ExecutionVertex[] { vertex1, vertex2 },
 			new ExecutionVertex[] { vertex1, vertex2 },
 			new ExecutionVertex[] { vertex1, vertex2 },
@@ -1610,7 +1763,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -1690,13 +1843,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				return null;
 			}).when(execution).notifyCheckpointComplete(anyLong(), anyLong());
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				10,        // periodic interval is 10 ms
 				200000,    // timeout is very long (200 s)
 				0L,        // no extra delay
 				maxConcurrentAttempts,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex },
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex },
@@ -1705,7 +1863,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			coord.startCheckpointScheduler();
 
@@ -1765,13 +1923,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				10,        // periodic interval is 10 ms
 				200000,    // timeout is very long (200 s)
 				0L,        // no extra delay
 				maxConcurrentAttempts, // max two concurrent checkpoints
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex },
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex },
@@ -1780,7 +1943,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			coord.startCheckpointScheduler();
 
@@ -1843,13 +2006,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			final AtomicReference<ExecutionState> currentState = new AtomicReference<>(ExecutionState.CREATED);
 			when(triggerVertex.getCurrentExecutionAttempt().getState()).thenAnswer(invocation -> currentState.get());
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				10,        // periodic interval is 10 ms
 				200000,    // timeout is very long (200 s)
 				0L,        // no extra delay
 				2, // max two concurrent checkpoints
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { triggerVertex },
 				new ExecutionVertex[] { ackVertex },
 				new ExecutionVertex[] { commitVertex },
@@ -1858,7 +2026,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			coord.startCheckpointScheduler();
 
@@ -1897,13 +2065,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
 
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jobId,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100000,
 			200000,
 			0L,
 			1, // max one checkpoint at a time => should not affect savepoints
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jobId,
+			chkConfig,
 			new ExecutionVertex[] { vertex1 },
 			new ExecutionVertex[] { vertex1 },
 			new ExecutionVertex[] { vertex1 },
@@ -1912,7 +2085,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		List<CompletableFuture<CompletedCheckpoint>> savepointFutures = new ArrayList<>();
 
@@ -1952,13 +2125,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jobId,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			100000,
 			200000,
 			100000000L, // very long min delay => should not affect savepoints
 			1,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jobId,
+			chkConfig,
 			new ExecutionVertex[] { vertex1 },
 			new ExecutionVertex[] { vertex1 },
 			new ExecutionVertex[] { vertex1 },
@@ -1967,7 +2145,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -2016,13 +2194,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore();
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
@@ -2031,7 +2214,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2132,13 +2315,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex[] arrayExecutionVertices = allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
@@ -2147,7 +2335,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2262,13 +2450,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			CompletedCheckpointStore store = new RecoverableCompletedCheckpointStore(2);
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true,
+				isPreferCheckpoint,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { stateful1, stateless1 },
 				new ExecutionVertex[] { stateful1, stateless1 },
 				new ExecutionVertex[] { stateful1, stateless1 },
@@ -2277,7 +2470,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				isPreferCheckpoint);
+				failureManager);
 
 			//trigger a checkpoint and wait to become a completed checkpoint
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
@@ -2423,13 +2616,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
@@ -2438,7 +2636,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
@@ -2709,13 +2907,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		when(standaloneCompletedCheckpointStore.getLatestCheckpoint(false)).thenReturn(completedCheckpoint);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			new JobID(),
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			new JobID(),
+			chkConfig,
 			newJobVertex1.getTaskVertices(),
 			newJobVertex1.getTaskVertices(),
 			newJobVertex1.getTaskVertices(),
@@ -2724,7 +2927,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		coord.restoreLatestCheckpointedState(tasks, false, true);
 
@@ -2862,13 +3065,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = new CheckpointCoordinator(
-				jid,
+			CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
 				0,
 				Integer.MAX_VALUE,
 				CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
+				true,
+				false,
+				0);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				chkConfig,
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
@@ -2877,7 +3085,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				false);
+				failureManager);
 
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
@@ -3298,13 +3506,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			new JobID(),
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			new JobID(),
+			chkConfig,
 			new ExecutionVertex[] { vertex1 },
 			new ExecutionVertex[] { vertex1 },
 			new ExecutionVertex[] { vertex1 },
@@ -3313,7 +3526,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		// Periodic
 		try {
@@ -3520,13 +3733,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex vertex1 = mockExecutionVertex(new ExecutionAttemptID());
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			new JobID(),
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			new JobID(),
+			chkConfig,
 			new ExecutionVertex[]{vertex1},
 			new ExecutionVertex[]{vertex1},
 			new ExecutionVertex[]{vertex1},
@@ -3535,7 +3753,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		coord.setCheckpointStatsTracker(tracker);
@@ -3560,13 +3778,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(1);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			new JobID(),
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			new JobID(),
+			chkConfig,
 			new ExecutionVertex[]{vertex1},
 			new ExecutionVertex[]{vertex1},
 			new ExecutionVertex[]{vertex1},
@@ -3575,7 +3798,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
-			false);
+			failureManager);
 
 		store.addCheckpoint(new CompletedCheckpoint(
 			new JobID(),
@@ -3624,13 +3847,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		final List<SharedStateRegistry> createdSharedStateRegistries = new ArrayList<>(2);
 
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = new CheckpointCoordinator(
-			jid,
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			600000,
 			600000,
 			0,
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
+		CheckpointCoordinator coord = new CheckpointCoordinator(
+			jid,
+			chkConfig,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
 			arrayExecutionVertices,
@@ -3643,7 +3871,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 					createdSharedStateRegistries.add(instance);
 					return instance;
 				},
-			false);
+			failureManager);
 
 		final int numCheckpoints = 3;
 

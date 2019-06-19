@@ -33,9 +33,10 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -1121,7 +1122,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 						if (!success) {
 							checkpointResponder.declineCheckpoint(
 									getJobID(), getExecutionId(), checkpointID,
-									new CheckpointDeclineTaskNotReadyException(taskName));
+									new CheckpointException("Task Name" + taskName, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
 						}
 					}
 					catch (Throwable t) {
@@ -1149,7 +1150,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 			// send back a message that we did not do the checkpoint
 			checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
-					new CheckpointDeclineTaskNotReadyException(taskNameWithSubtask));
+					new CheckpointException("Task name with subtask : " + taskNameWithSubtask, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
 		}
 	}
 
