@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.AtomicDataType;
@@ -32,6 +33,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
@@ -40,6 +42,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 
 import java.util.ArrayList;
@@ -51,6 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Utils to convert data types between Flink and Hive.
  */
+@Internal
 public class HiveTypeUtil {
 
 	private HiveTypeUtil() {
@@ -176,6 +180,16 @@ public class HiveTypeUtil {
 
 		throw new UnsupportedOperationException(
 			String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
+	}
+
+	/**
+	 * Convert a Hive ObjectInspector to a Flink data type.
+	 *
+	 * @param inspector a Hive inspector
+	 * @return the corresponding Flink data type
+	 */
+	public static DataType toFlinkType(ObjectInspector inspector) {
+		return toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(inspector.getTypeName()));
 	}
 
 	/**
