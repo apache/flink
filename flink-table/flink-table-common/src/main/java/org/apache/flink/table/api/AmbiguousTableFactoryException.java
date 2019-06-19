@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 public class AmbiguousTableFactoryException extends RuntimeException {
 
 	// factories that match the properties
-	private final List<TableFactory> matchingFactories;
+	private final List<?> matchingFactories;
 	// required factory class
 	private final Class<?> factoryClass;
 	// all found factories
@@ -40,7 +40,7 @@ public class AmbiguousTableFactoryException extends RuntimeException {
 	private final Map<String, String> properties;
 
 	public AmbiguousTableFactoryException(
-		List<TableFactory> matchingFactories,
+		List<?> matchingFactories,
 		Class<?> factoryClass,
 		List<TableFactory> factories,
 		Map<String, String> properties,
@@ -54,7 +54,7 @@ public class AmbiguousTableFactoryException extends RuntimeException {
 	}
 
 	public AmbiguousTableFactoryException(
-		List<TableFactory> matchingFactories,
+		List<? extends TableFactory> matchingFactories,
 		Class<?> factoryClass,
 		List<TableFactory> factories,
 		Map<String, String> properties) {
@@ -70,15 +70,13 @@ public class AmbiguousTableFactoryException extends RuntimeException {
 				"The following properties are requested:\n%s\n\n" +
 				"The following factories have been considered:\n%s",
 			factoryClass.getName(),
-			String.join(
-				"\n",
-				matchingFactories.stream()
-					.map(p -> p.getClass().getName()).collect(Collectors.toList())),
+			matchingFactories.stream()
+				.map(p -> p.getClass().getName())
+				.collect(Collectors.joining("\n")),
 			DescriptorProperties.toString(properties),
-			String.join(
-				"\n",
-				factories.stream().map(p -> p.getClass().getName()).collect(Collectors.toList())
-			)
+			factories.stream()
+				.map(p -> p.getClass().getName())
+				.collect(Collectors.joining("\n"))
 		);
 	}
 }
