@@ -45,13 +45,19 @@ public final class UnresolvedCallExpression implements Expression {
 		this.args = Collections.unmodifiableList(new ArrayList<>(Preconditions.checkNotNull(args)));
 	}
 
+	public FunctionDefinition getFunctionDefinition() {
+		return functionDefinition;
+	}
+
+	@Override
+	public String asSummaryString() {
+		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
+		return functionDefinition.toString() + "(" + String.join(", ", argList) + ")";
+	}
+
 	@Override
 	public List<Expression> getChildren() {
 		return this.args;
-	}
-
-	public FunctionDefinition getFunctionDefinition() {
-		return functionDefinition;
 	}
 
 	@Override
@@ -79,7 +85,6 @@ public final class UnresolvedCallExpression implements Expression {
 
 	@Override
 	public String toString() {
-		final List<String> argList = args.stream().map(Object::toString).collect(Collectors.toList());
-		return functionDefinition.toString() + "(" + String.join(", ", argList) + ")";
+		return asSummaryString();
 	}
 }

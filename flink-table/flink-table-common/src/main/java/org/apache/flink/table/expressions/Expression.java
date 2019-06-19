@@ -36,6 +36,14 @@ import java.util.List;
 @PublicEvolving
 public interface Expression {
 
+	/**
+	 * Returns a string that summarizes this expression for printing to a console. An implementation
+	 * might skip very specific properties.
+	 *
+	 * @return summary string of this expression for debugging purposes
+	 */
+	String asSummaryString();
+
 	List<Expression> getChildren();
 
 	<R> R accept(ExpressionVisitor<R> visitor);

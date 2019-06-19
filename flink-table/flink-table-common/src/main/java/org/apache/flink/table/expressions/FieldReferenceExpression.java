@@ -82,6 +82,11 @@ public final class FieldReferenceExpression implements Expression {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return name;
+	}
+
+	@Override
 	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
@@ -113,6 +118,6 @@ public final class FieldReferenceExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

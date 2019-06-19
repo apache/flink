@@ -55,6 +55,11 @@ public class ResolvedAggLocalReference implements Expression {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return fieldTerm;
+	}
+
+	@Override
 	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
@@ -88,6 +93,6 @@ public class ResolvedAggLocalReference implements Expression {
 
 	@Override
 	public String toString() {
-		return fieldTerm;
+		return asSummaryString();
 	}
 }

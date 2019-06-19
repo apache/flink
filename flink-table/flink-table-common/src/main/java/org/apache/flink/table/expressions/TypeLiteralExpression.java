@@ -47,6 +47,11 @@ public final class TypeLiteralExpression implements Expression {
 	}
 
 	@Override
+	public String asSummaryString() {
+		return dataType.toString();
+	}
+
+	@Override
 	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
@@ -75,6 +80,6 @@ public final class TypeLiteralExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return dataType.toString();
+		return asSummaryString();
 	}
 }
