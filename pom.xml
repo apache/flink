@@ -53,7 +53,6 @@ under the License.
 		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
-		<module>flink-shaded-hadoop</module>
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
@@ -82,6 +81,7 @@ under the License.
 		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
+		<module>flink-shaded-yarn-tests</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
@@ -240,7 +240,7 @@ under the License.
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
-			separatly in the flink-shaded-hadoop module).
+			separatly in the flink-shaded-hadoop-2 dependency).
 		-->
 		<dependencies>
 

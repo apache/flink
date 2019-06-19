@@ -135,7 +135,7 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2</artifactId>
+					<artifactId>flink-shaded-hadoop-2</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -425,15 +425,10 @@ under the License.
                     The Hadoop 2 Uber jar should not go into the Flink dist jar, but
                     sit next to it. Hence, we set it to 'provided' here.
                 -->
-
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2-uber</artifactId>
-					<version>${hadoop.version}-${project.version}</version>
-					<!--
-                        Exclusion of flink-shaded-hadoop2 not necessary, dependencies
-                        are shaded away properly by flink-shaded-hadoop2-uber.
-                    -->
+					<artifactId>flink-shaded-hadoop-2-uber</artifactId>
+					<version>${hadoop.version}-${flink.shaded.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
