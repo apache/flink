@@ -96,7 +96,7 @@ class DatabaseCalciteSchema implements Schema {
 			.map(tableSource -> new TableSourceTable<>(
 				tableSource,
 				!table.isBatch(),
-				tableSource.getTableStats().map(FlinkStatistic::of).orElse(FlinkStatistic.UNKNOWN())))
+				FlinkStatistic.UNKNOWN()))
 			.orElseThrow(() -> new TableException("Cannot query a sink only table."));
 	}
 
@@ -113,7 +113,7 @@ class DatabaseCalciteSchema implements Schema {
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
 			// itself to determine if it is a streaming or batch source.
 			true,
-			tableSource.getTableStats().map(FlinkStatistic::of).orElse(FlinkStatistic.UNKNOWN())
+			FlinkStatistic.UNKNOWN()
 		);
 	}
 

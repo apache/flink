@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.operations.RichTableSourceQueryOperation
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks._
@@ -48,12 +48,11 @@ import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
+
 import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
-
-import _root_.java.util.Optional
 
 import _root_.scala.collection.JavaConversions._
 
@@ -674,7 +673,7 @@ case class BatchTableTestUtil(
 /**
   * Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing.
   */
-class TestTableSource(isBatch: Boolean, schema: TableSchema, tableStats: Option[TableStats] = None)
+class TestTableSource(isBatch: Boolean, schema: TableSchema)
   extends StreamTableSource[BaseRow] {
 
   override def isBounded: Boolean = isBatch
@@ -691,11 +690,6 @@ class TestTableSource(isBatch: Boolean, schema: TableSchema, tableStats: Option[
   }
 
   override def getTableSchema: TableSchema = schema
-
-  /** Returns the statistics of the table, returns null if don't know the statistics. */
-  override def getTableStats: Optional[TableStats] = {
-    Optional.ofNullable(tableStats.orNull)
-  }
 }
 
 object TableTestUtil {
