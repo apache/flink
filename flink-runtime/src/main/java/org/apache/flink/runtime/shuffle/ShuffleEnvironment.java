@@ -124,6 +124,9 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	/**
 	 * Release local resources occupied by the given partitions.
 	 *
+	 * <p>Relevant for partitions which occupy resources locally
+	 * (can be checked by {@link ShuffleDescriptor#storesLocalResourcesOn()}).
+	 *
 	 * @param partitionIds identifying the partitions to be released
 	 */
 	void releasePartitions(Collection<ResultPartitionID> partitionIds);

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -64,7 +65,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
 				ResultPartitionType.BLOCKING,
 				1,
 				0),
-			ResultPartitionID::new,
+			NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
 			1,
 			true
 		);
