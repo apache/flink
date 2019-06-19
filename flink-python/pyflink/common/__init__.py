@@ -17,7 +17,7 @@
 ################################################################################
 
 """
-Important class of Flink Batch/Streaming API:
+Important classes used by both Flink Streaming and Batch API:
 
     - :class:`ExecutionConfig`:
       A config to define the behavior of the program execution.

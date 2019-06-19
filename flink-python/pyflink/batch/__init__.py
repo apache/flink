@@ -17,7 +17,7 @@
 ################################################################################
 
 """
-Important class of Flink Batch API:
+Important classes of Flink Batch API:
 
     - :class:`ExecutionEnvironment`:
     The ExecutionEnvironment is the context in which a batch program is executed.
