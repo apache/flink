@@ -23,8 +23,8 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
-from pyflink.table.table_descriptor import (StreamTableDescriptor, ConnectorDescriptor,
-                                            BatchTableDescriptor)
+from pyflink.table.descriptors import (StreamTableDescriptor, ConnectorDescriptor,
+                                       BatchTableDescriptor)
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table
@@ -427,7 +427,7 @@ class TableEnvironment(object):
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`pyflink.table.table_descriptor.ConnectTableDescriptor` used to build the
+        :return: A :class:`pyflink.table.descriptors.ConnectTableDescriptor` used to build the
                  table source/sink.
         """
         pass

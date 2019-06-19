@@ -42,7 +42,7 @@ Important classes of Flink Table API:
       (:class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`,
       :class:`pyflink.table.window.Slide`) and :class:`pyflink.table.window.OverWindow` window
       (:class:`pyflink.table.window.Over`).
-    - :class:`pyflink.table.table_descriptor`
+    - :class:`pyflink.table.descriptors`
       Helper classes that describes DDL information, such as how to connect to another system,
       the format of data, the schema of table, the event time attribute in the schema, etc.
     - :class:`pyflink.table.catalog`
@@ -54,12 +54,12 @@ Important classes of Flink Table API:
 from __future__ import absolute_import
 
 from pyflink.table.query_config import BatchQueryConfig, StreamQueryConfig
-from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable,\
-                                WindowGroupedTable
+from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
+    WindowGroupedTable
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import TableEnvironment
-from pyflink.table.table_sink import TableSink, CsvTableSink
-from pyflink.table.table_source import TableSource, CsvTableSource
+from pyflink.table.sinks import TableSink, CsvTableSink
+from pyflink.table.sources import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
 from pyflink.table.table_schema import TableSchema
 

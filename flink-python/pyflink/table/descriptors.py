@@ -193,7 +193,7 @@ class Schema(Descriptor):
         Sets the schema with field names and the types. Required.
 
         This method overwrites existing fields added with
-        :func:`~pyflink.table.table_descriptor.Schema.field`.
+        :func:`~pyflink.table.descriptors.Schema.field`.
 
         :param table_schema: The :class:`TableSchema` object.
         :return: This schema object.
@@ -317,7 +317,7 @@ class OldCsv(FormatDescriptor):
         Sets the schema with field names and the types. Required.
 
         This method overwrites existing fields added with
-        :func:`~pyflink.table.table_descriptor.OldCsv.field`.
+        :func:`~pyflink.table.descriptors.OldCsv.field`.
 
         :param table_schema: The :class:`TableSchema` object.
         :return: This :class:`OldCsv` object.
@@ -756,7 +756,7 @@ class Kafka(ConnectorDescriptor):
         If the provided map of offsets contains entries whose partition is not subscribed by the
         consumer, the entry will be ignored. If the consumer subscribes to a partition that does
         not exist in the provided map of offsets, the consumer will fallback to the default group
-        offset behaviour(see :func:`pyflink.table.table_descriptor.Kafka.start_from_group_offsets`)
+        offset behaviour(see :func:`pyflink.table.descriptors.Kafka.start_from_group_offsets`)
         for that particular partition.
 
         If the specified offset for a partition is invalid, or the behaviour for that partition is
@@ -781,7 +781,7 @@ class Kafka(ConnectorDescriptor):
         Configures to start reading partitions from specific offsets and specifies the given offset
         for the given partition.
 
-        see :func:`pyflink.table.table_descriptor.Kafka.start_from_specific_offsets`
+        see :func:`pyflink.table.descriptors.Kafka.start_from_specific_offsets`
 
         :param partition: Partition id.
         :param specific_offset: Specified offset in given partition.
@@ -1073,8 +1073,8 @@ class Elasticsearch(ConnectorDescriptor):
         Sets the maximum number of retries for a backoff attempt when flushing bulk requests.
 
         Make sure to enable backoff by selecting a strategy (
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_constant` or
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_exponential`).
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_constant` or
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_exponential`).
 
         :param max_retries: The maximum number of retries.
         :return: This object.
@@ -1091,8 +1091,8 @@ class Elasticsearch(ConnectorDescriptor):
         (in milliseconds).
 
         Make sure to enable backoff by selecting a strategy (
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_constant` or
-        :func:`pyflink.table.table_descriptor.Elasticsearch.bulk_flush_backoff_exponential`).
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_constant` or
+        :func:`pyflink.table.descriptors.Elasticsearch.bulk_flush_backoff_exponential`).
 
         :param delay: Delay between each backoff attempt (in milliseconds).
         :return: This object.
@@ -1133,9 +1133,9 @@ class ConnectTableDescriptor(Descriptor):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, j_table_descriptor):
-        self._j_table_descriptor = j_table_descriptor
-        super(ConnectTableDescriptor, self).__init__(self._j_table_descriptor)
+    def __init__(self, j_connect_table_descriptor):
+        self._j_connect_table_descriptor = j_connect_table_descriptor
+        super(ConnectTableDescriptor, self).__init__(self._j_connect_table_descriptor)
 
     def with_format(self, format_descriptor):
         """
@@ -1145,8 +1145,8 @@ class ConnectTableDescriptor(Descriptor):
                                  e.g. :class:`OldCsv`.
         :return: This object.
         """
-        self._j_table_descriptor = \
-            self._j_table_descriptor.withFormat(format_descriptor._j_format_descriptor)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.withFormat(format_descriptor._j_format_descriptor)
         return self
 
     def with_schema(self, schema):
@@ -1156,7 +1156,8 @@ class ConnectTableDescriptor(Descriptor):
         :type schema: The :class:`Schema` object for the resulting table.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.withSchema(schema._j_schema)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.withSchema(schema._j_schema)
         return self
 
     def register_table_sink(self, name):
@@ -1167,7 +1168,7 @@ class ConnectTableDescriptor(Descriptor):
         :param name: Table name to be registered in the table environment.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.registerTableSink(name)
+        self._j_connect_table_descriptor = self._j_connect_table_descriptor.registerTableSink(name)
         return self
 
     def register_table_source(self, name):
@@ -1178,7 +1179,8 @@ class ConnectTableDescriptor(Descriptor):
         :param name: Table name to be registered in the table environment.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.registerTableSource(name)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.registerTableSource(name)
         return self
 
     def register_table_source_and_sink(self, name):
@@ -1189,7 +1191,8 @@ class ConnectTableDescriptor(Descriptor):
         :param name: Table name to be registered in the table environment.
         :return: This object.
         """
-        self._j_table_descriptor = self._j_table_descriptor.registerTableSourceAndSink(name)
+        self._j_connect_table_descriptor = \
+            self._j_connect_table_descriptor.registerTableSourceAndSink(name)
         return self
 
 
@@ -1259,5 +1262,5 @@ class BatchTableDescriptor(ConnectTableDescriptor):
     """
 
     def __init__(self, j_batch_table_descriptor):
-        self.j_batch_table_descriptor = j_batch_table_descriptor
-        super(BatchTableDescriptor, self).__init__(self.j_batch_table_descriptor)
+        self._j_batch_table_descriptor = j_batch_table_descriptor
+        super(BatchTableDescriptor, self).__init__(self._j_batch_table_descriptor)

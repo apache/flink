@@ -33,9 +33,9 @@ pyflink.table.window module
     :members:
     :undoc-members:
 
-pyflink.table.table_descriptor module
+pyflink.table.descriptors module
 -------------------------------------
-.. automodule:: pyflink.table.table_descriptor
+.. automodule:: pyflink.table.descriptors
     :members:
     :undoc-members:
 
