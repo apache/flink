@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
