@@ -47,6 +47,10 @@ public enum NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor> 
 		return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
 	}
 
+	@Override
+	public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+	}
+
 	private static NettyShuffleDescriptor.PartitionConnectionInfo createConnectionInfo(
 			ProducerDescriptor producerDescriptor,
 			int connectionIndex) {
