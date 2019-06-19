@@ -19,19 +19,13 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,37 +45,7 @@ public class SchedulerTestUtils {
 	private static final AtomicInteger port = new AtomicInteger(10000);
 
 	// --------------------------------------------------------------------------------------------
-	
-	public static Instance getRandomInstance(int numSlots) {
-		if (numSlots <= 0) {
-			throw new IllegalArgumentException();
-		}
-		
-		final ResourceID resourceID = ResourceID.generate();
-		final InetAddress address;
-		try {
-			address = InetAddress.getByName("127.0.0.1");
-		}
-		catch (UnknownHostException e) {
-			throw new RuntimeException("Test could not create IP address for localhost loopback.");
-		}
-		
-		int dataPort = port.getAndIncrement();
-		
-		TaskManagerLocation ci = new TaskManagerLocation(resourceID, address, dataPort);
-		
-		final long GB = 1024L*1024*1024;
-		HardwareDescription resources = new HardwareDescription(4, 4*GB, 3*GB, 2*GB);
-		
-		return new Instance(
-			new SimpleAckingTaskManagerGateway(),
-			ci,
-			new InstanceID(),
-			resources,
-			numSlots);
-	}
-	
-	
+
 	public static Execution getDummyTask() {
 		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
 
