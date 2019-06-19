@@ -118,7 +118,7 @@ public class CatalogStructureBuilder {
 			Catalog catalog,
 			DatabaseBuilder[] databases) throws Exception {
 		for (DatabaseBuilder database : databases) {
-			catalog.createDatabase(database.getName(), new GenericCatalogDatabase(new HashMap<>(), ""), false);
+			catalog.createDatabase(database.getName(), new CatalogDatabaseImpl(new HashMap<>(), ""), false);
 			database.build(catalog, name);
 		}
 	}
