@@ -21,23 +21,31 @@ package org.apache.flink.table.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.PlannerDescriptor;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Factory to create an implementation of {@link Executor} to use in a
  * {@link org.apache.flink.table.api.TableEnvironment}. The {@link org.apache.flink.table.api.TableEnvironment}
- * should use {@link #create()} method that does not bind to any particular environment,
+ * should use {@link #create(Map)} method that does not bind to any particular environment,
  * whereas {@link org.apache.flink.table.api.scala.StreamTableEnvironment} should use
- * {@link #create(StreamExecutionEnvironment)} as it is always backed by some {@link StreamExecutionEnvironment}
+ * {@link #create(Map, StreamExecutionEnvironment)} as it is always backed by
+ * some {@link StreamExecutionEnvironment}
  */
 @Internal
-public class ExecutorFactory {
+public class StreamExecutorFactory implements ExecutorFactory {
+
 	/**
 	 * Creates a {@link StreamExecutor} that is backed by given {@link StreamExecutionEnvironment}.
 	 *
 	 * @param executionEnvironment a {@link StreamExecutionEnvironment} to use while executing Table programs.
 	 * @return {@link StreamExecutor}
 	 */
-	public static Executor create(StreamExecutionEnvironment executionEnvironment) {
+	public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment) {
 		return new StreamExecutor(executionEnvironment);
 	}
 
@@ -46,10 +54,22 @@ public class ExecutorFactory {
 	 *
 	 * @return {@link StreamExecutor}
 	 */
-	public static Executor create() {
+	@Override
+	public Executor create(Map<String, String> properties) {
 		return new StreamExecutor(StreamExecutionEnvironment.getExecutionEnvironment());
 	}
 
-	private ExecutorFactory() {
+	@Override
+	public Map<String, String> requiredContext() {
+		DescriptorProperties properties = new DescriptorProperties();
+		properties.putBoolean(PlannerDescriptor.BATCH_MODE, false);
+		return properties.asMap();
+	}
+
+	@Override
+	public Map<String, String> optionalContext() {
+		Map<String, String> context = new HashMap<>();
+		context.put(PlannerDescriptor.CLASS_NAME, this.getClass().getCanonicalName());
+		return context;
 	}
 }
