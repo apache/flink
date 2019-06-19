@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -29,7 +31,8 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -312,7 +315,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	protected static class MainThreadExecutor implements Executor {
+	protected static class MainThreadExecutor implements ScheduledExecutor {
 
 		private final MainThreadExecutable gateway;
 
@@ -320,9 +323,39 @@ public abstract class RpcEndpoint implements RpcGateway {
 			this.gateway = Preconditions.checkNotNull(gateway);
 		}
 
-		@Override
-		public void execute(@Nonnull Runnable runnable) {
+		public void runAsync(Runnable runnable) {
 			gateway.runAsync(runnable);
+		}
+
+		public void scheduleRunAsync(Runnable runnable, long delayMillis) {
+			gateway.scheduleRunAsync(runnable, delayMillis);
+		}
+
+		public void execute(@Nonnull Runnable command) {
+			runAsync(command);
+		}
+
+		@Override
+		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
+			FutureTask<Void> ft = new FutureTask<>(command, null);
+			scheduleRunAsync(ft, delayMillis);
+			return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
 		}
 	}
 }
