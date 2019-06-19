@@ -146,9 +146,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		return stateSerializerProvider.previousSchemaSerializer();
 	}
 
-	@Nonnull
-	public StateSerializerProvider<S> getStateSerializerProvider() {
-		return stateSerializerProvider;
+	@Nullable
+	public TypeSerializerSnapshot<S> getPreviousStateSerializerSnapshot() {
+		return stateSerializerProvider.previousSerializerSnapshot;
 	}
 
 	@Nonnull

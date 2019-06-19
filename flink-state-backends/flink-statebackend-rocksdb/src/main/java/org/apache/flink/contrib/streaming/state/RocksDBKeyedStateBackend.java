@@ -548,14 +548,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo) throws Exception {
 
 		if (stateDesc.getType() == StateDescriptor.Type.MAP) {
-			TypeSerializerSnapshot previousSerializerSnapshot = stateMetaInfo.f1.getStateSerializerProvider().getPreviousSerializerSnapshot();
-			checkState(previousSerializerSnapshot instanceof MapSerializerSnapshot, "previous serializer have to be map serializer.");
-			TypeSerializerSnapshot previousKeySerializerSnapshot = ((MapSerializerSnapshot) previousSerializerSnapshot).getNestedSerializersSnapshotDelegate().getNestedSerializerSnapshots()[0];
-			TypeSerializer newUserKeySerializer = ((MapSerializer) stateMetaInfo.f1.getStateSerializer()).getKeySerializer();
-			TypeSerializerSchemaCompatibility compatibility = previousKeySerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
-			if (!compatibility.isCompatibleAsIs()) {
+			TypeSerializerSnapshot<SV> previousSerializerSnapshot = stateMetaInfo.f1.getPreviousStateSerializerSnapshot();
+			checkState(previousSerializerSnapshot != null, "the previous serializer snapshot should exist.");
+			checkState(previousSerializerSnapshot instanceof MapSerializerSnapshot, "previous serializer snapshot should be a MapSerializerSnapshot.");
+
+			TypeSerializer<SV> newSerializer = stateMetaInfo.f1.getStateSerializer();
+			checkState(newSerializer instanceof MapSerializer, "new serializer should be a MapSerializer.");
+
+			MapSerializer<?, ?> mapSerializer = (MapSerializer<?, ?>) newSerializer;
+			MapSerializerSnapshot<?, ?> mapSerializerSnapshot = (MapSerializerSnapshot<?, ?>) previousSerializerSnapshot;
+			if (!checkMapStateKeySchemaCompatibility(mapSerializerSnapshot, mapSerializer)) {
 				throw new StateMigrationException(
-					"The new serializer for a MapState requires state migration in order for the job to proceed." + " However, migration for MapState currently only supported value migration.");
+					"The new serializer for a MapState requires state migration in order for the job to proceed, since the key schema has changed. However, migration for MapState currently only allows value schema evolutions.");
 			}
 		}
 
@@ -611,6 +615,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			db.releaseSnapshot(rocksDBSnapshot);
 			rocksDBSnapshot.close();
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <UK> boolean checkMapStateKeySchemaCompatibility(
+		MapSerializerSnapshot<?, ?> mapStateSerializerSnapshot,
+		MapSerializer<?, ?> newMapStateSerializer) {
+		TypeSerializerSnapshot<UK> previousKeySerializerSnapshot = (TypeSerializerSnapshot<UK>) mapStateSerializerSnapshot.getKeySerializerSnapshot();
+		TypeSerializer<UK> newUserKeySerializer = (TypeSerializer<UK>) newMapStateSerializer.getKeySerializer();
+
+		TypeSerializerSchemaCompatibility<UK> keyCompatibility = previousKeySerializerSnapshot.resolveSchemaCompatibility(newUserKeySerializer);
+		return keyCompatibility.isCompatibleAsIs();
 	}
 
 	@Override
