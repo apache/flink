@@ -34,7 +34,7 @@ A bipartite graph (also called a two-mode graph) is a type of graph where vertic
 
 These graphs have wide application in practice and can be a more natural choice for particular domains. For example to represent authorship of scientific papers top vertices can represent scientific papers while bottom nodes will represent authors. Naturally an edge between a top and a bottom nodes would represent an authorship of a particular scientific paper. Another common example for applications of bipartite graphs is relationships between actors and movies. In this case an edge represents that a particular actor played in a movie.
 
-Bipartite graphs are used instead of regular graphs (one-mode) for the following practical [reasons](http://www.complexnetworks.fr/wp-content/uploads/2011/01/socnet07.pdf):
+Bipartite graphs are used instead of regular graphs (one-mode) for the following practical [reasons](httpy://www.complexnetworks.fr/wp-content/uploads/2011/01/socnet07.pdf):
  * They preserve more information about a connection between vertices. For example instead of a single link between two researchers in a graph that represents that they authored a paper together a bipartite graph preserves the information about what papers they authored
  * Bipartite graphs can encode the same information more compactly than one-mode graphs
  

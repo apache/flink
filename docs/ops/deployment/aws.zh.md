@@ -34,7 +34,7 @@ Amazon Web Services offers cloud computing services on which you can run Flink.
 
 ### Standard EMR Installation
 
-Flink is a supported application on Amazon EMR. [Amazon's documentation](http://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-flink.html)
+Flink is a supported application on Amazon EMR. [Amazon's documentation](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-flink.html)
 describes configuring Flink, creating and monitoring a cluster, and working with jobs.
 
 ### Custom EMR Installation
@@ -44,16 +44,16 @@ can be manually installed in a stock EMR cluster.
 
 **Create EMR Cluster**
 
-The EMR documentation contains [examples showing how to start an EMR cluster](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-gs-launch-sample-cluster.html). You can follow that guide and install any EMR release. You don't need to install the *All Applications* part of the EMR release, but can stick to *Core Hadoop*.
+The EMR documentation contains [examples showing how to start an EMR cluster](https://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-gs-launch-sample-cluster.html). You can follow that guide and install any EMR release. You don't need to install the *All Applications* part of the EMR release, but can stick to *Core Hadoop*.
 
 {% warn Note %}
 Access to S3 buckets requires
-[configuration of IAM roles](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-iam-roles.html)
+[configuration of IAM roles](https://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-iam-roles.html)
 when creating an EMR cluster.
 
 **Install Flink on EMR Cluster**
 
-After creating your cluster, you can [connect to the master node](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-connect-master-node.html) and install Flink:
+After creating your cluster, you can [connect to the master node](https://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-connect-master-node.html) and install Flink:
 
 1. Go the [Downloads Page]({{ site.download_url }}) and **download a binary version of Flink matching the Hadoop version** of your EMR cluster, e.g. Hadoop 2.7 for EMR releases 4.3.0, 4.4.0, or 4.5.0.
 2. Extract the Flink distribution and you are ready to deploy [Flink jobs via YARN](yarn_setup.html) after **setting the Hadoop config directory**:

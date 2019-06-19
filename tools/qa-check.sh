@@ -52,7 +52,7 @@ cd _qa_workdir
 
 if [ ! -d  "flink" ] ; then
 	echo "There is no flink copy in the workdir. Cloning flink"
-	git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
+	git clone https://git-wip-us.apache.org/repos/asf/flink.git flink
 fi
 
 cd flink

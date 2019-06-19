@@ -48,7 +48,7 @@ have been part of the previously checkpointed state.
 *Note:* By default, checkpointing is disabled. See [Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) for details on how to enable and configure checkpointing.
 
 *Note:* For this mechanism to realize its full guarantees, the data stream source (such as message queue or broker) needs to be able
-to rewind the stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has this ability and Flink's connector to
+to rewind the stream to a defined recent point. [Apache Kafka](https://kafka.apache.org) has this ability and Flink's connector to
 Kafka exploits this ability. See [Fault Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}/dev/connectors/guarantees.html) for
 more information about the guarantees provided by Flink's connectors.
 
@@ -59,8 +59,8 @@ more information about the guarantees provided by Flink's connectors.
 
 The central part of Flink's fault tolerance mechanism is drawing consistent snapshots of the distributed data stream and operator state.
 These snapshots act as consistent checkpoints to which the system can fall back in case of a failure. Flink's mechanism for drawing these
-snapshots is described in "[Lightweight Asynchronous Snapshots for Distributed Dataflows](http://arxiv.org/abs/1506.08603)". It is inspired by
-the standard [Chandy-Lamport algorithm](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) for distributed snapshots and is
+snapshots is described in "[Lightweight Asynchronous Snapshots for Distributed Dataflows](https://arxiv.org/abs/1506.08603)". It is inspired by
+the standard [Chandy-Lamport algorithm](https://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) for distributed snapshots and is
 specifically tailored to Flink's execution model.
 
 

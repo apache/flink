@@ -24,7 +24,7 @@ under the License.
 -->
 
 This connector provides a Sink that writes partitioned files to any filesystem supported by
-[Hadoop FileSystem](http://hadoop.apache.org). To use this connector, add the
+[Hadoop FileSystem](https://hadoop.apache.org). To use this connector, add the
 following dependency to your project:
 
 {% highlight xml %}
@@ -144,6 +144,6 @@ of the parallel sink instance and `count` is the running number of part files th
 because of the batch size or batch roll over interval.
 
 For in-depth information, please refer to the JavaDoc for
-[BucketingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html).
+[BucketingSink](https://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html).
 
 {% top %}

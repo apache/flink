@@ -36,7 +36,7 @@ using `FLINK_LOG_PREFIX` are rotated along with the default `.out` and `.log` fi
 # Profiling with Java Flight Recorder
 
 Java Flight Recorder is a profiling and event collection framework built into the Oracle JDK.
-[Java Mission Control](http://www.oracle.com/technetwork/java/javaseproducts/mission-control/java-mission-control-1998576.html)
+[Java Mission Control](https://www.oracle.com/technetwork/java/javaseproducts/mission-control/java-mission-control-1998576.html)
 is an advanced set of tools that enables efficient and detailed analysis of the extensive of data collected by Java
 Flight Recorder. Example configuration:
 

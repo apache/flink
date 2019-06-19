@@ -54,7 +54,7 @@ under the License.
     $ sbt new tillrohrmann/flink-project.g8
     {% endhighlight %}
     这里将提示你输入几个参数 (项目名称，Flink版本...) 然后从 <a href="https://github.com/tillrohrmann/flink-project.g8">Flink项目模版</a>创建一个Flink项目。
-    你的sbt版本需要不小于0.13.13才能执行这个命令。如有必要，你可以参考这个<a href="http://www.scala-sbt.org/download.html">安装指南</a>获取合适版本的sbt。
+    你的sbt版本需要不小于0.13.13才能执行这个命令。如有必要，你可以参考这个<a href="https://www.scala-sbt.org/download.html">安装指南</a>获取合适版本的sbt。
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">
     {% highlight bash %}
@@ -146,7 +146,7 @@ addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>注意</b>: 对于 Maven 3.0 及更高版本, 不再能够通过命令行指定仓库 (-DarchetypeCatalog). 如果你想使用快照仓库，需要在 settings.xml 文件中添加仓库条目。有关该设置的详细信息，请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+        <b>注意</b>: 对于 Maven 3.0 及更高版本, 不再能够通过命令行指定仓库 (-DarchetypeCatalog). 如果你想使用快照仓库，需要在 settings.xml 文件中添加仓库条目。有关该设置的详细信息，请参阅 <a href="https://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
     </p>
     {% endunless %}
 </div>
@@ -183,12 +183,12 @@ IntelliJ IDEA 支持 Maven 开箱即用，并为Scala开发提供插件。
 对于 Eclipse，需要以下的插件，你可以从提供的 Eclipse Update Sites 安装这些插件：
 
 * _Eclipse 4.x_
-  * [Scala IDE](http://download.scala-ide.org/sdk/lithium/e44/scala211/stable/site)
-  * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
+  * [Scala IDE](https://download.scala-ide.org/sdk/lithium/e44/scala211/stable/site)
+  * [m2eclipse-scala](https://alchim31.free.fr/m2e-scala/update-site)
   * [Build Helper Maven Plugin](https://repo1.maven.org/maven2/.m2e/connectors/m2eclipse-buildhelper/0.15.0/N/0.15.0.201207090124/)
 * _Eclipse 3.8_
-  * [Scala IDE for Scala 2.11](http://download.scala-ide.org/sdk/helium/e38/scala211/stable/site) 或者 [Scala IDE for Scala 2.10](http://download.scala-ide.org/sdk/helium/e38/scala210/stable/site)
-  * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
+  * [Scala IDE for Scala 2.11](https://download.scala-ide.org/sdk/helium/e38/scala211/stable/site) 或者 [Scala IDE for Scala 2.10](https://download.scala-ide.org/sdk/helium/e38/scala210/stable/site)
+  * [m2eclipse-scala](https://alchim31.free.fr/m2e-scala/update-site)
   * [Build Helper Maven Plugin](https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.14.0/N/0.14.0.201109282148/)
 
 ### 构建
@@ -215,7 +215,7 @@ __注意:__ 如果你使用其他类而不是 *StreamingJob* 作为应用程序�
 
 在[这里]({{ site.baseurl }}/zh/tutorials/local_setup.html)，你可以找到如何在IDE外的本地集群中运行应用程序。
 
-如果你有任何问题，请发信至我们的[邮箱列表](http://mail-archives.apache.org/mod_mbox/flink-user/)。
+如果你有任何问题，请发信至我们的[邮箱列表](https://mail-archives.apache.org/mod_mbox/flink-user/)。
 我们很乐意提供帮助。
 
 {% top %}

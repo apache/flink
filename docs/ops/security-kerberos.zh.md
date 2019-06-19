@@ -69,7 +69,7 @@ the login user conveys only the user identity of the OS account that launched th
 This module provides a dynamic JAAS configuration to the cluster, making available the configured Kerberos credential to ZooKeeper,
 Kafka, and other such components that rely on JAAS.
 
-Note that the user may also provide a static JAAS configuration file using the mechanisms described in the [Java SE Documentation](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html).   Static entries override any
+Note that the user may also provide a static JAAS configuration file using the mechanisms described in the [Java SE Documentation](https://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html).   Static entries override any
 dynamic entries provided by this module.
 
 ### ZooKeeper Security Module

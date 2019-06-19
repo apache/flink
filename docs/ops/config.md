@@ -29,7 +29,7 @@ The out of the box configuration will use your default Java installation. You ca
 
 This page lists the most common options that are typically needed to set up a well performing (distributed) installation. In addition a full list of all available configuration parameters is listed here.
 
-All configuration is done in `conf/flink-conf.yaml`, which is expected to be a flat collection of [YAML key value pairs](http://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
+All configuration is done in `conf/flink-conf.yaml`, which is expected to be a flat collection of [YAML key value pairs](https://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
 
 The system and run scripts parse the config at startup time. Changes to the configuration file require restarting the Flink JobManager and TaskManagers.
 

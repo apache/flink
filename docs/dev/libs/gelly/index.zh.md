@@ -73,7 +73,7 @@ Running Gelly Examples
 
 The Gelly library jars are provided in the [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads")
 in the **opt** directory (for versions older than Flink 1.2 these can be manually downloaded from
-[Maven Central](http://search.maven.org/#search|ga|1|flink%20gelly)). To run the Gelly examples the **flink-gelly** (for
+[Maven Central](https://search.maven.org/#search|ga|1|flink%20gelly)). To run the Gelly examples the **flink-gelly** (for
 Java) or **flink-gelly-scala** (for Scala) jar must be copied to Flink's **lib** directory.
 
 {% highlight bash %}
@@ -110,12 +110,12 @@ The size of the graph is adjusted by the *\-\-scale* and *\-\-edge_factor* param
 [library generator](./graph_generators.html#rmat-graph) provides access to additional configuration to adjust the
 power-law skew and random noise.
 
-Sample social network data is provided by the [Stanford Network Analysis Project](http://snap.stanford.edu/data/index.html).
-The [com-lj](http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz) data set is a good starter size.
+Sample social network data is provided by the [Stanford Network Analysis Project](https://snap.stanford.edu/data/index.html).
+The [com-lj](https://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz) data set is a good starter size.
 Run a few algorithms and monitor the job progress in Flink's Web UI:
 
 {% highlight bash %}
-wget -O - http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz | gunzip -c > com-lj.ungraph.txt
+wget -O - https://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz | gunzip -c > com-lj.ungraph.txt
 
 ./bin/flink run -q examples/gelly/flink-gelly-examples_*.jar \
     --algorithm GraphMetrics --order undirected \

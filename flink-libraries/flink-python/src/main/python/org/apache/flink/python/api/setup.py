@@ -25,7 +25,7 @@ setup(
               'flink.functions',
               'flink.plan',
               'flink.utilities'],
-    url='http://flink.apache.org',
+    url='https://flink.apache.org',
     license='Licensed under the Apache License, Version 2.0',
     author='',
     author_email='',

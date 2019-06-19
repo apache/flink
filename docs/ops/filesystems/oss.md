@@ -65,7 +65,7 @@ After setting up the OSS FileSystem wrapper, you need to add some configurations
 
 To allow for easy adoption, you can use the same configuration keys in `flink-conf.yaml` as in Hadoop's `core-site.xml`
 
-You can see the configuration keys in the [Hadoop OSS documentation](http://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html).
+You can see the configuration keys in the [Hadoop OSS documentation](https://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html).
 
 There are some required configurations that must be added to `flink-conf.yaml` (**Other configurations defined in Hadoop OSS documentation are advanced configurations which used by performance tuning**):
 

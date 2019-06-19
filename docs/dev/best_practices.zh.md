@@ -35,7 +35,7 @@ They are used to specify input and output sources (like paths or addresses), sys
 
 Flink provides a simple utility called `ParameterTool` to provide some basic tooling for solving these problems.
 Please note that you don't have to use the `ParameterTool` described here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/) and
-[argparse4j](http://argparse4j.sourceforge.net/) also work well with Flink.
+[argparse4j](https://argparse4j.sourceforge.net/) also work well with Flink.
 
 
 ### Getting your configuration values into the `ParameterTool`
@@ -168,9 +168,9 @@ public static class CustomType extends Tuple11<String, String, ..., String> {
 
 **Note: This tutorial is applicable starting from Flink 0.10**
 
-Apache Flink is using [slf4j](http://www.slf4j.org/) as the logging abstraction in the code. Users are advised to use sfl4j as well in their user functions.
+Apache Flink is using [slf4j](https://www.slf4j.org/) as the logging abstraction in the code. Users are advised to use sfl4j as well in their user functions.
 
-Sfl4j is a compile-time logging interface that can use different logging implementations at runtime, such as [log4j](http://logging.apache.org/log4j/2.x/) or [Logback](http://logback.qos.ch/).
+Sfl4j is a compile-time logging interface that can use different logging implementations at runtime, such as [log4j](https://logging.apache.org/log4j/2.x/) or [Logback](https://logback.qos.ch/).
 
 Flink is depending on Log4j by default. This page describes how to use Flink with Logback. Users reported that they were also able to set up centralized logging with Graylog using this tutorial.
 

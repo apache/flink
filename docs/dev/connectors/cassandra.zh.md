@@ -48,7 +48,7 @@ Note that the streaming connectors are currently __NOT__ part of the binary dist
 ## Installing Apache Cassandra
 There are multiple ways to bring up a Cassandra instance on local machine:
 
-1. Follow the instructions from [Cassandra Getting Started page](http://cassandra.apache.org/doc/latest/getting_started/index.html).
+1. Follow the instructions from [Cassandra Getting Started page](https://cassandra.apache.org/doc/latest/getting_started/index.html).
 2. Launch a container running Cassandra from [Official Docker Repository](https://hub.docker.com/_/cassandra/)
 
 ## Cassandra Sinks
@@ -202,9 +202,9 @@ result.print().setParallelism(1)
 
 
 ### Cassandra Sink Example for Streaming POJO Data Type
-An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as each field of this entity is mapped to an associated column of the designated table using the DataStax Java Driver `com.datastax.driver.mapping.Mapper` class.
+An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](https://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as each field of this entity is mapped to an associated column of the designated table using the DataStax Java Driver `com.datastax.driver.mapping.Mapper` class.
 
-The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
+The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](https://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

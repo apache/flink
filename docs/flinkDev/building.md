@@ -48,7 +48,7 @@ The simplest way of building Flink is by running:
 mvn clean install -DskipTests
 {% endhighlight %}
 
-This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
+This instructs [Maven](https://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
 To speed up the build you can skip tests, QA plugins, and JavaDocs:
 
@@ -84,7 +84,7 @@ mvn clean install
 
 {% info %} Most users do not need to do this manually. The [download page]({{ site.download_url }}) contains binary packages for common Hadoop versions.
 
-Flink has dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
+Flink has dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](https://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
 
 Hadoop is only supported from version 2.4.0 upwards.
 You can also specify a specific Hadoop version to build against:
@@ -109,7 +109,7 @@ To build Flink against a vendor specific Hadoop version, issue the following com
 mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
 {% endhighlight %}
 
-The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
+The `-Pvendor-repos` activates a Maven [build profile](https://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
 
 {% top %}
 
@@ -117,7 +117,7 @@ The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/g
 
 {% info %} Users that purely use the Java APIs and libraries can *ignore* this section.
 
-Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version of their projects (because Scala is not strictly backwards compatible).
+Flink has APIs, libraries, and runtime modules written in [Scala](https://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version of their projects (because Scala is not strictly backwards compatible).
 
 Since version 1.7 Flink builds with Scala version 2.11 (default) and 2.12.
 

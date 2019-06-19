@@ -50,7 +50,7 @@ and
 then output the transformed data, either to be used as the input (features) of a predictor
 function, such as a learning model, or just output the transformed data themselves, to be used in
 some other task. The end learner can of course be a part of the pipeline as well.
-ML pipelines can often be complicated sets of operations ([in-depth explanation](http://research.google.com/pubs/pub43146.html)) and
+ML pipelines can often be complicated sets of operations ([in-depth explanation](https://research.google.com/pubs/pub43146.html)) and
 can become sources of errors for end-to-end learning systems.
 
 The purpose of ML pipelines is then to create a
@@ -70,9 +70,9 @@ pipeline "fit".
 ## Pipelines in FlinkML
 
 The building blocks for pipelines in FlinkML can be found in the `ml.pipeline` package.
-FlinkML follows an API inspired by [sklearn](http://scikit-learn.org) which means that we have
+FlinkML follows an API inspired by [sklearn](https://scikit-learn.org) which means that we have
 `Estimator`, `Transformer` and `Predictor` interfaces. For an in-depth look at the design of the
-sklearn API the interested reader is referred to [this](http://arxiv.org/abs/1309.0238) paper.
+sklearn API the interested reader is referred to [this](https://arxiv.org/abs/1309.0238) paper.
 In short, the `Estimator` is the base class from which `Transformer` and `Predictor` inherit.
 `Estimator` defines a `fit` method, and `Transformer` also defines a `transform` method and
 `Predictor` defines a `predict` method.
@@ -128,7 +128,7 @@ and predict operations together in a type-safe manner.
 
 As we mentioned, the trait (abstract class) `Estimator` defines a `fit` method. The method has two
 parameter lists
-(i.e. is a [curried function](http://docs.scala-lang.org/tutorials/tour/currying.html)). The
+(i.e. is a [curried function](https://docs.scala-lang.org/tutorials/tour/currying.html)). The
 first parameter list
 takes the input (training) `DataSet` and the parameters for the estimator. The second parameter
 list takes one `implicit` parameter, of type `FitOperation`. `FitOperation` is a class that also
@@ -138,7 +138,7 @@ method of `FitOperation`. The `predict` method of `Predictor` and the `transform
 `Transform` are designed in a similar manner, with a respective operation class.
 
 In these methods the operation object is provided as an implicit parameter.
-Scala will [look for implicits](http://docs.scala-lang.org/tutorials/FAQ/finding-implicits.html)
+Scala will [look for implicits](https://docs.scala-lang.org/tutorials/FAQ/finding-implicits.html)
 in the companion object of a type, so classes that implement these interfaces should provide these
 objects as implicit objects inside the companion object.
 

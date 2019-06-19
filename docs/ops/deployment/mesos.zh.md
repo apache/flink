@@ -99,7 +99,7 @@ You can also run Mesos without DC/OS.
 
 ### Installing Mesos
 
-Please follow the [instructions on how to setup Mesos on the official website](http://mesos.apache.org/getting-started/).
+Please follow the [instructions on how to setup Mesos on the official website](https://mesos.apache.org/getting-started/).
 
 After installation you have to configure the set of master and agent nodes by creating the files `MESOS_HOME/etc/mesos/masters` and `MESOS_HOME/etc/mesos/slaves`.
 These files contain in each row a single hostname on which the respective component will be started (assuming SSH access to these nodes).
@@ -133,7 +133,7 @@ Under Mac OS X you have to export `MESOS_NATIVE_JAVA_LIBRARY=MESOS_HOME/lib/libm
 
 In order to start your mesos cluster, use the deployment script `MESOS_HOME/sbin/mesos-start-cluster.sh`.
 In order to stop your mesos cluster, use the deployment script `MESOS_HOME/sbin/mesos-stop-cluster.sh`.
-More information about the deployment scripts can be found [here](http://mesos.apache.org/documentation/latest/deploy-scripts/).
+More information about the deployment scripts can be found [here](https://mesos.apache.org/documentation/latest/deploy-scripts/).
 
 ### Installing Marathon
 

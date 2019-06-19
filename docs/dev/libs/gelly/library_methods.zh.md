@@ -65,7 +65,7 @@ verticesWithCommunity.print()
 
 #### Overview
 In graph theory, communities refer to groups of nodes that are well connected internally, but sparsely connected to other groups.
-This library method is an implementation of the community detection algorithm described in the paper [Towards real-time community detection in large networks](http://arxiv.org/pdf/0808.2633.pdf).
+This library method is an implementation of the community detection algorithm described in the paper [Towards real-time community detection in large networks](https://arxiv.org/pdf/0808.2633.pdf).
 
 #### Details
 The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
@@ -87,7 +87,7 @@ The constructor takes two parameters:
 ## Label Propagation
 
 #### Overview
-This is an implementation of the well-known Label Propagation algorithm described in [this paper](http://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.036106). The algorithm discovers communities in a graph, by iteratively propagating labels between neighbors. Unlike the [Community Detection library method](#community-detection), this implementation does not use scores associated with the labels.
+This is an implementation of the well-known Label Propagation algorithm described in [this paper](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.036106). The algorithm discovers communities in a graph, by iteratively propagating labels between neighbors. Unlike the [Community Detection library method](#community-detection), this implementation does not use scores associated with the labels.
 
 #### Details
 The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
@@ -272,7 +272,7 @@ provides a method to compute the local clustering coefficient score. The graph I
 
 #### Overview
 A triad is formed by any three vertices in a graph. Each triad contains three pairs of vertices which may be connected
-or unconnected. The [Triadic Census](http://vlado.fmf.uni-lj.si/pub/networks/doc/triads/triads.pdf) counts the
+or unconnected. The [Triadic Census](https://vlado.fmf.uni-lj.si/pub/networks/doc/triads/triads.pdf) counts the
 occurrences of each type of triad with the graph.
 
 #### Details
@@ -297,7 +297,7 @@ size 3.
 #### Details
 Triangles are listed by joining open triplets (two edges with a common neighbor) against edges on the triplet endpoints.
 This implementation uses optimizations from
-[Schank's algorithm](http://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf) to improve performance with
+[Schank's algorithm](https://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf) to improve performance with
 high-degree vertices. Triplets are generated from the lowest degree vertex since each triangle need only be listed once.
 This greatly reduces the number of generated triplets which is quadratic in vertex degree.
 
@@ -314,7 +314,7 @@ six potential edges connecting the three vertices. The graph ID type must be `Co
 ### Hyperlink-Induced Topic Search
 
 #### Overview
-[Hyperlink-Induced Topic Search](http://www.cs.cornell.edu/home/kleinber/auth.pdf) (HITS, or "Hubs and Authorities")
+[Hyperlink-Induced Topic Search](https://www.cs.cornell.edu/home/kleinber/auth.pdf) (HITS, or "Hubs and Authorities")
 computes two interdependent scores for every vertex in a directed graph. Good hubs are those which point to many
 good authorities and good authorities are those pointed to by many good hubs.
 

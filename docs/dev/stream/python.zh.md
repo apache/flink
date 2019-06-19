@@ -46,7 +46,7 @@ operations and advanced features.
 
 Jython Framework
 ---------------
-Flink Python streaming API uses Jython framework (see <http://www.jython.org/archive/21/docs/whatis.html>)
+Flink Python streaming API uses Jython framework (see <https://www.jython.org/archive/21/docs/whatis.html>)
 to drive the execution of a given script. The Python streaming layer, is actually a thin wrapper layer for the
 existing Java streaming APIs.
 

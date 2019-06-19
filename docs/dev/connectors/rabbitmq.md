@@ -37,7 +37,7 @@ must be aware that this may be subject to conditions declared in the Mozilla Pub
 
 # RabbitMQ Connector
 
-This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
+This connector provides access to data streams from [RabbitMQ](https://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
 <dependency>
@@ -50,7 +50,7 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
 
 #### Installing RabbitMQ
-Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
+Follow the instructions from the [RabbitMQ download page](https://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
 
 #### RabbitMQ Source
 
@@ -170,6 +170,6 @@ stream.addSink(new RMQSink[String](
 </div>
 </div>
 
-More about RabbitMQ can be found [here](http://www.rabbitmq.com/).
+More about RabbitMQ can be found [here](https://www.rabbitmq.com/).
 
 {% top %}

@@ -101,7 +101,7 @@ newer than 1.8.0. When restoring with Flink versions older than 1.8.0, the schem
 ### Avro types
 
 Flink fully supports evolving schema of Avro type state, as long as the schema change is considered compatible by
-[Avro's rules for schema resolution](http://avro.apache.org/docs/current/spec.html#Schema+Resolution).
+[Avro's rules for schema resolution](https://avro.apache.org/docs/current/spec.html#Schema+Resolution).
 
 One limitation is that Avro generated classes used as the state type cannot be relocated or have different
 namespaces when the job is restored.
