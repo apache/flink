@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -446,6 +447,26 @@ public class FutureUtils {
 			});
 
 		return resultFuture;
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a consumer to accept the result of this future. If the input
+	 * future is already done, this function returns {@link CompletableFuture#thenAccept(Consumer)}. Otherwise, the
+	 * return value is {@link CompletableFuture#thenAcceptAsync(Consumer, Executor)} with the given executor.
+	 *
+	 * @param completableFuture the completable future for which we want to call #thenAccept.
+	 * @param executor the executor to run the thenAccept function if the future is not yet done.
+	 * @param consumer the consumer function to call when the future is completed.
+	 * @param <IN> type of the input future.
+	 * @return the new completion stage.
+	 */
+	public static <IN> CompletableFuture<Void> thenAcceptAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		Consumer<? super IN> consumer) {
+		return completableFuture.isDone() ?
+			completableFuture.thenAccept(consumer) :
+			completableFuture.thenAcceptAsync(consumer, executor);
 	}
 
 	// ------------------------------------------------------------------------

@@ -26,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -34,13 +35,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -612,6 +616,44 @@ public class FutureUtilsTest extends TestLogger {
 		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
 		future.completeExceptionally(new FlinkException("barfoo"));
 		assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(true));
+	}
+
+	@Test
+	public void testThenAcceptAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenAcceptAsyncIfNotDone(
+				future,
+				executor,
+				o -> {
+				}));
+	}
+
+	private void testFutureContinuation(BiFunction<CompletableFuture<?>, Executor, CompletableFuture<?>> testFunctionGenerator) {
+
+		CompletableFuture<?> startFuture = new CompletableFuture<>();
+		final AtomicBoolean runWithExecutor = new AtomicBoolean(false);
+
+		Executor executor = r -> {
+			r.run();
+			runWithExecutor.set(true);
+		};
+
+		// branch for a start future that has not completed
+		CompletableFuture<?> continuationFuture = testFunctionGenerator.apply(startFuture, executor);
+		Assert.assertFalse(continuationFuture.isDone());
+
+		startFuture.complete(null);
+
+		Assert.assertTrue(runWithExecutor.get());
+		Assert.assertTrue(continuationFuture.isDone());
+
+		// branch for a start future that was completed
+		runWithExecutor.set(false);
+
+		continuationFuture = testFunctionGenerator.apply(startFuture, executor);
+
+		Assert.assertFalse(runWithExecutor.get());
+		Assert.assertTrue(continuationFuture.isDone());
 	}
 
 	private static class TestingUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
