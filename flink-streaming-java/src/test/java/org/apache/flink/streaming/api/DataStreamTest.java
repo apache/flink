@@ -474,6 +474,8 @@ public class DataStreamTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
+		assertEquals(1, src.getParallelism());
+		assertEquals(1, src.getTransformation().getMaxParallelism());
 		env.setParallelism(10);
 
 		SingleOutputStreamOperator<Long> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {

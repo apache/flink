@@ -41,6 +41,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 		this.isParallel = isParallel;
 		if (!isParallel) {
 			setParallelism(1);
+			setMaxParallelism(1);
 		}
 	}
 

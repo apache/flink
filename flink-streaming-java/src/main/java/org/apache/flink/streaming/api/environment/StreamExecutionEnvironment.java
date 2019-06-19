@@ -819,7 +819,7 @@ public abstract class StreamExecutionEnvironment {
 		catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
-		return addSource(function, "Collection Source", typeInfo).setParallelism(1);
+		return addSource(function, "Collection Source", typeInfo);
 	}
 
 	/**
