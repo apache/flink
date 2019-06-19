@@ -24,7 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.FunctionLookup
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
-import org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind
+import org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.FunctionKind.{SCALAR, TABLE}
@@ -43,11 +43,15 @@ import _root_.scala.collection.JavaConverters._
 
 /**
   * Builder for [[[Operation]] tree.
+  *
+  * The operation tree builder resolves expressions such that factories only work with fully
+  * [[ResolvedExpression]]s.
   */
 class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] = tableEnv.expressionBridge
   private val functionCatalog: FunctionLookup = tableEnv.functionCatalog
+  private val lookupResolver = new LookupCallResolver(tableEnv.functionCatalog)
 
   private val isStreaming = tableEnv.isInstanceOf[StreamTableEnvImpl]
   private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
@@ -101,10 +105,15 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
     validateProjectList(projectList, overWindows)
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).withOverWindows(overWindows)
+    val resolver = resolverFor(tableCatalog, functionCatalog, child)
+      .withOverWindows(overWindows)
       .build
     val projections = resolver.resolve(projectList)
-    projectionOperationFactory.create(projections, child, explicitAlias)
+    projectionOperationFactory.create(
+      projections,
+      child,
+      explicitAlias,
+      resolver.postResolverFactory())
   }
 
   /**
@@ -117,8 +126,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       overWindows: JList[OverWindow])
     : Unit = {
 
-    val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
-    val expressionsWithResolvedCalls = projectList.map(_.accept(callResolver)).asJava
+    val expressionsWithResolvedCalls = projectList.map(_.accept(lookupResolver)).asJava
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
     if (!extracted.getWindowProperties.isEmpty) {
       throw new ValidationException("Window properties can only be used on windowed tables.")
@@ -153,22 +161,29 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       child: QueryOperation)
     : QueryOperation = {
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolver = resolverFor(tableCatalog, functionCatalog, child)
+      .build
+
     val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
-    val validateAliases =
-      ColumnOperationUtils.renameColumns(inputFieldNames, resolver.resolve(aliases))
+    val validateAliases = ColumnOperationUtils.renameColumns(
+      inputFieldNames,
+      resolver.resolveExpanding(aliases))
 
     project(validateAliases, child)
   }
 
   def dropColumns(
-      fieldLists: JList[Expression],
+      fieldList: JList[Expression],
       child: QueryOperation)
     : QueryOperation = {
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
+    val resolver = resolverFor(tableCatalog, functionCatalog, child)
+      .build
+
     val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
-    val finalFields = ColumnOperationUtils.dropFields(inputFieldNames, resolver.resolve(fieldLists))
+    val finalFields = ColumnOperationUtils.dropFields(
+      inputFieldNames,
+      resolver.resolveExpanding(fieldList))
 
     project(finalFields, child)
   }
@@ -195,8 +210,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       aggregate: Expression,
       child: QueryOperation)
     : QueryOperation = {
-    // resolve for java string case, i.e., turn LookupCallExpression to CallExpression.
-    val resolvedAggregate = this.resolveExpression(aggregate, child)
+    val resolvedAggregate = aggregate.accept(lookupResolver)
 
     // extract alias and aggregate function
     var alias: Seq[String] = Seq()
@@ -383,7 +397,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
   private def resolveSingleExpression(
       expression: Expression,
       resolver: ExpressionResolver)
-    : Expression = {
+    : ResolvedExpression = {
     val resolvedExpression = resolver.resolve(List(expression).asJava)
     if (resolvedExpression.size() != 1) {
       throw new ValidationException("Expected single expression")
@@ -400,7 +414,7 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedFields = resolver.resolve(fields)
 
-    sortOperationFactory.createSort(resolvedFields, child)
+    sortOperationFactory.createSort(resolvedFields, child, resolver.postResolverFactory())
   }
 
   def limitWithOffset(offset: Int, child: QueryOperation): QueryOperation = {
@@ -469,11 +483,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   def map(mapFunction: Expression, child: QueryOperation): QueryOperation = {
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
-    val resolvedMapFunction = resolveSingleExpression(mapFunction, resolver)
+    val resolvedMapFunction = mapFunction.accept(lookupResolver)
 
     if (!isFunctionOfKind(resolvedMapFunction, SCALAR)) {
-      throw new ValidationException("Only ScalarFunction can be used in the map operator.")
+      throw new ValidationException("Only a scalar function can be used in the map operator.")
     }
 
     val expandedFields = unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction)
@@ -482,11 +495,10 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
 
   def flatMap(tableFunction: Expression, child: QueryOperation): QueryOperation = {
 
-    val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
-    val resolvedTableFunction = resolveSingleExpression(tableFunction, resolver)
+    val resolvedTableFunction = tableFunction.accept(lookupResolver)
 
     if (!isFunctionOfKind(resolvedTableFunction, TABLE)) {
-      throw new ValidationException("Only TableFunction can be used in the flatMap operator.")
+      throw new ValidationException("Only a table function can be used in the flatMap operator.")
     }
 
     val originFieldNames: Seq[String] =

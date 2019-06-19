@@ -26,11 +26,13 @@ import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.CatalogReader;
 import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.Aggregation;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.RexPlannerExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.WindowReference;
@@ -90,9 +92,9 @@ import scala.Some;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
@@ -330,7 +332,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			return expressionBridge.bridge(expression).toRexNode(relBuilder);
 		}
 
-		private List<RexNode> convertToRexNodes(List<Expression> expressions) {
+		private List<RexNode> convertToRexNodes(List<ResolvedExpression> expressions) {
 			return expressions
 				.stream()
 				.map(expressionBridge::bridge)
@@ -387,7 +389,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		private static final int numberOfJoinInputs = 2;
 
 		@Override
-		public RexNode visit(UnresolvedCallExpression unresolvedCall) {
+		public RexNode visit(CallExpression unresolvedCall) {
 			final Expression[] newChildren = unresolvedCall.getChildren().stream().map(expr -> {
 				RexNode convertedNode = expr.accept(this);
 				return (Expression) new RexPlannerExpression(convertedNode);
@@ -411,7 +413,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	private class AggregateVisitor extends ExpressionDefaultVisitor<AggCall> {
 
 		@Override
-		public AggCall visit(UnresolvedCallExpression unresolvedCall) {
+		public AggCall visit(CallExpression unresolvedCall) {
 			if (unresolvedCall.getFunctionDefinition() == AS) {
 				String aggregateName = extractValue(unresolvedCall.getChildren().get(1), String.class)
 					.orElseThrow(() -> new TableException("Unexpected name."));
@@ -433,7 +435,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 	private class TableAggregateVisitor extends AggregateVisitor {
 		@Override
-		public AggCall visit(UnresolvedCallExpression unresolvedCall) {
+		public AggCall visit(CallExpression unresolvedCall) {
 			if (isFunctionOfKind(unresolvedCall, TABLE_AGGREGATE)) {
 				AggFunctionCall aggFunctionCall = (AggFunctionCall) expressionBridge.bridge(unresolvedCall);
 				return aggFunctionCall.toAggCall(aggFunctionCall.toString(), false, relBuilder);

@@ -332,11 +332,7 @@ object HashAggCodeGenHelper {
       argsMapping: Array[Array[(Int, LogicalType)]],
       aggBuffMapping: Array[Array[(Int, LogicalType)]]) extends ExpressionVisitor[Expression] {
 
-    override def visit(unresolvedCall: UnresolvedCallExpression): Expression = {
-      ApiExpressionUtils.unresolvedCall(
-        unresolvedCall.getFunctionDefinition,
-        unresolvedCall.getChildren.map(_.accept(this)): _*)
-    }
+    override def visit(call: CallExpression): Expression = ???
 
     override def visit(valueLiteralExpression: ValueLiteralExpression): Expression = {
       valueLiteralExpression
@@ -348,6 +344,13 @@ object HashAggCodeGenHelper {
 
     override def visit(typeLiteral: TypeLiteralExpression): Expression = {
       typeLiteral
+    }
+
+    private def visitUnresolvedCallExpression(
+        unresolvedCall: UnresolvedCallExpression): Expression = {
+      ApiExpressionUtils.unresolvedCall(
+        unresolvedCall.getFunctionDefinition,
+        unresolvedCall.getChildren.map(_.accept(this)): _*)
     }
 
     private def visitUnresolvedFieldReference(
@@ -371,6 +374,7 @@ object HashAggCodeGenHelper {
     override def visit(other: Expression): Expression = {
       other match {
         case u : UnresolvedReferenceExpression => visitUnresolvedFieldReference(u)
+        case u : UnresolvedCallExpression => visitUnresolvedCallExpression(u)
         case _ => other
       }
     }

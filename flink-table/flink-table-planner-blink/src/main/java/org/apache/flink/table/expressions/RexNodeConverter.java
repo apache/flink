@@ -67,6 +67,8 @@ import static org.apache.flink.table.typeutils.TypeCheckUtils.isVarchar;
 
 /**
  * Visit expression to generator {@link RexNode}.
+ *
+ * <p>TODO actually we should use {@link ResolvedExpressionVisitor} here as it is the output of the API
  */
 public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
@@ -78,35 +80,42 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
 	}
 
-	@Override
-	public RexNode visit(UnresolvedCallExpression unresolvedCall) {
-		switch (unresolvedCall.getFunctionDefinition().getKind()) {
+	public RexNode visit(UnresolvedCallExpression call) {
+		switch (call.getFunctionDefinition().getKind()) {
 			case SCALAR:
-				return visitScalarFunc(unresolvedCall);
+				return translateScalarCall(call.getFunctionDefinition(), call.getChildren());
 			default: throw new UnsupportedOperationException();
 		}
 	}
 
-	private List<RexNode> convertCallChildren(UnresolvedCallExpression unresolvedCall) {
-		return unresolvedCall.getChildren().stream()
+	@Override
+	public RexNode visit(CallExpression call) {
+		switch (call.getFunctionDefinition().getKind()) {
+			case SCALAR:
+				return translateScalarCall(call.getFunctionDefinition(), call.getChildren());
+			default: throw new UnsupportedOperationException();
+		}
+	}
+
+	private List<RexNode> convertCallChildren(List<Expression> children) {
+		return children.stream()
 				.map(expression -> expression.accept(RexNodeConverter.this))
 				.collect(Collectors.toList());
 	}
 
-	private RexNode visitScalarFunc(UnresolvedCallExpression unresolvedCall) {
-		FunctionDefinition def = unresolvedCall.getFunctionDefinition();
+	private RexNode translateScalarCall(FunctionDefinition def, List<Expression> children) {
 
-		if (unresolvedCall.getFunctionDefinition().equals(BuiltInFunctionDefinitions.CAST)) {
-			RexNode child = unresolvedCall.getChildren().get(0).accept(this);
-			TypeLiteralExpression type = (TypeLiteralExpression) unresolvedCall.getChildren().get(1);
+		if (def.equals(BuiltInFunctionDefinitions.CAST)) {
+			RexNode child = children.get(0).accept(this);
+			TypeLiteralExpression type = (TypeLiteralExpression) children.get(1);
 			return relBuilder.getRexBuilder().makeAbstractCast(
 					typeFactory.createFieldTypeFromLogicalType(
 							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
 					child);
-		} else if (unresolvedCall.getFunctionDefinition().equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
-			RexNode child = unresolvedCall.getChildren().get(0).accept(this);
-			TypeLiteralExpression type = (TypeLiteralExpression) unresolvedCall.getChildren().get(1);
-			RexNode checkOverflow = unresolvedCall.getChildren().get(2).accept(this);
+		} else if (def.equals(BuiltInFunctionDefinitions.REINTERPRET_CAST)) {
+			RexNode child = children.get(0).accept(this);
+			TypeLiteralExpression type = (TypeLiteralExpression) children.get(1);
+			RexNode checkOverflow = children.get(2).accept(this);
 			return relBuilder.getRexBuilder().makeReinterpretCast(
 					typeFactory.createFieldTypeFromLogicalType(
 							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
@@ -114,7 +123,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 					checkOverflow);
 		}
 
-		List<RexNode> child = convertCallChildren(unresolvedCall);
+		List<RexNode> child = convertCallChildren(children);
 		if (BuiltInFunctionDefinitions.IF.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.CASE, child);
 		} else if (BuiltInFunctionDefinitions.IS_NULL.equals(def)) {
@@ -174,11 +183,11 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	@Override
-	public RexNode visit(ValueLiteralExpression expr) {
-		LogicalType type = fromDataTypeToLogicalType(expr.getOutputDataType());
+	public RexNode visit(ValueLiteralExpression valueLiteral) {
+		LogicalType type = fromDataTypeToLogicalType(valueLiteral.getOutputDataType());
 		RexBuilder rexBuilder = relBuilder.getRexBuilder();
 		FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
-		if (expr.isNull()) {
+		if (valueLiteral.isNull()) {
 			return relBuilder.getRexBuilder()
 					.makeCast(
 							typeFactory.createFieldTypeFromLogicalType(type),
@@ -187,45 +196,45 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 		if (type instanceof DecimalType) {
 			DecimalType dt = (DecimalType) type;
-			BigDecimal bigDecimal = extractValue(expr, BigDecimal.class);
+			BigDecimal bigDecimal = extractValue(valueLiteral, BigDecimal.class);
 			RelDataType decType = relBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
 					dt.getPrecision(), dt.getScale());
 			return relBuilder.getRexBuilder().makeExactLiteral(bigDecimal, decType);
 		} else if (type instanceof BigIntType) {
 			// create BIGINT literals for long type
-			BigDecimal bigint = extractValue(expr, BigDecimal.class);
+			BigDecimal bigint = extractValue(valueLiteral, BigDecimal.class);
 			return relBuilder.getRexBuilder().makeBigintLiteral(bigint);
 		} else if (type instanceof FloatType) {
 			//Float/Double type should be liked as java type here.
 			return relBuilder.getRexBuilder().makeApproxLiteral(
-					extractValue(expr, BigDecimal.class),
+					extractValue(valueLiteral, BigDecimal.class),
 					relBuilder.getTypeFactory().createSqlType(SqlTypeName.FLOAT));
 		} else if (type instanceof DoubleType) {
 			//Float/Double type should be liked as java type here.
 			return rexBuilder.makeApproxLiteral(
-					extractValue(expr, BigDecimal.class),
+					extractValue(valueLiteral, BigDecimal.class),
 					relBuilder.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
 		} else if (type instanceof DateType) {
 			return relBuilder.getRexBuilder().makeDateLiteral(
-					DateString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Date.class))));
+					DateString.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, java.sql.Date.class))));
 		} else if (type instanceof TimeType) {
 			return relBuilder.getRexBuilder().makeTimeLiteral(
-					TimeString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Time.class))), 0);
+					TimeString.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
 		} else if (type instanceof TimestampType) {
 			return relBuilder.getRexBuilder().makeTimestampLiteral(
-					TimestampString.fromCalendarFields(valueAsCalendar(extractValue(expr, java.sql.Timestamp.class))), 3);
+					TimestampString.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, java.sql.Timestamp.class))), 3);
 		} else if (type instanceof YearMonthIntervalType) {
-			BigDecimal interval = BigDecimal.valueOf(extractValue(expr, Integer.class));
+			BigDecimal interval = BigDecimal.valueOf(extractValue(valueLiteral, Integer.class));
 			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
 					TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO);
 			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
 		} else if (type instanceof DayTimeIntervalType) {
-			BigDecimal interval = BigDecimal.valueOf(extractValue(expr, Long.class));
+			BigDecimal interval = BigDecimal.valueOf(extractValue(valueLiteral, Long.class));
 			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
 					TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO);
 			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
 		} else {
-			return relBuilder.literal(extractValue(expr, Object.class));
+			return relBuilder.literal(extractValue(valueLiteral, Object.class));
 		}
 	}
 
@@ -288,6 +297,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return visitResolvedAggLocalReference((ResolvedAggLocalReference) other);
 		} else if (other instanceof ResolvedDistinctKeyReference) {
 			return visitResolvedDistinctKeyReference((ResolvedDistinctKeyReference) other);
+		} else if (other instanceof UnresolvedCallExpression) {
+			return visit((UnresolvedCallExpression) other);
 		} else {
 			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
 		}

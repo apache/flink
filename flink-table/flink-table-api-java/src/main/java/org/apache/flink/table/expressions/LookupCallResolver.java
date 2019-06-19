@@ -21,11 +21,9 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.List;
-
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import java.util.stream.Collectors;
 
 /**
  * Resolves calls with function names to calls with actual function definitions.
@@ -43,20 +41,21 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
 		final FunctionLookup.Result result = functionLookup.lookupFunction(lookupCall.getUnresolvedName())
 			.orElseThrow(() -> new ValidationException("Undefined function: " + lookupCall.getUnresolvedName()));
 
-		return createResolvedCall(result.getFunctionDefinition(), lookupCall.getChildren());
+		return new UnresolvedCallExpression(
+			result.getObjectIdentifier(),
+			result.getFunctionDefinition(),
+			resolveChildren(lookupCall.getChildren()));
 	}
 
 	public Expression visit(UnresolvedCallExpression unresolvedCall) {
-		return createResolvedCall(unresolvedCall.getFunctionDefinition(), unresolvedCall.getChildren());
+		return unresolvedCall.replaceArgs(resolveChildren(unresolvedCall.getChildren()));
 	}
 
-	private Expression createResolvedCall(FunctionDefinition functionDefinition, List<Expression> unresolvedChildren) {
-		final Expression[] resolvedChildren = unresolvedChildren
+	private List<Expression> resolveChildren(List<Expression> lookupChildren) {
+		return lookupChildren
 			.stream()
 			.map(child -> child.accept(this))
-			.toArray(Expression[]::new);
-
-		return unresolvedCall(functionDefinition, resolvedChildren);
+			.collect(Collectors.toList());
 	}
 
 	@Override

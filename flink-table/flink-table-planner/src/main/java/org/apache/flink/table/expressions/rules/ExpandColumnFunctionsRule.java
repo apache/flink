@@ -148,10 +148,10 @@ final class ExpandColumnFunctionsRule implements ResolverRule {
 		}
 
 		@Override
-		public List<UnresolvedReferenceExpression> visit(ValueLiteralExpression valueLiteralExpression) {
-			return ExpressionUtils.extractValue(valueLiteralExpression, Integer.class)
+		public List<UnresolvedReferenceExpression> visit(ValueLiteralExpression valueLiteral) {
+			return ExpressionUtils.extractValue(valueLiteral, Integer.class)
 				.map(i -> Collections.singletonList(inputFieldReferences.get(i - 1)))
-				.orElseGet(() -> defaultMethod(valueLiteralExpression));
+				.orElseGet(() -> defaultMethod(valueLiteral));
 		}
 
 		@Override

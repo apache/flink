@@ -46,7 +46,7 @@ class TableImpl(
 
   private[flink] val operationTreeBuilder: OperationTreeBuilder = tableEnv.operationTreeBuilder
 
-  private[flink] val callResolver = new LookupCallResolver(tableEnv.functionCatalog)
+  private[flink] val lookupResolver = new LookupCallResolver(tableEnv.functionCatalog)
 
   private lazy val tableSchema: TableSchema = operationTree.getTableSchema
 
@@ -68,7 +68,7 @@ class TableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    val expressionsWithResolvedCalls = fields.map(_.accept(callResolver)).asJava
+    val expressionsWithResolvedCalls = fields.map(_.accept(lookupResolver)).asJava
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
 
     if (!extracted.getWindowProperties.isEmpty) {
@@ -123,7 +123,7 @@ class TableImpl(
   }
 
   override def filter(predicate: Expression): Table = {
-    val resolvedCallPredicate = predicate.accept(callResolver)
+    val resolvedCallPredicate = predicate.accept(lookupResolver)
     new TableImpl(tableEnv, operationTreeBuilder.filter(resolvedCallPredicate, operationTree))
   }
 
@@ -329,7 +329,7 @@ class TableImpl(
   }
 
   override def orderBy(fields: Expression*): Table = {
-    wrap(operationTreeBuilder.sort(fields.map(_.accept(callResolver)).asJava, operationTree))
+    wrap(operationTreeBuilder.sort(fields.map(_.accept(lookupResolver)).asJava, operationTree))
   }
 
   override def offset(offset: Int): Table = {
@@ -393,7 +393,7 @@ class TableImpl(
   }
 
   private def addColumnsOperation(replaceIfExist: Boolean, fields: Expression*): Table = {
-    val expressionsWithResolvedCalls = fields.map(_.accept(callResolver)).asJava
+    val expressionsWithResolvedCalls = fields.map(_.accept(lookupResolver)).asJava
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
 
     val aggNames = extracted.getAggregations
@@ -487,7 +487,7 @@ class GroupedTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.lookupResolver)).asJava
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
 
     if (!extracted.getWindowProperties.isEmpty) {
@@ -568,7 +568,7 @@ class FlatAggregateTableImpl(
       tableImpl.operationTreeBuilder.project(fields,
         tableImpl.operationTreeBuilder.tableAggregate(
           groupKey.asJava,
-          tableAggregateFunction.accept(tableImpl.callResolver),
+          tableAggregateFunction.accept(tableImpl.lookupResolver),
           tableImpl.operationTree
         )
       ))
@@ -614,7 +614,7 @@ class WindowGroupedTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver)).asJava
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.lookupResolver)).asJava
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
 
     new TableImpl(tableImpl.tableEnv,
@@ -659,7 +659,7 @@ class WindowFlatAggregateTableImpl(
   }
 
   override def select(fields: Expression*): Table = {
-    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.callResolver))
+    val expressionsWithResolvedCalls = fields.map(_.accept(tableImpl.lookupResolver))
     val extracted = extractAggregationsAndProperties(expressionsWithResolvedCalls)
 
     if (extracted.getAggregations.nonEmpty) {

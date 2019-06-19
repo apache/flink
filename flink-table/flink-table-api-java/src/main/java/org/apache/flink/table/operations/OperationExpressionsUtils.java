@@ -20,10 +20,12 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -35,22 +37,27 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 
 /**
  * Utility methods for transforming {@link Expression} to use them in {@link QueryOperation}s.
+ *
+ * <p>Note: Some of these utilities are intended to be used before expressions are fully resolved and
+ * some afterwards.
  */
 @Internal
 public class OperationExpressionsUtils {
 
-	private static final ExtractNameVisitor extractNameVisitor = new ExtractNameVisitor();
+	// --------------------------------------------------------------------------------------------
+	// Pre-expression resolution utils
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Container for extracted expressions of the same family.
@@ -105,38 +112,6 @@ public class OperationExpressionsUtils {
 		return new CategorizedExpressions(projections, aggregates, properties);
 	}
 
-	/**
-	 * Extracts names from given expressions if they have one. Expressions that have names are:
-	 * <ul>
-	 * <li>{@link FieldReferenceExpression}</li>
-	 * <li>{@link TableReferenceExpression}</li>
-	 * <li>{@link LocalReferenceExpression}</li>
-	 * <li>{@link BuiltInFunctionDefinitions#AS}</li>
-	 * </ul>
-	 *
-	 * @param expressions list of expressions to extract names from
-	 * @return corresponding list of optional names
-	 */
-	public static List<Optional<String>> extractNames(List<Expression> expressions) {
-		return expressions.stream().map(OperationExpressionsUtils::extractName).collect(Collectors.toList());
-	}
-
-	/**
-	 * Extracts name from given expression if it has one. Expressions that have names are:
-	 * <ul>
-	 * <li>{@link FieldReferenceExpression}</li>
-	 * <li>{@link TableReferenceExpression}</li>
-	 * <li>{@link LocalReferenceExpression}</li>
-	 * <li>{@link BuiltInFunctionDefinitions#AS}</li>
-	 * </ul>
-	 *
-	 * @param expression expression to extract name from
-	 * @return optional name of given expression
-	 */
-	public static Optional<String> extractName(Expression expression) {
-		return expression.accept(extractNameVisitor);
-	}
-
 	private static List<Expression> nameExpressions(Map<Expression, String> expressions) {
 		return expressions.entrySet()
 			.stream()
@@ -152,7 +127,7 @@ public class OperationExpressionsUtils {
 
 		@Override
 		public Void visit(LookupCallExpression unresolvedCall) {
-			throw new IllegalStateException("All calls should be resolved by now. Got: " + unresolvedCall);
+			throw new IllegalStateException("All lookup calls should be resolved by now. Got: " + unresolvedCall);
 		}
 
 		@Override
@@ -188,7 +163,12 @@ public class OperationExpressionsUtils {
 
 		@Override
 		public Expression visit(LookupCallExpression unresolvedCall) {
-			throw new IllegalStateException("All calls should be resolved by now. Got: " + unresolvedCall);
+			throw new IllegalStateException("All lookup calls should be resolved by now. Got: " + unresolvedCall);
+		}
+
+		@Override
+		public Expression visit(CallExpression call) {
+			throw new IllegalStateException("All calls should still be unresolved by now.");
 		}
 
 		@Override
@@ -212,11 +192,64 @@ public class OperationExpressionsUtils {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// utils that can be used both before and after resolution
+	// --------------------------------------------------------------------------------------------
+
+	private static final ExtractNameVisitor extractNameVisitor = new ExtractNameVisitor();
+
+	/**
+	 * Extracts names from given expressions if they have one. Expressions that have names are:
+	 * <ul>
+	 * <li>{@link FieldReferenceExpression}</li>
+	 * <li>{@link TableReferenceExpression}</li>
+	 * <li>{@link LocalReferenceExpression}</li>
+	 * <li>{@link BuiltInFunctionDefinitions#AS}</li>
+	 * </ul>
+	 *
+	 * @param expressions list of expressions to extract names from
+	 * @return corresponding list of optional names
+	 */
+	public static List<Optional<String>> extractNames(List<ResolvedExpression> expressions) {
+		return expressions.stream().map(OperationExpressionsUtils::extractName).collect(Collectors.toList());
+	}
+
+	/**
+	 * Extracts name from given expression if it has one. Expressions that have names are:
+	 * <ul>
+	 * <li>{@link FieldReferenceExpression}</li>
+	 * <li>{@link TableReferenceExpression}</li>
+	 * <li>{@link LocalReferenceExpression}</li>
+	 * <li>{@link BuiltInFunctionDefinitions#AS}</li>
+	 * </ul>
+	 *
+	 * @param expression expression to extract name from
+	 * @return optional name of given expression
+	 */
+	public static Optional<String> extractName(Expression expression) {
+		return expression.accept(extractNameVisitor);
+	}
+
 	private static class ExtractNameVisitor extends ApiExpressionDefaultVisitor<Optional<String>> {
+
+		@Override
+		public Optional<String> visit(LookupCallExpression lookupCall) {
+			throw new IllegalStateException("All lookup calls should be resolved by now.");
+		}
+
 		@Override
 		public Optional<String> visit(UnresolvedCallExpression unresolvedCall) {
 			if (unresolvedCall.getFunctionDefinition() == AS) {
 				return extractValue(unresolvedCall.getChildren().get(1), String.class);
+			} else {
+				return Optional.empty();
+			}
+		}
+
+		@Override
+		public Optional<String> visit(CallExpression call) {
+			if (call.getFunctionDefinition() == AS) {
+				return extractValue(call.getChildren().get(1), String.class);
 			} else {
 				return Optional.empty();
 			}

@@ -23,8 +23,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -118,8 +118,8 @@ public final class ColumnOperationUtils {
 	private static class DropColumnsExtractor extends ApiExpressionDefaultVisitor<String> {
 
 		@Override
-		public String visit(FieldReferenceExpression fieldReference) {
-			return fieldReference.getName();
+		public String visit(UnresolvedReferenceExpression unresolvedReference) {
+			return unresolvedReference.getName();
 		}
 
 		@Override
@@ -129,12 +129,13 @@ public final class ColumnOperationUtils {
 	}
 
 	private static class RenameColumnExtractor extends ApiExpressionDefaultVisitor<String> {
+
 		@Override
 		public String visit(UnresolvedCallExpression unresolvedCall) {
 			if (unresolvedCall.getFunctionDefinition() == AS &&
-				unresolvedCall.getChildren().get(0) instanceof FieldReferenceExpression) {
-				FieldReferenceExpression resolvedFieldReference = (FieldReferenceExpression) unresolvedCall.getChildren()
-					.get(0);
+					unresolvedCall.getChildren().get(0) instanceof UnresolvedReferenceExpression) {
+				UnresolvedReferenceExpression resolvedFieldReference =
+					(UnresolvedReferenceExpression) unresolvedCall.getChildren().get(0);
 				return resolvedFieldReference.getName();
 			} else {
 				return defaultMethod(unresolvedCall);
@@ -143,8 +144,11 @@ public final class ColumnOperationUtils {
 
 		@Override
 		protected String defaultMethod(Expression expression) {
-			throw new ValidationException(format("Unexpected field expression type [%s]. " +
-				"Renaming must add an alias to the original field, e.g., a as a1.", expression));
+			throw new ValidationException(
+				format(
+					"Invalid alias for a renaming column operation. Renaming must add an alias to an" +
+						"existing field. E.g.: 'a as a1'. But was: %s",
+				expression));
 		}
 	}
 

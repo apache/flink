@@ -22,13 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 
@@ -72,7 +72,7 @@ public class JoinOperationFactory {
 			QueryOperation left,
 			QueryOperation right,
 			JoinType joinType,
-			Expression condition,
+			ResolvedExpression condition,
 			boolean correlated) {
 		verifyConditionType(condition);
 		validateNamesAmbiguity(left, right);
@@ -80,7 +80,7 @@ public class JoinOperationFactory {
 		return new JoinQueryOperation(left, right, joinType, condition, correlated);
 	}
 
-	private void validateCondition(QueryOperation right, JoinType joinType, Expression condition, boolean correlated) {
+	private void validateCondition(QueryOperation right, JoinType joinType, ResolvedExpression condition, boolean correlated) {
 		boolean alwaysTrue = ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
 
 		if (alwaysTrue) {
@@ -98,7 +98,7 @@ public class JoinOperationFactory {
 		}
 	}
 
-	private void verifyConditionType(Expression condition) {
+	private void verifyConditionType(ResolvedExpression condition) {
 		PlannerExpression plannerExpression = expressionBridge.bridge(condition);
 		TypeInformation<?> conditionType = plannerExpression.resultType();
 		if (conditionType != Types.BOOLEAN) {
@@ -116,28 +116,28 @@ public class JoinOperationFactory {
 		}
 	}
 
-	private class EquiJoinExistsChecker extends ApiExpressionDefaultVisitor<Boolean> {
+	private class EquiJoinExistsChecker extends ResolvedExpressionDefaultVisitor<Boolean> {
 
 		@Override
-		public Boolean visit(UnresolvedCallExpression unresolvedCall) {
-			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.EQUALS) {
-				return isJoinCondition(unresolvedCall.getChildren().get(0), unresolvedCall.getChildren().get(1));
-			} else if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.OR) {
+		public Boolean visit(CallExpression call) {
+			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.EQUALS) {
+				return isJoinCondition(call.getResolvedChildren().get(0), call.getResolvedChildren().get(1));
+			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OR) {
 				return false;
-			} else if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.AND) {
-				return unresolvedCall.getChildren().get(0).accept(this) || unresolvedCall.getChildren().get(1).accept(this);
+			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AND) {
+				return call.getChildren().get(0).accept(this) || call.getChildren().get(1).accept(this);
 			}
 
 			return false;
 		}
 
 		@Override
-		protected Boolean defaultMethod(Expression expression) {
+		protected Boolean defaultMethod(ResolvedExpression expression) {
 			return false;
 		}
 	}
 
-	private boolean isJoinCondition(Expression left, Expression right) {
+	private boolean isJoinCondition(ResolvedExpression left, ResolvedExpression right) {
 		if (left instanceof FieldReferenceExpression && right instanceof FieldReferenceExpression) {
 			return ((FieldReferenceExpression) left).getInputIndex() !=
 				((FieldReferenceExpression) right).getInputIndex();

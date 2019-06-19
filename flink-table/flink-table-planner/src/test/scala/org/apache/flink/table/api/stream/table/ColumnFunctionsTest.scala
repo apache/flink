@@ -19,13 +19,13 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Over, Slide, Table}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Over, Slide, Table}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableFunc0, TableTestBase}
+import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit.Test
 
 /**
