@@ -241,15 +241,19 @@ public class HiveCatalog extends AbstractCatalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
-		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
-
-		try {
-			CatalogDatabase existingDatabase = getDatabase(databaseName);
-			client.alterDatabase(databaseName, newHiveDatabase);
-		} catch (DatabaseNotExistException e) {
+		// client.alterDatabase doesn't throw any exception if there is no existing database
+		if (!databaseExists(databaseName)) {
 			if (!ignoreIfNotExists) {
 				throw new DatabaseNotExistException(getName(), databaseName);
 			}
+
+			return;
+		}
+
+		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
+
+		try {
+			client.alterDatabase(databaseName, newHiveDatabase);
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
