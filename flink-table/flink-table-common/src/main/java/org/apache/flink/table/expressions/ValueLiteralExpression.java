@@ -72,38 +72,6 @@ public final class ValueLiteralExpression implements Expression {
 		return dataType;
 	}
 
-	@Override
-	public List<Expression> getChildren() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ValueLiteralExpression that = (ValueLiteralExpression) o;
-		return Objects.equals(value, that.value) && dataType.equals(that.dataType);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(value, dataType);
-	}
-
-	@Override
-	public String toString() {
-		return stringifyValue(value);
-	}
-
 	public boolean isNull() {
 		return value == null;
 	}
@@ -187,6 +155,43 @@ public final class ValueLiteralExpression implements Expression {
 		// we can offer more conversions in the future, these conversions must not necessarily
 		// comply with the logical type conversions
 		return Optional.ofNullable((T) convertedValue);
+	}
+
+	@Override
+	public String asSummaryString() {
+		return stringifyValue(value);
+	}
+
+	@Override
+	public List<Expression> getChildren() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public <R> R accept(ExpressionVisitor<R> visitor) {
+		return visitor.visit(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ValueLiteralExpression that = (ValueLiteralExpression) o;
+		return Objects.equals(value, that.value) && dataType.equals(that.dataType);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(value, dataType);
+	}
+
+	@Override
+	public String toString() {
+		return asSummaryString();
 	}
 
 	// --------------------------------------------------------------------------------------------
