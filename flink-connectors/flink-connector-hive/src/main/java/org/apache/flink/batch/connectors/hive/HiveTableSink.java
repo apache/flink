@@ -32,8 +32,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -79,15 +77,14 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 	@Override
 	public OutputFormat<Row> getOutputFormat() {
 		boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
-		// TODO: need PartitionableTableSink to decide
+		// TODO: need PartitionableTableSink to decide whether it's dynamic partitioning
 		boolean isDynamicPartition = isPartitioned;
-		HiveTablePartition hiveTablePartition;
-		HiveTableOutputFormat outputFormat;
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			Table table = client.getTable(dbName, tableName);
 			StorageDescriptor sd = table.getSd();
 			// here we use the sdLocation to store the output path of the job, which is always a staging dir
 			String sdLocation = sd.getLocation();
+			HiveTablePartition hiveTablePartition;
 			if (isPartitioned) {
 				// TODO: validate partition spec
 				// TODO: strip quotes in partition values
@@ -98,7 +95,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 					if (!strippedPartSpec.isEmpty()) {
 						path.add(Warehouse.makePartName(strippedPartSpec, false));
 					}
-					sdLocation = Joiner.on(Path.SEPARATOR).join(path);
+					sdLocation = String.join(Path.SEPARATOR, path);
 				} else {
 					List<Partition> partitions = client.listPartitions(dbName, tableName,
 							new ArrayList<>(strippedPartSpec.values()), (short) 1);
@@ -112,14 +109,13 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 				sd.setLocation(toStagingDir(sdLocation, jobConf));
 				hiveTablePartition = new HiveTablePartition(sd, null);
 			}
-			outputFormat = new HiveTableOutputFormat(jobConf, dbName, tableName,
+			return new HiveTableOutputFormat(jobConf, dbName, tableName,
 					partitionColumns, rowTypeInfo, hiveTablePartition, MetaStoreUtils.getTableMetadata(table), overwrite);
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create staging dir", e);
 		}
-		return outputFormat;
 	}
 
 	@Override
