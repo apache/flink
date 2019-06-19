@@ -15,6 +15,35 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.streaming.stream_execution_environment import StreamExecutionEnvironment
 
-__all__ = ['StreamExecutionEnvironment']
+"""
+Important classes of Flink Streaming API:
+
+    - :class:`StreamExecutionEnvironment`:
+      The context in which a streaming program is executed.
+    - :class:`CheckpointConfig`:
+      Configuration that captures all checkpointing related settings.
+    - :class:`StateBackend`:
+      Defines how the state of a streaming application is stored and checkpointed.
+"""
+from pyflink.streaming.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
+from pyflink.streaming.checkpointing_mode import CheckpointingMode
+from pyflink.streaming.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
+                                             RocksDBStateBackend, CustomStateBackend,
+                                             PredefinedOptions)
+from pyflink.streaming.stream_execution_environment import StreamExecutionEnvironment
+from pyflink.streaming.time_characteristic import TimeCharacteristic
+
+__all__ = [
+    'StreamExecutionEnvironment',
+    'CheckpointConfig',
+    'CheckpointingMode',
+    'StateBackend',
+    'MemoryStateBackend',
+    'FsStateBackend',
+    'RocksDBStateBackend',
+    'CustomStateBackend',
+    'PredefinedOptions',
+    'ExternalizedCheckpointCleanup',
+    'TimeCharacteristic'
+]

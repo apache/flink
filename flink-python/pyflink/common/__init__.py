@@ -15,30 +15,22 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
-from pyflink.common.checkpointing_mode import CheckpointingMode
+
+"""
+Important class of Flink Batch/Streaming API:
+
+    - :class:`ExecutionConfig`:
+      A config to define the behavior of the program execution.
+"""
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
-from pyflink.common.restart_strategy import RestartStrategies
-from pyflink.common.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
-                                          RocksDBStateBackend, CustomStateBackend,
-                                          PredefinedOptions)
-from pyflink.common.time_characteristic import TimeCharacteristic
+from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 
 __all__ = [
-    'CheckpointConfig',
-    'ExternalizedCheckpointCleanup',
-    'CheckpointingMode',
     'ExecutionConfig',
     'ExecutionMode',
     'InputDependencyConstraint',
     'RestartStrategies',
-    'StateBackend',
-    'MemoryStateBackend',
-    'FsStateBackend',
-    'RocksDBStateBackend',
-    'CustomStateBackend',
-    'PredefinedOptions',
-    'TimeCharacteristic'
+    'RestartStrategyConfiguration'
 ]

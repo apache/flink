@@ -15,9 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common import (MemoryStateBackend, FsStateBackend, RocksDBStateBackend,
-                            PredefinedOptions)
-from pyflink.common.state_backend import _from_j_state_backend, CustomStateBackend
+from pyflink.streaming.state_backend import (_from_j_state_backend, CustomStateBackend,
+                                             MemoryStateBackend, FsStateBackend,
+                                             RocksDBStateBackend, PredefinedOptions)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.utils import load_java_class

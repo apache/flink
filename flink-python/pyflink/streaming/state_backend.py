@@ -605,6 +605,8 @@ class RocksDBStateBackend(StateBackend):
         then the options from the factory are applied on top of the predefined and customized
         options.
 
+        .. seealso:: :func:`set_predefined_options`
+
         :return: Current predefined options.
         """
         j_predefined_options = self._j_rocks_db_state_backend.getPredefinedOptions()

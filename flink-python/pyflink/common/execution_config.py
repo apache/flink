@@ -255,8 +255,10 @@ class ExecutionConfig(object):
         Sets the restart strategy to be used for recovery.
         ::
 
-            >>> config = env.getConfig()
+            >>> config = env.get_config()
             >>> config.set_restart_strategy(RestartStrategies.fixed_delay_restart(10, 1000))
+
+        The restart strategy configurations are all created from :class:`RestartStrategies`.
 
         :param restart_strategy_configuration: Configuration defining the restart strategy to use.
         """
@@ -266,6 +268,8 @@ class ExecutionConfig(object):
     def get_restart_strategy(self):
         """
         Returns the restart strategy which has been set for the current job.
+
+        .. seealso:: :func:`set_restart_strategy`
 
         :return: The specified restart configuration.
         """
@@ -284,7 +288,11 @@ class ExecutionConfig(object):
 
             >>> config.set_execution_mode(ExecutionMode.BATCH)
 
-        :param execution_mode: The execution mode to use.
+        :param execution_mode: The execution mode to use. The execution mode could be
+                               :data:`ExecutionMode.PIPELINED`,
+                               :data:`ExecutionMode.PIPELINED_FORCED`,
+                               :data:`ExecutionMode.BATCH` or
+                               :data:`ExecutionMode.BATCH_FORCED`.
         """
         self._j_execution_config.setExecutionMode(
             ExecutionMode._to_j_execution_mode(execution_mode))
@@ -295,6 +303,8 @@ class ExecutionConfig(object):
         data exchanges are performed in a batch or on a pipelined manner.
 
         The default execution mode is :data:`ExecutionMode.PIPELINED`.
+
+        .. seealso:: :func:`set_execution_mode`
 
         :return: The execution mode for the program.
         """
@@ -313,7 +323,9 @@ class ExecutionConfig(object):
 
             >>> config.set_default_input_dependency_constraint(InputDependencyConstraint.ALL)
 
-        :param input_dependency_constraint: The input dependency constraint.
+        :param input_dependency_constraint: The input dependency constraint. The constraints could
+                                            be :data:`InputDependencyConstraint.ANY` or
+                                            :data:`InputDependencyConstraint.ALL`.
         """
         self._j_execution_config.setDefaultInputDependencyConstraint(
             InputDependencyConstraint._to_j_input_dependency_constraint(
@@ -326,7 +338,10 @@ class ExecutionConfig(object):
 
         The default constraint is :data:`InputDependencyConstraint.ANY`.
 
-        :return: The input dependency constraint of this job.
+        .. seealso:: :func:`set_default_input_dependency_constraint`
+
+        :return: The input dependency constraint of this job. The possible constraints are
+                 :data:`InputDependencyConstraint.ANY` and :data:`InputDependencyConstraint.ALL`.
         """
         j_input_dependency_constraint = self._j_execution_config\
             .getDefaultInputDependencyConstraint()

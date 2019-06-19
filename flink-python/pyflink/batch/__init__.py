@@ -15,6 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+"""
+Important class of Flink Batch API:
+
+    - :class:`ExecutionEnvironment`:
+    The ExecutionEnvironment is the context in which a batch program is executed.
+"""
 from pyflink.batch.execution_environment import ExecutionEnvironment
 
 __all__ = ['ExecutionEnvironment']

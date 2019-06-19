@@ -24,7 +24,7 @@ from py4j.java_gateway import get_java_class
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import to_j_flink_time, from_j_flink_time
 
-__all__ = ['RestartStrategies']
+__all__ = ['RestartStrategies', 'RestartStrategyConfiguration']
 
 if sys.version >= '3':
     long = int

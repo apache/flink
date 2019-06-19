@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common.checkpointing_mode import CheckpointingMode
+from pyflink.streaming.checkpointing_mode import CheckpointingMode
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CheckpointConfig', 'ExternalizedCheckpointCleanup']
@@ -65,6 +65,8 @@ class CheckpointConfig(object):
         """
         Gets the checkpointing mode (exactly-once vs. at-least-once).
 
+        .. seealso:: :func:`set_checkpointing_mode`
+
         :return: The :class:`CheckpointingMode`.
         """
         return CheckpointingMode._from_j_checkpointing_mode(
@@ -72,7 +74,8 @@ class CheckpointConfig(object):
 
     def set_checkpointing_mode(self, checkpointing_mode):
         """
-        Sets the checkpointing mode (exactly-once vs. at-least-once).
+        Sets the checkpointing mode (:data:`CheckpointingMode.EXACTLY_ONCE` vs.
+        :data:`CheckpointingMode.AT_LEAST_ONCE`).
 
         Example:
         ::
