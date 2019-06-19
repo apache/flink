@@ -19,6 +19,9 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PipelinedRegion;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,13 +30,28 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
- * Utility for computing pipeliend regions.
+ * Utility for computing pipelined regions.
  */
 public final class PipelinedRegionComputeUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
+
+	public static Set<PipelinedRegion> toPipelinedRegionsSet(final Set<Set<FailoverVertex>> distinctRegions) {
+		return distinctRegions.stream()
+			.map(toExecutionVertexIdSet())
+			.map(PipelinedRegion::from)
+			.collect(Collectors.toSet());
+	}
+
+	private static Function<Set<FailoverVertex>, Set<ExecutionVertexID>> toExecutionVertexIdSet() {
+		return failoverVertices -> failoverVertices.stream()
+			.map(FailoverVertex::getExecutionVertexID)
+			.collect(Collectors.toSet());
+	}
 
 	public static Set<Set<FailoverVertex>> computePipelinedRegions(final FailoverTopology topology) {
 		// currently we let a job with co-location constraints fail as one region
