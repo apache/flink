@@ -81,11 +81,11 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                        DataTypes.ARRAY(DataTypes.DOUBLE(False)),
                        DataTypes.ARRAY(DataTypes.STRING()),
                        DataTypes.ARRAY(DataTypes.DATE()),
-                       DataTypes.DECIMAL(),
+                       DataTypes.DECIMAL(10, 0),
                        DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
                                       DataTypes.FIELD("b", DataTypes.DOUBLE())]),
-                       DataTypes.MAP(DataTypes.VARCHAR(), DataTypes.DOUBLE()),
-                       DataTypes.VARBINARY(), ExamplePointUDT(),
+                       DataTypes.MAP(DataTypes.STRING(), DataTypes.DOUBLE()),
+                       DataTypes.BYTES(), ExamplePointUDT(),
                        PythonOnlyUDT()]
         table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
         t_env.register_table_sink("Results", table_sink)
