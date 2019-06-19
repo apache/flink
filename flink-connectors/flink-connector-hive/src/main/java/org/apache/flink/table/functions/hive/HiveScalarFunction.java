@@ -22,10 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
@@ -81,45 +79,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 	public void open(FunctionContext context) {
 		openInternal();
 
-		for (DataType dataType : argTypes) {
-			if (isPrimitiveArray(dataType)) {
-				throw new FlinkHiveUDFException("Flink doesn't support primitive array for Hive functions yet.");
-			}
-		}
-
-		isArgsSingleArray = argTypes.length == 1 && isArrayType(argTypes[0]);
-	}
-
-	private static boolean isPrimitiveArray(DataType dataType) {
-		if (isArrayType(dataType)) {
-			ArrayType arrayType = (ArrayType) dataType.getLogicalType();
-
-			LogicalType elementType = arrayType.getElementType();
-			return !(elementType.isNullable() || !isPrimitive(elementType));
-		} else {
-			return false;
-		}
-	}
-
-	private static boolean isArrayType(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot().equals(LogicalTypeRoot.ARRAY);
-	}
-
-	// This is copied from PlannerTypeUtils in flink-table-runtime-blink that we shouldn't depend on
-	// TODO: remove this and use the original code when it's moved to accessible, dependable module
-	private static boolean isPrimitive(LogicalType type) {
-		switch (type.getTypeRoot()) {
-			case BOOLEAN:
-			case TINYINT:
-			case SMALLINT:
-			case INTEGER:
-			case BIGINT:
-			case FLOAT:
-			case DOUBLE:
-				return true;
-			default:
-				return false;
-		}
+		isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
 	}
 
 	/**

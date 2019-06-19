@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -38,6 +39,8 @@ import org.apache.hadoop.hive.serde2.io.TimestampWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ConstantObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BooleanObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
@@ -93,6 +96,7 @@ import org.apache.hadoop.io.Text;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.List;
 
 
 /**
@@ -364,7 +368,25 @@ public class HiveInspectors {
 			// TODO: handle decimal type
 		}
 
-		// TODO: handle complex types like struct, list, and map
+		// TODO: handle complex types like list and map
+
+		if (inspector instanceof StandardStructObjectInspector) {
+			StandardStructObjectInspector structInspector = (StandardStructObjectInspector) inspector;
+
+			List<? extends StructField> fields = structInspector.getAllStructFieldRefs();
+
+			Row row = new Row(fields.size());
+			for (int i = 0; i < row.getArity(); i++) {
+				row.setField(
+					i,
+					toFlinkObject(
+						fields.get(i).getFieldObjectInspector(),
+						structInspector.getStructFieldData(data, fields.get(i)))
+				);
+			}
+
+			return row;
+		}
 
 		throw new FlinkHiveUDFException(
 			String.format("Unwrap does not support ObjectInspector '%s' yet", inspector));
