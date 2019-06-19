@@ -28,7 +28,7 @@ under the License.
 
 ## 任务和算子链
 
-分布式计算中，Flink 将算子（operator）的 subtask *链接（chain）*成 task。每个 task 由一个线程执行。把算子链接成 tasks 是一个很好的优化：它减少了线程间切换和缓冲的开销，并在降低延迟的同时提高了整体吞吐量。链接操作的配置详情可参考：[chaining docs](../dev/stream/operators/#task-chaining-and-resource-groups)
+分布式计算中，Flink 将算子（operator）的 subtask *链接（chain）*成 task。每个 task 由一个线程执行。把算子链接成 tasks 能够减少线程间切换和缓冲的开销，在降低延迟的同时提高了整体吞吐量。链接操作的配置详情可参考：[chaining docs](../dev/stream/operators/#task-chaining-and-resource-groups)
 
 下图的 dataflow 由五个 subtasks 执行，因此具有五个并行线程。
 
@@ -42,15 +42,15 @@ Flink 运行时包含两类进程：
 
   - **JobManagers** （也称为 *masters*）协调分布式计算。它们负责调度任务、协调 checkpoints、协调故障恢复等。
 
-    至少需要一个 JobManager。高可用部署下会有多个 JobManagers，其中一个作为 *leader*，其余处于 *standby* 状态。
+    每个 Job 至少会有一个 JobManager。高可用部署下会有多个 JobManagers，其中一个作为 *leader*，其余处于 *standby* 状态。
 
   - **TaskManagers**（也称为 *workers*）执行 dataflow 中的 *tasks*（准确来说是 subtasks ），并且缓存和交换数据 *streams*。
 
-    至少需要一个 TaskManager。
+    每个 Job 至少会有一个 TaskManager。
 
-JobManagers 和 TaskManagers 可由多种方式启动：可以直接在机器上启动（该集群称为 [standalone cluster](../ops/deployment/cluster_setup.html)），也可以在容器或资源管理框架，如 [YARN](../ops/deployment/yarn_setup.html) 或 [Mesos](../ops/deployment/mesos.html)，中启动。TaskManagers 连接到 JobManagers，通知后者自己可用，之后 TaskManagers 便可以被分配工作了。
+JobManagers 和 TaskManagers 有多种启动方式：直接在机器上启动（该集群称为 [standalone cluster](../ops/deployment/cluster_setup.html)），在容器或资源管理框架，如 [YARN](../ops/deployment/yarn_setup.html) 或 [Mesos](../ops/deployment/mesos.html)，中启动。TaskManagers 连接到 JobManagers，通知后者自己可用，然后开始接手被分配的工作。
 
-**客户端**不是运行时（runtime）和作业执行时的一部分，但它是被用来准备和发送 dataflow 到 JobManager 的。在那之后，客户端可以断开连接，也可以保持连接来接收进度报告。客户端既可以作为触发执行的 Java / Scala 程序的一部分，也可以在命令行进程中运行`./bin/flink run ...`。
+**客户端**虽然不是运行时（runtime）和作业执行时的一部分，但它是被用作准备和提交 dataflow 到 JobManager 的。提交完成之后，客户端可以断开连接，也可以保持连接来接收进度报告。客户端既可以作为触发执行的 Java / Scala 程序的一部分，也可以在命令行进程中运行`./bin/flink run ...`。
 
 <img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="80%" />
 
@@ -60,7 +60,7 @@ JobManagers 和 TaskManagers 可由多种方式启动：可以直接在机器上
 
 每个 worker（TaskManager）都是一个 *JVM 进程*，并且可以在不同的线程中执行一个或多个 subtasks。为了控制 worker 接收 task 的数量，worker 拥有所谓的  **task slots** （至少一个）。
 
-每个 *task slots*代表 TaskManager 的一份固定资源子集。例如，具有三个 slots 的 TaskManager 会将其管理的内存资源分成三等份给每个 slot。 划分资源意味着 subtask 之间不会竞争资源，但是也意味着它们只拥有固定的资源。注意这里并没有 CPU 隔离，当前 slots 之间只是划分任务的内存资源。
+每个 *task slots* 代表 TaskManager 的一份固定资源子集。例如，具有三个 slots 的 TaskManager 会将其管理的内存资源分成三等份给每个 slot。 划分资源意味着 subtask 之间不会竞争资源，但是也意味着它们只拥有固定的资源。注意这里并没有 CPU 隔离，当前 slots 之间只是划分任务的内存资源。
 
 通过调整 slot 的数量，用户可以决定 subtasks 的隔离方式。每个 TaskManager 有一个 slot 意味着每组 task 在一个单独的 JVM 中运行（例如，在一个单独的容器中启动）。拥有多个 slots 意味着多个 subtasks 共享同一个 JVM。 Tasks 在同一个 JVM 中共享 TCP 连接（通过多路复用技术）和心跳信息（heartbeat messages）。它们还可能共享数据集和数据结构，从而降低每个 task 的开销。
 
@@ -70,7 +70,7 @@ JobManagers 和 TaskManagers 可由多种方式启动：可以直接在机器上
 
   - Flink 集群需要与 job 中使用的最高并行度一样多的 slots。这样不需要计算作业总共包含多少个 tasks（具有不同并行度）。
 
-  - 更好的资源利用率。在没有 slot sharing 的情况下，轻松的 subtasks（*source/map()*）将会占用和繁重的 subtasks （*window*）一样多的资源。通过 slot sharing，将示例中的并行度从 2 增加到 6 可以充分利用 slot 的资源，同时确保繁重的 subtask 在 TaskManagers 之间公平地获取资源。
+  - 更好的资源利用率。在没有 slot sharing 的情况下，简单的 subtasks（*source/map()*）将会占用和复杂的 subtasks （*window*）一样多的资源。通过 slot sharing，将示例中的并行度从 2 增加到 6 可以充分利用 slot 的资源，同时确保繁重的 subtask 在 TaskManagers 之间公平地获取资源。
 
 <img src="{{ site.baseurl }}/fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
 
@@ -90,7 +90,7 @@ key/values 索引存储的数据结构取决于 [state backend](../ops/state/sta
 
 ## Savepoints
 
-用 Data Stream API 编写的程序可以从 **savepoint** 继续执行。 Savepoints 允许在不丢失任何状态的情况下修改程序和 Flink 集群。
+用 Data Stream API 编写的程序可以从 **savepoint** 继续执行。Savepoints 允许在不丢失任何状态的情况下升级程序和 Flink 集群。
 
 [Savepoints](../ops/state/savepoints.html) 是**手动触发的 checkpoints**，它依靠常规的 checkpoint 机制获取程序的快照并将其写入 state backend。在执行期间，程序会定期在 worker 节点上创建快照并生成 checkpoints。对于恢复，Flink 仅需要最后完成的 checkpoint，而一旦完成了新的 checkpoint，旧的就可以被丢弃。
 
