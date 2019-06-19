@@ -115,7 +115,7 @@ class BatchTableSourceScan(
     // check that declared and actual type of table source DataSet are identical
     if (inputDataType != producedDataType) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataSet of data type $producedDataType that does not match with the " +
+        s"returned a DataSet of data type $inputDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
