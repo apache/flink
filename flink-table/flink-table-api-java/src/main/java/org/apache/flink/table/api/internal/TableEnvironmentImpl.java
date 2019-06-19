@@ -98,8 +98,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		this.tableConfig = tableConfig;
 		this.tableConfig.addPlannerConfig(queryConfigProvider);
-		this.defaultCatalogName = tableConfig.getBuiltInCatalogName();
-		this.defaultDatabaseName = tableConfig.getBuiltInDatabaseName();
+		this.defaultCatalogName = catalogManager.getCurrentCatalog();
+		this.defaultDatabaseName = catalogManager.getCurrentDatabase();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;

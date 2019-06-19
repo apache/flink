@@ -170,8 +170,6 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         table_config.set_max_generated_code_length(32000)
         table_config.set_null_check(False)
         table_config.set_timezone("Asia/Shanghai")
-        table_config.set_built_in_catalog_name("test_catalog")
-        table_config.set_built_in_database_name("test_database")
 
         env = StreamExecutionEnvironment.get_execution_environment()
         t_env = StreamTableEnvironment.create(env, table_config)
@@ -181,8 +179,6 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_timezone(), "Asia/Shanghai")
-        self.assertEqual(table_config.get_built_in_catalog_name(), "test_catalog")
-        self.assertEqual(table_config.get_built_in_database_name(), "test_database")
 
 
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
@@ -208,22 +204,16 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         table_config.set_timezone("Asia/Shanghai")
         table_config.set_max_generated_code_length(64000)
         table_config.set_null_check(True)
-        table_config.set_built_in_catalog_name("test_catalog")
-        table_config.set_built_in_database_name("test_database")
 
         self.assertTrue(table_config.get_null_check())
         self.assertEqual(table_config.get_max_generated_code_length(), 64000)
         self.assertEqual(table_config.get_timezone(), "Asia/Shanghai")
-        self.assertEqual(table_config.get_built_in_catalog_name(), "test_catalog")
-        self.assertEqual(table_config.get_built_in_database_name(), "test_database")
 
     def test_create_table_environment(self):
         table_config = TableConfig()
         table_config.set_max_generated_code_length(32000)
         table_config.set_null_check(False)
         table_config.set_timezone("Asia/Shanghai")
-        table_config.set_built_in_catalog_name("test_catalog")
-        table_config.set_built_in_database_name("test_database")
 
         env = ExecutionEnvironment.get_execution_environment()
         t_env = BatchTableEnvironment.create(env, table_config)
@@ -233,5 +223,3 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_timezone(), "Asia/Shanghai")
-        self.assertEqual(readed_table_config.get_built_in_catalog_name(), "test_catalog")
-        self.assertEqual(readed_table_config.get_built_in_database_name(), "test_database")

@@ -16,54 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.internal;
+package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.factories.ComponentFactory;
 
-import java.lang.reflect.Constructor;
+import java.util.Map;
 
 /**
- * Factory to construct a {@link Planner}. It will look for the planner on the classpath.
+ * Factory that creates {@link Planner}.
+ *
+ * <p>This factory is used with Java's Service Provider Interfaces (SPI) for discovering. A factory is
+ * called with a set of normalized properties that describe the desired configuration. Those properties
+ * may include execution configurations such as watermark interval, max parallelism etc., table specific
+ * initialization configuration such as if the queries should be executed in batch mode.
  */
 @Internal
-public final class PlannerFactory {
+public interface PlannerFactory extends ComponentFactory {
 
 	/**
-	 * Looks up {@link Planner} on the class path via reflection.
+	 * Creates a corresponding {@link Planner}.
 	 *
+	 * @param properties Static properties of the {@link Planner}, the same that were used for factory lookup.
 	 * @param executor The executor required by the planner.
 	 * @param tableConfig The configuration of the planner to use.
 	 * @param functionCatalog The function catalog to look up user defined functions.
 	 * @param catalogManager The catalog manager to look up tables and views.
 	 * @return instance of a {@link Planner}
 	 */
-	public static Planner lookupPlanner(
-			Executor executor,
-			TableConfig tableConfig,
-			FunctionCatalog functionCatalog,
-			CatalogManager catalogManager) {
-		try {
-			Class<?> clazz = Class.forName("org.apache.flink.table.planner.StreamPlanner");
-			Constructor con = clazz.getConstructor(
-				Executor.class,
-				TableConfig.class,
-				FunctionCatalog.class,
-				CatalogManager.class);
-
-			return (Planner) con.newInstance(executor, tableConfig, functionCatalog, catalogManager);
-		} catch (Exception e) {
-			throw new TableException(
-				"Could not instantiate the planner. Make sure the planner module is on the classpath",
-				e);
-		}
-	}
-
-	private PlannerFactory() {
-	}
+	Planner create(
+		Map<String, String> properties,
+		Executor executor,
+		TableConfig tableConfig,
+		FunctionCatalog functionCatalog,
+		CatalogManager catalogManager);
 }

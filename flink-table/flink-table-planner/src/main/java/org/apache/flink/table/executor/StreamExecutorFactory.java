@@ -20,36 +20,59 @@ package org.apache.flink.table.executor;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Factory to create an implementation of {@link Executor} to use in a
  * {@link org.apache.flink.table.api.TableEnvironment}. The {@link org.apache.flink.table.api.TableEnvironment}
- * should use {@link #create()} method that does not bind to any particular environment,
+ * should use {@link #create(Map)} method that does not bind to any particular environment,
  * whereas {@link org.apache.flink.table.api.scala.StreamTableEnvironment} should use
- * {@link #create(StreamExecutionEnvironment)} as it is always backed by some {@link StreamExecutionEnvironment}
+ * {@link #create(Map, StreamExecutionEnvironment)} as it is always backed by
+ * some {@link StreamExecutionEnvironment}
  */
 @Internal
-public class ExecutorFactory {
+public class StreamExecutorFactory implements ExecutorFactory {
+
 	/**
-	 * Creates a {@link StreamExecutor} that is backed by given {@link StreamExecutionEnvironment}.
+	 * Creates a corresponding {@link StreamExecutor}.
 	 *
+	 * @param properties Static properties of the {@link Executor}, the same that were used for factory lookup.
 	 * @param executionEnvironment a {@link StreamExecutionEnvironment} to use while executing Table programs.
-	 * @return {@link StreamExecutor}
+	 * @return instance of a {@link Executor}
 	 */
-	public static Executor create(StreamExecutionEnvironment executionEnvironment) {
+	public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment) {
 		return new StreamExecutor(executionEnvironment);
 	}
 
-	/**
-	 * Creates a {@link StreamExecutor} that is backed by a default {@link StreamExecutionEnvironment}.
-	 *
-	 * @return {@link StreamExecutor}
-	 */
-	public static Executor create() {
+	@Override
+	public Executor create(Map<String, String> properties) {
 		return new StreamExecutor(StreamExecutionEnvironment.getExecutionEnvironment());
 	}
 
-	private ExecutorFactory() {
+	@Override
+	public Map<String, String> requiredContext() {
+		DescriptorProperties properties = new DescriptorProperties();
+		properties.putBoolean(EnvironmentSettings.BATCH_MODE, false);
+		return properties.asMap();
+	}
+
+	@Override
+	public List<String> supportedProperties() {
+		return Collections.singletonList(EnvironmentSettings.CLASS_NAME);
+	}
+
+	@Override
+	public Map<String, String> optionalContext() {
+		Map<String, String> context = new HashMap<>();
+		context.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
+		return context;
 	}
 }

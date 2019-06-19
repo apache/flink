@@ -287,9 +287,10 @@ public interface BatchTableEnvironment extends TableEnvironment {
 		try {
 			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl");
 			Constructor con = clazz.getConstructor(ExecutionEnvironment.class, TableConfig.class, CatalogManager.class);
+			String defaultCatalog = "default_catalog";
 			CatalogManager catalogManager = new CatalogManager(
-				tableConfig.getBuiltInCatalogName(),
-				new GenericInMemoryCatalog(tableConfig.getBuiltInCatalogName(), tableConfig.getBuiltInDatabaseName())
+				defaultCatalog,
+				new GenericInMemoryCatalog(defaultCatalog, "default_database")
 			);
 			return (BatchTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager);
 		} catch (Throwable t) {
