@@ -24,15 +24,11 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeIdsForCheckpoint;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeOnCheckpoint;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
-import com.google.api.gax.rpc.UnaryCallable;
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
-import com.google.pubsub.v1.AcknowledgeRequest;
-import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.junit.Before;
@@ -44,11 +40,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
@@ -87,15 +81,13 @@ public class PubSubSourceTest {
 	@Mock
 	private Credentials credentials;
 	@Mock
-	private SubscriberStub subscriberStub;
-	@Mock
-	private UnaryCallable<AcknowledgeRequest, Empty> acknowledgeCallable;
+	private PubSubSubscriber pubsubSubscriber;
 
 	private PubSubSource<String> pubSubSource;
 
 	@Before
 	public void setup() throws Exception {
-		when(pubSubSubscriberFactory.getSubscriber(any(), eq(credentials))).thenReturn(subscriberStub);
+		when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
 		when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
@@ -103,9 +95,7 @@ public class PubSubSourceTest {
 		pubSubSource = new PubSubSource<>(deserializationSchema,
 			pubSubSubscriberFactory,
 			credentials,
-			ProjectSubscriptionName.format("project", "subscriptionName"),
 			100,
-			1000,
 			acknowledgeOnCheckpointFactory);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 	}
@@ -122,7 +112,7 @@ public class PubSubSourceTest {
 
 		pubSubSource.open(null);
 
-		verify(pubSubSubscriberFactory, times(1)).getSubscriber(any(), eq(credentials));
+		verify(pubSubSubscriberFactory, times(1)).getSubscriber(eq(credentials));
 		verify(acknowledgeOnCheckpointFactory, times(1)).create(pubSubSource);
 	}
 
@@ -152,40 +142,17 @@ public class PubSubSourceTest {
 
 	@Test
 	public void testMessagesAcknowledged() throws Exception {
-		when(subscriberStub.acknowledgeCallable()).thenReturn(acknowledgeCallable);
 		List<String> input = asList("firstAckId", "secondAckId");
 
 		pubSubSource.open(null);
 		pubSubSource.acknowledge(input);
 
-		ArgumentCaptor<AcknowledgeRequest> captor = ArgumentCaptor.forClass(AcknowledgeRequest.class);
-		verify(acknowledgeCallable, times(1)).call(captor.capture());
+		ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+		verify(pubsubSubscriber, times(1)).acknowledge(captor.capture());
 
-		AcknowledgeRequest actual = captor.getValue();
-		assertThat(actual.getAckIdsList(), hasSize(2));
-		assertThat(actual.getAckIdsList(), containsInAnyOrder("firstAckId", "secondAckId"));
-	}
-
-	@Test
-	public void testMessagesAcknowledgedInBatches() throws Exception {
-		when(subscriberStub.acknowledgeCallable()).thenReturn(acknowledgeCallable);
-		List<String> input = IntStream.range(0, 50000)
-			.mapToObj(i -> String.format("id-%d", i))
-			.collect(toList());
-
-		pubSubSource.open(null);
-		pubSubSource.acknowledge(input);
-
-		ArgumentCaptor<AcknowledgeRequest> captor = ArgumentCaptor.forClass(AcknowledgeRequest.class);
-		verify(acknowledgeCallable, times(2)).call(captor.capture());
-
-		List<AcknowledgeRequest> actual = captor.getAllValues();
-
+		List<String> actual = captor.getValue();
 		assertThat(actual, hasSize(2));
-		assertThat(actual.get(0).getAckIdsList(), hasSize(47546));
-		assertThat(actual.get(0).getAckIdsList(), containsInAnyOrder(input.subList(0, 47546).toArray()));
-		assertThat(actual.get(1).getAckIdsList(), hasSize(2454));
-		assertThat(actual.get(1).getAckIdsList(), containsInAnyOrder(input.subList(47546, 50000).toArray()));
+		assertThat(actual, containsInAnyOrder("firstAckId", "secondAckId"));
 	}
 
 	@Test
@@ -196,7 +163,7 @@ public class PubSubSourceTest {
 		pubSubSource.cancel();
 
 		pubSubSource.acknowledge(input);
-		verifyZeroInteractions(subscriberStub);
+		verifyZeroInteractions(pubsubSubscriber);
 	}
 
 	@Test

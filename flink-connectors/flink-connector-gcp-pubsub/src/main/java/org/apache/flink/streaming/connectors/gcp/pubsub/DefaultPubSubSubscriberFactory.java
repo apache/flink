@@ -18,44 +18,50 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 
-import com.google.api.core.ApiFunction;
-import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.stub.GrpcSubscriberStub;
-import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
-import io.grpc.ManagedChannelBuilder;
+import com.google.pubsub.v1.PullRequest;
+import com.google.pubsub.v1.SubscriberGrpc;
+import io.grpc.ManagedChannel;
+import io.grpc.auth.MoreCallCredentials;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NegotiationType;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
-import io.grpc.netty.shaded.io.netty.channel.EventLoopGroup;
 
 import java.io.IOException;
+import java.time.Duration;
 
 class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
+	private final int retries;
+	private final Duration timeout;
+	private final int maxMessagesPerPull;
+	private final String projectSubscriptionName;
+
+	DefaultPubSubSubscriberFactory(String projectSubscriptionName, int retries, Duration pullTimeout, int maxMessagesPerPull) {
+		this.retries = retries;
+		this.timeout = pullTimeout;
+		this.maxMessagesPerPull = maxMessagesPerPull;
+		this.projectSubscriptionName = projectSubscriptionName;
+	}
 
 	@Override
-	public SubscriberStub getSubscriber(EventLoopGroup eventLoopGroup, Credentials credentials) throws IOException {
-		InstantiatingGrpcChannelProvider
-			channelProvider = SubscriberStubSettings.defaultGrpcTransportProviderBuilder()
-													.setChannelConfigurator(addEventLoopGroup(eventLoopGroup))
+	public PubSubSubscriber getSubscriber(Credentials credentials) throws IOException {
+		ManagedChannel channel = NettyChannelBuilder.forTarget(SubscriberStubSettings.getDefaultEndpoint())
+													.negotiationType(NegotiationType.TLS)
+													.sslContext(GrpcSslContexts.forClient().ciphers(null).build())
 													.build();
-		SubscriberStubSettings settings = SubscriberStubSettings.newBuilder()
-																.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
-																.setTransportChannelProvider(channelProvider)
-																.build();
 
-		return GrpcSubscriberStub.create(settings);
+		PullRequest pullRequest = PullRequest.newBuilder()
+								.setMaxMessages(maxMessagesPerPull)
+								.setReturnImmediately(false)
+								.setSubscription(projectSubscriptionName)
+								.build();
+		SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(channel)
+							.withCallCredentials(MoreCallCredentials.from(credentials));
+		return new BlockingGrpcPubSubSubscriber(projectSubscriptionName, channel, stub, pullRequest, retries, timeout);
 	}
 
-	private ApiFunction<ManagedChannelBuilder, ManagedChannelBuilder> addEventLoopGroup(EventLoopGroup eventLoopGroup) {
-		return managedChannelBuilder -> {
-			if (managedChannelBuilder instanceof NettyChannelBuilder) {
-				((NettyChannelBuilder) managedChannelBuilder).eventLoopGroup(eventLoopGroup);
-			}
-
-			return managedChannelBuilder;
-		};
-	}
 }

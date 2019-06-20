@@ -18,9 +18,7 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -32,32 +30,25 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeIdsFor
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeOnCheckpoint;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.Acknowledger;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
+import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.util.Preconditions;
 
-import com.google.api.core.ApiFuture;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.Subscriber;
-import com.google.cloud.pubsub.v1.stub.SubscriberStub;
-import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.PullRequest;
-import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
-import io.grpc.netty.shaded.io.netty.channel.EventLoopGroup;
-import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeUnit;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
-import static java.util.Collections.emptyList;
 
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them on the next checkpoint.
@@ -65,29 +56,23 @@ import static java.util.Collections.emptyList;
  */
 public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	implements Acknowledger<String>, ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, CheckpointListener, ListCheckpointed<AcknowledgeIdsForCheckpoint<String>> {
+	public static final int NO_MAX_MESSAGES_TO_ACKNOWLEDGE_LIMIT = -1;
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
 	protected final PubSubDeserializationSchema<OUT> deserializationSchema;
 	protected final PubSubSubscriberFactory pubSubSubscriberFactory;
 	protected final Credentials credentials;
-	protected final String projectSubscriptionName;
-	protected final int maxMessagesPerPull;
 	protected final int maxMessagesToAcknowledge;
 	protected final AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
 
 	protected transient AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
-	protected transient SubscriberStub subscriber;
-	protected transient PullRequest pullRequest;
-	protected transient EventLoopGroup eventLoopGroup;
+	protected transient PubSubSubscriber subscriber;
 
 	protected transient volatile boolean isRunning;
-	protected transient volatile ApiFuture<PullResponse> messagesFuture;
 
-	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull, int maxMessagesToAcknowledge, AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
+	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, int maxMessagesToAcknowledge, AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
 		this.deserializationSchema = deserializationSchema;
 		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 		this.credentials = credentials;
-		this.projectSubscriptionName = projectSubscriptionName;
-		this.maxMessagesPerPull = maxMessagesPerPull;
 		this.maxMessagesToAcknowledge = maxMessagesToAcknowledge;
 		this.acknowledgeOnCheckpointFactory = acknowledgeOnCheckpointFactory;
 	}
@@ -103,14 +88,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesProcessedNotAcked", this::getOutstandingMessagesToAck);
 
 		createAndSetAcknowledgeOnCheckpoint();
-		this.eventLoopGroup = new NioEventLoopGroup();
-		this.subscriber = pubSubSubscriberFactory.getSubscriber(eventLoopGroup, credentials);
+		this.subscriber = pubSubSubscriberFactory.getSubscriber(credentials);
 		this.isRunning = true;
-		this.pullRequest = PullRequest.newBuilder()
-			.setMaxMessages(maxMessagesPerPull)
-			.setReturnImmediately(false)
-			.setSubscription(projectSubscriptionName)
-			.build();
 	}
 
 	private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
@@ -119,71 +98,25 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 	@Override
 	public void acknowledge(List<String> acknowledgementIds) {
-		if (acknowledgementIds.isEmpty() || !isRunning) {
+		if (!isRunning) {
 			return;
 		}
 
-		//grpc servers won't accept acknowledge requests that are too large so we split the ackIds
-		Tuple2<List<String>, List<String>> splittedAckIds = splitAckIds(acknowledgementIds);
-		while (!splittedAckIds.f0.isEmpty()) {
-			AcknowledgeRequest acknowledgeRequest =
-				AcknowledgeRequest.newBuilder()
-					.setSubscription(projectSubscriptionName)
-					.addAllAckIds(splittedAckIds.f0)
-					.build();
-			subscriber.acknowledgeCallable().call(acknowledgeRequest);
-
-			splittedAckIds = splitAckIds(splittedAckIds.f1);
-		}
-	}
-
-	/* maxPayload is the maximum number of bytes to devote to actual ids in
-	 * acknowledgement or modifyAckDeadline requests. A serialized
-	 * AcknowledgeRequest grpc call has a small constant overhead, plus the size of the
-	 * subscription name, plus 3 bytes per ID (a tag byte and two size bytes). A
-	 * ModifyAckDeadlineRequest has an additional few bytes for the deadline. We
-	 * don't know the subscription name here, so we just assume the size exclusive
-	 * of ids is 100 bytes.
-
-	 * With gRPC there is no way for the client to know the server's max message size (it is
-	 * configurable on the server). We know from experience that it is 512K.
-	 * @return First list contains no more than 512k bytes, second list contains remaining ids
-	 */
-	private Tuple2<List<String>, List<String>> splitAckIds(List<String> ackIds) {
-		final int maxPayload = 500 * 1024; //little below 512k bytes to be on the safe side
-		final int fixedOverheadPerCall = 100;
-		final int overheadPerId = 3;
-
-		int totalBytes = fixedOverheadPerCall;
-
-		for (int i = 0; i < ackIds.size(); i++) {
-			totalBytes += ackIds.get(i).length() + overheadPerId;
-			if (totalBytes > maxPayload) {
-				return Tuple2.of(ackIds.subList(0, i), ackIds.subList(i, ackIds.size()));
-			}
-		}
-
-		return Tuple2.of(ackIds, emptyList());
+		subscriber.acknowledge(acknowledgementIds);
 	}
 
 	@Override
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
-		messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
 		while (isRunning) {
 			try {
 				blockIfMaxMessagesToAcknowledgeLimitReached();
 
-				List<ReceivedMessage> messages = messagesFuture.get().getReceivedMessagesList();
-
-				// start the next pull while processing the current response.
-				messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
-
-				processMessage(sourceContext, messages);
+				processMessage(sourceContext, subscriber.pull());
 			} catch (InterruptedException | CancellationException e) {
 				isRunning = false;
 			}
 		}
-		shutdownSubscriber();
+		subscriber.close();
 	}
 
 	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws Exception {
@@ -206,7 +139,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	}
 
 	private void blockIfMaxMessagesToAcknowledgeLimitReached() throws Exception {
-		while (maxMessagesToAcknowledge != -1 && getOutstandingMessagesToAck() > maxMessagesToAcknowledge) {
+		while (maxMessagesToAcknowledge != NO_MAX_MESSAGES_TO_ACKNOWLEDGE_LIMIT && getOutstandingMessagesToAck() > maxMessagesToAcknowledge) {
 			LOG.debug("Sleeping because there are {} messages waiting to be ack'ed but limit is {}", getOutstandingMessagesToAck(), maxMessagesToAcknowledge);
 			Thread.sleep(100);
 		}
@@ -226,34 +159,11 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		return deserializationSchema.getProducedType();
 	}
 
-	/*
-	 * If we don't wait for the subscriber to terminate all background threads
-	 * ClassNotFoundExceptions will be thrown when Flink starts unloading classes.
-	 */
-	private void shutdownSubscriber() {
-		subscriber.shutdownNow();
-		eventLoopGroup.shutdownGracefully();
-		//Wait for the subscriber to terminate, to prevent leaking threads
-		while (!subscriber.isTerminated() || !eventLoopGroup.isTerminated()) {
-			try {
-				subscriber.awaitTermination(60, TimeUnit.SECONDS);
-				eventLoopGroup.awaitTermination(60, TimeUnit.SECONDS);
-			} catch (InterruptedException e) {
-				LOG.warn("Still waiting for subscriber to terminate.", e);
-			}
-		}
-	}
-
 	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 		Preconditions.checkNotNull(deserializationSchema);
 		Preconditions.checkNotNull(projectName);
 		Preconditions.checkNotNull(subscriptionName);
 		return new PubSubSourceBuilder<>(deserializationSchema, projectName, subscriptionName);
-	}
-
-	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
-		Preconditions.checkNotNull(deserializationSchema);
-		return newBuilder(new DeserializationSchemaWrapper<>(deserializationSchema), projectName, subscriptionName);
 	}
 
 	@Override
@@ -285,18 +195,16 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	 */
 	public static class PubSubSourceBuilder<OUT> {
 		private final PubSubDeserializationSchema<OUT> deserializationSchema;
-		private final String projectName;
-		private final String subscriptionName;
+		private final String projectSubscriptionName;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private Credentials credentials;
 		private int maxMessagesPerPull = 100;
-		private int maxMessageToAcknowledge = -1;
+		private int maxMessageToAcknowledge = 10000;
 
 		protected PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 			this.deserializationSchema = deserializationSchema;
-			this.projectName = projectName;
-			this.subscriptionName = subscriptionName;
+			this.projectSubscriptionName = ProjectSubscriptionName.format(projectName, subscriptionName);
 		}
 
 		/**
@@ -325,21 +233,22 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		}
 
 		/**
-		 * The source function uses Grpc calls to get new messages.
-		 * This parameter limited the maximum amount of messages to retrieve per pull. Default value is 100.
-		 *
-		 * @param maxMessagesPerPull
+		 * There is a default PubSubSubscriber factory that uses gRPC to pull in PubSub messages. This method can be used to tune this default factory.
+         * Note this will not work in combination with a custom PubSubSubscriber factory.
+		 * @param maxMessagesPerPull the number of messages pulled per request. Default: 100
+		 * @param perRequestTimeout the timeout per request. Default: 15 seconds
+		 * @param retries the number of retries when requests fail
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public PubSubSourceBuilder<OUT> withMaxMessagesPerPull(int maxMessagesPerPull) {
-			this.maxMessagesPerPull = maxMessagesPerPull;
+		public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(int maxMessagesPerPull, Duration perRequestTimeout, int retries) {
+			this.pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(projectSubscriptionName, retries, perRequestTimeout, maxMessagesPerPull);
 			return this;
 		}
 
 		/**
 		 * Set a limit of the number of outstanding or to-be acknowledged messages.
-		 * default is -1 or unlimited. Set this if you have high checkpoint intervals and / or run into memory issues
-		 * due to the amount of acknowledgement ids.
+		 * default is 10000. Adjust this if you have high checkpoint intervals and / or run into memory issues
+		 * due to the amount of acknowledgement ids. Use {@link PubSubSource}.NO_MAX_MESSAGES_TO_ACKNOWLEDGE_LIMIT if you want to remove the limit.
 		 */
 		public PubSubSourceBuilder<OUT> withMaxMessageToAcknowledge(int maxMessageToAcknowledge) {
 			this.maxMessageToAcknowledge = maxMessageToAcknowledge;
@@ -359,10 +268,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 			}
 
 			if (pubSubSubscriberFactory == null) {
-				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory();
+				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(projectSubscriptionName, 3, Duration.ofSeconds(15), 100);
 			}
 
-			return new PubSubSource<>(deserializationSchema, pubSubSubscriberFactory, credentials, ProjectSubscriptionName.format(projectName, subscriptionName), maxMessagesPerPull, maxMessageToAcknowledge, new AcknowledgeOnCheckpointFactory());
+			return new PubSubSource<>(deserializationSchema, pubSubSubscriberFactory, credentials, maxMessageToAcknowledge, new AcknowledgeOnCheckpointFactory());
 		}
 	}
 

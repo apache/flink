@@ -36,6 +36,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -97,7 +98,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		DataStream<String> fromPubSub = env
 			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
 								.withCredentials(NoCredentials.getInstance())
-								.withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(getPubSubHostPort()))
+								.withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(getPubSubHostPort(), PROJECT_NAME, SUBSCRIPTION_NAME, 10, Duration.ofSeconds(15), 100))
 								.build())
 			.name("PubSub source");
 

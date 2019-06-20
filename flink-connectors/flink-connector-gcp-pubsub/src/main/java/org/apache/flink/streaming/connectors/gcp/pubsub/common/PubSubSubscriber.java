@@ -18,21 +18,22 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub.common;
 
-import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.stub.SubscriberStub;
+import org.apache.flink.streaming.connectors.gcp.pubsub.PubSubSource;
 
-import java.io.IOException;
-import java.io.Serializable;
+import com.google.pubsub.v1.ReceivedMessage;
+
+import java.util.List;
 
 /**
- * A factory class to create a {@link SubscriberStub}.
- * This allows for customized Subscribers with for instance tweaked configurations.
- * Note: this class needs to be serializable.
+ * Used by {@link PubSubSource} to pull and acknowledge messages.
  */
-public interface PubSubSubscriberFactory extends Serializable {
+public interface PubSubSubscriber {
+	List<ReceivedMessage> pull();
+
+	void acknowledge(List<String> acknowledgeIds);
+
 	/**
-	 * Creates a new SubscriberStub using the EventLoopGroup and credentials.
-	 * If the SubscriberStub uses a EventLoopGroup, as many Grpc classes do, this EventLoopGroup should be used.
+	 * After returning all resources should have been cleaned up.
 	 */
-	PubSubSubscriber getSubscriber(Credentials credentials) throws IOException;
+	void close() throws Exception;
 }
