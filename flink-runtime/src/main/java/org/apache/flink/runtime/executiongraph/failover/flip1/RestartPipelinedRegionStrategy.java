@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -50,7 +51,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	private final FailoverTopology topology;
 
 	/** All failover regions. */
-	private final IdentityHashMap<FailoverRegion, Object> regions;
+	private final Set<FailoverRegion> regions;
 
 	/** Maps execution vertex id to failover region. */
 	private final Map<ExecutionVertexID, FailoverRegion> vertexToRegionMap;
@@ -80,7 +81,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
 		this.topology = checkNotNull(topology);
-		this.regions = new IdentityHashMap<>();
+		this.regions = Collections.newSetFromMap(new IdentityHashMap<>());
 		this.vertexToRegionMap = new HashMap<>();
 		this.resultPartitionAvailabilityChecker = new RegionFailoverResultPartitionAvailabilityChecker(
 			resultPartitionAvailabilityChecker);
@@ -100,7 +101,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		for (Set<FailoverVertex> regionVertices : distinctRegions) {
 			LOG.debug("Creating a failover region with {} vertices.", regionVertices.size());
 			final FailoverRegion failoverRegion = new FailoverRegion(regionVertices);
-			regions.put(failoverRegion, null);
+			regions.add(failoverRegion);
 			for (FailoverVertex vertex : regionVertices) {
 				vertexToRegionMap.put(vertex.getExecutionVertexID(), failoverRegion);
 			}
@@ -171,26 +172,26 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	 * 3. If a region is involved, all of its consumer regions are involved
 	 */
 	private Set<FailoverRegion> getRegionsToRestart(FailoverRegion failedRegion) {
-		IdentityHashMap<FailoverRegion, Object> regionsToRestart = new IdentityHashMap<>();
-		IdentityHashMap<FailoverRegion, Object> visitedRegions = new IdentityHashMap<>();
+		Set<FailoverRegion> regionsToRestart = Collections.newSetFromMap(new IdentityHashMap<>());
+		Set<FailoverRegion> visitedRegions = Collections.newSetFromMap(new IdentityHashMap<>());
 
 		// start from the failed region to visit all involved regions
 		Queue<FailoverRegion> regionsToVisit = new ArrayDeque<>();
-		visitedRegions.put(failedRegion, null);
+		visitedRegions.add(failedRegion);
 		regionsToVisit.add(failedRegion);
 		while (!regionsToVisit.isEmpty()) {
 			FailoverRegion regionToRestart = regionsToVisit.poll();
 
 			// an involved region should be restarted
-			regionsToRestart.put(regionToRestart, null);
+			regionsToRestart.add(regionToRestart);
 
 			// if a needed input result partition is not available, its producer region is involved
 			for (FailoverVertex vertex : regionToRestart.getAllExecutionVertices()) {
 				for (FailoverEdge inEdge : vertex.getInputEdges()) {
 					if (!resultPartitionAvailabilityChecker.isAvailable(inEdge.getResultPartitionID())) {
 						FailoverRegion producerRegion = vertexToRegionMap.get(inEdge.getSourceVertex().getExecutionVertexID());
-						if (!visitedRegions.containsKey(producerRegion)) {
-							visitedRegions.put(producerRegion, null);
+						if (!visitedRegions.contains(producerRegion)) {
+							visitedRegions.add(producerRegion);
 							regionsToVisit.add(producerRegion);
 						}
 					}
@@ -201,15 +202,15 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 			for (FailoverVertex vertex : regionToRestart.getAllExecutionVertices()) {
 				for (FailoverEdge outEdge : vertex.getOutputEdges()) {
 					FailoverRegion consumerRegion = vertexToRegionMap.get(outEdge.getTargetVertex().getExecutionVertexID());
-					if (!visitedRegions.containsKey(consumerRegion)) {
-						visitedRegions.put(consumerRegion, null);
+					if (!visitedRegions.contains(consumerRegion)) {
+						visitedRegions.add(consumerRegion);
 						regionsToVisit.add(consumerRegion);
 					}
 				}
 			}
 		}
 
-		return regionsToRestart.keySet();
+		return regionsToRestart;
 	}
 
 	// ------------------------------------------------------------------------
