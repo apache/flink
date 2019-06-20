@@ -22,6 +22,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -41,8 +42,6 @@ public final class PipelinedRegionComputeUtil {
 			return uniqueRegions(buildOneRegionForAllVertices(topology));
 		}
 
-		// we use the map (list -> null) to imitate an IdentityHashSet (which does not exist)
-		// this helps to optimize the building performance as it uses reference equality
 		final Map<FailoverVertex, Set<FailoverVertex>> vertexToRegion = new IdentityHashMap<>();
 
 		// iterate all the vertices which are topologically sorted
@@ -105,11 +104,9 @@ public final class PipelinedRegionComputeUtil {
 
 	private static Set<Set<FailoverVertex>> uniqueRegions(final Map<FailoverVertex, Set<FailoverVertex>> vertexToRegion) {
 		// find out all the distinct regions
-		final IdentityHashMap<Set<FailoverVertex>, Object> distinctRegions = new IdentityHashMap<>();
-		for (Set<FailoverVertex> regionVertices : vertexToRegion.values()) {
-			distinctRegions.put(regionVertices, null);
-		}
-		return distinctRegions.keySet();
+		final Set<Set<FailoverVertex>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
+		distinctRegions.addAll(vertexToRegion.values());
+		return distinctRegions;
 	}
 
 	private PipelinedRegionComputeUtil() {
