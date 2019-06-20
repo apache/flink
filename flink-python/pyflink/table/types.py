@@ -387,7 +387,7 @@ class TimeType(AtomicType):
     :param nullable: boolean, whether the field can be null (None) or not.
     """
 
-    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10**6
+    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
 
     def __init__(self, precision=0, nullable=True):
         super(TimeType, self).__init__(nullable)
@@ -401,20 +401,21 @@ class TimeType(AtomicType):
         return True
 
     def to_sql_type(self, t):
-        if t.tzinfo is not None:
-            offset = t.utcoffset()
-            offset = offset if offset else datetime.timedelta()
-            offset_microseconds =\
-                (offset.days * 86400 + offset.seconds) * 10 ** 6 + offset.microseconds
-        else:
-            offset_microseconds = self.EPOCH_ORDINAL
-        minutes = t.hour * 60 + t.minute
-        seconds = minutes * 60 + t.second
-        return seconds * 10**6 + t.microsecond - offset_microseconds
+        if t is not None:
+            if t.tzinfo is not None:
+                offset = t.utcoffset()
+                offset = offset if offset else datetime.timedelta()
+                offset_microseconds =\
+                    (offset.days * 86400 + offset.seconds) * 10 ** 6 + offset.microseconds
+            else:
+                offset_microseconds = self.EPOCH_ORDINAL
+            minutes = t.hour * 60 + t.minute
+            seconds = minutes * 60 + t.second
+            return seconds * 10 ** 6 + t.microsecond - offset_microseconds
 
     def from_sql_type(self, t):
         if t is not None:
-            seconds, microseconds = divmod(t, 10**6)
+            seconds, microseconds = divmod(t + self.EPOCH_ORDINAL, 10 ** 6)
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             return datetime.time(hours, minutes, seconds, microseconds)
@@ -422,7 +423,17 @@ class TimeType(AtomicType):
 
 class TimestampType(AtomicType):
     """
-    Timestamp data type.  SQL TIMESTAMP
+    Timestamp data type. SQL TIMESTAMP WITHOUT TIME ZONE.
+
+    Consisting of ``year-month-day hour:minute:second[.fractional]`` with up to nanosecond
+    precision and values ranging from ``0000-01-01 00:00:00.000000000`` to
+    ``9999-12-31 23:59:59.999999999``. Compared to the SQL standard, leap seconds (23:59:60 and
+    23:59:61) are not supported.
+
+    This class does not store or represent a time-zone. Instead, it is a description of
+    the date, as used for birthdays, combined with the local time as seen on a wall clock.
+    It cannot represent an instant on the time-line without additional information
+    such as an offset or time-zone.
 
     The precision must be greater than or equal to 0 and less than or equal to 9.
 
@@ -445,12 +456,98 @@ class TimestampType(AtomicType):
         if dt is not None:
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))
-            return int(seconds) * 10**6 + dt.microsecond
+            return int(seconds) * 10 ** 6 + dt.microsecond
 
     def from_sql_type(self, ts):
         if ts is not None:
-            # using int to avoid precision loss in float
-            return datetime.datetime.fromtimestamp(ts // 10**6).replace(microsecond=ts % 10**6)
+            return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
+
+
+class LocalZonedTimestampType(AtomicType):
+    """
+    Timestamp data type. SQL TIMESTAMP WITH LOCAL TIME ZONE.
+
+    Consisting of ``year-month-day hour:minute:second[.fractional] zone`` with up to nanosecond
+    precision and values ranging from ``0000-01-01 00:00:00.000000000 +14:59`` to
+    ``9999-12-31 23:59:59.999999999 -14:59``. Compared to the SQL standard, Leap seconds (23:59:60
+    and 23:59:61) are not supported.
+
+    The value will be stored internally as a long value which stores all date and time
+    fields, to a precision of nanoseconds, as well as the offset from UTC/Greenwich.
+
+    The precision must be greater than or equal to 0 and less than or equal to 9.
+
+    :param precision: int, the number of digits of fractional seconds (default: 6)
+    :param nullable: boolean, whether the field can be null (None) or not.
+    """
+
+    def __init__(self, precision=6, nullable=True):
+        super(LocalZonedTimestampType, self).__init__(nullable)
+        assert 0 <= precision <= 9
+        self.precision = precision
+
+    def __repr__(self):
+        return "LocalZonedTimestampType(%s, %s)" % (self.precision, str(self._nullable).lower())
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, dt):
+        if dt is not None:
+            seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
+                       else time.mktime(dt.timetuple()))
+            return int(seconds) * 10 ** 6 + dt.microsecond
+
+    def from_sql_type(self, ts):
+        if ts is not None:
+            return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
+
+
+class ZonedTimestampType(AtomicType):
+    """
+    Timestamp data type with time zone. SQL TIMESTAMP WITH TIME ZONE.
+
+    Consisting of ``year-month-day hour:minute:second[.fractional] zone`` with up to nanosecond
+    precision and values ranging from {@code 0000-01-01 00:00:00.000000000 +14:59} to
+    ``9999-12-31 23:59:59.999999999 -14:59``. Compared to the SQL standard, leap seconds (23:59:60
+    and 23:59:61) are not supported.
+
+    The value will be stored internally all date and time fields, to a precision of
+    nanoseconds, and a time-zone, with a zone offset used to handle ambiguous local date-times.
+
+    The precision must be greater than or equal to 0 and less than or equal to 9.
+
+    :param precision: int, the number of digits of fractional seconds (default: 6)
+    :param nullable: boolean, whether the field can be null (None) or not.
+    """
+
+    def __init__(self, precision=6, nullable=True):
+        super(ZonedTimestampType, self).__init__(nullable)
+        assert 0 <= precision <= 9
+        self.precision = precision
+
+    def __repr__(self):
+        return "ZonedTimestampType(%s, %s)" % (self.precision, str(self._nullable).lower())
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, dt):
+        if dt is not None:
+            seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
+                       else time.mktime(dt.timetuple()))
+            tzinfo = dt.tzinfo if dt.tzinfo else datetime.datetime.now(
+                datetime.timezone.utc).astimezone().tzinfo
+            offset = int(tzinfo.utcoffset(dt).total_seconds())
+            return int(seconds + offset) * 10 ** 6 + dt.microsecond, offset
+
+    def from_sql_type(self, zoned_ts):
+        if zoned_ts is not None:
+            from dateutil import tz
+            ts = zoned_ts[0] - zoned_ts[1] * 10 ** 6
+            tzinfo = tz.tzoffset(None, zoned_ts[1])
+            return datetime.datetime.fromtimestamp(ts // 10 ** 6, tz=tzinfo).replace(
+                microsecond=ts % 10 ** 6)
 
 
 _boxed_to_primitive_array_map = \
@@ -889,7 +986,7 @@ _type_mappings = {
     bytearray: VarBinaryType(0x7fffffff),
     decimal.Decimal: DecimalType(38, 18),
     datetime.date: DateType(),
-    datetime.datetime: TimestampType(),
+    datetime.datetime: LocalZonedTimestampType(),
     datetime.time: TimeType(),
 }
 
@@ -1219,6 +1316,7 @@ def _to_java_type(data_type):
                 DateType: Types.SQL_DATE(),
                 TimeType: Types.SQL_TIME(),
                 TimestampType: Types.SQL_TIMESTAMP(),
+                LocalZonedTimestampType: Types.SQL_TIMESTAMP(),
                 CharType: Types.STRING(),
                 VarCharType: Types.STRING(),
                 BinaryType: Types.PRIMITIVE_ARRAY(Types.BYTE()),
@@ -1607,6 +1705,8 @@ _acceptable_types = {
     DateType: (datetime.date, datetime.datetime),
     TimeType: (datetime.time,),
     TimestampType: (datetime.datetime,),
+    LocalZonedTimestampType: (datetime.datetime,),
+    ZonedTimestampType: (datetime.datetime,),
     ArrayType: (list, tuple, array),
     MapType: (dict,),
     RowType: (tuple, list, dict),
@@ -2033,11 +2133,37 @@ class DataTypes(object):
         Compared to the SQL standard, leap seconds (``23:59:60`` and ``23:59:61``)
         are not supported.
 
+        This class does not store or represent a time-zone. Instead, it is a description of
+        the date, as used for birthdays, combined with the local time as seen on a wall clock.
+        It cannot represent an instant on the time-line without additional information
+        such as an offset or time-zone.
+
         :param precision: int, the number of digits of fractional seconds.
                           It must have a value between 0 and 9 (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
         """
         return TimestampType(precision, nullable)
+
+    @staticmethod
+    def TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision=6, nullable=True):
+        """
+        Data type of a timestamp WITH LOCAL time zone.
+
+        An instance consists of year-month-day hour:minute:second[.fractional
+        with up to nanosecond precision and values ranging from
+        ``0000-01-01 00:00:00.000000000 +14:59`` to ``9999-12-31 23:59:59.999999999 -14:59``.
+
+        Compared to the SQL standard, leap seconds (``23:59:60`` and ``23:59:61``)
+        are not supported.
+
+        The value will be stored internally as a long value which stores all date and time
+        fields, to a precision of nanoseconds, as well as the offset from UTC/Greenwich.
+
+        :param precision: int, the number of digits of fractional seconds.
+                          It must have a value between 0 and 9 (both inclusive).
+        :param nullable: boolean, whether the type can be null (None) or not.
+        """
+        return LocalZonedTimestampType(precision, nullable)
 
     @staticmethod
     def ARRAY(element_type, nullable=True):
