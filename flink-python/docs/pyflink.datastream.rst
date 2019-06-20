@@ -16,13 +16,13 @@
     limitations under the License.
    ################################################################################
 
-pyflink.streaming package
-=========================
+pyflink.datastream package
+==========================
 
 Module contents
 ---------------
 
-.. automodule:: pyflink.streaming
+.. automodule:: pyflink.datastream
     :members:
     :undoc-members:
     :show-inheritance:

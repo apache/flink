@@ -27,8 +27,8 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from pyflink.table.sources import CsvTableSource
 
-from pyflink.batch import ExecutionEnvironment
-from pyflink.streaming import StreamExecutionEnvironment
+from pyflink.dataset import ExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 
 from pyflink.find_flink_home import _find_flink_home
 from pyflink.table import BatchTableEnvironment, StreamTableEnvironment

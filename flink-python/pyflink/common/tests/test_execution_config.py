@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.batch import ExecutionEnvironment
+from pyflink.dataset import ExecutionEnvironment
 from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode,
                             InputDependencyConstraint)
 from pyflink.java_gateway import get_gateway

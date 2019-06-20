@@ -15,8 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.streaming import (CheckpointConfig, CheckpointingMode, ExternalizedCheckpointCleanup,
-                               StreamExecutionEnvironment)
+from pyflink.datastream import (CheckpointConfig, CheckpointingMode, ExternalizedCheckpointCleanup,
+                                StreamExecutionEnvironment)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 

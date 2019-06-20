@@ -19,10 +19,10 @@ import os
 import tempfile
 from abc import ABCMeta, abstractmethod
 
-from pyflink.batch import ExecutionEnvironment
+from pyflink.dataset import ExecutionEnvironment
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
-from pyflink.streaming import StreamExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.descriptors import (StreamTableDescriptor, ConnectorDescriptor,

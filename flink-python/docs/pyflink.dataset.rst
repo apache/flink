@@ -16,13 +16,13 @@
     limitations under the License.
    ################################################################################
 
-pyflink.batch package
-=====================
+pyflink.dataset package
+=======================
 
 Module contents
 ---------------
 
-.. automodule:: pyflink.batch
+.. automodule:: pyflink.dataset
     :members:
     :undoc-members:
     :show-inheritance:

@@ -20,8 +20,8 @@ import tempfile
 import json
 
 from pyflink.common import ExecutionConfig, RestartStrategies
-from pyflink.streaming import (StreamExecutionEnvironment, CheckpointConfig,
-                               CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
+from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
+                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 

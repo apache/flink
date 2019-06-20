@@ -15,9 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.streaming.state_backend import (_from_j_state_backend, CustomStateBackend,
-                                             MemoryStateBackend, FsStateBackend,
-                                             RocksDBStateBackend, PredefinedOptions)
+from pyflink.datastream.state_backend import (_from_j_state_backend, CustomStateBackend,
+                                              MemoryStateBackend, FsStateBackend,
+                                              RocksDBStateBackend, PredefinedOptions)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.utils import load_java_class
@@ -87,10 +87,10 @@ class FsStateBackendTests(PyFlinkTestCase):
                                             "file://var/savepoints/", 2048))
 
         self.assertIsNotNone(FsStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 2048, True))
+            "file://var/checkpoints/", "file://var/savepoints/", 2048, 2048, True))
 
         self.assertIsNotNone(FsStateBackend(
-            "file://var/checkpoints/", "file://var/savepoints/", 2048, False))
+            "file://var/checkpoints/", "file://var/savepoints/", 2048, 4096))
 
     def test_get_min_file_size_threshold(self):
 

@@ -296,6 +296,7 @@ class FsStateBackend(StateBackend):
                  checkpoint_directory_uri=None,
                  default_savepoint_directory_uri=None,
                  file_state_size_threshold=None,
+                 write_buffer_size=None,
                  using_asynchronous_snapshots=None,
                  j_fs_state_backend=None):
         """
@@ -324,6 +325,9 @@ class FsStateBackend(StateBackend):
                                           metadata, rather than in files. If none, the value
                                           configured in the runtime configuration will be used, or
                                           the default value (1KB) if nothing is configured.
+        :param write_buffer_size: Write buffer size used to serialize state. If -1, the value
+                                  configured in the runtime configuration will be used, or the
+                                  default value (4KB) if nothing is configured.
         :param using_asynchronous_snapshots: Flag to switch between synchronous and asynchronous
                                              snapshot mode. If none, the value configured in
                                              the runtime configuration will be used.
@@ -347,6 +351,9 @@ class FsStateBackend(StateBackend):
             if file_state_size_threshold is None:
                 file_state_size_threshold = -1
 
+            if write_buffer_size is None:
+                write_buffer_size = -1
+
             if using_asynchronous_snapshots is None:
                 j_asynchronous_snapshots = JTernaryBoolean.UNDEFINED
             elif using_asynchronous_snapshots is True:
@@ -361,6 +368,7 @@ class FsStateBackend(StateBackend):
             j_fs_state_backend = JFsStateBackend(j_checkpoint_directory_uri,
                                                  j_default_savepoint_directory_uri,
                                                  file_state_size_threshold,
+                                                 write_buffer_size,
                                                  j_asynchronous_snapshots)
 
         self._j_fs_state_backend = j_fs_state_backend
@@ -399,6 +407,17 @@ class FsStateBackend(StateBackend):
                  false otherwise.
         """
         return self._j_fs_state_backend.isUsingAsynchronousSnapshots()
+
+    def get_write_buffer_size(self):
+        """
+        Gets the write buffer size for created checkpoint stream.
+
+        If not explicitly configured, this is the default value of
+        ``org.apache.flink.configuration.CheckpointingOptions.FS_WRITE_BUFFER_SIZE``.
+
+        :return: The write buffer size, in bytes.
+        """
+        return self._j_fs_state_backend.getWriteBufferSize()
 
 
 class RocksDBStateBackend(StateBackend):

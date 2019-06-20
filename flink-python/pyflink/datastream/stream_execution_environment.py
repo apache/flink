@@ -17,10 +17,10 @@
 ################################################################################
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.restart_strategy import RestartStrategies
-from pyflink.streaming.checkpoint_config import CheckpointConfig
-from pyflink.streaming.checkpointing_mode import CheckpointingMode
-from pyflink.streaming.state_backend import _from_j_state_backend
-from pyflink.streaming.time_characteristic import TimeCharacteristic
+from pyflink.datastream.checkpoint_config import CheckpointConfig
+from pyflink.datastream.checkpointing_mode import CheckpointingMode
+from pyflink.datastream.state_backend import _from_j_state_backend
+from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
 
@@ -157,7 +157,7 @@ class StreamExecutionEnvironment(object):
         Gets the checkpoint config, which defines values like checkpoint interval, delay between
         checkpoints, etc.
 
-        :return: The :class:`~pyflink.streaming.CheckpointConfig`.
+        :return: The :class:`~pyflink.datastream.CheckpointConfig`.
         """
         j_checkpoint_config = self._j_stream_execution_environment.getCheckpointConfig()
         return CheckpointConfig(j_checkpoint_config)
@@ -169,7 +169,7 @@ class StreamExecutionEnvironment(object):
         dataflow will be restarted from the latest completed checkpoint.
 
         The job draws checkpoints periodically, in the given interval. The system uses the
-        given :class:`~pyflink.streaming.CheckpointingMode` for the checkpointing ("exactly once"
+        given :class:`~pyflink.datastream.CheckpointingMode` for the checkpointing ("exactly once"
         vs "at least once"). The state will be stored in the configured state backend.
 
         .. note::
@@ -213,7 +213,7 @@ class StreamExecutionEnvironment(object):
 
         Shorthand for get_checkpoint_config().get_checkpointing_mode().
 
-        :return: The :class:`~pyflink.streaming.CheckpointingMode`.
+        :return: The :class:`~pyflink.datastream.CheckpointingMode`.
         """
         j_checkpointing_mode = self._j_stream_execution_environment.getCheckpointingMode()
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
@@ -235,20 +235,20 @@ class StreamExecutionEnvironment(object):
         defines both which data structures hold state during execution (for example hash tables,
         RockDB, or other data stores) as well as where checkpointed data will be persisted.
 
-        The :class:`~pyflink.streaming.MemoryStateBackend` for example maintains the state in heap
+        The :class:`~pyflink.datastream.MemoryStateBackend` for example maintains the state in heap
         memory, as objects. It is lightweight without extra dependencies, but can checkpoint only
         small states(some counters).
 
-        In contrast, the :class:`~pyflink.streaming.FsStateBackend` stores checkpoints of the state
+        In contrast, the :class:`~pyflink.datastream.FsStateBackend` stores checkpoints of the state
         (also maintained as heap objects) in files. When using a replicated file system (like HDFS,
         S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost upon failures of
         individual nodes and that streaming program can be executed highly available and strongly
         consistent(assuming that Flink is run in high-availability mode).
 
         The build-in state backend includes:
-            :class:`~pyflink.streaming.MemoryStateBackend`,
-            :class:`~pyflink.streaming.FsStateBackend`
-            and :class:`~pyflink.streaming.RocksDBStateBackend`.
+            :class:`~pyflink.datastream.MemoryStateBackend`,
+            :class:`~pyflink.datastream.FsStateBackend`
+            and :class:`~pyflink.datastream.RocksDBStateBackend`.
 
         .. seealso:: :func:`get_state_backend`
 

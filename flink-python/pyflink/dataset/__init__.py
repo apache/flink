@@ -22,6 +22,6 @@ Important classes of Flink Batch API:
     - :class:`ExecutionEnvironment`:
       The ExecutionEnvironment is the context in which a batch program is executed.
 """
-from pyflink.batch.execution_environment import ExecutionEnvironment
+from pyflink.dataset.execution_environment import ExecutionEnvironment
 
 __all__ = ['ExecutionEnvironment']

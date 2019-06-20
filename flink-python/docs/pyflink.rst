@@ -26,8 +26,8 @@ Subpackages
     :maxdepth: 1
 
     pyflink.table
-    pyflink.batch
-    pyflink.streaming
+    pyflink.dataset
+    pyflink.datastream
     pyflink.common
 
 .. automodule:: pyflink

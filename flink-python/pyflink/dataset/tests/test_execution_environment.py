@@ -19,7 +19,7 @@ import json
 import os
 import tempfile
 
-from pyflink.batch import ExecutionEnvironment
+from pyflink.dataset import ExecutionEnvironment
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.table import DataTypes, BatchTableEnvironment, CsvTableSource, CsvTableSink
 from pyflink.testing.test_case_utils import PyFlinkTestCase

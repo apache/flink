@@ -25,6 +25,9 @@ Welcome to Flink Python API Docs!
 
    pyflink
    pyflink.table
+   pyflink.dataset
+   pyflink.datastream
+   pyflink.common
 
 
 Core Classes:

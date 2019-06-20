@@ -20,8 +20,8 @@ import os
 
 from py4j.compat import unicode
 
-from pyflink.batch import ExecutionEnvironment
-from pyflink.streaming import StreamExecutionEnvironment
+from pyflink.dataset import ExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
 from pyflink.table.table_config import TableConfig
 from pyflink.table.types import DataTypes, RowType
