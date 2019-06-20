@@ -266,18 +266,18 @@ with AppendStreamTableSink[BaseRow] {
     this
   }
 
-  @deprecated def getOutputType: TypeInformation[BaseRow] = {
+  override def getOutputType: TypeInformation[BaseRow] = {
     val LogicalTypes = schema.getFieldTypes.map(
       TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType)
     new BaseRowTypeInfo(LogicalTypes, schema.getFieldNames)
   }
 
-  @deprecated def getFieldNames: Array[String] = schema.getFieldNames
+  override def getFieldNames: Array[String] = schema.getFieldNames
 
   /**
     * @deprecated Use the field types of { @link #getTableSchema()} instead.
     */
-  @deprecated def getFieldTypes: Array[TypeInformation[_]] = schema.getFieldTypes
+  override def getFieldTypes: Array[TypeInformation[_]] = schema.getFieldTypes
 
   def getSinkTransformation: SinkTransformation[BaseRow] = sinkTransformation
 }
