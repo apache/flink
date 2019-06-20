@@ -46,7 +46,7 @@ import java.util.Optional;
 public interface Catalog {
 
 	/**
-	 * Get an optional {@link TableFactory} instance that's responsible to generate source/sink for tables
+	 * Get an optional {@link TableFactory} instance that's responsible for generating source/sink for tables
 	 * stored in this catalog.
 	 *
 	 * @return an optional TableFactory instance
