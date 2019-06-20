@@ -30,7 +30,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _array_type_mappings, _merge_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
-                                 _to_java_type, _from_java_type)
+                                 _to_java_type, _from_java_type, ZonedTimestampType)
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -105,6 +105,21 @@ class PythonOnlyPoint(ExamplePoint):
     __UDT__ = PythonOnlyUDT()
 
 
+class UTCOffsetTimezone(datetime.tzinfo):
+    """
+    Specifies timezone in UTC offset
+    """
+
+    def __init__(self, offset=0):
+        self.OFFSET = datetime.timedelta(hours=offset)
+
+    def utcoffset(self, dt):
+        return self.OFFSET
+
+    def dst(self, dt):
+        return self.OFFSET
+
+
 class TypesTests(unittest.TestCase):
 
     def test_infer_schema(self):
@@ -145,7 +160,7 @@ class TypesTests(unittest.TestCase):
             'VarCharType(2147483647, true)',
             'DateType(true)',
             'TimeType(0, true)',
-            'TimestampType(6, true)',
+            'LocalZonedTimestampType(6, true)',
             'DoubleType(true)',
             "ArrayType(DoubleType(false), true)",
             "ArrayType(BigIntType(true), true)",
@@ -522,6 +537,31 @@ class TypesTests(unittest.TestCase):
     def test_timestamp_microsecond(self):
         tst = DataTypes.TIMESTAMP()
         self.assertEqual(tst.to_sql_type(datetime.datetime.max) % 1000000, 999999)
+
+    def test_local_zoned_timestamp_type(self):
+        lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000, tzinfo=UTCOffsetTimezone(1))
+        self.assertEqual(-3600000000, lztst.to_sql_type(ts))
+
+        if sys.version_info >= (3, 6):
+            ts2 = lztst.from_sql_type(-3600000000)
+            self.assertEqual(ts.astimezone(), ts2.astimezone())
+
+    def test_zoned_timestamp_type(self):
+        ztst = ZonedTimestampType()
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000, tzinfo=UTCOffsetTimezone(1))
+        self.assertEqual((0, 3600), ztst.to_sql_type(ts))
+
+        ts2 = ztst.from_sql_type((0, 3600))
+        self.assertEqual(ts, ts2)
+
+    def test_day_time_inteval_type(self):
+        ymt = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND())
+        td = datetime.timedelta(days=1, seconds=10)
+        self.assertEqual(86410000000, ymt.to_sql_type(td))
+
+        td2 = ymt.from_sql_type(86410000000)
+        self.assertEqual(td, td2)
 
     def test_empty_row(self):
         row = Row()

@@ -494,9 +494,11 @@ class TableEnvironment(object):
             raise TypeError(
                 "schema should be RowType, list, tuple or None, but got: %s" % schema)
 
+        # verifies the elements against the specified schema
+        elements = map(verify_obj, elements)
         # converts python data to sql data
         elements = [schema.to_sql_type(element) for element in elements]
-        return self._from_elements(map(verify_obj, elements), schema)
+        return self._from_elements(elements, schema)
 
     def _from_elements(self, elements, schema):
         """

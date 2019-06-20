@@ -55,7 +55,7 @@ setup(
     license='http://www.apache.org/licenses/LICENSE-2.0',
     author='Flink Developers',
     author_email='dev@flink.apache.org',
-    install_requires=['py4j==0.10.8.1'],
+    install_requires=['py4j==0.10.8.1', 'python-dateutil'],
     tests_require=['pytest==4.4.1'],
     description='Apache Flink Python API',
     long_description=long_description,
