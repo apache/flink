@@ -1,0 +1,195 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testStreamSqlPathResolution[0: simpleInDefaultPath=[sqlPath: tab1, tableApiPath: [tab1], expectedPath: [builtin, default, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[builtin, default, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[builtin, default, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[10: spaceInNames=[sqlPath: `default db`.`tab 1`, tableApiPath: [default db, tab 1], expectedPath: [builtin, default db, tab 1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM `default db`.`tab 1`]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[builtin, default db, tab 1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[builtin, default db, tab 1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[1: simpleInChangedDefaultCatalog=[defaultCatalog: cat1, sqlPath: tab1, tableApiPath: [tab1], expectedPath: [cat1, db1, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[cat1, db1, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[cat1, db1, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[2: simpleInChangedDefaultPath=[defaultCatalog: cat1, defaultDatabase: db2, sqlPath: tab1, tableApiPath: [tab1], expectedPath: [cat1, db2, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[cat1, db2, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[cat1, db2, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[3: qualifiedWithDatabase=[defaultCatalog: builtin, defaultDatabase: default, sqlPath: db1.tab1, tableApiPath: [db1, tab1], expectedPath: [builtin, db1, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM db1.tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[builtin, db1, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[builtin, db1, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[4: fullyQualifiedName=[defaultCatalog: builtin, defaultDatabase: default, sqlPath: cat1.db1.tab1, tableApiPath: [cat1, db1, tab1], expectedPath: [cat1, db1, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM cat1.db1.tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[cat1, db1, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[cat1, db1, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[5: externalCatalogTopLevelTable=[sqlPath: extCat1.tab1, tableApiPath: [extCat1, tab1], expectedPath: [extCat1, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM extCat1.tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[extCat1, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[extCat1, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[6: externalCatalogMultiLevelNesting=[sqlPath: extCat1.extCat2.extCat3.tab1, tableApiPath: [extCat1, extCat2, extCat3, tab1], expectedPath: [extCat1, extCat2, extCat3, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM extCat1.extCat2.extCat3.tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[extCat1, extCat2, extCat3, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[extCat1, extCat2, extCat3, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[7: dotInUnqualifiedTableName=[sqlPath: `tab.1`, tableApiPath: [tab.1], expectedPath: [builtin, default, tab.1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM `tab.1`]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[builtin, default, tab.1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[builtin, default, tab.1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[8: dotInDatabaseName=[sqlPath: `default.db`.tab1, tableApiPath: [default.db, tab1], expectedPath: [builtin, default.db, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM `default.db`.tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[builtin, default.db, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[builtin, default.db, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamSqlPathResolution[9: dotInDefaultDatabaseName=[defaultCatalog: builtin, defaultDatabase: default.db, sqlPath: tab1, tableApiPath: [tab1], expectedPath: [builtin, default.db, tab1]]]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM tab1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject
++- LogicalTableScan(table=[[builtin, default.db, tab1, source: [()]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[builtin, default.db, tab1, source: [()]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

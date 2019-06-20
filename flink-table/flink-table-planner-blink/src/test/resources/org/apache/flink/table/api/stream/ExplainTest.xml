@@ -20,17 +20,17 @@ limitations under the License.
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[MyTable1]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
-DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
+DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 ]]>
@@ -42,21 +42,21 @@ DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
    +- LogicalProject(a=[$0])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 Calc(select=[EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-         +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -78,17 +78,17 @@ Calc(select=[EXPR$0], updateAsRetraction=[false], accMode=[Acc]): rowcount = , c
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[MyTable1]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
-DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 ]]>
@@ -98,10 +98,10 @@ DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[false],
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
 == Optimized Logical Plan ==
-TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
@@ -114,10 +114,10 @@ TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
 == Optimized Logical Plan ==
-TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
@@ -132,21 +132,21 @@ TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
    +- LogicalProject(a=[$0])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a])
-         +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -169,18 +169,18 @@ Calc(select=[EXPR$0])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
-   +- LogicalTableScan(table=[[MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
-+- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -195,18 +195,18 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
-   +- LogicalTableScan(table=[[MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -222,16 +222,16 @@ Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)], updateAsRetraction=[false], accM
 LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
 +- LogicalFilter(condition=[=($0, $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[MyTable1]])
-      +- LogicalTableScan(table=[[MyTable2]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Logical Plan ==
 Calc(select=[a, b, c, e, f])
 +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
-   :  +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
+   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
-      +- DataStreamScan(table=[[MyTable2]], fields=[d, e, f])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
 == Physical Execution Plan ==
  : Data Source
@@ -241,11 +241,11 @@ Calc(select=[a, b, c, e, f])
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : SourceConversion(table:Buffer(MyTable2), fields:(d, e, f))
+			content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable2), fields:(d, e, f))
 			ship_strategy : FORWARD
 
 			 : Operator
@@ -264,14 +264,14 @@ Calc(select=[a, b, c, e, f])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1], c=[$2])
-:  +- LogicalTableScan(table=[[MyTable1]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 +- LogicalProject(d=[$0], e=[$1], f=[$2])
-   +- LogicalTableScan(table=[[MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Logical Plan ==
 Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-:- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- DataStreamScan(table=[[MyTable2]], fields=[d, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
@@ -281,11 +281,11 @@ Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): r
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : SourceConversion(table:Buffer(MyTable2), fields:(d, e, f))
+			content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable2), fields:(d, e, f))
 			ship_strategy : FORWARD
 
 ]]>
@@ -297,16 +297,16 @@ Union(all=[true], union=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): r
 LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
 +- LogicalFilter(condition=[=($0, $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[MyTable1]])
-      +- LogicalTableScan(table=[[MyTable2]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Logical Plan ==
 Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    :- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   :  +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[d]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- DataStreamScan(table=[[MyTable2]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
@@ -316,11 +316,11 @@ Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcoun
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : SourceConversion(table:Buffer(MyTable2), fields:(d, e, f))
+			content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable2), fields:(d, e, f))
 			ship_strategy : FORWARD
 
 			 : Operator
@@ -342,20 +342,20 @@ LogicalSink(name=[sink1], fields=[a, cnt])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
-            +- LogicalTableScan(table=[[MyTable1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 LogicalSink(name=[sink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
-            +- LogicalTableScan(table=[[MyTable1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a])
-      +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 Sink(name=[sink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[>(cnt, 10)])
@@ -370,7 +370,7 @@ Sink(name=[sink1], fields=[a, cnt])
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -424,20 +424,20 @@ LogicalSink(name=[sink1], fields=[a, cnt])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
-            +- LogicalTableScan(table=[[MyTable1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 LogicalSink(name=[sink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
-            +- LogicalTableScan(table=[[MyTable1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[false], accMode=[Acc], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Exchange(distribution=[hash[a]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -452,7 +452,7 @@ Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): 
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -504,19 +504,19 @@ Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): 
 LogicalSink(fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 Sink(fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
-   +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -539,19 +539,19 @@ Sink(fields=[a, b, c])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
 +- Exchange(distribution=[single])
-   +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -566,19 +566,19 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Exchange(distribution=[single], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -594,19 +594,19 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], ac
 LogicalSink(fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
 Sink(fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- DataStreamScan(table=[[MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
@@ -629,14 +629,14 @@ Sink(fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , 
       <![CDATA[== Abstract Syntax Tree ==
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1], c=[$2])
-:  +- LogicalTableScan(table=[[MyTable1]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 +- LogicalProject(d=[$0], e=[$1], f=[$2])
-   +- LogicalTableScan(table=[[MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Logical Plan ==
 Union(all=[true], union=[a, b, c])
-:- DataStreamScan(table=[[MyTable1]], fields=[a, b, c])
-+- DataStreamScan(table=[[MyTable2]], fields=[d, e, f])
+:- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
 == Physical Execution Plan ==
  : Data Source
@@ -646,11 +646,11 @@ Union(all=[true], union=[a, b, c])
 	content : collect elements with CollectionInputFormat
 
 	 : Operator
-		content : SourceConversion(table:Buffer(MyTable1), fields:(a, b, c))
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable1), fields:(a, b, c))
 		ship_strategy : FORWARD
 
 		 : Operator
-			content : SourceConversion(table:Buffer(MyTable2), fields:(d, e, f))
+			content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable2), fields:(d, e, f))
 			ship_strategy : FORWARD
 
 ]]>

@@ -27,8 +27,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
       :- LogicalAggregate(group=[{0}])
       :  +- LogicalProject(a=[$0])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-      +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -38,9 +38,9 @@ LogicalAggregate(group=[{}], EXPR$0=[$SUM0($4)])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
       :- LogicalProject(a=[$0], $f1=[CAST(CASE(IS NOT NULL($0), 1, 0)):BIGINT NOT NULL])
       :  +- LogicalAggregate(group=[{0}])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -55,8 +55,8 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0], b=[$2])
       +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
          :- LogicalProject(a=[$0])
-         :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -65,9 +65,9 @@ LogicalProject(EXPR$0=[$1])
 +- LogicalProject(a=[$0], $f4=[*($1, CASE(IS NULL($3), 0, CAST($3):BIGINT NOT NULL))])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
       :- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-      :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -83,8 +83,8 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
          :- LogicalAggregate(group=[{0}])
          :  +- LogicalProject(a=[$0])
-         :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -93,9 +93,9 @@ LogicalProject(EXPR$0=[$1])
 +- LogicalProject(a=[$0], $f3=[CASE(IS NULL($2), 0, CAST($2):BIGINT NOT NULL)])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
       :- LogicalAggregate(group=[{0}])
-      :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -110,8 +110,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
       :- LogicalAggregate(group=[{0}])
       :  +- LogicalProject(a=[$0])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-      +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -121,9 +121,9 @@ LogicalAggregate(group=[{}], EXPR$0=[$SUM0($4)])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
       :- LogicalProject(a=[$0], $f1=[CAST(CASE(IS NOT NULL($0), 1, 0)):BIGINT NOT NULL])
       :  +- LogicalAggregate(group=[{0}])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -138,8 +138,8 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
       :- LogicalAggregate(group=[{0}])
       :  +- LogicalProject(a=[$0])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-      +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -148,9 +148,9 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($3)])
 +- LogicalProject(a=[$0], a0=[$1], $f1=[$2], $f3=[CAST(*($0, $2)):INTEGER])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
       :- LogicalAggregate(group=[{0}])
-      :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -166,8 +166,8 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
          :- LogicalAggregate(group=[{0}])
          :  +- LogicalProject(a=[$0])
-         :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -177,9 +177,9 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0], a0=[$1], EXPR$0=[$2], $f3=[CASE(IS NULL($2), 0, CAST($2):BIGINT NOT NULL)])
       +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
          :- LogicalAggregate(group=[{0}])
-         :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
          +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-            +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -193,9 +193,9 @@ LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
    +- LogicalProject(a0=[$4], b=[$1])
       +- LogicalJoin(condition=[=($4, $0)], joinType=[right])
-         :- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
          +- LogicalProject(a=[$0])
-            +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -204,9 +204,9 @@ LogicalProject(EXPR$0=[$1])
 +- LogicalProject(a0=[$2], $f4=[*(CASE(IS NULL($1), 0, CAST($1):BIGINT NOT NULL), $3)])
    +- LogicalJoin(condition=[=($2, $0)], joinType=[right])
       :- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-      :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -221,8 +221,8 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
       :- LogicalAggregate(group=[{0}])
       :  +- LogicalProject(a=[$0])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-      +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -231,9 +231,9 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($3)])
 +- LogicalProject(a=[$0], a0=[$1], $f1=[$2], $f3=[CAST(*($0, $2)):INTEGER])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
       :- LogicalAggregate(group=[{0}])
-      :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -248,8 +248,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
       :- LogicalAggregate(group=[{0}])
       :  +- LogicalProject(a=[$0])
-      :     +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
-      +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -258,9 +258,9 @@ LogicalAggregate(group=[{}], EXPR$0=[$SUM0($3)])
 +- LogicalProject(a=[$0], a0=[$1], EXPR$0=[$2], $f3=[CASE(IS NULL($2), 1, CAST($2):BIGINT NOT NULL)])
    +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
       :- LogicalAggregate(group=[{0}])
-      :  +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
       +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-         +- LogicalTableScan(table=[[T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
   </TestCase>

@@ -25,7 +25,7 @@ limitations under the License.
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
    +- LogicalProject(b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -35,7 +35,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, AVG(a) AS (sum$0, count$1)])
          +- Calc(select=[b, a])
-            +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -47,7 +47,7 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)]), rowType=[RecordType(DOUBLE EXPR$0)]
 +- LogicalProject($f0=[CAST($0):DOUBLE]), rowType=[RecordType(DOUBLE $f0)]
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -56,7 +56,7 @@ GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordT
 +- Exchange(distribution=[single]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
    +- LocalGroupAggregate(select=[AVG($f0) AS (sum$0, count$1)]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
       +- Calc(select=[CAST(a) AS $f0]), rowType=[RecordType(DOUBLE $f0)]
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
   </TestCase>
@@ -69,7 +69,7 @@ GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordT
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
    +- LogicalProject(b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -79,7 +79,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS count$0])
          +- Calc(select=[b, a])
-            +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -92,7 +92,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)], EXPR$1=[AVG($2)])
    +- LogicalProject(d=[+($1, 3)], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -102,7 +102,7 @@ Calc(select=[EXPR$0, EXPR$1])
    +- Exchange(distribution=[hash[d]])
       +- LocalGroupAggregate(groupBy=[d], select=[d, MIN(c) AS min$0, AVG(a) AS (sum$1, count$2)])
          +- Calc(select=[+(b, 3) AS d, c, a])
-            +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -114,7 +114,7 @@ Calc(select=[EXPR$0, EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
 +- LogicalProject(a=[$0])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -123,7 +123,7 @@ GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalGroupAggregate(select=[COUNT(a) AS count$0])
       +- Calc(select=[a])
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -137,7 +137,7 @@ LogicalProject(b=[$0], EXPR$1=[$1])
 +- LogicalFilter(condition=[=($0, 2)])
    +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
       +- LogicalProject(b=[$1], a=[$0])
-         +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -147,7 +147,7 @@ Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
          +- Calc(select=[CAST(2:BIGINT) AS b, a], where=[=(b, 2:BIGINT)])
-            +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -160,7 +160,7 @@ Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
 LogicalProject(four=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
    +- LogicalProject(b=[$1], four=[4], a=[$0])
-      +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -170,7 +170,7 @@ Calc(select=[4 AS four, EXPR$1])
    +- Exchange(distribution=[hash[b, four]])
       +- LocalGroupAggregate(groupBy=[b, four], select=[b, four, SUM(a) AS sum$0])
          +- Calc(select=[b, 4 AS four, a])
-            +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

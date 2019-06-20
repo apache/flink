@@ -30,8 +30,8 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0], b=[$1])
       +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
          +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -42,10 +42,10 @@ Calc(select=[EXPR$0])
       +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d], build=[left])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
-         :     +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d]])
             +- Calc(select=[d])
-               +- TableSourceScan(table=[[y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -65,7 +65,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[<=($3, 10)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0, $2 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-         +- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -77,7 +77,7 @@ HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
          +- Exchange(distribution=[hash[a]])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[a ASC, c ASC, b ASC])
-                  +- TableSourceScan(table=[[x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

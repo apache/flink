@@ -24,7 +24,7 @@ limitations under the License.
       <![CDATA[
 LogicalSort(fetch=[0])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -41,7 +41,7 @@ Values(tuples=[[]], values=[a, c])
       <![CDATA[
 LogicalSort(offset=[10], fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -50,7 +50,7 @@ Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[20], global=[false])
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -62,7 +62,7 @@ Calc(select=[a, c])
       <![CDATA[
 LogicalSort(fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -71,7 +71,7 @@ Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -83,7 +83,7 @@ Calc(select=[a, c])
       <![CDATA[
 LogicalSort(offset=[10], fetch=[0])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -100,7 +100,7 @@ Values(tuples=[[]], values=[a, c])
       <![CDATA[
 LogicalSort(offset=[1], fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -109,7 +109,7 @@ Calc(select=[a, c])
 +- Limit(offset=[1], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[11], global=[false])
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -121,7 +121,7 @@ Calc(select=[a, c])
       <![CDATA[
 LogicalSort(offset=[0], fetch=[0])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -138,7 +138,7 @@ Values(tuples=[[]], values=[a, c])
       <![CDATA[
 LogicalSort(fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -155,7 +155,7 @@ Values(tuples=[[]], values=[a, b, c])
       <![CDATA[
 LogicalSort(offset=[0], fetch=[10])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -164,7 +164,7 @@ Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -176,7 +176,7 @@ Calc(select=[a, c])
       <![CDATA[
 LogicalSort(offset=[10])
 +- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -184,7 +184,7 @@ LogicalSort(offset=[10])
 Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[unlimited], global=[true])
    +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -196,7 +196,7 @@ Calc(select=[a, c])
       <![CDATA[
 LogicalSort(fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -204,7 +204,7 @@ LogicalSort(fetch=[5])
 Limit(offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- Limit(offset=[0], fetch=[5], global=[false])
-      +- TableSourceScan(table=[[MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

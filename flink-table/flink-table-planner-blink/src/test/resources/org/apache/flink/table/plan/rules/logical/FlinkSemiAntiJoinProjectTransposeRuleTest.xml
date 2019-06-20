@@ -30,13 +30,13 @@ LogicalProject(a=[$0], f=[$4])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
 LogicalProject(i=[$0])
   LogicalFilter(condition=[<($1, 50)])
-    LogicalTableScan(table=[[z, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
 }))])
    +- LogicalProject(a=[*($0, 2)], b=[$1], d=[+($3, 1)], e=[$4], f=[$5])
       +- LogicalFilter(condition=[=($2, $5)])
          +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -47,11 +47,11 @@ LogicalProject(a=[$0], f=[$4])
       :- LogicalProject(a=[*($0, 2)], b=[$1], d=[+($3, 1)], e=[$4], f=[$5])
       :  +- LogicalFilter(condition=[=($2, $5)])
       :     +- LogicalJoin(condition=[true], joinType=[inner])
-      :        :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-      :        +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
       +- LogicalProject(i=[$0])
          +- LogicalFilter(condition=[<($1, 50)])
-            +- LogicalTableScan(table=[[z, source: [TestTableSource(i, j, k)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -69,13 +69,13 @@ LogicalProject(a=[$0], f=[$4])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
 LogicalProject(i=[$0])
   LogicalFilter(condition=[<($1, 50)])
-    LogicalTableScan(table=[[z, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
 }))])
    +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4], f=[$5])
       +- LogicalFilter(condition=[=($2, $5)])
          +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -85,12 +85,12 @@ LogicalProject(a=[$0], f=[$4])
    +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4], f=[$5])
       +- LogicalFilter(condition=[=($2, $5)])
          +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
             +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
-               :- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+               :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
                +- LogicalProject(i=[$0])
                   +- LogicalFilter(condition=[<($1, 50)])
-                     +- LogicalTableScan(table=[[z, source: [TestTableSource(i, j, k)]]])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(i, j, k)]]])
 ]]>
     </Resource>
   </TestCase>

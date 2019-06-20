@@ -64,4 +64,8 @@ object JavaScalaConversionUtil {
   def toJava[T](seq: Seq[T]): JList[T] = {
     seq.asJava
   }
+
+  def toScala[T](list: JList[T]): Seq[T] = {
+    list.asScala
+  }
 }

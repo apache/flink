@@ -25,7 +25,7 @@ limitations under the License.
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
    +- LogicalProject(long=[$0], proctime=[$2])
-      +- LogicalTableScan(table=[[MyTable2]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -34,7 +34,7 @@ Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[long], select=[long, MIN(proctime) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
       +- Calc(select=[long, PROCTIME_MATERIALIZE(proctime) AS proctime])
-         +- DataStreamScan(table=[[MyTable2]], fields=[long, int, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -47,7 +47,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
    +- LogicalProject(long=[$1], rowtime=[$0])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -56,7 +56,7 @@ Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[long], select=[long, MIN(rowtime) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
       +- Calc(select=[long, CAST(rowtime) AS rowtime])
-         +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>
@@ -68,13 +68,13 @@ Calc(select=[EXPR$0])
       <![CDATA[
 LogicalProject(rowtime=[$0])
 +- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'1990-12-02 12:11:11'):TIMESTAMP(3) NOT NULL)])
-   +- LogicalTableScan(table=[[MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[rowtime], where=[>(CAST(rowtime), 1990-12-02 12:11:11:TIMESTAMP(3))])
-+- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>
@@ -87,7 +87,7 @@ Calc(select=[rowtime], where=[>(CAST(rowtime), 1990-12-02 12:11:11:TIMESTAMP(3))
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
    +- LogicalProject(proctime=[$2], long=[$0])
-      +- LogicalTableScan(table=[[MyTable2]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -96,7 +96,7 @@ Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[proctime], select=[proctime, COUNT(long) AS EXPR$0])
    +- Exchange(distribution=[hash[proctime]])
       +- Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, long])
-         +- DataStreamScan(table=[[MyTable2]], fields=[long, int, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -109,7 +109,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
    +- LogicalProject(rowtime=[$0], long=[$1])
-      +- LogicalTableScan(table=[[MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -118,7 +118,7 @@ Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[rowtime], select=[rowtime, COUNT(long) AS EXPR$0])
    +- Exchange(distribution=[hash[rowtime]])
       +- Calc(select=[CAST(rowtime) AS rowtime, long])
-         +- DataStreamScan(table=[[MyTable]], fields=[rowtime, long, int, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -142,7 +142,7 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
    +- LogicalProject($f0=[TUMBLE(TUMBLE_ROWTIME($0), 30000:INTERVAL SECOND)], long=[$1], int=[$2])
       +- LogicalAggregate(group=[{0, 1}], int=[SUM($2)])
          +- LogicalProject($f0=[TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
-            +- LogicalTableScan(table=[[MyTable1]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -153,7 +153,7 @@ Calc(select=[CAST(w$end) AS EXPR$0, long, EXPR$2])
       +- Calc(select=[w$rowtime AS $f0, long, int])
          +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS int, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[hash[long]])
-               +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>
@@ -164,13 +164,13 @@ Calc(select=[CAST(w$end) AS EXPR$0, long, EXPR$2])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(rowtime=[$0], long=[$1], int=[$2], proctime=[$3])
-+- LogicalTableScan(table=[[MyTable]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[rowtime, long, int, PROCTIME_MATERIALIZE(proctime) AS proctime])
-+- DataStreamScan(table=[[MyTable]], fields=[rowtime, long, int, proctime])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -185,13 +185,13 @@ SELECT rowtime FROM
       <![CDATA[
 LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))])
 +- LogicalFilter(condition=[>($1, 0)])
-   +- LogicalTableScan(table=[[MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[FLOOR(CAST(rowtime), FLAG(DAY)) AS rowtime], where=[>(long, 0)])
-+- DataStreamScan(table=[[MyTable]], fields=[rowtime, long, int, proctime])
++- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -206,7 +206,7 @@ FROM MyTable, LATERAL TABLE(tableFunc(rowtime, proctime, '')) AS T(s)
       <![CDATA[
 LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-   :- LogicalTableScan(table=[[MyTable]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
@@ -214,7 +214,7 @@ LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
       <![CDATA[
 Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
 +- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3) NOT NULL, PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
-   +- DataStreamScan(table=[[MyTable]], fields=[rowtime, long, int, proctime])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -230,7 +230,7 @@ GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)
 LogicalProject(EXPR$0=[$2], long=[$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
    +- LogicalProject(long=[$1], $f1=[TUMBLE($0, 100:INTERVAL SECOND)], rowtime=[$0])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -239,7 +239,7 @@ Calc(select=[EXPR$0, long])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow], select=[long, MIN(rowtime0) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
       +- Calc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
-         +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>
@@ -251,16 +251,16 @@ Calc(select=[EXPR$0, long])
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(rowtime=[$0])
-:  +- LogicalTableScan(table=[[MyTable1]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 +- LogicalProject(rowtime=[$0])
-   +- LogicalTableScan(table=[[MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Union(all=[true], union=[rowtime])
 :- Calc(select=[rowtime], reuse_id=[1])
-:  +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+:  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -280,7 +280,7 @@ FROM MyTable1
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
    +- LogicalProject($f0=[TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -288,7 +288,7 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 Calc(select=[CAST(w$end) AS EXPR$0, long, EXPR$2])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[long]])
-      +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>
@@ -306,7 +306,7 @@ LogicalProject(EXPR$0=[$2], long=[$0])
 +- LogicalFilter(condition=[=(EXTRACT(FLAG(QUARTER), TUMBLE_END($1)), 1)])
    +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
       +- LogicalProject(long=[$1], $f1=[TUMBLE($0, 1000:INTERVAL SECOND)], rowtime=[$0])
-         +- LogicalTableScan(table=[[MyTable1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -315,7 +315,7 @@ Calc(select=[EXPR$0, long], where=[=(EXTRACT(FLAG(QUARTER), CAST(w$end)), 1:BIGI
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, MIN(rowtime0) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[long]])
       +- Calc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
-         +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>
@@ -335,7 +335,7 @@ FROM MyTable1
 LogicalProject(rowtime=[TUMBLE_END($1)], long=[$0], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
    +- LogicalProject(long=[$1], $f1=[TUMBLE($0, 100:INTERVAL SECOND)], int=[$2])
-      +- LogicalTableScan(table=[[MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -343,7 +343,7 @@ LogicalProject(rowtime=[TUMBLE_END($1)], long=[$0], EXPR$2=[$2])
 Calc(select=[CAST(w$end) AS rowtime, long, EXPR$2])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[long]])
-      +- DataStreamScan(table=[[MyTable1]], fields=[rowtime, long, int])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
   </TestCase>

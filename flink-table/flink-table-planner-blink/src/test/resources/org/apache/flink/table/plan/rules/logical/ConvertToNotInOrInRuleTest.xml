@@ -24,14 +24,14 @@ limitations under the License.
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[IN($0, 1, 2, 3, 4)])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -43,14 +43,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($3, 1), =($3, 2), =($3, 3), =($3, 4), =($3, 5), =($3, 6), =($3, 7), =($3, 8), =($3, 9), =($3, 10), =($3, 11), =($3, 12), =($3, 13), =($3, 14), =($3, 15), =($3, 16), =($3, 17), =($3, 18), =($3, 19), =($3, 20))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[IN($3, 1:DOUBLE, 2:DOUBLE, 3:DOUBLE, 4:DOUBLE, 5:DOUBLE, 6:DOUBLE, 7:DOUBLE, 8:DOUBLE, 9:DOUBLE, 10:DOUBLE, 11:DOUBLE, 12:DOUBLE, 13:DOUBLE, 14:DOUBLE, 15:DOUBLE, 16:DOUBLE, 17:DOUBLE, 18:DOUBLE, 19:DOUBLE, 20:DOUBLE)])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -62,14 +62,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($0, 5))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[IN($0, 1, 2, 3, 4, 5)])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -81,14 +81,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($3, 1), =($3, 2), =($3, 3), =($3, 4), =($3, 5), =($3, 6), =($3, 7), =($3, 8), =($3, 9), =($3, 10), =($3, 11), =($3, 12), =($3, 13), =($3, 14), =($3, 15), =($3, 16), =($3, 17), =($3, 18), =($3, 19))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($3, 1), =($3, 2), =($3, 3), =($3, 4), =($3, 5), =($3, 6), =($3, 7), =($3, 8), =($3, 9), =($3, 10), =($3, 11), =($3, 12), =($3, 13), =($3, 14), =($3, 15), =($3, 16), =($3, 17), =($3, 18), =($3, 19))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -100,14 +100,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -119,14 +119,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4)), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(IN($0, 1, 2, 3, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -138,14 +138,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), =($1, 1)))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), =($1, 1)))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -157,14 +157,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($1, 1), IN($0, 1, 2, 3, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -176,14 +176,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($1, 1), =($0, 3), =($0, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($1, 1), IN($0, 1, 2, 3, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -195,14 +195,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($1, 1), AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1), IN($0, 1, 2, 3, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -214,14 +214,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($1, 1), =($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), <>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($1, 1), =($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), NOT IN($0, 1, 2, 3, 4)))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -233,14 +233,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(=($1, 1), =($1, 2), AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($2, 1)), =($1, 3), =($1, 4), =($2, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(AND(=($2, 1), NOT IN($0, 1, 2, 3, 4)), IN($1, 1:BIGINT, 2:BIGINT, 3:BIGINT, 4:BIGINT), =($2, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -252,14 +252,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[NOT IN($0, 1, 2, 3, 4)])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -271,14 +271,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($3, 1), <>($3, 2), <>($3, 3), <>($3, 4), <>($3, 5), <>($3, 6), <>($3, 7), <>($3, 8), <>($3, 9), <>($3, 10), <>($3, 11), <>($3, 12), <>($3, 13), <>($3, 14), <>($3, 15), <>($3, 16), <>($3, 17), <>($3, 18), <>($3, 19), <>($3, 20))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[NOT IN($3, 1:DOUBLE, 2:DOUBLE, 3:DOUBLE, 4:DOUBLE, 5:DOUBLE, 6:DOUBLE, 7:DOUBLE, 8:DOUBLE, 9:DOUBLE, 10:DOUBLE, 11:DOUBLE, 12:DOUBLE, 13:DOUBLE, 14:DOUBLE, 15:DOUBLE, 16:DOUBLE, 17:DOUBLE, 18:DOUBLE, 19:DOUBLE, 20:DOUBLE)])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -290,14 +290,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($0, 5))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(=($0, 5), NOT IN($0, 1, 2, 3, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -309,14 +309,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($3, 1), <>($3, 2), <>($3, 3), <>($3, 4), <>($3, 5), <>($3, 6), <>($3, 7), <>($3, 8), <>($3, 9), <>($3, 10), <>($3, 11), <>($3, 12), <>($3, 13), <>($3, 14), <>($3, 15), <>($3, 16), <>($3, 17), <>($3, 18), <>($3, 19))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($3, 1), <>($3, 2), <>($3, 3), <>($3, 4), <>($3, 5), <>($3, 6), <>($3, 7), <>($3, 8), <>($3, 9), <>($3, 10), <>($3, 11), <>($3, 12), <>($3, 13), <>($3, 14), <>($3, 15), <>($3, 16), <>($3, 17), <>($3, 18), <>($3, 19))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -328,14 +328,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -347,14 +347,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(=($1, 1), NOT IN($0, 1, 2, 3, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -366,14 +366,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), =($1, 1), <>($0, 3), <>($0, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[AND(=($1, 1), NOT IN($0, 1, 2, 3, 4))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -385,14 +385,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -404,14 +404,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -423,14 +423,14 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
 +- LogicalFilter(condition=[OR(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
-   +- LogicalTableScan(table=[[MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
   </TestCase>
