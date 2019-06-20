@@ -18,32 +18,14 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.ApiExpressionUtils._
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions._
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter
-import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.Logging
-import org.apache.flink.table.validate.FunctionCatalog
-import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.avatica.util.DateTimeUtils
-import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
-import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
-import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 
-import java.sql.{Date, Time, Timestamp}
 import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
 
 object RexNodeExtractor extends Logging {
 
