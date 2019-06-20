@@ -40,6 +40,8 @@ distribution. See
 [here]({{ site.baseurl }}/dev/projectsetup/dependencies.html)
 for information about how to package the program with the libraries for
 cluster execution.
+ 
+This pubsub connector has not received widespread testing yet.
 
 ## Consuming or Producing PubSubMessages
 
