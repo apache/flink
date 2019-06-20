@@ -103,7 +103,6 @@ public final class PipelinedRegionComputeUtil {
 	}
 
 	private static Set<Set<FailoverVertex>> uniqueRegions(final Map<FailoverVertex, Set<FailoverVertex>> vertexToRegion) {
-		// find out all the distinct regions
 		final Set<Set<FailoverVertex>> distinctRegions = Collections.newSetFromMap(new IdentityHashMap<>());
 		distinctRegions.addAll(vertexToRegion.values());
 		return distinctRegions;
