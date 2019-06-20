@@ -39,7 +39,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -70,13 +69,6 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-			.build());
-
 	private final boolean allowNonRestoredState;
 
 	protected AbstractOperatorRestoreTestBase() {
@@ -95,14 +87,27 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	@Test
 	public void testMigrationAndRestore() throws Throwable {
 		ClassLoader classLoader = this.getClass().getClassLoader();
-		ClusterClient<?> clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
+		MiniClusterWithClientResource cluster = getMiniClusterResource();
+		cluster.before();
+		ClusterClient<?> clusterClient = cluster.getClusterClient();
 		clusterClient.setDetached(true);
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
-		// submit job with old version savepoint and create a migrated savepoint in the new version
-		String savepointPath = migrateJob(classLoader, clusterClient, deadline);
-		// restore from migrated new version savepoint
-		restoreJob(classLoader, clusterClient, deadline, savepointPath);
+		try {
+			// submit job with old version savepoint and create a migrated savepoint in the new version
+			String savepointPath = migrateJob(classLoader, clusterClient, deadline);
+			// restore from migrated new version savepoint
+			restoreJob(classLoader, clusterClient, deadline, savepointPath);
+		} finally {
+			cluster.after();
+		}
+	}
+
+	private static MiniClusterWithClientResource getMiniClusterResource() {
+		return new MiniClusterWithClientResource(new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+			.build());
 	}
 
 	private String migrateJob(ClassLoader classLoader, ClusterClient<?> clusterClient, Deadline deadline) throws Throwable {
