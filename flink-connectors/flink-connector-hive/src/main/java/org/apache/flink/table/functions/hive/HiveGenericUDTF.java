@@ -91,7 +91,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 			.allMatch(conv -> conv instanceof IdentityConversion);
 	}
 
-	// Will on take effect after calling open()
+	// Will only take effect after calling open()
 	@VisibleForTesting
 	protected final void setCollector(Collector collector) {
 		function.setCollector(collector);
