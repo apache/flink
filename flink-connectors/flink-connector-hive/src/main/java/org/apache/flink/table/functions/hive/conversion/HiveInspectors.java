@@ -22,7 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 
@@ -37,10 +41,13 @@ import org.apache.hadoop.hive.serde2.io.HiveVarcharWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ConstantObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BooleanObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
@@ -83,7 +90,10 @@ import org.apache.hadoop.io.Text;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -166,7 +176,7 @@ public class HiveInspectors {
 	/**
 	 * Get conversion for converting Flink object to Hive object from an ObjectInspector and the corresponding Flink DataType.
 	 */
-	public static HiveObjectConversion getConversion(ObjectInspector inspector, DataType dataType) {
+	public static HiveObjectConversion getConversion(ObjectInspector inspector, LogicalType dataType) {
 		if (inspector instanceof PrimitiveObjectInspector) {
 			if (inspector instanceof BooleanObjectInspector ||
 					inspector instanceof StringObjectInspector ||
@@ -181,15 +191,72 @@ public class HiveInspectors {
 					inspector instanceof BinaryObjectInspector) {
 				return IdentityConversion.INSTANCE;
 			} else if (inspector instanceof HiveCharObjectInspector) {
-				return o -> new HiveChar((String) o, ((CharType) dataType.getLogicalType()).getLength());
+				return o -> new HiveChar((String) o, ((CharType) dataType).getLength());
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
-				return o -> new HiveVarchar((String) o, ((VarCharType) dataType.getLogicalType()).getLength());
+				return o -> new HiveVarchar((String) o, ((VarCharType) dataType).getLength());
 			}
 
 			// TODO: handle decimal type
 		}
 
-		// TODO: handle complex types like struct, list, and map
+		if (inspector instanceof ListObjectInspector) {
+			HiveObjectConversion eleConvert = getConversion(
+				((ListObjectInspector) inspector).getListElementObjectInspector(),
+				((ArrayType) dataType).getElementType());
+			return o -> {
+				Object[] array = (Object[]) o;
+				List<Object> result = new ArrayList<>();
+
+				for (Object ele : array) {
+					result.add(eleConvert.toHiveObject(ele));
+				}
+				return result;
+			};
+		}
+
+		if (inspector instanceof MapObjectInspector) {
+			MapObjectInspector mapInspector = (MapObjectInspector) inspector;
+			MapType kvType = (MapType) dataType;
+
+			HiveObjectConversion keyConversion =
+				getConversion(mapInspector.getMapKeyObjectInspector(), kvType.getKeyType());
+			HiveObjectConversion valueConversion =
+				getConversion(mapInspector.getMapValueObjectInspector(), kvType.getValueType());
+
+			return o -> {
+				Map<Object, Object> map = (Map) o;
+				Map<Object, Object> result = new HashMap<>(map.size());
+
+				for (Map.Entry<Object, Object> entry : map.entrySet()){
+					result.put(
+						keyConversion.toHiveObject(entry.getKey()),
+						valueConversion.toHiveObject(entry.getValue()));
+				}
+				return result;
+			};
+		}
+
+		if (inspector instanceof StructObjectInspector) {
+			StructObjectInspector structInspector = (StructObjectInspector) inspector;
+
+			List<? extends StructField> structFields = structInspector.getAllStructFieldRefs();
+
+			List<RowType.RowField> rowFields = ((RowType) dataType).getFields();
+
+			HiveObjectConversion[] conversions = new HiveObjectConversion[structFields.size()];
+			for (int i = 0; i < structFields.size(); i++) {
+				conversions[i] = getConversion(structFields.get(i).getFieldObjectInspector(), rowFields.get(i).getType());
+			}
+
+			return o -> {
+				Row row = (Row) o;
+				List<Object> result = new ArrayList<>(row.getArity());
+				for (int i = 0; i < row.getArity(); i++) {
+					result.add(conversions[i].toHiveObject(row.getField(i)));
+				}
+				return result;
+			};
+		}
 
 		throw new FlinkHiveUDFException(
 			String.format("Flink doesn't support convert object conversion for %s yet", inspector));
@@ -231,7 +298,29 @@ public class HiveInspectors {
 			// TODO: handle decimal type
 		}
 
-		// TODO: handle complex types like list and map
+		if (inspector instanceof ListObjectInspector) {
+			ListObjectInspector listInspector = (ListObjectInspector) inspector;
+			List<?> list = listInspector.getList(data);
+
+			Object[] result = new Object[list.size()];
+			for (int i = 0; i < list.size(); i++) {
+				result[i] = toFlinkObject(listInspector.getListElementObjectInspector(), list.get(i));
+			}
+			return result;
+		}
+
+		if (inspector instanceof MapObjectInspector) {
+			MapObjectInspector mapInspector = (MapObjectInspector) inspector;
+			Map<?, ?> map = mapInspector.getMap(data);
+
+			Map<Object, Object> result = new HashMap<>(map.size());
+			for (Map.Entry<?, ?> entry : map.entrySet()){
+				result.put(
+					toFlinkObject(mapInspector.getMapKeyObjectInspector(), entry.getKey()),
+					toFlinkObject(mapInspector.getMapValueObjectInspector(), entry.getValue()));
+			}
+			return result;
+		}
 
 		if (inspector instanceof StandardStructObjectInspector) {
 			StandardStructObjectInspector structInspector = (StandardStructObjectInspector) inspector;
