@@ -310,16 +310,16 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testFailingCheckpointStreamOperator() throws Exception {
+	public void testDecliningCheckpointStreamOperator() throws Exception {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
 		TaskInfo mockTaskInfo = mock(TaskInfo.class);
 		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
 		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = new MockEnvironmentBuilder().build();
+		CheckpointExceptionHandlerTest.DeclineDummyEnvironment declineDummyEnvironment = new CheckpointExceptionHandlerTest.DeclineDummyEnvironment();
 
-		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
+		StreamTask<?, ?> streamTask = new EmptyStreamTask(declineDummyEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
 		// mock the operators
@@ -360,19 +360,11 @@ public class StreamTaskTest extends TestLogger {
 
 		CheckpointExceptionHandlerFactory checkpointExceptionHandlerFactory = new CheckpointExceptionHandlerFactory();
 		CheckpointExceptionHandler checkpointExceptionHandler =
-			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(true, mockEnvironment);
-		Whitebox.setInternalState(streamTask, "synchronousCheckpointExceptionHandler", checkpointExceptionHandler);
+			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(declineDummyEnvironment);
+		Whitebox.setInternalState(streamTask, "checkpointExceptionHandler", checkpointExceptionHandler);
 
-		StreamTask.AsyncCheckpointExceptionHandler asyncCheckpointExceptionHandler =
-			new StreamTask.AsyncCheckpointExceptionHandler(streamTask);
-		Whitebox.setInternalState(streamTask, "asynchronousCheckpointExceptionHandler", asyncCheckpointExceptionHandler);
-
-		try {
-			streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
-			fail("Expected test exception here.");
-		} catch (Exception e) {
-			assertEquals(testException, e.getCause());
-		}
+		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+		assertEquals(testException, declineDummyEnvironment.getLastDeclinedCheckpointCause());
 
 		verify(operatorSnapshotResult1).cancel();
 		verify(operatorSnapshotResult2).cancel();
@@ -432,12 +424,8 @@ public class StreamTaskTest extends TestLogger {
 
 		CheckpointExceptionHandlerFactory checkpointExceptionHandlerFactory = new CheckpointExceptionHandlerFactory();
 		CheckpointExceptionHandler checkpointExceptionHandler =
-			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(true, mockEnvironment);
-		Whitebox.setInternalState(streamTask, "synchronousCheckpointExceptionHandler", checkpointExceptionHandler);
-
-		StreamTask.AsyncCheckpointExceptionHandler asyncCheckpointExceptionHandler =
-			new StreamTask.AsyncCheckpointExceptionHandler(streamTask);
-		Whitebox.setInternalState(streamTask, "asynchronousCheckpointExceptionHandler", asyncCheckpointExceptionHandler);
+			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(mockEnvironment);
+		Whitebox.setInternalState(streamTask, "checkpointExceptionHandler", checkpointExceptionHandler);
 
 		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);

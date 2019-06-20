@@ -31,7 +31,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointFailureManager {
 
-	private final static int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
+	public final static int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
+	public final static int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
 	private final int tolerableCpFailureNumber;
 	private final FailJobCallback failureCallback;
@@ -39,10 +40,15 @@ public class CheckpointFailureManager {
 	private final Set<Long> countedCheckpointIds;
 
 	public CheckpointFailureManager(int tolerableCpFailureNumber, FailJobCallback failureCallback) {
-		checkArgument(tolerableCpFailureNumber >= 0,
+		checkArgument(tolerableCpFailureNumber >= 0 || tolerableCpFailureNumber == UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER,
 			"The tolerable checkpoint failure number is illegal, " +
 				"it must be greater than or equal to 0 .");
-		this.tolerableCpFailureNumber = tolerableCpFailureNumber;
+		// set tolerableCpFailureNumber as 0 when passing UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER.
+		if (tolerableCpFailureNumber == UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
+			this.tolerableCpFailureNumber = 0;
+		} else {
+			this.tolerableCpFailureNumber = tolerableCpFailureNumber;
+		}
 		this.continuousFailureCounter = new AtomicInteger(0);
 		this.failureCallback = checkNotNull(failureCallback);
 		this.countedCheckpointIds = ConcurrentHashMap.newKeySet();

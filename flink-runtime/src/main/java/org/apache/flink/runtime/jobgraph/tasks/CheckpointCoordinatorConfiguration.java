@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.util.Preconditions;
 
@@ -65,13 +66,13 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			int maxConcurrentCheckpoints,
 			CheckpointRetentionPolicy checkpointRetentionPolicy,
 			boolean isExactlyOnce,
-			boolean isPerfetCheckpointForRecovery,
+			boolean isPreferCheckpointForRecovery,
 			int tolerableCpFailureNumber) {
 
 		// sanity checks
 		if (checkpointInterval < 10 || checkpointTimeout < 10 ||
 			minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1 ||
-			tolerableCpFailureNumber < 0) {
+			tolerableCpFailureNumber < CheckpointFailureManager.UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
 			throw new IllegalArgumentException();
 		}
 
@@ -81,7 +82,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
 		this.isExactlyOnce = isExactlyOnce;
-		this.isPreferCheckpointForRecovery = isPerfetCheckpointForRecovery;
+		this.isPreferCheckpointForRecovery = isPreferCheckpointForRecovery;
 		this.tolerableCheckpointFailureNumber = tolerableCpFailureNumber;
 	}
 

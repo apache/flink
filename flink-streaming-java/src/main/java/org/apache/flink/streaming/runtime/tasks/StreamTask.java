@@ -183,10 +183,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private ExecutorService asyncOperationsThreadPool;
 
 	/** Handler for exceptions during checkpointing in the stream task. Used in synchronous part of the checkpoint. */
-	private CheckpointExceptionHandler synchronousCheckpointExceptionHandler;
-
-	/** Wrapper for synchronousCheckpointExceptionHandler to deal with rethrown exceptions. Used in the async part. */
-	private AsyncCheckpointExceptionHandler asynchronousCheckpointExceptionHandler;
+	private CheckpointExceptionHandler checkpointExceptionHandler;
 
 	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
 
@@ -323,11 +320,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			CheckpointExceptionHandlerFactory cpExceptionHandlerFactory = createCheckpointExceptionHandlerFactory();
 
-			synchronousCheckpointExceptionHandler = cpExceptionHandlerFactory.createCheckpointExceptionHandler(
-				getExecutionConfig().isFailTaskOnCheckpointError(),
-				getEnvironment());
-
-			asynchronousCheckpointExceptionHandler = new AsyncCheckpointExceptionHandler(this);
+			checkpointExceptionHandler = cpExceptionHandlerFactory
+				.createCheckpointExceptionHandler(getEnvironment());
 
 			stateBackend = createStateBackend();
 			checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
@@ -1062,9 +1056,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 					// We only report the exception for the original cause of fail and cleanup.
 					// Otherwise this followup exception could race the original exception in failing the task.
-					owner.asynchronousCheckpointExceptionHandler.tryHandleCheckpointException(
-						checkpointMetaData,
-						checkpointException);
+					try {
+						owner.checkpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, checkpointException);
+					} catch (Exception unhandled) {
+						AsynchronousException asyncException = new AsynchronousException(unhandled);
+						owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
+					}
 
 					currentState = CheckpointingOperation.AsyncCheckpointState.DISCARDED;
 				} else {
@@ -1227,7 +1224,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					// operation, and without the failure, the task would go back to normal execution.
 					throw ex;
 				} else {
-					owner.synchronousCheckpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, ex);
+					owner.checkpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, ex);
 				}
 			}
 		}
@@ -1249,36 +1246,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			RUNNING,
 			DISCARDED,
 			COMPLETED
-		}
-	}
-
-	/**
-	 * Wrapper for synchronous {@link CheckpointExceptionHandler}. This implementation catches unhandled, rethrown
-	 * exceptions and reports them through {@link #handleAsyncException(String, Throwable)}. As this implementation
-	 * always handles the exception in some way, it never rethrows.
-	 */
-	static final class AsyncCheckpointExceptionHandler implements CheckpointExceptionHandler {
-
-		/** Owning stream task to which we report async exceptions. */
-		final StreamTask<?, ?> owner;
-
-		/** Synchronous exception handler to which we delegate. */
-		final CheckpointExceptionHandler synchronousCheckpointExceptionHandler;
-
-		AsyncCheckpointExceptionHandler(StreamTask<?, ?> owner) {
-			this.owner = Preconditions.checkNotNull(owner);
-			this.synchronousCheckpointExceptionHandler =
-				Preconditions.checkNotNull(owner.synchronousCheckpointExceptionHandler);
-		}
-
-		@Override
-		public void tryHandleCheckpointException(CheckpointMetaData checkpointMetaData, Exception exception) {
-			try {
-				synchronousCheckpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, exception);
-			} catch (Exception unhandled) {
-				AsynchronousException asyncException = new AsynchronousException(unhandled);
-				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
-			}
 		}
 	}
 
