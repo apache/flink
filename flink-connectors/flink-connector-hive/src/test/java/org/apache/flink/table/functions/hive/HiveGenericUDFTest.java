@@ -19,7 +19,10 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
+import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
@@ -30,10 +33,14 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateFormat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDecode;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMapKeys;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
 import org.junit.Test;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -276,6 +283,101 @@ public class HiveGenericUDFTest {
 		);
 
 		assertEquals(null, udf.eval(t1, t2));
+	}
+
+	@Test
+	public void testArray() {
+		HiveGenericUDF udf = init(
+			TestGenericUDFArray.class,
+			new Object[] {
+				null
+			},
+			new DataType[] {
+				DataTypes.ARRAY(DataTypes.INT())
+			}
+		);
+
+		assertEquals(6, udf.eval(1, 2, 3));
+		assertEquals(6, udf.eval(new Integer[] { 1, 2, 3 }));
+	}
+
+	@Test
+	public void testMap() {
+		// test output as map
+		String testInput = "1:1,2:2,3:3";
+
+		HiveGenericUDF udf = init(
+			GenericUDFStringToMap.class,
+			new Object[] {
+				null
+			},
+			new DataType[] {
+				DataTypes.VARCHAR(testInput.length())
+			}
+		);
+
+		assertEquals(
+			new HashMap<String, String>() {{
+				put("1", "1");
+				put("2", "2");
+				put("3", "3");
+			}},
+			udf.eval(testInput));
+
+		// test input as map and nested functions
+		HiveGenericUDF udf2 = init(
+			GenericUDFMapKeys.class,
+			new Object[] {
+				null
+			},
+			new DataType[] {
+				DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())
+			}
+		);
+
+		Object[] result = (Object[]) udf2.eval(udf.eval(testInput));
+
+		assertEquals(3, result.length);
+		assertEquals("1", result[0]);
+		assertEquals("2", result[1]);
+		assertEquals("3", result[2]);
+	}
+
+	@Test
+	public void testStruct() {
+		HiveGenericUDF udf = init(
+			GenericUDFStruct.class,
+			new Object[] {
+				null,
+				null,
+				null
+			},
+			new DataType[] {
+				DataTypes.INT(),
+				DataTypes.CHAR(2),
+				DataTypes.VARCHAR(10)
+			}
+		);
+
+		Row result = (Row) udf.eval(1, "222", "3");
+
+		assertEquals(Row.of(1, "22", "3"), result);
+
+		udf = init(
+			TestGenericUDFStructSize.class,
+			new Object[] {
+				null
+			},
+			new DataType[] {
+				DataTypes.ROW(
+					DataTypes.FIELD("1", DataTypes.INT()),
+					DataTypes.FIELD("2", DataTypes.CHAR(2)),
+					DataTypes.FIELD("3", DataTypes.VARCHAR(10))
+				)
+			}
+		);
+
+		assertEquals(3, udf.eval(result));
 	}
 
 	private static HiveGenericUDF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
