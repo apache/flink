@@ -152,16 +152,19 @@ class PythonAPICompletenessTestCase(object):
     def get_java_class_methods(java_class):
         gateway = get_gateway()
         s = set()
-        method_arr = gateway.jvm.Class.forName(java_class).getDeclaredMethods()
+        method_arr = gateway.jvm.Class.forName(java_class).getMethods()
         for i in range(0, len(method_arr)):
             s.add(method_arr[i].getName())
         return s
 
     @classmethod
     def check_methods(cls):
+        java_primary_methods = {'getClass', 'notifyAll', 'equals', 'hashCode', 'toString',
+                                'notify', 'wait'}
         java_methods = PythonAPICompletenessTestCase.get_java_class_methods(cls.java_class())
         python_methods = cls.get_python_class_methods(cls.python_class())
-        missing_methods = java_methods - python_methods - cls.excluded_methods()
+        missing_methods = java_methods - python_methods - cls.excluded_methods() \
+            - java_primary_methods
         if len(missing_methods) > 0:
             raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
                             % (missing_methods, cls.java_class(), cls.python_class()))
