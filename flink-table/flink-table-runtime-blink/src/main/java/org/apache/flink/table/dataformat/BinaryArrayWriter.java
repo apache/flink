@@ -32,14 +32,17 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	private int fixedSize;
 
 	public BinaryArrayWriter(BinaryArray array, int numElements, int elementSize) {
-		this.nullBitsSizeInBytes = BinaryArray.calculateHeaderInBytes(numElements);
+		this.nullBitsSizeInBytes = BinaryArray.calculateBitSetWidthInBytes(numElements,
+			BinaryArray.NULL_BITS_UNIT_IN_BYTES, BinaryArray.HEADER_SIZE_IN_BYTES);
 		this.fixedSize = roundNumberOfBytesToNearestWord(
 				nullBitsSizeInBytes + elementSize * numElements);
+		array.fixedElementSizeInBytes = elementSize;
 		this.cursor = fixedSize;
 		this.numElements = numElements;
 
 		this.segment = MemorySegmentFactory.wrap(new byte[fixedSize]);
 		this.segment.putInt(0, numElements);
+		this.segment.putInt(4, elementSize);
 		this.array = array;
 	}
 
@@ -57,7 +60,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 
 	@Override
 	public void setNullBit(int ordinal) {
-		SegmentsUtil.bitSet(segment, 4, ordinal);
+		SegmentsUtil.bitSet(segment, BinaryArray.HEADER_SIZE_IN_BYTES, ordinal);
 	}
 
 	public void setNullBoolean(int ordinal) {
