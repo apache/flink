@@ -105,8 +105,8 @@ class DatabaseCalciteSchema implements Schema {
 
 	private Table convertCatalogTable(CatalogTable table) {
 		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource((CatalogTable) table))
-			.orElse(TableFactoryUtil.findAndCreateTableSource(((CatalogTable) table).toProperties()));
+		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource(table))
+			.orElse(TableFactoryUtil.findAndCreateTableSource(table));
 
 		if (!(tableSource instanceof StreamTableSource)) {
 			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");

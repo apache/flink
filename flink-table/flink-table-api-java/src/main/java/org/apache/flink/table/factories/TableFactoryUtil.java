@@ -55,7 +55,7 @@ public class TableFactoryUtil {
 	 * Returns a table source matching the properties.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> TableSource<T> findAndCreateTableSource(Map<String, String> properties) {
+	private static <T> TableSource<T> findAndCreateTableSource(Map<String, String> properties) {
 		try {
 			return TableFactoryService
 				.find(TableSourceFactory.class, properties)
