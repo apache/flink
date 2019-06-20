@@ -85,7 +85,14 @@ under the License.
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
-		
+
+		<!-- copy plugins directory -->
+		<fileSet>
+			<directory>src/main/flink-bin/plugins</directory>
+			<outputDirectory>plugins</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<!-- flink scala shell-->
 		<fileSet>
 			<directory>../flink-scala-shell/start-script/</directory>
