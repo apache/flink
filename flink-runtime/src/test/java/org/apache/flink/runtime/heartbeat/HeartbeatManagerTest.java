@@ -34,8 +34,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -144,42 +142,37 @@ public class HeartbeatManagerTest extends TestLogger {
 
 	/**
 	 * Tests that a heartbeat timeout is signaled if the heartbeat is not reported in time.
-	 *
-	 * @throws Exception
 	 */
 	@Test
 	public void testHeartbeatTimeout() throws Exception {
 		long heartbeatTimeout = 100L;
-		int numHeartbeats = 10;
+		int numHeartbeats = 6;
 		long heartbeatInterval = 20L;
-		Object payload = new Object();
+		final int payload = 42;
 
 		ResourceID ownResourceID = new ResourceID("foobar");
 		ResourceID targetResourceID = new ResourceID("barfoo");
-		SimpleTestingHeartbeatListener heartbeatListener = new SimpleTestingHeartbeatListener(payload);
-		ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
-		ScheduledFuture<?> scheduledFuture = mock(ScheduledFuture.class);
 
-		doReturn(scheduledFuture).when(scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+		final CompletableFuture<ResourceID> timeoutFuture = new CompletableFuture<>();
+		final TestingHeartbeatListener<Integer, Integer> heartbeatListener = new TestingHeartbeatListenerBuilder<Integer, Integer>()
+			.setRetrievePayloadFunction(ignored -> payload)
+			.setNotifyHeartbeatTimeoutConsumer(timeoutFuture::complete)
+			.createNewTestingHeartbeatListener();
 
-		Object expectedObject = new Object();
-
-		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
+		HeartbeatManagerImpl<Integer, Integer> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			ownResourceID,
 			heartbeatListener,
-			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
+			TestingUtils.defaultScheduledExecutor(),
 			LOG);
 
-		@SuppressWarnings("unchecked")
-		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
-
-		CompletableFuture<ResourceID> timeoutFuture = heartbeatListener.getTimeoutFuture();
+		final HeartbeatTarget<Integer> heartbeatTarget = new TestingHeartbeatTargetBuilder<Integer>()
+			.createTestingHeartbeatTarget();
 
 		heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
 
 		for (int i = 0; i < numHeartbeats; i++) {
-			heartbeatManager.receiveHeartbeat(targetResourceID, expectedObject);
+			heartbeatManager.receiveHeartbeat(targetResourceID, payload);
 			Thread.sleep(heartbeatInterval);
 		}
 
@@ -259,34 +252,36 @@ public class HeartbeatManagerTest extends TestLogger {
 	 * Tests that after unmonitoring a target, there won't be a timeout triggered.
 	 */
 	@Test
-	public void testTargetUnmonitoring() throws InterruptedException, ExecutionException {
+	public void testTargetUnmonitoring() throws Exception {
 		// this might be too aggressive for Travis, let's see...
-		long heartbeatTimeout = 100L;
+		long heartbeatTimeout = 50L;
 		ResourceID resourceID = new ResourceID("foobar");
 		ResourceID targetID = new ResourceID("target");
-		Object object = new Object();
+		final int payload = 42;
 
-		SimpleTestingHeartbeatListener heartbeatListener = new SimpleTestingHeartbeatListener(object);
+		final CompletableFuture<ResourceID> timeoutFuture = new CompletableFuture<>();
+		final TestingHeartbeatListener<Integer, Integer> heartbeatListener = new TestingHeartbeatListenerBuilder<Integer, Integer>()
+			.setRetrievePayloadFunction(ignored -> payload)
+			.setNotifyHeartbeatTimeoutConsumer(timeoutFuture::complete)
+			.createNewTestingHeartbeatListener();
 
-		HeartbeatManager<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
+		HeartbeatManager<Integer, Integer> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			resourceID,
 			heartbeatListener,
-			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
+			TestingUtils.defaultScheduledExecutor(),
 			LOG);
 
-		@SuppressWarnings("unchecked")
-		final HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
+		final HeartbeatTarget<Integer> heartbeatTarget = new TestingHeartbeatTargetBuilder<Integer>()
+			.createTestingHeartbeatTarget();
 		heartbeatManager.monitorTarget(targetID, heartbeatTarget);
 
 		heartbeatManager.unmonitorTarget(targetID);
 
-		CompletableFuture<ResourceID> timeout = heartbeatListener.getTimeoutFuture();
-
 		try {
-			timeout.get(2 * heartbeatTimeout, TimeUnit.MILLISECONDS);
+			timeoutFuture.get(2 * heartbeatTimeout, TimeUnit.MILLISECONDS);
 			fail("Timeout should time out.");
-		} catch (TimeoutException e) {
+		} catch (TimeoutException ignored) {
 			// the timeout should not be completed since we unmonitored the target
 		}
 	}
@@ -514,42 +509,6 @@ public class HeartbeatManagerTest extends TestLogger {
 			} else {
 				return defaultResponse;
 			}
-		}
-	}
-
-	static class SimpleTestingHeartbeatListener implements HeartbeatListener<Object, Object> {
-
-		private final CompletableFuture<ResourceID> future = new CompletableFuture<>();
-
-		private final Object payload;
-
-		private int numberHeartbeatReports;
-
-		SimpleTestingHeartbeatListener(Object payload) {
-			this.payload = payload;
-		}
-
-		CompletableFuture<ResourceID> getTimeoutFuture() {
-			return future;
-		}
-
-		public int getNumberHeartbeatReports() {
-			return numberHeartbeatReports;
-		}
-
-		@Override
-		public void notifyHeartbeatTimeout(ResourceID resourceID) {
-			future.complete(resourceID);
-		}
-
-		@Override
-		public void reportPayload(ResourceID resourceID, Object payload) {
-			numberHeartbeatReports++;
-		}
-
-		@Override
-		public CompletableFuture<Object> retrievePayload(ResourceID resourceID) {
-			return CompletableFuture.completedFuture(payload);
 		}
 	}
 }
