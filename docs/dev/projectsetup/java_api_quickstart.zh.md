@@ -74,7 +74,7 @@ Flink项目可以使用不同的构建工具进行构建。
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>注意</b>：对于 Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。
+        <b>注意</b>：Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。
         如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。有关这个改动的详细信息，
         请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
     </p>
@@ -223,7 +223,7 @@ dependencies {
 
     // --------------------------------------------------------------
     // 应该包含在 shadow jar 中的依赖，例如：连接器。
-    // 这些必须在 flinkShadowJar 的配置中！
+    // 它们必须在 flinkShadowJar 的配置中！
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka-0.11_${scalaBinaryVersion}:${flinkVersion}"
 
