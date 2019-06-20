@@ -75,13 +75,13 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_db():
         gateway = get_gateway()
-        j_database = gateway.jvm.GenericCatalogDatabase({"k1": "v1"}, CatalogTestBase.test_comment)
+        j_database = gateway.jvm.CatalogDatabaseImpl({"k1": "v1"}, CatalogTestBase.test_comment)
         return CatalogDatabase(j_database)
 
     @staticmethod
     def create_another_db():
         gateway = get_gateway()
-        j_database = gateway.jvm.GenericCatalogDatabase({"k2": "v2"}, "this is another database.")
+        j_database = gateway.jvm.CatalogDatabaseImpl({"k2": "v2"}, "this is another database.")
         return CatalogDatabase(j_database)
 
     @staticmethod
