@@ -122,8 +122,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     assertEquals(expected, sink.getAppendResults.sorted)
   }
 
-  @Test(expected = classOf[TableException])
-  // TODO remove exception after translateToPlanInternal is implemented in StreamExecJoin
+  @Test
   def testLimitRemoveWithExists(): Unit = {
     val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a)
@@ -143,8 +142,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     assertEquals(0, sink.getRawResults.size)
   }
 
-  @Test(expected = classOf[TableException])
-  // TODO remove exception after translateToPlanInternal is implemented in StreamExecJoin
+  @Test
   def testLimitRemoveWithNotExists(): Unit = {
     val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a)
