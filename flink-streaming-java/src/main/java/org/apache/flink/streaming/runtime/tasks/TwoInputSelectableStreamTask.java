@@ -49,7 +49,7 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
 			inputGates1, inputGates2,
 			inputDeserializer1, inputDeserializer2,
-			this,
+			getCheckpointLock(),
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
 			this.headOperator,
