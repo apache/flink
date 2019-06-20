@@ -87,6 +87,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
+import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -1674,11 +1675,13 @@ public class TaskExecutorTest extends TestLogger {
 	 * Tests that the TaskExecutor syncs its slots view with the JobMaster's view
 	 * via the AllocatedSlotReport reported by the heartbeat (See FLINK-11059).
 	 */
-	@Test(timeout = 10000L)
+	@Test
 	public void testSyncSlotsWithJobMasterByHeartbeat() throws Exception {
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+		final CountDownLatch activeSlots = new CountDownLatch(2);
+		final TaskSlotTable taskSlotTable = new ActivateSlotNotifyingTaskSlotTable(
 				Arrays.asList(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN),
-				timerService);
+				timerService,
+				activeSlots);
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
 
 		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
@@ -1700,16 +1703,12 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 		resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
 
-		final CountDownLatch slotOfferings = new CountDownLatch(2);
 		final BlockingQueue<AllocationID> failedSlotFutures = new ArrayBlockingQueue<>(2);
 		final ResourceID jobManagerResourceId = ResourceID.generate();
 		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 				.setFailSlotConsumer((resourceID, allocationID, throwable) ->
 					failedSlotFutures.offer(allocationID))
-				.setOfferSlotsFunction((resourceID, slotOffers) -> {
-					slotOffers.forEach((ignored) -> slotOfferings.countDown());
-					return CompletableFuture.completedFuture(new ArrayList<>(slotOffers));
-				})
+				.setOfferSlotsFunction((resourceID, slotOffers) -> CompletableFuture.completedFuture(new ArrayList<>(slotOffers)))
 				.setRegisterTaskManagerFunction((ignoredA, ignoredB) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jobManagerResourceId)))
 				.build();
 		final String jobManagerAddress = jobMasterGateway.getAddress();
@@ -1732,7 +1731,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskExecutorGateway.requestSlot(slotId1, jobId, allocationIdInBoth, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
 			taskExecutorGateway.requestSlot(slotId2, jobId, allocationIdOnlyInTM, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
 
-			slotOfferings.await();
+			activeSlots.await();
 
 			List<AllocatedSlotInfo> allocatedSlotInfos = Arrays.asList(
 					new AllocatedSlotInfo(0, allocationIdInBoth),
@@ -2012,6 +2011,27 @@ public class TaskExecutorTest extends TestLogger {
 		public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
 			final boolean result = super.allocateSlot(index, jobId, allocationId, slotTimeout);
 			allocateSlotLatch.trigger();
+
+			return result;
+		}
+	}
+
+	private static final class ActivateSlotNotifyingTaskSlotTable extends TaskSlotTable {
+
+		private final CountDownLatch slotsToActivate;
+
+		private ActivateSlotNotifyingTaskSlotTable(Collection<ResourceProfile> resourceProfiles, TimerService<AllocationID> timerService, CountDownLatch slotsToActivate) {
+			super(resourceProfiles, timerService);
+			this.slotsToActivate = slotsToActivate;
+		}
+
+		@Override
+		public boolean markSlotActive(AllocationID allocationId) throws SlotNotFoundException {
+			final boolean result = super.markSlotActive(allocationId);
+
+			if (result) {
+				slotsToActivate.countDown();
+			}
 
 			return result;
 		}
