@@ -30,17 +30,16 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite._
+import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, CatalogManagerCalciteSchema, ConnectorCatalogTable, GenericInMemoryCatalog, ObjectPath, QueryOperationCatalogView}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, extractResultTypeFromTableFunction, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.{DataStreamQueryOperation, PlannerQueryOperation}
+import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.reuse.SubplanReuser
-import org.apache.flink.table.plan.schema.{RelTable, TableSourceSinkTable, TableSourceTable}
-import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.SameRelObjectShuttle
 import org.apache.flink.table.planner.PlannerContext
 import org.apache.flink.table.sinks.TableSink
@@ -50,20 +49,18 @@ import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformati
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 
-import org.apache.calcite.jdbc.CalciteSchema
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql._
 import org.apache.calcite.tools._
 
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
-import _root_.java.util.{Arrays => JArrays}
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
@@ -76,12 +73,16 @@ import _root_.scala.collection.mutable
   * @param streamEnv The [[JavaStreamExecEnv]] which is wrapped in this
   *                [[StreamTableEnvironment]].
   * @param config The configuration of the TableEnvironment
+  * @param catalogManager a catalog manager that encapsulates all available catalogs.
   */
 abstract class TableEnvironment(
     val streamEnv: JavaStreamExecEnv,
-    val config: TableConfig) {
+    val config: TableConfig,
+    val catalogManager: CatalogManager) {
 
   protected val DEFAULT_JOB_NAME = "Flink Exec Table Job"
+  protected val defaultCatalogName: String = config.getBuiltInCatalogName
+  protected val defaultDatabaseName: String = config.getBuiltInDatabaseName
 
   private val functionCatalog = new FunctionCatalog
 
@@ -89,26 +90,27 @@ abstract class TableEnvironment(
     new PlannerContext(
       config,
       functionCatalog,
-      // the catalog to hold all registered and translated tables
-      // we disable caching here to prevent side effects
-      CalciteSchema.createRootSchema(false, false),
+      asRootSchema(new CatalogManagerCalciteSchema(catalogManager)),
       getTraitDefs.toList
     )
 
-  private lazy val rootSchema: SchemaPlus = plannerContext.getRootSchema
-
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
-  private[flink] def getRelBuilder: FlinkRelBuilder = plannerContext.createRelBuilder()
+  private[flink] def getRelBuilder: FlinkRelBuilder = {
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentDatabase = catalogManager.getCurrentDatabase
+    plannerContext.createRelBuilder(currentCatalogName, currentDatabase)
+  }
 
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   @VisibleForTesting
-  private[flink] def getFlinkPlanner: FlinkPlannerImpl = plannerContext.createFlinkPlanner()
+  private[flink] def getFlinkPlanner: FlinkPlannerImpl = {
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentDatabase = catalogManager.getCurrentDatabase
+    plannerContext.createFlinkPlanner(currentCatalogName, currentDatabase)
+  }
 
   /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
   private[flink] def getTypeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
-
-  // a counter for unique attribute names
-  private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
   // a counter for unique table names
   private[flink] val tableNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -283,29 +285,69 @@ abstract class TableEnvironment(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
-    // TODO improve this
-    table.getQueryOperation match {
-      case dsq: DataStreamQueryOperation[_] => dsq.setQualifiedName(List(name))
-      case _ => // do nothing
-    }
-
-    val tableTable = new RelTable(table.asInstanceOf[TableImpl].getRelNode)
+    val tableTable = new QueryOperationCatalogView(table.getQueryOperation)
     registerTableInternal(name, tableTable)
   }
 
+  private[flink] def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) => catalog.createTable(path, table, false)
+      case None => throw new TableException("The default catalog does not exist.")
+    }
+  }
+
   /**
-    * Replaces a registered Table with another Table under the same name.
-    * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
-    * with a [[org.apache.calcite.schema.TranslatableTable]].
+    * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
     *
-    * @param name Name of the table to replace.
-    * @param table The table that replaces the previous table.
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
     */
-  protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
-    if (isRegistered(name)) {
-      rootSchema.add(name, table)
-    } else {
-      throw new TableException(s"Table \'$name\' is not registered.")
+  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+    validateTableSource(tableSource)
+    registerTableSourceInternal(name, tableSource)
+  }
+
+  /**
+    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
+    * name checking. Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit = {
+    // register
+    getCatalogTable(defaultCatalogName, defaultDatabaseName, name) match {
+      // check if a table (source or sink) is registered
+      case Some(table: ConnectorCatalogTable[_, _]) =>
+        if (table.getTableSource.isPresent) {
+          // wrapper contains source
+          throw new TableException(s"Table '$name' already exists. Please choose a different name.")
+        } else {
+          // wrapper contains only sink (not source)
+          replaceTableInternal(
+            name,
+            ConnectorCatalogTable.sourceAndSink(tableSource, table.getTableSink.get, isBatch))
+        }
+      // no table is registered
+      case _ =>
+        registerTableInternal(name, ConnectorCatalogTable.source(tableSource, isBatch))
+    }
+  }
+
+  protected def getCatalogTable(name: String*): Option[CatalogBaseTable] = {
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(name: _*))
+      .flatMap(t => JavaScalaConversionUtil.toScala(t.getCatalogTable))
+  }
+
+  protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    checkValidTableName(name)
+    val path = new ObjectPath(defaultDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+      case Some(catalog) => catalog.alterTable(path, table, false)
+      case None => throw new TableException("The default catalog does not exist.")
     }
   }
 
@@ -335,35 +377,14 @@ abstract class TableEnvironment(
   @varargs
   def scan(tablePath: String*): Table = {
     scanInternal(tablePath.toArray) match {
-      case Some(table) => table
+      case Some(table) => new TableImpl(this, table)
       case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
     }
   }
 
-  private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
-    require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
-    val schemaPaths = tablePath.slice(0, tablePath.length - 1)
-    val schema = getSchema(schemaPaths)
-    if (schema != null) {
-      val tableName = tablePath(tablePath.length - 1)
-      val table = schema.getTable(tableName)
-      if (table != null) {
-        val scan = getRelBuilder.scan(JArrays.asList(tablePath: _*)).build()
-        return Some(new TableImpl(this, new PlannerQueryOperation(scan)))
-      }
-    }
-    None
-  }
-
-  private def getSchema(schemaPath: Array[String]): SchemaPlus = {
-    var schema = rootSchema
-    for (schemaName <- schemaPath) {
-      schema = schema.getSubSchema(schemaName)
-      if (schema == null) {
-        return schema
-      }
-    }
-    schema
+  private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogQueryOperation] = {
+    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath: _*))
+      .map(t => new CatalogQueryOperation(t.getTablePath, t.getTableSchema))
   }
 
   /**
@@ -372,7 +393,14 @@ abstract class TableEnvironment(
     * @return A list of the names of all registered tables.
     */
   def listTables(): Array[String] = {
-    rootSchema.getTableNames.asScala.toArray
+    val currentCatalogName = catalogManager.getCurrentCatalog
+    val currentCatalog = catalogManager.getCatalog(currentCatalogName)
+    JavaScalaConversionUtil.toScala(currentCatalog) match {
+      case Some(catalog) =>
+        catalog.listTables(catalogManager.getCurrentDatabase).asScala.toArray
+      case None =>
+        throw new TableException(s"The current catalog ($currentCatalogName) does not exist.")
+    }
   }
 
   /**
@@ -453,28 +481,11 @@ abstract class TableEnvironment(
     }
   }
 
-  /**
-    * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
-    *
-    * @param name The name under which the table will be registered.
-    * @param table The table to register in the catalog
-    * @throws TableException if another table is registered under the provided name.
-    */
-  @throws[TableException]
-  private[flink] def registerTableInternal(name: String, table: AbstractTable): Unit = {
-    if (isRegistered(name)) {
-      throw new TableException(s"Table \'$name\' already exists. " +
-              s"Please, choose a different name.")
-    } else {
-      rootSchema.add(name, table)
-    }
-  }
-
   /** Returns a unique table name according to the internal naming pattern. */
   private[flink] def createUniqueTableName(tableNamePrefix: Option[String] = None): String = {
     val prefix = tableNamePrefix.getOrElse(this.tableNamePrefix)
     var res = prefix + tableNameCntr.getAndIncrement()
-    while (getTable(res).nonEmpty) {
+    while (isRegistered(res)) {
       res = prefix + tableNameCntr.getAndIncrement()
     }
     res
@@ -488,48 +499,22 @@ abstract class TableEnvironment(
   protected def checkValidTableName(name: String): Unit
 
   /**
+    * Perform batch or streaming specific validations of the [[TableSource]].
+    * This method should throw [[ValidationException]] if the [[TableSource]] cannot be used
+    * in this [[TableEnvironment]].
+    *
+    * @param tableSource table source to validate
+    */
+  protected def validateTableSource(tableSource: TableSource[_]): Unit
+
+  /**
     * Checks if a table is registered under the given name.
     *
     * @param name The table name to check.
     * @return true, if a table is registered under the name, false otherwise.
     */
   protected[flink] def isRegistered(name: String): Boolean = {
-    rootSchema.getTableNames.contains(name)
-  }
-
-  /**
-    * Get a table from either internal or external catalogs.
-    *
-    * @param name The name of the table.
-    * @return The table registered either internally or externally, None otherwise.
-    */
-  protected def getTable(name: String): Option[org.apache.calcite.schema.Table] = {
-
-    // recursively fetches a table from a schema.
-    def getTableFromSchema(
-      schema: SchemaPlus,
-      path: List[String]): Option[org.apache.calcite.schema.Table] = {
-
-      path match {
-        case tableName :: Nil =>
-          // look up table
-          Option(schema.getTable(tableName))
-        case subschemaName :: remain =>
-          // look up subschema
-          val subschema = Option(schema.getSubSchema(subschemaName))
-          subschema match {
-            case Some(s) =>
-              // search for table in subschema
-              getTableFromSchema(s, remain)
-            case None =>
-              // subschema does not exist
-              None
-          }
-      }
-    }
-
-    val pathNames = name.split('.').toList
-    getTableFromSchema(rootSchema, pathNames)
+    catalogManager.resolveTable(name).isPresent
   }
 
   /**
@@ -627,11 +612,6 @@ abstract class TableEnvironment(
       getTypeFactory)
   }
 
-  /** Returns a unique temporary attribute name. */
-  private[flink] def createUniqueAttributeName(): String = {
-    "TMP_" + attrNameCntr.getAndIncrement()
-  }
-
   /**
     * Reference input fields by name:
     * All fields in the schema definition are referenced by name
@@ -689,6 +669,7 @@ abstract class TableEnvironment(
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
   // TODO: we should support Expression fields after we introduce [Expression]
+  // TODO remove this method and use FieldInfoUtils#getFieldsInfo
   protected[flink] def getFieldInfo[A](
     inputType: DataType,
     fields: Array[String]): (Array[String], Array[Int]) = {
@@ -747,90 +728,6 @@ abstract class TableEnvironment(
 
     (fieldNames, fieldIndexes)
   }
-
-  /**
-    * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
-    * Registered tables can be referenced in SQL queries.
-    *
-    * @param name        The name under which the [[TableSource]] is registered.
-    * @param tableSource The [[TableSource]] to register.
-    */
-  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    checkValidTableName(name)
-    registerTableSourceInternal(
-      name,
-      tableSource,
-      FlinkStatistic.builder()
-        .tableStats(tableSource.getTableStats.orElse(null))
-        .build(),
-      replace = false)
-  }
-
-  /**
-    * Registers or replace an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
-    * Registered tables can be referenced in SQL queries.
-    *
-    * @param name        The name under which the [[TableSource]] is registered.
-    * @param tableSource The [[TableSource]] to register.
-    */
-  def registerOrReplaceTableSource(name: String,
-      tableSource: TableSource[_]): Unit = {
-    checkValidTableName(name)
-    registerTableSourceInternal(
-      name,
-      tableSource,
-      FlinkStatistic.builder()
-        .tableStats(tableSource.getTableStats.orElse(null))
-        .build(),
-      replace = true)
-  }
-
-  /**
-    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
-    * name checking. Registered tables can be referenced in SQL queries.
-    *
-    * @param name        The name under which the [[TableSource]] is registered.
-    * @param tableSource The [[TableSource]] to register.
-    * @param replace     Whether to replace this [[TableSource]]
-    */
-  protected def registerTableSourceInternal(
-      name: String,
-      tableSource: TableSource[_],
-      statistic: FlinkStatistic,
-      replace: Boolean): Unit = {
-    validateTableSource(tableSource)
-    // register
-    getTable(name) match {
-      // check if a table (source or sink) is registered
-      case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
-        // wrapper contains source
-        case Some(_: TableSourceTable[_]) if !replace =>
-          throw new TableException(s"Table '$name' already exists. " +
-            s"Please choose a different name.")
-        // wrapper contains only sink (not source)
-        case Some(_: TableSourceTable[_]) =>
-          val enrichedTable = new TableSourceSinkTable(
-            Some(new TableSourceTable(tableSource, !isBatch, statistic)),
-            table.tableSinkTable)
-          replaceRegisteredTable(name, enrichedTable)
-      }
-      // no table is registered
-      case _ =>
-        val newTable = new TableSourceSinkTable(
-          Some(new TableSourceTable(tableSource, !isBatch, statistic)),
-          None)
-        registerTableInternal(name, newTable)
-    }
-  }
-
-  /**
-    * Perform batch or streaming specific validations of the [[TableSource]].
-    * This method should throw [[ValidationException]] if the [[TableSource]] cannot be used
-    * in this [[TableEnvironment]].
-    *
-    * @param tableSource table source to validate
-    */
-  protected def validateTableSource(tableSource: TableSource[_]): Unit
 
 }
 
@@ -982,7 +879,7 @@ object TableEnvironment {
     */
   def getBatchTableEnvironment(
       executionEnvironment: JavaStreamExecEnv): JavaBatchTableEnvironment = {
-    new JavaBatchTableEnvironment(executionEnvironment, new TableConfig())
+    getBatchTableEnvironment(executionEnvironment, new TableConfig())
   }
 
   /**
@@ -995,7 +892,28 @@ object TableEnvironment {
   def getBatchTableEnvironment(
       executionEnvironment: JavaStreamExecEnv,
       tableConfig: TableConfig): JavaBatchTableEnvironment = {
-    new JavaBatchTableEnvironment(executionEnvironment, tableConfig)
+    val catalogManager = new CatalogManager(
+      tableConfig.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(
+        tableConfig.getBuiltInCatalogName,
+        tableConfig.getBuiltInDatabaseName)
+    )
+    getBatchTableEnvironment(executionEnvironment, tableConfig, catalogManager)
+  }
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Java [[JavaStreamExecEnv]] and a given
+    * [[TableConfig]].
+    *
+    * @param executionEnvironment The Java batch ExecutionEnvironment.
+    * @param tableConfig          The TableConfig for the new TableEnvironment.
+    * @param catalogManager a catalog manager that encapsulates all available catalogs.
+    */
+  def getBatchTableEnvironment(
+      executionEnvironment: JavaStreamExecEnv,
+      tableConfig: TableConfig,
+      catalogManager: CatalogManager): JavaBatchTableEnvironment = {
+    new JavaBatchTableEnvironment(executionEnvironment, tableConfig, catalogManager)
   }
 
   /**
@@ -1005,7 +923,7 @@ object TableEnvironment {
     */
   def getBatchTableEnvironment(
       executionEnvironment: ScalaStreamExecEnv): ScalaBatchTableEnvironment = {
-    new ScalaBatchTableEnvironment(executionEnvironment, new TableConfig())
+    getBatchTableEnvironment(executionEnvironment, new TableConfig())
   }
 
   /**
@@ -1017,8 +935,27 @@ object TableEnvironment {
   def getBatchTableEnvironment(
       executionEnvironment: ScalaStreamExecEnv,
       tableConfig: TableConfig): ScalaBatchTableEnvironment = {
+    val catalogManager = new CatalogManager(
+      tableConfig.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(
+        tableConfig.getBuiltInCatalogName,
+        tableConfig.getBuiltInDatabaseName)
+    )
+    getBatchTableEnvironment(executionEnvironment, tableConfig, catalogManager)
+  }
 
-    new ScalaBatchTableEnvironment(executionEnvironment, tableConfig)
+  /**
+    * Returns a [[ScalaBatchTableEnvironment]] for a Scala stream [[ScalaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    * @param catalogManager a catalog manager that encapsulates all available catalogs.
+    */
+  def getBatchTableEnvironment(
+      executionEnvironment: ScalaStreamExecEnv,
+      tableConfig: TableConfig,
+      catalogManager: CatalogManager): ScalaBatchTableEnvironment = {
+    new ScalaBatchTableEnvironment(executionEnvironment, tableConfig, catalogManager)
   }
 
   /**
@@ -1027,7 +964,7 @@ object TableEnvironment {
     * @param executionEnvironment The Java StreamExecutionEnvironment.
     */
   def getTableEnvironment(executionEnvironment: JavaStreamExecEnv): JavaStreamTableEnv = {
-    new JavaStreamTableEnv(executionEnvironment, new TableConfig())
+    getTableEnvironment(executionEnvironment, new TableConfig())
   }
 
   /**
@@ -1039,8 +976,26 @@ object TableEnvironment {
   def getTableEnvironment(
       executionEnvironment: JavaStreamExecEnv,
       tableConfig: TableConfig): JavaStreamTableEnv = {
+    val catalogManager = new CatalogManager(
+      tableConfig.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(
+        tableConfig.getBuiltInCatalogName,
+        tableConfig.getBuiltInDatabaseName)
+    )
+    getTableEnvironment(executionEnvironment, tableConfig, catalogManager)
+  }
 
-    new JavaStreamTableEnv(executionEnvironment, tableConfig)
+  /**
+    * Returns a [[JavaStreamTableEnv]] for a Java [[JavaStreamExecEnv]] and a given [[TableConfig]].
+    *
+    * @param executionEnvironment The Java StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def getTableEnvironment(
+      executionEnvironment: JavaStreamExecEnv,
+      tableConfig: TableConfig,
+      catalogManager: CatalogManager): JavaStreamTableEnv = {
+    new JavaStreamTableEnv(executionEnvironment, tableConfig, catalogManager)
   }
 
   /**
@@ -1049,7 +1004,7 @@ object TableEnvironment {
     * @param executionEnvironment The Scala StreamExecutionEnvironment.
     */
   def getTableEnvironment(executionEnvironment: ScalaStreamExecEnv): ScalaStreamTableEnv = {
-    new ScalaStreamTableEnv(executionEnvironment, new TableConfig())
+    getTableEnvironment(executionEnvironment, new TableConfig())
   }
 
   /**
@@ -1061,7 +1016,25 @@ object TableEnvironment {
   def getTableEnvironment(
       executionEnvironment: ScalaStreamExecEnv,
       tableConfig: TableConfig): ScalaStreamTableEnv = {
+    val catalogManager = new CatalogManager(
+      tableConfig.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(
+        tableConfig.getBuiltInCatalogName,
+        tableConfig.getBuiltInDatabaseName)
+    )
+    getTableEnvironment(executionEnvironment, tableConfig, catalogManager)
+  }
 
-    new ScalaStreamTableEnv(executionEnvironment, tableConfig)
+  /**
+    * Returns a [[ScalaStreamTableEnv]] for a Scala stream [[ScalaStreamExecEnv]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def getTableEnvironment(
+      executionEnvironment: ScalaStreamExecEnv,
+      tableConfig: TableConfig,
+      catalogManager: CatalogManager): ScalaStreamTableEnv = {
+    new ScalaStreamTableEnv(executionEnvironment, tableConfig, catalogManager)
   }
 }

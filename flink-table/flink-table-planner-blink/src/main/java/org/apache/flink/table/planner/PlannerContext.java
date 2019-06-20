@@ -52,8 +52,10 @@ import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
-import java.util.Collections;
 import java.util.List;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 
 /**
  * Utility class to create {@link org.apache.calcite.tools.RelBuilder} or {@link FrameworkConfig} used to create
@@ -107,34 +109,37 @@ public class PlannerContext {
 		return typeFactory;
 	}
 
-	public SchemaPlus getRootSchema() {
-		return frameworkConfig.getDefaultSchema();
-	}
-
 	/**
 	 * Creates a configured {@link FlinkRelBuilder} for a planning session.
 	 *
+	 * @param currentCatalog the current default catalog to look for first during planning.
+	 * @param currentDatabase the current default database to look for first during planning.
 	 * @return configured rel builder
 	 */
-	public FlinkRelBuilder createRelBuilder() {
-		FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false);
+	public FlinkRelBuilder createRelBuilder(String currentCatalog, String currentDatabase) {
+		FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
 		return new FlinkRelBuilder(frameworkConfig.getContext(), cluster, relOptSchema);
 	}
 
 	/**
 	 * Creates a configured {@link FlinkPlannerImpl} for a planning session.
 	 *
+	 * @param currentCatalog the current default catalog to look for first during planning.
+	 * @param currentDatabase the current default database to look for first during planning.
 	 * @return configured flink planner
 	 */
-	public FlinkPlannerImpl createFlinkPlanner() {
+	public FlinkPlannerImpl createFlinkPlanner(String currentCatalog, String currentDatabase) {
 		return new FlinkPlannerImpl(
 				frameworkConfig,
-				this::createCatalogReader,
+				isLenient -> createCatalogReader(isLenient, currentCatalog, currentDatabase),
 				typeFactory,
 				cluster);
 	}
 
-	private FlinkCalciteCatalogReader createCatalogReader(boolean lenientCaseSensitivity) {
+	private FlinkCalciteCatalogReader createCatalogReader(
+			boolean lenientCaseSensitivity,
+			String currentCatalog,
+			String currentDatabase) {
 		SqlParser.Config sqlParserConfig = frameworkConfig.getParserConfig();
 		final boolean caseSensitive;
 		if (lenientCaseSensitivity) {
@@ -150,7 +155,10 @@ public class PlannerContext {
 		SchemaPlus rootSchema = getRootSchema(frameworkConfig.getDefaultSchema());
 		return new FlinkCalciteCatalogReader(
 				CalciteSchema.from(rootSchema),
-				Collections.emptyList(),
+				asList(
+						asList(currentCatalog, currentDatabase),
+						singletonList(currentCatalog)
+				),
 				typeFactory,
 				CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));
 	}

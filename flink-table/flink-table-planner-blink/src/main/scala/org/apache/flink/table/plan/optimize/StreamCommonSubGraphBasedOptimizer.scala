@@ -203,8 +203,8 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
         case _: StreamExecDataStreamScan | _: StreamExecIntermediateTableScan =>
           val scan = rel.asInstanceOf[TableScan]
           val retractionTrait = scan.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)
-          val tableName = scan.getTable.getQualifiedName.last
-          val inputBlocks = block.children.filter(_.getOutputTableName eq tableName)
+          val tableName = scan.getTable.getQualifiedName.mkString(".")
+          val inputBlocks = block.children.filter(b => tableName.equals(b.getOutputTableName))
           Preconditions.checkArgument(inputBlocks.size <= 1)
           if (inputBlocks.size == 1) {
             if (retractionTrait.sendsUpdatesAsRetractions || updateAsRetraction) {

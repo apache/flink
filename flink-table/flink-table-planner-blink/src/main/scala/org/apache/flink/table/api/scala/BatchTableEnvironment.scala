@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 /**
@@ -27,10 +28,12 @@ import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
   */
 class BatchTableEnvironment(
     execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
+    config: TableConfig,
+    catalogManager: CatalogManager)
   extends org.apache.flink.table.api.BatchTableEnvironment(
     execEnv.getWrappedStreamExecutionEnvironment,
-    config) {
+    config,
+    catalogManager) {
 
   /**
     * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
@@ -73,7 +76,7 @@ object BatchTableEnvironment {
     * @param executionEnvironment The Java [[StreamExecutionEnvironment]] of the TableEnvironment.
     */
   def create(executionEnvironment: StreamExecutionEnvironment): BatchTableEnvironment = {
-    new BatchTableEnvironment(executionEnvironment, new TableConfig())
+    create(executionEnvironment, new TableConfig())
   }
 
   /**
@@ -91,7 +94,32 @@ object BatchTableEnvironment {
   def create(
       executionEnvironment: StreamExecutionEnvironment,
       tableConfig: TableConfig): BatchTableEnvironment = {
-    new BatchTableEnvironment(executionEnvironment, tableConfig)
+    val catalogManager = new CatalogManager(
+      tableConfig.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(
+        tableConfig.getBuiltInCatalogName,
+        tableConfig.getBuiltInDatabaseName)
+    )
+    create(executionEnvironment, tableConfig, catalogManager)
   }
 
+  /**
+    * Returns a [[TableEnvironment]] for a Scala [[StreamExecutionEnvironment]].
+    *
+    * A TableEnvironment can be used to:
+    * - register a [[Table]] in the [[TableEnvironment]]'s catalog
+    * - scan a registered table to obtain a [[Table]]
+    * - specify a SQL query on registered tables to obtain a [[Table]]
+    * - explain the AST and execution plan of a [[Table]]
+    *
+    * @param executionEnvironment The Java [[StreamExecutionEnvironment]] of the TableEnvironment.
+    * @param tableConfig The configuration of the TableEnvironment.
+    * @param catalogManager a catalog manager that encapsulates all available catalogs.
+    */
+  def create(
+      executionEnvironment: StreamExecutionEnvironment,
+      tableConfig: TableConfig,
+      catalogManager: CatalogManager): BatchTableEnvironment = {
+    new BatchTableEnvironment(executionEnvironment, tableConfig, catalogManager)
+  }
 }

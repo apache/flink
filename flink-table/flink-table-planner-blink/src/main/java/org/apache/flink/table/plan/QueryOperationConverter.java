@@ -33,12 +33,18 @@ import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationDefaultVisitor;
 import org.apache.flink.table.operations.QueryOperationVisitor;
+import org.apache.flink.table.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 import org.apache.flink.table.plan.schema.DataStreamTable;
 import org.apache.flink.table.plan.schema.FlinkRelOptTable;
+import org.apache.flink.table.plan.schema.TableSourceTable;
+import org.apache.flink.table.plan.stats.FlinkStatistic;
+import org.apache.flink.table.sources.LookupableTableSource;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalTableScan;
@@ -130,8 +136,38 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		@Override
-		public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceTable) {
-			throw new UnsupportedOperationException("Unsupported now");
+		public <U> RelNode visit(TableSourceQueryOperation<U> tableSourceOperation) {
+			TableSource<?> tableSource = tableSourceOperation.getTableSource();
+			boolean isBatch;
+			if (tableSource instanceof LookupableTableSource) {
+				isBatch = tableSourceOperation.isBatch();
+			} else if (tableSource instanceof StreamTableSource) {
+				isBatch = ((StreamTableSource<?>) tableSource).isBounded();
+			} else {
+				throw new TableException(String.format("%s is not supported.", tableSource.getClass().getSimpleName()));
+			}
+
+			FlinkStatistic statistic;
+			List<String> names;
+			if (tableSourceOperation instanceof RichTableSourceQueryOperation &&
+				((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName() != null) {
+				statistic = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getStatistic();
+				names = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName();
+			} else {
+				statistic = FlinkStatistic.UNKNOWN();
+				// TableSourceScan requires a unique name of a Table for computing a digest.
+				// We are using the identity hash of the TableSource object.
+				String refId = "Unregistered_TableSource_" + System.identityHashCode(tableSource);
+				names = Collections.singletonList(refId);
+			}
+
+			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(tableSource, !isBatch, statistic);
+			FlinkRelOptTable table = FlinkRelOptTable.create(
+				relBuilder.getRelOptSchema(),
+				tableSourceTable.getRowType(relBuilder.getTypeFactory()),
+				names,
+				tableSourceTable);
+			return LogicalTableScan.create(relBuilder.getCluster(), table);
 		}
 
 		private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {
@@ -148,15 +184,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			if (operation.getQualifiedName() != null) {
 				names = operation.getQualifiedName();
 			} else {
-				names = Collections.singletonList(String.format("DataStream_%s", operation.getDataStream().getId()));
+				String refId = String.format("Unregistered_DataStream_%s", operation.getDataStream().getId());
+				names = Collections.singletonList(refId);
 			}
 
 			FlinkRelOptTable table = FlinkRelOptTable.create(
-					null,
+					relBuilder.getRelOptSchema(),
 					dataStreamTable.getRowType(relBuilder.getTypeFactory()),
 					names,
 					dataStreamTable);
-
 			return LogicalTableScan.create(relBuilder.getCluster(), table);
 		}
 	}

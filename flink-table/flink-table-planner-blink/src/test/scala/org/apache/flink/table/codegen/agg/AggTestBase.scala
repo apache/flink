@@ -43,7 +43,7 @@ abstract class AggTestBase {
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
   val env = new LocalStreamEnvironment
   val conf = new TableConfig
-  val tEnv = new StreamTableEnvironment(env, conf)
+  val tEnv = StreamTableEnvironment.create(env, conf)
   val inputNames = Array("f0", "f1", "f2", "f3", "f4")
   val inputTypes: Array[LogicalType] = Array(
     new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new DoubleType(), new BigIntType(),

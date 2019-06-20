@@ -17,13 +17,14 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.plan.schema.RelTable
+import org.apache.flink.table.catalog.QueryOperationCatalogViewTable
 
 import com.google.common.collect.Sets
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.core.{TableFunctionScan, TableScan}
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle, RelShuttleImpl}
+import org.apache.calcite.rex.{RexNode, RexShuttle, RexSubQuery}
 
 import scala.collection.JavaConversions._
 
@@ -74,7 +75,8 @@ class DefaultRelShuttle extends RelShuttle {
 }
 
 /**
-  * Convert logical table scan to a relational expression.
+  * Convert all [[QueryOperationCatalogViewTable]]s (including tables in [[RexSubQuery]])
+  * to to a relational expression.
   */
 class ExpandTableScanShuttle extends RelShuttleImpl {
 
@@ -96,15 +98,81 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
     }
   }
 
+  override def visit(filter: LogicalFilter): RelNode = {
+    val newCondition = filter.getCondition.accept(new ExpandTableScanInSubQueryShuttle)
+    if (newCondition ne filter.getCondition) {
+      val newFilter = filter.copy(filter.getTraitSet, filter.getInput, newCondition)
+      super.visit(newFilter)
+    } else {
+      super.visit(filter)
+    }
+  }
+
+  override def visit(project: LogicalProject): RelNode = {
+    val shuttle = new ExpandTableScanInSubQueryShuttle
+    var changed = false
+    val newProjects = project.getProjects.map {
+      project =>
+        val newProject = project.accept(shuttle)
+        if (newProject ne project) {
+          changed = true
+        }
+        newProject
+    }
+    if (changed) {
+      val newProject = project.copy(
+        project.getTraitSet, project.getInput, newProjects, project.getRowType)
+      super.visit(newProject)
+    } else {
+      super.visit(project)
+    }
+  }
+
+  override def visit(join: LogicalJoin): RelNode = {
+    val newCondition = join.getCondition.accept(new ExpandTableScanInSubQueryShuttle)
+    if (newCondition ne join.getCondition) {
+      val newJoin = join.copy(
+        join.getTraitSet, newCondition, join.getLeft, join.getRight,
+        join.getJoinType, join.isSemiJoinDone)
+      super.visit(newJoin)
+    } else {
+      super.visit(join)
+    }
+  }
+
+  class ExpandTableScanInSubQueryShuttle extends RexShuttle {
+    override def visitSubQuery(subQuery: RexSubQuery): RexNode = {
+      val newRel = subQuery.rel.accept(ExpandTableScanShuttle.this)
+      var changed = false
+      val newOperands = subQuery.getOperands.map { op =>
+        val newOp = op.accept(ExpandTableScanInSubQueryShuttle.this)
+        if (op ne newOp) {
+          changed = true
+        }
+        newOp
+      }
+
+      var newSubQuery = subQuery
+      if (newRel ne newSubQuery.rel) {
+        newSubQuery = newSubQuery.clone(newRel)
+      }
+      if (changed) {
+        newSubQuery = newSubQuery.clone(newSubQuery.getType, newOperands)
+      }
+      newSubQuery
+    }
+  }
+
   /**
-    * Converts [[LogicalTableScan]] the result [[RelNode]] tree by calling [[RelTable]]#toRel
+    * Converts [[LogicalTableScan]] the result [[RelNode]] tree
+    * by calling [[QueryOperationCatalogViewTable]]#toRel
     */
   override def visit(scan: TableScan): RelNode = {
     scan match {
       case tableScan: LogicalTableScan =>
-        val relTable = tableScan.getTable.unwrap(classOf[RelTable])
-        if (relTable != null) {
-          val rel = relTable.toRel(RelOptUtil.getContext(tableScan.getCluster), tableScan.getTable)
+        val viewTable = tableScan.getTable.unwrap(classOf[QueryOperationCatalogViewTable])
+        if (viewTable != null) {
+          val rel = viewTable.toRel(RelOptUtil.getContext(tableScan.getCluster), tableScan.getTable)
           rel.accept(this)
         } else {
           tableScan

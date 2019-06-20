@@ -28,7 +28,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
             +- Calc(select=[c, a], resource=[{parallelism=100}])
-               +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
+               +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
 ]]>
     </Resource>
   </TestCase>
@@ -44,7 +44,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
             +- Calc(select=[c, a], resource=[{parallelism=100}])
-               +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
+               +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
 ]]>
     </Resource>
   </TestCase>
@@ -62,7 +62,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
             +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
                +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0], resource=[{parallelism=100}])
                   +- Calc(select=[c, a], resource=[{parallelism=100}])
-                     +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
+                     +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
 ]]>
     </Resource>
   </TestCase>
@@ -80,7 +80,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
             +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
                +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0], resource=[{parallelism=5}])
                   +- Calc(select=[c, a], resource=[{parallelism=5}])
-                     +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
+                     +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
 ]]>
     </Resource>
   </TestCase>
@@ -93,7 +93,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
 +- Exchange(distribution=[single], resource=[{parallelism=-1}])
    +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
-      +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
+      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -106,7 +106,7 @@ Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
 Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
 +- Exchange(distribution=[single], resource=[{parallelism=-1}])
    +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
-      +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
+      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -119,7 +119,7 @@ Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
 Sort(orderBy=[e ASC], resource=[{parallelism=18}])
 +- Exchange(distribution=[range[e ASC]], resource=[{parallelism=18}])
    +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
-      +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
+      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -132,7 +132,7 @@ Sort(orderBy=[e ASC], resource=[{parallelism=18}])
 Sort(orderBy=[e ASC], resource=[{parallelism=8}])
 +- Exchange(distribution=[range[e ASC]], resource=[{parallelism=8}])
    +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=8}])
-      +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=8}])
+      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=8}])
 ]]>
     </Resource>
   </TestCase>
@@ -148,7 +148,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
             +- Calc(select=[c, a], resource=[{parallelism=18}])
-               +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+               +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -164,7 +164,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
          +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
             +- Calc(select=[c, a], resource=[{parallelism=18}])
-               +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+               +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -174,7 +174,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -192,7 +192,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
             +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
                +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0], resource=[{parallelism=18}])
                   +- Calc(select=[c, a], resource=[{parallelism=18}])
-                     +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+                     +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -210,7 +210,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
             +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
                +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0], resource=[{parallelism=5}])
                   +- Calc(select=[c, a], resource=[{parallelism=5}])
-                     +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
+                     +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
 ]]>
     </Resource>
   </TestCase>
@@ -220,7 +220,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -230,7 +230,7 @@ TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a,
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -249,12 +249,12 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
                :- Exchange(distribution=[hash[b]], resource=[{parallelism=-1}])
                :  +- Union(all=[true], union=[a, b], resource=[{parallelism=-1}])
                :     :- Calc(select=[a, b], resource=[{parallelism=18}])
-               :     :  +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+               :     :  +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
                :     +- Calc(select=[a, b], resource=[{parallelism=18}])
-               :        +- TableSourceScan(table=[[table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+               :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
                +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
                   +- Calc(select=[e, g], resource=[{parallelism=18}])
-                     +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
+                     +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -264,7 +264,7 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=2}])
+TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=2}])
 ]]>
     </Resource>
   </TestCase>
@@ -282,11 +282,11 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
             :- Exchange(distribution=[hash[b]], resource=[{parallelism=-1}])
             :  +- Calc(select=[a, b], resource=[{parallelism=18}])
             :     +- Union(all=[true], union=[a, b, c], resource=[{parallelism=-1}])
-            :        :- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-            :        +- TableSourceScan(table=[[table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+            :        :- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+            :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
             +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
                +- Calc(select=[e, g], resource=[{parallelism=18}])
-                  +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
+                  +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
@@ -305,12 +305,12 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
                :- Exchange(distribution=[hash[b]], resource=[{parallelism=-1}])
                :  +- Union(all=[true], union=[a, b], resource=[{parallelism=-1}])
                :     :- Calc(select=[a, b], resource=[{parallelism=5}])
-               :     :  +- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
+               :     :  +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
                :     +- Calc(select=[a, b], resource=[{parallelism=5}])
-               :        +- TableSourceScan(table=[[table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
+               :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
                +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
                   +- Calc(select=[e, g], resource=[{parallelism=8}])
-                     +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=8}])
+                     +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=8}])
 ]]>
     </Resource>
   </TestCase>
@@ -328,11 +328,11 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
             :- Exchange(distribution=[hash[b]], resource=[{parallelism=-1}])
             :  +- Calc(select=[a, b], resource=[{parallelism=18}])
             :     +- Union(all=[true], union=[a, b, c], resource=[{parallelism=-1}])
-            :        :- TableSourceScan(table=[[table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-            :        +- TableSourceScan(table=[[table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+            :        :- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+            :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
             +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
                +- Calc(select=[e, g], resource=[{parallelism=18}])
-                  +- TableSourceScan(table=[[table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
+                  +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>

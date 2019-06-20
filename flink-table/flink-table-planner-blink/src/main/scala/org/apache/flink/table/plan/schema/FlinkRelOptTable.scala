@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.flink.table.catalog.QueryOperationCatalogViewTable
+import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
@@ -119,6 +121,11 @@ class FlinkRelOptTable protected(
         explainSourceAsString(tsst.tableSourceTable.get.tableSource)
       case tst: TableSourceTable[_] =>
         explainSourceAsString(tst.tableSource)
+      case view: QueryOperationCatalogViewTable =>
+        view.getCatalogView.getQueryOperation match {
+          case tsqo: TableSourceQueryOperation[_] => explainSourceAsString(tsqo.getTableSource)
+          case _ => names
+        }
       case _ => names
     }
   }

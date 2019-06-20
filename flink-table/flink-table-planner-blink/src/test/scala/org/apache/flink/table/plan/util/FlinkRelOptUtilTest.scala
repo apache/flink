@@ -51,10 +51,10 @@ class FlinkRelOptUtilTest {
         |+- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
         |   :- LogicalProject(a=[$0], c=[$2])
         |   :  +- LogicalFilter(condition=[>($1, 50)])
-        |   :     +- LogicalTableScan(table=[[MyTable]])
+        |   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
         |   +- LogicalProject(a=[*($0, 2)], c=[$2])
         |      +- LogicalFilter(condition=[<($1, 50)])
-        |         +- LogicalTableScan(table=[[MyTable]])
+        |         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       """.stripMargin
     assertEquals(expected1.trim, FlinkRelOptUtil.toString(rel).trim)
 

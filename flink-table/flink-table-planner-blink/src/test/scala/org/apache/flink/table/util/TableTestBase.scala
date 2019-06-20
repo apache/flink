@@ -28,16 +28,17 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
 import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.operations.RichTableSourceQueryOperation
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
-import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
@@ -48,7 +49,6 @@ import org.apache.flink.types.Row
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.commons.lang3.SystemUtils
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
@@ -156,10 +156,29 @@ abstract class TableTestUtil(test: TableTestBase) {
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
     val tableEnv = getTableEnv
     val schema = new TableSchema(fields, types)
-    val isBatch = tableEnv.isBatch
-    val tableSource = new TestTableSource(isBatch, schema)
-    val table = new TableSourceTable[BaseRow](tableSource, isBatch, statistic)
-    tableEnv.registerTableInternal(name, table)
+    val tableSource = new TestTableSource(tableEnv.isBatch, schema)
+    addTableSource(name, tableSource, statistic)
+  }
+
+  /**
+    * Register this TableSource under given name into the TableEnvironment's catalog.
+    *
+    * @param name table name
+    * @param tableSource table source
+    * @param statistic statistic of current table
+    * @return returns the registered [[Table]].
+    */
+  def addTableSource(
+      name: String,
+      tableSource: TableSource[_],
+      statistic: FlinkStatistic): Table = {
+    val tableEnv = getTableEnv
+    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
+    //  instead of registerTable method here after unique key in TableSchema is ready
+    //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
+    val operation = new RichTableSourceQueryOperation(tableSource, tableEnv.isBatch, statistic)
+    val table = new TableImpl(tableEnv, operation)
+    tableEnv.registerTable(name, table)
     tableEnv.scan(name)
   }
 
@@ -482,13 +501,28 @@ abstract class TableTestUtil(test: TableTestBase) {
 /**
   * Utility for stream table test.
   */
-case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
+case class StreamTableTestUtil(
+    test: TableTestBase,
+    catalogManager: Option[CatalogManager] = None)
+  extends TableTestUtil(test) {
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
   // java tableEnv
-  val javaTableEnv: JavaStreamTableEnv = JavaStreamTableEnv.create(javaEnv)
+  val javaTableEnv: JavaStreamTableEnv = JavaStreamTableEnv.create(
+    javaEnv,
+    tableConfig,
+    catalogManager.getOrElse(TableTestUtil.createCatalogManager(new TableConfig)))
   // scala tableEnv
-  val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env)
+  val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(
+    env,
+    tableConfig,
+    catalogManager.getOrElse(TableTestUtil.createCatalogManager(new TableConfig)))
+
+  private def tableConfig: TableConfig = catalogManager match {
+    case Some(c) => TableTestUtil.extractBuiltinPath(new TableConfig, c)
+    case None => new TableConfig
+  }
 
   override def getTableEnv: TableEnvironment = tableEnv
 
@@ -576,11 +610,24 @@ case class StreamTableTestUtil(test: TableTestBase) extends TableTestUtil(test) 
 /**
   * Utility for batch table test.
   */
-case class BatchTableTestUtil(test: TableTestBase) extends TableTestUtil(test) {
+case class BatchTableTestUtil(
+    test: TableTestBase,
+    catalogManager: Option[CatalogManager] = None) extends TableTestUtil(test) {
   // java tableEnv
-  val javaTableEnv: JavaBatchTableEnv = JavaBatchTableEnv.create(javaEnv)
+  val javaTableEnv: JavaBatchTableEnv = JavaBatchTableEnv.create(
+    javaEnv,
+    tableConfig,
+    catalogManager.getOrElse(TableTestUtil.createCatalogManager(new TableConfig)))
   // scala tableEnv
-  val tableEnv: ScalaBatchTableEnv = ScalaBatchTableEnv.create(env)
+  val tableEnv: ScalaBatchTableEnv = ScalaBatchTableEnv.create(
+    env,
+    tableConfig,
+    catalogManager.getOrElse(TableTestUtil.createCatalogManager(new TableConfig)))
+
+  private def tableConfig: TableConfig = catalogManager match {
+    case Some(c) => TableTestUtil.extractBuiltinPath(new TableConfig, c)
+    case None => new TableConfig
+  }
 
   override def getTableEnv: TableEnvironment = tableEnv
 
@@ -649,4 +696,29 @@ class TestTableSource(isBatch: Boolean, schema: TableSchema, tableStats: Option[
   override def getTableStats: Optional[TableStats] = {
     Optional.ofNullable(tableStats.orNull)
   }
+}
+
+object TableTestUtil {
+
+  /**
+    * Creates a [[CatalogManager]] with a builtin default catalog & database set to values
+    * specified in the [[TableConfig]].
+    */
+  def createCatalogManager(config: TableConfig): CatalogManager = {
+    new CatalogManager(
+      config.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(config.getBuiltInCatalogName, config.getBuiltInDatabaseName))
+  }
+
+  /**
+    * Sets the configuration of the builtin catalog & databases in [[TableConfig]]
+    * to the current catalog & database of the given [[CatalogManager]]. This should be used
+    * to ensure sanity of a [[org.apache.flink.table.api.TableEnvironment]].
+    */
+  def extractBuiltinPath(config: TableConfig, catalogManager: CatalogManager): TableConfig = {
+    config.setBuiltInCatalogName(catalogManager.getCurrentCatalog)
+    config.setBuiltInDatabaseName(catalogManager.getCurrentDatabase)
+    config
+  }
+
 }

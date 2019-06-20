@@ -60,18 +60,14 @@ class ExecNodeResourceTest(isBatch: Boolean,
     val table3Source = new MockTableSource(isBatch,
       new TableSchema(Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)))
-    testUtil.getTableEnv.registerTableInternal("table3",
-      new TableSourceTable[BaseRow](table3Source,
-        !isBatch,
-        FlinkStatistic.builder().tableStats(table3Stats).build()))
+    testUtil.addTableSource(
+      "table3", table3Source, FlinkStatistic.builder().tableStats(table3Stats).build())
     val table5Stats = new TableStats(8000000)
     val table5Source = new MockTableSource(isBatch,
       new TableSchema(Array("d", "e", "f", "g", "h"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.INT, Types.STRING, Types.LONG)))
-    testUtil.getTableEnv.registerTableInternal("table5",
-      new TableSourceTable[BaseRow](table5Source,
-      !isBatch,
-      FlinkStatistic.builder().tableStats(table5Stats).build()))
+    testUtil.addTableSource(
+      "table5", table5Source, FlinkStatistic.builder().tableStats(table5Stats).build())
     ExecNodeResourceTest.setResourceConfig(testUtil.getTableEnv.getConfig)
   }
 

@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.operations.DataStreamQueryOperation
 import org.apache.flink.table.plan.`trait`.{AccModeTraitDef, FlinkRelDistributionTraitDef, MiniBatchIntervalTraitDef, UpdateAsRetractionTraitDef}
@@ -70,8 +71,9 @@ import _root_.scala.collection.JavaConversions._
   */
 abstract class StreamTableEnvironment(
     private[flink] val execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
-  extends TableEnvironment(execEnv, config) {
+    config: TableConfig,
+    catalogManager: CatalogManager)
+  extends TableEnvironment(execEnv, config, catalogManager) {
 
   // prefix  for unique table names.
   override private[flink] val tableNamePrefix = "_DataStreamTable_"

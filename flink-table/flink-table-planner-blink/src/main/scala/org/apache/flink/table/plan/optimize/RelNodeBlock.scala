@@ -380,7 +380,7 @@ object RelNodeBlockPlanBuilder {
       config: TableConfig): Seq[RelNodeBlock] = {
     require(sinkNodes.nonEmpty)
 
-    // expand RelTable in TableScan
+    // expand QueryOperationCatalogViewTable in TableScan
     val shuttle = new ExpandTableScanShuttle
     val convertedRelNodes = sinkNodes.map(_.accept(shuttle))
 

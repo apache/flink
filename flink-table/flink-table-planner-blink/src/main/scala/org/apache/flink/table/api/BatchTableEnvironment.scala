@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
 import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.operations.DataStreamQueryOperation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -54,10 +55,11 @@ import _root_.scala.collection.JavaConversions._
   *  3. Add [[TableSink]] to the [[Table]].
   * @param config The [[TableConfig]] of this [[BatchTableEnvironment]].
   */
-class BatchTableEnvironment(
+abstract class BatchTableEnvironment(
     val execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
-  extends TableEnvironment(execEnv, config) {
+    config: TableConfig,
+    catalogManager: CatalogManager)
+  extends TableEnvironment(execEnv, config, catalogManager) {
 
   // prefix for unique table names.
   override private[flink] val tableNamePrefix = "_DataStreamTable_"
@@ -102,7 +104,7 @@ class BatchTableEnvironment(
       case _: LookupableTableSource[_] => // ok
       // not a batch table source
       case _ =>
-        throw new TableException("Only LookupableTableSouce and BatchTableSource can be " +
+        throw new TableException("Only LookupableTableSouce and bounded StreamTableSource can be " +
           "registered in BatchTableEnvironment.")
     }
   }
