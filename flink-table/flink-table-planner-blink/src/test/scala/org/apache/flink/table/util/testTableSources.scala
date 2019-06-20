@@ -19,13 +19,15 @@
 package org.apache.flink.table.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSource}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
+import org.apache.flink.types.Row
 
 import java.util
 import java.util.Collections
@@ -104,4 +106,131 @@ class TestPreserveWMTableSource[T](
 
   override def explainSource(): String = ""
 
+}
+
+class TestProjectableTableSource(
+    isBatch: Boolean,
+    tableSchema: TableSchema,
+    returnType: TypeInformation[Row],
+    values: Seq[Row],
+    rowtime: String = null,
+    proctime: String = null,
+    fieldMapping: Map[String, String] = null)
+  extends TestTableSourceWithTime[Row](
+    isBatch,
+    tableSchema,
+    returnType,
+    values,
+    rowtime,
+    proctime,
+    fieldMapping)
+  with ProjectableTableSource[Row] {
+
+  override def projectFields(fields: Array[Int]): TableSource[Row] = {
+    val rowType = returnType.asInstanceOf[RowTypeInfo]
+
+    val (projectedNames: Array[String], projectedMapping) = if (fieldMapping == null) {
+      val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+      (projectedNames, null)
+    } else {
+      val invertedMapping = fieldMapping.map(_.swap)
+      val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+
+      val projectedMapping: Map[String, String] = projectedNames.map{ f =>
+        val logField = invertedMapping(f)
+        logField -> s"remapped-$f"
+      }.toMap
+      val renamedNames = projectedNames.map(f => s"remapped-$f")
+      (renamedNames, projectedMapping)
+    }
+
+    val projectedTypes = fields.map(rowType.getFieldTypes.apply(_))
+    val projectedReturnType = new RowTypeInfo(
+      projectedTypes.asInstanceOf[Array[TypeInformation[_]]],
+      projectedNames)
+
+    val projectedDataTypes = fields.map(tableSchema.getFieldDataTypes.apply(_))
+    val newTableSchema = TableSchema.builder().fields(projectedNames, projectedDataTypes).build()
+
+    val projectedValues = values.map { fromRow =>
+      val pRow = new Row(fields.length)
+      fields.zipWithIndex.foreach{ case (from, to) => pRow.setField(to, fromRow.getField(from)) }
+      pRow
+    }
+
+    new TestProjectableTableSource(
+      isBatch,
+      newTableSchema,
+      projectedReturnType,
+      projectedValues,
+      rowtime,
+      proctime,
+      projectedMapping)
+  }
+
+  override def explainSource(): String = {
+    s"TestSource(" +
+      s"physical fields: ${getReturnType.asInstanceOf[RowTypeInfo].getFieldNames.mkString(", ")})"
+  }
+}
+
+class TestNestedProjectableTableSource(
+    isBatch: Boolean,
+    tableSchema: TableSchema,
+    returnType: TypeInformation[Row],
+    values: Seq[Row],
+    rowtime: String = null,
+    proctime: String = null)
+  extends TestTableSourceWithTime[Row](
+    isBatch,
+    tableSchema,
+    returnType,
+    values,
+    rowtime,
+    proctime,
+    null)
+  with NestedFieldsProjectableTableSource[Row] {
+
+  var readNestedFields: Seq[String] = tableSchema.getFieldNames.map(f => s"$f.*")
+
+  override def projectNestedFields(
+      fields: Array[Int],
+      nestedFields: Array[Array[String]]): TableSource[Row] = {
+    val rowType = returnType.asInstanceOf[RowTypeInfo]
+
+    val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+    val projectedTypes = fields.map(rowType.getFieldTypes.apply(_))
+
+    val projectedReturnType = new RowTypeInfo(
+      projectedTypes.asInstanceOf[Array[TypeInformation[_]]],
+      projectedNames)
+
+    // update read nested fields
+    val newReadNestedFields = projectedNames.zip(nestedFields)
+      .flatMap(f => f._2.map(n => s"${f._1}.$n"))
+
+    val projectedDataTypes = fields.map(tableSchema.getFieldDataTypes.apply(_))
+    val newTableSchema = TableSchema.builder().fields(projectedNames, projectedDataTypes).build()
+
+    val projectedValues = values.map { fromRow =>
+      val pRow = new Row(fields.length)
+      fields.zipWithIndex.foreach{ case (from, to) => pRow.setField(to, fromRow.getField(from)) }
+      pRow
+    }
+
+    val copy = new TestNestedProjectableTableSource(
+      isBatch,
+      newTableSchema,
+      projectedReturnType,
+      projectedValues,
+      rowtime,
+      proctime)
+    copy.readNestedFields = newReadNestedFields
+
+    copy
+  }
+
+  override def explainSource(): String = {
+    s"TestSource(read nested fields: ${readNestedFields.mkString(", ")})"
+  }
 }
