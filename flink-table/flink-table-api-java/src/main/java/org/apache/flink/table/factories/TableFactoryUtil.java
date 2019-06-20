@@ -88,14 +88,14 @@ public class TableFactoryUtil {
 	}
 
 	/**
-	 * Returns a table sink matching the descriptor.
+	 * Returns a table sink matching the {@link org.apache.flink.table.catalog.CatalogTable}.
 	 */
 	public static <T> TableSink<T> findAndCreateTableSink(CatalogTable table) {
 		return findAndCreateTableSink(table.toProperties());
 	}
 
 	/**
-	 * Returns a table sink matching the descriptor.
+	 * Returns a table sink matching the {@link org.apache.flink.table.catalog.CatalogTable}.
 	 */
 	public static <T> TableSource<T> findAndCreateTableSource(CatalogTable table) {
 		return findAndCreateTableSource(table.toProperties());

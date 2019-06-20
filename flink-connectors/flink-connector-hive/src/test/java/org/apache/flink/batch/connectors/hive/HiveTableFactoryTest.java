@@ -59,7 +59,6 @@ public class HiveTableFactoryTest {
 		catalog.close();
 	}
 
-	// Enable this test after FLINK-12892 is fixed.
 	@Test
 	public void testCsvTable() throws Exception {
 		TableSchema schema = TableSchema.builder()
