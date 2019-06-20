@@ -45,6 +45,12 @@ import java.util.Optional;
 @PublicEvolving
 public interface Catalog {
 
+	/**
+	 * Get an optional {@link TableFactory} instance that's responsible to generate source/sink for tables
+	 * stored in this catalog.
+	 *
+	 * @return an optional TableFactory instance
+	 */
 	default Optional<TableFactory> getTableFactory() {
 		return Optional.empty();
 	}

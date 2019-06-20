@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A table factory implementation\ for tables stored in Hive catalog.
+ * A table factory implementation for tables stored in Hive catalog.
  */
 public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFactory<Row> {
 

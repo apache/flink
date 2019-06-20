@@ -20,7 +20,7 @@ package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.GenericCatalogDatabase;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -33,6 +33,7 @@ import org.apache.flink.table.sources.TableSource;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -59,6 +60,7 @@ public class HiveTableFactoryTest {
 	}
 
 	// Enable this test after FLINK-12892 is fixed.
+	@Test
 	public void testCsvTable() throws Exception {
 		TableSchema schema = TableSchema.builder()
 			.field("name", DataTypes.STRING())
@@ -67,14 +69,20 @@ public class HiveTableFactoryTest {
 
 		Map<String, String> properties = new HashMap<>();
 		properties.put("connector.type", "filesystem");
-		properties.put("format.type", "csv");
+		properties.put("connector.path", "/tmp");
 		properties.put("connector.property-version", "1");
-		properties.put("format.property-version", "1");
 		properties.put("update-mode", "append");
+
+		properties.put("format.type", "csv");
+		properties.put("format.property-version", "1");
+		properties.put("format.fields.0.name", "name");
+		properties.put("format.fields.0.type", "STRING");
+		properties.put("format.fields.1.name", "age");
+		properties.put("format.fields.1.type", "INT");
 
 		GenericCatalogTable table = new GenericCatalogTable(schema, properties, "csv table");
 
-		catalog.createDatabase("mydb", new GenericCatalogDatabase(new HashMap<>(), ""), true);
+		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");
 		catalog.createTable(path, table, true);
 		Optional<TableFactory> opt = catalog.getTableFactory();

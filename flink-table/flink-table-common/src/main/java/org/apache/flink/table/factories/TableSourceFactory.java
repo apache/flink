@@ -41,6 +41,12 @@ public interface TableSourceFactory<T> extends TableFactory {
 	 */
 	TableSource<T> createTableSource(Map<String, String> properties);
 
+	/**
+	 * Creates and configures a {@link TableSource} based on the given {@link CatalogTable} instance.
+	 *
+	 * @param table {@link CatalogTable} instance.
+	 * @return the configured table source.
+	 */
 	default TableSource<T> createTableSource(CatalogTable table) {
 		return createTableSource(table.toProperties());
 	}

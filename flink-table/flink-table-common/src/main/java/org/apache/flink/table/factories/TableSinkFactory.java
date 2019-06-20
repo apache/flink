@@ -41,6 +41,12 @@ public interface TableSinkFactory<T> extends TableFactory {
 	 */
 	TableSink<T> createTableSink(Map<String, String> properties);
 
+	/**
+	 * Creates and configures a {@link TableSink} based on the given {@link CatalogTable} instance.
+	 *
+	 * @param table {@link CatalogTable} instance.
+	 * @return the configured table sink.
+	 */
 	default TableSink<T> createTableSink(CatalogTable table) {
 		return createTableSink(table.toProperties());
 	}
