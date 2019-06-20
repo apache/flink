@@ -436,20 +436,20 @@ Catalogs can be defined as a set of yaml properties and are automatically regist
 {% highlight yaml %}
 execution:
    ...
-   current-catalog: catalog_1
-   current-database: mydb1
+   current-catalog: catalog_1 # Optional, default value is "default_catalog"
+   current-database: mydb1 # Optional, default value is the default database of the current-catalog
 
 catalogs:
    - name: catalog_1
      type: hive
      property-version: 1
-     hive-version:
-     hive-site-path: file://...
+     default-database: mydb2 # Optional, default value is the default database of this catalog
+     hive-version: 1.2.1 # Optional, default value is 2.3.4
+     hive-site-path: <path of hive-site.xml>
    - name: catalog_2
      type: hive
      property-version: 1
-     default-database: mydb2
-     hive-site-path: file://...
+     hive-site-path: <path of hive-site.xml>
 {% endhighlight %}
 
 Currently Flink supports two types of catalog - `FlinkInMemoryCatalog` and `HiveCatalog`.
