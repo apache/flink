@@ -42,12 +42,12 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 
 	@Override
 	public Map<String, String> requiredContext() {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public List<String> supportedProperties() {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
