@@ -56,6 +56,7 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -207,6 +208,19 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	@Override
+	public boolean isFinished() {
+		return isFinished;
+	}
+
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		if (currentRecordDeserializer != null) {
+			return AVAILABLE;
+		}
+		return barrierHandler.isAvailable();
+	}
+
+	@Override
 	public boolean processInput() throws Exception {
 		if (isFinished) {
 			return false;
@@ -259,7 +273,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 								streamOperator.processElement1(record);
 							}
 							return true;
-
 						}
 					}
 					else {
@@ -295,15 +308,13 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			if (bufferOrEvent.isPresent()) {
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
-				if (!barrierHandler.isFinished()) {
-					barrierHandler.isAvailable().get();
-				} else {
+				if (barrierHandler.isFinished()) {
 					isFinished = true;
 					if (!barrierHandler.isEmpty()) {
 						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
 					}
-					return false;
 				}
+				return false;
 			}
 		}
 	}

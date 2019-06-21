@@ -39,7 +39,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -104,13 +103,14 @@ public class StreamTaskSelectiveReadingTest {
 	}
 
 	@Test
-	public void testReadFinishedInput() {
+	public void testReadFinishedInput() throws Exception {
 		try {
 			testBase(new TestReadFinishedInputStreamOperator(), false, new ConcurrentLinkedQueue<>(), true);
 			fail("should throw an IOException");
-		} catch (Throwable t) {
-			assertTrue("wrong exception, should be IOException",
-				ExceptionUtils.findThrowableWithMessage(t, "Could not read the finished input: input1").isPresent());
+		} catch (Exception t) {
+			if (!ExceptionUtils.findThrowableWithMessage(t, "only first input is selected but it is already finished").isPresent()) {
+				throw t;
+			}
 		}
 	}
 
