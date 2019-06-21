@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Optimization
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/optimization.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

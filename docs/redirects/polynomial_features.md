@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Polynomial Features
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/polynomial_features.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

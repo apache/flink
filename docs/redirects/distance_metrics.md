@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Distance Metrics
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/distance_metrics.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

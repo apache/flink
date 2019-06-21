@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: k-Nearest Neighbors Join
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/knn.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

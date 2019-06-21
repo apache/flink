@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Cross Validation
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/cross_validation.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

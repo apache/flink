@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Looking under the hood of pipelines
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/pipelines.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
