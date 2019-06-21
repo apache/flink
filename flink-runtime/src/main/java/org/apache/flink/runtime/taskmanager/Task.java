@@ -233,6 +233,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	/** Executor to run future callbacks. */
 	private final Executor executor;
 
+	/** Future that is completed once {@link #run()} exits. */
+	private final CompletableFuture<ExecutionState> terminationFuture = new CompletableFuture<>();
+
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
 	//  (which means that they introduce memory barriers), to establish
@@ -449,6 +452,10 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return executingThread;
 	}
 
+	public CompletableFuture<ExecutionState> getTerminationFuture() {
+		return terminationFuture;
+	}
+
 	@VisibleForTesting
 	long getTaskCancellationInterval() {
 		return taskCancellationInterval;
@@ -509,7 +516,14 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	 */
 	@Override
 	public void run() {
+		try {
+			doRun();
+		} finally {
+			terminationFuture.complete(executionState);
+		}
+	}
 
+	private void doRun() {
 		// ----------------------------
 		//  Initial State transition
 		// ----------------------------
