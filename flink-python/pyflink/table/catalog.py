@@ -627,9 +627,6 @@ class CatalogBaseTable(object):
     @staticmethod
     def _get(j_catalog_base_table):
         if j_catalog_base_table.getClass().getName() == \
-                "org.apache.flink.table.catalog.CatalogTableImp":
-            return CatalogTableImpl(j_catalog_table=j_catalog_base_table)
-        elif j_catalog_base_table.getClass().getName() == \
                 "org.apache.flink.table.catalog.hive.HiveCatalogView":
             return HiveCatalogView(j_hive_catalog_view=j_catalog_base_table)
         else:
