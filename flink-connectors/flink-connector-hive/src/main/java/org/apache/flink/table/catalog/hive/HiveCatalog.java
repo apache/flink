@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.batch.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.AbstractCatalog;
-import org.apache.flink.table.catalog.AbstractCatalogTable;
 import org.apache.flink.table.catalog.AbstractCatalogView;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
@@ -30,12 +29,12 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogPartition;
-import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.config.CatalogTableConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
@@ -110,7 +109,7 @@ public class HiveCatalog extends AbstractCatalog {
 	// Prefix used to distinguish properties created by Hive and Flink,
 	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
 	private static final String FLINK_PROPERTY_PREFIX = "flink.";
-	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY;
+	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + CatalogConfig.IS_GENERIC;
 
 	// Prefix used to distinguish Flink functions from Hive functions.
 	// It's appended to Flink function's class name
@@ -306,7 +305,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(tablePath, "tablePath cannot be null");
 
 		Table hiveTable = getHiveTable(tablePath);
-		return instantiateHiveCatalogTable(hiveTable);
+		return instantiateCatalogTable(hiveTable);
 	}
 
 	@Override
@@ -377,7 +376,7 @@ public class HiveCatalog extends AbstractCatalog {
 			return;
 		}
 
-		CatalogBaseTable existingTable = instantiateHiveCatalogTable(hiveTable);
+		CatalogBaseTable existingTable = instantiateCatalogTable(hiveTable);
 
 		if (existingTable.getClass() != newCatalogTable.getClass()) {
 			throw new CatalogException(
@@ -476,12 +475,13 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static CatalogBaseTable instantiateHiveCatalogTable(Table hiveTable) {
+	private static CatalogBaseTable instantiateCatalogTable(Table hiveTable) {
 		boolean isView = TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW;
 
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
-		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
+
+		boolean isGeneric = Boolean.valueOf(properties.computeIfAbsent(FLINK_PROPERTY_IS_GENERIC, k -> String.valueOf(false)));
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
 		}
@@ -516,11 +516,7 @@ public class HiveCatalog extends AbstractCatalog {
 				);
 			}
 		} else {
-			if (isGeneric) {
-				return new GenericCatalogTable(tableSchema, partitionKeys, properties, comment);
-			} else {
-				return new HiveCatalogTable(tableSchema, partitionKeys, properties, comment);
-			}
+			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
 		}
 	}
 
@@ -533,7 +529,10 @@ public class HiveCatalog extends AbstractCatalog {
 		Map<String, String> properties = new HashMap<>(table.getProperties());
 		// Table comment
 		properties.put(CatalogTableConfig.TABLE_COMMENT, table.getComment());
-		if (table instanceof GenericCatalogTable || table instanceof GenericCatalogView) {
+
+		boolean isGeneric = Boolean.valueOf(properties.get(CatalogConfig.IS_GENERIC));
+
+		if (isGeneric) {
 			properties = maskFlinkProperties(properties);
 		}
 		// Table properties
@@ -546,8 +545,8 @@ public class HiveCatalog extends AbstractCatalog {
 		List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
 
 		// Table columns and partition keys
-		if (table instanceof AbstractCatalogTable) {
-			AbstractCatalogTable catalogTable = (AbstractCatalogTable) table;
+		if (table instanceof CatalogTableImpl) {
+			CatalogTableImpl catalogTable = (CatalogTableImpl) table;
 
 			if (catalogTable.isPartitioned()) {
 				int partitionKeySize = catalogTable.getPartitionKeys().size();
@@ -572,7 +571,7 @@ public class HiveCatalog extends AbstractCatalog {
 			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
 		} else {
 			throw new CatalogException(
-				"HiveCatalog only supports HiveCatalogTable and HiveCatalogView");
+				"HiveCatalog only supports CatalogTable and HiveCatalogView");
 		}
 
 		return hiveTable;
@@ -809,7 +808,6 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	private static CatalogPartition instantiateCatalogPartition(Partition hivePartition) {
-		// TODO: create GenericCatalogPartition for GenericCatalogTable
 		return new HiveCatalogPartition(hivePartition.getParameters(), hivePartition.getSd().getLocation());
 	}
 
@@ -1003,7 +1001,7 @@ public class HiveCatalog extends AbstractCatalog {
 				// TODO: extract more properties from Hive function and add to GenericCatalogFunction's properties
 
 				Map<String, String> properties = new HashMap<>();
-				properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
+				properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
 
 				return new GenericCatalogFunction(
 					function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()), properties);

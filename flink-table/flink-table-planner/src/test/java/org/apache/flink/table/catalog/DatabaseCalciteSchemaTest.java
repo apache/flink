@@ -62,13 +62,13 @@ public class DatabaseCalciteSchemaTest {
 		assertThat(tableSourceTable.isStreaming(), is(true));
 	}
 
-	private static final class TestCatalogBaseTable extends GenericCatalogTable {
+	private static final class TestCatalogBaseTable extends CatalogTableImpl {
 		private TestCatalogBaseTable() {
 			super(TableSchema.builder().build(), new HashMap<>(), "");
 		}
 
 		@Override
-		public GenericCatalogTable copy() {
+		public CatalogTable copy() {
 			return this;
 		}
 

@@ -23,10 +23,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogPartition;
-import org.apache.flink.table.catalog.hive.HiveCatalogTable;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
 
@@ -142,18 +143,18 @@ public class HiveTableOutputFormatTest {
 						BasicTypeInfo.DOUBLE_TYPE_INFO,
 						BasicTypeInfo.STRING_TYPE_INFO}
 		);
-		HiveCatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
+		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(tablePath, catalogTable, false);
 		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
-	private HiveCatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
+	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
 		if (numPartCols == 0) {
-			return new HiveCatalogTable(tableSchema, new HashMap<>(), "");
+			return new CatalogTableImpl(tableSchema, new HashMap<>(), "");
 		}
 		String[] partCols = new String[numPartCols];
 		System.arraycopy(tableSchema.getFieldNames(), tableSchema.getFieldNames().length - numPartCols, partCols, 0, numPartCols);
-		return new HiveCatalogTable(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
+		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
 	}
 
 	private HiveTableOutputFormat createHiveTableOutputFormat(ObjectPath tablePath, Table hiveTable,

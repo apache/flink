@@ -110,7 +110,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -119,7 +119,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -128,7 +128,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_stream_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_streaming_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -137,7 +137,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_partitioned_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
             CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -146,7 +146,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_partitioned_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
             CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)

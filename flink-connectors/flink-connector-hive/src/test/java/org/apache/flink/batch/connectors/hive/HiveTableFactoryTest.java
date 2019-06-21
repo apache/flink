@@ -21,8 +21,10 @@ package org.apache.flink.batch.connectors.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
-import org.apache.flink.table.catalog.GenericCatalogTable;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.TableFactory;
@@ -35,7 +37,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -49,13 +50,13 @@ public class HiveTableFactoryTest {
 	private static HiveCatalog catalog;
 
 	@BeforeClass
-	public static void init() throws IOException {
+	public static void init() {
 		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
 	}
 
 	@AfterClass
-	public static void close() throws IOException {
+	public static void close() {
 		catalog.close();
 	}
 
@@ -67,6 +68,7 @@ public class HiveTableFactoryTest {
 			.build();
 
 		Map<String, String> properties = new HashMap<>();
+		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
 		properties.put("connector.type", "filesystem");
 		properties.put("connector.path", "/tmp");
 		properties.put("connector.property-version", "1");
@@ -79,7 +81,7 @@ public class HiveTableFactoryTest {
 		properties.put("format.fields.1.name", "age");
 		properties.put("format.fields.1.type", "INT");
 
-		GenericCatalogTable table = new GenericCatalogTable(schema, properties, "csv table");
+		CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
 
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");

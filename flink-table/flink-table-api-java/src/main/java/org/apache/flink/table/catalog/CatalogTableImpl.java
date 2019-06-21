@@ -19,19 +19,22 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An abstract catalog table.
  */
-public abstract class AbstractCatalogTable implements CatalogTable {
+public class CatalogTableImpl implements CatalogTable {
 	// Schema of the table (column names and types)
 	private final TableSchema tableSchema;
 	// Partition keys if this is a partitioned table. It's an empty set if the table is not partitioned
@@ -41,14 +44,14 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 	// Comment of the table
 	private final String comment;
 
-	public AbstractCatalogTable(
+	public CatalogTableImpl(
 		TableSchema tableSchema,
 		Map<String, String> properties,
 		String comment) {
 		this(tableSchema, new ArrayList<>(), properties, comment);
 	}
 
-	public AbstractCatalogTable(
+	public CatalogTableImpl(
 			TableSchema tableSchema,
 			List<String> partitionKeys,
 			Map<String, String> properties,
@@ -85,13 +88,29 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 	}
 
 	@Override
+	public CatalogBaseTable copy() {
+		return new CatalogTableImpl(
+			getSchema().copy(), new ArrayList<>(getPartitionKeys()), new HashMap<>(getProperties()), getComment());
+	}
+
+	@Override
+	public Optional<String> getDescription() {
+		return Optional.of(getComment());
+	}
+
+	@Override
+	public Optional<String> getDetailedDescription() {
+		return Optional.of("This is a catalog table in an im-memory catalog");
+	}
+
+	@Override
 	public Map<String, String> toProperties() {
 		DescriptorProperties descriptor = new DescriptorProperties();
 
 		descriptor.putTableSchema(Schema.SCHEMA, getSchema());
 
-		Map<String, String> properties = getProperties();
-		properties.remove(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY);
+		Map<String, String> properties = new HashMap<>(getProperties());
+		properties.remove(CatalogConfig.IS_GENERIC);
 
 		descriptor.putProperties(properties);
 

@@ -19,9 +19,8 @@
 package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.GenericCatalogTable;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.hive.HiveCatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -63,21 +62,21 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 	@Override
 	public TableSource<Row> createTableSource(CatalogTable table) {
 		Preconditions.checkNotNull(table);
-		Preconditions.checkArgument(table instanceof HiveCatalogTable || table instanceof GenericCatalogTable);
+		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-		if (table instanceof HiveCatalogTable) {
-			return createInputFormatTableSource((HiveCatalogTable) table);
-		} else if (table instanceof GenericCatalogTable) {
-			return TableFactoryUtil.findAndCreateTableSource(table);
+		boolean isGeneric = Boolean.valueOf(table.getProperties().get(CatalogConfig.IS_GENERIC));
+
+		if (!isGeneric) {
+			return createInputFormatTableSource(table);
 		} else {
-			throw new CatalogException(String.format("Unknown table type %s", table.getClass()));
+			return TableFactoryUtil.findAndCreateTableSource(table);
 		}
 	}
 
 	/**
-	 * Creates and configures a {@link org.apache.flink.table.sources.InputFormatTableSource} using the given {@link HiveCatalogTable}.
+	 * Creates and configures a {@link org.apache.flink.table.sources.InputFormatTableSource} using the given {@link CatalogTable}.
 	 */
-	private InputFormatTableSource<Row> createInputFormatTableSource(HiveCatalogTable table) {
+	private InputFormatTableSource<Row> createInputFormatTableSource(CatalogTable table) {
 		// TODO: create an InputFormatTableSource from a HiveCatalogTable instance.
 		return null;
 	}
@@ -85,21 +84,21 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 	@Override
 	public TableSink<Row> createTableSink(CatalogTable table) {
 		Preconditions.checkNotNull(table);
-		Preconditions.checkArgument(table instanceof HiveCatalogTable || table instanceof GenericCatalogTable);
+		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-		if (table instanceof HiveCatalogTable) {
-			return createOutputFormatTableSink((HiveCatalogTable) table);
-		} else if (table instanceof GenericCatalogTable) {
-			return TableFactoryUtil.findAndCreateTableSink(table);
+		boolean isGeneric = Boolean.valueOf(table.getProperties().get(CatalogConfig.IS_GENERIC));
+
+		if (!isGeneric) {
+			return createOutputFormatTableSink(table);
 		} else {
-			throw new CatalogException(String.format("Unknown table type %s", table.getClass()));
+			return TableFactoryUtil.findAndCreateTableSink(table);
 		}
 	}
 
 	/**
-	 * Creates and configures a {@link org.apache.flink.table.sinks.OutputFormatTableSink} using the given {@linkHiveCatalogTable}.
+	 * Creates and configures a {@link org.apache.flink.table.sinks.OutputFormatTableSink} using the given {@link CatalogTable}.
 	 */
-	private OutputFormatTableSink<Row> createOutputFormatTableSink(HiveCatalogTable table) {
+	private OutputFormatTableSink<Row> createOutputFormatTableSink(CatalogTable table) {
 		// TODO: create an outputFormatTableSink from a HiveCatalogTable instance.
 		return null;
 	}

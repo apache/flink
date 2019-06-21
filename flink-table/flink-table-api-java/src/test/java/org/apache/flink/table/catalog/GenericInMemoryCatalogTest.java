@@ -78,12 +78,12 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
 
-		checkEquals(table, (CatalogTable) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
 		assertTrue(catalog.partitionExists(path1, catalogPartitionSpec));
 
 		catalog.renameTable(path1, t2, false);
 
-		checkEquals(table, (CatalogTable) catalog.getTable(path3));
+		CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
 		assertTrue(catalog.partitionExists(path3, catalogPartitionSpec));
 		assertFalse(catalog.tableExists(path1));
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
@@ -153,8 +153,13 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	// ------ utilities ------
 
 	@Override
-	public GenericCatalogTable createStreamingTable() {
-		return new GenericCatalogTable(
+	protected boolean isGeneric() {
+		return true;
+	}
+
+	@Override
+	public CatalogTable createStreamingTable() {
+		return new CatalogTableImpl(
 			createTableSchema(),
 			getStreamingTableProperties(),
 			TEST_COMMENT);
@@ -162,7 +167,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createTable() {
-		return new GenericCatalogTable(
+		return new CatalogTableImpl(
 			createTableSchema(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
@@ -170,7 +175,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createAnotherTable() {
-		return new GenericCatalogTable(
+		return new CatalogTableImpl(
 			createAnotherTableSchema(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
@@ -178,7 +183,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createPartitionedTable() {
-		return new GenericCatalogTable(
+		return new CatalogTableImpl(
 			createTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),
@@ -187,7 +192,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 	@Override
 	public CatalogTable createAnotherPartitionedTable() {
-		return new GenericCatalogTable(
+		return new CatalogTableImpl(
 			createAnotherTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),

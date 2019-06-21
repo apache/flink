@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.config.CatalogConfig;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +35,7 @@ public class GenericCatalogFunction extends AbstractCatalogFunction {
 
 	public GenericCatalogFunction(String className, Map<String, String> properties) {
 		super(className, properties);
-		properties.put(GenericInMemoryCatalog.FLINK_IS_GENERIC_KEY, GenericInMemoryCatalog.FLINK_IS_GENERIC_VALUE);
+		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
 	}
 
 	@Override
