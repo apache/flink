@@ -19,9 +19,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Iterator;
+import java.util.TreeSet;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -35,17 +34,18 @@ public class CheckpointFailureManager {
 
 	private final int tolerableCpFailureNumber;
 	private final FailJobCallback failureCallback;
-	private final AtomicInteger continuousFailureCounter;
-	private final Set<Long> countedCheckpointIds;
+	private final TreeSet<Long> failedCheckpointIds;
+	private final Object lock = new Object();
+	private long maxSuccessCheckpointId;
 
 	public CheckpointFailureManager(int tolerableCpFailureNumber, FailJobCallback failureCallback) {
 		checkArgument(tolerableCpFailureNumber >= 0,
 			"The tolerable checkpoint failure number is illegal, " +
 				"it must be greater than or equal to 0 .");
 		this.tolerableCpFailureNumber = tolerableCpFailureNumber;
-		this.continuousFailureCounter = new AtomicInteger(0);
 		this.failureCallback = checkNotNull(failureCallback);
-		this.countedCheckpointIds = ConcurrentHashMap.newKeySet();
+		this.failedCheckpointIds = new TreeSet<>();
+		this.maxSuccessCheckpointId = 0;
 	}
 
 	/**
@@ -62,49 +62,51 @@ public class CheckpointFailureManager {
 			return;
 		}
 
-		CheckpointFailureReason reason = exception.getCheckpointFailureReason();
-		switch (reason) {
-			case PERIODIC_SCHEDULER_SHUTDOWN:
-			case ALREADY_QUEUED:
-			case TOO_MANY_CONCURRENT_CHECKPOINTS:
-			case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
-			case NOT_ALL_REQUIRED_TASKS_RUNNING:
-			case CHECKPOINT_SUBSUMED:
-			case CHECKPOINT_COORDINATOR_SUSPEND:
-			case CHECKPOINT_COORDINATOR_SHUTDOWN:
-			case JOB_FAILURE:
-			case JOB_FAILOVER_REGION:
-			//for compatibility purposes with user job behavior
-			case CHECKPOINT_DECLINED_TASK_NOT_READY:
-			case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
-			case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
-			case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
-			case CHECKPOINT_DECLINED_SUBSUMED:
-			case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
+		synchronized (lock) {
+			CheckpointFailureReason reason = exception.getCheckpointFailureReason();
+			switch (reason) {
+				case PERIODIC_SCHEDULER_SHUTDOWN:
+				case ALREADY_QUEUED:
+				case TOO_MANY_CONCURRENT_CHECKPOINTS:
+				case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
+				case NOT_ALL_REQUIRED_TASKS_RUNNING:
+				case CHECKPOINT_SUBSUMED:
+				case CHECKPOINT_COORDINATOR_SUSPEND:
+				case CHECKPOINT_COORDINATOR_SHUTDOWN:
+				case JOB_FAILURE:
+				case JOB_FAILOVER_REGION:
+					//for compatibility purposes with user job behavior
+				case CHECKPOINT_DECLINED_TASK_NOT_READY:
+				case CHECKPOINT_DECLINED_TASK_NOT_CHECKPOINTING:
+				case CHECKPOINT_DECLINED_ALIGNMENT_LIMIT_EXCEEDED:
+				case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
+				case CHECKPOINT_DECLINED_SUBSUMED:
+				case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
-			case EXCEPTION:
-			case CHECKPOINT_EXPIRED:
-			case TASK_CHECKPOINT_FAILURE:
-			case TRIGGER_CHECKPOINT_FAILURE:
-			case FINALIZE_CHECKPOINT_FAILURE:
-				//ignore
-				break;
+				case EXCEPTION:
+				case CHECKPOINT_EXPIRED:
+				case TASK_CHECKPOINT_FAILURE:
+				case TRIGGER_CHECKPOINT_FAILURE:
+				case FINALIZE_CHECKPOINT_FAILURE:
+					//ignore
+					break;
 
-			case CHECKPOINT_DECLINED:
-				//we should make sure one checkpoint only be counted once
-				if (countedCheckpointIds.add(checkpointId)) {
-					continuousFailureCounter.incrementAndGet();
-				}
+				case CHECKPOINT_DECLINED:
+					//we should make sure one checkpoint only be counted once
+					if (!failedCheckpointIds.contains(checkpointId)) {
+						failedCheckpointIds.add(checkpointId);
+					}
 
-				break;
+					break;
 
-			default:
-				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + reason.name());
-		}
+				default:
+					throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + reason.name());
+			}
 
-		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
-			clearCount();
-			failureCallback.failJob();
+			if (failedCheckpointIds.contains(checkpointId) && (checkContinuityForward(checkpointId) || countContinuityBack(checkpointId))) {
+				clearAllFailedCheckpointIds();
+				failureCallback.failJob();
+			}
 		}
 	}
 
@@ -115,12 +117,87 @@ public class CheckpointFailureManager {
 	 *                     checkpoint id sequence.
 	 */
 	public void handleCheckpointSuccess(long checkpointId) {
-		clearCount();
+		synchronized (lock) {
+			//remember the maximum success checkpoint id
+			maxSuccessCheckpointId = checkpointId > maxSuccessCheckpointId ? checkpointId : maxSuccessCheckpointId;
+
+			if (failedCheckpointIds.size() == 0) {
+				return;
+			}
+
+			Long latestCheckpointId = failedCheckpointIds.last();
+			boolean needClearAll = latestCheckpointId == null ? true : checkpointId > latestCheckpointId;
+
+			if (needClearAll) {
+				clearAllFailedCheckpointIds();
+			} else {
+				clearFailedCheckpointIdsBefore(checkpointId);
+			}
+		}
 	}
 
-	private void clearCount() {
-		continuousFailureCounter.set(0);
-		countedCheckpointIds.clear();
+	private void clearAllFailedCheckpointIds() {
+		failedCheckpointIds.clear();
+	}
+
+	private void clearFailedCheckpointIdsBefore(long currentCheckpointId) {
+		Iterator<Long> descendingIterator = failedCheckpointIds.descendingIterator();
+		while (descendingIterator.hasNext()) {
+			if (descendingIterator.next() < currentCheckpointId) {
+				descendingIterator.remove();
+			}
+		}
+	}
+
+	/**
+	 * Check continuity from current checkpoint id forward the further checkpoint id.
+	 */
+	private boolean checkContinuityForward(long currentCheckpointId) {
+		//short out
+		if (failedCheckpointIds.size() == 0 || currentCheckpointId < maxSuccessCheckpointId) {
+			return false;
+		}
+
+		Long oldLatestCheckpointId = failedCheckpointIds.last();
+		if (oldLatestCheckpointId <= currentCheckpointId ||
+			oldLatestCheckpointId - currentCheckpointId < tolerableCpFailureNumber - 1) {
+
+			return false;
+		}
+
+		boolean flag = true;
+		for (int i = 1; i <= tolerableCpFailureNumber; i++) {
+			if (!failedCheckpointIds.contains(currentCheckpointId + i)) {
+				flag = false;
+				break;
+			}
+		}
+
+		return flag;
+	}
+
+	/**
+	 * Check continuity from current checkpoint id back to the old checkpoint ids.
+	 */
+	private boolean countContinuityBack(long currentCheckpointId) {
+		if (failedCheckpointIds.size() == 0 || currentCheckpointId < maxSuccessCheckpointId) {
+			return false;
+		}
+
+		Long firstCheckpointId = failedCheckpointIds.first();
+		if (currentCheckpointId - firstCheckpointId < tolerableCpFailureNumber - 1) {
+			return false;
+		}
+
+		boolean flag = true;
+		for (int i = 1; i <= tolerableCpFailureNumber; i++) {
+			if (!failedCheckpointIds.contains(currentCheckpointId - i)) {
+				flag = false;
+				break;
+			}
+		}
+
+		return flag;
 	}
 
 	/**
