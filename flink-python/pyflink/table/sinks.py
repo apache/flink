@@ -17,6 +17,8 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.types import _to_java_type, DataType
+from pyflink.util import utils
 
 __all__ = ['TableSink', 'CsvTableSink']
 
@@ -39,14 +41,17 @@ class CsvTableSink(TableSink):
     """
     A simple :class:`TableSink` to emit data as CSV files.
 
+    :param field_names: The list of field names.
+    :param field_types: The list of field data types.
     :param path: The output path to write the Table to.
     :param field_delimiter: The field delimiter.
     :param num_files: The number of files to write to.
     :param write_mode: The write mode to specify whether existing files are overwritten or not.
     """
 
-    def __init__(self, path, field_delimiter=',', num_files=1, write_mode=None):
-        # type: (str, str, int, int) -> None
+    def __init__(self, field_names, field_types, path, field_delimiter=',', num_files=1,
+                 write_mode=None):
+        # type: (list[str], list[DataType], str, str, int, int) -> None
         gateway = get_gateway()
         if write_mode == WriteMode.NO_OVERWRITE:
             j_write_mode = gateway.jvm.scala.Option.apply(
@@ -62,4 +67,8 @@ class CsvTableSink(TableSink):
         j_some_num_files = gateway.jvm.scala.Option.apply(num_files)
         j_csv_table_sink = gateway.jvm.CsvTableSink(
             path, j_some_field_delimiter, j_some_num_files, j_write_mode)
+        j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
+        j_field_types = utils.to_jarray(gateway.jvm.TypeInformation,
+                                        [_to_java_type(field_type) for field_type in field_types])
+        j_csv_table_sink = j_csv_table_sink.configure(j_field_names, j_field_types)
         super(CsvTableSink, self).__init__(j_csv_table_sink)

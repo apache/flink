@@ -112,23 +112,16 @@ class TableEnvironment(object):
         """
         self._j_tenv.registerTableSource(name, table_source._j_table_source)
 
-    def register_table_sink(self, name, field_names, field_types, table_sink):
+    def register_table_sink(self, name, table_sink):
         """
         Registers an external :class:`TableSink` with given field names and types in this
         :class:`TableEnvironment`'s catalog.
         Registered sink tables can be referenced in SQL DML statements.
 
         :param name: The name under which the :class:`TableSink` is registered.
-        :param field_names: The field names to register with the :class:`TableSink`.
-        :param field_types: The field types to register with the :class:`TableSink`.
         :param table_sink: The :class:`TableSink` to register.
         """
-        gateway = get_gateway()
-        j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
-        j_field_types = utils.to_jarray(
-            gateway.jvm.TypeInformation,
-            [_to_java_type(field_type) for field_type in field_types])
-        self._j_tenv.registerTableSink(name, j_field_names, j_field_types, table_sink._j_table_sink)
+        self._j_tenv.registerTableSink(name, table_sink._j_table_sink)
 
     def scan(self, *table_path):
         """
@@ -239,7 +232,7 @@ class TableEnvironment(object):
         ::
 
             # register the table sink into which the result is inserted.
-            >>> t_env.register_table_sink("sink_table", field_names, fields_types, table_sink)
+            >>> t_env.register_table_sink("sink_table", table_sink)
             >>> source_table = ...
             # source_table is not registered to the table environment
             >>> tEnv.sql_update(s"INSERT INTO sink_table SELECT * FROM %s" % source_table)

@@ -21,7 +21,8 @@ import shutil
 import sys
 import tempfile
 
-from pyflink.table import TableEnvironment, TableConfig, FileSystem, OldCsv, Schema
+from pyflink.table import TableConfig, TableEnvironment
+from pyflink.table.descriptors import FileSystem, OldCsv, Schema
 from pyflink.table.types import DataTypes
 
 

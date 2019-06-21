@@ -87,9 +87,8 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                        DataTypes.MAP(DataTypes.VARCHAR(), DataTypes.DOUBLE()),
                        DataTypes.VARBINARY(), ExamplePointUDT(),
                        PythonOnlyUDT()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
+        t_env.register_table_sink("Results", table_sink)
 
         t.insert_into("Results")
         t_env.exec_env().execute()
