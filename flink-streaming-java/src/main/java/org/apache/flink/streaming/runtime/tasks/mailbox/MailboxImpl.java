@@ -24,6 +24,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -77,6 +79,12 @@ public class MailboxImpl implements Mailbox {
 	private volatile int count;
 
 	/**
+	 * The state of the mailbox in the lifecycle of open, quiesced, and closed.
+	 */
+	@GuardedBy("lock")
+	private volatile State state;
+
+	/**
 	 * A mask to wrap around the indexes of the ring buffer. We use this to avoid ifs or modulo ops.
 	 */
 	private final int moduloMask;
@@ -93,6 +101,7 @@ public class MailboxImpl implements Mailbox {
 		this.lock = new ReentrantLock();
 		this.notEmpty = lock.newCondition();
 		this.notFull = lock.newCondition();
+		this.state = State.CLOSED;
 	}
 
 	@Override
@@ -101,11 +110,16 @@ public class MailboxImpl implements Mailbox {
 	}
 
 	@Override
-	public Optional<Runnable> tryTakeMail() {
+	public Optional<Runnable> tryTakeMail() throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			return isEmpty() ? Optional.empty() : Optional.of(takeInternal());
+			if (isEmpty()) {
+				checkTakeStateConditions();
+				return Optional.empty();
+			} else {
+				return Optional.of(takeInternal());
+			}
 		} finally {
 			lock.unlock();
 		}
@@ -113,11 +127,12 @@ public class MailboxImpl implements Mailbox {
 
 	@Nonnull
 	@Override
-	public Runnable takeMail() throws InterruptedException {
+	public Runnable takeMail() throws InterruptedException, MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
 		try {
 			while (isEmpty()) {
+				checkTakeStateConditions();
 				notEmpty.await();
 			}
 			return takeInternal();
@@ -129,14 +144,15 @@ public class MailboxImpl implements Mailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public boolean tryPutMail(@Nonnull Runnable letter) {
+	public boolean tryPutMail(@Nonnull Runnable letter) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
 			if (isFull()) {
+				checkPutStateConditions();
 				return false;
 			} else {
-				putInternal(letter);
+				putTailInternal(letter);
 				return true;
 			}
 		} finally {
@@ -145,14 +161,15 @@ public class MailboxImpl implements Mailbox {
 	}
 
 	@Override
-	public void putMail(@Nonnull Runnable letter) throws InterruptedException {
+	public void putMail(@Nonnull Runnable letter) throws InterruptedException, MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lockInterruptibly();
 		try {
 			while (isFull()) {
+				checkPutStateConditions();
 				notFull.await();
 			}
-			putInternal(letter);
+			putTailInternal(letter);
 		} finally {
 			lock.unlock();
 		}
@@ -160,16 +177,79 @@ public class MailboxImpl implements Mailbox {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	private void putInternal(Runnable letter) {
+	@Nonnull
+	@Override
+	public List<Runnable> clearAndPut(@Nonnull Runnable priorityLetter) throws MailboxStateException {
+		ArrayList<Runnable> droppedLetters = new ArrayList<>(capacity());
+
+		lock.lock();
+		try {
+			// check state first to avoid loosing any letters forever through exception
+			checkPutStateConditions();
+			dropAllLetters(droppedLetters);
+			putTailInternal(priorityLetter);
+		} finally {
+			lock.unlock();
+		}
+
+		return droppedLetters;
+	}
+
+	@Override
+	public void putFirst(@Nonnull Runnable priorityLetter) throws InterruptedException, MailboxStateException {
+		final ReentrantLock lock = this.lock;
+		lock.lockInterruptibly();
+		try {
+			while (isFull()) {
+				checkPutStateConditions();
+				notFull.await();
+			}
+			putHeadInternal(priorityLetter);
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	public boolean tryPutFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException {
+		final ReentrantLock lock = this.lock;
+		lock.lock();
+		try {
+			if (isFull()) {
+				checkPutStateConditions();
+				return false;
+			} else {
+				putHeadInternal(priorityLetter);
+				return true;
+			}
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	private void putHeadInternal(Runnable letter) throws MailboxStateException {
 		assert lock.isHeldByCurrentThread();
+		checkPutStateConditions();
+		headIndex = decreaseIndexWithWrapAround(headIndex);
+		this.ringBuffer[headIndex] = letter;
+		++count;
+		notEmpty.signal();
+	}
+
+	private void putTailInternal(Runnable letter) throws MailboxStateException {
+		assert lock.isHeldByCurrentThread();
+		checkPutStateConditions();
 		this.ringBuffer[tailIndex] = letter;
 		tailIndex = increaseIndexWithWrapAround(tailIndex);
 		++count;
 		notEmpty.signal();
 	}
 
-	private Runnable takeInternal() {
+	private Runnable takeInternal() throws MailboxStateException {
 		assert lock.isHeldByCurrentThread();
+		checkTakeStateConditions();
 		final Runnable[] buffer = this.ringBuffer;
 		Runnable letter = buffer[headIndex];
 		buffer[headIndex] = null;
@@ -179,32 +259,111 @@ public class MailboxImpl implements Mailbox {
 		return letter;
 	}
 
+	private void dropAllLetters(List<Runnable> dropInto) {
+		assert lock.isHeldByCurrentThread();
+		int localCount = count;
+		while (localCount > 0) {
+			dropInto.add(ringBuffer[headIndex]);
+			ringBuffer[headIndex] = null;
+			headIndex = increaseIndexWithWrapAround(headIndex);
+			--localCount;
+			notFull.signal();
+		}
+		count = 0;
+	}
+
 	private int increaseIndexWithWrapAround(int old) {
 		return (old + 1) & moduloMask;
 	}
 
+	private int decreaseIndexWithWrapAround(int old) {
+		return (old - 1) & moduloMask;
+	}
+
 	private boolean isFull() {
-		return count >= ringBuffer.length;
+		return count >= capacity();
 	}
 
 	private boolean isEmpty() {
 		return count == 0;
 	}
 
+	private boolean isPutAbleState() {
+		return state == State.OPEN;
+	}
+
+	private boolean isTakeAbleState() {
+		return state != State.CLOSED;
+	}
+
+	private void checkPutStateConditions() throws MailboxStateException {
+		final State state = this.state;
+		if (!isPutAbleState()) {
+			throw new MailboxStateException("Mailbox is in state " + state + ", but is required to be in state " +
+				State.OPEN + " for put operations.");
+		}
+	}
+
+	private void checkTakeStateConditions() throws MailboxStateException {
+		final State state = this.state;
+		if (!isTakeAbleState()) {
+			throw new MailboxStateException("Mailbox is in state " + state + ", but is required to be in state " +
+				State.OPEN + " or " + State.QUIESCED + " for take operations.");
+		}
+	}
+
 	@Override
-	public void clearAndPut(@Nonnull Runnable shutdownAction) {
+	public void open() {
 		lock.lock();
 		try {
-			int localCount = count;
-			while (localCount > 0) {
-				ringBuffer[headIndex] = null;
-				headIndex = increaseIndexWithWrapAround(headIndex);
-				--localCount;
+			if (state == State.CLOSED) {
+				state = State.OPEN;
 			}
-			count = 0;
-			putInternal(shutdownAction);
 		} finally {
 			lock.unlock();
 		}
+	}
+
+	@Override
+	public void quiesce() {
+		lock.lock();
+		try {
+			if (state == State.OPEN) {
+				state = State.QUIESCED;
+			}
+			notFull.signalAll();
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	@Nonnull
+	@Override
+	public List<Runnable> close() {
+		final ArrayList<Runnable> droppedLetters = new ArrayList<>(capacity());
+
+		lock.lock();
+		try {
+			dropAllLetters(droppedLetters);
+			state = State.CLOSED;
+			// to unblock all
+			notFull.signalAll();
+			notEmpty.signalAll();
+		} finally {
+			lock.unlock();
+		}
+
+		return droppedLetters;
+	}
+
+	@Nonnull
+	@Override
+	public State getState() {
+		return state;
+	}
+
+	@Override
+	public int capacity() {
+		return ringBuffer.length;
 	}
 }
