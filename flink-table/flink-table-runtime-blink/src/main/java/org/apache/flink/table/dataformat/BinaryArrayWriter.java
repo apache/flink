@@ -29,6 +29,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	private final int nullBitsSizeInBytes;
 	private final BinaryArray array;
 	private final int numElements;
+	private final int elementSize;
 	private int fixedSize;
 
 	public BinaryArrayWriter(BinaryArray array, int numElements, int elementSize) {
@@ -39,6 +40,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 		array.fixedElementSizeInBytes = elementSize;
 		this.cursor = fixedSize;
 		this.numElements = numElements;
+		this.elementSize = elementSize;
 
 		this.segment = MemorySegmentFactory.wrap(new byte[fixedSize]);
 		this.segment.putInt(0, numElements);
@@ -56,6 +58,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 			segment.putLong(i, 0L);
 		}
 		this.segment.putInt(0, numElements);
+		this.segment.putInt(4, elementSize);
 	}
 
 	@Override
