@@ -27,7 +27,7 @@ import org.apache.flink.table.typeutils.TypeCheckUtils._
   */
 object TypeCoercion {
 
-  val numericWideningPrecedence: IndexedSeq[LogicalType] =
+  var numericWideningPrecedence: IndexedSeq[LogicalType] =
     IndexedSeq(
       new TinyIntType(),
       new SmallIntType(),
@@ -35,6 +35,8 @@ object TypeCoercion {
       new BigIntType(),
       new FloatType(),
       new DoubleType())
+
+  numericWideningPrecedence ++= numericWideningPrecedence.map(_.copy(false))
 
   def widerTypeOf(tp1: LogicalType, tp2: LogicalType): Option[LogicalType] = {
     (tp1.getTypeRoot, tp2.getTypeRoot) match {
@@ -49,10 +51,9 @@ object TypeCoercion {
       case (_, _) if isTimePoint(tp1) && isTimeInterval(tp2) => Some(tp1)
       case (_, _) if isTimeInterval(tp1) && isTimePoint(tp2) => Some(tp2)
 
-      case (_, _) if numericWideningPrecedence.contains(tp1.copy(true)) &&
-          numericWideningPrecedence.contains(tp2.copy(true)) =>
-        val higherIndex = numericWideningPrecedence
-            .lastIndexWhere(t => t == tp1.copy(true) || t == tp2.copy(true))
+      case (_, _) if numericWideningPrecedence.contains(tp1) &&
+          numericWideningPrecedence.contains(tp2) =>
+        val higherIndex = numericWideningPrecedence.lastIndexWhere(t => t == tp1 || t == tp2)
         Some(numericWideningPrecedence(higherIndex))
 
       case _ => None
@@ -68,10 +69,9 @@ object TypeCoercion {
 
     case (_, DECIMAL) if isNumeric(from) => true
 
-    case (_, _) if numericWideningPrecedence.contains(from.copy(true)) &&
-        numericWideningPrecedence.contains(to.copy(true)) =>
-      if (numericWideningPrecedence.indexOf(from.copy(true)) <
-          numericWideningPrecedence.indexOf(to.copy(true))) {
+    case (_, _) if numericWideningPrecedence.contains(from) &&
+        numericWideningPrecedence.contains(to) =>
+      if (numericWideningPrecedence.indexOf(from) < numericWideningPrecedence.indexOf(to)) {
         true
       } else {
         false

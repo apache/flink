@@ -368,10 +368,10 @@ object ScalarOperatorGens {
     // non comparable types
     else {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
-        if (isReference(left)) {
+        if (isReference(left.resultType)) {
           (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
         }
-        else if (isReference(right)) {
+        else if (isReference(right.resultType)) {
           (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
         }
         else {
@@ -421,10 +421,10 @@ object ScalarOperatorGens {
     // non-comparable types
     else {
       generateOperatorIfNotNull(ctx, new BooleanType(), left, right) {
-        if (isReference(left)) {
+        if (isReference(left.resultType)) {
           (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
         }
-        else if (isReference(right)) {
+        else if (isReference(right.resultType)) {
           (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
         }
         else {
@@ -497,7 +497,7 @@ object ScalarOperatorGens {
     if (ctx.nullCheck) {
       GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType())
     }
-    else if (!ctx.nullCheck && isReference(operand)) {
+    else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("isNull")
       val operatorCode =
         s"""
@@ -523,7 +523,7 @@ object ScalarOperatorGens {
            |""".stripMargin.trim
       GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType())
     }
-    else if (!ctx.nullCheck && isReference(operand)) {
+    else if (!ctx.nullCheck && isReference(operand.resultType)) {
       val resultTerm = newName("result")
       val operatorCode =
         s"""
