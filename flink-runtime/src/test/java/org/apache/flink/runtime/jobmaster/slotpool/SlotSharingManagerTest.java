@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -27,11 +28,13 @@ import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -39,18 +42,28 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
+import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Test cases for the {@link SlotSharingManager}.
@@ -604,5 +617,211 @@ public class SlotSharingManagerTest extends TestLogger {
 		// Releases the first child in the left-side tree.
 		firstChild.release(new Throwable("Release for testing"));
 		assertEquals(ResourceProfile.ZERO, unresolvedRootSlot.getReservedResources());
+	}
+
+	@Test
+	public void testHashEnoughResourceOfMultiTaskSlot() {
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100);
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200);
+		ResourceProfile allocatedSlotRp = new ResourceProfile(2.0, 200);
+
+		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
+
+		SlotSharingManager slotSharingManager = new SlotSharingManager(
+				SLOT_SHARING_GROUP_ID,
+				allocatedSlotActions,
+				SLOT_OWNER);
+
+		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
+
+		SlotSharingManager.MultiTaskSlot unresolvedRootSlot = slotSharingManager.createRootSlot(
+				new SlotRequestId(),
+				slotContextFuture,
+				new SlotRequestId());
+
+		SlotSharingManager.MultiTaskSlot multiTaskSlot =
+				unresolvedRootSlot.allocateMultiTaskSlot(new SlotRequestId(), new SlotSharingGroupId());
+
+		SlotSharingManager.SingleTaskSlot firstChild = multiTaskSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				rp1,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+
+		assertThat(multiTaskSlot.mayHaveEnoughResourcesToFulfill(rp1), is(true));
+		assertThat(multiTaskSlot.mayHaveEnoughResourcesToFulfill(rp2), is(true));
+		assertThat(multiTaskSlot.mayHaveEnoughResourcesToFulfill(ResourceProfile.UNKNOWN), is(true));
+
+		slotContextFuture.complete(new AllocatedSlot(
+				new AllocationID(),
+				new TaskManagerLocation(new ResourceID("tm-X"), InetAddress.getLoopbackAddress(), 46),
+				0,
+				allocatedSlotRp,
+				mock(TaskManagerGateway.class)));
+
+		assertThat(multiTaskSlot.mayHaveEnoughResourcesToFulfill(rp1), is(true));
+		assertThat(multiTaskSlot.mayHaveEnoughResourcesToFulfill(rp2), is(false));
+		assertThat(multiTaskSlot.mayHaveEnoughResourcesToFulfill(ResourceProfile.UNKNOWN), is(true));
+	}
+
+	@Test
+	public void testSlotAllocatedWithEnoughResource() {
+		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(16.0, 1600));
+
+		// With enough resources, all the requests should be fulfilled.
+		for (SlotSharingManager.SingleTaskSlot singleTaskSlot : context.singleTaskSlotsInOrder) {
+			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
+			assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(false));
+		}
+
+		// The multi-task slot for coLocation should be kept.
+		assertThat(context.slotSharingManager.getTaskSlot(context.coLocationTaskSlot.getSlotRequestId()), notNullValue());
+	}
+
+	@Test
+	public void testSlotOverAllocatedAndSingleSlotReleased() {
+		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(7.0, 700));
+
+		// The two coLocated requests and the third request is successful.
+		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
+			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
+			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
+
+			if (i != 3) {
+				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(false));
+			} else {
+				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(true));
+				singleTaskSlot.getLogicalSlotFuture().whenComplete((LogicalSlot ignored, Throwable throwable) -> {
+					assertThat(throwable instanceof SharedSlotOversubscribedException, is(true));
+					assertThat(((SharedSlotOversubscribedException) throwable).canRetry(), is(true));
+				});
+			}
+		}
+
+		// The multi-task slot for coLocation should be kept.
+		assertThat(context.slotSharingManager.getTaskSlot(context.coLocationTaskSlot.getSlotRequestId()), notNullValue());
+	}
+
+	@Test
+	public void testSlotOverAllocatedAndMultiTaskSlotReleased() {
+		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(3.0, 300));
+
+		// Only the third request is fulfilled.
+		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
+			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
+			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
+
+			if (i == 2) {
+				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(false));
+			} else {
+				assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(true));
+				singleTaskSlot.getLogicalSlotFuture().whenComplete((LogicalSlot ignored, Throwable throwable) -> {
+					assertThat(throwable instanceof SharedSlotOversubscribedException, is(true));
+					assertThat(((SharedSlotOversubscribedException) throwable).canRetry(), is(true));
+				});
+			}
+		}
+
+		// The multi-task slot for coLocation should not be kept.
+		assertThat(context.slotSharingManager.getTaskSlot(context.coLocationTaskSlot.getSlotRequestId()), nullValue());
+	}
+
+	@Test
+	public void testSlotOverAllocatedAndAllTaskSlotReleased() {
+		SlotSharingResourceTestContext context = createResourceTestContext(new ResourceProfile(2.0, 200));
+
+		// Only the third request is fulfilled.
+		for (int i = 0; i < context.singleTaskSlotsInOrder.size(); ++i) {
+			SlotSharingManager.SingleTaskSlot singleTaskSlot = context.singleTaskSlotsInOrder.get(i);
+			assertThat(singleTaskSlot.getLogicalSlotFuture().isDone(), is(true));
+
+			assertThat(singleTaskSlot.getLogicalSlotFuture().isCompletedExceptionally(), is(true));
+			singleTaskSlot.getLogicalSlotFuture().whenComplete((LogicalSlot ignored, Throwable throwable) -> {
+				assertThat(throwable instanceof SharedSlotOversubscribedException, is(true));
+
+				// Since no request is fulfilled, these requests will be failed and should not retry.
+				assertThat(((SharedSlotOversubscribedException) throwable).canRetry(), is(false));
+			});
+		}
+
+		// All the task slots should be removed.
+		assertThat(context.slotSharingManager.isEmpty(), is(true));
+	}
+
+	private SlotSharingResourceTestContext createResourceTestContext(ResourceProfile allocatedResourceProfile) {
+		ResourceProfile coLocationTaskRp = new ResourceProfile(2.0, 200);
+		ResourceProfile thirdChildRp = new ResourceProfile(3.0, 300);
+		ResourceProfile forthChildRp = new ResourceProfile(9.0, 900);
+
+		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
+
+		SlotSharingManager slotSharingManager = new SlotSharingManager(
+				SLOT_SHARING_GROUP_ID,
+				allocatedSlotActions,
+				SLOT_OWNER);
+
+		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
+
+		SlotSharingManager.MultiTaskSlot unresolvedRootSlot = slotSharingManager.createRootSlot(
+				new SlotRequestId(),
+				slotContextFuture,
+				new SlotRequestId());
+
+		SlotSharingManager.MultiTaskSlot coLocationTaskSlot = unresolvedRootSlot.allocateMultiTaskSlot(
+				new SlotRequestId(), new SlotSharingGroupId());
+
+		SlotSharingManager.SingleTaskSlot firstCoLocatedChild = coLocationTaskSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				coLocationTaskRp,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+		SlotSharingManager.SingleTaskSlot secondCoLocatedChild = coLocationTaskSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				coLocationTaskRp,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+
+		SlotSharingManager.SingleTaskSlot thirdChild = unresolvedRootSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				thirdChildRp,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+
+		SlotSharingManager.SingleTaskSlot forthChild = unresolvedRootSlot.allocateSingleTaskSlot(
+				new SlotRequestId(),
+				forthChildRp,
+				new SlotSharingGroupId(),
+				Locality.LOCAL);
+
+		slotContextFuture.complete(new AllocatedSlot(
+				new AllocationID(),
+				new TaskManagerLocation(new ResourceID("tm-X"), InetAddress.getLoopbackAddress(), 46),
+				0,
+				allocatedResourceProfile,
+				mock(TaskManagerGateway.class)));
+
+		return new SlotSharingResourceTestContext(
+				slotSharingManager,
+				coLocationTaskSlot,
+				Arrays.asList(firstCoLocatedChild, secondCoLocatedChild, thirdChild, forthChild));
+	}
+
+	/**
+	 * An utility class maintains the testing sharing slot hierarchy.
+	 */
+	private class SlotSharingResourceTestContext {
+		final SlotSharingManager slotSharingManager;
+		final SlotSharingManager.MultiTaskSlot coLocationTaskSlot;
+		final List<SlotSharingManager.SingleTaskSlot> singleTaskSlotsInOrder;
+
+		SlotSharingResourceTestContext(
+				@Nonnull SlotSharingManager slotSharingManager,
+				@Nonnull SlotSharingManager.MultiTaskSlot coLocationTaskSlot,
+				@Nonnull List<SlotSharingManager.SingleTaskSlot> singleTaskSlotsInOrder) {
+
+			this.slotSharingManager = slotSharingManager;
+			this.coLocationTaskSlot = coLocationTaskSlot;
+			this.singleTaskSlotsInOrder = singleTaskSlotsInOrder;
+		}
 	}
 }
