@@ -75,7 +75,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <IN2> The type of the records that arrive on the second input
  */
 @Internal
-public class StreamTwoInputProcessor<IN1, IN2> {
+public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputProcessor.class);
 
@@ -206,6 +206,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.finishedChannels2 = new BitSet();
 	}
 
+	@Override
 	public boolean processInput() throws Exception {
 		if (isFinished) {
 			return false;
@@ -347,7 +348,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		}
 	}
 
-	public void cleanup() throws IOException {
+	@Override
+	public void close() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			Buffer buffer = deserializer.getCurrentBuffer();
