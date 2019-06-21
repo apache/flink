@@ -275,8 +275,7 @@ object CorrelateCodeGenerator {
       ruleDescription,
       body,
       "",
-      inputType,
-      config)
+      inputType)
     new CodeGenOperatorFactory(genOperator)
   }
 
