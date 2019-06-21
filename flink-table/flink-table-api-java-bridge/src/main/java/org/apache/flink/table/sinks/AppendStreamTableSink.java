@@ -16,17 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks
+package org.apache.flink.table.sinks;
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.Table
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableException;
 
 /**
-  * Defines an external [[TableSink]] to emit streaming [[Table]] with only insert changes.
-  *
-  * If the [[Table]] is also modified by update or delete changes, a
-  * [[org.apache.flink.table.api.TableException]] will be thrown.
-  *
-  * @tparam T Type of [[DataStream]] that this [[TableSink]] expects and supports.
-  */
-trait AppendStreamTableSink[T] extends StreamTableSink[T]
+ * Defines an external {@link TableSink} to emit streaming {@link Table} with only insert changes.
+ *
+ * <p>If the {@link Table} is also modified by update or delete changes, a {@link TableException}
+ * will be thrown.
+ *
+ * @param <T> Type of {@link DataStream} that this {@link TableSink} expects and supports.
+ */
+@PublicEvolving
+public interface AppendStreamTableSink<T> extends StreamTableSink<T> {
+
+}
