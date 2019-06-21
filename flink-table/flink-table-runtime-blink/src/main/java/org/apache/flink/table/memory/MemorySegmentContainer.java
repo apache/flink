@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.memory;
+package org.apache.flink.table.memory;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -25,80 +26,90 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
- * A memory segment based on a number of underlying memory segment.
+ * Wrapper for a number of memory segments.
  * It appears to the user that it has a continuous segment of memory.
  * However, it dispatches the read/write requests to the underlying memory segments underneath.
- * This class will greatly simplify many operations & algorithms, which invest large amounts of code
- * dealing with boundary cases.
  */
-public class ContainerMemorySegment extends MemorySegment {
+public abstract class MemorySegmentContainer {
 
+	private static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
+
+	/**
+	 * The size for each memory segment.
+	 */
 	protected final int segmentSize;
 
-	protected final int segmentSizeMask;
-
-	protected final int segmentSizeBitCount;
-
+	/**
+	 * Total size for all segments.
+	 */
 	protected final int totalSize;
 
 	protected final MemorySegment[] segments;
 
-	ContainerMemorySegment(Object owner, MemorySegment[] segments) {
-		super(owner);
-		Preconditions.checkArgument(segments != null && segments.length >= 2,
-			"The set of underlying memory segments for cannot be empty");
+	public static MemorySegmentContainer createMemorySegmentContainer(MemorySegment[] segments) {
+		Preconditions.checkArgument(segments != null && segments.length >= 1,
+			"The set of underlying memory segments cannot be empty");
+		if (segments.length == 1) {
+			return new SingleSegmentContainer(segments);
+		} else {
+			int segSize = segments[0].size();
+			if ((segSize & (segSize - 1)) == 0) {
+				return new Power2SegmentContainer(segments);
+			} else {
+				return new GeneralSegmentContainer(segments);
+			}
+		}
+	}
+
+	protected MemorySegmentContainer(MemorySegment[] segments) {
 		this.segments = segments;
-		segmentSize = segments[0].size;
-
-		Preconditions.checkArgument((segmentSize & (segmentSize - 1)) == 0,
-			"The segment size must be a power of 2.");
-
-		segmentSizeMask = segmentSize - 1;
-		segmentSizeBitCount = MathUtils.log2strict(segmentSize);
+		segmentSize = segments[0].size();
 
 		totalSize = segmentSize * segments.length;
 	}
 
-	@Override
-	public ByteBuffer wrap(int offset, int length) {
-		throw new UnsupportedOperationException("ContainerMemorySegment does not support the wrap method");
+	protected abstract int getSegmentIndex(int index);
+
+	protected abstract int getOffsetInSegment(int index);
+
+	/**
+	 * Expand this container with additional memory segments.
+	 * @param newSegments new memory segments to add.
+	 * @return the expanded memory segment.
+	 */
+	public MemorySegmentContainer expand(MemorySegment[] newSegments) {
+		Preconditions.checkArgument(newSegments != null && newSegments.length >= 1,
+			"The set of new memory segments cannot be empty");
+
+		Preconditions.checkArgument(newSegments[0].size() == segmentSize);
+		if () {
+
+		}
 	}
 
-	private int getSegmentIndex(int index) {
-		return index >>> segmentSizeBitCount;
-	}
-
-	private int getOffsetInSegment(int index) {
-		return index & segmentSizeMask;
-	}
-
-	@Override
 	public byte get(int index) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
 		return segments[segmentIndex].get(offsetInSegment);
 	}
 
-	@Override
 	public void put(int index, byte b) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
 		segments[segmentIndex].put(offsetInSegment, b);
 	}
 
-	@Override
 	public void get(int index, byte[] dst) {
 		get(index, dst, 0, dst.length);
 	}
 
-	@Override
 	public void put(int index, byte[] src) {
 		put(index, src, 0, src.length);
 	}
 
-	@Override
 	public void get(int index, byte[] dst, int offset, int length) {
 		int srcIndex = index;
 		int dstIndex = offset;
@@ -123,7 +134,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public void put(int index, byte[] src, int offset, int length) {
 		int srcIndex = offset;
 		int dstIndex = index;
@@ -148,17 +158,14 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public boolean getBoolean(int index) {
 		return get(index) != 0;
 	}
 
-	@Override
 	public void putBoolean(int index, boolean value) {
 		put(index, (byte) (value ? 1 : 0));
 	}
 
-	@Override
 	public void get(DataOutput out, int offset, int length) throws IOException {
 		int index = offset;
 		int remaining = length;
@@ -175,7 +182,14 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
+	public final long getLongBigEndian(int index) {
+		if (LITTLE_ENDIAN) {
+			return Long.reverseBytes(getLong(index));
+		} else {
+			return getLong(index);
+		}
+	}
+
 	public void put(DataInput in, int offset, int length) throws IOException {
 		int index = offset;
 		int remaining = length;
@@ -193,7 +207,14 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
+	public final void putLongBigEndian(int index, long value) {
+		if (LITTLE_ENDIAN) {
+			putLong(index, Long.reverseBytes(value));
+		} else {
+			putLong(index, value);
+		}
+	}
+
 	public void get(int offset, ByteBuffer target, int numBytes) {
 		// check the byte array offset and length
 		if ((offset | numBytes | (offset + numBytes)) < 0) {
@@ -221,7 +242,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public void put(int offset, ByteBuffer source, int numBytes) {
 		if ((offset | numBytes | (offset + numBytes)) < 0) {
 			throw new IndexOutOfBoundsException();
@@ -251,24 +271,20 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public int size() {
 		return totalSize;
 	}
 
-	@Override
 	public void free() {
 		for (int i = 0; i < segments.length; i++) {
 			segments[i].free();
 		}
 	}
 
-	@Override
 	public boolean isOffHeap() {
 		return segments[0].isOffHeap();
 	}
 
-	@Override
 	public char getChar(int index) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -296,7 +312,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		return ch;
 	}
 
-	@Override
 	public void putChar(int index, char value) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -323,7 +338,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public short getShort(int index) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -351,7 +365,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		return ret;
 	}
 
-	@Override
 	public void putShort(int index, short value) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -378,7 +391,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public int getInt(int index) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -418,7 +430,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		return ret;
 	}
 
-	@Override
 	public void putInt(int index, int value) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -457,7 +468,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
 	public long getLong(int index) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -521,7 +531,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		return ret;
 	}
 
-	@Override
 	public void putLong(int index, long value) {
 		int segmentIndex = getSegmentIndex(index);
 		int offsetInSegment = getOffsetInSegment(index);
@@ -584,19 +593,6 @@ public class ContainerMemorySegment extends MemorySegment {
 		}
 	}
 
-	@Override
-	public void swapBytes(byte[] tempBuffer, MemorySegment seg2, int offset1, int offset2, int len) {
-		this.get(offset1, tempBuffer, 0, len);
-
-		// TODO: improve the performance for this
-		byte[] tempBuffer2 = new byte[len];
-		seg2.get(offset2, tempBuffer2, 0, len);
-
-		this.put(offset1, tempBuffer2, 0, len);
-		seg2.put(offset2, tempBuffer, 0, len);
-	}
-
-	@Override
 	public boolean isFreed() {
 		return segments[0].isFreed();
 	}
