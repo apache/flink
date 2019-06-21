@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Standard Scaler
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/standard_scaler.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

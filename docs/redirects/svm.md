@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: SVM using CoCoA
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/svm.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

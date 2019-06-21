@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Quickstart Guide
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/quickstart.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
