@@ -26,7 +26,8 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         result = t.group_by("c").select("a.sum, c as b")
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
         self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
-        self.assertEqual("[as(sum(a), 'EXPR$0')]",
+        self.assertEqual("[`default_catalog`.`default_database`.`as`("
+                         "`default_catalog`.`default_database`.`sum`(a), 'EXPR$0')]",
                          query_operation.getAggregateExpressions().toString())
 
 
