@@ -43,6 +43,9 @@ import java.util.Optional;
  *     <li>Registering a user-defined scalar function. For the user-defined table and aggregate
  *     function, use the StreamTableEnvironment or BatchTableEnvironment</li>
  * </ul>
+ *
+ * <p>This environment is unified both on a language level (for all JVM-based languages, i.e. no distinction between
+ * Scala and Java API) and for bounded and unbounded data processing.
  */
 @PublicEvolving
 public interface TableEnvironment {

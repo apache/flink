@@ -23,8 +23,8 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.executor.Executor;
-import org.apache.flink.table.planner.Planner;
+import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.Planner;
 
 import java.lang.reflect.Constructor;
 

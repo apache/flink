@@ -32,13 +32,11 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.{PlannerFactory, TableEnvironmentImpl}
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
-import org.apache.flink.table.executor.Executor
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
-import org.apache.flink.table.operations.OutputConversionModifyOperation
-import org.apache.flink.table.operations.scala.DataStreamQueryOperation
-import org.apache.flink.table.planner.Planner
+import org.apache.flink.table.operations.{ScalaDataStreamQueryOperation, OutputConversionModifyOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
@@ -227,7 +225,7 @@ class StreamTableEnvironmentImpl (
       }
       fieldsInfo
     }).getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
-    new DataStreamQueryOperation[T](
+    new ScalaDataStreamQueryOperation[T](
       dataStream.javaStream,
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema)

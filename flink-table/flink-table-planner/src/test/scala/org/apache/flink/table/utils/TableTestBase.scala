@@ -27,17 +27,15 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
-import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => JavaStreamTableEnvironmentImpl}
-import org.apache.flink.table.api.java.{BatchTableEnvImpl => JavaBatchTableEnvImpl}
-import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.scala.{BatchTableEnvImpl => ScalaBatchTableEnvImpl, _}
-import org.apache.flink.table.api.{TableEnvImpl, BatchTableEnvImpl => _, _}
+import org.apache.flink.table.api.internal.{TableEnvImpl, TableEnvironmentImpl, TableImpl, BatchTableEnvImpl => _}
+import org.apache.flink.table.api.java.internal.{BatchTableEnvironmentImpl => JavaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => JavaStreamTableEnvironmentImpl}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.internal.{BatchTableEnvironmentImpl => ScalaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => ScalaStreamTableEnvironmentImpl}
+import org.apache.flink.table.api.{Table, TableConfig, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.scala.{DataStreamQueryOperation => SDataStreamQueryOperation}
-import org.apache.flink.table.operations.{DataSetQueryOperation, DataStreamQueryOperation}
+import org.apache.flink.table.operations.{DataSetQueryOperation, JavaDataStreamQueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.utils.TableTestUtil.createCatalogManager
 import org.junit.Assert.assertEquals
@@ -225,9 +223,10 @@ object TableTestUtil {
 
   def streamTableNode(table: Table): String = {
     val (id, fieldNames) = table.getQueryOperation match {
-      case q: SDataStreamQueryOperation[_] => (q.getDataStream.getId, q.getTableSchema
-        .getFieldNames)
-      case q: DataStreamQueryOperation[_] => (q.getDataStream.getId, q.getTableSchema.getFieldNames)
+      case q: JavaDataStreamQueryOperation[_] =>
+        (q.getDataStream.getId, q.getTableSchema.getFieldNames)
+      case q: ScalaDataStreamQueryOperation[_] =>
+        (q.getDataStream.getId, q.getTableSchema.getFieldNames)
       case n => throw new AssertionError(s"Unexpected table node $n")
     }
 
@@ -247,12 +246,12 @@ case class BatchTableTestUtil(
       new TableConfig
   }
 
-  val javaTableEnv = new JavaBatchTableEnvImpl(
+  val javaTableEnv = new JavaBatchTableEnvironmentImpl(
     javaEnv,
     tableConfig,
     catalogManager.getOrElse(createCatalogManager(new TableConfig)))
   val env = new ExecutionEnvironment(javaEnv)
-  val tableEnv = new ScalaBatchTableEnvImpl(
+  val tableEnv = new ScalaBatchTableEnvironmentImpl(
     env,
     tableConfig,
     catalogManager.getOrElse(createCatalogManager(new TableConfig)))
@@ -357,7 +356,7 @@ case class StreamTableTestUtil(
     tableConfig,
     javaEnv)
   val env = new StreamExecutionEnvironment(javaEnv)
-  val tableEnv = StreamTableEnvironmentImpl.create(
+  val tableEnv = ScalaStreamTableEnvironmentImpl.create(
     catalogManager.getOrElse(createCatalogManager(new TableConfig)),
     tableConfig,
     env)
@@ -446,8 +445,9 @@ case class StreamTableTestUtil(
   }
 
   protected def optimize(resultTable1: Table): RelNode = {
-    val planner = resultTable1.asInstanceOf[TableImpl].getTableEnvironment
-      .asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[StreamPlanner]
+    val planner = resultTable1.asInstanceOf[TableImpl]
+      .getTableEnvironment.asInstanceOf[TableEnvironmentImpl]
+      .getPlanner.asInstanceOf[StreamPlanner]
     val relNode = planner.getRelBuilder.tableOperation(resultTable1.getQueryOperation).build()
     val optimized = planner.optimizer
       .optimize(relNode, updatesAsRetraction = false, planner.getRelBuilder)

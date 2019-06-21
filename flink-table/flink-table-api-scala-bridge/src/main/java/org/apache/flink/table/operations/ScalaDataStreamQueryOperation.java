@@ -16,15 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations.scala;
+package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.OperationUtils;
-import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.QueryOperationVisitor;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -36,17 +32,17 @@ import java.util.Map;
  *
  * <p>This operation may expose only part, or change the order of the fields available in a
  * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
- * The {@link DataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
+ * The {@link ScalaDataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
  * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
-public class DataStreamQueryOperation<E> implements QueryOperation {
+public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 
 	private final DataStream<E> dataStream;
 	private final int[] fieldIndices;
 	private final TableSchema tableSchema;
 
-	public DataStreamQueryOperation(
+	public ScalaDataStreamQueryOperation(
 			DataStream<E> dataStream,
 			int[] fieldIndices,
 			TableSchema tableSchema) {
@@ -74,7 +70,11 @@ public class DataStreamQueryOperation<E> implements QueryOperation {
 		args.put("id", dataStream.getId());
 		args.put("fields", tableSchema.getFieldNames());
 
-		return OperationUtils.formatWithChildren("DataStream", args, getChildren(), Operation::asSummaryString);
+		return OperationUtils.formatWithChildren(
+			"DataStream",
+			args,
+			getChildren(),
+			Operation::asSummaryString);
 	}
 
 	@Override

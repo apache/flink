@@ -562,7 +562,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 				.replaceLogicalOptRuleSet(RuleSets.ofList())
 				.replacePhysicalOptRuleSet(RuleSets.ofList())
 				.build();
-		tableEnv.getConfig().setPlannerConfig(cc);
+		tableEnv.getConfig().addPlannerConfig(cc);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);

@@ -40,10 +40,11 @@ import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
-import org.apache.flink.table.executor.Executor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -54,8 +55,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
-import org.apache.flink.table.planner.Planner;
-import org.apache.flink.table.planner.QueryConfigProvider;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
@@ -98,7 +97,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
-		this.tableConfig.setPlannerConfig(queryConfigProvider);
+		this.tableConfig.addPlannerConfig(queryConfigProvider);
 		this.defaultCatalogName = tableConfig.getBuiltInCatalogName();
 		this.defaultDatabaseName = tableConfig.getBuiltInDatabaseName();
 
@@ -126,7 +125,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			return (OperationTreeBuilder) createMethod.invoke(null, tableReferenceLookup, functionDefinitionCatalog);
 		} catch (Exception e) {
 			throw new TableException(
-				"Could not instantiate the operation builder.  Make sure the planner module is on the classpath");
+				"Could not instantiate the operation builder. Make sure the planner module is on the classpath");
 		}
 	}
 
@@ -206,7 +205,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public Table scan(String... tablePath) {
 		return scanInternal(tablePath).map(this::createTable)
-			.orElseThrow(() -> new TableException(String.format(
+			.orElseThrow(() -> new ValidationException(String.format(
 				"Table '%s' was not found.",
 				String.join(".", tablePath))));
 	}
@@ -257,8 +256,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		if (operations.size() != 1) {
 			throw new ValidationException(
-				"Unsupported SQL query! sqlQuery() only accepts a single SQL queries of type " +
-					"SELECT, UNION, INTERSECT, EXCEPT, VALUES, and ORDER_BY.");
+				"Unsupported SQL query! sqlQuery() only accepts a single SQL query.");
 		}
 
 		Operation operation = operations.get(0);
@@ -267,7 +265,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			return createTable((QueryOperation) operation);
 		} else {
 			throw new ValidationException(
-				"Unsupported SQL query! sqlQuery() only accepts a single SQL queries of type " +
+				"Unsupported SQL query! sqlQuery() only accepts a single SQL query of type " +
 					"SELECT, UNION, INTERSECT, EXCEPT, VALUES, and ORDER_BY.");
 		}
 	}
@@ -302,7 +300,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		if (operations.size() != 1) {
 			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.");
+				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.");
 		}
 
 		Operation operation = operations.get(0);

@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner;
+package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.PlannerConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
+import org.apache.flink.table.delegation.Planner;
 
 /**
  * An adapter to {@link PlannerConfig} that enables to pass {@link org.apache.flink.table.api.QueryConfig}

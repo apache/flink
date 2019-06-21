@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.api.scala
+package org.apache.flink.table.api.scala.internal
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
+import org.apache.flink.table.api.scala.BatchTableEnvironment
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
@@ -33,11 +35,11 @@ import _root_.scala.reflect.ClassTag
   * @param execEnv The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
   * @param config The configuration of the TableEnvironment.
   */
-class BatchTableEnvImpl(
+class BatchTableEnvironmentImpl(
     execEnv: ExecutionEnvironment,
     config: TableConfig,
     catalogManager: CatalogManager)
-  extends org.apache.flink.table.api.BatchTableEnvImpl(
+  extends BatchTableEnvImpl(
     execEnv.getJavaEnv,
     config,
     catalogManager)

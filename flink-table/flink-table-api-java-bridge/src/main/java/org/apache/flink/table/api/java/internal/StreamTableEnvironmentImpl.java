@@ -39,18 +39,18 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
-import org.apache.flink.table.executor.Executor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
-import org.apache.flink.table.operations.DataStreamQueryOperation;
+import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.planner.Planner;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
@@ -63,7 +63,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The implementation for a Java {@link StreamExecutionEnvironment}. This enables conversions from/to
+ * The implementation for a Java {@link StreamTableEnvironment}. This enables conversions from/to
  * {@link DataStream}.
  *
  * <p>It binds to a given {@link StreamExecutionEnvironment}.
@@ -144,8 +144,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
-		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(
-			tableFunction);
+		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfTableFunction(tableFunction);
 
 		functionCatalog.registerTableFunction(
 			name,
@@ -156,8 +155,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction) {
-		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(
-			aggregateFunction);
+		TypeInformation<T> typeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
 		TypeInformation<ACC> accTypeInfo = UserFunctionsTypeHelper
 			.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
@@ -186,7 +184,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> Table fromDataStream(DataStream<T> dataStream) {
-		DataStreamQueryOperation<T> queryOperation = asQueryOperation(
+		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
 			dataStream,
 			Optional.empty());
 
@@ -196,7 +194,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
 		List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
-		DataStreamQueryOperation<T> queryOperation = asQueryOperation(
+		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
 			dataStream,
 			Optional.of(expressions));
 
@@ -228,7 +226,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			Table table,
 			Class<T> clazz,
 			StreamQueryConfig queryConfig) {
-		TypeInformation<T> typeInfo = TypeExtractor.createTypeInfo(clazz);
+		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
 		return toAppendStream(table, typeInfo, queryConfig);
 	}
 
@@ -260,7 +258,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			Table table,
 			Class<T> clazz,
 			StreamQueryConfig queryConfig) {
-		TypeInformation<T> typeInfo = TypeExtractor.createTypeInfo(clazz);
+		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
 		return toRetractStream(table, typeInfo, queryConfig);
 	}
 
@@ -277,8 +275,17 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		return toDataStream(table, modifyOperation);
 	}
 
+	@Override
 	public StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
 		return (StreamTableDescriptor) super.connect(connectorDescriptor);
+	}
+
+	/**
+	 * This is a temporary workaround for Python API. Python API should not use StreamExecutionEnvironment at all.
+	 */
+	@Internal
+	public StreamExecutionEnvironment execEnv() {
+		return executionEnvironment;
 	}
 
 	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
@@ -293,11 +300,19 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	protected void validateTableSource(TableSource<?> tableSource) {
 		super.validateTableSource(tableSource);
-		if (TableSourceValidation.hasRowtimeAttribute(tableSource) &&
-			executionEnvironment.getStreamTimeCharacteristic() != TimeCharacteristic.EventTime) {
-			throw new TableException(String.format(
-				"A rowtime attribute requires an EventTime time characteristic in stream " +
-					"environment. But is: %s}", executionEnvironment.getStreamTimeCharacteristic()));
+		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
+	}
+
+	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
+		try {
+			return TypeExtractor.createTypeInfo(clazz);
+		} catch (Exception ex) {
+			throw new ValidationException(
+				String.format(
+					"Could not convert query: %s to a DataStream of class %s",
+					table.getQueryOperation().asSummaryString(),
+					clazz.getSimpleName()),
+				ex);
 		}
 	}
 
@@ -320,7 +335,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		return TypeConversions.fromLegacyInfoToDataType(tupleTypeInfo);
 	}
 
-	private <T> DataStreamQueryOperation<T> asQueryOperation(
+	private <T> JavaDataStreamQueryOperation<T> asQueryOperation(
 			DataStream<T> dataStream,
 			Optional<List<Expression>> fields) {
 		TypeInformation<T> streamType = dataStream.getType();
@@ -332,18 +347,21 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 				f.toArray(new Expression[0]));
 
 			// check if event-time is enabled
-			if (fieldsInfo.isRowtimeDefined() &&
-				executionEnvironment.getStreamTimeCharacteristic() != TimeCharacteristic.EventTime) {
-				throw new ValidationException(String.format(
-					"A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
-					executionEnvironment.getStreamTimeCharacteristic()));
-			}
+			validateTimeCharacteristic(fieldsInfo.isRowtimeDefined());
 			return fieldsInfo;
 		}).orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
 
-		return new DataStreamQueryOperation<>(
+		return new JavaDataStreamQueryOperation<>(
 			dataStream,
 			typeInfoSchema.getIndices(),
 			typeInfoSchema.toTableSchema());
+	}
+
+	private void validateTimeCharacteristic(boolean isRowtimeDefined) {
+		if (isRowtimeDefined && executionEnvironment.getStreamTimeCharacteristic() != TimeCharacteristic.EventTime) {
+			throw new ValidationException(String.format(
+				"A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
+				executionEnvironment.getStreamTimeCharacteristic()));
+		}
 	}
 }

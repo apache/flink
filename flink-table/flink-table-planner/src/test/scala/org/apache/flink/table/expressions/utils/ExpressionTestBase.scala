@@ -37,8 +37,10 @@ import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
-import org.apache.flink.table.api.scala.{BatchTableEnvImpl, BatchTableEnvironment}
-import org.apache.flink.table.api.{TableConfig, TableEnvImpl}
+import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.internal.TableEnvImpl
+import org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
@@ -85,7 +87,7 @@ abstract class ExpressionTestBase {
     when(jDataSetMock.getType).thenReturn(typeInfo)
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env).asInstanceOf[BatchTableEnvImpl]
+    val tEnv = BatchTableEnvironment.create(env).asInstanceOf[BatchTableEnvironmentImpl]
     tEnv.registerDataSet(tableName, dataSetMock)
     functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
@@ -181,7 +183,7 @@ abstract class ExpressionTestBase {
     val validated = planner.validate(parsed)
     val converted = planner.rel(validated).rel
 
-    val env = context._2.asInstanceOf[BatchTableEnvImpl]
+    val env = context._2.asInstanceOf[BatchTableEnvironmentImpl]
     val optimized = env.optimizer.optimize(converted)
 
     // throw exception if plan contains more than a calc
@@ -194,7 +196,7 @@ abstract class ExpressionTestBase {
 
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
     // create RelNode from Table API expression
-    val env = context._2.asInstanceOf[BatchTableEnvImpl]
+    val env = context._2.asInstanceOf[BatchTableEnvironmentImpl]
     val table = env
       .scan(tableName)
       .select(tableApiExpr)

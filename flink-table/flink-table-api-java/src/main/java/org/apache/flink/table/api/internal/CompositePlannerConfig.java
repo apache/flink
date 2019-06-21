@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.PlannerConfig;
 
 import java.util.HashMap;
 import java.util.Map;

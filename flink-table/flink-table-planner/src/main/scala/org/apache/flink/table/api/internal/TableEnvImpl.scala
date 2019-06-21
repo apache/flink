@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api
+package org.apache.flink.table.api.internal
 
 import _root_.java.util.Optional
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools._
+import org.apache.calcite.tools.FrameworkConfig
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.internal.TableImpl
-import org.apache.flink.table.calcite._
+import org.apache.flink.table.api._
+import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup

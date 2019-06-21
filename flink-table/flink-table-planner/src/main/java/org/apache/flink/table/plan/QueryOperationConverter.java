@@ -44,9 +44,9 @@ import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CalculatedQueryOperation;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DataSetQueryOperation;
-import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
+import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.PlannerQueryOperation;
@@ -54,6 +54,7 @@ import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationDefaultVisitor;
 import org.apache.flink.table.operations.QueryOperationVisitor;
+import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -269,17 +270,17 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		public RelNode visit(QueryOperation other) {
 			if (other instanceof PlannerQueryOperation) {
 				return ((PlannerQueryOperation) other).getCalciteTree();
-			} else if (other instanceof DataStreamQueryOperation) {
-				DataStreamQueryOperation<?> dataStreamQueryOperation = (DataStreamQueryOperation<?>) other;
+			} else if (other instanceof JavaDataStreamQueryOperation) {
+				JavaDataStreamQueryOperation<?> dataStreamQueryOperation = (JavaDataStreamQueryOperation<?>) other;
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),
 					dataStreamQueryOperation.getTableSchema());
 			} else if (other instanceof DataSetQueryOperation) {
 				return convertToDataSetScan((DataSetQueryOperation<?>) other);
-			} else if (other instanceof org.apache.flink.table.operations.scala.DataStreamQueryOperation) {
-				org.apache.flink.table.operations.scala.DataStreamQueryOperation dataStreamQueryOperation =
-					(org.apache.flink.table.operations.scala.DataStreamQueryOperation<?>) other;
+			} else if (other instanceof ScalaDataStreamQueryOperation) {
+				ScalaDataStreamQueryOperation dataStreamQueryOperation =
+					(ScalaDataStreamQueryOperation<?>) other;
 				return convertToDataStreamScan(
 					dataStreamQueryOperation.getDataStream(),
 					dataStreamQueryOperation.getFieldIndices(),

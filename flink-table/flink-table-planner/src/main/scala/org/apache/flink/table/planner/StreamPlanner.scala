@@ -33,9 +33,11 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.QueryConfigProvider
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
-import org.apache.flink.table.executor.{Executor, StreamExecutor}
+import org.apache.flink.table.delegation.{Executor, Planner}
+import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, PlannerExpressionConverter}
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
@@ -51,11 +53,24 @@ import org.apache.flink.table.util.JavaScalaConversionUtil
 
 import _root_.scala.collection.JavaConverters._
 
+/**
+  * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
+  * (The new [[org.apache.flink.table.sources.InputFormatTableSource]] should work, but will be
+  * handled as streaming sources, and no batch specific optimizations will be applied).
+  *
+  * @param executor        instance of [[StreamExecutor]], needed to extract
+  *                        [[StreamExecutionEnvironment]] for
+  *                        [[org.apache.flink.table.sources.StreamTableSource.getDataStream]]
+  * @param config          mutable configuration passed from corresponding [[TableEnvironment]]
+  * @param functionCatalog catalog of functions
+  * @param catalogManager  manager of catalog meta objects such as tables, views, databases etc.
+  */
 class StreamPlanner(
-  executor: Executor,
-  config: TableConfig,
-  functionCatalog: FunctionCatalog,
-  catalogManager: CatalogManager) extends Planner{
+    executor: Executor,
+    config: TableConfig,
+    functionCatalog: FunctionCatalog,
+    catalogManager: CatalogManager)
+  extends Planner{
 
   private val internalSchema: CalciteSchema =
     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false))
