@@ -164,10 +164,6 @@ public class SynchronousCheckpointITCase {
 		}
 
 		@Override
-		protected void cancelTask() {
-		}
-
-		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 			eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
 			boolean result = super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
