@@ -52,7 +52,7 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
 	 * outside of the producer executor. This is mostly relevant for the batch jobs and blocking result partitions.
 	 * This method is not called if {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code true}.
 	 * The producer local resources are managed by {@link ShuffleDescriptor#storesLocalResourcesOn()} and
-	 * {@link ShuffleEnvironment#releasePartitions(Collection)}.
+	 * {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}.
 	 *
 	 * @param shuffleDescriptor shuffle descriptor of the result partition to release externally.
 	 */

@@ -666,7 +666,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds) {
 		try {
-			shuffleEnvironment.releasePartitions(partitionIds);
+			shuffleEnvironment.releasePartitionsLocally(partitionIds);
 		} catch (Throwable t) {
 			// TODO: Do we still need this catch branch?
 			onFatalError(t);

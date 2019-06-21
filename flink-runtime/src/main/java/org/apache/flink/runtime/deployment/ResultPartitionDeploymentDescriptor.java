@@ -24,9 +24,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -96,7 +99,9 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	 * Returns whether to release the partition after having been fully consumed once.
 	 *
 	 * <p>Indicates whether the shuffle service should automatically release all partition resources after
-	 * the first full consumption has been acknowledged.
+	 * the first full consumption has been acknowledged. This kind of partition does not need to be explicitly released
+	 * by {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)}
+	 * and {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}.
 	 *
 	 * @return whether to release the partition after having been fully consumed once.
 	 */
