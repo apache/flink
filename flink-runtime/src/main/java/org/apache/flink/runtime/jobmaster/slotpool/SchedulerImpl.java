@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -145,24 +146,53 @@ public class SchedulerImpl implements Scheduler {
 		componentMainThreadExecutor.assertRunningInMainThread();
 
 		final CompletableFuture<LogicalSlot> allocationResultFuture = new CompletableFuture<>();
+		internalAllocateSlot(
+				allocationResultFuture,
+				slotRequestId,
+				scheduledUnit,
+				slotProfile,
+				allowQueuedScheduling,
+				allocationTimeout);
+		return allocationResultFuture;
+	}
 
+	private void internalAllocateSlot(
+			CompletableFuture<LogicalSlot> allocationResultFuture,
+			SlotRequestId slotRequestId,
+			ScheduledUnit scheduledUnit,
+			SlotProfile slotProfile,
+			boolean allowQueuedScheduling,
+			Time allocationTimeout) {
 		CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
 			allocateSingleSlot(slotRequestId, slotProfile, allowQueuedScheduling, allocationTimeout) :
 			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, allocationTimeout);
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
 			if (failure != null) {
-				cancelSlotRequest(
-					slotRequestId,
-					scheduledUnit.getSlotSharingGroupId(),
-					failure);
-				allocationResultFuture.completeExceptionally(failure);
+				Optional<SharedSlotOversubscribedException> sharedSlotOverAllocatedException =
+						ExceptionUtils.findThrowable(failure, SharedSlotOversubscribedException.class);
+				if (sharedSlotOverAllocatedException.isPresent() &&
+						sharedSlotOverAllocatedException.get().canRetry()) {
+
+					// Retry the allocation
+					internalAllocateSlot(
+							allocationResultFuture,
+							slotRequestId,
+							scheduledUnit,
+							slotProfile,
+							allowQueuedScheduling,
+							allocationTimeout);
+				} else {
+					cancelSlotRequest(
+							slotRequestId,
+							scheduledUnit.getSlotSharingGroupId(),
+							failure);
+					allocationResultFuture.completeExceptionally(failure);
+				}
 			} else {
 				allocationResultFuture.complete(slot);
 			}
 		});
-
-		return allocationResultFuture;
 	}
 
 	@Override
@@ -354,7 +384,14 @@ public class SchedulerImpl implements Scheduler {
 
 			if (taskSlot != null) {
 				Preconditions.checkState(taskSlot instanceof SlotSharingManager.MultiTaskSlot);
-				return SlotSharingManager.MultiTaskSlotLocality.of(((SlotSharingManager.MultiTaskSlot) taskSlot), Locality.LOCAL);
+
+				SlotSharingManager.MultiTaskSlot multiTaskSlot = (SlotSharingManager.MultiTaskSlot) taskSlot;
+
+				if (multiTaskSlot.mayHaveEnoughResourcesToFulfill(slotProfile.getResourceProfile())) {
+					return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlot, Locality.LOCAL);
+				}
+
+				throw new NoResourceAvailableException("Not enough resources in the slot for all co-located tasks.");
 			} else {
 				// the slot may have been cancelled in the mean time
 				coLocationConstraint.setSlotRequestId(null);
