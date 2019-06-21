@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.async.queue.WatermarkQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TestTaskMailboxExecutor;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.util.TestLogger;
 
@@ -99,7 +100,7 @@ public class EmitterTest extends TestLogger {
 
 		StreamElementQueue queue = new OrderedStreamElementQueue(capacity, executor, operatorActions);
 
-		final Emitter<Integer> emitter = new Emitter<>(lock, output, queue, operatorActions);
+		final Emitter<Integer> emitter = new Emitter<>(new TestTaskMailboxExecutor(), lock, output, queue, operatorActions);
 
 		final Thread emitterThread = new Thread(emitter);
 		emitterThread.start();
@@ -151,7 +152,7 @@ public class EmitterTest extends TestLogger {
 
 		StreamElementQueue queue = new OrderedStreamElementQueue(capacity, executor, operatorActions);
 
-		final Emitter<Integer> emitter = new Emitter<>(lock, output, queue, operatorActions);
+		final Emitter<Integer> emitter = new Emitter<>(new TestTaskMailboxExecutor(), lock, output, queue, operatorActions);
 
 		final Thread emitterThread = new Thread(emitter);
 		emitterThread.start();

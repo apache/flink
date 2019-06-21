@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxExecutor;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -39,6 +40,7 @@ public class MockStreamTask extends StreamTask {
 
 	private final String name;
 	private final Object checkpointLock;
+	private final TaskMailboxExecutor taskMailboxExecutor;
 	private final StreamConfig config;
 	private final ExecutionConfig executionConfig;
 	private StreamTaskStateInitializer streamTaskStateInitializer;
@@ -53,6 +55,7 @@ public class MockStreamTask extends StreamTask {
 		Environment environment,
 		String name,
 		Object checkpointLock,
+		TaskMailboxExecutor mailboxExecutor,
 		StreamConfig config,
 		ExecutionConfig executionConfig,
 		StreamTaskStateInitializer streamTaskStateInitializer,
@@ -66,6 +69,7 @@ public class MockStreamTask extends StreamTask {
 		super(environment);
 		this.name = name;
 		this.checkpointLock = checkpointLock;
+		this.taskMailboxExecutor = mailboxExecutor;
 		this.config = config;
 		this.executionConfig = executionConfig;
 		this.streamTaskStateInitializer = streamTaskStateInitializer;
@@ -153,5 +157,10 @@ public class MockStreamTask extends StreamTask {
 	@Override
 	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
 		return accumulatorMap;
+	}
+
+	@Override
+	public TaskMailboxExecutor getTaskMailboxExecutor() {
+		return taskMailboxExecutor;
 	}
 }

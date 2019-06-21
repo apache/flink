@@ -45,6 +45,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -112,6 +113,9 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
+	/** Executor frontend to the task mailbox. */
+	private transient TaskMailboxExecutor mainThreadExecutor;
+
 	public AsyncWaitOperator(
 			AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
@@ -132,6 +136,7 @@ public class AsyncWaitOperator<IN, OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
+		this.mainThreadExecutor = containingTask.getTaskMailboxExecutor();
 		this.checkpointingLock = getContainingTask().getCheckpointLock();
 
 		this.inStreamElementSerializer = new StreamElementSerializer<>(
@@ -163,7 +168,7 @@ public class AsyncWaitOperator<IN, OUT>
 		super.open();
 
 		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+		this.emitter = new Emitter<>(mainThreadExecutor, checkpointingLock, output, queue, this);
 
 		// start the emitter thread
 		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
@@ -272,12 +277,14 @@ public class AsyncWaitOperator<IN, OUT>
 	@Override
 	public void close() throws Exception {
 		try {
-			assert(Thread.holdsLock(checkpointingLock));
-
 			while (!queue.isEmpty()) {
-				// wait for the emitter thread to output the remaining elements
-				// for that he needs the checkpointing lock and thus we have to free it
-				checkpointingLock.wait();
+				// TODO: once we no longer support legacy sources, the following `if` can simply become
+				//  `mainThreadExecutor.yield()'
+				if (!mainThreadExecutor.tryYield()) {
+					// We give up the lock while there is no action for yielding, so that potentially a legacy source
+					// loop (using the lock in/around letter execution) can make progress
+					checkpointingLock.wait();
+				}
 			}
 		}
 		finally {
@@ -367,10 +374,12 @@ public class AsyncWaitOperator<IN, OUT>
 			/*
 			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
 			 * that the emitter thread can complete/react to the interrupt signal.
+			 *
+			 * TODO: this can go away once the mailbox model is fully integrated with checkpoints and timers.
 			 */
 			if (Thread.holdsLock(checkpointingLock)) {
-				while (emitterThread.isAlive()) {
-					checkpointingLock.wait(100L);
+				while (!emitter.isDone()) {
+					checkpointingLock.wait();
 				}
 			}
 
@@ -394,16 +403,35 @@ public class AsyncWaitOperator<IN, OUT>
 	 * @throws InterruptedException if the current thread has been interrupted
 	 */
 	private <T> void addAsyncBufferEntry(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
-
 		pendingStreamElementQueueEntry = streamElementQueueEntry;
 
-		while (!queue.tryPut(streamElementQueueEntry)) {
-			// we wait for the emitter to notify us if the queue has space left again
-			checkpointingLock.wait();
+		// TODO: once we no longer support legacy sources, the following `if` can simply become
+		//  `while(!queue.tryPut(...)) { mainThreadExecutor.yield() }'. Currently, this case makes a difference between
+		//  new mailbox and the legacy source compatibility loop that requires us to give up the lock. We will receive
+		//  a notify on the lock at the end of each processing-letter execution (see {Emitter}) so we can try to put again.
+		if (!queue.tryPut(streamElementQueueEntry)) {
+			if (mainThreadExecutor.isMailboxThread()) {
+				tryPutOrYield(streamElementQueueEntry);
+			} else {
+				tryPutOrWait(streamElementQueueEntry);
+			}
 		}
 
 		pendingStreamElementQueueEntry = null;
+	}
+
+	private <T> void tryPutOrWait(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
+		do {
+			checkpointingLock.wait();
+		} while (!queue.tryPut(streamElementQueueEntry));
+	}
+
+	private <T> void tryPutOrYield(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
+		do {
+			if (!mainThreadExecutor.tryYield()) {
+				checkpointingLock.wait();
+			}
+		} while (!queue.tryPut(streamElementQueueEntry));
 	}
 
 	@Override

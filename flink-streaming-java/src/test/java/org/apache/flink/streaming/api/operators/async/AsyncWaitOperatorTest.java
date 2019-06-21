@@ -58,6 +58,8 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TestTaskMailboxExecutor;
+import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -69,8 +71,6 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nonnull;
 
@@ -97,7 +97,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -709,6 +708,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	@Test(timeout = 10000L)
 	public void testClosingWithBlockedEmitter() throws Exception {
 		final Object lock = new Object();
+		final TestTaskMailboxExecutor mailboxExecutor = new TestTaskMailboxExecutor();
 
 		ArgumentCaptor<Throwable> failureReason = ArgumentCaptor.forClass(Throwable.class);
 
@@ -717,6 +717,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		StreamTask<?, ?> containingTask = mock(StreamTask.class);
 		when(containingTask.getEnvironment()).thenReturn(environment);
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
+		when(containingTask.getTaskMailboxExecutor()).thenReturn(mailboxExecutor);
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
 
 		StreamConfig streamConfig = new MockStreamConfig();
@@ -725,22 +726,22 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		final OneShotLatch closingLatch = new OneShotLatch();
 		final OneShotLatch outputLatch = new OneShotLatch();
 
-		Output<StreamRecord<Integer>> output = mock(Output.class);
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocation) throws Throwable {
-				assertTrue("Output should happen under the checkpoint lock.", Thread.currentThread().holdsLock(lock));
+		Output<StreamRecord<Integer>> output = new MockOutput<Integer>(new ArrayList<>()) {
 
+			@Override
+			public void collect(StreamRecord<Integer> record) {
+				super.collect(record);
 				outputLatch.trigger();
 
 				// wait until we're in the closing method of the operator
-				while (!closingLatch.isTriggered()) {
-					lock.wait();
+				try {
+					closingLatch.await();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new RuntimeException("Waiting on latch interrupted.", e);
 				}
-
-				return null;
 			}
-		}).when(output).collect(any(StreamRecord.class));
+		};
 
 		AsyncWaitOperator<Integer, Integer> operator = new TestAsyncWaitOperator<>(
 			new MyAsyncFunction(),
@@ -791,7 +792,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		@Override
 		public void close() throws Exception {
 			closingLatch.trigger();
-			checkpointingLock.notifyAll();
 			super.close();
 		}
 	}
@@ -813,6 +813,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		ScheduledFuture<?> scheduledFuture = mock(ScheduledFuture.class);
 
+		final TestTaskMailboxExecutor mailboxExecutor = new TestTaskMailboxExecutor();
+
 		ProcessingTimeService processingTimeService = mock(ProcessingTimeService.class);
 		when(processingTimeService.getCurrentProcessingTime()).thenReturn(timestamp);
 		doReturn(scheduledFuture).when(processingTimeService).registerTimer(anyLong(), any(ProcessingTimeCallback.class));
@@ -820,6 +822,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		StreamTask<?, ?> containingTask = mock(StreamTask.class);
 		when(containingTask.getEnvironment()).thenReturn(environment);
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
+		when(containingTask.getTaskMailboxExecutor()).thenReturn(mailboxExecutor);
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
 
 		StreamConfig streamConfig = new MockStreamConfig();
