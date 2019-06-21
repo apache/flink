@@ -76,9 +76,4 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			inputProcessor.cleanup();
 		}
 	}
-
-	@Override
-	protected void cancelTask() {
-
-	}
 }

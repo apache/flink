@@ -110,8 +110,4 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			inputProcessor.cleanup();
 		}
 	}
-
-	@Override
-	protected void cancelTask() {
-	}
 }

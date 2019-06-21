@@ -241,10 +241,6 @@ public class StreamTaskTerminationTest extends TestLogger {
 			// wait until all async checkpoint threads are terminated, so that no more exceptions can be reported
 			Assert.assertTrue(getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
 		}
-
-		@Override
-		protected void cancelTask() {
-		}
 	}
 
 	private static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
