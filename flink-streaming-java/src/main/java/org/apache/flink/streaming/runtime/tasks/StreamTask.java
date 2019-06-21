@@ -58,11 +58,11 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxImpl;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +74,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -129,13 +128,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
 
 	/** The logger used by the StreamTask and its subclasses. */
-	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
-
-	/** Special value, letter that terminates the mailbox loop. */
-	private static final Runnable POISON_LETTER = () -> {};
-
-	/** Special value, letter that "wakes up" a waiting mailbox loop. */
-	private static final Runnable DEFAULT_ACTION_AVAILABLE = () -> {};
+	protected static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
 	// ------------------------------------------------------------------------
 
@@ -200,7 +193,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private final SynchronousSavepointLatch syncSavepointLatch;
 
-	protected final Mailbox mailbox;
+	protected final MailboxProcessor mailboxProcessor;
 
 	// ------------------------------------------------------------------------
 
@@ -247,7 +240,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriters = createRecordWriters(configuration, environment);
 		this.syncSavepointLatch = new SynchronousSavepointLatch();
-		this.mailbox = new MailboxImpl();
+		this.mailboxProcessor = new MailboxProcessor(this::performDefaultAction);
 	}
 
 	// ------------------------------------------------------------------------
@@ -272,30 +265,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param context context object for collaborative interaction between the action and the stream task.
 	 * @throws Exception on any problems in the action.
 	 */
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void performDefaultAction(DefaultActionContext context) throws Exception {
 		if (!inputProcessor.processInput()) {
 			context.allActionsCompleted();
-		}
-	}
-
-	/**
-	 * Runs the stream-tasks main processing loop.
-	 */
-	private void run() throws Exception {
-		final ActionContext actionContext = new ActionContext();
-		while (true) {
-			if (mailbox.hasMail()) {
-				Optional<Runnable> maybeLetter;
-				while ((maybeLetter = mailbox.tryTakeMail()).isPresent()) {
-					Runnable letter = maybeLetter.get();
-					if (letter == POISON_LETTER) {
-						return;
-					}
-					letter.run();
-				}
-			}
-
-			performDefaultAction(actionContext);
 		}
 	}
 
@@ -381,6 +353,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// -------- Invoke --------
 			LOG.debug("Invoking {}", getName());
 
+			// open mailbox
+			mailboxProcessor.open();
+
 			// we need to make sure that any triggers scheduled in open() cannot be
 			// executed before all operators are opened
 			synchronized (lock) {
@@ -400,7 +375,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// let the task do its work
 			isRunning = true;
-			run();
+			mailboxProcessor.runMailboxLoop();
 
 			// if this left the run() method cleanly despite the fact that this was canceled,
 			// make sure the "clean shutdown" is not attempted
@@ -421,6 +396,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				// make sure no new timers can come
 				timerService.quiesce();
+
+				// let mailbox execution reject all new letters from this point
+				mailboxProcessor.prepareClose();
 
 				// only set the StreamTask to not running after all operators have been closed!
 				// See FLINK-7430
@@ -489,12 +467,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					operatorChain.releaseOutputs();
 				}
 			}
+
+			mailboxProcessor.close();
 		}
 	}
 
 	@Override
 	public final void cancel() throws Exception {
-		mailbox.clearAndPut(POISON_LETTER);
 		isRunning = false;
 		canceled = true;
 
@@ -505,8 +484,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			cancelTask();
 		}
 		finally {
+			mailboxProcessor.cancelMailboxExecution();
 			cancelables.close();
 		}
+	}
+
+	public MailboxExecutor getTaskMailboxExecutor() {
+		return mailboxProcessor.getMailboxExecutor();
 	}
 
 	public final boolean isRunning() {
@@ -1331,41 +1315,5 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			.build(bufferWriter);
 		output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
 		return output;
-	}
-
-	/**
-	 * The action context is passed as parameter into the default action method and holds control methods for feedback
-	 * of from the default action to the mailbox.
-	 */
-	public final class ActionContext {
-
-		private final Runnable actionUnavailableLetter = ThrowingRunnable.unchecked(() -> mailbox.takeMail().run());
-
-		/**
-		 * This method must be called to end the stream task when all actions for the tasks have been performed.
-		 */
-		public void allActionsCompleted() {
-			mailbox.clearAndPut(POISON_LETTER);
-		}
-
-		/**
-		 * Calling this method signals that the mailbox-thread should continue invoking the default action, e.g. because
-		 * new input became available for processing.
-		 *
-		 * @throws InterruptedException on interruption.
-		 */
-		public void actionsAvailable() throws InterruptedException {
-			mailbox.putMail(DEFAULT_ACTION_AVAILABLE);
-		}
-
-		/**
-		 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
-		 * e.g. because there is currently no input available.
-		 *
-		 * @throws InterruptedException on interruption.
-		 */
-		public void actionsUnavailable() throws InterruptedException {
-			mailbox.putMail(actionUnavailableLetter);
-		}
 	}
 }

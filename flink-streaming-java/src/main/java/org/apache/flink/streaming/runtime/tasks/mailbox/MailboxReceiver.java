@@ -39,15 +39,17 @@ public interface MailboxReceiver {
 	 *
 	 * @return an optional with either the oldest letter from the mailbox (head of queue) if the mailbox is not empty or
 	 * an empty optional otherwise.
+	 * @throws  MailboxStateException if mailbox is already closed.
 	 */
-	Optional<Runnable> tryTakeMail();
+	Optional<Runnable> tryTakeMail() throws MailboxStateException;
 
 	/**
 	 * This method returns the oldest letter from the mailbox (head of queue) or blocks until a letter is available.
 	 *
 	 * @return the oldest letter from the mailbox (head of queue).
 	 * @throws InterruptedException on interruption.
+	 * @throws  MailboxStateException if mailbox is already closed.
 	 */
 	@Nonnull
-	Runnable takeMail() throws InterruptedException;
+	Runnable takeMail() throws InterruptedException, MailboxStateException;
 }

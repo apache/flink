@@ -25,7 +25,10 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.util.FlinkException;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -44,8 +47,6 @@ import org.apache.flink.util.FlinkException;
 @Internal
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
-
-	private static final Runnable SOURCE_POISON_LETTER = () -> {};
 
 	private volatile boolean externallyInducedCheckpoints;
 
@@ -100,42 +101,21 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+
+		context.suspendDefaultAction();
+
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
 		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
-		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread();
+		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread(getName());
 		sourceThread.start();
-
-		// We run an alternative mailbox loop that does not involve default actions and synchronizes around actions.
-		try {
-			runAlternativeMailboxLoop();
-		} catch (Exception mailboxEx) {
-			// We cancel the source function if some runtime exception escaped the mailbox.
-			if (!isCanceled()) {
-				cancelTask();
+		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
+			if (sourceThreadThrowable == null) {
+				mailboxProcessor.allActionsCompleted();
+			} else {
+				mailboxProcessor.reportThrowable(sourceThreadThrowable);
 			}
-			throw mailboxEx;
-		}
-
-		sourceThread.join();
-		sourceThread.checkThrowSourceExecutionException();
-
-		context.allActionsCompleted();
-	}
-
-	private void runAlternativeMailboxLoop() throws InterruptedException {
-
-		while (true) {
-
-			Runnable letter = mailbox.takeMail();
-			if (letter == SOURCE_POISON_LETTER) {
-				break;
-			}
-
-			synchronized (getCheckpointLock()) {
-				letter.run();
-			}
-		}
+		});
 	}
 
 	@Override
@@ -172,27 +152,25 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	 */
 	private class LegacySourceFunctionThread extends Thread {
 
-		private Throwable sourceExecutionThrowable;
+		private final CompletableFuture<Void> completionFuture;
 
-		LegacySourceFunctionThread() {
-			this.sourceExecutionThrowable = null;
+		LegacySourceFunctionThread(String taskDescription) {
+			super("Legacy Source Thread - " + taskDescription);
+			this.completionFuture = new CompletableFuture<>();
 		}
 
 		@Override
 		public void run() {
 			try {
 				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
+				completionFuture.complete(null);
 			} catch (Throwable t) {
-				sourceExecutionThrowable = t;
-			} finally {
-				mailbox.clearAndPut(SOURCE_POISON_LETTER);
+				completionFuture.completeExceptionally(t);
 			}
 		}
 
-		void checkThrowSourceExecutionException() throws Exception {
-			if (sourceExecutionThrowable != null) {
-				throw new Exception(sourceExecutionThrowable);
-			}
+		CompletableFuture<Void> getCompletionFuture() {
+			return completionFuture;
 		}
 	}
 }
