@@ -41,13 +41,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.AbstractCollection;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -358,9 +361,9 @@ public class SlotSharingManager {
 				CompletableFuture<? extends SlotContext> slotContextFuture,
 				@Nullable SlotRequestId allocatedSlotRequestId) {
 			super(slotRequestId, groupId);
+			Preconditions.checkNotNull(slotContextFuture);
 
 			this.parent = parent;
-			this.slotContextFuture = Preconditions.checkNotNull(slotContextFuture);
 			this.allocatedSlotRequestId = allocatedSlotRequestId;
 
 			this.children = new HashMap<>(16);
@@ -368,12 +371,57 @@ public class SlotSharingManager {
 
 			this.requestedResources = ResourceProfile.EMPTY;
 
-			slotContextFuture.whenComplete(
-				(SlotContext ignored, Throwable throwable) -> {
-					if (throwable != null) {
-						release(throwable);
+			this.slotContextFuture = slotContextFuture.handle((SlotContext slotContext, Throwable throwable) -> {
+				if (throwable != null) {
+					// If the underlying resource request fail, currently we fails all the requests to
+					// simplify the logic.
+					release(throwable);
+					throw new CompletionException(throwable);
+				}
+
+				if (parent == null) {
+					ResourceProfile allocated = ResourceProfile.EMPTY;
+					List<TaskSlot> childrenToEvict = new ArrayList<>();
+
+					for (TaskSlot slot : children.values()) {
+						ResourceProfile allocatedIfInclude = allocated.merge(slot.getRequestedResources());
+
+						if (slotContext.getResourceProfile().isMatching(allocatedIfInclude)) {
+							allocated = allocatedIfInclude;
+						} else {
+							childrenToEvict.add(slot);
+						}
 					}
-				});
+
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Not all requests are fulfilled due to over-allocated, number of requests is {}, " +
+										"number of evicted requests is {}, underlying allocated is {}, fulfilled is {}, " +
+										"evicted requests is {},",
+								children.size(),
+								childrenToEvict.size(),
+								slotContext.getResourceProfile(),
+								allocated,
+								childrenToEvict);
+					}
+
+					if (childrenToEvict.size() == children.size()) {
+						// Since RM always return a slot whose resource is larger than the requested one,
+						// The current situation only happens when we request to RM using the resource
+						// profile of a task who is belonging to a CoLocationGroup. Similar to dealing
+						// with the failure of the underlying request, currently we fail all the requests
+						// directly.
+						release(new SharedSlotOverAllocatedException(
+								"The allocated slot does not have enough resource for any task.", false));
+					} else {
+						for (TaskSlot taskSlot : childrenToEvict) {
+							taskSlot.release(new SharedSlotOverAllocatedException(
+									"The allocated slot does not have enough resource for all the tasks.", true));
+						}
+					}
+				}
+
+				return slotContext;
+			});
 		}
 
 		CompletableFuture<? extends SlotContext> getSlotContextFuture() {
@@ -510,6 +558,30 @@ public class SlotSharingManager {
 		@Override
 		public ResourceProfile getRequestedResources() {
 			return requestedResources;
+		}
+
+		/**
+		 * Checks if the task slot may have enough resource to fulfill the specific
+		 * request. If the underlying slot is not allocated, the check is skipped.
+		 *
+		 * @param resourceProfile The specific request to check.
+		 * @return Whether the slot is possible to fulfill the request in the future.
+		 */
+		boolean mayHaveEnoughToFulfill(ResourceProfile resourceProfile) {
+			if (!slotContextFuture.isDone()) {
+				return true;
+			}
+
+			MultiTaskSlot root = this;
+
+			while (root.parent != null) {
+				root = root.parent;
+			}
+
+			SlotContext slotContext = root.getSlotContextFuture().join();
+
+			return slotContext.getResourceProfile().isMatching(
+					resourceProfile.merge(root.getRequestedResources()));
 		}
 
 		/**
