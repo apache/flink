@@ -50,7 +50,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "Sinks",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+            source_sink_utils.TestAppendSink(field_names, field_types))
 
         t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).insert_into("Sinks")
         t_env.exec_env().execute()
@@ -80,10 +80,10 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         t_env.register_table_source("Orders", csv_source)
         t_env.register_table_sink(
             "Sinks",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+            source_sink_utils.TestAppendSink(field_names, field_types))
         t_env.register_table_sink(
             "Results",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+            source_sink_utils.TestAppendSink(field_names, field_types))
 
         actual = t_env.list_tables()
 
@@ -110,7 +110,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "sinks",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+            source_sink_utils.TestAppendSink(field_names, field_types))
 
         result = t_env.sql_query("select a + 1, b, c from %s" % source)
         result.insert_into("sinks")
@@ -127,7 +127,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "sinks",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+            source_sink_utils.TestAppendSink(field_names, field_types))
 
         t_env.sql_update("insert into sinks select * from %s" % source)
         t_env.exec_env().execute("test_sql_job")
@@ -143,7 +143,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink(
             "sinks",
-            field_names, field_types, source_sink_utils.TestAppendSink())
+            source_sink_utils.TestAppendSink(field_names, field_types))
         query_config = t_env.query_config()
         query_config.with_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
