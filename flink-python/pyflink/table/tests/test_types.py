@@ -555,6 +555,14 @@ class TypesTests(unittest.TestCase):
         ts2 = ztst.from_sql_type((0, 3600))
         self.assertEqual(ts, ts2)
 
+    def test_day_time_inteval_type(self):
+        ymt = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND())
+        td = datetime.timedelta(days=1, seconds=10)
+        self.assertEqual(86410000000, ymt.to_sql_type(td))
+
+        td2 = ymt.from_sql_type(86410000000)
+        self.assertEqual(td, td2)
+
     def test_empty_row(self):
         row = Row()
         self.assertEqual(len(row), 0)

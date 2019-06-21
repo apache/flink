@@ -144,6 +144,11 @@ object PythonTableUtils {
       case c: Int => new Timestamp(c.toLong / 1000)
     }
 
+    case _ if dataType == Types.INTERVAL_MILLIS() => (obj: Any) => nullSafeConvert(obj) {
+      case c: Long => c / 1000
+      case c: Int => c.toLong / 1000
+    }
+
     case _ if dataType == Types.STRING => (obj: Any) => nullSafeConvert(obj) {
       case _ => obj.toString
     }

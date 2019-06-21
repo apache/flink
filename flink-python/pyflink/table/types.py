@@ -550,6 +550,329 @@ class ZonedTimestampType(AtomicType):
                 microsecond=ts % 10 ** 6)
 
 
+class Resolution(object):
+    """
+    Helper class for defining the resolution of an interval.
+
+    :param unit: value defined in the constants of :class:`IntervalUnit`.
+    :param precision: the number of digits of years (=year precision) or the number of digits of
+                      days (=day precision) or the number of digits of fractional seconds (
+                      =fractional precision).
+    """
+
+    class IntervalUnit(object):
+        SECOND = 0
+        MINUTE = 1
+        HOUR = 2
+        DAY = 3
+        MONTH = 4
+        YEAR = 5
+
+    def __init__(self, unit, precision=-1):
+        self._unit = unit
+        self._precision = precision
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def precision(self):
+        return self._precision
+
+    def __str__(self):
+        return '%s(%s)' % (str(self._unit), str(self._precision))
+
+
+class YearMonthIntervalType(AtomicType):
+    """
+    Year-month interval types. The type must be parameterized to one of the following
+    resolutions: interval of years, interval of years to months, or interval of months.
+
+    An interval of year-month consists of ``+years-months`` with values ranging from ``-9999-11``
+    to ``+9999-11``. The value representation is the same for all types of resolutions. For
+    example, an interval of months of 50 is always represented in an interval-of-years-to-months
+    format (with default year precision): ``+04-02``.
+
+    :param resolution: value defined in the constants of :class:`YearMonthResolution`,
+                       representing one of the following resolutions: interval of years,
+                       interval of years to months, or interval of months.
+    :param precision: int, the number of digits of years, must have a value
+                      between 1 and 4 (both inclusive), default (2).
+    :param nullable: boolean, whether the field can be null (None) or not.
+    """
+
+    class YearMonthResolution(object):
+        """
+        Supported resolutions of :class:`YearMonthIntervalType`.
+        """
+        YEAR = 1
+        MONTH = 2
+        YEAR_TO_MONTH = 3
+
+    DEFAULT_PRECISION = 2
+
+    def __init__(self, resolution, precision=DEFAULT_PRECISION, nullable=True):
+        assert resolution == YearMonthIntervalType.YearMonthResolution.YEAR or \
+            resolution == YearMonthIntervalType.YearMonthResolution.MONTH or \
+            resolution == YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH
+        assert resolution != YearMonthIntervalType.YearMonthResolution.MONTH or \
+            precision == self.DEFAULT_PRECISION
+        assert 1 <= precision <= 4
+        self._resolution = resolution
+        self._precision = precision
+        super(YearMonthIntervalType, self).__init__(nullable)
+
+    @property
+    def resolution(self):
+        return self._resolution
+
+    @property
+    def precision(self):
+        return self._precision
+
+
+class DayTimeIntervalType(AtomicType):
+    """
+    Day-time interval types. The type must be parameterized to one of the following resolutions
+    with up to nanosecond precision: interval of days, interval of days to hours, interval of
+    days to minutes, interval of days to seconds, interval of hours, interval of hours to minutes,
+    interval of hours to seconds, interval of minutes, interval of minutes to seconds,
+    or interval of seconds.
+
+    An interval of day-time consists of ``+days hours:months:seconds.fractional`` with values
+    ranging from ``-999999 23:59:59.999999999`` to ``+999999 23:59:59.999999999``. The value
+    representation is the same for all types of resolutions. For example, an interval of seconds
+    of 70 is always represented in an interval-of-days-to-seconds format (with default precisions):
+    ``+00 00:01:10.000000``.
+
+    :param resolution: value defined in the constants of :class:`DayTimeResolution`,
+                       representing one of the following resolutions: interval of days, interval
+                       of days to hours, interval of days to minutes, interval of days to seconds,
+                       interval of hours, interval of hours to minutes, interval of hours to
+                       seconds, interval of minutes, interval of minutes to seconds, or interval
+                       of seconds.
+    :param day_precision: the number of digits of days, must have a value between 1 and 6 (both
+                          inclusive) (default 2).
+    :param fractional_precision: the number of digits of fractional seconds, must have a value
+                                 between 0 and 9 (both inclusive) (default 6).
+    """
+
+    class DayTimeResolution(object):
+        """
+        Supported resolutions of :class:`DayTimeIntervalType`.
+        """
+        DAY = 1
+        DAY_TO_HOUR = 2
+        DAY_TO_MINUTE = 3
+        DAY_TO_SECOND = 4
+        HOUR = 5
+        HOUR_TO_MINUTE = 6
+        HOUR_TO_SECOND = 7
+        MINUTE = 8
+        MINUTE_TO_SECOND = 9
+        SECOND = 10
+
+    DEFAULT_DAY_PRECISION = 2
+    DEFAULT_FRACTIONAL_PRECISION = 6
+
+    def __init__(self, resolution, day_precision=DEFAULT_DAY_PRECISION,
+                 fractional_precision=DEFAULT_FRACTIONAL_PRECISION, nullable=True):
+        assert resolution == DayTimeIntervalType.DayTimeResolution.DAY or \
+            resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR or \
+            resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE or \
+            resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND or \
+            resolution == DayTimeIntervalType.DayTimeResolution.HOUR or \
+            resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE or \
+            resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND or \
+            resolution == DayTimeIntervalType.DayTimeResolution.MINUTE or \
+            resolution == DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND or \
+            resolution == DayTimeIntervalType.DayTimeResolution.SECOND
+
+        assert not self._needs_default_day_precision(
+            resolution) or day_precision == self.DEFAULT_DAY_PRECISION
+        assert not self._needs_default_fractional_precision(
+            resolution) or fractional_precision == self.DEFAULT_FRACTIONAL_PRECISION
+        assert 1 <= day_precision <= 6
+        assert 0 <= fractional_precision <= 9
+        self._resolution = resolution
+        self._day_precision = day_precision
+        self._fractional_precision = fractional_precision
+        super(DayTimeIntervalType, self).__init__(nullable)
+
+    def need_conversion(self):
+        return True
+
+    def to_sql_type(self, timedelta):
+        if timedelta is not None:
+            return (timedelta.days * 86400 + timedelta.seconds) * 10 ** 6 + timedelta.microseconds
+
+    def from_sql_type(self, ts):
+        if ts is not None:
+            return datetime.timedelta(microseconds=ts)
+
+    @property
+    def resolution(self):
+        return self._resolution
+
+    @property
+    def day_precision(self):
+        return self._day_precision
+
+    @property
+    def fractional_precision(self):
+        return self._fractional_precision
+
+    @staticmethod
+    def _needs_default_day_precision(resolution):
+        if resolution == DayTimeIntervalType.DayTimeResolution.HOUR or \
+                resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE or \
+                resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND or \
+                resolution == DayTimeIntervalType.DayTimeResolution.MINUTE or \
+                resolution == DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND or \
+                resolution == DayTimeIntervalType.DayTimeResolution.SECOND:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def _needs_default_fractional_precision(resolution):
+        if resolution == DayTimeIntervalType.DayTimeResolution.DAY or \
+                resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR or \
+                resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE or \
+                resolution == DayTimeIntervalType.DayTimeResolution.HOUR or \
+                resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE or \
+                resolution == DayTimeIntervalType.DayTimeResolution.MINUTE:
+            return True
+        else:
+            return False
+
+
+_resolution_mappings = {
+    (Resolution.IntervalUnit.YEAR, None):
+        lambda p1, p2: YearMonthIntervalType(
+            YearMonthIntervalType.YearMonthResolution.YEAR, p1),
+    (Resolution.IntervalUnit.MONTH, None):
+        lambda p1, p2: YearMonthIntervalType(
+            YearMonthIntervalType.YearMonthResolution.MONTH),
+    (Resolution.IntervalUnit.YEAR, Resolution.IntervalUnit.MONTH):
+        lambda p1, p2: YearMonthIntervalType(
+            YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
+    (Resolution.IntervalUnit.DAY, None):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.DAY,
+            p1,
+            DayTimeIntervalType.DEFAULT_FRACTIONAL_PRECISION),
+    (Resolution.IntervalUnit.DAY, Resolution.IntervalUnit.HOUR):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR,
+            p1,
+            DayTimeIntervalType.DEFAULT_FRACTIONAL_PRECISION),
+    (Resolution.IntervalUnit.DAY, Resolution.IntervalUnit.MINUTE):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE,
+            p1,
+            DayTimeIntervalType.DEFAULT_FRACTIONAL_PRECISION),
+    (Resolution.IntervalUnit.DAY, Resolution.IntervalUnit.SECOND):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, p1, p2),
+    (Resolution.IntervalUnit.HOUR, None):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.HOUR),
+    (Resolution.IntervalUnit.HOUR, Resolution.IntervalUnit.MINUTE):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE),
+    (Resolution.IntervalUnit.HOUR, Resolution.IntervalUnit.SECOND):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND,
+            DayTimeIntervalType.DEFAULT_DAY_PRECISION,
+            p2),
+    (Resolution.IntervalUnit.MINUTE, None):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.MINUTE),
+    (Resolution.IntervalUnit.MINUTE, Resolution.IntervalUnit.SECOND):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND,
+            DayTimeIntervalType.DEFAULT_DAY_PRECISION,
+            p2),
+    (Resolution.IntervalUnit.SECOND, None):
+        lambda p1, p2: DayTimeIntervalType(
+            DayTimeIntervalType.DayTimeResolution.SECOND,
+            DayTimeIntervalType.DEFAULT_DAY_PRECISION,
+            p1)
+}
+
+
+def _from_resolution(upper_resolution, lower_resolution=None):
+    """
+    Creates an interval type (YearMonthIntervalType or DayTimeIntervalType) from the
+    upper_resolution and lower_resolution.
+    """
+    lower_unit = None if lower_resolution is None else lower_resolution.unit
+    lower_precision = -1 if lower_resolution is None else lower_resolution.precision
+    interval_type_provider = _resolution_mappings[(upper_resolution.unit, lower_unit)]
+    if interval_type_provider is None:
+        raise ValueError(
+            "Unsupported interval definition '%s TO %s'. Please check the documentation for "
+            "supported combinations for year-month and day-time intervals."
+            % (upper_resolution, lower_resolution))
+
+    return interval_type_provider(upper_resolution.precision, lower_precision)
+
+
+def _from_java_interval_type(j_interval_type):
+    """
+    Creates an interval type from the specified Java interval type.
+
+    :param j_interval_type: the Java interval type.
+    :return: :class:`YearMonthIntervalType` or :class:`DayTimeIntervalType`.
+    """
+    gateway = get_gateway()
+    if _is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
+        resolution = j_interval_type.getResolution()
+        precision = j_interval_type.getYearPrecision()
+
+        def _from_java_year_month_resolution(j_resolution):
+            if j_resolution == gateway.jvm.YearMonthIntervalType.YearMonthResolution.YEAR:
+                return YearMonthIntervalType.YearMonthResolution.YEAR
+            elif j_resolution == gateway.jvm.YearMonthIntervalType.YearMonthResolution.MONTH:
+                return YearMonthIntervalType.YearMonthResolution.MONTH
+            else:
+                return YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH
+
+        return YearMonthIntervalType(_from_java_year_month_resolution(resolution), precision)
+
+    else:
+        resolution = j_interval_type.getResolution()
+        day_precision = j_interval_type.getDayPrecision()
+        fractional_precision = j_interval_type.getFractionalPrecision()
+
+        def _from_java_day_time_resolution(j_resolution):
+            if j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.DAY:
+                return DayTimeIntervalType.DayTimeResolution.DAY
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR:
+                return DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE:
+                return DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND:
+                return DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.HOUR:
+                return DayTimeIntervalType.DayTimeResolution.HOUR
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE:
+                return DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND:
+                return DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.MINUTE:
+                return DayTimeIntervalType.DayTimeResolution.MINUTE
+            elif j_resolution == gateway.jvm.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND:
+                return DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND
+            else:
+                return DayTimeIntervalType.DayTimeResolution.SECOND
+
+        return DayTimeIntervalType(
+            _from_java_day_time_resolution(resolution), day_precision, fractional_precision)
+
+
 _boxed_to_primitive_array_map = \
     {'java.lang.Integer': '[I',
      'java.lang.Long': '[J',
@@ -1332,6 +1655,14 @@ def _to_java_type(data_type):
     elif type(data_type) in _python_java_types_mapping:
         return _python_java_types_mapping[type(data_type)]
 
+    # YearMonthIntervalType
+    elif isinstance(data_type, YearMonthIntervalType):
+        return Types.INTERVAL_MONTHS()
+
+    # DayTimeIntervalType
+    elif isinstance(data_type, DayTimeIntervalType):
+        return Types.INTERVAL_MILLIS()
+
     # ArrayType
     elif isinstance(data_type, ArrayType):
         if type(data_type.element_type) in _primitive_array_element_types:
@@ -1419,6 +1750,8 @@ def _from_java_type(j_data_type):
             data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
                                           logical_type.getScale(),
                                           logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.DateType):
+            data_type = DataTypes.DATE(logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.TimestampType):
@@ -1437,26 +1770,15 @@ def _from_java_type(j_data_type):
             data_type = DataTypes.FLOAT(logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.DoubleType):
             data_type = DataTypes.DOUBLE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DateType):
-            data_type = DataTypes.DATE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimeType):
-            data_type = DataTypes.TIME(logical_type.isNullable())
         elif _is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
             raise \
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
         elif _is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
-            raise \
-                TypeError("Unsupported type: %s, LocalZonedTimestampType is not supported "
-                          "currently." % j_data_type)
-        elif _is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType):
-            raise \
-                TypeError("Unsupported type: %s, DayTimeIntervalType is not supported yet."
-                          % j_data_type)
-        elif _is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
-            raise \
-                TypeError("Unsupported type: %s, YearMonthIntervalType is not supported "
-                          "currently." % j_data_type)
+            data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
+        elif _is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
+                _is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
+            data_type = _from_java_interval_type(logical_type)
         elif _is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
             type_info = logical_type.getTypeInformation()
             BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
@@ -1705,6 +2027,7 @@ _acceptable_types = {
     DateType: (datetime.date, datetime.datetime),
     TimeType: (datetime.time,),
     TimestampType: (datetime.datetime,),
+    DayTimeIntervalType: (datetime.timedelta,),
     LocalZonedTimestampType: (datetime.datetime,),
     ZonedTimestampType: (datetime.datetime,),
     ArrayType: (list, tuple, array),
@@ -2139,7 +2462,7 @@ class DataTypes(object):
         such as an offset or time-zone.
 
         :param precision: int, the number of digits of fractional seconds.
-                          It must have a value between 0 and 9 (both inclusive).
+                          It must have a value between 0 and 9 (both inclusive). (default: 6)
         :param nullable: boolean, whether the type can be null (None) or not.
         """
         return TimestampType(precision, nullable)
@@ -2160,7 +2483,7 @@ class DataTypes(object):
         fields, to a precision of nanoseconds, as well as the offset from UTC/Greenwich.
 
         :param precision: int, the number of digits of fractional seconds.
-                          It must have a value between 0 and 9 (both inclusive).
+                          It must have a value between 0 and 9 (both inclusive). (default: 6)
         :param nullable: boolean, whether the type can be null (None) or not.
         """
         return LocalZonedTimestampType(precision, nullable)
@@ -2237,3 +2560,114 @@ class DataTypes(object):
         :param description: string, description of the field.
         """
         return RowField(name, data_type, description)
+
+    @staticmethod
+    def SECOND(precision=DayTimeIntervalType.DEFAULT_FRACTIONAL_PRECISION):
+        """
+        Resolution in seconds and (possibly) fractional seconds.
+
+        :param precision: int, the number of digits of fractional seconds. It must have a value
+                          between 0 and 9 (both inclusive), (default: 6).
+        :return: the specified :class:`Resolution`.
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
+        """
+        return Resolution(Resolution.IntervalUnit.SECOND, precision)
+
+    @staticmethod
+    def MINUTE():
+        """
+        Resolution in minutes.
+
+        :return: the specified :class:`Resolution`.
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
+        """
+        return Resolution(Resolution.IntervalUnit.MINUTE)
+
+    @staticmethod
+    def HOUR():
+        """
+        Resolution in hours.
+
+        :return: :class:`Resolution`
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
+        """
+        return Resolution(Resolution.IntervalUnit.HOUR)
+
+    @staticmethod
+    def DAY(precision=DayTimeIntervalType.DEFAULT_DAY_PRECISION):
+        """
+        Resolution in days.
+
+        :param precision: int, the number of digits of days. It must have a value between 1 and
+                          6 (both inclusive), (default: 2).
+        :return: the specified :class:`Resolution`.
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
+        """
+        return Resolution(Resolution.IntervalUnit.DAY, precision)
+
+    @staticmethod
+    def MONTH():
+        """
+        Resolution in months.
+
+        :return: the specified :class:`Resolution`.
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
+        """
+        return Resolution(Resolution.IntervalUnit.MONTH)
+
+    @staticmethod
+    def YEAR(precision=YearMonthIntervalType.DEFAULT_PRECISION):
+        """
+        Resolution in years with 2 digits for the number of years by default.
+
+        :param precision: the number of digits of years. It must have a value between 1 and
+                          4 (both inclusive), (default 2).
+        :return: the specified :class:`Resolution`.
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
+        """
+        return Resolution(Resolution.IntervalUnit.YEAR, precision)
+
+    @staticmethod
+    def INTERVAL(upper_resolution, lower_resolution=None):
+        """
+        Data type of a temporal interval. There are two types of temporal intervals: day-time
+        intervals with up to nanosecond granularity or year-month intervals with up to month
+        granularity.
+
+        An interval of day-time consists of ``+days hours:months:seconds.fractional`` with values
+        ranging from ``-999999 23:59:59.999999999`` to ``+999999 23:59:59.999999999``. The type
+        must be parameterized to one of the following resolutions: interval of days, interval of
+        days to hours, interval of days to minutes, interval of days to seconds, interval of hours,
+        interval of hours to minutes, interval of hours to seconds, interval of minutes,
+        interval of minutes to seconds, or interval of seconds. The value representation is the
+        same for all types of resolutions. For example, an interval of seconds of 70 is always
+        represented in an interval-of-days-to-seconds format (with default precisions):
+        ``+00 00:01:10.000000``.
+
+        An interval of year-month consists of ``+years-months`` with values ranging from
+        ``-9999-11`` to ``+9999-11``. The type must be parameterized to one of the following
+        resolutions: interval of years, interval of years to months, or interval of months. The
+        value representation is the same for all types of resolutions. For example, an interval
+        of months of 50 is always represented in an interval-of-years-to-months format (with
+        default year precision): ``+04-02``.
+
+        Examples: ``INTERVAL(DAY(2), SECOND(9))`` for a day-time interval or
+        ``INTERVAL(YEAR(4), MONTH())`` for a year-month interval.
+
+        :param upper_resolution: :class:`Resolution`, the upper resolution of the interval.
+        :param lower_resolution: :class:`Resolution`, the lower resolution of the interval.
+
+        .. seealso:: :func:`~pyflink.table.DataTypes.SECOND`
+        .. seealso:: :func:`~pyflink.table.DataTypes.MINUTE`
+        .. seealso:: :func:`~pyflink.table.DataTypes.HOUR`
+        .. seealso:: :func:`~pyflink.table.DataTypes.DAY`
+        .. seealso:: :func:`~pyflink.table.DataTypes.MONTH`
+        .. seealso:: :func:`~pyflink.table.DataTypes.YEAR`
+        """
+        return _from_resolution(upper_resolution, lower_resolution)
