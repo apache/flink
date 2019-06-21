@@ -46,6 +46,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -113,6 +114,9 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
+	/** Executor frontend to the task mailbox. */
+	private transient MailboxExecutor mainThreadExecutor;
+
 	public AsyncWaitOperator(
 			AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
@@ -136,6 +140,7 @@ public class AsyncWaitOperator<IN, OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);
 
+		this.mainThreadExecutor = containingTask.getTaskMailboxExecutor();
 		this.checkpointingLock = getContainingTask().getCheckpointLock();
 
 		this.inStreamElementSerializer = new StreamElementSerializer<>(
@@ -167,7 +172,7 @@ public class AsyncWaitOperator<IN, OUT>
 		super.open();
 
 		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+		this.emitter = new Emitter<>(mainThreadExecutor, checkpointingLock, output, queue, this);
 
 		// start the emitter thread
 		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
@@ -370,10 +375,12 @@ public class AsyncWaitOperator<IN, OUT>
 			/*
 			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
 			 * that the emitter thread can complete/react to the interrupt signal.
+			 *
+			 * TODO: this can go away once the mailbox model is fully integrated with checkpoints and timers.
 			 */
 			if (Thread.holdsLock(checkpointingLock)) {
-				while (emitterThread.isAlive()) {
-					checkpointingLock.wait(100L);
+				while (!emitter.isDone()) {
+					checkpointingLock.wait();
 				}
 			}
 
@@ -397,26 +404,41 @@ public class AsyncWaitOperator<IN, OUT>
 	 * @throws InterruptedException if the current thread has been interrupted
 	 */
 	private <T> void addAsyncBufferEntry(StreamElementQueueEntry<T> streamElementQueueEntry) throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
-
 		pendingStreamElementQueueEntry = streamElementQueueEntry;
 
-		while (!queue.tryPut(streamElementQueueEntry)) {
-			// we wait for the emitter to notify us if the queue has space left again
-			checkpointingLock.wait();
+		if (!queue.tryPut(streamElementQueueEntry)) {
+			do {
+				// We will receive a notify on the lock at the end of each processing-letter execution (see {Emitter})
+				// so we can try to put again.
+				if (!tryYieldMainThreadExecutor()) {
+					checkpointingLock.wait();
+				}
+			} while (!queue.tryPut(streamElementQueueEntry));
 		}
 
 		pendingStreamElementQueueEntry = null;
 	}
 
 	private void waitInFlightInputsFinished() throws InterruptedException {
-		assert(Thread.holdsLock(checkpointingLock));
+		assert (Thread.holdsLock(checkpointingLock));
 
 		while (!queue.isEmpty()) {
-			// wait for the emitter thread to output the remaining elements
-			// for that he needs the checkpointing lock and thus we have to free it
-			checkpointingLock.wait();
+			// We give up the lock while there is no action for yielding, so that potentially a legacy source
+			// loop (using the lock in/around letter execution) can make progress
+			if (!tryYieldMainThreadExecutor()) {
+				checkpointingLock.wait();
+			}
 		}
+	}
+
+	private boolean tryYieldMainThreadExecutor() {
+		// TODO: once we no longer support legacy sources, the following `if` can simply become
+		//  `mainThreadExecutor.yield()`. Currently, this case makes a difference between
+		//  new mailbox and the legacy source compatibility loop that requires us to give up the lock.
+		if (mainThreadExecutor.isMailboxThread()) {
+			return mainThreadExecutor.tryYield();
+		}
+		return false;
 	}
 
 	@Override

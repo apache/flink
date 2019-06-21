@@ -111,8 +111,8 @@ public class StreamTaskTestHarness<OUT> {
 	protected StreamTestSingleInputGate[] inputGates;
 
 	public StreamTaskTestHarness(
-			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
-			TypeInformation<OUT> outputType) {
+		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		TypeInformation<OUT> outputType) {
 		this(taskFactory, outputType, TestLocalRecoveryConfig.disabled());
 	}
 
@@ -397,7 +397,7 @@ public class StreamTaskTestHarness<OUT> {
 		while (true) {
 			Thread.State state = taskThread.getState();
 			if (state == Thread.State.BLOCKED || state == Thread.State.TERMINATED ||
-					state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING) {
+				state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING) {
 				break;
 			}
 

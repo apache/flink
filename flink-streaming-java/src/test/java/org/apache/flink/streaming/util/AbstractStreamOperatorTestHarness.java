@@ -182,7 +182,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		this.config.setOperatorID(operatorID);
 		this.executionConfig = env.getExecutionConfig();
 		this.closableRegistry = new CloseableRegistry();
-		this.checkpointLock = new Object();
 
 		this.environment = Preconditions.checkNotNull(env);
 
@@ -199,7 +198,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		};
 
 		mockTask = new MockStreamTaskBuilder(env)
-			.setCheckpointLock(checkpointLock)
 			.setConfig(config)
 			.setExecutionConfig(executionConfig)
 			.setStreamTaskStateInitializer(streamTaskStateInitializer)
@@ -208,6 +206,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			.setProcessingTimeService(processingTimeService)
 			.setHandleAsyncException(handleAsyncException)
 			.build();
+
+		this.checkpointLock = mockTask.getCheckpointLock();
 	}
 
 	protected StreamTaskStateInitializer createStreamTaskStateManager(
