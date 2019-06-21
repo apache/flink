@@ -51,8 +51,8 @@ public class LookupCallResolver extends ApiExpressionDefaultVisitor<Expression> 
 		return unresolvedCall.replaceArgs(resolveChildren(unresolvedCall.getChildren()));
 	}
 
-	private List<Expression> resolveChildren(List<Expression> unresolvedChildren) {
-		return unresolvedChildren
+	private List<Expression> resolveChildren(List<Expression> lookupChildren) {
+		return lookupChildren
 			.stream()
 			.map(child -> child.accept(this))
 			.collect(Collectors.toList());

@@ -161,10 +161,13 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       child: QueryOperation)
     : QueryOperation = {
 
-    val resolvedAliases = aliases.map(_.accept(lookupResolver))
+    val resolver = resolverFor(tableCatalog, functionCatalog, child)
+      .build
 
     val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
-    val validateAliases = ColumnOperationUtils.renameColumns(inputFieldNames, resolvedAliases)
+    val validateAliases = ColumnOperationUtils.renameColumns(
+      inputFieldNames,
+      resolver.resolveExpanding(aliases))
 
     project(validateAliases, child)
   }
@@ -174,10 +177,13 @@ class OperationTreeBuilder(private val tableEnv: TableEnvImpl) {
       child: QueryOperation)
     : QueryOperation = {
 
-    val resolvedFieldList = fieldList.map(_.accept(lookupResolver))
+    val resolver = resolverFor(tableCatalog, functionCatalog, child)
+      .build
 
     val inputFieldNames = child.getTableSchema.getFieldNames.toList.asJava
-    val finalFields = ColumnOperationUtils.dropFields(inputFieldNames, resolvedFieldList)
+    val finalFields = ColumnOperationUtils.dropFields(
+      inputFieldNames,
+      resolver.resolveExpanding(fieldList))
 
     project(finalFields, child)
   }

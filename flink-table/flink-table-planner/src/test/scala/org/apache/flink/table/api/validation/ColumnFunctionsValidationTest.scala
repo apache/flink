@@ -18,8 +18,8 @@
 package org.apache.flink.table.api.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Slide, TableException, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Slide, ValidationException}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
@@ -72,7 +72,7 @@ class ColumnFunctionsValidationTest extends TableTestBase {
   def testInvalidRenameColumns(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Invalid alias for a renaming column operation.")
+      "Invalid AS, parameters are: [a, b, 'a'].")
 
     val t = util.addTable[(Int, Long, String, Int, Long, String)]('a, 'b, 'c, 'd, 'e, 'f)
     val tab = t.renameColumns(withColumns(1 to 2) as 'a) // failed, invalid as

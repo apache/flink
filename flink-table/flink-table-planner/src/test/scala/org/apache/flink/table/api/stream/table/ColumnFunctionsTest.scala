@@ -323,6 +323,40 @@ class ColumnFunctionsTest extends TableTestBase {
 
     verifyAll(tab1, tab2, expected)
   }
+
+  @Test
+  def testRenameColumns(): Unit = {
+    val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
+
+    val tab1 = t.renameColumns(withColumns('a) as 'd).select("d, b")
+    val tab2 = t.renameColumns("withColumns(a) as d").select('d, 'b)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(t),
+        term("select", "a AS d", "b")
+      )
+
+    verifyAll(tab1, tab2, expected)
+  }
+
+  @Test
+  def testDropColumns(): Unit = {
+    val t = util.addTable[(Double, Long, String)]('a, 'b, 'c)
+
+    val tab1 = t.dropColumns(withColumns('a to 'b))
+    val tab2 = t.dropColumns("withColumns(a to b)")
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(t),
+        term("select", "c")
+      )
+
+    verifyAll(tab1, tab2, expected)
+  }
 }
 
 object TestFunc extends ScalarFunction {
