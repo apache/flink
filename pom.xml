@@ -1390,6 +1390,7 @@ under the License.
 						<!-- flink-python -->
 						<exclude>flink-python/lib/**</exclude>
 						<exclude>flink-python/dev/download/**</exclude>
+						<exclude>flink-python/docs/_build/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
