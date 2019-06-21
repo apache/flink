@@ -25,10 +25,10 @@ Subpackages
 .. toctree::
     :maxdepth: 1
 
+    pyflink.common
     pyflink.table
     pyflink.dataset
     pyflink.datastream
-    pyflink.common
 
 .. automodule:: pyflink
     :members:
