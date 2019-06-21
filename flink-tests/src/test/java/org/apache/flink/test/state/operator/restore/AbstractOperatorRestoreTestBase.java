@@ -71,7 +71,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			"(savepoint for the job .* failed)" +
 				"|(was not running)" +
 				"|(Not all required tasks are currently running)" +
-				"|(Checkpoint was declined \\(tasks not ready\\))"
+				"|(Checkpoint was declined \\(tasks not ready\\))" +
+				"|(Task received cancellation from one of its inputs)"
 		);
 
 	@Rule
