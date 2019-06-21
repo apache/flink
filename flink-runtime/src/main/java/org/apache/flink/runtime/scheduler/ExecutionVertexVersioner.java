@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
  *
  * @see DefaultScheduler
  */
-class ExecutionVertexVersioner {
+public class ExecutionVertexVersioner {
 
 	private final Map<ExecutionVertexID, Long> executionVertexToVersion = new HashMap<>();
 

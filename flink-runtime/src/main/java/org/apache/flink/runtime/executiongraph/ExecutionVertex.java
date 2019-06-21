@@ -576,7 +576,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 */
 	public Execution resetForNewExecution(final long timestamp, final long originatingGlobalModVersion)
 			throws GlobalModVersionMismatch {
-		LOG.debug("Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
+		LOG.info("Resetting execution vertex {} to CREATED state for new execution.", getTaskNameWithSubtaskIndex());
 
 		synchronized (priorExecutions) {
 			// check if another global modification has been triggered since the
@@ -755,7 +755,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 *
 	 * @return whether the input constraint is satisfied
 	 */
-	boolean checkInputDependencyConstraints() {
+	public boolean checkInputDependencyConstraints() {
 		if (getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
 			// InputDependencyConstraint == ANY
 			return IntStream.range(0, inputEdges.length).anyMatch(this::isInputConsumable);

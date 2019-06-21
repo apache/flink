@@ -1371,7 +1371,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * and is used to disambiguate concurrent modifications between local and global
 	 * failover actions.
 	 */
-	long getGlobalModVersion() {
+	public long getGlobalModVersion() {
 		return globalModVersion;
 	}
 

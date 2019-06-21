@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
-class ExecutionVertexVersion {
+public class ExecutionVertexVersion {
 
 	private final ExecutionVertexID executionVertexId;
 

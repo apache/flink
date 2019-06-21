@@ -499,7 +499,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
 	 */
-	CompletableFuture<Execution> allocateResourcesForExecution(
+	public CompletableFuture<Execution> allocateResourcesForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
