@@ -78,6 +78,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Task would not fail if there is an error in their checkpointing.
+	 *
+	 * <p>{@link #tolerableCheckpointFailureNumber} would always overrule this deprecated field if they have conflicts.
+	 *
 	 * @deprecated Use {@link #tolerableCheckpointFailureNumber}.
 	 */
 	@Deprecated
@@ -274,7 +277,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * If this is set as false, which is equivalent to set tolerableCheckpointFailureNumber as the maximum of integer (means unlimited),
 	 * job manager would not fail the whole job no matter how many declined checkpoints it received.
 	 *
-	 * <p>{@link #tolerableCheckpointFailureNumber} would always overrule the deprecated {@link #failOnCheckpointingErrors} if they have conflicts.
+	 * <p>{@link #setTolerableCheckpointFailureNumber(int)} would always overrule this deprecated method if they have conflicts.
 	 *
 	 * @deprecated Use {@link #setTolerableCheckpointFailureNumber(int)}.
 	 */
