@@ -37,8 +37,6 @@ import javax.annotation.Nullable;
 @Internal
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
-	private StreamOneInputProcessor<IN> inputProcessor;
-
 	private final WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
 	/**
@@ -95,19 +93,5 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
-	}
-
-	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
-		if (!inputProcessor.processInput()) {
-			context.allActionsCompleted();
-		}
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
 	}
 }

@@ -62,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
-public class StreamOneInputProcessor<IN> {
+public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
@@ -128,6 +128,7 @@ public class StreamOneInputProcessor<IN> {
 		this.operatorChain = checkNotNull(operatorChain);
 	}
 
+	@Override
 	public boolean processInput() throws Exception {
 		initializeNumRecordsIn();
 
@@ -141,6 +142,16 @@ public class StreamOneInputProcessor<IN> {
 
 		processElement(recordOrMark, channel);
 		return true;
+	}
+
+	private boolean checkFinished() throws Exception {
+		boolean isFinished = input.isFinished();
+		if (isFinished) {
+			synchronized (lock) {
+				operatorChain.endInput(1);
+			}
+		}
+		return isFinished;
 	}
 
 	private void processElement(StreamElement recordOrMark, int channel) throws Exception {
@@ -180,17 +191,8 @@ public class StreamOneInputProcessor<IN> {
 		}
 	}
 
-	private boolean checkFinished() throws Exception {
-		boolean isFinished = input.isFinished();
-		if (isFinished) {
-			synchronized (lock) {
-				operatorChain.endInput(1);
-			}
-		}
-		return isFinished;
-	}
-
-	public void cleanup() throws Exception {
+	@Override
+	public void close() throws IOException {
 		input.close();
 	}
 
