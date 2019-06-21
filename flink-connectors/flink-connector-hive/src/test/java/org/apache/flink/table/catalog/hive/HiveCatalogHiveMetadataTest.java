@@ -128,44 +128,15 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	// ------ utils ------
 
 	@Override
-	public CatalogTable createTable() {
-		return new HiveCatalogTable(
-			createTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT
-		);
-	}
-
-	@Override
-	public CatalogTable createAnotherTable() {
-		return new HiveCatalogTable(
-			createAnotherTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT
-		);
+	protected boolean isGeneric() {
+		return false;
 	}
 
 	@Override
 	public CatalogTable createStreamingTable() {
-		throw new UnsupportedOperationException("HiveCatalog doesn't support streaming tables.");
-	}
-
-	@Override
-	public CatalogTable createPartitionedTable() {
-		return new HiveCatalogTable(
-			createTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherPartitionedTable() {
-		return new HiveCatalogTable(
-			createAnotherTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
+		throw new UnsupportedOperationException(
+			"Hive table cannot be streaming."
+		);
 	}
 
 	@Override
@@ -201,18 +172,6 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	@Override
 	public CatalogPartition createPartition() {
 		return new HiveCatalogPartition(getBatchTableProperties());
-	}
-
-	@Override
-	public void checkEquals(CatalogTable t1, CatalogTable t2) {
-		assertEquals(t1.getSchema(), t2.getSchema());
-		assertEquals(t1.getComment(), t2.getComment());
-		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
-		assertEquals(t1.isPartitioned(), t2.isPartitioned());
-
-		// Hive tables may have properties created by itself
-		// thus properties of Hive table is a super set of those in its corresponding Flink table
-		assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
 	}
 
 	@Override

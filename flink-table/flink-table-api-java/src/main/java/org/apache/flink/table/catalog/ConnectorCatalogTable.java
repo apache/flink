@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
  * @param <T2> type of the expected elements by the {@link TableSink}
  */
 @Internal
-public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
+public class ConnectorCatalogTable<T1, T2> extends CatalogTableImpl {
 	private final TableSource<T1> tableSource;
 	private final TableSink<T2> tableSink;
 	private final boolean isBatch;

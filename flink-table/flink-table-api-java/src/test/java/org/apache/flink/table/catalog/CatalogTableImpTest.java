@@ -33,16 +33,16 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test for {@link AbstractCatalogTable}.
+ * Test for {@link CatalogTableImpl}.
  */
-public class AbstractCatalogTableTest {
+public class CatalogTableImpTest {
 	private static final String TEST = "test";
 
 	@Test
 	public void testToProperties() {
 		TableSchema schema = createTableSchema();
 		Map<String, String> prop = createProperties();
-		GenericCatalogTable table = new GenericCatalogTable(
+		CatalogTable table = new CatalogTableImpl(
 			schema,
 			createPartitionKeys(),
 			prop,

@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.config.CatalogConfig;
+
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Base of tests for any catalog implementations, like GenericInMemoryCatalog and HiveCatalog.
@@ -44,4 +47,76 @@ public abstract class CatalogTestBase extends CatalogTest {
 			TEST_COMMENT
 		);
 	}
+
+	@Override
+	public CatalogTable createTable() {
+		return new CatalogTableImpl(
+			createTableSchema(),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
+	}
+
+	@Override
+	public CatalogTable createAnotherTable() {
+		return new CatalogTableImpl(
+			createAnotherTableSchema(),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
+	}
+
+	@Override
+	public CatalogTable createStreamingTable() {
+		Map<String, String> prop = getBatchTableProperties();
+		prop.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+
+		return new CatalogTableImpl(
+			createTableSchema(),
+			getStreamingTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createPartitionedTable() {
+		return new CatalogTableImpl(
+			createTableSchema(),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createAnotherPartitionedTable() {
+		return new CatalogTableImpl(
+			createAnotherTableSchema(),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
+	}
+
+	protected Map<String, String> getBatchTableProperties() {
+		return new HashMap<String, String>() {{
+			put(IS_STREAMING, "false");
+			putAll(getGenericFlag(isGeneric()));
+		}};
+	}
+
+	protected Map<String, String> getStreamingTableProperties() {
+		return new HashMap<String, String>() {{
+			put(IS_STREAMING, "true");
+			putAll(getGenericFlag(isGeneric()));
+		}};
+	}
+
+	private Map<String, String> getGenericFlag(boolean isGeneric) {
+		return new HashMap<String, String>() {{
+			put(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
+		}};
+	}
+
+	/**
+	 * Whether the test meta-object is generic or not.
+	 */
+	protected abstract boolean isGeneric();
 }

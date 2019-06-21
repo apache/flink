@@ -23,10 +23,10 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
-import org.apache.flink.table.catalog.GenericCatalogTable;
 import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
@@ -153,7 +153,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 			.fields(colNames, types)
 			.build();
 
-		return new GenericCatalogTable(
+		return new CatalogTableImpl(
 			schema,
 			getBatchTableProperties(),
 			TEST_COMMENT
@@ -274,45 +274,8 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	// ------ test utils ------
 
 	@Override
-	public CatalogTable createTable() {
-		return new GenericCatalogTable(
-			createTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherTable() {
-		return new GenericCatalogTable(
-			createAnotherTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createStreamingTable() {
-		return new GenericCatalogTable(
-			createTableSchema(),
-			getStreamingTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createPartitionedTable() {
-		return new GenericCatalogTable(
-			createTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherPartitionedTable() {
-		return new GenericCatalogTable(
-			createAnotherTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
+	protected boolean isGeneric() {
+		return true;
 	}
 
 	@Override
