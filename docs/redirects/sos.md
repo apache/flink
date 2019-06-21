@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Stochastic Outlier Selection
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/sos.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

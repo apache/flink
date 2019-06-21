@@ -1,8 +1,8 @@
 ---
-title: "ML"
+title: Multiple Linear Regression
 layout: redirect
 redirect: /index.html
-permalink: /dev/libs/ml/index.html
+permalink: /dev/libs/ml/multiple_linear_regression.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
