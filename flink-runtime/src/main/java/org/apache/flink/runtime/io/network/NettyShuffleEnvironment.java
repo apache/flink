@@ -142,7 +142,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 	}
 
 	@Override
-	public void releasePartitions(Collection<ResultPartitionID> partitionIds) {
+	public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
 		for (ResultPartitionID partitionId : partitionIds) {
 			resultPartitionManager.releasePartition(partitionId, null);
 		}
