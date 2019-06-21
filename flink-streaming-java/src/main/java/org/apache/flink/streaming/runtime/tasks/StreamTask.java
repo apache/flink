@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -60,6 +61,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxImpl;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxExecutorServiceImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -129,10 +133,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
 
 	/** The logger used by the StreamTask and its subclasses. */
-	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
-
-	/** Special value, letter that terminates the mailbox loop. */
-	private static final Runnable POISON_LETTER = () -> {};
+	protected static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
 	/** Special value, letter that "wakes up" a waiting mailbox loop. */
 	private static final Runnable DEFAULT_ACTION_AVAILABLE = () -> {};
@@ -200,7 +201,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private final SynchronousSavepointLatch syncSavepointLatch;
 
-	protected final Mailbox mailbox;
+	protected final TaskMailboxExecutorServiceImpl taskMailboxExecutor;
+
+	protected final Runnable mailboxPoisonLetter;
+
+	private boolean mailboxLoopRunning;
 
 	// ------------------------------------------------------------------------
 
@@ -247,7 +252,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriters = createRecordWriters(configuration, environment);
 		this.syncSavepointLatch = new SynchronousSavepointLatch();
-		this.mailbox = new MailboxImpl();
+		this.taskMailboxExecutor = new TaskMailboxExecutorServiceImpl(new MailboxImpl());
+		this.mailboxLoopRunning = false;
+		this.mailboxPoisonLetter = () -> {
+			mailboxLoopRunning = false;
+		};
 	}
 
 	// ------------------------------------------------------------------------
@@ -282,21 +291,32 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * Runs the stream-tasks main processing loop.
 	 */
 	private void run() throws Exception {
-		final ActionContext actionContext = new ActionContext();
+
+		assert taskMailboxExecutor.isMailboxThread() : "StreamTask::run must be executed by declared mailbox thread!";
+
+		final Mailbox mailbox = taskMailboxExecutor.getMailbox();
+		final ActionContext actionContext = new ActionContext(taskMailboxExecutor, mailboxPoisonLetter);
+
+		mailboxLoopRunning = true;
+
 		while (true) {
+
 			if (mailbox.hasMail()) {
 				Optional<Runnable> maybeLetter;
-				while ((maybeLetter = mailbox.tryTakeMail()).isPresent()) {
-					Runnable letter = maybeLetter.get();
-					if (letter == POISON_LETTER) {
-						return;
-					}
-					letter.run();
+				while (mailboxLoopRunning && (maybeLetter = mailbox.tryTakeMail()).isPresent()) {
+					maybeLetter.get().run();
+				}
+				if (!mailboxLoopRunning) {
+					return;
 				}
 			}
 
 			performDefaultAction(actionContext);
 		}
+	}
+
+	protected boolean isMailboxLoopRunning() {
+		return mailboxLoopRunning;
 	}
 
 	/**
@@ -381,6 +401,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// -------- Invoke --------
 			LOG.debug("Invoking {}", getName());
 
+			// open mailbox
+			taskMailboxExecutor.getMailbox().open();
+
 			// we need to make sure that any triggers scheduled in open() cannot be
 			// executed before all operators are opened
 			synchronized (lock) {
@@ -421,6 +444,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				// make sure no new timers can come
 				timerService.quiesce();
+
+				// let mailbox execution reject all new letters from this point
+				taskMailboxExecutor.shutdown();
 
 				// only set the StreamTask to not running after all operators have been closed!
 				// See FLINK-7430
@@ -489,12 +515,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					operatorChain.releaseOutputs();
 				}
 			}
+
+			// close mailbox
+			FutureUtils.cancelRunnableFutures(taskMailboxExecutor.shutdownNow());
 		}
 	}
 
 	@Override
 	public final void cancel() throws Exception {
-		mailbox.clearAndPut(POISON_LETTER);
+		try {
+			List<Runnable> droppedRunnables = taskMailboxExecutor.getMailbox().clearAndPut(mailboxPoisonLetter);
+			FutureUtils.cancelRunnableFutures(droppedRunnables);
+		} catch (MailboxStateException msex) {
+			LOG.debug("Mailbox already closed in cancel().", msex);
+		}
 		isRunning = false;
 		canceled = true;
 
@@ -507,6 +541,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		finally {
 			cancelables.close();
 		}
+	}
+
+	public TaskMailboxExecutor getTaskMailboxExecutor() {
+		return taskMailboxExecutor;
 	}
 
 	public final boolean isRunning() {
@@ -1339,33 +1377,68 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	public final class ActionContext {
 
-		private final Runnable actionUnavailableLetter = ThrowingRunnable.unchecked(() -> mailbox.takeMail().run());
+		private final Runnable mailboxPoisonLetter;
+		private final Runnable actionUnavailableLetter;
+		private final TaskMailboxExecutorServiceImpl mailboxExecutorService;
+
+		public ActionContext(TaskMailboxExecutorServiceImpl mailboxExecutorService, Runnable mailboxPoisonLetter) {
+			final Mailbox mailbox = taskMailboxExecutor.getMailbox();
+			this.actionUnavailableLetter = ThrowingRunnable.unchecked(() -> mailbox.takeMail().run());
+			this.mailboxPoisonLetter = mailboxPoisonLetter;
+			this.mailboxExecutorService = mailboxExecutorService;
+		}
 
 		/**
 		 * This method must be called to end the stream task when all actions for the tasks have been performed.
 		 */
 		public void allActionsCompleted() {
-			mailbox.clearAndPut(POISON_LETTER);
+			try {
+				if (mailboxExecutorService.isMailboxThread()) {
+					if (!taskMailboxExecutor.getMailbox().tryPutFirst(mailboxPoisonLetter)) {
+						// mailbox is full - in this particular case we know for sure that we will still run through the
+						// break condition check inside the mailbox loop and so we can just run directly.
+						mailboxPoisonLetter.run();
+					}
+				} else {
+					mailboxExecutorService.getMailbox().putFirst(mailboxPoisonLetter);
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			} catch (MailboxStateException me) {
+				LOG.debug("Action context could not submit poison letter to mailbox.", me);
+			}
 		}
 
 		/**
 		 * Calling this method signals that the mailbox-thread should continue invoking the default action, e.g. because
 		 * new input became available for processing.
-		 *
-		 * @throws InterruptedException on interruption.
 		 */
-		public void actionsAvailable() throws InterruptedException {
-			mailbox.putMail(DEFAULT_ACTION_AVAILABLE);
+		public void actionsAvailable() {
+			putOrExecuteDirectly(DEFAULT_ACTION_AVAILABLE);
 		}
 
 		/**
 		 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
 		 * e.g. because there is currently no input available.
-		 *
-		 * @throws InterruptedException on interruption.
 		 */
-		public void actionsUnavailable() throws InterruptedException {
-			mailbox.putMail(actionUnavailableLetter);
+		public void actionsUnavailable() {
+			putOrExecuteDirectly(actionUnavailableLetter);
+		}
+
+		private void putOrExecuteDirectly(Runnable letter) {
+			try {
+				if (mailboxExecutorService.isMailboxThread()) {
+					if (!mailboxExecutorService.getMailbox().tryPutMail(letter)) {
+						letter.run();
+					}
+				} else {
+					mailboxExecutorService.getMailbox().putMail(letter);
+				}
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+			} catch (MailboxStateException me) {
+				LOG.debug("Action context could not submit letter {} to mailbox.", letter, me);
+			}
 		}
 	}
 }

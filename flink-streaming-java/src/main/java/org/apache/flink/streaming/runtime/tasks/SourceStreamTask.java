@@ -25,6 +25,8 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 import org.apache.flink.util.FlinkException;
 
 /**
@@ -44,8 +46,6 @@ import org.apache.flink.util.FlinkException;
 @Internal
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
-
-	private static final Runnable SOURCE_POISON_LETTER = () -> {};
 
 	private volatile boolean externallyInducedCheckpoints;
 
@@ -114,6 +114,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			if (!isCanceled()) {
 				cancelTask();
 			}
+			sourceThread.interrupt();
 			throw mailboxEx;
 		}
 
@@ -123,14 +124,14 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		context.allActionsCompleted();
 	}
 
-	private void runAlternativeMailboxLoop() throws InterruptedException {
+	private void runAlternativeMailboxLoop() throws InterruptedException, MailboxStateException {
 
-		while (true) {
+		assert taskMailboxExecutor.isMailboxThread() : "Alternative mailbox loop must run in declared mailbox thread!";
+
+		final Mailbox mailbox = taskMailboxExecutor.getMailbox();
+		while (isMailboxLoopRunning()) {
 
 			Runnable letter = mailbox.takeMail();
-			if (letter == SOURCE_POISON_LETTER) {
-				break;
-			}
 
 			synchronized (getCheckpointLock()) {
 				letter.run();
@@ -184,8 +185,14 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
 			} catch (Throwable t) {
 				sourceExecutionThrowable = t;
-			} finally {
-				mailbox.clearAndPut(SOURCE_POISON_LETTER);
+			}
+
+			try {
+				taskMailboxExecutor.getMailbox().putFirst(mailboxPoisonLetter);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+			} catch (MailboxStateException me) {
+				LOG.debug("Could not submit poison letter to mailbox.", me);
 			}
 		}
 
