@@ -83,6 +83,14 @@ public final class SqlCommandParser {
 			"HELP",
 			NO_OPERANDS),
 
+		SHOW_CATALOGS(
+			"SHOW\\s+CATALOGS",
+			NO_OPERANDS),
+
+		SHOW_DATABASES(
+			"SHOW\\s+DATABASES",
+			NO_OPERANDS),
+
 		SHOW_TABLES(
 			"SHOW\\s+TABLES",
 			NO_OPERANDS),

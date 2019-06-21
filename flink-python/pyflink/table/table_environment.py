@@ -176,11 +176,29 @@ class TableEnvironment(object):
         j_table_path = utils.to_jarray(gateway.jvm.String, table_path_continued)
         self._j_tenv.insertInto(table._j_table, table_path, j_table_path)
 
+    def list_catalogs(self):
+        """
+        Gets the names of all catalogs registered in this environment.
+
+        :return: List of catalog names.
+        """
+        j_catalog_name_array = self._j_tenv.listCatalogs()
+        return [item for item in j_catalog_name_array]
+
+    def list_databases(self):
+        """
+        Gets the names of all databases in the current catalog.
+
+        :return: List of database names in the current catalog.
+        """
+        j_database_name_array = self._j_tenv.listDatabases()
+        return [item for item in j_database_name_array]
+
     def list_tables(self):
         """
-        Gets the names of all tables registered in this environment.
+        Gets the names of all tables in the current database of the current catalog.
 
-        :return: List of table names.
+        :return: List of table names in the current database of the current catalog.
         """
         j_table_name_array = self._j_tenv.listTables()
         return [item for item in j_table_name_array]

@@ -126,6 +126,16 @@ public class CliResultViewTest {
 		}
 
 		@Override
+		public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
+		public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public List<String> listTables(SessionContext session) throws SqlExecutionException {
 			return null;
 		}

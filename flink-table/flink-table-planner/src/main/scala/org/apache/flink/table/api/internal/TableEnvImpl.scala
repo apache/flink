@@ -354,6 +354,17 @@ abstract class TableEnvImpl(
       .map(t => new CatalogQueryOperation(t.getTablePath, t.getTableSchema))
   }
 
+  override def listCatalogs(): Array[String] = {
+    catalogManager.getCatalogs.asScala.toArray
+  }
+
+  override def listDatabases(): Array[String] = {
+    catalogManager.getCatalog(catalogManager.getCurrentCatalog)
+      .get()
+      .listDatabases()
+      .asScala.toArray
+  }
+
   override def listTables(): Array[String] = {
     val currentCatalogName = catalogManager.getCurrentCatalog
     val currentCatalog = catalogManager.getCatalog(currentCatalogName)

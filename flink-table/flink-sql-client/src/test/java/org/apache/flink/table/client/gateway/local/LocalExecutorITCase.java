@@ -31,6 +31,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
@@ -147,6 +148,31 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView1",
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
+	}
+
+	@Test
+	public void testListCatalogs() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final List<String> actualCatalogs = executor.listCatalogs(session);
+
+		final List<String> expectedCatalogs = Arrays.asList(
+			TableConfig.getDefault().getBuiltInCatalogName(),
+			"catalog1");
+		assertEquals(expectedCatalogs, actualCatalogs);
+	}
+
+	@Test
+	public void testListDatabases() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final List<String> actualDatabases = executor.listDatabases(session);
+
+		final List<String> expectedDatabases = Arrays.asList(
+			TableConfig.getDefault().getBuiltInDatabaseName());
+		assertEquals(expectedDatabases, actualDatabases);
 	}
 
 	@Test

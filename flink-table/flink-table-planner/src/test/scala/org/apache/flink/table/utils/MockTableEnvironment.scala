@@ -53,6 +53,10 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
 
+  override def listCatalogs(): Array[String] = ???
+
+  override def listDatabases(): Array[String] = ???
+
   override def listTables(): Array[String] = ???
 
   override def listUserDefinedFunctions(): Array[String] = ???
