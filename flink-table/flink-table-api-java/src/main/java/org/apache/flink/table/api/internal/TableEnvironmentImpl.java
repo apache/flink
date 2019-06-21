@@ -221,6 +221,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public String[] listCatalogs() {
+		return catalogManager.getCatalogs().toArray(new String[0]);
+	}
+
+	@Override
+	public String[] listDatabases() {
+		return catalogManager.getCatalog(catalogManager.getCurrentCatalog())
+			.get()
+			.listDatabases()
+			.toArray(new String[0]);
+	}
+
+	@Override
 	public String[] listTables() {
 		String currentCatalogName = catalogManager.getCurrentCatalog();
 		Optional<Catalog> currentCatalog = catalogManager.getCatalog(currentCatalogName);

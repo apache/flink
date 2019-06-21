@@ -127,7 +127,7 @@ catalogs:
   - name: inmemorycatalog
     type: generic_in_memory
     default-database: mydatabase
-  - name: mycatalog
+  - name: hivecatalog
     type: hive
     test: test
     hive-version: 2.3.4

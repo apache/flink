@@ -242,9 +242,23 @@ public interface TableEnvironment {
 	TableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
-	 * Gets the names of all tables registered directly in this environment.
+	 * Gets the names of all catalogs registered in this environment.
 	 *
-	 * @return A list of the names of all registered tables.
+	 * @return A list of the names of all registered catalogs.
+	 */
+	String[] listCatalogs();
+
+	/**
+	 * Gets the names of all databases registered in the current catalog.
+	 *
+	 * @return A list of the names of all registered databases in the current catalog.
+	 */
+	String[] listDatabases();
+
+	/**
+	 * Gets the names of all tables registered in the current database of the current catalog.
+	 *
+	 * @return A list of the names of all registered tables in the current database of the current catalog.
 	 */
 	String[] listTables();
 

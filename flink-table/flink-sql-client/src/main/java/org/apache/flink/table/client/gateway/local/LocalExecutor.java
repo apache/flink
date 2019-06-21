@@ -189,6 +189,22 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return Arrays.asList(tableEnv.listCatalogs());
+	}
+
+	@Override
+	public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return Arrays.asList(tableEnv.listDatabases());
+	}
+
+	@Override
 	public List<String> listTables(SessionContext session) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
 		final TableEnvironment tableEnv = context
