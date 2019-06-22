@@ -41,7 +41,6 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final String[] fieldNames;
 	private final LogicalType[] logicalTypes;
 
 	public BaseRowTypeInfo(LogicalType... logicalTypes) {
@@ -97,6 +96,29 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 			}
 		}
 		return -1;
+	}
+
+	@Override
+	public boolean typeEquals(Object obj) {
+		if (obj instanceof BaseRowTypeInfo) {
+			@SuppressWarnings("unchecked")
+			BaseRowTypeInfo other = (BaseRowTypeInfo) obj;
+
+			return other.canEqual(this) &&
+				super.typeEquals(other) &&
+				Arrays.equals(types, other.types);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (typeEquals(obj)) {
+			return Arrays.equals(fieldNames, ((BaseRowTypeInfo)obj).fieldNames);
+		} else {
+			return false;
+		}
 	}
 
 	@Override

@@ -54,6 +54,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   // override more methods of RelDataTypeFactoryImpl
 
   private val seenTypes = mutable.HashMap[(TypeInformation[_], Boolean), RelDataType]()
+  private val seenTypesNew = mutable.HashMap[(TypeInformation[_],String, Boolean), RelDataType]
 
   def createTypeFromTypeInfo(
       typeInfo: TypeInformation[_],

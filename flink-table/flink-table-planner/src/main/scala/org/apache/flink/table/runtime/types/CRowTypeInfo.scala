@@ -74,6 +74,14 @@ class CRowTypeInfo(val rowType: RowTypeInfo) extends CompositeType[CRow](classOf
     new CRowComparator(rowComparator)
   }
 
+  override def typeEquals(obj: scala.Any): Boolean = {
+    if (this.canEqual(obj)) {
+      rowType.typeEquals(obj.asInstanceOf[CRowTypeInfo].rowType)
+    } else {
+      false
+    }
+  }
+
   override def equals(obj: scala.Any): Boolean = {
     if (this.canEqual(obj)) {
       rowType.equals(obj.asInstanceOf[CRowTypeInfo].rowType)

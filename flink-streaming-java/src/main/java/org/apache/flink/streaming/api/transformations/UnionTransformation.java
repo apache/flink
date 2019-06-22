@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -50,7 +51,11 @@ public class UnionTransformation<T> extends StreamTransformation<T> {
 		super("Union", inputs.get(0).getOutputType(), inputs.get(0).getParallelism());
 
 		for (StreamTransformation<T> input: inputs) {
-			if (!input.getOutputType().equals(getOutputType())) {
+			if (input.getOutputType() instanceof CompositeType) {
+				if (!((CompositeType) input.getOutputType()).typeEquals(getOutputType())) {
+					throw new UnsupportedOperationException("Type mismatch in input " + input);
+				}
+			} else if (!input.getOutputType().equals(getOutputType())) {
 				throw new UnsupportedOperationException("Type mismatch in input " + input);
 			}
 		}

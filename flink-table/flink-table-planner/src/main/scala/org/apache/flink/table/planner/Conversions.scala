@@ -20,6 +20,7 @@ package org.apache.flink.table.planner
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.table.api.{TableConfig, TableException, TableSchema}
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
@@ -45,7 +46,14 @@ object Conversions {
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
     val typeInfo = logicalInputSchema.toRowType
-    if (typeInfo != physicalInputType) {
+    if (typeInfo.isInstanceOf[CompositeType[_]]) {
+      if (!typeInfo.asInstanceOf[CompositeType[_]].typeEquals(physicalInputType)){
+        throw new TableException(
+          s"The field types of physical and logical row types do not match. " +
+            s"Physical type is [$typeInfo], Logical type is [$physicalInputType]. " +
+            s"This is a bug and should not happen. Please file an issue.")
+      }
+    } else if (typeInfo != physicalInputType) {
       throw new TableException(
         s"The field types of physical and logical row types do not match. " +
           s"Physical type is [$typeInfo], Logical type is [$physicalInputType]. " +

@@ -427,7 +427,16 @@ public final class SemanticPropUtil {
 			// simple wildcard
 			if (wcMatcher.matches()) {
 
-				if (!inType.equals(outType)) {
+				if (inType instanceof CompositeType) {
+					if (!((CompositeType<?>) inType).typeEquals(outType)) {
+						if (skipIncompatibleTypes) {
+							continue;
+						} else {
+							throw new InvalidSemanticAnnotationException("Forwarded field annotation \"" + s +
+								"\" with wildcard only allowed for identical input and output types.");
+						}
+					}
+				} else if (!inType.equals(outType)) {
 					if (skipIncompatibleTypes) {
 						continue;
 					} else {

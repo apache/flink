@@ -62,7 +62,6 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 
 	// --------------------------------------------------------------------------------------------
 
-	protected final String[] fieldNames;
 	/** Temporary variable for directly passing orders to comparators. */
 	private boolean[] comparatorOrders = null;
 
@@ -249,19 +248,23 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 
 	@Override
 	public int hashCode() {
-		return 31 * super.hashCode();
+		return 31 * super.hashCode() + Arrays.hashCode(fieldNames);
 	}
 
-	/**
-	 * The equals method does only check for field types. Field names do not matter during
-	 * runtime so we can consider rows with the same field types as equal.
-	 * Use {@link RowTypeInfo#schemaEquals(Object)} for checking schema-equivalence.
-	 */
 	@Override
-	public boolean equals(Object obj) {
+	public boolean typeEquals(Object obj) {
 		if (obj instanceof RowTypeInfo) {
 			final RowTypeInfo other = (RowTypeInfo) obj;
-			return other.canEqual(this) && super.equals(other);
+			return other.canEqual(this) && super.typeEquals(other);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (typeEquals(obj)) {
+			return Arrays.equals(fieldNames, ((RowTypeInfo)obj).fieldNames);
 		} else {
 			return false;
 		}

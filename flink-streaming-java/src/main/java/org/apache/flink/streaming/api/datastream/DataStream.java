@@ -36,6 +36,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.CsvOutputFormat;
@@ -214,7 +215,12 @@ public class DataStream<T> {
 		unionedTransforms.add(this.transformation);
 
 		for (DataStream<T> newStream : streams) {
-			if (!getType().equals(newStream.getType())) {
+			if (getType() instanceof CompositeType) {
+				if (!((CompositeType) getType()).typeEquals(newStream.getType())) {
+					throw new IllegalArgumentException("Cannot union streams of different types: "
+						+ getType() + " and " + newStream.getType());
+				}
+			} else if (!getType().equals(newStream.getType())) {
 				throw new IllegalArgumentException("Cannot union streams of different types: "
 						+ getType() + " and " + newStream.getType());
 			}

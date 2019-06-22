@@ -44,9 +44,11 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected final TypeInformation<?>[] types;
-	
+
+	protected String [] fieldNames;
+
 	private final int totalFields;
 
 	public TupleTypeInfoBase(Class<T> tupleType, TypeInformation<?>... types) {
@@ -205,15 +207,24 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	}
 	
 	@Override
-	public boolean equals(Object obj) {
+	public boolean typeEquals(Object obj) {
 		if (obj instanceof TupleTypeInfoBase) {
 			@SuppressWarnings("unchecked")
 			TupleTypeInfoBase<T> other = (TupleTypeInfoBase<T>) obj;
 
 			return other.canEqual(this) &&
-				super.equals(other) &&
+				super.typeEquals(other) &&
 				Arrays.equals(types, other.types) &&
 				totalFields == other.totalFields;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (typeEquals(obj)) {
+			return Arrays.equals(fieldNames, ((TupleTypeInfoBase)obj).fieldNames);
 		} else {
 			return false;
 		}

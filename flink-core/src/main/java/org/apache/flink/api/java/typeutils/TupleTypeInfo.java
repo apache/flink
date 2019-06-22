@@ -54,7 +54,6 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	
 	private static final long serialVersionUID = 1L;
 
-	protected final String[] fieldNames;
 
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
@@ -182,15 +181,22 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
-	public boolean equals(Object obj) {
+	public boolean typeEquals(Object obj) {
 		if (obj instanceof TupleTypeInfo) {
 			@SuppressWarnings("unchecked")
 			TupleTypeInfo<T> other = (TupleTypeInfo<T>) obj;
-			return other.canEqual(this) &&
-				super.equals(other) &&
-				Arrays.equals(fieldNames, other.fieldNames);
+			return other.canEqual(this) && super.typeEquals(other);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (typeEquals(obj)) {
+			return Arrays.equals(fieldNames, ((TupleTypeInfo)obj).fieldNames);
 		} else {
 			return false;
 		}

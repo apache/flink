@@ -275,6 +275,17 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 		}
 	}
 
+	public boolean typeEquals(Object obj) {
+		if (obj instanceof CompositeType) {
+			@SuppressWarnings("unchecked")
+			CompositeType<T> compositeType = (CompositeType<T>)obj;
+
+			return compositeType.canEqual(this) && typeClass == compositeType.typeClass;
+		} else {
+			return false;
+		}
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof CompositeType) {
