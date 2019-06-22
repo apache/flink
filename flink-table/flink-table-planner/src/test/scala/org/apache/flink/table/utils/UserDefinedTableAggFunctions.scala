@@ -24,13 +24,91 @@ import java.lang.{Integer => JInt}
 import java.lang.{Iterable => JIterable}
 import java.sql.Timestamp
 import java.util
+import java.util.{Collections, Comparator}
 
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.util.Collector
 
-import scala.collection.mutable.ListBuffer
+/********************* Top2 with emitUpdateWith(out)Retract ***************/
+
+class Top2EmitUpdateAccum {
+  var first: JInt = _
+  var second: JInt = _
+  var oldFirst: JInt = _
+  var oldSecond: JInt = _
+}
+
+class Top2EmitUpdate extends TableAggregateFunction[JTuple2[JInt, JInt], Top2EmitUpdateAccum] {
+
+  override def createAccumulator(): Top2EmitUpdateAccum = {
+    val acc = new Top2EmitUpdateAccum
+    acc.first = Int.MinValue
+    acc.second = Int.MinValue
+    acc.oldFirst = Int.MinValue
+    acc.oldSecond = Int.MinValue
+    acc
+  }
+
+  def accumulate(acc: Top2EmitUpdateAccum, v: Int) {
+    if (v > acc.first) {
+      acc.second = acc.first
+      acc.first = v
+    } else if (v > acc.second) {
+      acc.second = v
+    }
+  }
+
+  def merge(acc: Top2EmitUpdateAccum, its: JIterable[Top2EmitUpdateAccum]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val top2 = iter.next()
+      accumulate(acc, top2.first)
+      accumulate(acc, top2.second)
+    }
+  }
+
+  def emitUpdateWithRetract(
+    acc: Top2EmitUpdateAccum,
+    out: RetractableCollector[JTuple2[JInt, JInt]])
+  : Unit = {
+    if (acc.first != acc.oldFirst) {
+      // if there is an update, retract old value then emit new value.
+      if (acc.oldFirst != Int.MinValue) {
+        out.retract(JTuple2.of(acc.oldFirst, 1))
+      }
+      out.collect(JTuple2.of(acc.first, 1))
+      acc.oldFirst = acc.first
+    }
+    if (acc.second != acc.oldSecond) {
+      // if there is an update, retract old value then emit new value.
+      if (acc.oldSecond != Int.MinValue) {
+        out.retract(JTuple2.of(acc.oldSecond, 2))
+      }
+      out.collect(JTuple2.of(acc.second, 2))
+      acc.oldSecond = acc.second
+    }
+  }
+
+  def emitUpdateWithoutRetract(
+    acc: Top2EmitUpdateAccum,
+    out: RetractableCollector[JTuple2[JInt, JInt]])
+  : Unit = {
+    if (acc.first != acc.oldFirst) {
+      // if there is an update, emit new value directly.
+      out.collect(JTuple2.of(acc.first, 1))
+      acc.oldFirst = acc.first
+    }
+    if (acc.second != acc.oldSecond) {
+      // if there is an update, emit new value directly.
+      out.collect(JTuple2.of(acc.second, 2))
+      acc.oldSecond = acc.second
+    }
+  }
+}
+
+/********************* Top3 with emitValue ***************/
 
 class Top3Accum {
   var data: util.HashMap[JInt, JInt] = _
@@ -38,9 +116,6 @@ class Top3Accum {
   var smallest: JInt = _
 }
 
-/**
-  * Note: This function suffers performance problem. Only use it in tests.
-  */
 class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
   override def createAccumulator(): Top3Accum = {
     val acc = new Top3Accum
@@ -124,52 +199,14 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
   }
 }
 
+/********************* Top3 with MapView ***************/
+
 class Top3WithMapViewAccum {
   var data: MapView[JInt, JInt] = _
   var size: JInt = _
   var smallest: JInt = _
 }
 
-class Top3WithEmitRetractValue extends Top3 {
-
-  val add: ListBuffer[Int] = new ListBuffer[Int]
-  val retract: ListBuffer[Int] = new ListBuffer[Int]
-
-  override def accumulate(acc: Top3Accum, v: Int) {
-    if (acc.size == 0) {
-      acc.size = 1
-      acc.smallest = v
-      acc.data.put(v, 1)
-      add.append(v)
-    } else if (acc.size < 3) {
-      add(acc, v)
-      if (v < acc.smallest) {
-        acc.smallest = v
-      }
-      add.append(v)
-    } else if (v > acc.smallest) {
-      delete(acc, acc.smallest)
-      retract.append(acc.smallest)
-      add(acc, v)
-      add.append(v)
-      updateSmallest(acc)
-    }
-  }
-
-  def emitUpdateWithRetract(
-      acc: Top3Accum,
-      out: RetractableCollector[JTuple2[JInt, JInt]])
-    : Unit = {
-    retract.foreach(e => out.retract(JTuple2.of(e, e)))
-    add.foreach(e => out.collect(JTuple2.of(e, e)))
-    retract.clear()
-    add.clear()
-  }
-}
-
-/**
-  * Note: This function suffers performance problem. Only use it in tests.
-  */
 class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3WithMapViewAccum] {
 
   @Override
@@ -230,11 +267,6 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
     }
   }
 
-  def retract(acc: Top3WithMapViewAccum, v: Int) {
-    delete(acc, v)
-    updateSmallest(acc)
-  }
-
   def emitValue(acc: Top3WithMapViewAccum, out: Collector[JTuple2[JInt, JInt]]): Unit = {
     val keys = acc.data.iterator
     while (keys.hasNext) {
@@ -245,6 +277,51 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
     }
   }
 }
+
+/********************* Top3 with retract input ***************/
+
+class Top3WithRetractInputAccum {
+  var data: util.LinkedList[JInt] = _
+}
+
+/**
+  * Top3 with retract input. In this case, we need to store all input data, because every input may
+  * be retracted later.
+  */
+class Top3WithRetractInput
+  extends TableAggregateFunction[JTuple2[JInt, JInt], Top3WithRetractInputAccum] {
+
+  override def createAccumulator(): Top3WithRetractInputAccum = {
+    val acc = new Top3WithRetractInputAccum
+    acc.data = new util.LinkedList[JInt]()
+    acc
+  }
+
+  def accumulate(acc: Top3WithRetractInputAccum, v: Int) {
+    acc.data.addLast(v)
+  }
+
+  def retract(acc: Top3WithRetractInputAccum, v: Int) {
+    acc.data.removeFirstOccurrence(v)
+  }
+
+  def emitValue(acc: Top3WithRetractInputAccum, out: Collector[JTuple2[JInt, JInt]]): Unit = {
+    Collections.sort(acc.data, new Comparator[JInt] {
+      override def compare(o1: JInt, o2: JInt): Int = {
+        o2 - o1
+      }
+    })
+    val ite = acc.data.iterator()
+    var i = 0
+    while (ite.hasNext && i < 3) {
+      i += 1
+      val v = ite.next()
+      out.collect(JTuple2.of(v, v))
+    }
+  }
+}
+
+/********************* Empty table aggregate functions ***************/
 
 /**
   * Test function for plan test.

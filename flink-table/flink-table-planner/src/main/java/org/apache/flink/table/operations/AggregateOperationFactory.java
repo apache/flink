@@ -66,6 +66,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITH_KEYS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
@@ -526,6 +527,9 @@ public class AggregateOperationFactory {
 
 		private List<String> alias = new LinkedList<>();
 
+		// The unique key names of the table aggregate result table for each group.
+		private List<String> keyNames = new LinkedList<>();
+
 		public List<String> getAlias() {
 			return alias;
 		}
@@ -533,13 +537,79 @@ public class AggregateOperationFactory {
 		@Override
 		public ResolvedExpression visit(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
-			if (definition == BuiltInFunctionDefinitions.AS) {
-				return unwrapFromAlias(call);
-			} else if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
-				return call;
-			} else {
-				return defaultMethod(call);
+
+			// unwrap withKeys
+			if (definition == WITH_KEYS) {
+				call = extractKeyNames(call);
+				definition = call.getFunctionDefinition();
 			}
+
+			ResolvedExpression result;
+			if (definition == AS) {
+				result = unwrapFromAlias(call);
+			} else if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
+				result = call;
+			} else {
+				result = defaultMethod(call);
+			}
+
+			// process emit keyNames
+			assert null != result;
+			setKeyIndexesInTableAggregateFunction((CallExpression) result);
+			return result;
+		}
+
+		/**
+		 * Extract key names from withKeys method.
+		 */
+		private CallExpression extractKeyNames(CallExpression call) {
+			List<ResolvedExpression> children = call.getResolvedChildren();
+			keyNames = children.subList(1, children.size()).stream()
+				.map(p -> ExpressionUtils.extractValue(p, String.class)
+					.orElseThrow(() -> new ValidationException("Unexpected withKeys: " + p)))
+				.collect(toList());
+
+			if (!(children.get(0) instanceof CallExpression)) {
+				throw new ValidationException("Invalid withKeys(), should be after table aggregate function!");
+			}
+			return (CallExpression) children.get(0);
+		}
+
+		private void setKeyIndexesInTableAggregateFunction(CallExpression result) {
+			TableAggregateFunctionDefinition definition =
+				(TableAggregateFunctionDefinition) result.getFunctionDefinition();
+			TableAggregateFunction tableAggregateFunction = definition.getTableAggregateFunction();
+
+			// init key indexes
+			tableAggregateFunction.setKeyIndexes(new LinkedList<>());
+
+			List<String> tableAggResultNames;
+			if (alias.isEmpty()) {
+				tableAggResultNames = Arrays.asList(FieldInfoUtils.getFieldNames(definition.getResultTypeInfo()));
+			} else {
+				tableAggResultNames = alias;
+			}
+			tableAggregateFunction.setKeyIndexes(keyNamesToIndexes(tableAggResultNames, keyNames));
+		}
+
+		/**
+		 * Get the indexes for the key names. Throw exception if the specified key name does not
+		 * exist in the table aggregate output schema.
+		 */
+		private List<Integer> keyNamesToIndexes(List<String> names, List<String> keyNames) {
+			List<Integer> indexes = new LinkedList<>();
+			for (String input : keyNames) {
+				int index = names.indexOf(input);
+				if (-1 == index) {
+					throw new ValidationException(
+						format("Invalid key names in withKeys. The name [%s] does not " +
+								"exist in the output schema [%s].",
+							input,
+							String.join(", ", names)));
+				}
+				indexes.add(index);
+			}
+			return indexes;
 		}
 
 		private ResolvedExpression unwrapFromAlias(CallExpression call) {

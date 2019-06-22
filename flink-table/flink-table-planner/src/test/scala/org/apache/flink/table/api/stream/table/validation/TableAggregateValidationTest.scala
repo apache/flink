@@ -144,4 +144,21 @@ class TableAggregateValidationTest extends TableTestBase {
       .flatAggregate(func('a, 'b) as ('a, 'b))
       .select('*)
   }
+
+  @Test
+  def testInvalidNamesInWithKeys(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Invalid key names in withKeys. The name [xx] " +
+      "does not exist in the output schema [x, y].")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, Timestamp)]('a, 'b, 'c)
+
+    val func = new EmptyTableAggFunc
+    table
+      .groupBy('b)
+      // must fail. field xx does not exist.
+      .flatAggregate(func('a, 'b) as ('x, 'y) withKeys 'xx)
+      .select('*)
+  }
 }

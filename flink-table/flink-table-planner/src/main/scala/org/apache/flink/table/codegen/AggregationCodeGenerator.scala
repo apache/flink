@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.codegen
 
-import java.lang.reflect.Modifier
+import java.lang.reflect.{Method, Modifier}
 import java.lang.{Iterable => JIterable}
 import java.util.{List => JList}
 
@@ -35,6 +35,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWrit
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.functions.{TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.{AggSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
@@ -76,6 +77,7 @@ import scala.collection.mutable
   *                               assume that both rows have the accumulators at the same position.
   * @param outputArity            The number of fields in the output row.
   * @param needRetract            a flag to indicate if the aggregate needs the retract method
+  * @param generateRetraction     a flag to indicate if the aggregate needs to generate retraction.
   * @param needMerge              a flag to indicate if the aggregate needs the merge method
   * @param needReset              a flag to indicate if the aggregate needs the resetAccumulator
   *                               method
@@ -98,6 +100,7 @@ class AggregationCodeGenerator(
   mergeMapping: Option[Array[Int]],
   outputArity: Int,
   needRetract: Boolean,
+  generateRetraction: Boolean,
   needMerge: Boolean,
   needReset: Boolean,
   accConfig: Option[Array[Seq[DataViewSpec[_]]]])
@@ -853,12 +856,12 @@ class AggregationCodeGenerator(
     // emit methods
     val emitValue = "emitValue"
     val emitUpdateWithRetract = "emitUpdateWithRetract"
+    val emitUpdateWithoutRetract = "emitUpdateWithoutRetract"
 
     // collectors
     val COLLECTOR: String = classOf[Collector[_]].getCanonicalName
     val CROW_WRAPPING_COLLECTOR: String = classOf[CRowWrappingCollector].getCanonicalName
-    val RETRACTABLE_COLLECTOR: String =
-      classOf[TableAggregateFunction.RetractableCollector[_]].getCanonicalName
+    val RETRACTABLE_COLLECTOR: String = classOf[RetractableCollector[_]].getCanonicalName
 
     val ROW: String = classOf[Row].getCanonicalName
 
@@ -917,13 +920,19 @@ class AggregationCodeGenerator(
       functionGenerator.reuseInputUnboxingCode() + resultExprs.code
     }
 
-    def checkAndGetEmitValueMethod(function: UserDefinedFunction, index: Int): Unit = {
-      finalEmitMethodName = emitValue
-      getUserDefinedMethod(
-        function, emitValue, Array(accTypeClasses(index), classOf[Collector[_]]))
-        .getOrElse(throw new CodeGenException(
-          s"No matching $emitValue method found for " +
-            s"tableAggregate ${function.getClass.getCanonicalName}'."))
+    /**
+      * Wrap [[UserDefinedFunctionUtils.getUserDefinedMethod]] in order not to throw exceptions.
+      */
+    def getMethodWithOutException(
+      function: UserDefinedFunction,
+      methodName: String,
+      methodSignature: Array[Class[_]])
+    : Option[Method] = {
+      try {
+        getUserDefinedMethod(function, methodName, methodSignature)
+      } catch {
+        case _: ValidationException => None
+      }
     }
 
     /**
@@ -935,22 +944,32 @@ class AggregationCodeGenerator(
       // supports emit incrementally.
       aggregates.zipWithIndex.map {
         case (a, i) =>
+          def checkEmitValueMethod(allValidMethods: Seq[String]): Unit = {
+            finalEmitMethodName = emitValue
+            getMethodWithOutException(
+              a, emitValue, Array(accTypeClasses(i), classOf[Collector[_]]))
+              .getOrElse(throw new CodeGenException(
+                s"No matching ${allValidMethods.mkString(" or ")} method found for " +
+                  s"tableAggregate ${a.getClass.getCanonicalName}'."))
+          }
+
           if (supportEmitIncrementally) {
-            try {
+            val methodSignature: Array[Class[_]] =
+              Array(accTypeClasses(i), classOf[RetractableCollector[_]])
+            if (generateRetraction) {
+              // check if there are emitValue or emitUpdateWithRetract method.
               finalEmitMethodName = emitUpdateWithRetract
-              getUserDefinedMethod(
-                a,
-                emitUpdateWithRetract,
-                Array(accTypeClasses(i), classOf[TableAggregateFunction.RetractableCollector[_]]))
-                .getOrElse(checkAndGetEmitValueMethod(a, i))
-            } catch {
-              case _: ValidationException =>
-                // Use try catch here as exception will be thrown if there is no
-                // emitUpdateWithRetract method
-                checkAndGetEmitValueMethod(a, i)
+              getMethodWithOutException(a, emitUpdateWithRetract, methodSignature)
+                .getOrElse(checkEmitValueMethod(Seq(emitValue, emitUpdateWithRetract)))
+            } else {
+                // check if there are emitValue or emitUpdateWithoutRetract method.
+                finalEmitMethodName = emitUpdateWithoutRetract
+                getMethodWithOutException(a, emitUpdateWithoutRetract, methodSignature)
+                  .getOrElse(checkEmitValueMethod(Seq(emitValue, emitUpdateWithoutRetract)))
             }
           } else {
-            checkAndGetEmitValueMethod(a, i)
+            // check if there is emitValue method.
+            checkEmitValueMethod(Seq(emitValue))
           }
       }
     }

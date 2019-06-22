@@ -124,6 +124,7 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract = false,
+      generateRetraction = false,
       needMerge = false,
       needReset = false,
       accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
@@ -220,6 +221,7 @@ object AggregateUtil {
       None,
       outputType.getFieldCount,
       consumeRetraction,
+      generateRetraction,
       needMerge = false,
       needReset = false,
       accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
@@ -316,6 +318,7 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract,
+      generateRetraction = false,
       needMerge = false,
       needReset = false,
       accConfig = Some(aggregateMetadata.getAggregatesAccumulatorSpecs)
@@ -463,6 +466,7 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract,
+      generateRetraction = false,
       needMerge = false,
       needReset = true,
       None
@@ -555,6 +559,7 @@ object AggregateUtil {
           Some(aggMappings),
           keysAndAggregatesArity + 1,
           needRetract,
+          generateRetraction = false,
           needMerge = true,
           needReset = true,
           None
@@ -670,6 +675,7 @@ object AggregateUtil {
       Some(aggMapping),
       outputType.getFieldCount + aggregateMetadata.getDistinctAccCount,
       needRetract,
+      generateRetraction = false,
       needMerge = true,
       needReset = true,
       None
@@ -693,6 +699,7 @@ object AggregateUtil {
       Some(aggMapping),
       outputType.getFieldCount,
       needRetract,
+      generateRetraction = false,
       needMerge = true,
       needReset = true,
       None
@@ -853,6 +860,7 @@ object AggregateUtil {
           Some(aggMapping),
           keysAndAggregatesArity + 2,
           needRetract,
+          generateRetraction = false,
           needMerge = true,
           needReset = true,
           None
@@ -939,6 +947,7 @@ object AggregateUtil {
           Some(aggMapping),
           keysAndAggregatesArity + 2,
           needRetract,
+          generateRetraction = false,
           needMerge = true,
           needReset = true,
           None
@@ -1023,6 +1032,7 @@ object AggregateUtil {
         None,
         keysAndAggregatesArity,
         needRetract,
+        generateRetraction = false,
         needMerge = false,
         needReset = true,
         None
@@ -1056,6 +1066,7 @@ object AggregateUtil {
         Some(aggMapping),
         outputType.getFieldCount,
         needRetract,
+        generateRetraction = false,
         needMerge = true,
         needReset = true,
         None
@@ -1086,6 +1097,7 @@ object AggregateUtil {
         None,
         outputType.getFieldCount,
         needRetract,
+        generateRetraction = false,
         needMerge = false,
         needReset = true,
         None
@@ -1205,6 +1217,7 @@ object AggregateUtil {
       None,
       outputType.getFieldCount - groupingKeys.length - namedProperties.length,
       needRetract,
+      generateRetraction = false,
       needMerge,
       needReset = false,
       None

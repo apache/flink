@@ -122,6 +122,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
               .map(e => getValue[String](e))
             Alias(args.head, name, extraNames)
 
+          case WITH_KEYS => args.head
+
           case FLATTEN =>
             assert(args.size == 1)
             Flattening(args.head)

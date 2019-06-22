@@ -298,6 +298,15 @@ trait ImplicitExpressionOperations {
       expr +: valueLiteral(name.name) +: extraNames.map(name => valueLiteral(name.name)): _*)
 
   /**
+    * Specifies keys of the table aggregate result table for each group.
+    *
+    * @param keys the keys of the table aggregate result table for each group.
+    * @return table aggregate expression with key definitions.
+    */
+  def withKeys(keys: Symbol*): Expression =
+    unresolvedCall(WITH_KEYS, expr +: keys.map(name => valueLiteral(name.name)): _*)
+
+  /**
     * Specifies ascending order of an expression i.e. a field for orderBy call.
     *
     * @return ascend expression

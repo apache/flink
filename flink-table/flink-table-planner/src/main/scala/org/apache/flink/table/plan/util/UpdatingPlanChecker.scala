@@ -21,6 +21,8 @@ import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.expressions.ProctimeAttribute
+import org.apache.flink.table.functions.TableAggregateFunction
+import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.plan.nodes.datastream._
 
 import _root_.scala.collection.JavaConversions._
@@ -132,6 +134,20 @@ object UpdatingPlanChecker {
           // get grouping keys
           val groupKeys = a.getRowType.getFieldNames.take(a.getGroupings.length)
           Some(groupKeys.map(e => (e, e)))
+
+        case tableAgg: DataStreamGroupTableAggregate =>
+          val emitKeys = tableAgg.namedAggregates.head.left
+            .getAggregation.asInstanceOf[AggSqlFunction]
+            .getFunction.asInstanceOf[TableAggregateFunction[_, _]]
+            .getKeyIndexes
+
+          val tableAggFieldNames = tableAgg.getRowType.getFieldNames
+          val groupKeys = tableAggFieldNames.take(tableAgg.getGroupings.length)
+          val aggKeys = tableAggFieldNames.drop(groupKeys.size).zipWithIndex
+            .filter(e => emitKeys.contains(e._2))
+            .map(_._1)
+          Some((groupKeys ++ aggKeys).map(e => (e, e)))
+
         case w: DataStreamGroupWindowAggregate =>
           // get grouping keys
           val groupKeys =

@@ -95,7 +95,7 @@ class TableAggregateStringExpressionTest extends TableTestBase {
   }
 
   @Test
-  def testAliasGroupedTableAggregate(): Unit = {
+  def testWithKeysAfterAlias(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 
@@ -106,15 +106,51 @@ class TableAggregateStringExpressionTest extends TableTestBase {
     // Expression / Scala API
     val resScala = t
       .groupBy('b)
-      .flatAggregate(top3('a) as ('d, 'e))
+      .flatAggregate(top3('a) as ('d, 'e) withKeys 'd)
       .select('*)
 
     // String / Java API
-    val resJava = t
+    val resJava1 = t
       .groupBy("b")
-      .flatAggregate("top3(a) as (d, e)")
+      .flatAggregate("top3(a) as (d, e) withKeys d")
       .select("*")
 
-    verifyTableEquals(resJava, resScala)
+    val resJava2 = t
+      .groupBy("b")
+      .flatAggregate("top3(a) as (d, e) withKeys(d)")
+      .select("*")
+
+    verifyTableEquals(resJava1, resScala)
+    verifyTableEquals(resJava2, resScala)
+  }
+
+  @Test
+  def testWithKeysWithoutAlias(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
+
+    val top3 = new Top3WithMapView
+    util.tableEnv.registerFunction("top3", top3)
+    util.tableEnv.registerFunction("Func0", Func0)
+
+    // Expression / Scala API
+    val resScala = t
+      .groupBy('b)
+      .flatAggregate(top3('a) withKeys 'f0)
+      .select('*)
+
+    // String / Java API
+    val resJava1 = t
+      .groupBy("b")
+      .flatAggregate("top3(a) withKeys f0")
+      .select("*")
+
+    val resJava2 = t
+      .groupBy("b")
+      .flatAggregate("top3(a) withKeys(f0)")
+      .select("*")
+
+    verifyTableEquals(resJava1, resScala)
+    verifyTableEquals(resJava2, resScala)
   }
 }

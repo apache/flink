@@ -19,12 +19,14 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{StreamQueryConfig, ValidationException}
+import org.apache.flink.table.codegen.CodeGenException
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.table.utils.{EmptyTableAggFuncWithoutEmit, Top3, Top3WithEmitRetractValue, Top3WithMapView}
+import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -75,16 +77,16 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
   }
 
   @Test
-  def testEmitRetractValueIncrementally(): Unit = {
+  def testEmitUpdateWithRetract(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
     val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
-    val top3 = new Top3WithEmitRetractValue
+    val top2 = new Top2EmitUpdate
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val resultTable = source.groupBy('b)
-      .flatAggregate(top3('a))
+      .flatAggregate(top2('a))
       .select('b, 'f0, 'f1)
       .as('category, 'v1, 'v2)
 
@@ -95,21 +97,48 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
     val expected = List(
       "1,1,1",
       "2,2,2",
-      "2,3,3",
-      "3,4,4",
-      "3,5,5",
-      "3,6,6",
-      "4,10,10",
-      "4,9,9",
-      "4,8,8",
-      "5,15,15",
-      "5,14,14",
-      "5,13,13",
-      "6,21,21",
-      "6,20,20",
-      "6,19,19"
+      "2,3,1",
+      "3,5,2",
+      "3,6,1",
+      "4,10,1",
+      "4,9,2",
+      "5,15,1",
+      "5,14,2",
+      "6,21,1",
+      "6,20,2"
     ).sorted
     assertEquals(expected, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testEmitUpdateWithoutRetract(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.clear
+
+    tEnv.registerTableSink("upsertSink",
+      new TestUpsertSink(Array("b", "rank"), false)
+        .configure(
+          Array[String]("b", "v", "rank"),
+          Array[TypeInformation[_]](Types.LONG, Types.INT, Types.INT)))
+
+    val top2 = new Top2EmitUpdate
+    val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val resultTable = source.groupBy('b)
+      .flatAggregate(top2('a) as ('v, 'rank) withKeys 'rank)
+      .select('b, 'v, 'rank)
+
+    resultTable.insertInto("upsertSink")
+    env.execute()
+
+    val expected = List("1,1,1", "2,2,2", "2,3,1", "3,5,2", "3,6,1", "4,10,1", "4,9,2", "5,14,2",
+      "5,15,1", "6,20,2", "6,21,1").sorted
+
+    val results = RowCollector.getAndClearValues
+    val upserted = RowCollector.upsertResults(results, Array(0, 2)).sorted
+
+    assertEquals(expected, upserted)
   }
 
   @Test
@@ -139,13 +168,13 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
   }
 
   @Test
-  def testWithMapViewAndInputWithRetraction(): Unit = {
+  def testInputWithRetraction(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
     val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
-    val top3 = new Top3WithMapView
+    val top3 = new Top3WithRetractInput
     val source = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val resultTable = source
       .groupBy('b)
@@ -191,10 +220,9 @@ class TableAggregateITCase extends StreamingWithStateTestBase {
 
   @Test
   def testTableAggFunctionWithoutEmitValueMethod(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Function class 'org.apache.flink.table.utils." +
-      "EmptyTableAggFuncWithoutEmit' does not implement at least one method named 'emitValue' " +
-      "which is public, not abstract and (in case of table functions) not static.")
+    expectedException.expect(classOf[CodeGenException])
+    expectedException.expectMessage("No matching emitValue or emitUpdateWithRetract " +
+      "method found for tableAggregate org.apache.flink.table.utils.EmptyTableAggFuncWithoutEmit'.")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)

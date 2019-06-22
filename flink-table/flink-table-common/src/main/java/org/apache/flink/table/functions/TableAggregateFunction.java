@@ -21,6 +21,9 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Collector;
 
+import java.util.LinkedList;
+import java.util.List;
+
 /**
  * Base class for user-defined table aggregates.
  *
@@ -128,5 +131,25 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.TABLE_AGGREGATE;
+	}
+
+	/**
+	 * The unique key indexes of the table aggregate result table for each group. Together with
+	 * group keys, we can use the combined keys to upsert data into the downstream node.
+	 */
+	private List<Integer> keyIndexes = new LinkedList<>();
+
+	/**
+	 * Internal use. Set the key indexes of the table aggregate result table for each group.
+	 */
+	public final void setKeyIndexes(List<Integer> keys) {
+		keyIndexes = keys;
+	}
+
+	/**
+	 * Called internally.
+	 */
+	public final List<Integer> getKeyIndexes() {
+		return keyIndexes;
 	}
 }

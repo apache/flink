@@ -136,6 +136,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val TRIM_MODE_TRAILING: Keyword = Keyword("TRAILING")
   lazy val TRIM_MODE_BOTH: Keyword = Keyword("BOTH")
   lazy val TO: Keyword = Keyword("TO")
+  lazy val WITH_KEYS: Keyword = Keyword("WITHKEYS")
 
   def functionIdent: PlannerExpressionParserImpl.Parser[String] = super.ident
 
@@ -682,6 +683,26 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
         unresolvedCall(BuiltInFunctionDefinitions.AS, e, valueLiteral(name.getName))
   }
 
+  // withKeys
+
+  lazy val withKeys: PackratParser[Expression] = logic ~ WITH_KEYS ~ fieldReference ^^ {
+    case e ~ _ ~ name =>
+      unresolvedCall(BuiltInFunctionDefinitions.WITH_KEYS, e, valueLiteral(name.getName))
+  } | logic ~ WITH_KEYS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
+    case e ~ _ ~ _ ~ names ~ _ =>
+      unresolvedCall(
+        BuiltInFunctionDefinitions.WITH_KEYS,
+        e :: names.map(n => valueLiteral(n.getName)): _*)
+  } | alias ~ WITH_KEYS ~ fieldReference ^^ {
+    case e ~ _ ~ name =>
+      unresolvedCall(BuiltInFunctionDefinitions.WITH_KEYS, e, valueLiteral(name.getName))
+  } | alias ~ WITH_KEYS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
+    case e ~ _ ~ _ ~ names ~ _ =>
+      unresolvedCall(
+        BuiltInFunctionDefinitions.WITH_KEYS,
+        e :: names.map(n => valueLiteral(n.getName)): _*)
+  }
+
   // columns
 
   lazy val fieldNameRange: PackratParser[Expression] = fieldReference ~ TO ~ fieldReference ^^ {
@@ -694,7 +715,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
 
   lazy val range = fieldNameRange | fieldIndexRange
 
-  lazy val expression: PackratParser[Expression] = range | overConstant | alias |
+  lazy val expression: PackratParser[Expression] = range | overConstant | withKeys | alias |
     failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")

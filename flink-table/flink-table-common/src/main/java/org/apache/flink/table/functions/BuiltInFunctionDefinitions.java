@@ -712,6 +712,13 @@ public final class BuiltInFunctionDefinitions {
 			.kind(OTHER)
 			.build();
 
+	// table aggregate
+	public static final BuiltInFunctionDefinition WITH_KEYS =
+		new BuiltInFunctionDefinition.Builder()
+			.name("withKeys")
+			.kind(OTHER)
+			.build();
+
 	// etc
 	public static final BuiltInFunctionDefinition IN =
 		new BuiltInFunctionDefinition.Builder()

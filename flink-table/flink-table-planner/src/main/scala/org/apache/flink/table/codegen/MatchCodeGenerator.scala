@@ -746,6 +746,7 @@ class MatchCodeGenerator(
         None,
         matchAgg.aggregations.size,
         needRetract = false,
+        generateRetraction = false,
         needMerge = false,
         needReset = false,
         None
