@@ -420,7 +420,7 @@ elements of each (possibly keyed) window once the system determines that a windo
 (see [triggers](#triggers) for how Flink determines when a window is ready).
 
 The window function can be one of `ReduceFunction`, `AggregateFunction`, `FoldFunction` or `ProcessWindowFunction`. The first
-two can be executed more efficiently (see [State Size](#state size) section) because Flink can incrementally aggregate
+three can be executed more efficiently (see [State Size](#state size) section) because Flink can incrementally aggregate
 the elements for each window as they arrive. A `ProcessWindowFunction` gets an `Iterable` for all the elements contained in a
 window and additional meta information about the window to which the elements belong.
 
