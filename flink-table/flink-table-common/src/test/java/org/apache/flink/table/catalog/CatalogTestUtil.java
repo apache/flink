@@ -42,6 +42,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class CatalogTestUtil {
 	public static void checkEquals(CatalogTable t1, CatalogTable t2) {
+		assertEquals(t1.getClass(), t2.getClass());
 		assertEquals(t1.getSchema(), t2.getSchema());
 		assertEquals(t1.getComment(), t2.getComment());
 		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
@@ -66,6 +67,7 @@ public class CatalogTestUtil {
 	}
 
 	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
+		assertEquals(d1.getClass(), d2.getClass());
 		assertEquals(d1.getComment(), d2.getComment());
 
 		// d2 should contain all properties of d1's, and may or may not contain extra properties
