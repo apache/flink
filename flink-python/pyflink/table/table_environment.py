@@ -193,13 +193,13 @@ class TableEnvironment(object):
         return [item for item in j_catalog_name_array]
 
     def list_databases(self):
-            """
-            Gets the names of all databases in the current catalog.
+        """
+        Gets the names of all databases in the current catalog.
 
-            :return: List of database names in the current catalog.
-            """
-            j_database_name_array = self._j_tenv.listDatabases()
-            return [item for item in j_database_name_array]
+        :return: List of database names in the current catalog.
+        """
+        j_database_name_array = self._j_tenv.listDatabases()
+        return [item for item in j_database_name_array]
 
     def list_tables(self):
         """
