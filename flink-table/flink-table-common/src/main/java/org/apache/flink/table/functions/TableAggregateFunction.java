@@ -32,7 +32,7 @@ import java.util.List;
  * <ul>
  *     <li>createAccumulator</li>
  *     <li>accumulate</li>
- *     <li>emitValue or emitUpdateWithRetract</li>
+ *     <li>emitValue or emitUpdateWithRetract or emitUpdateWithoutRetract</li>
  * </ul>
  *
  * <p>There is another method that can be optional to have:
@@ -104,6 +104,35 @@ import java.util.List;
  * public void emitUpdateWithRetract(ACC accumulator, RetractableCollector<T> out)
  * }
  * </pre>
+ *
+ * <pre>
+ * {@code
+ * Called every time when an aggregation result should be materialized. The returned value could
+ * be either an early and incomplete result (periodically emitted as data arrive) or the final
+ * result of the aggregation.
+ *
+ * Similar to emitUpdateWithRetract, emitUpdateWithoutRetract is used to emit values that have been
+ * updated. However, this method outputs data incrementally in upsert mode, i.e., once there is an
+ * update, we can only send the new updated records without retracting old ones.
+ * The emitUpdateWithoutRetract method will be used in preference to the emitValue method if both
+ * methods are defined in the table aggregate function, because the method is treated to be more
+ * efficient than emitValue as it can output values incrementally.
+ *
+ * param: accumulator           the accumulator which contains the current aggregated results
+ * param: out                   the retractable collector used to output data. Use collect method
+ *                              to output(add) records and use retract method to retract(delete)
+ *                              records.
+ *
+ * public void emitUpdateWithoutRetract(ACC accumulator, RetractableCollector<T> out)
+ * }
+ * </pre>
+ *
+ * <p>We notice that there are three kinds of emit methods: emitValue, emitUpdateWithRetract and
+ * emitUpdateWithoutRetract. Whether use emitUpdateWithoutRetract or emitUpdateWithRetract will be
+ * decided by the query optimizer and these two methods will be used in preference to the emitValue
+ * method if they are all defined in the table aggregate function, because they are treated to be
+ * more efficient than emitValue as they can output values incrementally.
+ * </p>
  *
  * @param <T>   the type of the table aggregation result
  * @param <ACC> the type of the table aggregation accumulator. The accumulator is used to keep the
