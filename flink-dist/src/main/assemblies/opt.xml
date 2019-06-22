@@ -192,6 +192,14 @@
 			<destName>flink-python-${project.version}-java-binding.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<!-- HiveCatalog and Hive connector -->
+		<file>
+			<source>../flink-connectors/flink-connector-hive/target/flink-connector-hive_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-connector-hive_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 	<fileSets>
 		<fileSet>
