@@ -137,4 +137,10 @@ public class PlannerConfigOptions {
 					.defaultValue(true)
 					.withDescription("Allow trying to push predicate down to a FilterableTableSource. " +
 						"the default value is true, means allow the attempt.");
+
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_JOIN_REORDER_ENABLED =
+			key("sql.optimizer.join-reorder.enabled")
+					.defaultValue(false)
+					.withDescription("Enables join reorder in optimizer cbo. Default is disabled.");
+
 }
