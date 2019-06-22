@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.optimize.program
 
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.PlannerConfigOptions
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkBatchRuleSets
 
@@ -33,6 +34,7 @@ object FlinkBatchProgram {
   val DECORRELATE = "decorrelate"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
+  val JOIN_REORDER = "join_reorder"
   val JOIN_REWRITE = "join_rewrite"
   val WINDOW = "window"
   val LOGICAL = "logical"
@@ -120,7 +122,7 @@ object FlinkBatchProgram {
                 .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
                 .add(FlinkBatchRuleSets.FILTER_PREPARE_RULES)
                 .build(), "other predicate rewrite")
-            .setIterations(5).build())
+            .setIterations(5).build(), "predicate rewrite")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
@@ -134,6 +136,24 @@ object FlinkBatchProgram {
             .add(FlinkBatchRuleSets.PRUNE_EMPTY_RULES)
             .build(), "prune empty after predicate push down")
         .build())
+
+    // join reorder
+    if (config.getBoolean(PlannerConfigOptions.SQL_OPTIMIZER_JOIN_REORDER_ENABLED)) {
+      chainedProgram.addLast(
+        JOIN_REORDER,
+        FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+          .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.JOIN_REORDER_PERPARE_RULES)
+            .build(), "merge join into MultiJoin")
+          .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.JOIN_REORDER_RULES)
+            .build(), "do join reorder")
+          .build())
+    }
 
     // join rewrite
     chainedProgram.addLast(

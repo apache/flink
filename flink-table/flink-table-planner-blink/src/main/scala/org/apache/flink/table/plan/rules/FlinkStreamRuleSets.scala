@@ -201,6 +201,22 @@ object FlinkStreamRuleSets {
     ProjectSetOpTransposeRule.INSTANCE
   )
 
+  val JOIN_REORDER_PERPARE_RULES: RuleSet = RuleSets.ofList(
+    // merge project to MultiJoin
+    ProjectMultiJoinMergeRule.INSTANCE,
+    // merge filter to MultiJoin
+    FilterMultiJoinMergeRule.INSTANCE,
+    // merge join to MultiJoin
+    JoinToMultiJoinRule.INSTANCE
+  )
+
+  val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
+    // equi-join predicates transfer
+    RewriteMultiJoinConditionRule.INSTANCE,
+    // join reorder
+    LoptOptimizeJoinRule.INSTANCE
+  )
+
   /**
     * RuleSet to do logical optimize.
     * This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]].

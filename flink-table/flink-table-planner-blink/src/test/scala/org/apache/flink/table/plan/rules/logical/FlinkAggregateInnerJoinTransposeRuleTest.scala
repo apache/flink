@@ -50,7 +50,7 @@ class FlinkAggregateInnerJoinTransposeRuleTest extends TableTestBase {
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(RuleSets.ofList(AggregateReduceGroupingRule.INSTANCE
-            )).build(), "reduce unless grouping")
+            )).build(), "reduce useless grouping")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
