@@ -160,13 +160,15 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 						if (isAntiJoin) {
 							// send -[other]
 							other.setHeader(BaseRowUtil.RETRACT_MSG);
+							collector.collect(other);
+							// set header back to ACCUMULATE_MSG, because we will update the other row to state
+							other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
 						} else {
 							// send +[other]
-							other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+							// the header of other is ACCUMULATE_MSG
+							collector.collect(other);
 						}
-						collector.collect(other);
 					} // ignore when number > 0
-					other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
 					leftRecordStateView.updateNumOfAssociations(other, outerRecord.numOfAssociations + 1);
 				}
 			} // ignore when associated number == 0
@@ -181,13 +183,14 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 						if (!isAntiJoin) {
 							// send -[other]
 							other.setHeader(BaseRowUtil.RETRACT_MSG);
+							collector.collect(other);
+							// set header back to ACCUMULATE_MSG, because we will update the other row to state
+							other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
 						} else {
 							// send +[other]
-							other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
+							collector.collect(other);
 						}
-						collector.collect(other);
 					} // ignore when number > 0
-					other.setHeader(BaseRowUtil.ACCUMULATE_MSG);
 					leftRecordStateView.updateNumOfAssociations(other, outerRecord.numOfAssociations - 1);
 				}
 			} // ignore when associated number == 0
