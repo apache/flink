@@ -59,7 +59,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			input1WatermarkGauge,
 			input2WatermarkGauge,
-			getTaskNameWithSubtaskAndId());
+			getTaskNameWithSubtaskAndId(),
+			operatorChain);
 	}
 
 	@Override

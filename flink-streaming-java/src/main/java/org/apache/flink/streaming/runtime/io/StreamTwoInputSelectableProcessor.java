@@ -35,6 +35,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -70,6 +71,8 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 	private final StreamTaskInput input1;
 	private final StreamTaskInput input2;
 
+	private final OperatorChain<?, ?> operatorChain;
+
 	/**
 	 * Valves that control how watermarks and stream statuses from the 2 inputs are forwarded.
 	 */
@@ -103,7 +106,8 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		StreamStatusMaintainer streamStatusMaintainer,
 		TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
 		WatermarkGauge input1WatermarkGauge,
-		WatermarkGauge input2WatermarkGauge) {
+		WatermarkGauge input2WatermarkGauge,
+		OperatorChain<?, ?> operatorChain) {
 
 		checkState(streamOperator instanceof InputSelectable);
 
@@ -125,6 +129,8 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		this.statusWatermarkValve2 = new StatusWatermarkValve(
 			unionedInputGate2.getNumberOfInputChannels(),
 			new ForwardingValveOutputHandler(streamOperator, lock, streamStatusMaintainer, input2WatermarkGauge, 1));
+
+		this.operatorChain = checkNotNull(operatorChain);
 
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
@@ -329,10 +335,13 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		setAvailableInput(input.getInputIndex());
 	}
 
-	private boolean checkFinished() {
+	private boolean checkFinished() throws Exception {
 		if (getInput(lastReadInputIndex).isFinished()) {
 			inputSelection = (lastReadInputIndex == 0) ? InputSelection.SECOND : InputSelection.FIRST;
-			// TODO: adds the runtime handling of the BoundedMultiInput interface;
+
+			synchronized (lock) {
+				operatorChain.endInput(getInputId(lastReadInputIndex));
+			}
 		}
 
 		return input1.isFinished() && input2.isFinished();
@@ -348,6 +357,10 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 
 	private StreamTaskInput getInput(int inputIndex) {
 		return inputIndex == 0 ? input1 : input2;
+	}
+
+	private int getInputId(int inputIndex) {
+		return inputIndex + 1;
 	}
 
 	private class ForwardingValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {

@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.slf4j.Logger;
@@ -69,6 +70,8 @@ public class StreamInputProcessor<IN> {
 
 	private final Object lock;
 
+	private final OperatorChain<?, ?> operatorChain;
+
 	// ---------------- Status and Watermark Valve ------------------
 
 	/** Valve that controls how watermarks and stream statuses are forwarded. */
@@ -96,7 +99,8 @@ public class StreamInputProcessor<IN> {
 			OneInputStreamOperator<IN, ?> streamOperator,
 			TaskIOMetricGroup metrics,
 			WatermarkGauge watermarkGauge,
-			String taskName) throws IOException {
+			String taskName,
+			OperatorChain<?, ?> operatorChain) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
@@ -120,6 +124,8 @@ public class StreamInputProcessor<IN> {
 
 		this.watermarkGauge = watermarkGauge;
 		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+
+		this.operatorChain = checkNotNull(operatorChain);
 	}
 
 	public boolean processInput() throws Exception {
@@ -128,7 +134,7 @@ public class StreamInputProcessor<IN> {
 		StreamElement recordOrMark = input.pollNextNullable();
 		if (recordOrMark == null) {
 			input.isAvailable().get();
-			return !input.isFinished();
+			return !checkFinished();
 		}
 		int channel = input.getLastChannel();
 		checkState(channel != StreamTaskInput.UNSPECIFIED);
@@ -172,6 +178,16 @@ public class StreamInputProcessor<IN> {
 				numRecordsIn = new SimpleCounter();
 			}
 		}
+	}
+
+	private boolean checkFinished() throws Exception {
+		boolean isFinished = input.isFinished();
+		if (isFinished) {
+			synchronized (lock) {
+				operatorChain.endInput(1);
+			}
+		}
+		return isFinished;
 	}
 
 	public void cleanup() throws Exception {
