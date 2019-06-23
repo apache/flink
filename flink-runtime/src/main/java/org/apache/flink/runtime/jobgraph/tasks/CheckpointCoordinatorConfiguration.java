@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Objects;
+
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
 /**
  * Configuration settings for the {@link CheckpointCoordinator}. This includes the checkpoint
@@ -72,7 +73,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		// sanity checks
 		if (checkpointInterval < 10 || checkpointTimeout < 10 ||
 			minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1 ||
-			tolerableCpFailureNumber < CheckpointFailureManager.UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
+			(tolerableCpFailureNumber < 0 && tolerableCpFailureNumber != UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER)) {
 			throw new IllegalArgumentException();
 		}
 
