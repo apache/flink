@@ -392,7 +392,13 @@ object WindowJoinUtil {
   private def accessesNonTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
     expr match {
       case ref: RexInputRef =>
-        val accessedType = inputType.getFieldList.get(ref.getIndex).getType
+        var accessedType: RelDataType = null
+        try {
+          accessedType = inputType.getFieldList.get(ref.getIndex).getType
+        } catch {
+          case e =>
+            e.printStackTrace()
+        }
         accessedType match {
           case _: TimeIndicatorRelDataType => false
           case _ => true

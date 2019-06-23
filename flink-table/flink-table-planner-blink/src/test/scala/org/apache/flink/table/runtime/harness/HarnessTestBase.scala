@@ -18,7 +18,6 @@
 package org.apache.flink.table.runtime.harness
 
 import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -31,6 +30,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.table.JLong
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.runtime.utils.StreamingTestBase
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -108,5 +108,13 @@ object HarnessTestBase {
   @Parameterized.Parameters(name = "StateBackend={0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
+  }
+
+  class TestingBaseRowKeySelector(
+    private val selectorField: Int) extends KeySelector[BaseRow, JLong] {
+
+    override def getKey(value: BaseRow): JLong = {
+      value.getLong(selectorField)
+    }
   }
 }

@@ -117,7 +117,9 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	@Override
 	public void close() throws Exception {
 		super.close();
-		joinCondition.backingJoinCondition.close();
+		if (joinCondition != null) {
+			joinCondition.backingJoinCondition.close();
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------

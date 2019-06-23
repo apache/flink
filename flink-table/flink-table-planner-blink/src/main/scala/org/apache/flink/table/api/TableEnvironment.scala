@@ -696,14 +696,15 @@ abstract class TableEnvironment(
         // determine schema definition mode (by position or by name)
         val isRefByPos = isReferenceByPosition(t, fields)
 
-        fields.zipWithIndex flatMap {
-          case ("proctime" | "rowtime", _) =>
-            None
-          case (name, idx) =>
-            if (isRefByPos) {
-              Some((idx, name))
+        fields.zipWithIndex flatMap { case (name, idx) =>
+            if (name.endsWith("rowtime") || name.endsWith("proctime")) {
+              None
             } else {
-              referenceByName(name, t).map((_, name))
+              if (isRefByPos) {
+                Some((idx, name))
+              } else {
+                referenceByName(name, t).map((_, name))
+              }
             }
         }
 

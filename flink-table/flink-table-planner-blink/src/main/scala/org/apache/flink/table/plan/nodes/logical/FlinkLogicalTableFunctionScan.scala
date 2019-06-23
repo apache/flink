@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -28,9 +27,11 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelColumnMapping
-import org.apache.calcite.rex.{RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.functions.utils.TableSqlFunction
 
 import java.lang.reflect.Type
 import java.util
@@ -85,8 +86,23 @@ class FlinkLogicalTableFunctionScanConverter
     "FlinkLogicalTableFunctionScanConverter") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    // TODO This rule do not match to TemporalTableFunction
-    super.matches(call)
+    val logicalTableFunction: LogicalTableFunctionScan = call.rel(0)
+
+    !isTemporalTableFunctionCall(logicalTableFunction)
+  }
+
+  private def isTemporalTableFunctionCall(
+      logicalTableFunction: LogicalTableFunctionScan): Boolean = {
+
+    if (!logicalTableFunction.getCall.isInstanceOf[RexCall]) {
+      return false
+    }
+    val rexCall = logicalTableFunction.getCall.asInstanceOf[RexCall]
+    if (!rexCall.getOperator.isInstanceOf[TableSqlFunction]) {
+      return false
+    }
+    val tableFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
+    tableFunction.getTableFunction.isInstanceOf[TemporalTableFunction]
   }
 
   def convert(rel: RelNode): RelNode = {

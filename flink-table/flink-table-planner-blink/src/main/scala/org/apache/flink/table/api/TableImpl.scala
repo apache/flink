@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
+import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.QueryOperation
 
 /**
@@ -48,8 +48,18 @@ class TableImpl(val tableEnv: TableEnvironment, operationTree: QueryOperation) e
   override def select(fields: Expression*): Table = ???
 
   override def createTemporalTableFunction(
-    timeAttribute: String,
-    primaryKey: String): TemporalTableFunction = ???
+      timeAttribute: String,
+      primaryKey: String): TemporalTableFunction = {
+    val resolvedTimeAttribute = resolveExpression(timeAttribute)
+    val resolvedPrimaryKey = resolveExpression(primaryKey)
+    TemporalTableFunctionImpl.create(operationTree, resolvedTimeAttribute, resolvedPrimaryKey)
+  }
+
+  private def resolveExpression(name: String): FieldReferenceExpression = {
+    val idx = tableSchema.getFieldNames.indexOf(name)
+    val fieldType = tableSchema.getFieldDataTypes()(idx)
+    new FieldReferenceExpression(name, fieldType, 0, idx)
+  }
 
   override def createTemporalTableFunction(
     timeAttribute: Expression,
