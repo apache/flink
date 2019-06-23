@@ -54,7 +54,8 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 			getStreamStatusMaintainer(),
 			this.headOperator,
 			input1WatermarkGauge,
-			input2WatermarkGauge);
+			input2WatermarkGauge,
+			operatorChain);
 	}
 
 	@Override

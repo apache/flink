@@ -58,9 +58,28 @@ public final class InputSelection implements Serializable {
 	}
 
 	/**
+	 * Tests if the input specified by {@code inputId} is selected.
+	 *
+	 * @param inputId The input id, see the description of {@code inputId} in {@link Builder#select(int)}.
+	 * @return {@code true} if the input is selected, {@code false} otherwise.
+	 */
+	public boolean isInputSelected(int inputId) {
+		return (inputMask & (1L << (inputId - 1))) != 0;
+	}
+
+	/**
+	 * Tests if all inputs are selected.
+	 *
+	 * @return {@code true} if the input mask equals -1, {@code false} otherwise.
+	 */
+	public boolean areAllInputsSelected() {
+		return inputMask == -1L;
+	}
+
+	/**
 	 * Tells whether or not the input mask includes all of two inputs.
 	 *
-	 * @return {@code true} if the input mask includes all of two inputs, false otherwise.
+	 * @return {@code true} if the input mask includes all of two inputs, {@code false} otherwise.
 	 */
 	public boolean isALLMaskOf2() {
 		return isALLMaskOf2;
@@ -119,6 +138,16 @@ public final class InputSelection implements Serializable {
 	public static final class Builder {
 
 		private long inputMask = 0;
+
+		/**
+		 * Returns a {@code Builder} that uses the input mask of the specified {@code selection}
+		 * as the initial mask.
+		 */
+		public static Builder from(InputSelection selection) {
+			Builder builder = new Builder();
+			builder.inputMask = selection.inputMask;
+			return builder;
+		}
 
 		/**
 		 * Selects an input identified by the given {@code inputId}.

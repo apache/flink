@@ -118,6 +118,10 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
 				} else if (input != null && input.isEvent()) {
 					AbstractEvent event = input.getEvent();
+					if (event instanceof EndOfPartitionEvent) {
+						inputChannels[channelIndex].setReleased();
+					}
+
 					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0));
 				} else {
 					return Optional.empty();

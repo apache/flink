@@ -31,6 +31,18 @@ import static org.junit.Assert.assertTrue;
 public class InputSelectionTest {
 
 	@Test
+	public void testIsInputSelected() {
+		assertFalse(new Builder().build().isInputSelected(1));
+		assertFalse(new Builder().select(2).build().isInputSelected(1));
+
+		assertTrue(new Builder().select(1).build().isInputSelected(1));
+		assertTrue(new Builder().select(1).select(2).build().isInputSelected(1));
+		assertTrue(new Builder().select(-1).build().isInputSelected(1));
+
+		assertTrue(new Builder().select(64).build().isInputSelected(64));
+	}
+
+	@Test
 	public void testIsALLMaskOf2() {
 		assertTrue(InputSelection.ALL.isALLMaskOf2());
 		assertTrue(new Builder().select(1).select(2).build().isALLMaskOf2());

@@ -46,12 +46,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Optional;
 
@@ -87,6 +89,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	private final CheckpointBarrierHandler barrierHandler;
 
 	private final Object lock;
+
+	private final OperatorChain<?, ?> operatorChain;
 
 	// ---------------- Status and Watermark Valves ------------------
 
@@ -124,6 +128,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private Counter numRecordsIn;
 
+	private final BitSet finishedChannels1;
+	private final BitSet finishedChannels2;
+
 	private boolean isFinished;
 
 	@SuppressWarnings("unchecked")
@@ -142,7 +149,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TaskIOMetricGroup metrics,
 			WatermarkGauge input1WatermarkGauge,
 			WatermarkGauge input2WatermarkGauge,
-			String taskName) throws IOException {
+			String taskName,
+			OperatorChain<?, ?> operatorChain) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
@@ -191,6 +199,11 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.input1WatermarkGauge = input1WatermarkGauge;
 		this.input2WatermarkGauge = input2WatermarkGauge;
 		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+
+		this.operatorChain = checkNotNull(operatorChain);
+
+		this.finishedChannels1 = new BitSet();
+		this.finishedChannels2 = new BitSet();
 	}
 
 	public boolean processInput() throws Exception {
@@ -294,7 +307,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		}
 	}
 
-	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws IOException {
+	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws Exception {
 		if (bufferOrEvent.isBuffer()) {
 			currentChannel = bufferOrEvent.getChannelIndex();
 			currentRecordDeserializer = recordDeserializers[currentChannel];
@@ -306,6 +319,30 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			// TODO: with barrierHandler.isFinished() we might not need to support any events on this level.
 			if (event.getClass() != EndOfPartitionEvent.class) {
 				throw new IOException("Unexpected event: " + event);
+			}
+
+			handleEndOfPartitionEvent(bufferOrEvent.getChannelIndex());
+		}
+	}
+
+	private void handleEndOfPartitionEvent(int channelIndex) throws Exception {
+		int finishedInputId = -1;
+
+		if (channelIndex < numInputChannels1) {
+			finishedChannels1.set(channelIndex);
+			if (finishedChannels1.cardinality() == numInputChannels1) {
+				finishedInputId = 1;
+			}
+		} else {
+			finishedChannels2.set(channelIndex - numInputChannels1);
+			if (finishedChannels2.cardinality() == numInputChannels2) {
+				finishedInputId = 2;
+			}
+		}
+
+		if (finishedInputId > 0) {
+			synchronized (lock) {
+				operatorChain.endInput(finishedInputId);
 			}
 		}
 	}
