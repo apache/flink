@@ -23,16 +23,19 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalCorrelate, LogicalFilter, LogicalSnapshot}
 
 /**
-  * The initial temporal table join is a Correlate, rewrite it into a Join to make the
-  * join condition push-down into the Join
+  * The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into a Join
+  * to make join condition can be pushed-down. The join will be translated into
+  * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecLookupJoin]] in physical and
+  * might be translated into
+  * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecTemporalJoin]] in the future.
   */
-class LogicalCorrelateToTemporalTableJoinRule
+class LogicalCorrelateToJoinFromTemporalTableRule
   extends RelOptRule(
     operand(classOf[LogicalFilter],
       operand(classOf[LogicalCorrelate], some(
         operand(classOf[RelNode], any()),
         operand(classOf[LogicalSnapshot], any())))),
-    "LogicalCorrelateToTemporalTableJoinRule") {
+    "LogicalCorrelateToJoinFromTemporalTableRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filterOnCorrelate: LogicalFilter = call.rel(0)
@@ -52,6 +55,6 @@ class LogicalCorrelateToTemporalTableJoinRule
 
 }
 
-object LogicalCorrelateToTemporalTableJoinRule {
-  val INSTANCE = new LogicalCorrelateToTemporalTableJoinRule
+object LogicalCorrelateToJoinFromTemporalTableRule {
+  val INSTANCE = new LogicalCorrelateToJoinFromTemporalTableRule
 }

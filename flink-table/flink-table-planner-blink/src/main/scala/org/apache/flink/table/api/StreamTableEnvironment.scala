@@ -487,14 +487,14 @@ abstract class StreamTableEnvironment(
       }
     }
 
-    fields.zipWithIndex.foreach {
-      case ("rowtime", idx) =>
-        extractRowtime(idx, "rowtime", None)
-
-      case ("proctime", idx) =>
-        extractProctime(idx, "proctime")
-
-      case (name, _) => fieldNames = name :: fieldNames
+    fields.zipWithIndex.foreach { case (name, idx) =>
+      if (name.endsWith("rowtime")) {
+        extractRowtime(idx, name, None)
+      } else if (name.endsWith("proctime")) {
+        extractProctime(idx, name)
+      } else {
+        fieldNames = name :: fieldNames
+      }
     }
 
     if (rowtime.isDefined && fieldNames.contains(rowtime.get._2)) {
