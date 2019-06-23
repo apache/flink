@@ -204,7 +204,7 @@ function install_py_env() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_tox() {
     if [ -f "$TOX_PATH" ]; then
-        ${CONDA_PATH} remove tox -y -q 2>&1 >/dev/null
+        ${CONDA_PATH} remove -p ${CONDA_HOME} tox -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove tox failed \
             please try to exec the script again.\
@@ -213,7 +213,7 @@ function install_tox() {
         fi
     fi
 
-    ${CONDA_PATH} install -c conda-forge tox -y -q 2>&1 >/dev/null
+    ${CONDA_PATH} install -p ${CONDA_HOME} -c conda-forge tox -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install tox failed \
         please try to exec the script again.\
@@ -226,7 +226,7 @@ function install_tox() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_flake8() {
     if [ -f "$FLAKE8_PATH" ]; then
-        ${CONDA_PATH} remove flake8 -y -q 2>&1 >/dev/null
+        ${CONDA_PATH} remove -p ${CONDA_HOME} flake8 -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove flake8 failed \
             please try to exec the script again.\
@@ -235,7 +235,7 @@ function install_flake8() {
         fi
     fi
 
-    ${CONDA_PATH} install -c anaconda flake8 -y -q 2>&1 >/dev/null
+    ${CONDA_PATH} install -p ${CONDA_HOME} -c anaconda flake8 -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install flake8 failed \
         please try to exec the script again.\
@@ -248,7 +248,7 @@ function install_flake8() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_sphinx() {
     if [ -f "$SPHINX_PATH" ]; then
-        ${CONDA_PATH} remove sphinx -y -q 2>&1 >/dev/null
+        ${CONDA_PATH} remove -p ${CONDA_HOME} sphinx -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove sphinx failed \
             please try to exec the script again.\
@@ -257,7 +257,7 @@ function install_sphinx() {
         fi
     fi
 
-    ${CONDA_PATH} install -c anaconda sphinx -y -q 2>&1 >/dev/null
+    ${CONDA_PATH} install -p ${CONDA_HOME} -c anaconda sphinx -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install sphinx failed \
         please try to exec the script again.\
@@ -528,6 +528,9 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 # FLINK_PYTHON_DIR is "flink/flink-python"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 pushd "$FLINK_PYTHON_DIR" &> /dev/null
+
+# conda home path
+CONDA_HOME=$CURRENT_DIR/.conda
 
 # conda path
 CONDA_PATH=$CURRENT_DIR/.conda/bin/conda
