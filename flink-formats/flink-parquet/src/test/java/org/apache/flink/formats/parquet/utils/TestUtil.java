@@ -180,6 +180,48 @@ public class TestUtil {
 		return t;
 	}
 
+	/**
+	 * Create a list of NestedRecord with the NESTED_SCHEMA.
+	 */
+	public static List<IndexedRecord> createRecordList(long numberOfRows) {
+		List<IndexedRecord> records = new ArrayList<>(0);
+		for (long i = 0; i < numberOfRows; i++) {
+			final Bar bar = Bar.newBuilder()
+				.setSpam(i).build();
+
+			final ArrayItem arrayItem = ArrayItem.newBuilder()
+				.setType("color")
+				.setValue(i).build();
+
+			final MapItem mapItem = MapItem.newBuilder()
+				.setType("map")
+				.setValue("hashMap").build();
+
+			List<ArrayItem> nestedArray = new ArrayList<>();
+			nestedArray.add(arrayItem);
+
+			Map<CharSequence, MapItem> nestedMap = new HashMap<>();
+			nestedMap.put("mapItem", mapItem);
+
+			List<Long> longArray = new ArrayList<>();
+			longArray.add(i);
+
+			List<CharSequence> stringArray = new ArrayList<>();
+			stringArray.add("String");
+
+			final NestedRecord nestedRecord = NestedRecord.newBuilder()
+				.setBar(bar)
+				.setNestedArray(nestedArray)
+				.setStrArray(stringArray)
+				.setNestedMap(nestedMap)
+				.setArr(longArray).build();
+
+			records.add(nestedRecord);
+		}
+
+		return records;
+	}
+
 	public static RuntimeContext getMockRuntimeContext() {
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())

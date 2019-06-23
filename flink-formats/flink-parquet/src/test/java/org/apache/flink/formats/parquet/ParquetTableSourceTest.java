@@ -43,6 +43,7 @@ import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.filter2.predicate.FilterApi;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.schema.MessageType;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -66,25 +67,26 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-
 /**
  * Test cases for {@link ParquetTableSource}.
  */
 public class ParquetTableSourceTest extends TestUtil {
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
+	private static Path testPath;
 
 	@ClassRule
 	public static TemporaryFolder tempRoot = new TemporaryFolder();
 
-	@Test
-	public void testGetReturnType() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA,
-			Collections.singletonList(nested.f1));
+	@BeforeClass
+	public static void setup() throws Exception {
+		testPath = createTestParquetFile();
+	}
 
+	@Test
+	public void testGetReturnType() {
 		MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 		ParquetTableSource parquetTableSource = ParquetTableSource.builder()
-			.path(path.getPath())
+			.path("dummy-path")
 			.forParquetSchema(nestedSchema)
 			.build();
 
@@ -96,14 +98,10 @@ public class ParquetTableSourceTest extends TestUtil {
 	}
 
 	@Test
-	public void testGetTableSchema() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA,
-			Collections.singletonList(nested.f1));
-
+	public void testGetTableSchema() {
 		MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 		ParquetTableSource parquetTableSource = ParquetTableSource.builder()
-			.path(path.getPath())
+			.path("dummy-path")
 			.forParquetSchema(nestedSchema)
 			.build();
 
@@ -117,8 +115,7 @@ public class ParquetTableSourceTest extends TestUtil {
 
 	@Test
 	public void testFieldsProjection() throws Exception {
-		ParquetTableSource parquetTableSource = createNestedTestParquetTableSource();
-
+		ParquetTableSource parquetTableSource = createNestedTestParquetTableSource(testPath);
 		ParquetTableSource projected = (ParquetTableSource) parquetTableSource.projectFields(new int[] {2, 4, 6});
 
 		// ensure copy is returned
@@ -149,15 +146,16 @@ public class ParquetTableSourceTest extends TestUtil {
 
 	@Test
 	public void testFieldsFilter() throws Exception {
-		ParquetTableSource parquetTableSource = createNestedTestParquetTableSource();
+		ParquetTableSource parquetTableSource = createNestedTestParquetTableSource(testPath);
 
 		// expressions for supported predicates
 		Expression exp1 = new GreaterThan(
 			new PlannerResolvedFieldReference("foo", Types.LONG),
 			new Literal(100L, Types.LONG));
 		Expression exp2 = new EqualTo(
-			new PlannerResolvedFieldReference("bar.spam", Types.LONG),
-			new Literal(100L, Types.LONG));
+			new Literal(100L, Types.LONG),
+			new PlannerResolvedFieldReference("bar.spam", Types.LONG));
+
 		// unsupported predicate
 		Expression unsupported = new EqualTo(
 			new GetCompositeField(
@@ -194,6 +192,9 @@ public class ParquetTableSourceTest extends TestUtil {
 		// ensure return type is identical
 		assertEquals(NESTED_ROW_TYPE, projected.getReturnType());
 
+		// ensure source description is not the same
+		assertTrue(!parquetTableSource.explainSource().equals(projected.explainSource()));
+
 		// ensure IF is configured with valid/supported predicates
 		ParquetTableSource spyTableSouce = spy(projected);
 		ParquetRowInputFormat mockIF = mock(ParquetRowInputFormat.class);
@@ -215,12 +216,15 @@ public class ParquetTableSourceTest extends TestUtil {
 		assertFalse(parquetTableSource.isFilterPushedDown());
 	}
 
-	private ParquetTableSource createNestedTestParquetTableSource() throws Exception {
-		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA,
+	private static Path createTestParquetFile() throws Exception {
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = getNestedRecordTestData();
+		Path path = createTempParquetFile(tempRoot.getRoot(), NESTED_SCHEMA,
 			Collections.singletonList(nested.f1));
+		return path;
+	}
 
-		MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+	private ParquetTableSource createNestedTestParquetTableSource(Path path) throws Exception {
+		MessageType nestedSchema = SCHEMA_CONVERTER.convert(NESTED_SCHEMA);
 		ParquetTableSource parquetTableSource = ParquetTableSource.builder()
 			.path(path.getPath())
 			.forParquetSchema(nestedSchema)

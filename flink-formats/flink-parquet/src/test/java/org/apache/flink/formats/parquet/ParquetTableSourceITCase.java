@@ -21,10 +21,6 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.parquet.generated.ArrayItem;
-import org.apache.flink.formats.parquet.generated.Bar;
-import org.apache.flink.formats.parquet.generated.MapItem;
-import org.apache.flink.formats.parquet.generated.NestedRecord;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -34,23 +30,22 @@ import org.apache.flink.types.Row;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.schema.MessageType;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit Tests for {@link ParquetTableSource}.
+ * Integration tests for {@link ParquetTableSource}.
  */
 public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
+	private static Path testPath;
 
 	@ClassRule
 	public static TemporaryFolder tempRoot = new TemporaryFolder();
@@ -59,11 +54,16 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		super(TestExecutionMode.COLLECTION);
 	}
 
+	@BeforeClass
+	public static void setup() throws Exception {
+		testPath = createTestParquetFile(1000);
+	}
+
 	@Test
 	public void testFullScan() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
-		ParquetTableSource tableSource = createParquetTableSource(1000);
+		ParquetTableSource tableSource = createParquetTableSource(testPath);
 		batchTableEnvironment.registerTableSource("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
@@ -80,7 +80,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 	public void testScanWithProjectionAndFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
-		ParquetTableSource tableSource = createParquetTableSource(1000);
+		ParquetTableSource tableSource = createParquetTableSource(testPath);
 		batchTableEnvironment.registerTableSource("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
@@ -93,12 +93,11 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		assertEquals(21, result.size());
 	}
 
-	private ParquetTableSource createParquetTableSource(int number) throws IOException {
-		List<IndexedRecord> records = createRecordList(number);
-		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records);
-
+	/**
+	 * Create a test parquet file with numberOfRows and corresponding parquet table source.
+	 */
+	private ParquetTableSource createParquetTableSource(Path path) throws IOException {
 		MessageType nestedSchema = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
-
 		ParquetTableSource parquetTableSource = ParquetTableSource.builder()
 			.path(path.getPath())
 			.forParquetSchema(nestedSchema)
@@ -106,42 +105,9 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		return parquetTableSource;
 	}
 
-	private List<IndexedRecord> createRecordList(long number) {
-		List<IndexedRecord> records = new ArrayList<>();
-		for (long i = 0; i < number; i++) {
-			final Bar bar = Bar.newBuilder()
-				.setSpam(i).build();
-
-			final ArrayItem arrayItem = ArrayItem.newBuilder()
-				.setType("color")
-				.setValue(i).build();
-
-			final MapItem mapItem = MapItem.newBuilder()
-				.setType("map")
-				.setValue("hashMap").build();
-
-			List<ArrayItem> nestedArray = new ArrayList<>();
-			nestedArray.add(arrayItem);
-
-			Map<CharSequence, MapItem> nestedMap = new HashMap<>();
-			nestedMap.put("mapItem", mapItem);
-
-			List<Long> longArray = new ArrayList<>();
-			longArray.add(i);
-
-			List<CharSequence> stringArray = new ArrayList<>();
-			stringArray.add("String");
-
-			final NestedRecord nestedRecord = NestedRecord.newBuilder()
-				.setBar(bar)
-				.setNestedArray(nestedArray)
-				.setStrArray(stringArray)
-				.setNestedMap(nestedMap)
-				.setArr(longArray).build();
-
-			records.add(nestedRecord);
-		}
-
-		return records;
+	private static Path createTestParquetFile(int numberOfRows) throws Exception {
+		List<IndexedRecord> records = TestUtil.createRecordList(numberOfRows);
+		Path path = TestUtil.createTempParquetFile(tempRoot.getRoot(), TestUtil.NESTED_SCHEMA, records);
+		return path;
 	}
 }

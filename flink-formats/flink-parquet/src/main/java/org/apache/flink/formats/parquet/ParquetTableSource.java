@@ -107,6 +107,8 @@ public class ParquetTableSource
 	// flag whether a path is recursively enumerated
 	private final boolean recursiveEnumeration;
 
+	private boolean isFilterPushdown;
+
 	private ParquetTableSource(String path, MessageType parquetSchema, Configuration configuration,
 									boolean recursiveEnumeration) {
 		this(path, parquetSchema, configuration, recursiveEnumeration, null, null);
@@ -124,6 +126,9 @@ public class ParquetTableSource
 		this.predicate = predicate;
 		this.recursiveEnumeration = recursiveEnumeration;
 
+		if (predicate != null) {
+			this.isFilterPushdown = true;
+		}
 		// determine the type information from the Parquet schema
 		RowTypeInfo typeInfoFromSchema = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(parquetSchema);
 
@@ -181,7 +186,7 @@ public class ParquetTableSource
 
 	@Override
 	public boolean isFilterPushedDown() {
-		return predicate != null;
+		return isFilterPushdown;
 	}
 
 	@Override
@@ -196,7 +201,8 @@ public class ParquetTableSource
 
 	@Override
 	public String explainSource() {
-		return "ParquetFile[path=" + path + ", schema=" + parquetSchema + ", filter=" + predicateString() + "]";
+		return "ParquetFile[path=" + path + ", schema=" + parquetSchema + ", filter=" + predicateString()
+			+ ", typeInfo=" + typeInfo + "]";
 	}
 
 	private String predicateString() {
@@ -207,6 +213,9 @@ public class ParquetTableSource
 		}
 	}
 
+	/**
+	 * Converts flink Expression to parquet FilterPredicate.
+	 */
 	private FilterPredicate toParquetPredicate(Expression exp) {
 		if (exp instanceof Not) {
 			FilterPredicate c = toParquetPredicate(((Not) exp).child());
@@ -225,7 +234,7 @@ public class ParquetTableSource
 			}
 
 			boolean onRight = literalOnRight(binComp);
-			Tuple2<Column, Comparable> columnPair = getParquetColumn(binComp);
+			Tuple2<Column, Comparable> columnPair = extractColumnAndLiteral(binComp);
 
 			if (columnPair != null) {
 				if (exp instanceof EqualTo) {
@@ -258,7 +267,7 @@ public class ParquetTableSource
 					}
 				} else if (exp instanceof GreaterThan) {
 					if (onRight) {
-						return greatThan(exp, columnPair);
+						return greaterThan(exp, columnPair);
 					} else {
 						lessThan(exp, columnPair);
 					}
@@ -272,7 +281,7 @@ public class ParquetTableSource
 					if (onRight) {
 						return lessThan(exp, columnPair);
 					} else {
-						return greatThan(exp, columnPair);
+						return greaterThan(exp, columnPair);
 					}
 				} else if (exp instanceof LessThanOrEqual) {
 					if (onRight) {
@@ -289,28 +298,26 @@ public class ParquetTableSource
 		} else if (exp instanceof BinaryExpression) {
 			if (exp instanceof And) {
 				LOG.debug("All of the predicates should be in CNF. Found an AND expression.", exp);
-			} else if (exp instanceof Or){
+			} else if (exp instanceof Or) {
 				FilterPredicate c1 = toParquetPredicate(((Or) exp).left());
 				FilterPredicate c2 = toParquetPredicate(((Or) exp).right());
 
 				if (c1 == null || c2 == null) {
 					return null;
 				} else {
-					if (exp instanceof Or) {
-						return FilterApi.or(c1, c2);
-					} else {
-						// Unsupported Predicate
-						LOG.debug("Unsupported predicate [{}] cannot be pushed into ParquetTableSource.", exp);
-						return null;
-					}
+					return FilterApi.or(c1, c2);
 				}
+			} else {
+				// Unsupported Predicate
+				LOG.debug("Unsupported predicate [{}] cannot be pushed into ParquetTableSource.", exp);
+				return null;
 			}
 		}
 
 		return null;
 	}
 
-	private FilterPredicate greatThan(Expression exp, Tuple2<Column, Comparable> columnPair) {
+	private FilterPredicate greaterThan(Expression exp, Tuple2<Column, Comparable> columnPair) {
 		Preconditions.checkArgument(exp instanceof GreaterThan, "exp has to be GreaterThan");
 		if (columnPair.f0 instanceof IntColumn) {
 			return FilterApi.gt((IntColumn) columnPair.f0, (Integer) columnPair.f1);
@@ -410,7 +417,7 @@ public class ParquetTableSource
 		}
 	}
 
-	private Tuple2<Column, Comparable> getParquetColumn(BinaryComparison comp) {
+	private Tuple2<Column, Comparable> extractColumnAndLiteral(BinaryComparison comp) {
 		TypeInformation<?> typeInfo = getLiteralType(comp);
 		String columnName = getColumnName(comp);
 
