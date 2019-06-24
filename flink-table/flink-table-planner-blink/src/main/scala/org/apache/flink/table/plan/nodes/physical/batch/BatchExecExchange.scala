@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.PartitionTransformation
+import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
@@ -32,11 +33,11 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.runtime.BinaryHashPartitioner
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -163,37 +164,45 @@ class BatchExecExchange(
     val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    // TODO supports DataExchangeMode.BATCH in runtime
-    if (requiredExchangeMode.contains(DataExchangeMode.BATCH)) {
-      throw new TableException("DataExchangeMode.BATCH is not supported now")
+    val shuffleMode = requiredExchangeMode match {
+      case None => ShuffleMode.PIPELINED
+      case Some(mode) =>
+        mode match {
+          case DataExchangeMode.BATCH => ShuffleMode.BATCH
+          case DataExchangeMode.PIPELINED => ShuffleMode.PIPELINED
+        }
     }
 
     relDistribution.getType match {
       case RelDistribution.Type.ANY =>
         val transformation = new PartitionTransformation(
           input,
-          null)
+          null,
+          shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation
 
       case RelDistribution.Type.SINGLETON =>
         val transformation = new PartitionTransformation(
           input,
-          new GlobalPartitioner[BaseRow])
+          new GlobalPartitioner[BaseRow],
+          shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation
 
       case RelDistribution.Type.RANDOM_DISTRIBUTED =>
         val transformation = new PartitionTransformation(
           input,
-          new RebalancePartitioner[BaseRow])
+          new RebalancePartitioner[BaseRow],
+          shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation
 
       case RelDistribution.Type.BROADCAST_DISTRIBUTED =>
         val transformation = new PartitionTransformation(
           input,
-          new BroadcastPartitioner[BaseRow])
+          new BroadcastPartitioner[BaseRow],
+          shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation
 
@@ -210,7 +219,8 @@ class BatchExecExchange(
         )
         val transformation = new PartitionTransformation(
           input,
-          partitioner)
+          partitioner,
+          shuffleMode)
         transformation.setOutputType(outputRowType)
         transformation
       case _ =>
