@@ -223,6 +223,32 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		context.wrapClassLoader(() -> {
+			tableEnv.useCatalog(catalogName);
+			return null;
+		});
+	}
+
+	@Override
+	public void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		context.wrapClassLoader(() -> {
+			tableEnv.useDatabase(databaseName);
+			return null;
+		});
+	}
+
+	@Override
 	public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
 		final TableEnvironment tableEnv = context
