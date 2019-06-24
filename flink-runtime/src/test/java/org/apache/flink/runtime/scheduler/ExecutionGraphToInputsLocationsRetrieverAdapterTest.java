@@ -86,10 +86,10 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
 	}
 
 	/**
-	 * Tests that when execution is not scheduled, getting task manager location will return null.
+	 * Tests that it will get empty task manager location if vertex is not scheduled.
 	 */
 	@Test
-	public void testGetNullTaskManagerLocationIfNotScheduled() throws Exception {
+	public void testGetEmptyTaskManagerLocationIfVertexNotScheduled() throws Exception {
 		final JobVertex jobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new JobID(), jobVertex);
