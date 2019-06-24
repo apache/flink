@@ -35,7 +35,6 @@ import org.apache.flink.table.sources.TableSource;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
