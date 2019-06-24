@@ -60,7 +60,7 @@ public class BufferSpillerTest extends BufferBlockerTestBase {
 
 	@Before
 	public void createSpiller() throws IOException {
-		spiller = new BufferSpiller(ioManager, PAGE_SIZE);
+		spiller = new BufferSpiller(ioManager, PAGE_SIZE, 2);
 	}
 
 	@After

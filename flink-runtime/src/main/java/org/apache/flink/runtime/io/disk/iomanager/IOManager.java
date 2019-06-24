@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The facade for the provided I/O manager services.
@@ -131,6 +132,19 @@ public abstract class IOManager {
 	}
 
 	/**
+	 * Creates a new {@link FileIOChannel.ID} out of all the tmp directories to avoid get cleared
+	 * unexpected.
+	 *
+	 * @param path The file to read
+	 * @return A channel in an directory out of all the tmp directories.
+	 */
+	public FileIOChannel.ID createChannel(File path) {
+		// we choose a thread num randomly.
+		final int threadNum = ThreadLocalRandom.current().nextInt(this.paths.length);
+		return new FileIOChannel.ID(path, threadNum);
+	}
+
+	/**
 	 * Creates a new {@link FileIOChannel.Enumerator}, spreading the channels in a round-robin fashion
 	 * across the temporary file directories.
 	 *
@@ -223,6 +237,8 @@ public abstract class IOManager {
 	public abstract BufferFileWriter createBufferFileWriter(FileIOChannel.ID channelID) throws IOException;
 
 	public abstract BufferFileReader createBufferFileReader(FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException;
+
+	public abstract BufferFileReader createBufferOrEventFileReader(FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException;
 
 	public abstract BufferFileSegmentReader createBufferFileSegmentReader(FileIOChannel.ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException;
 

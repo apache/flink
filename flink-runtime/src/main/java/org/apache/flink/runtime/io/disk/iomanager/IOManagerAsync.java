@@ -240,6 +240,14 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	}
 
 	@Override
+	public BufferFileReader createBufferOrEventFileReader(
+		FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
+		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
+
+		return new AsynchronousBufferOrEventFileReader(channelID, readers[channelID.getThreadNum()].requestQueue, callback);
+	}
+
+	@Override
 	public BufferFileSegmentReader createBufferFileSegmentReader(FileIOChannel.ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException {
 		checkState(!isShutdown.get(), "I/O-Manager is shut down.");
 

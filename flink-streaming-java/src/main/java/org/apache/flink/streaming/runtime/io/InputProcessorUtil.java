@@ -62,7 +62,7 @@ public class InputProcessorUtil {
 			} else {
 				barrierHandler = new BarrierBuffer(
 					inputGate,
-					new BufferSpiller(ioManager, inputGate.getPageSize()),
+					new BufferSpiller(ioManager, inputGate.getPageSize(), taskManagerConfig.getInteger(TaskManagerOptions.MEMORY_BUFFER_ASYNC_LOAD_COUNT)),
 					maxAlign,
 					taskName);
 			}

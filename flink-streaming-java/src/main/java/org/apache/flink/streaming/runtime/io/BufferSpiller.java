@@ -21,7 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferOrEventFileReader;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.RequestDoneCallback;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -36,8 +38,12 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.flink.runtime.io.disk.iomanager.BufferOrEventFileChannelReader.writeBufferOrEventMeta;
 
 /**
  * The buffer spiller takes the buffers and events from a data stream and adds them to a spill file.
@@ -55,7 +61,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Deprecated
 public class BufferSpiller implements BufferBlocker {
 
-	/** Size of header in bytes (see add method). */
+	/** Size of header in bytes. Header is "channel index" (4 bytes) + length (4 bytes) + buffer/event (1 byte). */
 	static final int HEADER_SIZE = 9;
 
 	/** The counter that selects the next directory to spill into. */
@@ -70,8 +76,8 @@ public class BufferSpiller implements BufferBlocker {
 	/** The name prefix for spill files. */
 	private final String spillFilePrefix;
 
-	/** The buffer used for bulk reading data (used in the SpilledBufferOrEventSequence). */
-	private final ByteBuffer readBuffer;
+	/** The buffer pool used for bulk reading data (used in the SpilledBufferOrEventSequence). */
+	private final ByteBuffer[] readBufferPool;
 
 	/** The buffer that encodes the spilled header. */
 	private final ByteBuffer headBuffer;
@@ -85,11 +91,17 @@ public class BufferSpiller implements BufferBlocker {
 	/** The page size, to let this reader instantiate properly sized memory segments. */
 	private final int pageSize;
 
+	/** The segment count will be used to fetch data from spilled file asynchrouns. */
+	private final int asyncLoadBufferCount;
+
 	/** A counter, to created numbered spill files. */
 	private int fileCounter;
 
 	/** The number of bytes written since the last roll over. */
 	private long bytesWritten;
+
+	/** The IO Manager associated to current BufferSpiller. */
+	private final IOManager ioManager;
 
 	/**
 	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
@@ -98,15 +110,20 @@ public class BufferSpiller implements BufferBlocker {
 	 * @param pageSize The page size used to re-create spilled buffers.
 	 * @throws IOException Thrown if the temp files for spilling cannot be initialized.
 	 */
-	public BufferSpiller(IOManager ioManager, int pageSize) throws IOException {
+	public BufferSpiller(IOManager ioManager, int pageSize, int asyncLoadBufferCount) throws IOException {
 		this.pageSize = pageSize;
+		this.asyncLoadBufferCount = asyncLoadBufferCount;
 
-		this.readBuffer = ByteBuffer.allocateDirect(READ_BUFFER_SIZE);
-		this.readBuffer.order(ByteOrder.LITTLE_ENDIAN);
+		this.readBufferPool = new ByteBuffer[asyncLoadBufferCount];
+		for (int i = 0; i < asyncLoadBufferCount; ++i) {
+			this.readBufferPool[i] = ByteBuffer.allocateDirect(READ_BUFFER_SIZE);
+			this.readBufferPool[i].order(ByteOrder.LITTLE_ENDIAN);
+		}
 
 		this.headBuffer = ByteBuffer.allocateDirect(16);
 		this.headBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
+		this.ioManager = ioManager;
 		File[] tempDirs = ioManager.getSpillingDirectories();
 		this.tempDir = tempDirs[DIRECTORY_INDEX.getAndIncrement() % tempDirs.length];
 
@@ -137,9 +154,7 @@ public class BufferSpiller implements BufferBlocker {
 			}
 
 			headBuffer.clear();
-			headBuffer.putInt(boe.getChannelIndex());
-			headBuffer.putInt(contents.remaining());
-			headBuffer.put((byte) (boe.isBuffer() ? 0 : 1));
+			writeBufferOrEventMeta(headBuffer, boe.getChannelIndex(), contents.remaining(), (byte) (boe.isBuffer() ? 0 : 1));
 			headBuffer.flip();
 
 			bytesWritten += (headBuffer.remaining() + contents.remaining());
@@ -188,18 +203,21 @@ public class BufferSpiller implements BufferBlocker {
 			return null;
 		}
 
-		ByteBuffer buf;
+		ByteBuffer[] bufPool;
 		if (newBuffer) {
-			buf = ByteBuffer.allocateDirect(READ_BUFFER_SIZE);
-			buf.order(ByteOrder.LITTLE_ENDIAN);
+			bufPool = new ByteBuffer[asyncLoadBufferCount];
+			for (int i = 0; i < asyncLoadBufferCount; ++i) {
+				bufPool[i] = ByteBuffer.allocateDirect(READ_BUFFER_SIZE);
+				bufPool[i].order(ByteOrder.LITTLE_ENDIAN);
+			}
 		} else {
-			buf = readBuffer;
+			bufPool = readBufferPool;
 		}
 
 		// create a reader for the spilled data
 		currentChannel.position(0L);
 		SpilledBufferOrEventSequence seq =
-				new SpilledBufferOrEventSequence(currentSpillFile, currentChannel, buf, pageSize);
+				new SpilledBufferOrEventSequence(ioManager, currentSpillFile, currentChannel, bufPool, pageSize);
 
 		// create ourselves a new spill file
 		createSpillingChannel();
@@ -265,9 +283,6 @@ public class BufferSpiller implements BufferBlocker {
 	@Deprecated
 	public static class SpilledBufferOrEventSequence implements BufferOrEventSequence {
 
-		/** Header is "channel index" (4 bytes) + length (4 bytes) + buffer/event (1 byte). */
-		private static final int HEADER_LENGTH = 9;
-
 		/** The file containing the data. */
 		private final File file;
 
@@ -275,7 +290,7 @@ public class BufferSpiller implements BufferBlocker {
 		private final FileChannel fileChannel;
 
 		/** The byte buffer for bulk reading. */
-		private final ByteBuffer buffer;
+		private ByteBuffer buffer;
 
 		/** We store this size as a constant because it is crucial it never changes. */
 		private final long size;
@@ -286,21 +301,57 @@ public class BufferSpiller implements BufferBlocker {
 		/** Flag to track whether the sequence has been opened already. */
 		private boolean opened = false;
 
+		/** Buffer filer reader used to load the spilled data from file asynchronous. */
+		private AsynchronousBufferOrEventFileReader fileReader;
+
+		/** Buffers reused to asynchronous load the spilled data. */
+		private ByteBuffer[] bufferPool;
+
+		/** Queue used to contain buffers/Exception/EOF reading from the spilled file. */
+		private BlockingQueue<BufferOrException<IOException>> queue;
+
+		/** The index of bufferPool used to retrieve next BufferOrEvent. */
+		private int nextIndex;
+
+		/** The Exception when loading data from file. */
+		private volatile IOException lastException = null;
+
 		/**
 		 * Create a reader that reads a sequence of spilled buffers and events.
 		 *
 		 * @param file The file with the data.
 		 * @param fileChannel The file channel to read the data from.
-		 * @param buffer The buffer used for bulk reading.
+		 * @param bufferPool The buffer pool used for bulk reading.
 		 * @param pageSize The page size to use for the created memory segments.
 		 */
-		SpilledBufferOrEventSequence(File file, FileChannel fileChannel, ByteBuffer buffer, int pageSize)
+		SpilledBufferOrEventSequence(IOManager ioManager, File file, FileChannel fileChannel, ByteBuffer[] bufferPool, int pageSize)
 				throws IOException {
 			this.file = file;
 			this.fileChannel = fileChannel;
-			this.buffer = buffer;
+			this.bufferPool = bufferPool;
 			this.pageSize = pageSize;
+			// +1 for EOF.
+			this.queue = new LinkedBlockingQueue<>(bufferPool.length + 1);
 			this.size = fileChannel.size();
+			this.nextIndex = 0;
+			fileReader = (AsynchronousBufferOrEventFileReader) ioManager.createBufferOrEventFileReader(ioManager.createChannel(file), new RequestDoneCallback<Buffer>() {
+				@Override
+				public void requestSuccessful(Buffer request) {
+					if (request.getSize() > 0) {
+						queue.offer(new BufferOrException<>(request));
+					}
+					if (fileReader.hasReachedEndOfFile()) {
+						// add an eof into the queue.
+						queue.offer(new BufferOrException<>());
+					}
+				}
+
+				@Override
+				public void requestFailed(Buffer buffer, IOException e) {
+					queue.offer(new BufferOrException<>(e));
+					lastException = e;
+				}
+			});
 		}
 
 		/**
@@ -311,33 +362,37 @@ public class BufferSpiller implements BufferBlocker {
 		public void open() {
 			if (!opened) {
 				opened = true;
-				buffer.position(0);
-				buffer.limit(0);
+				for (int i = 0; i < bufferPool.length; ++i) {
+					if (!readOneBuffer(i)) {
+						break;
+					}
+				}
 			}
 		}
 
 		@Override
 		public BufferOrEvent getNext() throws IOException {
-			if (buffer.remaining() < HEADER_LENGTH) {
-				buffer.compact();
-
-				while (buffer.position() < HEADER_LENGTH) {
-					if (fileChannel.read(buffer) == -1) {
-						if (buffer.position() == 0) {
-							// no trailing data
-							return null;
-						} else {
-							throw new IOException("Found trailing incomplete buffer or event");
-						}
-					}
+			BufferOrException<IOException> bufferOrException;
+			try {
+				bufferOrException = queue.take();
+				if (bufferOrException.isEof()) {
+					return null;
 				}
 
-				buffer.flip();
+				if (bufferOrException.isException()) {
+					throw bufferOrException.getException();
+				}
+
+				buffer = bufferOrException.getBuffer().getNioBufferReadable();
+				buffer.order(ByteOrder.LITTLE_ENDIAN);
+			} catch (InterruptedException e) {
+				throw new IOException("Can not read the next buffer or event.");
 			}
 
 			final int channel = buffer.getInt();
 			final int length = buffer.getInt();
 			final boolean isBuffer = buffer.get() == 0;
+			buffer.limit(HEADER_SIZE + length);
 
 			if (isBuffer) {
 				// deserialize buffer
@@ -351,54 +406,26 @@ public class BufferSpiller implements BufferBlocker {
 				int segPos = 0;
 				int bytesRemaining = length;
 
-				while (true) {
+				//we know we always have enough content
+				while (bytesRemaining > 0) {
 					int toCopy = Math.min(buffer.remaining(), bytesRemaining);
-					if (toCopy > 0) {
-						seg.put(segPos, buffer, toCopy);
-						segPos += toCopy;
-						bytesRemaining -= toCopy;
-					}
-
-					if (bytesRemaining == 0) {
-						break;
-					}
-					else {
-						buffer.clear();
-						if (fileChannel.read(buffer) == -1) {
-							throw new IOException("Found trailing incomplete buffer");
-						}
-						buffer.flip();
-					}
+					seg.put(segPos, buffer, toCopy);
+					segPos += toCopy;
+					bytesRemaining -= toCopy;
 				}
 
 				Buffer buf = new NetworkBuffer(seg, FreeingBufferRecycler.INSTANCE);
 				buf.setSize(length);
 
+				readOneBuffer(nextIndex);
+				nextIndex = (nextIndex + 1) % bufferPool.length;
 				return new BufferOrEvent(buf, channel, true);
 			}
 			else {
 				// deserialize event
-				if (length > buffer.capacity() - HEADER_LENGTH) {
-					throw new IOException("Event is too large");
-				}
-
-				if (buffer.remaining() < length) {
-					buffer.compact();
-
-					while (buffer.position() < length) {
-						if (fileChannel.read(buffer) == -1) {
-							throw new IOException("Found trailing incomplete event");
-						}
-					}
-
-					buffer.flip();
-				}
-
-				int oldLimit = buffer.limit();
-				buffer.limit(buffer.position() + length);
 				AbstractEvent evt = EventSerializer.fromSerializedEvent(buffer, getClass().getClassLoader());
-				buffer.limit(oldLimit);
-
+				readOneBuffer(nextIndex);
+				nextIndex = (nextIndex + 1) % bufferPool.length;
 				return new BufferOrEvent(evt, channel, true, length);
 			}
 		}
@@ -414,6 +441,27 @@ public class BufferSpiller implements BufferBlocker {
 		@Override
 		public long size() {
 			return size;
+		}
+
+		private boolean readOneBuffer(int index) {
+			// reach the end of file, no need to add request.
+			if (fileReader.hasReachedEndOfFile()) {
+				return false;
+			}
+
+			// catch an exception previously, no need to add request.
+			if (lastException != null) {
+				return false;
+			}
+
+			try {
+				Buffer buffer = new NetworkBuffer(MemorySegmentFactory.wrapOffHeapMemory(bufferPool[index]), FreeingBufferRecycler.INSTANCE);
+				fileReader.readInto(buffer);
+			} catch (IOException e) {
+				lastException = e;
+				return false;
+			}
+			return true;
 		}
 	}
 }

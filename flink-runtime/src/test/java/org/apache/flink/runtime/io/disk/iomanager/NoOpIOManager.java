@@ -70,4 +70,10 @@ public class NoOpIOManager extends IOManager {
 	public BulkBlockChannelReader createBulkBlockChannelReader(ID channelID, List<MemorySegment> targetSegments, int numBlocks) throws IOException {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public BufferFileReader createBufferOrEventFileReader(
+		ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
+		throw new UnsupportedOperationException();
+	}
 }

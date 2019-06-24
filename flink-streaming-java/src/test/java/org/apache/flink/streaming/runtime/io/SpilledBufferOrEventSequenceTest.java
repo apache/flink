@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
@@ -27,7 +29,9 @@ import org.apache.flink.util.FileUtils;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,9 +54,14 @@ import static org.junit.Assert.fail;
  */
 public class SpilledBufferOrEventSequenceTest {
 
-	private final ByteBuffer buffer = ByteBuffer.allocateDirect(128 * 1024).order(ByteOrder.LITTLE_ENDIAN);
+	private final ByteBuffer[] bufferPools = new ByteBuffer[]{
+		ByteBuffer.allocateDirect(128 * 1024).order(ByteOrder.LITTLE_ENDIAN),
+		ByteBuffer.allocateDirect(128 * 1024).order(ByteOrder.LITTLE_ENDIAN)};
 	private final int pageSize = 32 * 1024;
 
+	@Rule
+	public TemporaryFolder folder = new TemporaryFolder();
+	private IOManager ioManager;
 	private File tempFile;
 	private FileChannel fileChannel;
 
@@ -61,6 +70,7 @@ public class SpilledBufferOrEventSequenceTest {
 		try {
 			tempFile = File.createTempFile("testdata", "tmp");
 			fileChannel = new RandomAccessFile(tempFile, "rw").getChannel();
+			ioManager = new IOManagerAsync(new String[] {folder.newFolder().getAbsolutePath(), folder.newFolder().getAbsolutePath()});
 		}
 		catch (Exception e) {
 			cleanup();
@@ -69,6 +79,9 @@ public class SpilledBufferOrEventSequenceTest {
 
 	@After
 	public void cleanup() {
+		if (ioManager != null) {
+			ioManager.shutdown();
+		}
 		if (fileChannel != null) {
 			try {
 				fileChannel.close();
@@ -91,10 +104,11 @@ public class SpilledBufferOrEventSequenceTest {
 	@Test
 	public void testEmptyChannel() {
 		try {
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 
 			assertNull(seq.getNext());
+			seq.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -111,7 +125,7 @@ public class SpilledBufferOrEventSequenceTest {
 			FileUtils.writeCompletely(fileChannel, buf);
 			fileChannel.position(0);
 
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 
 			try {
@@ -121,6 +135,7 @@ public class SpilledBufferOrEventSequenceTest {
 			catch (IOException e) {
 				// expected
 			}
+			seq.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -146,7 +161,7 @@ public class SpilledBufferOrEventSequenceTest {
 			fileChannel.position(0L);
 			rnd.setSeed(seed);
 
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 
 			for (int i = 0; i < numBuffers; i++) {
@@ -155,6 +170,7 @@ public class SpilledBufferOrEventSequenceTest {
 
 			// should have no more data
 			assertNull(seq.getNext());
+			seq.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -179,7 +195,7 @@ public class SpilledBufferOrEventSequenceTest {
 			FileUtils.writeCompletely(fileChannel, data);
 			fileChannel.position(0L);
 
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 
 			// first one is valid
@@ -193,6 +209,7 @@ public class SpilledBufferOrEventSequenceTest {
 			catch (IOException e) {
 				// expected
 			}
+			seq.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -214,7 +231,7 @@ public class SpilledBufferOrEventSequenceTest {
 			}
 
 			fileChannel.position(0L);
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 
 			int i = 0;
@@ -228,6 +245,7 @@ public class SpilledBufferOrEventSequenceTest {
 			}
 
 			assertEquals(numEvents, i);
+			seq.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -265,7 +283,7 @@ public class SpilledBufferOrEventSequenceTest {
 
 			fileChannel.position(0L);
 			bufferRnd.setSeed(bufferSeed);
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 
 			// read and validate the sequence
@@ -288,6 +306,7 @@ public class SpilledBufferOrEventSequenceTest {
 
 			// all events need to be consumed
 			assertEquals(events.size(), numEvent);
+			seq.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -350,8 +369,8 @@ public class SpilledBufferOrEventSequenceTest {
 
 			bufferRnd.setSeed(bufferSeed);
 
-			SpilledBufferOrEventSequence seq1 = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
-			SpilledBufferOrEventSequence seq2 = new SpilledBufferOrEventSequence(secondFile, secondChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq1 = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
+			SpilledBufferOrEventSequence seq2 = new SpilledBufferOrEventSequence(ioManager, secondFile, secondChannel, bufferPools, pageSize);
 
 			// read and validate the sequence 1
 			seq1.open();
@@ -371,6 +390,8 @@ public class SpilledBufferOrEventSequenceTest {
 			assertNull(seq1.getNext());
 			assertEquals(events1.size(), numEvent);
 
+			seq1.cleanup();
+
 			// read and validate the sequence 2
 			seq2.open();
 
@@ -388,6 +409,7 @@ public class SpilledBufferOrEventSequenceTest {
 			}
 			assertNull(seq2.getNext());
 			assertEquals(events2.size(), numEvent);
+			seq2.cleanup();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -418,7 +440,7 @@ public class SpilledBufferOrEventSequenceTest {
 			FileUtils.writeCompletely(fileChannel, data);
 			fileChannel.position(54);
 
-			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
+			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(ioManager, tempFile, fileChannel, bufferPools, pageSize);
 			seq.open();
 			seq.cleanup();
 

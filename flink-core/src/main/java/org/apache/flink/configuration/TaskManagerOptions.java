@@ -188,6 +188,14 @@ public class TaskManagerOptions {
 			.withDescription("Size of memory buffers used by the network stack and the memory manager.");
 
 	/**
+	 * Number of memory buffer will be used to fetch data from spilled file asynchronous.
+	 */
+	public static final ConfigOption<Integer> MEMORY_BUFFER_ASYNC_LOAD_COUNT =
+			key("taskmanager.memory.async-load.buffer-count")
+			.defaultValue(2)
+			.withDescription("Number of memory buffer will be used to fetch data from spilled file asynchronous.");
+
+	/**
 	 * Amount of memory to be allocated by the task manager's memory manager. If not
 	 * set, a relative fraction will be allocated, as defined by {@link #MANAGED_MEMORY_FRACTION}.
 	 */

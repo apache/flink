@@ -25,6 +25,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 /**
  * An utility class for I/O related functionality.
@@ -136,6 +138,24 @@ public final class IOUtils {
 			}
 			toRead -= ret;
 			off += ret;
+		}
+	}
+
+	/**
+	 * Reads bytes into ByteBuffer, blocking until all ByteBuffer is full.
+	 *
+	 * @param fileChannel The source where we read from
+	 * @param buffer The target we'll write the bytes to.
+	 * @throws IOException If we could not read requested number of bytes for any reason (including EOF)
+	 */
+	public static void readFully(FileChannel fileChannel, ByteBuffer buffer) throws IOException {
+		int toRead = buffer.limit() - buffer.position();
+		while (toRead > 0) {
+			final int ret = fileChannel.read(buffer);
+			if (ret < 0) {
+				throw new IOException("Premeture EOF from FileChannel");
+			}
+			toRead -= ret;
 		}
 	}
 
