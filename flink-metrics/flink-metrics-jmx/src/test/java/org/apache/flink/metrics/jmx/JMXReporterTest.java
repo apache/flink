@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
@@ -245,16 +246,17 @@ public class JMXReporterTest extends TestLogger {
 			assertEquals(11, attributeInfos.length);
 
 			assertEquals(histogram.getCount(), mBeanServer.getAttribute(objectName, "Count"));
-			assertEquals(histogram.getStatistics().getMean(), mBeanServer.getAttribute(objectName, "Mean"));
-			assertEquals(histogram.getStatistics().getStdDev(), mBeanServer.getAttribute(objectName, "StdDev"));
-			assertEquals(histogram.getStatistics().getMax(), mBeanServer.getAttribute(objectName, "Max"));
-			assertEquals(histogram.getStatistics().getMin(), mBeanServer.getAttribute(objectName, "Min"));
-			assertEquals(histogram.getStatistics().getQuantile(0.5), mBeanServer.getAttribute(objectName, "Median"));
-			assertEquals(histogram.getStatistics().getQuantile(0.75), mBeanServer.getAttribute(objectName, "75thPercentile"));
-			assertEquals(histogram.getStatistics().getQuantile(0.95), mBeanServer.getAttribute(objectName, "95thPercentile"));
-			assertEquals(histogram.getStatistics().getQuantile(0.98), mBeanServer.getAttribute(objectName, "98thPercentile"));
-			assertEquals(histogram.getStatistics().getQuantile(0.99), mBeanServer.getAttribute(objectName, "99thPercentile"));
-			assertEquals(histogram.getStatistics().getQuantile(0.999), mBeanServer.getAttribute(objectName, "999thPercentile"));
+			HistogramStatistics statistics = histogram.getStatistics();
+			assertEquals(statistics.getMean(), mBeanServer.getAttribute(objectName, "Mean"));
+			assertEquals(statistics.getStdDev(), mBeanServer.getAttribute(objectName, "StdDev"));
+			assertEquals(statistics.getMax(), mBeanServer.getAttribute(objectName, "Max"));
+			assertEquals(statistics.getMin(), mBeanServer.getAttribute(objectName, "Min"));
+			assertEquals(statistics.getQuantile(0.5), mBeanServer.getAttribute(objectName, "Median"));
+			assertEquals(statistics.getQuantile(0.75), mBeanServer.getAttribute(objectName, "75thPercentile"));
+			assertEquals(statistics.getQuantile(0.95), mBeanServer.getAttribute(objectName, "95thPercentile"));
+			assertEquals(statistics.getQuantile(0.98), mBeanServer.getAttribute(objectName, "98thPercentile"));
+			assertEquals(statistics.getQuantile(0.99), mBeanServer.getAttribute(objectName, "99thPercentile"));
+			assertEquals(statistics.getQuantile(0.999), mBeanServer.getAttribute(objectName, "999thPercentile"));
 
 		} finally {
 			if (registry != null) {
