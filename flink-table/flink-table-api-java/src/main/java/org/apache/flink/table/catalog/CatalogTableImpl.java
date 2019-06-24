@@ -109,7 +109,7 @@ public class CatalogTableImpl implements CatalogTable {
 
 		descriptor.putTableSchema(Schema.SCHEMA, getSchema());
 
-		Map<String, String> properties = getProperties();
+		Map<String, String> properties = new HashMap<>(getProperties());
 		properties.remove(CatalogConfig.IS_GENERIC);
 
 		descriptor.putProperties(properties);

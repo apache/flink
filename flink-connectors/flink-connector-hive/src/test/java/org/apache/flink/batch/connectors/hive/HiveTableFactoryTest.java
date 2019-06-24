@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.TableFactory;
@@ -34,6 +35,7 @@ import org.apache.flink.table.sources.TableSource;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -67,6 +69,7 @@ public class HiveTableFactoryTest {
 			.build();
 
 		Map<String, String> properties = new HashMap<>();
+		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
 		properties.put("connector.type", "filesystem");
 		properties.put("connector.path", "/tmp");
 		properties.put("connector.property-version", "1");
