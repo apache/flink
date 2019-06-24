@@ -149,26 +149,24 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     * Creates a indicator type for processing-time, but with similar properties as SQL timestamp.
     */
   def createProctimeIndicatorType(isNullable: Boolean): RelDataType = {
-    val originalType = createFieldTypeFromLogicalType(new TimestampType(3))
-    val indicator = new TimeIndicatorRelDataType(
+    val originalType = createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
+    canonize(new TimeIndicatorRelDataType(
       getTypeSystem,
       originalType.asInstanceOf[BasicSqlType],
       isNullable,
-      isEventTime = false)
-    createTypeWithNullability(indicator, isNullable)
+      isEventTime = false))
   }
 
   /**
     * Creates a indicator type for event-time, but with similar properties as SQL timestamp.
     */
   def createRowtimeIndicatorType(isNullable: Boolean): RelDataType = {
-    val originalType = createFieldTypeFromLogicalType(new TimestampType(3))
-    val indicator = new TimeIndicatorRelDataType(
+    val originalType = createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
+    canonize(new TimeIndicatorRelDataType(
       getTypeSystem,
       originalType.asInstanceOf[BasicSqlType],
       isNullable,
-      isEventTime = true)
-    createTypeWithNullability(indicator, isNullable)
+      isEventTime = true))
   }
 
   /**
