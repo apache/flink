@@ -21,8 +21,6 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.apache.commons.math3.stat.descriptive.rank.Percentile;
-import org.apache.commons.math3.stat.ranking.NaNStrategy;
 
 /**
  * The {@link DescriptiveStatisticsHistogram} use a DescriptiveStatistics {@link DescriptiveStatistics} as a Flink {@link Histogram}.
@@ -35,9 +33,6 @@ public class DescriptiveStatisticsHistogram implements org.apache.flink.metrics.
 
 	public DescriptiveStatisticsHistogram(int windowSize) {
 		this.descriptiveStatistics = new DescriptiveStatistics(windowSize);
-		// since we are storing Long values, we won't have NaN values
-		Percentile percentileImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
-		descriptiveStatistics.setPercentileImpl(percentileImpl);
 	}
 
 	@Override
