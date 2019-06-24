@@ -33,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Returns metadata about an existing savepoint.
+ * Returns metadata about a savepoint.
  */
 @Internal
 public class OnDiskSavepointMetadata implements SavepointMetadata {
