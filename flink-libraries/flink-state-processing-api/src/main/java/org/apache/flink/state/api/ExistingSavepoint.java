@@ -30,30 +30,45 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.BroadcastStateInputFormat;
 import org.apache.flink.state.api.input.KeyedStateInputFormat;
 import org.apache.flink.state.api.input.ListStateInputFormat;
 import org.apache.flink.state.api.input.UnionStateInputFormat;
+import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.metadata.OnDiskSavepointMetadata;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * An existing savepoint.
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
-public class ExistingSavepoint {
+public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	private final ExecutionEnvironment env;
+
+	private final String existingPath;
 
 	private final SavepointMetadata metadata;
 
 	private final StateBackend stateBackend;
+
+	private final Map<String, BootstrapTransformation> transformations;
+
+	private final List<String> droppedOperators;
 
 	ExistingSavepoint(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
 		Preconditions.checkNotNull(env, "The execution environment must not be null");
@@ -61,8 +76,11 @@ public class ExistingSavepoint {
 		Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 
 		this.env = env;
+		this.existingPath = path;
 		this.metadata = new OnDiskSavepointMetadata(path);
 		this.stateBackend = stateBackend;
+		this.transformations = new HashMap<>();
+		this.droppedOperators = new ArrayList<>();
 	}
 
 	/**
@@ -263,5 +281,44 @@ public class ExistingSavepoint {
 			function);
 
 		return env.createInput(inputFormat, outTypeInfo);
+	}
+
+	@Override
+	public ExistingSavepoint removeOperator(String uid) {
+		droppedOperators.add(uid);
+		transformations.remove(uid);
+		return this;
+	}
+
+	@Override
+	public <T> ExistingSavepoint withOperator(String uid, BootstrapTransformation<T> transformation) {
+		if (transformations.containsKey(uid)) {
+			throw new IllegalArgumentException("Duplicate uid " + uid + ". All uid's must be unique");
+		}
+
+		transformations.put(uid, transformation);
+		return this;
+	}
+
+	@Override
+	public void write(String path) throws IOException {
+		Path savepointPath = new Path(path);
+
+		Set<OperatorID> droppedIDs = droppedOperators
+			.stream()
+			.map(OperatorIDGenerator::fromUid)
+			.collect(Collectors.toSet());
+
+		List<OperatorState> remainingOperators = metadata
+			.getOperatorStates()
+			.stream()
+			.filter(operator -> droppedIDs.contains(operator.getOperatorID()))
+			.collect(Collectors.toList());
+
+		DataSet<OperatorState> existingOperators = env
+			.fromCollection(remainingOperators)
+			.name(existingPath);
+
+		write(savepointPath, transformations, stateBackend, metadata, existingOperators);
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 
 import java.io.IOException;
@@ -40,9 +41,20 @@ public final class Savepoint {
 	 * @param env The execution enviornment used to transform the savepoint.
 	 * @param path The path to an existing savepoint on disk.
 	 * @param stateBackend The state backend of the savepoint used for keyed state.
-	 * @return An existing savepoint that can be queried.
 	 */
 	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
 		return new ExistingSavepoint(env, path, stateBackend);
+	}
+
+	/**
+	 * Creates a new savepoint.
+	 *
+	 * @param stateBackend The state backend of the savepoint used for keyed state.
+	 * @param maxParallelism The max parallelism of the savepoint.
+	 * @return A new savepoint.
+	 */
+	public static NewSavepoint create(StateBackend stateBackend, int maxParallelism) {
+		maxParallelism = KeyGroupRangeAssignment.computeDefaultMaxParallelism(maxParallelism);
+		return new NewSavepoint(stateBackend, maxParallelism);
 	}
 }

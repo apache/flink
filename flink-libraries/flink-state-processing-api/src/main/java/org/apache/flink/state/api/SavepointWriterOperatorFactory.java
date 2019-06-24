@@ -16,37 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.runtime.metadata;
+package org.apache.flink.state.api;
 
-import org.apache.flink.runtime.checkpoint.MasterState;
-import org.apache.flink.runtime.checkpoint.OperatorState;
-
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
- * Returns metadata for a new savepoint.
+ * Creates a savepoint writing operator from a savepoint path.
  */
-public class NewSavepointMetadata implements SavepointMetadata {
-
-	private final int maxParallelism;
-
-	public NewSavepointMetadata(int maxParallelism) {
-		this.maxParallelism = maxParallelism;
-	}
-
-	@Override
-	public int maxParallelism() {
-		return maxParallelism;
-	}
-
-	@Override
-	public Collection<MasterState> getMasterStates() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public Collection<OperatorState> getOperatorStates() {
-		return Collections.emptyList();
-	}
+@FunctionalInterface
+public interface SavepointWriterOperatorFactory {
+	StreamOperator<TaggedOperatorSubtaskState> getOperator(long timestamp, Path savepointPath);
 }
