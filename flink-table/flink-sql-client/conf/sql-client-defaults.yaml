@@ -119,6 +119,8 @@ deployment:
 # Catalogs
 #==============================================================================
 
+# Define catalogs here.
+
 catalogs: [] # empty list
 #  - name: myhive
 #    type: hive
