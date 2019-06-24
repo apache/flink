@@ -149,7 +149,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		StreamOperator operator = newOperator(FlinkJoinType.SEMI, false);
-		joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true, false);
+		joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true);
 	}
 
 	@Test
@@ -163,7 +163,7 @@ public class Int2SortMergeJoinOperatorTest {
 		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		StreamOperator operator = newOperator(FlinkJoinType.ANTI, false);
-		joinAndAssert(operator, buildInput, probeInput, 10, 1, 45, true, false);
+		joinAndAssert(operator, buildInput, probeInput, 10, 1, 45, true);
 	}
 
 	private void buildJoin(
@@ -174,7 +174,7 @@ public class Int2SortMergeJoinOperatorTest {
 
 		joinAndAssert(
 				getOperator(type),
-				input1, input2, expertOutSize, expertOutKeySize, expertOutVal, false, false);
+				input1, input2, expertOutSize, expertOutKeySize, expertOutVal, false);
 	}
 
 	private StreamOperator getOperator(FlinkJoinType type) {

@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.join;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -90,28 +89,6 @@ public class String2HashJoinOperatorTest implements Serializable {
 		testHarness.waitForTaskRunning();
 	}
 
-	private void endInput1() throws Exception {
-		endInput1(testHarness);
-	}
-
-	private void endInput2() throws Exception {
-		endInput2(testHarness);
-	}
-
-	static void endInput1(TwoInputStreamTaskTestHarness harness) throws Exception {
-		HashJoinOperator op =
-				(HashJoinOperator) ((OperatorChain) harness.getTask().getStreamStatusMaintainer())
-						.getHeadOperator();
-		op.endInput1();
-	}
-
-	static void endInput2(TwoInputStreamTaskTestHarness harness) throws Exception {
-		HashJoinOperator op =
-				(HashJoinOperator) ((OperatorChain) harness.getTask().getStreamStatusMaintainer())
-						.getHeadOperator();
-		op.endInput2();
-	}
-
 	@Test
 	public void testInnerHashJoin() throws Exception {
 
@@ -126,10 +103,11 @@ public class String2HashJoinOperatorTest implements Serializable {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		endInput1();
-		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
-
+		testHarness.endInput(0, 0);
+		testHarness.endInput(0, 1);
 		testHarness.waitForInputProcessing();
+
+		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
 		expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput,
@@ -142,7 +120,8 @@ public class String2HashJoinOperatorTest implements Serializable {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		testHarness.endInput();
+		testHarness.endInput(1, 0);
+		testHarness.endInput(1, 1);
 		testHarness.waitForTaskCompletion();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput,
 				transformToBinary(testHarness.getOutput()));
@@ -163,10 +142,11 @@ public class String2HashJoinOperatorTest implements Serializable {
 				expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		endInput1();
-		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
+		testHarness.endInput(0, 0);
+		testHarness.endInput(0, 1);
 		testHarness.waitForInputProcessing();
 
+		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
 		expectedOutput.add(new StreamRecord<>(newRow("a", "20")));
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
@@ -182,7 +162,8 @@ public class String2HashJoinOperatorTest implements Serializable {
 				expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		testHarness.endInput();
+		testHarness.endInput(1, 0);
+		testHarness.endInput(1, 1);
 		testHarness.waitForTaskCompletion();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 				expectedOutput,
@@ -204,10 +185,11 @@ public class String2HashJoinOperatorTest implements Serializable {
 				expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		endInput1();
-		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
+		testHarness.endInput(0, 0);
+		testHarness.endInput(0, 1);
 		testHarness.waitForInputProcessing();
 
+		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
 		expectedOutput.add(new StreamRecord<>(newRow("a", "20")));
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
@@ -222,8 +204,8 @@ public class String2HashJoinOperatorTest implements Serializable {
 				expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		endInput2();
-		testHarness.endInput();
+		testHarness.endInput(1, 0);
+		testHarness.endInput(1, 1);
 		testHarness.waitForTaskCompletion();
 		expectedOutput.add(new StreamRecord<>(newRow("d", "0null")));
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
@@ -246,10 +228,11 @@ public class String2HashJoinOperatorTest implements Serializable {
 				expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		endInput1();
-		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
+		testHarness.endInput(0, 0);
+		testHarness.endInput(0, 1);
 		testHarness.waitForInputProcessing();
 
+		testHarness.processElement(new StreamRecord<>(newRow("a", "2"), initialTime), 1, 1);
 		expectedOutput.add(new StreamRecord<>(newRow("a", "02")));
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
@@ -265,8 +248,8 @@ public class String2HashJoinOperatorTest implements Serializable {
 				expectedOutput,
 				transformToBinary(testHarness.getOutput()));
 
-		endInput2();
-		testHarness.endInput();
+		testHarness.endInput(1, 0);
+		testHarness.endInput(1, 1);
 		testHarness.waitForTaskCompletion();
 		expectedOutput.add(new StreamRecord<>(newRow("d", "0null")));
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",

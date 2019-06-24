@@ -20,6 +20,9 @@ package org.apache.flink.table.runtime.join;
 
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -53,7 +56,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * is the first input of the match. It support all join type in {@link HashJoinType}.
  */
 public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
-		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow> {
+		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>,
+		BoundedMultiInput, InputSelectable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HashJoinOperator.class);
 
@@ -146,20 +150,29 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 	}
 
-	public void endInput1() throws Exception {
-		checkState(!buildEnd, "Should not build ended.");
-		LOG.info("Finish build phase.");
-		buildEnd = true;
-		this.table.endBuild();
+	@Override
+	public InputSelection nextSelection() {
+		return buildEnd ? InputSelection.SECOND : InputSelection.FIRST;
 	}
 
-	public void endInput2() throws Exception {
-		checkState(buildEnd, "Should build ended.");
-		LOG.info("Finish probe phase.");
-		while (this.table.nextMatching()) {
-			joinWithNextKey();
+	@Override
+	public void endInput(int inputId) throws Exception {
+		switch (inputId) {
+			case 1:
+				checkState(!buildEnd, "Should not build ended.");
+				LOG.info("Finish build phase.");
+				buildEnd = true;
+				this.table.endBuild();
+				break;
+			case 2:
+				checkState(buildEnd, "Should build ended.");
+				LOG.info("Finish probe phase.");
+				while (this.table.nextMatching()) {
+					joinWithNextKey();
+				}
+				LOG.info("Finish rebuild phase.");
+				break;
 		}
-		LOG.info("Finish rebuild phase.");
 	}
 
 	private void joinWithNextKey() throws Exception {
