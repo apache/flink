@@ -122,7 +122,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 					final Set<ExecutionVertex> unmodifiedVertices = executionVertexVersioner
 						.getUnmodifiedExecutionVertices(vertexVersions)
 						.stream()
-						.map(id -> getExecutionVertex(id))
+						.map(this::getExecutionVertex)
 						.collect(Collectors.toSet());
 
 					try {
@@ -136,7 +136,6 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 					} catch (GlobalModVersionMismatch e) {
 						// happens when a global recovery happens concurrently to the regional recovery
 						// just stop this local failover
-						return;
 					} catch (Exception e) {
 						throw new CompletionException(e);
 					}
@@ -152,22 +151,19 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	}
 
 	@VisibleForTesting
-	protected CompletableFuture<?> cancelTasks(final Set<ExecutionVertexID> verticesToRestart) {
-		final List<CompletableFuture<?>> cancelFutures = verticesToRestart.stream()
+	protected CompletableFuture<?> cancelTasks(final Set<ExecutionVertexID> vertices) {
+		final List<CompletableFuture<?>> cancelFutures = vertices.stream()
 			.map(this::cancelExecutionVertex)
 			.collect(Collectors.toList());
 
 		return FutureUtils.combineAll(cancelFutures);
 	}
 
-	private void resetTasks(
-		final Set<ExecutionVertex> verticesToRestart,
-		final long globalModVersion) throws Exception {
-
+	private void resetTasks(final Set<ExecutionVertex> vertices, final long globalModVersion) throws Exception {
 		final Set<CoLocationGroup> colGroups = new HashSet<>();
 		final long restartTimestamp = System.currentTimeMillis();
 
-		for (ExecutionVertex ev : verticesToRestart) {
+		for (ExecutionVertex ev : vertices) {
 			CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
 			if (cgroup != null && !colGroups.contains(cgroup)){
 				cgroup.resetConstraints();
@@ -186,25 +182,22 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
 			final Map<JobVertexID, ExecutionJobVertex> involvedExecutionJobVertices =
-				getInvolvedExecutionJobVertices(verticesToRestart);
+				getInvolvedExecutionJobVertices(vertices);
 			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
 				involvedExecutionJobVertices, false, true);
 		}
 	}
 
-	private void rescheduleTasks(
-		final Set<ExecutionVertex> verticesToRestart,
-		final long globalModVersion) throws Exception {
-
+	private void rescheduleTasks(final Set<ExecutionVertex> vertices, final long globalModVersion) throws Exception {
 		final CompletableFuture<Void> newSchedulingFuture;
 		switch (executionGraph.getScheduleMode()) {
 
 			case LAZY_FROM_SOURCES:
-				newSchedulingFuture = AdaptedSchedulingUtils.scheduleLazy(verticesToRestart, executionGraph);
+				newSchedulingFuture = AdaptedSchedulingUtils.scheduleLazy(vertices, executionGraph);
 				break;
 
 			case EAGER:
-				newSchedulingFuture = AdaptedSchedulingUtils.scheduleEager(verticesToRestart, executionGraph);
+				newSchedulingFuture = AdaptedSchedulingUtils.scheduleEager(vertices, executionGraph);
 				break;
 
 			default:
@@ -242,7 +235,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	private Map<JobVertexID, ExecutionJobVertex> getInvolvedExecutionJobVertices(
 		final Set<ExecutionVertex> executionVertices) {
 
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>(executionVertices.size());
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
 		for (ExecutionVertex executionVertex : executionVertices) {
 			JobVertexID jobvertexId = executionVertex.getJobvertexId();
 			ExecutionJobVertex jobVertex = executionVertex.getJobVertex();

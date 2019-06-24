@@ -69,10 +69,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -636,17 +634,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 		return executionGraph.getJobVertex(vertexID.getJobVertexId())
 			.getTaskVertices()[vertexID.getSubtaskIndex()];
-	}
-
-	private static Set<ExecutionVertex> getExecutionVertices(
-		final Set<ExecutionVertexID> vertexIDs,
-		final ExecutionGraph executionGraph) {
-
-		final Set<ExecutionVertex> vertices = new HashSet<>(vertexIDs.size());
-		for (ExecutionVertexID vertexID : vertexIDs) {
-			vertices.add(getExecutionVertex(vertexID, executionGraph));
-		}
-		return vertices;
 	}
 
 	private static void assertVertexInState(final ExecutionState state, final ExecutionVertex vertex) {

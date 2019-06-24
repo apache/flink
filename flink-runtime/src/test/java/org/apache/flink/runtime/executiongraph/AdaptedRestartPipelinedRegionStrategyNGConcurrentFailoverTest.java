@@ -106,7 +106,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		final ExecutionVertex ev22 = vertexIterator.next();
 
 		// start job scheduling
-		testMainThreadUtil.execute(() -> eg.scheduleForExecution());
+		testMainThreadUtil.execute(eg::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, eg.getState());
 		assertEquals(1, eg.getGlobalModVersion());
 		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
@@ -173,9 +173,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 			restartStrategy,
 			slotProvider);
 
-		final TestAdaptedRestartPipelinedRegionStrategyNG failoverStrategy =
-			(TestAdaptedRestartPipelinedRegionStrategyNG) eg.getFailoverStrategy();
-
 		final Iterator<ExecutionVertex> vertexIterator = eg.getAllExecutionVertices().iterator();
 		final ExecutionVertex ev11 = vertexIterator.next();
 		final ExecutionVertex ev12 = vertexIterator.next();
@@ -183,7 +180,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		final ExecutionVertex ev22 = vertexIterator.next();
 
 		// start job scheduling
-		testMainThreadUtil.execute(() -> eg.scheduleForExecution());
+		testMainThreadUtil.execute(eg::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, eg.getState());
 		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
 		assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
@@ -209,9 +206,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		// complete task cancellations
 		// the global failover recovery will be blocked by manually triggered restart strategy
-		testMainThreadUtil.execute(() -> {
-			ev12.getCurrentExecutionAttempt().completeCancelling();
-		});
+		testMainThreadUtil.execute(() -> ev12.getCurrentExecutionAttempt().completeCancelling());
 
 		// verify that no task is restarted
 		assertEquals(JobStatus.RESTARTING, eg.getState());
@@ -221,7 +216,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		assertEquals(ExecutionState.CANCELED, ev22.getExecutionState());
 
 		// trigger global recovery
-		testMainThreadUtil.execute(() -> restartStrategy.triggerNextAction());
+		testMainThreadUtil.execute(restartStrategy::triggerNextAction);
 
 		// verify the state and attempt number
 		// do in main thread as the global recovery process is scheduled async to this thread
@@ -282,7 +277,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		final ExecutionVertex ev22 = vertexIterator.next();
 
 		// start job scheduling
-		testMainThreadUtil.execute(() -> eg.scheduleForExecution());
+		testMainThreadUtil.execute(eg::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, eg.getState());
 		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
 		assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
@@ -396,12 +391,12 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		@Nonnull
 		CompletableFuture<?> blockerFuture;
 
-		public TestAdaptedRestartPipelinedRegionStrategyNG(ExecutionGraph executionGraph) {
+		TestAdaptedRestartPipelinedRegionStrategyNG(ExecutionGraph executionGraph) {
 			super(executionGraph);
 			this.blockerFuture = CompletableFuture.completedFuture(null);
 		}
 
-		public void setBlockerFuture(@Nonnull CompletableFuture<?> blockerFuture) {
+		void setBlockerFuture(@Nonnull CompletableFuture<?> blockerFuture) {
 			this.blockerFuture = blockerFuture;
 		}
 
