@@ -66,7 +66,7 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 
 		boolean isGeneric = Boolean.valueOf(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (isGeneric) {
+		if (!isGeneric) {
 			return createInputFormatTableSource(table);
 		} else {
 			return TableFactoryUtil.findAndCreateTableSource(table);
@@ -88,7 +88,7 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 
 		boolean isGeneric = Boolean.valueOf(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (isGeneric) {
+		if (!isGeneric) {
 			return createOutputFormatTableSink(table);
 		} else {
 			return TableFactoryUtil.findAndCreateTableSink(table);
