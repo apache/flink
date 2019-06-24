@@ -85,6 +85,12 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 			return;
 		}
 
+		// skip local failover if is in global failover
+		if (!isLocalFailoverValid(executionGraph.getGlobalModVersion())) {
+			LOG.info("Skip current region failover as a global failover is ongoing.");
+			return;
+		}
+
 		final ExecutionVertexID vertexID = getExecutionVertexID(taskExecution.getVertex());
 
 		final Set<ExecutionVertexID> tasksToRestart = restartPipelinedRegionStrategy.getTasksNeedingRestart(vertexID, cause);
@@ -99,17 +105,13 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		final Set<ExecutionVertexVersion> vertexVersions = new HashSet<>(
 			executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
 
-		// check to avoid concurrent failover and local failover issues
-		if (!isLocalFailoverValid(globalModVersion)) {
-			return;
-		}
-
 		// cancel tasks involved in this task failure
 		cancelTasks(verticesToRestart)
 			.thenAccept(
 				(Object ignored) -> {
-					// check to avoid concurrent failover and local failover issues
+					// skip local failover if is in global failover
 					if (!isLocalFailoverValid(globalModVersion)) {
+						LOG.info("Skip current region failover as a global failover is ongoing.");
 						return;
 					}
 
@@ -149,7 +151,8 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 				});
 	}
 
-	private CompletableFuture<?> cancelTasks(final Set<ExecutionVertexID> verticesToRestart) {
+	@VisibleForTesting
+	protected CompletableFuture<?> cancelTasks(final Set<ExecutionVertexID> verticesToRestart) {
 		final List<CompletableFuture<?>> cancelFutures = verticesToRestart.stream()
 			.map(this::cancelExecutionVertex)
 			.collect(Collectors.toList());
