@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.runtime.state.StateEntry;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 
-import java.util.Collections;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 /**
  * This class represents the snapshot of a {@link NestedStateMap}.
@@ -48,12 +50,25 @@ public class NestedStateMapSnapshot<K, N, S>
 	}
 
 	@Override
-	public StateMapSnapshotIterator<K, N, S> getStateMapSnapshotIterator(
-		StateSnapshotTransformer<S> stateSnapshotTransformer) {
+	public void writeState(
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<N> namespaceSerializer,
+		TypeSerializer<S> stateSerializer,
+		@Nonnull DataOutputView dov,
+		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException {
 		NestedStateMap<K, N, S> stateMap = owningStateMap;
 		Map<N, Map<K, S>> mappings = filterMappingsIfNeeded(stateMap.getNamespaceMap(), stateSnapshotTransformer);
 		int numberOfEntries = countMappingsInKeyGroup(mappings);
-		return new SnapshotIterator<>(mappings, numberOfEntries);
+
+		dov.writeInt(numberOfEntries);
+		for (Map.Entry<N, Map<K, S>> namespaceEntry : mappings.entrySet()) {
+			N namespace = namespaceEntry.getKey();
+			for (Map.Entry<K, S> entry : namespaceEntry.getValue().entrySet()) {
+				namespaceSerializer.serialize(namespace, dov);
+				keySerializer.serialize(entry.getKey(), dov);
+				stateSerializer.serialize(entry.getValue(), dov);
+			}
+		}
 	}
 
 	private Map<N, Map<K, S>> filterMappingsIfNeeded(
@@ -82,87 +97,12 @@ public class NestedStateMapSnapshot<K, N, S>
 		return filtered;
 	}
 
-	private static <K, N, S> int countMappingsInKeyGroup(final Map<N, Map<K, S>> keyGroupMap) {
+	private int countMappingsInKeyGroup(final Map<N, Map<K, S>> keyGroupMap) {
 		int count = 0;
 		for (Map<K, S> namespaceMap : keyGroupMap.values()) {
 			count += namespaceMap.size();
 		}
 
 		return count;
-	}
-
-	class SnapshotIterator<K, N, S> implements StateMapSnapshotIterator<K, N, S> {
-
-		private final int numberOfEntries;
-		private Iterator<Map.Entry<N, Map<K, S>>> namespaceIterator;
-		private Map.Entry<N, Map<K, S>> namespace;
-		private Iterator<Map.Entry<K, S>> keyValueIterator;
-		private final ReusedStateEntry<K, N, S> reusedStateEntry;
-
-		SnapshotIterator(Map<N, Map<K, S>> mappings, int numberOfEntries) {
-			this.numberOfEntries = numberOfEntries;
-			this.namespaceIterator = mappings.entrySet().iterator();
-			this.namespace = null;
-			this.keyValueIterator = Collections.emptyIterator();
-			this.reusedStateEntry = new ReusedStateEntry<>(null, null, null);
-		}
-
-		@Override
-		public int size() {
-			return numberOfEntries;
-		}
-
-		@Override
-		public boolean hasNext() {
-			return keyValueIterator.hasNext() || namespaceIterator.hasNext();
-		}
-
-		@Override
-		public StateEntry<K, N, S> next() {
-			if (!hasNext()) {
-				throw new NoSuchElementException();
-			}
-
-			if (!keyValueIterator.hasNext()) {
-				namespace = namespaceIterator.next();
-				keyValueIterator = namespace.getValue().entrySet().iterator();
-			}
-
-			Map.Entry<K, S> entry = keyValueIterator.next();
-
-			reusedStateEntry.reuse(entry.getKey(), namespace.getKey(), entry.getValue());
-			return reusedStateEntry;
-		}
-	}
-
-	class ReusedStateEntry<K, N, S> implements StateEntry<K, N, S> {
-		private K key;
-		private N namespace;
-		private S value;
-
-		public ReusedStateEntry(K key, N namespace, S value) {
-			reuse(key, namespace, value);
-		}
-
-		@Override
-		public K getKey() {
-			return key;
-		}
-
-		@Override
-		public N getNamespace() {
-			return namespace;
-		}
-
-		@Override
-		public S getState() {
-			return value;
-		}
-
-		public void reuse(K key, N namespace, S value) {
-			this.key = key;
-			this.namespace = namespace;
-			this.value = value;
-		}
 	}
 }

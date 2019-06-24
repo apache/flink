@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -119,23 +118,7 @@ abstract class AbstractStateTableSnapshot<K, N, S, T extends StateTable<K, N, S>
 	@Override
 	public void writeStateInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
 		StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> stateMapSnapshot = getStateMapSnapshotForKeyGroup(keyGroupId);
-
-		if (stateMapSnapshot == null) {
-			dov.writeInt(0);
-			return;
-		}
-
-		StateMapSnapshotIterator<K, N, S> snapshotIterator =
-			stateMapSnapshot.getStateMapSnapshotIterator(stateSnapshotTransformer);
-
-		dov.writeInt(snapshotIterator.size());
-		while (snapshotIterator.hasNext()) {
-			StateEntry<K, N, S> entry = snapshotIterator.next();
-			localNamespaceSerializer.serialize(entry.getNamespace(), dov);
-			localKeySerializer.serialize(entry.getKey(), dov);
-			localStateSerializer.serialize(entry.getState(), dov);
-		}
-
+		stateMapSnapshot.writeState(localKeySerializer, localNamespaceSerializer, localStateSerializer, dov, stateSnapshotTransformer);
 		stateMapSnapshot.release();
 	}
 }

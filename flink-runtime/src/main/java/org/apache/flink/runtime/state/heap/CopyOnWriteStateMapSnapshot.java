@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.util.Preconditions;
 
@@ -25,6 +28,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -93,16 +97,30 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 	}
 
 	@Override
-	public SnapshotIterator<K, N, S> getStateMapSnapshotIterator(StateSnapshotTransformer<S> stateSnapshotTransformer) {
-		return stateSnapshotTransformer == null ?
+	public void writeState(
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<N> namespaceSerializer,
+		TypeSerializer<S> stateSerializer,
+		@Nonnull DataOutputView dov,
+		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException {
+		SnapshotIterator<K, N, S> snapshotIterator = stateSnapshotTransformer == null ?
 			new NonTransformSnapshotIterator<>(numberOfEntriesInSnapshotData, snapshotData) :
 			new TransformedSnapshotIterator<>(numberOfEntriesInSnapshotData, snapshotData, stateSnapshotTransformer);
+
+		int size = snapshotIterator.size();
+		dov.writeInt(size);
+		while (snapshotIterator.hasNext()) {
+			StateEntry<K, N, S> stateEntry = snapshotIterator.next();
+			namespaceSerializer.serialize(stateEntry.getNamespace(), dov);
+			keySerializer.serialize(stateEntry.getKey(), dov);
+			stateSerializer.serialize(stateEntry.getState(), dov);
+		}
 	}
 
 	/**
 	 * Iterator over state entries in a {@link CopyOnWriteStateMapSnapshot}.
 	 */
-	abstract static class SnapshotIterator<K, N, S> implements StateMapSnapshotIterator<K, N, S> {
+	abstract static class SnapshotIterator<K, N, S> implements Iterator<StateEntry<K, N, S>> {
 
 		int numberOfEntriesInSnapshotData;
 
@@ -123,6 +141,11 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 			this.chainIterator = getChainIterator();
 			this.entryIterator = Collections.emptyIterator();
 		}
+
+		/**
+		 * Return the number of state entries in this snapshot.
+		 */
+		abstract int size();
 
 		/**
 		 * Transform the state in the snapshot before iterating the state.
