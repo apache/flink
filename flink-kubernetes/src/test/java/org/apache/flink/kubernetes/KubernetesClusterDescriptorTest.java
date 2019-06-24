@@ -18,12 +18,13 @@
 
 package org.apache.flink.kubernetes;
 
-import io.fabric8.kubernetes.api.model.ServiceList;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.cluster.KubernetesClusterDescriptor;
 import org.apache.flink.kubernetes.kubeclient.KubeClient;
+
+import io.fabric8.kubernetes.api.model.ServiceList;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

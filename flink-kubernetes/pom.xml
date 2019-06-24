@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.version>1.0.1</kubernetes.version>
+		<kubernetes.version>4.2.2</kubernetes.version>
 	</properties>
 
 	<dependencies>
@@ -57,18 +57,18 @@ under the License.
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-core</artifactId>
-			<version>${jackson.version}</version>
+			<version>2.9.8</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
+			<version>2.9.8</version>
 		</dependency>
 
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
-			<version>4.2.2</version>
+			<version>${kubernetes.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -86,7 +86,7 @@ under the License.
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-server-mock</artifactId>
-			<version>4.2.2</version>
+			<version>${kubernetes.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -132,14 +132,19 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.2.1</version>
 				<executions>
 					<execution>
+						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration>
+						<configuration combine.children="append">
+							<artifactSet>
+								<includes combine.children="append">
+									<include>com.fasterxml.jackson.core:*</include>
+								</includes>
+							</artifactSet>
 							<relocations>
 								<relocation>
 									<pattern>com.fasterxml.jackson.core</pattern>

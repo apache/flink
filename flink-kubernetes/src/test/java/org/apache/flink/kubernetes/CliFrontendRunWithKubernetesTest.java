@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.flink.client.cli.CliFrontendTestBase;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -31,6 +30,8 @@ import org.apache.flink.kubernetes.cli.KubernetesCustomCli;
 import org.apache.flink.kubernetes.cluster.KubernetesClusterDescriptor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
+
+import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;

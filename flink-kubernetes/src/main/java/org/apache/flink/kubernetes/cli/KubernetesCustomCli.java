@@ -48,7 +48,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-import static org.apache.flink.kubernetes.FlinkKubernetesOptions.*;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
 
 /**
@@ -79,21 +78,21 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 	 */
 	@Override
 	public boolean isActive(CommandLine commandLine) {
-		return commandLine.hasOption(KUBERNETES_MODE_OPTION.getOpt())
-			|| commandLine.hasOption(KUBERNETES_CONFIG_FILE_OPTION.getOpt())
-			|| commandLine.hasOption(IMAGE_OPTION.getOpt());
+		return commandLine.hasOption(FlinkKubernetesOptions.KUBERNETES_MODE_OPTION.getOpt())
+			|| commandLine.hasOption(FlinkKubernetesOptions.KUBERNETES_CONFIG_FILE_OPTION.getOpt())
+			|| commandLine.hasOption(FlinkKubernetesOptions.IMAGE_OPTION.getOpt());
 	}
 
 	@Override
 	public void addRunOptions(Options baseOptions) {
-		baseOptions.addOption(KUBERNETES_CONFIG_FILE_OPTION)
-			.addOption(KUBERNETES_MODE_OPTION)
-			.addOption(IMAGE_OPTION)
+		baseOptions.addOption(FlinkKubernetesOptions.KUBERNETES_CONFIG_FILE_OPTION)
+			.addOption(FlinkKubernetesOptions.KUBERNETES_MODE_OPTION)
+			.addOption(FlinkKubernetesOptions.IMAGE_OPTION)
 			.addOption(DYNAMIC_PROPERTY_OPTION)
-			.addOption(CLUSTERID_OPTION)
-			.addOption(HELP_OPTION)
-			.addOption(JAR_OPTION)
-			.addOption(DETACHED_OPTION);
+			.addOption(FlinkKubernetesOptions.CLUSTERID_OPTION)
+			.addOption(FlinkKubernetesOptions.HELP_OPTION)
+			.addOption(FlinkKubernetesOptions.JAR_OPTION)
+			.addOption(FlinkKubernetesOptions.DETACHED_OPTION);
 	}
 
 	@Override
@@ -154,7 +153,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		//
 		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		if (cmd.hasOption(HELP_OPTION.getOpt())) {
+		if (cmd.hasOption(FlinkKubernetesOptions.HELP_OPTION.getOpt())) {
 			printUsage();
 			return 0;
 		}
@@ -193,7 +192,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		if (cmd.hasOption(HELP_OPTION.getOpt())) {
+		if (cmd.hasOption(FlinkKubernetesOptions.HELP_OPTION.getOpt())) {
 			printUsage();
 			return 0;
 		}
@@ -219,7 +218,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		//
 		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		if (cmd.hasOption(HELP_OPTION.getOpt())) {
+		if (cmd.hasOption(FlinkKubernetesOptions.HELP_OPTION.getOpt())) {
 			printUsage();
 			return 0;
 		}

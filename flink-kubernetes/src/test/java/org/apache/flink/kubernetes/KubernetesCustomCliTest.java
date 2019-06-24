@@ -18,14 +18,15 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.cli.KubernetesCustomCli;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -46,7 +47,6 @@ public class KubernetesCustomCliTest {
 
 		Options options = new Options();
 		cli.addRunOptions(options);
-
 
 		CommandLineParser parser = new DefaultParser();
 		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar",
