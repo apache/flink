@@ -272,6 +272,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				writer.endList(keyFrame);
 			}
 		}
+
 		writer.newlineAndIndent();
 		writer.endList(frame);
 
@@ -281,7 +282,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			comment.unparse(writer, leftPrec, rightPrec);
 		}
 
-		if (this.partitionKeyList != null) {
+		if (this.partitionKeyList != null && this.partitionKeyList.size() > 0) {
 			writer.newlineAndIndent();
 			writer.keyword("PARTITIONED BY");
 			SqlWriter.Frame withFrame = writer.startList("(", ")");

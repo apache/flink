@@ -25,6 +25,8 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateTable",
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
+    "org.apache.flink.sql.parser.ddl.SqlCreateView",
+    "org.apache.flink.sql.parser.ddl.SqlDropView",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
@@ -414,13 +416,15 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
-    "SqlCreateTable"
+    "SqlCreateTable",
+    "SqlCreateView"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
-    "SqlDropTable"
+    "SqlDropTable",
+    "SqlDropView"
   ]
 
   # List of files in @includes directory that have parser method

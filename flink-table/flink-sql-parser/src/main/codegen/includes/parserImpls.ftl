@@ -122,6 +122,31 @@ SqlNode PropertyValue() :
     }
 }
 
+/** Parse a table properties. */
+SqlNodeList TableProperties():
+{
+    SqlNode property;
+    final List<SqlNode> proList = new ArrayList<SqlNode>();
+    final Span span;
+}
+{
+    <LPAREN> { span = span(); }
+    [
+        property = PropertyValue()
+        {
+            proList.add(property);
+        }
+        (
+            <COMMA> property = PropertyValue()
+            {
+                proList.add(property);
+            }
+        )*
+    ]
+    <RPAREN>
+    {  return new SqlNodeList(proList, span.end(this)); }
+}
+
 SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     final SqlParserPos startPos = s.pos();
@@ -131,8 +156,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
 
-    SqlNodeList propertyList = null;
-    SqlNodeList partitionColumns = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlParserPos pos = startPos;
 }
 {
@@ -159,54 +184,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-            {
-                SqlNode column;
-                List<SqlNode> partitionKey = new ArrayList<SqlNode>();
-                pos = getPos();
-
-            }
-            <LPAREN>
-            [
-                column = SimpleIdentifier()
-                {
-                    partitionKey.add(column);
-                }
-                (
-                    <COMMA> column = SimpleIdentifier()
-                        {
-                            partitionKey.add(column);
-                        }
-                )*
-            ]
-            <RPAREN>
-            {
-                partitionColumns = new SqlNodeList(partitionKey, pos.plus(getPos()));
-            }
+        partitionColumns = ParenthesizedSimpleIdentifierList()
     ]
     [
         <WITH>
-            {
-                SqlNode property;
-                List<SqlNode> proList = new ArrayList<SqlNode>();
-                pos = getPos();
-            }
-            <LPAREN>
-            [
-                property = PropertyValue()
-                {
-                proList.add(property);
-                }
-                (
-                <COMMA> property = PropertyValue()
-                    {
-                    proList.add(property);
-                    }
-                )*
-            ]
-            <RPAREN>
-        {  propertyList = new SqlNodeList(proList, pos.plus(getPos())); }
+        propertyList = TableProperties()
     ]
-
     {
         return new SqlCreateTable(startPos.plus(getPos()),
                 tableName,
@@ -332,6 +315,48 @@ void PartitionSpecCommaList(SqlNodeList list) :
         }
     )*
     <RPAREN>
+}
+
+/**
+* Parses a create view or replace existing view statement.
+*   CREATE [OR REPLACE] VIEW view_name [ (field1, field2 ...) ] AS select_statement
+*/
+SqlCreate SqlCreateView(Span s, boolean replace) : {
+    SqlIdentifier viewName;
+    SqlCharStringLiteral comment = null;
+    SqlNode query;
+    SqlNodeList fieldList = SqlNodeList.EMPTY;
+}
+{
+    <VIEW>
+    viewName = CompoundIdentifier()
+    [
+        fieldList = ParenthesizedSimpleIdentifierList()
+    ]
+    [ <COMMENT> <QUOTED_STRING> {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    <AS>
+    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, comment);
+    }
+}
+
+SqlDrop SqlDropView(Span s, boolean replace) :
+{
+    SqlIdentifier viewName = null;
+    boolean ifExists = false;
+}
+{
+    <VIEW>
+    [<IF> <EXISTS> { ifExists = true; } ]
+    viewName = CompoundIdentifier()
+    {
+        return new SqlDropView(s.pos(), viewName, ifExists);
+    }
 }
 
 SqlIdentifier SqlArrayType() :

@@ -583,6 +583,51 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"OVERWRITE expression is only used with INSERT mode");
 	}
 
+	@Test
+	public void testCreateView() {
+		final String sql = "create view v as select col1 from tbl";
+		final String expected = "CREATE VIEW `V`\n" +
+			"AS\n" +
+			"SELECT `COL1`\n" +
+			"FROM `TBL`";
+		check(sql, expected);
+	}
+
+	@Test
+	public void testCreateViewWithComment() {
+		final String sql = "create view v COMMENT 'this is a view' as select col1 from tbl";
+		final String expected = "CREATE VIEW `V`\n" +
+			"COMMENT 'this is a view'\n" +
+			"AS\n" +
+			"SELECT `COL1`\n" +
+			"FROM `TBL`";
+		check(sql, expected);
+	}
+
+	@Test
+	public void testCreateViewWithFieldNames() {
+		final String sql = "create view v(col1, col2) as select col3, col4 from tbl";
+		final String expected = "CREATE VIEW `V` (`COL1`, `COL2`)\n" +
+			"AS\n" +
+			"SELECT `COL3`, `COL4`\n" +
+			"FROM `TBL`";
+		check(sql, expected);
+	}
+
+	@Test
+	public void testCreateViewWithInvalidName() {
+		final String sql = "create view v^(^*) COMMENT 'this is a view' as select col1 from tbl";
+		final String expected = "(?s).*Encountered \"\\( \\*\" at line 1, column 14.*";
+
+		checkFails(sql, expected);
+	}
+
+	@Test
+	public void testDropView() {
+		final String sql = "DROP VIEW IF EXISTS view_name";
+		check(sql, "DROP VIEW IF EXISTS `VIEW_NAME`");
+	}
+
 	/** Matcher that invokes the #validate() of the produced SqlNode. **/
 	private static class ValidationMatcher extends BaseMatcher<SqlNode> {
 		private String expectedColumnSql;
