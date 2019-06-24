@@ -57,9 +57,8 @@ public class SynchronousCheckpointTest {
 		execLatch = new OneShotLatch();
 		error = new AtomicReference<>();
 
-		streamTaskUnderTest = createTask(runningLatch, execLatch);
-
 		mainThreadExecutingTaskUnderTest = launchOnSeparateThread(() -> {
+			streamTaskUnderTest = createTask(runningLatch, execLatch);
 			try {
 				streamTaskUnderTest.invoke();
 			} catch (Exception e) {
