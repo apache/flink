@@ -21,8 +21,10 @@ package org.apache.flink.state.api.input;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.state.api.input.splits.OperatorStateInputSplit;
+import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -52,11 +54,13 @@ public class BroadcastStateInputFormatTest {
 			testHarness.processElement2(new StreamRecord<>(2));
 			testHarness.processElement2(new StreamRecord<>(3));
 
-			OperatorSubtaskState state = testHarness.snapshot(0, 0);
+			OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
+			OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
+			state.putState(0, subtaskState);
 
-			OperatorStateInputSplit split = new OperatorStateInputSplit(state.getManagedOperatorState(), 0);
+			OperatorStateInputSplit split = new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
-			BroadcastStateInputFormat<Integer, Integer> format = new BroadcastStateInputFormat<>("", "uid", descriptor);
+			BroadcastStateInputFormat<Integer, Integer> format = new BroadcastStateInputFormat<>(state, descriptor);
 
 			format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 			format.open(split);

@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import java.io.IOException;
+
 /**
  * IT case for reading state.
  */
@@ -39,17 +41,17 @@ public class SavepointReaderITCase extends SavepointReaderITTestBase {
 	}
 
 	@Override
-	public DataSet<Integer> readListState(ExistingSavepoint savepoint) {
+	public DataSet<Integer> readListState(ExistingSavepoint savepoint) throws IOException {
 		return savepoint.readListState(UID, LIST_NAME, Types.INT);
 	}
 
 	@Override
-	public DataSet<Integer> readUnionState(ExistingSavepoint savepoint) {
+	public DataSet<Integer> readUnionState(ExistingSavepoint savepoint) throws IOException {
 		return savepoint.readUnionState(UID, UNION_NAME, Types.INT);
 	}
 
 	@Override
-	public DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint) {
+	public DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint) throws IOException {
 		return savepoint.readBroadcastState(UID, BROADCAST_NAME, Types.INT, Types.STRING);
 	}
 }

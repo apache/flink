@@ -123,7 +123,7 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 			minNumSplits,
 			Collections.singletonList(operatorState.getOperatorID()),
 			newManagedOperatorStates,
-			Collections.emptyMap());
+			new HashMap<>());
 
 		return CollectionUtil.mapWithIndex(
 			newManagedOperatorStates.values(),

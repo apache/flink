@@ -34,12 +34,25 @@ import java.util.Comparator;
 @Internal
 public class OnDiskSavepointMetadata implements SavepointMetadata {
 
-	private final Savepoint savepoint;
+	private final int maxParallelism;
 
-	private int cachedMaxParallelism = Integer.MIN_VALUE;
+	private final Collection<MasterState> masterStates;
+
+	private final Collection<OperatorState> operatorStates;
 
 	public OnDiskSavepointMetadata(String path) throws IOException {
-		savepoint = SavepointLoader.loadSavepoint(path);
+		Savepoint savepoint = SavepointLoader.loadSavepoint(path);
+
+		this.maxParallelism = savepoint
+			.getOperatorStates()
+			.stream()
+			.map(OperatorState::getMaxParallelism)
+			.max(Comparator.naturalOrder())
+			.orElseThrow(() -> new RuntimeException("Savepoint's must contain at least one operator"));
+
+		this.masterStates = savepoint.getMasterStates();
+
+		this.operatorStates = savepoint.getOperatorStates();
 	}
 
 	/**
@@ -47,16 +60,7 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 	 */
 	@Override
 	public int maxParallelism() {
-		if (cachedMaxParallelism == Integer.MIN_VALUE) {
-			cachedMaxParallelism = savepoint
-				.getOperatorStates()
-				.stream()
-				.map(OperatorState::getMaxParallelism)
-				.max(Comparator.naturalOrder())
-				.orElseThrow(() -> new RuntimeException("Savepoint's must contain at least one operator"));
-		}
-
-		return cachedMaxParallelism;
+		return maxParallelism;
 	}
 
 	/**
@@ -64,11 +68,14 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 	 */
 	@Override
 	public Collection<MasterState> getMasterStates() {
-		return savepoint.getMasterStates();
+		return masterStates;
 	}
 
+	/**
+	 * @return Operator states for the savepoint.
+	 */
 	@Override
 	public Collection<OperatorState> getOperatorStates() {
-		return savepoint.getOperatorStates();
+		return operatorStates;
 	}
 }

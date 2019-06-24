@@ -46,6 +46,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -111,11 +112,11 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 		verifyBroadcastState(savepoint, batchEnv);
 	}
 
-	abstract DataSet<Integer> readListState(ExistingSavepoint savepoint);
+	abstract DataSet<Integer> readListState(ExistingSavepoint savepoint) throws IOException;
 
-	abstract DataSet<Integer> readUnionState(ExistingSavepoint savepoint);
+	abstract DataSet<Integer> readUnionState(ExistingSavepoint savepoint) throws IOException;
 
-	abstract DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint);
+	abstract DataSet<Tuple2<Integer, String>> readBroadcastState(ExistingSavepoint savepoint) throws IOException;
 
 	private void verifyListState(String path, ExecutionEnvironment batchEnv) throws Exception {
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, path, new MemoryStateBackend());

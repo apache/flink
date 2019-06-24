@@ -23,10 +23,12 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.state.api.input.splits.OperatorStateInputSplit;
+import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
@@ -56,11 +58,13 @@ public class ListStateInputFormatTest {
 			testHarness.processElement(2, 0);
 			testHarness.processElement(3, 0);
 
-			OperatorSubtaskState state = testHarness.snapshot(0, 0);
+			OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
+			OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
+			state.putState(0, subtaskState);
 
-			OperatorStateInputSplit split = new OperatorStateInputSplit(state.getManagedOperatorState(), 0);
+			OperatorStateInputSplit split = new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
-			ListStateInputFormat<Integer> format = new ListStateInputFormat<>("", "uid", descriptor);
+			ListStateInputFormat<Integer> format = new ListStateInputFormat<>(state, descriptor);
 
 			format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 			format.open(split);
