@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -26,8 +28,13 @@ import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
+import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -78,12 +85,25 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	@Test
 	public void testAlterTableColumnStatistics() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		CatalogTable catalogTable = createTable();
+		TableSchema tableSchema = TableSchema.builder()
+											.field("first", DataTypes.STRING())
+											.field("second", DataTypes.INT())
+											.field("third", DataTypes.BOOLEAN())
+											.field("fourth", DataTypes.DATE())
+											.field("fifth", DataTypes.DOUBLE())
+											.field("sixth", DataTypes.BIGINT())
+											.field("seventh", DataTypes.VARBINARY(200))
+											.build();
+		CatalogTable catalogTable = new HiveCatalogTable(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
 		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
 		columnStatisticsDataBaseMap.put("second", new CatalogColumnStatisticsDataLong(0, 1000, 3, 0));
-		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataString(15, 5.2, 3, 50));
+		columnStatisticsDataBaseMap.put("third", new CatalogColumnStatisticsDataBoolean(15, 20, 3));
+		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDate(new Date(71L), new Date(17923L), 1321, 0L));
+		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3, 10));
+		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataLong(0, 20, 3, 2));
+		columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataBinary(150, 20, 3));
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
 		catalog.alterTableColumnStatistics(path1, catalogColumnStatistics, false);
 

@@ -181,7 +181,7 @@ public class HiveStatsUtil {
 	private static ColumnStatisticsData getColumnStatisticsData(DataType colType, CatalogColumnStatisticsDataBase colStat) {
 		LogicalTypeRoot type = colType.getLogicalType().getTypeRoot();
 		if (type.equals(LogicalTypeRoot.CHAR)
-			|| type.equals(LogicalTypeRoot.VARCHAR)) {
+		|| type.equals(LogicalTypeRoot.VARCHAR)) {
 			if (colStat instanceof CatalogColumnStatisticsDataString) {
 				CatalogColumnStatisticsDataString stringColStat = (CatalogColumnStatisticsDataString) colStat;
 				return ColumnStatisticsData.stringStats(new StringColumnStatsData(stringColStat.getMaxLength(), stringColStat.getAvgLength(), stringColStat.getNullCount(), stringColStat.getNdv()));
@@ -225,6 +225,14 @@ public class HiveStatsUtil {
 				dateStats.setHighValue(new org.apache.hadoop.hive.metastore.api.Date(dateColumnStatsData.getMax().getDaysSinceEpoch()));
 				dateStats.setLowValue(new org.apache.hadoop.hive.metastore.api.Date(dateColumnStatsData.getMin().getDaysSinceEpoch()));
 				return ColumnStatisticsData.dateStats(dateStats);
+			}
+		} else if (type.equals(LogicalTypeRoot.VARBINARY)
+				|| type.equals(LogicalTypeRoot.BINARY)
+				|| type.equals(LogicalTypeRoot.BINARY)) {
+			if (colStat instanceof CatalogColumnStatisticsDataBinary) {
+				CatalogColumnStatisticsDataBinary binaryColumnStatsData = (CatalogColumnStatisticsDataBinary) colStat;
+				BinaryColumnStatsData binaryColumnStats = new BinaryColumnStatsData(binaryColumnStatsData.getMaxLength(), binaryColumnStatsData.getAvgLength(), binaryColumnStatsData.getNullCount());
+				return ColumnStatisticsData.binaryStats(binaryColumnStats);
 			}
 		}
 		throw new CatalogException(String.format("Flink does not support converting ColumnStats '%s' for Hive column " +

@@ -48,6 +48,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
@@ -1063,14 +1064,14 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException, TableNotPartitionedException {
+	public void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists) throws TableNotExistException, CatalogException, TablePartitionedException {
 		try {
 			Table hiveTable = getHiveTable(tablePath);
 			// Set table column stats. This only works for non-partitioned tables.
 			if (!isTablePartitioned(hiveTable)) {
 				client.updateTableColumnStatistics(HiveStatsUtil.createTableColumnStats(hiveTable, columnStatistics.getColumnStatisticsData()));
 			} else {
-				throw new TableNotPartitionedException(getName(), tablePath);
+				throw new TablePartitionedException(getName(), tablePath);
 			}
 		} catch (TableNotExistException e) {
 			if (!ignoreIfNotExists) {
@@ -1106,14 +1107,11 @@ public class HiveCatalog extends AbstractCatalog {
 	private String getPartitionName(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, Table hiveTable) throws PartitionSpecInvalidException {
 		List<String> partitionCols = getFieldNames(hiveTable.getPartitionKeys());
 		List<String> partitionVals = getOrderedFullPartitionValues(partitionSpec, partitionCols, tablePath);
-		StringBuilder stringBuilder = new StringBuilder();
+		List<String> partKVs = new ArrayList<>();
 		for (int i = 0; i < partitionCols.size(); i++) {
-			stringBuilder.append(partitionCols.get(i)).append("=").append(partitionVals.get(i));
-			if (i < partitionCols.size() - 1) {
-				stringBuilder.append("/");
-			}
+			partKVs.add(partitionCols.get(i) + "=" + partitionVals.get(i));
 		}
-		return stringBuilder.toString();
+		return String.join("/", partKVs);
 	}
 
 	@Override
