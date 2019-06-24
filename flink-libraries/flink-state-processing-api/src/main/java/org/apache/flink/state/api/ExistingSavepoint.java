@@ -37,8 +37,7 @@ import org.apache.flink.state.api.input.BroadcastStateInputFormat;
 import org.apache.flink.state.api.input.KeyedStateInputFormat;
 import org.apache.flink.state.api.input.ListStateInputFormat;
 import org.apache.flink.state.api.input.UnionStateInputFormat;
-import org.apache.flink.state.api.runtime.metadata.OnDiskSavepointMetadata;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -48,20 +47,21 @@ import java.io.IOException;
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
-public class ExistingSavepoint {
+public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	private final ExecutionEnvironment env;
 
-	private final SavepointMetadata metadata;
+	private final ModifiableSavepointMetadata metadata;
 
 	private final StateBackend stateBackend;
 
-	ExistingSavepoint(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
+	ExistingSavepoint(ExecutionEnvironment env, ModifiableSavepointMetadata metadata, StateBackend stateBackend) throws IOException {
+		super(metadata, stateBackend);
 		Preconditions.checkNotNull(env, "The execution environment must not be null");
-		Preconditions.checkNotNull(path, "The savepoint path must not be null");
+		Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 
 		this.env = env;
-		this.metadata = new OnDiskSavepointMetadata(path);
+		this.metadata = metadata;
 		this.stateBackend = stateBackend;
 	}
 

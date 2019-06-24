@@ -16,42 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.runtime.metadata;
+package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.checkpoint.MasterState;
-
-import java.io.Serializable;
-import java.util.Collection;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 
 /**
- * Returns metadata about a savepoint.
+ * A {@link StreamConfig} with default settings.
  */
 @Internal
-public class SavepointMetadata implements Serializable {
+public class BoundedStreamConfig extends StreamConfig {
+	public BoundedStreamConfig() {
+		super(new Configuration());
 
-	private static final long serialVersionUID = 1L;
-
-	private final int maxParallelism;
-
-	private final Collection<MasterState> masterStates;
-
-	public SavepointMetadata(int maxParallelism, Collection<MasterState> masterStates) {
-		this.maxParallelism = maxParallelism;
-		this.masterStates = masterStates;
+		setChainStart();
+		setCheckpointingEnabled(true);
+		setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
 	}
 
-	/**
-	 * @return The max parallelism for the savepoint.
-	 */
-	public int maxParallelism() {
-		return maxParallelism;
-	}
+	public <IN> BoundedStreamConfig(TypeSerializer<?> keySerializer, KeySelector<IN, ?> keySelector) {
+		this();
 
-	/**
-	 * @return Masters states for the savepoint.
-	 */
-	public Collection<MasterState> getMasterStates() {
-		return masterStates;
+		setStateKeySerializer(keySerializer);
+		setStatePartitioner(0, keySelector);
 	}
 }
+

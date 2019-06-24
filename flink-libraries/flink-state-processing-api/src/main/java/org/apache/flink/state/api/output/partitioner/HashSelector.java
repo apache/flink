@@ -16,42 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.runtime.metadata;
+package org.apache.flink.state.api.output.partitioner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.checkpoint.MasterState;
-
-import java.io.Serializable;
-import java.util.Collection;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Returns metadata about a savepoint.
+ * A wrapper around a {@link KeySelector} that returns the {@link Object#hashCode()} of the returned
+ * key.
+ *
+ * @param <IN> Type of objects to extract the key from.
  */
 @Internal
-public class SavepointMetadata implements Serializable {
+public class HashSelector<IN> implements KeySelector<IN, Integer> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final int maxParallelism;
+	private final KeySelector<IN, ?> keySelector;
 
-	private final Collection<MasterState> masterStates;
-
-	public SavepointMetadata(int maxParallelism, Collection<MasterState> masterStates) {
-		this.maxParallelism = maxParallelism;
-		this.masterStates = masterStates;
+	public HashSelector(KeySelector<IN, ?> keySelector) {
+		Preconditions.checkNotNull(keySelector);
+		this.keySelector = keySelector;
 	}
 
-	/**
-	 * @return The max parallelism for the savepoint.
-	 */
-	public int maxParallelism() {
-		return maxParallelism;
-	}
-
-	/**
-	 * @return Masters states for the savepoint.
-	 */
-	public Collection<MasterState> getMasterStates() {
-		return masterStates;
+	@Override
+	public Integer getKey(IN value) throws Exception {
+		return keySelector.getKey(value).hashCode();
 	}
 }
+

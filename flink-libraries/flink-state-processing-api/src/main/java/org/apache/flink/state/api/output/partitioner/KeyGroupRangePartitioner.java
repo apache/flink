@@ -16,42 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.runtime.metadata;
+package org.apache.flink.state.api.output.partitioner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.checkpoint.MasterState;
-
-import java.io.Serializable;
-import java.util.Collection;
+import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 /**
- * Returns metadata about a savepoint.
+ * A partitioner that selects the target channel based on the key group index.
  */
 @Internal
-public class SavepointMetadata implements Serializable {
+public class KeyGroupRangePartitioner implements Partitioner<Integer> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final int maxParallelism;
 
-	private final Collection<MasterState> masterStates;
-
-	public SavepointMetadata(int maxParallelism, Collection<MasterState> masterStates) {
+	public KeyGroupRangePartitioner(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
-		this.masterStates = masterStates;
 	}
 
-	/**
-	 * @return The max parallelism for the savepoint.
-	 */
-	public int maxParallelism() {
-		return maxParallelism;
-	}
-
-	/**
-	 * @return Masters states for the savepoint.
-	 */
-	public Collection<MasterState> getMasterStates() {
-		return masterStates;
+	@Override
+	public int partition(Integer key, int numPartitions) {
+		return KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+			maxParallelism,
+			numPartitions,
+			KeyGroupRangeAssignment.computeKeyGroupForKeyHash(key, maxParallelism));
 	}
 }

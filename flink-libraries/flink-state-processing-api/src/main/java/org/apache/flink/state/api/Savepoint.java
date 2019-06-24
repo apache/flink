@@ -20,9 +20,17 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.runtime.SavepointLoader;
+import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
+
+import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 /**
  * A {@link Savepoint} is a collection of operator states that can be used to supply initial state
@@ -39,10 +47,36 @@ public final class Savepoint {
 	 *
 	 * @param env The execution enviornment used to transform the savepoint.
 	 * @param path The path to an existing savepoint on disk.
-	 * @param stateBackend The state backend of the savepoint used for keyed state.
-	 * @return An existing savepoint that can be queried.
+	 * @param stateBackend The state backend of the savepoint.
 	 */
 	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
-		return new ExistingSavepoint(env, path, stateBackend);
+		org.apache.flink.runtime.checkpoint.savepoint.Savepoint savepoint = SavepointLoader.loadSavepoint(path);
+
+		int maxParallelism = savepoint
+			.getOperatorStates()
+			.stream()
+			.map(OperatorState::getMaxParallelism)
+			.max(Comparator.naturalOrder())
+			.orElseThrow(() -> new RuntimeException("Savepoint's must contain at least one operator"));
+
+		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(maxParallelism, savepoint.getMasterStates(), savepoint.getOperatorStates());
+		return new ExistingSavepoint(env, metadata, stateBackend);
+	}
+
+	/**
+	 * Creates a new savepoint.
+	 *
+	 * @param stateBackend The state backend of the savepoint used for keyed state.
+	 * @param maxParallelism The max parallelism of the savepoint.
+	 * @return A new savepoint.
+	 */
+	public static NewSavepoint create(StateBackend stateBackend, int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0
+				&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+			"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
+				+ ". Found: " + maxParallelism);
+
+		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(maxParallelism, Collections.emptyList(), Collections.emptyList());
+		return new NewSavepoint(metadata, stateBackend);
 	}
 }
