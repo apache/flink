@@ -99,6 +99,14 @@ public final class SqlCommandParser {
 			"SHOW\\s+FUNCTIONS",
 			NO_OPERANDS),
 
+		USE_CATALOG(
+			"USE\\s+CATALOG\\s+(.*)",
+			SINGLE_OPERAND),
+
+		USE_DATABASE(
+			"USE\\s+DATABASE\\s+(.*)",
+			SINGLE_OPERAND),
+
 		DESCRIBE(
 			"DESCRIBE\\s+(.*)",
 			SINGLE_OPERAND),

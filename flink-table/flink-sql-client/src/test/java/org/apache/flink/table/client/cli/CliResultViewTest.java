@@ -146,6 +146,16 @@ public class CliResultViewTest {
 		}
 
 		@Override
+		public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
+
+		}
+
+		@Override
+		public void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException {
+
+		}
+
+		@Override
 		public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
 			return null;
 		}

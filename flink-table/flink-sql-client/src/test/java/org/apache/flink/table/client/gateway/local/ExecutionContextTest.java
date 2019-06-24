@@ -87,8 +87,8 @@ public class ExecutionContextTest {
 		final ExecutionContext<?> context = createCatalogExecutionContext();
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 
-		assertEquals(tableEnv.getCurrentCatalog(), inmemoryCatalog);
-		assertEquals(tableEnv.getCurrentDatabase(), "mydatabase");
+		assertEquals(inmemoryCatalog, tableEnv.getCurrentCatalog());
+		assertEquals("mydatabase", tableEnv.getCurrentDatabase());
 
 		Catalog catalog = tableEnv.getCatalog(hiveCatalog).orElse(null);
 		assertNotNull(catalog);
@@ -100,6 +100,10 @@ public class ExecutionContextTest {
 		assertTrue(catalog instanceof HiveCatalog);
 		// make sure we have assigned a default hive version
 		assertFalse(StringUtils.isNullOrWhitespaceOnly(((HiveCatalog) catalog).getHiveVersion()));
+
+		tableEnv.useCatalog(hiveCatalog);
+
+		assertEquals(hiveCatalog, tableEnv.getCurrentCatalog());
 
 		Set<String> allCatalogs = new HashSet<>(Arrays.asList(tableEnv.listCatalogs()));
 		assertEquals(6, allCatalogs.size());
@@ -129,8 +133,23 @@ public class ExecutionContextTest {
 
 		tableEnv.useCatalog(hiveCatalog);
 
-		assertEquals(1, tableEnv.listDatabases().length);
-		assertEquals(HiveCatalog.DEFAULT_DB, tableEnv.listDatabases()[0]);
+		assertEquals(2, tableEnv.listDatabases().length);
+		assertEquals(
+			new HashSet<>(
+				Arrays.asList(
+					HiveCatalog.DEFAULT_DB,
+					DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE)
+			),
+			new HashSet<>(Arrays.asList(tableEnv.listDatabases()))
+		);
+
+		tableEnv.useCatalog(hiveCatalog);
+
+		assertEquals(HiveCatalog.DEFAULT_DB, tableEnv.getCurrentDatabase());
+
+		tableEnv.useDatabase(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
+
+		assertEquals(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, tableEnv.getCurrentDatabase());
 	}
 
 	@Test

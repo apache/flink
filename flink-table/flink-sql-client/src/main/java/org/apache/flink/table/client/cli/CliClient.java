@@ -275,6 +275,12 @@ public class CliClient {
 			case SHOW_FUNCTIONS:
 				callShowFunctions();
 				break;
+			case USE_CATALOG:
+				callUseCatalog(cmdCall);
+				break;
+			case USE_DATABASE:
+				callUseDatabase(cmdCall);
+				break;
 			case DESCRIBE:
 				callDescribe(cmdCall);
 				break;
@@ -409,6 +415,26 @@ public class CliClient {
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
 		} else {
 			functions.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callUseCatalog(SqlCommandCall cmdCall) {
+		try {
+			executor.useCatalog(context, cmdCall.operands[0]);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		terminal.flush();
+	}
+
+	private void callUseDatabase(SqlCommandCall cmdCall) {
+		try {
+			executor.useDatabase(context, cmdCall.operands[0]);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
 		}
 		terminal.flush();
 	}

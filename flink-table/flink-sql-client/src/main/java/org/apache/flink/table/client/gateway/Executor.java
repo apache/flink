@@ -61,6 +61,16 @@ public interface Executor {
 	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
 
 	/**
+	 * Sets a catalog with given name as the current catalog.
+	 */
+	void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException;
+
+	/**
+	 * Sets a database with given name as the current database of the current catalog.
+	 */
+	void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException;
+
+	/**
 	 * Returns the schema of a table. Throws an exception if the table could not be found. The
 	 * schema might contain time attribute types for helping the user during debugging a query.
 	 */
