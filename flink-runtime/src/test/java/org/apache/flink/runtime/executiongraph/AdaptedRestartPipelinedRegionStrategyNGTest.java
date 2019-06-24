@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -163,6 +164,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			VoidBlobWriter.getInstance(),
 			timeout,
-			log);
+			log,
+			NettyShuffleMaster.INSTANCE);
 	}
 }

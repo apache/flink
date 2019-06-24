@@ -655,12 +655,17 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 	private static void enableCheckpointing(final ExecutionGraph eg) {
 		final ArrayList<ExecutionJobVertex> jobVertices = new ArrayList<>(eg.getAllVertices().values());
-		eg.enableCheckpointing(
+		final CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			1000,
 			100,
 			0,
 			1,
 			CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION,
+			true,
+			false,
+			0);
+		eg.enableCheckpointing(
+			chkConfig,
 			jobVertices,
 			jobVertices,
 			jobVertices,
@@ -672,8 +677,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 				0,
 				jobVertices,
 				mock(CheckpointCoordinatorConfiguration.class),
-				new UnregisteredMetricsGroup()),
-			false);
+				new UnregisteredMetricsGroup()));
 	}
 
 	/**
