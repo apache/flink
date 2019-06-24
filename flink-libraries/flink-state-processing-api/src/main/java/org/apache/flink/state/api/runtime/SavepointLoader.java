@@ -38,6 +38,8 @@ public final class SavepointLoader {
 	 * Takes the given string (representing a pointer to a checkpoint) and resolves it to a file
 	 * status for the checkpoint's metadata file.
 	 *
+	 *<p>This should only be used when the user code class loader is the current classloader for
+	 * the thread.
 	 * @param savepointPath The path to an external savepoint.
 	 * @return A state handle to savepoint's metadata.
 	 * @throws IOException Thrown, if the path cannot be resolved, the file system not accessed, or
@@ -48,7 +50,7 @@ public final class SavepointLoader {
 			.resolveCheckpointPointer(savepointPath);
 
 		try (DataInputStream stream = new DataInputStream(location.getMetadataHandle().openInputStream())) {
-			return Checkpoints.loadCheckpointMetadata(stream, NullClassLoader.INSTANCE);
+			return Checkpoints.loadCheckpointMetadata(stream, Thread.currentThread().getContextClassLoader());
 		}
 	}
 }

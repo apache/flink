@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.StateBackend;
 
+import java.io.IOException;
+
 /**
  * A {@link Savepoint} is a collection of operator states that can be used to supply initial state
  * when starting a {@link org.apache.flink.streaming.api.datastream.DataStream} job.
@@ -38,8 +40,9 @@ public final class Savepoint {
 	 * @param env The execution enviornment used to transform the savepoint.
 	 * @param path The path to an existing savepoint on disk.
 	 * @param stateBackend The state backend of the savepoint used for keyed state.
+	 * @return An existing savepoint that can be queried.
 	 */
-	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) {
+	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
 		return new ExistingSavepoint(env, path, stateBackend);
 	}
 }

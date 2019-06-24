@@ -42,7 +42,6 @@ under the License.
 		<module>flink-ml-uber</module>
 		<module>flink-cep</module>
 		<module>flink-cep-scala</module>
-		<module>flink-streaming-python</module>
 		<module>flink-state-processing-api</module>
 	</modules>
 

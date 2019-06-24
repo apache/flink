@@ -18,8 +18,14 @@
 
 package org.apache.flink.state.api.input;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.RichInputFormat;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -32,6 +38,7 @@ import org.apache.flink.state.api.input.splits.OperatorStateInputSplit;
 import org.apache.flink.streaming.api.operators.BackendRestorerProcedure;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,7 +55,10 @@ import java.util.Map;
  *
  * @param <OT> The type of the input.
  */
-abstract class OperatorStateInputFormat<OT> extends SavepointInputFormat<OT, OperatorStateInputSplit> {
+@Internal
+abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, OperatorStateInputSplit> {
+
+	private final OperatorState operatorState;
 
 	private final boolean isUnionType;
 
@@ -58,15 +68,30 @@ abstract class OperatorStateInputFormat<OT> extends SavepointInputFormat<OT, Ope
 
 	private transient Iterator<OT> elements;
 
-	OperatorStateInputFormat(String savepointPath, String uid, boolean isUnionType) {
-		super(savepointPath, uid);
+	OperatorStateInputFormat(OperatorState operatorState, boolean isUnionType) {
+		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
 
+		this.operatorState = operatorState;
 		this.isUnionType = isUnionType;
 	}
 
 	protected abstract Iterable<OT> getElements(OperatorStateBackend restoredBackend) throws Exception;
 
-	public OperatorStateInputSplit[] createInputSplits(int minNumSplits) throws IOException {
+	@Override
+	public void configure(Configuration parameters) {
+	}
+
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return cachedStatistics;
+	}
+
+	@Override
+	public InputSplitAssigner getInputSplitAssigner(OperatorStateInputSplit[] inputSplits) {
+		return new DefaultInputSplitAssigner(inputSplits);
+	}
+
+	public OperatorStateInputSplit[] createInputSplits(int minNumSplits) {
 		OperatorStateInputSplit[] splits = getOperatorStateInputSplits(minNumSplits);
 
 		if (isUnionType) {
@@ -90,18 +115,15 @@ abstract class OperatorStateInputFormat<OT> extends SavepointInputFormat<OT, Ope
 		).toArray(OperatorStateInputSplit[]::new);
 	}
 
-	private OperatorStateInputSplit[] getOperatorStateInputSplits(int minNumSplits) throws IOException {
-		final OperatorState operatorState = getOperatorState();
-
+	private OperatorStateInputSplit[] getOperatorStateInputSplits(int minNumSplits) {
 		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = new HashMap<>();
-		final Map<OperatorInstanceID, List<OperatorStateHandle>> newRawOperatorStates = new HashMap<>();
 
 		StateAssignmentOperation.reDistributePartitionableStates(
 			Collections.singletonList(operatorState),
 			minNumSplits,
-			Collections.singletonList(operatorID),
+			Collections.singletonList(operatorState.getOperatorID()),
 			newManagedOperatorStates,
-			newRawOperatorStates);
+			Collections.emptyMap());
 
 		return CollectionUtil.mapWithIndex(
 			newManagedOperatorStates.values(),
@@ -117,7 +139,7 @@ abstract class OperatorStateInputFormat<OT> extends SavepointInputFormat<OT, Ope
 			new BackendRestorerProcedure<>(
 				(handles) -> createOperatorStateBackend(getRuntimeContext(), handles, registry),
 				registry,
-				uid
+				operatorState.getOperatorID().toString()
 			);
 
 		try {
