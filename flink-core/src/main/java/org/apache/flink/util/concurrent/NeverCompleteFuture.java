@@ -17,6 +17,8 @@
 
 package org.apache.flink.util.concurrent;
 
+import org.apache.flink.annotation.Internal;
+
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CancellationException;
@@ -28,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * A future that never completes.
  */
+@Internal
 public final class NeverCompleteFuture implements ScheduledFuture<Object> {
 
 	private final Object lock = new Object();

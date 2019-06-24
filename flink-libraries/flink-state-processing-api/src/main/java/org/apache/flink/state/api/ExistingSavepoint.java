@@ -208,7 +208,7 @@ public class ExistingSavepoint {
 	 * @param <OUT> The output type of the transform function.
 	 * @return A {@code DataSet} of objects read from keyed state.
 	 */
-	public <K, OUT> DataSet<OUT> readKeyedState(String uid, KeyedStateReaderFunction<K, OUT> function) {
+	public <K, OUT> DataSet<OUT> readKeyedState(String uid, KeyedStateReaderFunction<K, OUT> function) throws IOException {
 
 		TypeInformation<K> keyTypeInfo;
 		TypeInformation<OUT> outType;
@@ -256,11 +256,11 @@ public class ExistingSavepoint {
 		String uid,
 		KeyedStateReaderFunction<K, OUT> function,
 		TypeInformation<K> keyTypeInfo,
-		TypeInformation<OUT> outTypeInfo) {
+		TypeInformation<OUT> outTypeInfo) throws IOException {
 
+		OperatorState operatorState = getOperatorState(uid);
 		KeyedStateInputFormat<K, OUT> inputFormat = new KeyedStateInputFormat<>(
-			existingSavepoint,
-			uid,
+			operatorState,
 			stateBackend,
 			keyTypeInfo,
 			function);

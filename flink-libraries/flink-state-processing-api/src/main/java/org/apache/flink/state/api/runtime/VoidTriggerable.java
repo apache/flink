@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
  * @param <K> Type of the keys to which timers are scoped.
  * @param <N> Type of the namespace to which timers are scoped.
  */
+@Internal
 public final class VoidTriggerable<K, N> implements Triggerable<K, N> {
 	public static <K, N> VoidTriggerable<K, N> instance() {
 		return new VoidTriggerable<>();

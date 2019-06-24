@@ -19,13 +19,16 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.RichInputFormat;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
@@ -60,9 +63,9 @@ import java.util.List;
  * @param <OUT> The type of the output of the {@link KeyedStateReaderFunction}.
  */
 @Internal
-public class KeyedStateInputFormat<K, OUT> extends SavepointInputFormat<OUT, KeyGroupRangeInputSplit> implements KeyContext {
+public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroupRangeInputSplit> implements KeyContext {
 
-	private static final String USER_TIMERS_NAME = "user-timers";
+	private final OperatorState operatorState;
 
 	private final StateBackend stateBackend;
 
@@ -85,29 +88,55 @@ public class KeyedStateInputFormat<K, OUT> extends SavepointInputFormat<OUT, Key
 	/**
 	 * Creates an input format for reading partitioned state from an operator in a savepoint.
 	 *
-	 * @param savepointPath The path to an existing savepoint.
-	 * @param uid           The uid of an operator.
+	 * @param operatorState The state to be queried.
 	 * @param stateBackend  The state backed used to snapshot the operator.
 	 * @param keyType       The type information describing the key type.
 	 * @param userFunction  The {@link KeyedStateReaderFunction} called for each key in the operator.
 	 */
 	public KeyedStateInputFormat(
-		String savepointPath,
-		String uid,
+		OperatorState operatorState,
 		StateBackend stateBackend,
 		TypeInformation<K> keyType,
 		KeyedStateReaderFunction<K, OUT> userFunction) {
-		super(savepointPath, uid);
+		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
+		Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
+		Preconditions.checkNotNull(keyType, "The key type information cannot be null");
+		Preconditions.checkNotNull(userFunction, "The userfunction cannot be null");
+
+		this.operatorState = operatorState;
 		this.stateBackend = stateBackend;
 		this.keyType = keyType;
 		this.userFunction = userFunction;
 	}
 
 	@Override
-	public KeyGroupRangeInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		final OperatorState operatorState = getOperatorState();
+	public void configure(Configuration parameters) {
+	}
 
-		return getKeyGroupRangeInputSplits(minNumSplits, operatorState);
+	@Override
+	public InputSplitAssigner getInputSplitAssigner(KeyGroupRangeInputSplit[] inputSplits) {
+		return new DefaultInputSplitAssigner(inputSplits);
+	}
+
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return cachedStatistics;
+	}
+
+	@Override
+	public KeyGroupRangeInputSplit[] createInputSplits(int minNumSplits) throws IOException {
+		final int maxParallelism = operatorState.getMaxParallelism();
+
+		final List<KeyGroupRange> keyGroups = sortedKeyGroupRanges(minNumSplits, maxParallelism);
+
+		return CollectionUtil.mapWithIndex(
+			keyGroups,
+			(keyGroupRange, index) -> createKeyGroupRangeInputSplit(
+				operatorState,
+				maxParallelism,
+				keyGroupRange,
+				index)
+		).toArray(KeyGroupRangeInputSplit[]::new);
 	}
 
 	@Override
@@ -130,19 +159,21 @@ public class KeyedStateInputFormat<K, OUT> extends SavepointInputFormat<OUT, Key
 		final StreamOperatorStateContext context = getStreamOperatorStateContext(environment);
 
 		keyedStateBackend = (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
-		keys = getKeyIterator();
-		ctx = new Context();
+
+		final DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getRuntimeContext().getExecutionConfig());
+		SavepointRuntimeContext ctx = new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore);
+		FunctionUtils.setFunctionRuntimeContext(userFunction, ctx);
+
+		keys = getKeyIterator(ctx);
+		this.ctx = new Context();
 	}
 
 	@SuppressWarnings("unchecked")
-	private Iterator<K> getKeyIterator() throws IOException {
-		Preconditions.checkNotNull(keyedStateBackend);
-		final DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getRuntimeContext().getExecutionConfig());
-
+	private Iterator<K> getKeyIterator(SavepointRuntimeContext ctx) throws IOException {
 		final List<StateDescriptor<?, ?>> stateDescriptors;
-		try (SavepointRuntimeContext ctx = new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore)) {
-			FunctionUtils.setFunctionRuntimeContext(userFunction, ctx);
+		try  {
 			FunctionUtils.openFunction(userFunction, new Configuration());
+			ctx.disableStateRegistration();
 			stateDescriptors = ctx.getStateDescriptors();
 		} catch (Exception e) {
 			throw new IOException("Failed to open user defined function", e);
@@ -159,8 +190,8 @@ public class KeyedStateInputFormat<K, OUT> extends SavepointInputFormat<OUT, Key
 
 		try {
 			return initializer.streamOperatorStateContext(
-				operatorID,
-				uid,
+				operatorState.getOperatorID(),
+				operatorState.getOperatorID().toString(),
 				this,
 				keySerializer,
 				registry,
@@ -209,22 +240,6 @@ public class KeyedStateInputFormat<K, OUT> extends SavepointInputFormat<OUT, Key
 	@Override
 	public Object getCurrentKey() {
 		return keyedStateBackend.getCurrentKey();
-	}
-
-	@VisibleForTesting
-	static KeyGroupRangeInputSplit[] getKeyGroupRangeInputSplits(int minNumSplits, OperatorState operatorState) {
-		final int maxParallelism = operatorState.getMaxParallelism();
-
-		final List<KeyGroupRange> keyGroups = sortedKeyGroupRanges(minNumSplits, maxParallelism);
-
-		return CollectionUtil.mapWithIndex(
-			keyGroups,
-			(keyGroupRange, index) -> createKeyGroupRangeInputSplit(
-				operatorState,
-				maxParallelism,
-				keyGroupRange,
-				index)
-		).toArray(KeyGroupRangeInputSplit[]::new);
 	}
 
 	private static KeyGroupRangeInputSplit createKeyGroupRangeInputSplit(

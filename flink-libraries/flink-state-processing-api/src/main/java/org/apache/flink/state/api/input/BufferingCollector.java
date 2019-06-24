@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.Queue;
 
 /**
- * A collector that buffers elements in memory to be pulled latter by downstream operators.
+ * A collector that buffers elements in memory to be pulled later by downstream operators.
  *
  * @param <T> The type of the records being collected.
  */

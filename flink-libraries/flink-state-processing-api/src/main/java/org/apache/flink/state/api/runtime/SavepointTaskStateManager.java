@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 
 /**
  * A minimally implemented {@link TaskStateManager} that provides the functionality required to run
- * the {@code savepoint-connector}.
+ * the {@code state-processor-api}.
  */
 final class SavepointTaskStateManager implements TaskStateManager {
 	private static final String MSG = "This method should never be called";

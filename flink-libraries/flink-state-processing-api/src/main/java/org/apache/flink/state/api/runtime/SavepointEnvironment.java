@@ -54,11 +54,11 @@ import java.util.concurrent.Future;
 
 /**
  * A minimally implemented {@link Environment} that provides the functionality required to run the
- * {@code savepoint-connector}.
+ * {@code state-processor-api}.
  */
 @Internal
 public class SavepointEnvironment implements Environment {
-	private static final String MSG = "This method should never be called";
+	private static final String ERROR_MSG = "This method should never be called";
 
 	private final JobID jobID;
 
@@ -128,12 +128,12 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public Configuration getJobConfiguration() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -148,7 +148,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -158,7 +158,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public MemoryManager getMemoryManager() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -173,7 +173,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -183,7 +183,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public GlobalAggregateManager getGlobalAggregateManager() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -198,17 +198,17 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public void declineCheckpoint(long checkpointId, Throwable cause) {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
@@ -218,27 +218,27 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public ResultPartitionWriter getWriter(int index) {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public ResultPartitionWriter[] getAllWriters() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public InputGate getInputGate(int index) {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public InputGate[] getAllInputGates() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	@Override
 	public TaskEventDispatcher getTaskEventDispatcher() {
-		throw new UnsupportedOperationException(MSG);
+		throw new UnsupportedOperationException(ERROR_MSG);
 	}
 
 	/**

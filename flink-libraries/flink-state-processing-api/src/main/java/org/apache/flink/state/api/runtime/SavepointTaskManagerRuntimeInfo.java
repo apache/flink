@@ -24,7 +24,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 /**
  * A minimally implemented {@link TaskManagerRuntimeInfo} that provides the functionality required
- * to run the {@code savepoint-connector}.
+ * to run the {@code state-processor-api}.
  */
 class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	private final IOManager ioManager;

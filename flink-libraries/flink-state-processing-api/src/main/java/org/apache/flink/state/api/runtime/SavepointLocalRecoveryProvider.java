@@ -24,7 +24,7 @@ import java.io.File;
 
 /**
  * A minimally implemented {@link LocalRecoveryDirectoryProvider} that provides the functionality
- * required to run the {@code savepoint-connector}.
+ * required to run the {@code state-processor-api}.
  */
 final class SavepointLocalRecoveryProvider implements LocalRecoveryDirectoryProvider {
 	private static final String MSG = "This method should never be called";
