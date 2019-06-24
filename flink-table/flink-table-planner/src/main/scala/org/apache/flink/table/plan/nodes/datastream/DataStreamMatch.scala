@@ -51,6 +51,7 @@ import org.apache.flink.table.plan.nodes.CommonMatchRecognize
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.RexDefaultVisitor
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.`match`._
 import org.apache.flink.table.runtime.aggregate.SortUtil
 import org.apache.flink.table.runtime.conversion.CRowToRowMapFunction
@@ -123,18 +124,18 @@ class DataStreamMatch(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig)
     : DataStream[CRow] = {
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(getInput)
 
-    val config = tableEnv.config
+    val config = planner.getConfig
     val inputTypeInfo = inputSchema.typeInfo
 
     val crowInput: DataStream[CRow] = getInput
       .asInstanceOf[DataStreamRel]
-      .translateToPlan(tableEnv, queryConfig)
+      .translateToPlan(planner, queryConfig)
 
     if (inputIsAccRetract) {
       throw new TableException(
@@ -142,7 +143,7 @@ class DataStreamMatch(
           "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
     }
 
-    val (timestampedInput, rowComparator) = translateOrder(tableEnv,
+    val (timestampedInput, rowComparator) = translateOrder(planner,
       crowInput,
       logicalMatch.orderKeys)
 
@@ -192,7 +193,7 @@ class DataStreamMatch(
   }
 
   private def translateOrder(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       crowInput: DataStream[CRow],
       orderKeys: RelCollation)
     : (DataStream[CRow], Option[RowComparator]) = {
@@ -219,7 +220,7 @@ class DataStreamMatch(
       Some(SortUtil
         .createRowComparator(inputSchema.relDataType,
           orderKeys.getFieldCollations.asScala.tail,
-          tableEnv.execEnv.getConfig))
+          planner.getExecutionEnvironment.getConfig))
     } else {
       None
     }

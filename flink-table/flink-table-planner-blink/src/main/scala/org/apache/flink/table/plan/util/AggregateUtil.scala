@@ -501,7 +501,7 @@ object AggregateUtil extends Enumeration {
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT
 
-      case VARCHAR => fromLegacyInfoToDataType(BinaryStringTypeInfo.INSTANCE)
+      case VARCHAR | CHAR => fromLegacyInfoToDataType(BinaryStringTypeInfo.INSTANCE)
       case DECIMAL =>
         val dt = argTypes(0).asInstanceOf[DecimalType]
         DataTypes.DECIMAL(dt.getPrecision, dt.getScale)

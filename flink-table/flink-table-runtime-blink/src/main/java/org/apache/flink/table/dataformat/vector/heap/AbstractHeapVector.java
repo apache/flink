@@ -122,7 +122,9 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 				}
 			case SMALLINT:
 				return new HeapShortVector(maxRows);
+			case CHAR:
 			case VARCHAR:
+			case BINARY:
 			case VARBINARY:
 				return new HeapBytesVector(maxRows);
 			default:

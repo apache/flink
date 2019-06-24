@@ -608,13 +608,9 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 		ExecutionAttemptID consumerID = new ExecutionAttemptID();
 		SingleInputGate[] gates = network.createInputGates(
-			"",
-			consumerID,
+			network.createShuffleIOOwnerContext("", consumerID, new UnregisteredMetricsGroup()),
 			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-			Arrays.asList(gateDescs),
-			new UnregisteredMetricsGroup(),
-			new UnregisteredMetricsGroup(),
-			new UnregisteredMetricsGroup()).toArray(new SingleInputGate[] {});
+			Arrays.asList(gateDescs)).toArray(new SingleInputGate[] {});
 		Map<InputGateID, SingleInputGate> inputGatesById = new HashMap<>();
 		for (int i = 0; i < numberOfGates; i++) {
 			inputGatesById.put(new InputGateID(ids[i], consumerID), gates[i]);

@@ -115,6 +115,7 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 				return literal(0.0d);
 			case DECIMAL:
 				return literal(java.math.BigDecimal.ZERO);
+			case CHAR:
 			case VARCHAR:
 				return literal("");
 			case DATE:

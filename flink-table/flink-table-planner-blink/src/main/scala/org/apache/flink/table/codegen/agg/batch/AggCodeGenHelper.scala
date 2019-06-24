@@ -396,7 +396,7 @@ object AggCodeGenHelper {
     aggBufferExprs.zip(initAggBufferExprs).map {
       case (aggBufVar, initExpr) =>
         val resultCode = aggBufVar.resultType.getTypeRoot match {
-          case VARCHAR | ROW | ARRAY | MULTISET | MAP =>
+          case VARCHAR | CHAR | ROW | ARRAY | MULTISET | MAP =>
             val serializer = InternalSerializers.create(
               aggBufVar.resultType, new ExecutionConfig)
             val term = ctx.addReusableObject(

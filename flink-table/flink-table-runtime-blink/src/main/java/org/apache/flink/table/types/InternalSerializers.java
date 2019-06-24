@@ -65,6 +65,7 @@ public class InternalSerializers {
 				return FloatSerializer.INSTANCE;
 			case DOUBLE:
 				return DoubleSerializer.INSTANCE;
+			case CHAR:
 			case VARCHAR:
 				return BinaryStringSerializer.INSTANCE;
 			case DECIMAL:
@@ -78,6 +79,7 @@ public class InternalSerializers {
 			case ROW:
 				RowType rowType = (RowType) type;
 				return new BaseRowSerializer(config, rowType);
+			case BINARY:
 			case VARBINARY:
 				return BytePrimitiveArraySerializer.INSTANCE;
 			case ANY:

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -38,16 +37,13 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
+import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Netty based shuffle service implementation.
  */
 public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
-
-	private static final String METRIC_GROUP_NETWORK = "Network";
-	private static final String METRIC_TOTAL_MEMORY_SEGMENT = "TotalMemorySegments";
-	private static final String METRIC_AVAILABLE_MEMORY_SEGMENT = "AvailableMemorySegments";
 
 	@Override
 	public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
@@ -96,7 +92,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.networkBufferSize(),
 			config.networkBuffersPerChannel());
 
-		registerNetworkMetrics(metricGroup, networkBufferPool);
+		registerShuffleMetrics(metricGroup, networkBufferPool);
 
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			resultPartitionManager,
@@ -122,13 +118,5 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			resultPartitionManager,
 			resultPartitionFactory,
 			singleInputGateFactory);
-	}
-
-	private static void registerNetworkMetrics(MetricGroup metricGroup, NetworkBufferPool networkBufferPool) {
-		MetricGroup networkGroup = metricGroup.addGroup(METRIC_GROUP_NETWORK);
-		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_TOTAL_MEMORY_SEGMENT,
-			networkBufferPool::getTotalNumberOfMemorySegments);
-		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_AVAILABLE_MEMORY_SEGMENT,
-			networkBufferPool::getNumberOfAvailableMemorySegments);
 	}
 }

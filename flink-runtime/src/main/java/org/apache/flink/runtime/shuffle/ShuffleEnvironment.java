@@ -93,24 +93,33 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	int start() throws IOException;
 
 	/**
+	 * Create a context of the shuffle input/output owner used to create partitions or gates belonging to the owner.
+	 *
+	 * <p>This method has to be called only once to avoid duplicated internal metric group registration.
+	 *
+	 * @param ownerName the owner name, used for logs
+	 * @param executionAttemptID execution attempt id of the producer or consumer
+	 * @param parentGroup parent of shuffle specific metric group
+	 * @return context of the shuffle input/output owner used to create partitions or gates belonging to the owner
+	 */
+	ShuffleIOOwnerContext createShuffleIOOwnerContext(
+		String ownerName,
+		ExecutionAttemptID executionAttemptID,
+		MetricGroup parentGroup);
+
+	/**
 	 * Factory method for the {@link ResultPartitionWriter ResultPartitionWriters} to produce result partitions.
 	 *
 	 * <p>The order of the {@link ResultPartitionWriter ResultPartitionWriters} in the returned collection
 	 * should be the same as the iteration order of the passed {@code resultPartitionDeploymentDescriptors}.
 	 *
-	 * @param ownerName the owner name, used for logs
-	 * @param executionAttemptID execution attempt id of the producer
+	 * @param ownerContext the owner context relevant for partition creation
 	 * @param resultPartitionDeploymentDescriptors descriptors of the partition, produced by the owner
-	 * @param outputGroup shuffle specific group for output metrics
-	 * @param buffersGroup shuffle specific group for buffer metrics
 	 * @return collection of the {@link ResultPartitionWriter ResultPartitionWriters}
 	 */
 	Collection<P> createResultPartitionWriters(
-		String ownerName,
-		ExecutionAttemptID executionAttemptID,
-		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-		MetricGroup outputGroup,
-		MetricGroup buffersGroup);
+		ShuffleIOOwnerContext ownerContext,
+		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors);
 
 	/**
 	 * Release local resources occupied by the given partitions.
@@ -133,23 +142,15 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
 	 * <p>The order of the {@link InputGate InputGates} in the returned collection should be the same as the iteration order
 	 * of the passed {@code inputGateDeploymentDescriptors}.
 	 *
-	 * @param ownerName the owner name, used for logs
-	 * @param executionAttemptID execution attempt id of the consumer
+	 * @param ownerContext the owner context relevant for gate creation
 	 * @param partitionProducerStateProvider producer state provider to query whether the producer is ready for consumption
 	 * @param inputGateDeploymentDescriptors descriptors of the input gates to consume
-	 * @param parentGroup parent of shuffle specific metric group
-	 * @param inputGroup shuffle specific group for input metrics
-	 * @param buffersGroup shuffle specific group for buffer metrics
 	 * @return collection of the {@link InputGate InputGates}
 	 */
 	Collection<G> createInputGates(
-		String ownerName,
-		ExecutionAttemptID executionAttemptID,
+		ShuffleIOOwnerContext ownerContext,
 		PartitionProducerStateProvider partitionProducerStateProvider,
-		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
-		MetricGroup parentGroup,
-		MetricGroup inputGroup,
-		MetricGroup buffersGroup);
+		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors);
 
 	/**
 	 * Update a gate with the newly available partition information, previously unknown.

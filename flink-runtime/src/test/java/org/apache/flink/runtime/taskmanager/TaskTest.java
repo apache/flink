@@ -879,6 +879,62 @@ public class TaskTest extends TestLogger {
 		task.getExecutingThread().join();
 	}
 
+	@Test
+	public void testTerminationFutureCompletesOnNormalExecution() throws Exception {
+		final Task task = createTaskBuilder()
+			.setInvokable(InvokableBlockingWithTrigger.class)
+			.setTaskManagerActions(new NoOpTaskManagerActions())
+			.build();
+
+		// run the task asynchronous
+		task.startTaskThread();
+
+		// wait till the task is in invoke
+		awaitLatch.await();
+
+		assertFalse(task.getTerminationFuture().isDone());
+
+		triggerLatch.trigger();
+
+		task.getExecutingThread().join();
+
+		assertEquals(ExecutionState.FINISHED, task.getTerminationFuture().getNow(null));
+	}
+
+	@Test
+	public void testTerminationFutureCompletesOnImmediateCancellation() throws Exception {
+		final Task task = createTaskBuilder()
+			.setInvokable(InvokableBlockingInInvoke.class)
+			.setTaskManagerActions(new NoOpTaskManagerActions())
+			.build();
+
+		task.cancelExecution();
+
+		assertFalse(task.getTerminationFuture().isDone());
+
+		// run the task asynchronous
+		task.startTaskThread();
+
+		task.getExecutingThread().join();
+
+		assertEquals(ExecutionState.CANCELED, task.getTerminationFuture().getNow(null));
+	}
+
+	@Test
+	public void testTerminationFutureCompletesOnErrorInInvoke() throws Exception {
+		final Task task = createTaskBuilder()
+			.setInvokable(InvokableWithExceptionInInvoke.class)
+			.setTaskManagerActions(new NoOpTaskManagerActions())
+			.build();
+
+		// run the task asynchronous
+		task.startTaskThread();
+
+		task.getExecutingThread().join();
+
+		assertEquals(ExecutionState.FAILED, task.getTerminationFuture().getNow(null));
+	}
+
 	// ------------------------------------------------------------------------
 	//  customized TaskManagerActions
 	// ------------------------------------------------------------------------
@@ -1183,6 +1239,19 @@ public class TaskTest extends TestLogger {
 
 		@Override
 		public void cancel() {}
+	}
+
+	private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
+		public InvokableBlockingWithTrigger(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			awaitLatch.trigger();
+
+			triggerLatch.await();
+		}
 	}
 
 	private static final class InvokableBlockingInInvoke extends AbstractInvokable {

@@ -100,6 +100,7 @@ public interface BinaryWriter {
 			case DOUBLE:
 				writer.writeDouble(pos, (double) o);
 				break;
+			case CHAR:
 			case VARCHAR:
 				writer.writeString(pos, (BinaryString) o);
 				break;
@@ -121,6 +122,7 @@ public interface BinaryWriter {
 			case ANY:
 				writer.writeGeneric(pos, (BinaryGeneric) o);
 				break;
+			case BINARY:
 			case VARBINARY:
 				writer.writeBinary(pos, (byte[]) o);
 				break;

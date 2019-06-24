@@ -25,14 +25,14 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.transformations.{StreamTransformation, TwoInputTransformation}
-import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
+import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{JoinUtil, KeySelectorUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.join.FlinkJoinType
-import org.apache.flink.table.runtime.join.stream.StreamingJoinOperator
+import org.apache.flink.table.runtime.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
 import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
@@ -162,24 +162,32 @@ class StreamExecJoin(
       leftType.toRowType,
       rightType.toRowType)
 
-    if (joinType == JoinRelType.ANTI || joinType == JoinRelType.SEMI) {
-      throw new TableException("SEMI/ANTI Join is not supported yet.")
-    }
-
-    val leftIsOuter = joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL
-    val rightIsOuter = joinType == JoinRelType.RIGHT || joinType == JoinRelType.FULL
     val minRetentionTime = tableConfig.getMinIdleStateRetentionTime
 
-    val operator = new StreamingJoinOperator(
-      leftType,
-      rightType,
-      generatedCondition,
-      leftInputSpec,
-      rightInputSpec,
-      leftIsOuter,
-      rightIsOuter,
-      filterNulls,
-      minRetentionTime)
+    val operator = if (joinType == JoinRelType.ANTI || joinType == JoinRelType.SEMI) {
+      new StreamingSemiAntiJoinOperator(
+        joinType == JoinRelType.ANTI,
+        leftType,
+        rightType,
+        generatedCondition,
+        leftInputSpec,
+        rightInputSpec,
+        filterNulls,
+        minRetentionTime)
+    } else {
+      val leftIsOuter = joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL
+      val rightIsOuter = joinType == JoinRelType.RIGHT || joinType == JoinRelType.FULL
+      new StreamingJoinOperator(
+        leftType,
+        rightType,
+        generatedCondition,
+        leftInputSpec,
+        rightInputSpec,
+        leftIsOuter,
+        rightIsOuter,
+        filterNulls,
+        minRetentionTime)
+    }
 
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftTransform,

@@ -29,7 +29,7 @@ import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isReference, isTemporal}
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.commons.lang3.StringEscapeUtils
@@ -173,7 +173,7 @@ object GenerateUtils {
 
     // TODO: should we also consider other types?
     val parameters = operands.map(x =>
-      if (x.resultType.isInstanceOf[VarCharType]){
+      if (isCharacterString(x.resultType)){
         "( " + x.nullTerm + " ) ? null : (" + x.resultTerm + ")"
       } else {
         x.resultTerm
@@ -351,12 +351,12 @@ object GenerateUtils {
           literalValue.asInstanceOf[JBigDecimal], precision, scale)
         generateNonNullLiteral(literalType, fieldTerm, value)
 
-      case VARCHAR =>
+      case VARCHAR | CHAR =>
         val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(literalValue.toString)
         val field = ctx.addReusableStringConstants(escapedValue)
         generateNonNullLiteral(literalType, field, BinaryString.fromString(escapedValue))
 
-      case VARBINARY =>
+      case VARBINARY | BINARY =>
         val bytesVal = literalValue.asInstanceOf[ByteString].getBytes
         val fieldTerm = ctx.addReusableObject(
           bytesVal, "binary", bytesVal.getClass.getCanonicalName)
@@ -658,7 +658,7 @@ object GenerateUtils {
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case _ if PlannerTypeUtils.isPrimitive(t) =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
-    case VARBINARY =>
+    case VARBINARY | BINARY =>
       val sortUtil = classOf[org.apache.flink.table.runtime.sort.SortUtil].getCanonicalName
       s"$sortUtil.compareBinary($leftTerm, $rightTerm)"
     case ARRAY =>

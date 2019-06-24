@@ -22,14 +22,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.api.Types
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.functions.{AggregateFunction, AggregateFunctionDefinition}
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
+import org.mockito.Mockito
 
 class AggregateTest extends TableTestBase {
 
@@ -61,12 +66,19 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
-    streamUtil.addFunction("udag", new MyAgg)
-    val aggFunctionDefinition = streamUtil
-      .tableEnv
-      .functionCatalog
-      .lookupFunction("udag")
-      .get()
+    val functionCatalog = new FunctionCatalog("cat", "db")
+    val tablEnv = new StreamTableEnvironmentImpl(
+      Mockito.mock(classOf[CatalogManager]),
+      functionCatalog,
+      new TableConfig,
+      Mockito.mock(classOf[StreamExecutionEnvironment]),
+      Mockito.mock(classOf[Planner]),
+      Mockito.mock(classOf[Executor])
+    )
+
+    tablEnv.registerFunction("udag", new MyAgg)
+    val aggFunctionDefinition = functionCatalog
+      .lookupFunction("udag").get()
       .getFunctionDefinition
       .asInstanceOf[AggregateFunctionDefinition]
 
@@ -77,12 +89,9 @@ class AggregateTest extends TableTestBase {
     assertEquals(Types.LONG, caseTypeInfo.getTypeAt(0))
     assertEquals(Types.LONG, caseTypeInfo.getTypeAt(1))
 
-    streamUtil.addFunction("udag2", new MyAgg2)
-    val aggFunctionDefinition2 = streamUtil
-      .tableEnv
-      .functionCatalog
-      .lookupFunction("udag2")
-      .get()
+    tablEnv.registerFunction("udag2", new MyAgg2)
+    val aggFunctionDefinition2 = functionCatalog
+      .lookupFunction("udag2").get()
       .getFunctionDefinition
       .asInstanceOf[AggregateFunctionDefinition]
 

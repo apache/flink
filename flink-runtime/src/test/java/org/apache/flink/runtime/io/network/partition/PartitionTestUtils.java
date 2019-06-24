@@ -20,6 +20,13 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 
+import org.hamcrest.Matchers;
+
+import java.io.IOException;
+
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+
 /**
  * This class should consolidate all mocking logic for ResultPartitions.
  * While using Mockito internally (for now), the use of Mockito should not
@@ -44,5 +51,17 @@ public class PartitionTestUtils {
 			.setResultPartitionType(partitionType)
 			.setNumberOfSubpartitions(numChannels)
 			.build();
+	}
+
+	static void verifyCreateSubpartitionViewThrowsException(
+			ResultPartitionManager partitionManager,
+			ResultPartitionID partitionId) throws IOException {
+		try {
+			partitionManager.createSubpartitionView(partitionId, 0, new NoOpBufferAvailablityListener());
+
+			fail("Should throw a PartitionNotFoundException.");
+		} catch (PartitionNotFoundException notFound) {
+			assertThat(partitionId, Matchers.is(notFound.getPartitionId()));
+		}
 	}
 }

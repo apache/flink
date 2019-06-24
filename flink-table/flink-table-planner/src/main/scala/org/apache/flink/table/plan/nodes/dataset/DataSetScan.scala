@@ -25,7 +25,8 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl}
+import org.apache.flink.table.api.BatchQueryConfig
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 

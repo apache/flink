@@ -84,7 +84,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 		conversions = new HiveObjectConversion[argumentInspectors.length];
 		for (int i = 0; i < argumentInspectors.length; i++) {
-			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i]);
+			conversions[i] = HiveInspectors.getConversion(argumentInspectors[i], argTypes[i].getLogicalType());
 		}
 
 		allIdentityConverter = Arrays.stream(conversions)

@@ -542,7 +542,7 @@ class StreamTableEnvironment(TableEnvironment):
 
         :return: A new :class:`StreamQueryConfig`.
         """
-        return StreamQueryConfig(self._j_tenv.queryConfig())
+        return StreamQueryConfig()
 
     def connect(self, connector_descriptor):
         """
@@ -624,7 +624,7 @@ class BatchTableEnvironment(TableEnvironment):
 
         :return: A new :class:`BatchQueryConfig`.
         """
-        return BatchQueryConfig(self._j_tenv.queryConfig())
+        return BatchQueryConfig()
 
     def connect(self, connector_descriptor):
         """

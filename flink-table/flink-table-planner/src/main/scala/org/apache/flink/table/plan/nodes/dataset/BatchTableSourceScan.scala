@@ -27,7 +27,8 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl, TableException, Types}
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
+import org.apache.flink.table.api.{BatchQueryConfig, TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema

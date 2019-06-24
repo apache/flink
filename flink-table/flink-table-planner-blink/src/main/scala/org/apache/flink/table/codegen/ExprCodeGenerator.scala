@@ -27,13 +27,12 @@ import org.apache.flink.table.calcite.{FlinkTypeFactory, RexAggLocalVariable, Re
 import org.apache.flink.table.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.codegen.GenerateUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.codegen.calls.{BinaryStringCallGen, FunctionGenerator, ScalarFunctionCallGen, TableFunctionCallGen}
+import org.apache.flink.table.codegen.calls.{StringCallGen, FunctionGenerator, ScalarFunctionCallGen, TableFunctionCallGen}
 import org.apache.flink.table.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{VARBINARY, VARCHAR}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
@@ -733,7 +732,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
-        BinaryStringCallGen.generateCallExpression(ctx, operator, operands, resultType).getOrElse {
+        StringCallGen.generateCallExpression(ctx, operator, operands, resultType).getOrElse {
           FunctionGenerator
             .getCallGenerator(
               sqlOperator,

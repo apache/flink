@@ -102,6 +102,9 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained after job cancellation
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+
+// allow job recovery fallback to checkpoint when there is a more recent savepoint
+env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -127,9 +130,6 @@ env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
-
-// allow job recovery fallback to checkpoint when there is a more recent savepoint
-env.getCheckpointConfig().setPreferCheckpointForRecovery(true)
 {% endhighlight %}
 </div>
 </div>

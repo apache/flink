@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.internal.CompositePlannerConfig;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -43,7 +44,7 @@ public class TableConfig {
 	/**
 	 * Defines the configuration of Planner for Table API and SQL queries.
 	 */
-	private PlannerConfig plannerConfig = PlannerConfig.EMPTY_CONFIG;
+	private CompositePlannerConfig plannerConfig = new CompositePlannerConfig();
 
 	/**
 	 * Defines the default context for decimal division calculation.
@@ -108,8 +109,8 @@ public class TableConfig {
 	 * Sets the configuration of Planner for Table API and SQL queries.
 	 * Changing the configuration has no effect after the first query has been defined.
 	 */
-	public void setPlannerConfig(PlannerConfig plannerConfig) {
-		this.plannerConfig = Preconditions.checkNotNull(plannerConfig);
+	public void addPlannerConfig(PlannerConfig plannerConfig) {
+		this.plannerConfig.addConfig(Preconditions.checkNotNull(plannerConfig));
 	}
 
 	/**

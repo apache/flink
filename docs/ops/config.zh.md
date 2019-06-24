@@ -104,7 +104,7 @@ The default fraction for managed memory can be adjusted using the taskmanager.me
 
 {% include generated/network_environment_configuration.html %}
 
-### Network communication (via Netty)
+### Network Communication (via Netty)
 
 These parameters allow for advanced tuning. The default values are sufficient when running concurrent high-throughput jobs on a large cluster.
 

@@ -68,8 +68,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       case LogicalTypeRoot.BIGINT => createSqlType(BIGINT)
       case LogicalTypeRoot.FLOAT => createSqlType(FLOAT)
       case LogicalTypeRoot.DOUBLE => createSqlType(DOUBLE)
-      case LogicalTypeRoot.VARCHAR =>
-        createSqlType(VARCHAR, t.asInstanceOf[VarCharType].getLength)
+      case LogicalTypeRoot.VARCHAR => createSqlType(VARCHAR, t.asInstanceOf[VarCharType].getLength)
+      case LogicalTypeRoot.CHAR => createSqlType(CHAR, t.asInstanceOf[CharType].getLength)
 
       // temporal types
       case LogicalTypeRoot.DATE => createSqlType(DATE)
@@ -83,6 +83,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         createSqlIntervalType(
           new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
+      case LogicalTypeRoot.BINARY => createSqlType(BINARY, t.asInstanceOf[BinaryType].getLength)
       case LogicalTypeRoot.VARBINARY =>
         createSqlType(VARBINARY, t.asInstanceOf[VarBinaryType].getLength)
 
@@ -379,14 +380,30 @@ object FlinkTypeFactory {
       case BIGINT => new BigIntType()
       case FLOAT => new FloatType()
       case DOUBLE => new DoubleType()
-      case VARCHAR | CHAR =>
-        // TODO we use VarCharType to support sql CHAR, VarCharType don't support 0 length
-        new VarCharType(
-          if (relDataType.getPrecision == 0) VarCharType.MAX_LENGTH else relDataType.getPrecision)
-      case VARBINARY | BINARY =>
-        // TODO we use VarBinaryType to support sql BINARY, VarBinaryType don't support 0 length
-        new VarBinaryType(
-          if (relDataType.getPrecision == 0) VarBinaryType.MAX_LENGTH else relDataType.getPrecision)
+      case CHAR =>
+        if (relDataType.getPrecision == 0) {
+          CharType.ofEmptyLiteral
+        } else {
+          new CharType(relDataType.getPrecision)
+        }
+      case VARCHAR =>
+        if (relDataType.getPrecision == 0) {
+          VarCharType.ofEmptyLiteral
+        } else {
+          new VarCharType(relDataType.getPrecision)
+        }
+      case BINARY =>
+        if (relDataType.getPrecision == 0) {
+          BinaryType.ofEmptyLiteral
+        } else {
+          new BinaryType(relDataType.getPrecision)
+        }
+      case VARBINARY =>
+        if (relDataType.getPrecision == 0) {
+          VarBinaryType.ofEmptyLiteral
+        } else {
+          new VarBinaryType(relDataType.getPrecision)
+        }
       case DECIMAL => new DecimalType(relDataType.getPrecision, relDataType.getScale)
 
       // time indicators

@@ -22,7 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 
@@ -37,10 +41,13 @@ import org.apache.hadoop.hive.serde2.io.HiveVarcharWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ConstantObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BooleanObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
@@ -50,9 +57,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspec
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveCharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveVarcharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaBinaryObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaBooleanObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaByteObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBooleanObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantByteObjectInspector;
@@ -67,16 +71,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantLongO
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantShortObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantTimestampObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaDateObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaDoubleObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaFloatObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaHiveCharObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaHiveVarcharObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaIntObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaLongObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaShortObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaStringObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaTimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.LongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
@@ -96,7 +90,10 @@ import org.apache.hadoop.io.Text;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -179,94 +176,87 @@ public class HiveInspectors {
 	/**
 	 * Get conversion for converting Flink object to Hive object from an ObjectInspector and the corresponding Flink DataType.
 	 */
-	public static HiveObjectConversion getConversion(ObjectInspector inspector, DataType dataType) {
+	public static HiveObjectConversion getConversion(ObjectInspector inspector, LogicalType dataType) {
 		if (inspector instanceof PrimitiveObjectInspector) {
-			if (inspector instanceof JavaBooleanObjectInspector) {
-				if (((JavaBooleanObjectInspector) inspector).preferWritable()) {
-					return o -> new BooleanWritable((Boolean) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaStringObjectInspector) {
-				if (((StringObjectInspector) inspector).preferWritable()) {
-					return o -> new Text((String) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaByteObjectInspector) {
-				if (((JavaByteObjectInspector) inspector).preferWritable()) {
-					return o -> new ByteWritable((Byte) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaShortObjectInspector) {
-				if (((JavaShortObjectInspector) inspector).preferWritable()) {
-					return o -> new ShortWritable((Short) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaIntObjectInspector) {
-				if (((JavaIntObjectInspector) inspector).preferWritable()) {
-					return o -> new IntWritable((Integer) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaLongObjectInspector) {
-				if (((JavaLongObjectInspector) inspector).preferWritable()) {
-					return o -> new LongWritable((Long) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaFloatObjectInspector) {
-				if (((JavaFloatObjectInspector) inspector).preferWritable()) {
-					return o -> new FloatWritable((Float) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaDoubleObjectInspector) {
-				if (((JavaDoubleObjectInspector) inspector).preferWritable()) {
-					return o -> new DoubleWritable((Double) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaDateObjectInspector) {
-				if (((JavaDateObjectInspector) inspector).preferWritable()) {
-					return o -> new DateWritable((Date) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaTimestampObjectInspector) {
-				if (((JavaTimestampObjectInspector) inspector).preferWritable()) {
-					return o -> new TimestampWritable((Timestamp) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaBinaryObjectInspector) {
-				if (((JavaBinaryObjectInspector) inspector).preferWritable()) {
-					return o -> new BytesWritable((byte[]) o);
-				} else {
-					return IdentityConversion.INSTANCE;
-				}
-			} else if (inspector instanceof JavaHiveCharObjectInspector) {
-				if (((JavaHiveCharObjectInspector) inspector).preferWritable()) {
-					return o -> new HiveCharWritable(
-						new HiveChar((String) o, ((CharType) dataType.getLogicalType()).getLength()));
-				} else {
-					return o -> new HiveChar((String) o, ((CharType) dataType.getLogicalType()).getLength());
-				}
-			} else if (inspector instanceof JavaHiveVarcharObjectInspector) {
-				if (((JavaHiveVarcharObjectInspector) inspector).preferWritable()) {
-					return o -> new HiveVarcharWritable(
-						new HiveVarchar((String) o, ((VarCharType) dataType.getLogicalType()).getLength()));
-				} else {
-					return o -> new HiveVarchar((String) o, ((VarCharType) dataType.getLogicalType()).getLength());
-				}
+			if (inspector instanceof BooleanObjectInspector ||
+					inspector instanceof StringObjectInspector ||
+					inspector instanceof ByteObjectInspector ||
+					inspector instanceof ShortObjectInspector ||
+					inspector instanceof IntObjectInspector ||
+					inspector instanceof LongObjectInspector ||
+					inspector instanceof FloatObjectInspector ||
+					inspector instanceof DoubleObjectInspector ||
+					inspector instanceof DateObjectInspector ||
+					inspector instanceof TimestampObjectInspector ||
+					inspector instanceof BinaryObjectInspector) {
+				return IdentityConversion.INSTANCE;
+			} else if (inspector instanceof HiveCharObjectInspector) {
+				return o -> new HiveChar((String) o, ((CharType) dataType).getLength());
+			} else if (inspector instanceof HiveVarcharObjectInspector) {
+				return o -> new HiveVarchar((String) o, ((VarCharType) dataType).getLength());
 			}
 
 			// TODO: handle decimal type
 		}
 
-		// TODO: handle complex types like struct, list, and map
+		if (inspector instanceof ListObjectInspector) {
+			HiveObjectConversion eleConvert = getConversion(
+				((ListObjectInspector) inspector).getListElementObjectInspector(),
+				((ArrayType) dataType).getElementType());
+			return o -> {
+				Object[] array = (Object[]) o;
+				List<Object> result = new ArrayList<>();
+
+				for (Object ele : array) {
+					result.add(eleConvert.toHiveObject(ele));
+				}
+				return result;
+			};
+		}
+
+		if (inspector instanceof MapObjectInspector) {
+			MapObjectInspector mapInspector = (MapObjectInspector) inspector;
+			MapType kvType = (MapType) dataType;
+
+			HiveObjectConversion keyConversion =
+				getConversion(mapInspector.getMapKeyObjectInspector(), kvType.getKeyType());
+			HiveObjectConversion valueConversion =
+				getConversion(mapInspector.getMapValueObjectInspector(), kvType.getValueType());
+
+			return o -> {
+				Map<Object, Object> map = (Map) o;
+				Map<Object, Object> result = new HashMap<>(map.size());
+
+				for (Map.Entry<Object, Object> entry : map.entrySet()){
+					result.put(
+						keyConversion.toHiveObject(entry.getKey()),
+						valueConversion.toHiveObject(entry.getValue()));
+				}
+				return result;
+			};
+		}
+
+		if (inspector instanceof StructObjectInspector) {
+			StructObjectInspector structInspector = (StructObjectInspector) inspector;
+
+			List<? extends StructField> structFields = structInspector.getAllStructFieldRefs();
+
+			List<RowType.RowField> rowFields = ((RowType) dataType).getFields();
+
+			HiveObjectConversion[] conversions = new HiveObjectConversion[structFields.size()];
+			for (int i = 0; i < structFields.size(); i++) {
+				conversions[i] = getConversion(structFields.get(i).getFieldObjectInspector(), rowFields.get(i).getType());
+			}
+
+			return o -> {
+				Row row = (Row) o;
+				List<Object> result = new ArrayList<>(row.getArity());
+				for (int i = 0; i < row.getArity(); i++) {
+					result.add(conversions[i].toHiveObject(row.getField(i)));
+				}
+				return result;
+			};
+		}
 
 		throw new FlinkHiveUDFException(
 			String.format("Flink doesn't support convert object conversion for %s yet", inspector));
@@ -276,99 +266,61 @@ public class HiveInspectors {
 	 * Converts a Hive object to Flink object with an ObjectInspector.
 	 */
 	public static Object toFlinkObject(ObjectInspector inspector, Object data) {
-		if (data == null) {
-			return null;
-		}
-
-		if (inspector instanceof VoidObjectInspector) {
+		if (data == null || inspector instanceof VoidObjectInspector) {
 			return null;
 		}
 
 		if (inspector instanceof PrimitiveObjectInspector) {
-			if (inspector instanceof BooleanObjectInspector) {
-				BooleanObjectInspector oi = (BooleanObjectInspector) inspector;
+			if (inspector instanceof BooleanObjectInspector ||
+					inspector instanceof StringObjectInspector ||
+					inspector instanceof ByteObjectInspector ||
+					inspector instanceof ShortObjectInspector ||
+					inspector instanceof IntObjectInspector ||
+					inspector instanceof LongObjectInspector ||
+					inspector instanceof FloatObjectInspector ||
+					inspector instanceof DoubleObjectInspector ||
+					inspector instanceof DateObjectInspector ||
+					inspector instanceof TimestampObjectInspector ||
+					inspector instanceof BinaryObjectInspector) {
 
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof StringObjectInspector) {
-				StringObjectInspector oi = (StringObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.getPrimitiveWritableObject(data).toString() :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof ByteObjectInspector) {
-				ByteObjectInspector oi = (ByteObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof ShortObjectInspector) {
-				ShortObjectInspector oi = (ShortObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof IntObjectInspector) {
-				IntObjectInspector oi = (IntObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof LongObjectInspector) {
-				LongObjectInspector oi = (LongObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof FloatObjectInspector) {
-				FloatObjectInspector oi = (FloatObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof DoubleObjectInspector) {
-				DoubleObjectInspector oi = (DoubleObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.get(data) :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof DateObjectInspector) {
-				DateObjectInspector oi = (DateObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.getPrimitiveWritableObject(data).get() :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof TimestampObjectInspector) {
-				TimestampObjectInspector oi = (TimestampObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.getPrimitiveWritableObject(data).getTimestamp() :
-					oi.getPrimitiveJavaObject(data);
-			} else if (inspector instanceof BinaryObjectInspector) {
-				BinaryObjectInspector oi = (BinaryObjectInspector) inspector;
-
-				return oi.preferWritable() ?
-					oi.getPrimitiveWritableObject(data).getBytes() :
-					oi.getPrimitiveJavaObject(data);
+				PrimitiveObjectInspector poi = (PrimitiveObjectInspector) inspector;
+				return poi.getPrimitiveJavaObject(data);
 			} else if (inspector instanceof HiveCharObjectInspector) {
 				HiveCharObjectInspector oi = (HiveCharObjectInspector) inspector;
 
-				return oi.preferWritable() ?
-					oi.getPrimitiveWritableObject(data).getHiveChar().getValue() :
-					oi.getPrimitiveJavaObject(data).getValue();
+				return oi.getPrimitiveJavaObject(data).getValue();
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
 				HiveVarcharObjectInspector oi = (HiveVarcharObjectInspector) inspector;
 
-				return oi.preferWritable() ?
-					oi.getPrimitiveWritableObject(data).getHiveVarchar().getValue() :
-					oi.getPrimitiveJavaObject(data).getValue();
+				return oi.getPrimitiveJavaObject(data).getValue();
 			}
 
 			// TODO: handle decimal type
 		}
 
-		// TODO: handle complex types like list and map
+		if (inspector instanceof ListObjectInspector) {
+			ListObjectInspector listInspector = (ListObjectInspector) inspector;
+			List<?> list = listInspector.getList(data);
+
+			Object[] result = new Object[list.size()];
+			for (int i = 0; i < list.size(); i++) {
+				result[i] = toFlinkObject(listInspector.getListElementObjectInspector(), list.get(i));
+			}
+			return result;
+		}
+
+		if (inspector instanceof MapObjectInspector) {
+			MapObjectInspector mapInspector = (MapObjectInspector) inspector;
+			Map<?, ?> map = mapInspector.getMap(data);
+
+			Map<Object, Object> result = new HashMap<>(map.size());
+			for (Map.Entry<?, ?> entry : map.entrySet()){
+				result.put(
+					toFlinkObject(mapInspector.getMapKeyObjectInspector(), entry.getKey()),
+					toFlinkObject(mapInspector.getMapValueObjectInspector(), entry.getValue()));
+			}
+			return result;
+		}
 
 		if (inspector instanceof StandardStructObjectInspector) {
 			StandardStructObjectInspector structInspector = (StandardStructObjectInspector) inspector;
@@ -428,10 +380,10 @@ public class HiveInspectors {
 		} else if (clazz.equals(byte[].class) || clazz.equals(BytesWritable.class)) {
 
 			typeInfo = TypeInfoFactory.binaryTypeInfo;
-		} else if (clazz.equals(HiveChar.class)) {
+		} else if (clazz.equals(HiveChar.class) || clazz.equals(HiveCharWritable.class)) {
 
 			typeInfo = TypeInfoFactory.charTypeInfo;
-		} else if (clazz.equals(HiveVarchar.class)) {
+		} else if (clazz.equals(HiveVarchar.class) || clazz.equals(HiveVarcharWritable.class)) {
 
 			typeInfo = TypeInfoFactory.varcharTypeInfo;
 		} else {

@@ -1000,7 +1000,8 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-### Network
+
+### Network (Deprecated: use [Default shuffle service metrics]({{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service))
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1044,10 +1045,10 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>outPoolUsage</td>
       <td>An estimate of the output buffers usage.</td>
-      <td>Gauge</td>      
+      <td>Gauge</td>
     </tr>
     <tr>
-      <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate&gt;<br />
+      <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
         <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
@@ -1067,6 +1068,123 @@ Thus, in order to infer the metric identifier:
       <td>avgQueueLen</td>
       <td>Average number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+### Default shuffle service
+
+Metrics related to data exchange between task executors using netty network communication.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 22%">Metrics</th>
+      <th class="text-left" style="width: 30%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>TaskManager</strong></th>
+      <td rowspan="2">Status.Shuffle.Netty</td>
+      <td>AvailableMemorySegments</td>
+      <td>The number of unused memory segments.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>TotalMemorySegments</td>
+      <td>The number of allocated memory segments.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="8">Task</th>
+      <td rowspan="2">Shuffle.Netty.Input.Buffers</td>
+      <td>inputQueueLength</td>
+      <td>The number of queued input buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>inPoolUsage</td>
+      <td>An estimate of the input buffers usage.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Shuffle.Netty.Output.Buffers</td>
+      <td>outputQueueLength</td>
+      <td>The number of queued output buffers.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>outPoolUsage</td>
+      <td>An estimate of the output buffers usage.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td rowspan="4">Shuffle.Netty.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
+        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+      <td>totalQueueLen</td>
+      <td>Total number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>minQueueLen</td>
+      <td>Minimum number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>maxQueueLen</td>
+      <td>Maximum number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>avgQueueLen</td>
+      <td>Average number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="8"><strong>Task</strong></th>
+      <td rowspan="8">Shuffle.Netty.Input</td>
+      <td>numBytesInLocal</td>
+      <td>The total number of bytes this task has read from a local source.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBytesInLocalPerSecond</td>
+      <td>The number of bytes this task reads from a local source per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>numBytesInRemote</td>
+      <td>The total number of bytes this task has read from a remote source.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBytesInRemotePerSecond</td>
+      <td>The number of bytes this task reads from a remote source per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInLocal</td>
+      <td>The total number of network buffers this task has read from a local source.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInLocalPerSecond</td>
+      <td>The number of network buffers this task reads from a local source per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInRemote</td>
+      <td>The total number of network buffers this task has read from a remote source.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInRemotePerSecond</td>
+      <td>The number of network buffers this task reads from a remote source per second.</td>
+      <td>Meter</td>
     </tr>
   </tbody>
 </table>
@@ -1236,42 +1354,42 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     <tr>
       <th rowspan="12"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
-      <td>The total number of bytes this task has read from a local source.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesInLocalPerSecond</td>
-      <td>The number of bytes this task reads from a local source per second.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
       <td>numBytesInRemote</td>
-      <td>The total number of bytes this task has read from a remote source.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesInRemotePerSecond</td>
-      <td>The number of bytes this task reads from a remote source per second.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
       <td>numBuffersInLocal</td>
-      <td>The total number of network buffers this task has read from a local source.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBuffersInLocalPerSecond</td>
-      <td>The number of network buffers this task reads from a local source per second.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
       <td>numBuffersInRemote</td>
-      <td>The total number of network buffers this task has read from a remote source.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
     </tr>
     <tr>
       <td>numBuffersInRemotePerSecond</td>
-      <td>The number of network buffers this task reads from a remote source per second.</td>
+      <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Meter</td>
     </tr>
     <tr>
