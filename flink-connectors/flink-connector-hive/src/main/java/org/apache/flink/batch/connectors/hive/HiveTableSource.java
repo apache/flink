@@ -32,8 +32,10 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * HiveTableSource used in tableApi/Sql environment to read data from hive table.
+ * A TableSource implementation to read data from Hive tables.
  */
 public class HiveTableSource extends InputFormatTableSource<Row> {
 
@@ -98,18 +100,17 @@ public class HiveTableSource extends InputFormatTableSource<Row> {
 		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
 		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
 		// refactoring. We will postpone this until we merge Blink to Flink.
-		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion);
-		try {
+		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			if (isPartitionTable) {
-				List<org.apache.hadoop.hive.metastore.api.Partition> partitions =
+				List<Partition> partitions =
 						client.listPartitions(dbName, tableName, (short) -1);
-				for (org.apache.hadoop.hive.metastore.api.Partition partition : partitions) {
+				for (Partition partition : partitions) {
 					StorageDescriptor sd = partition.getSd();
 					Map<String, Object> partitionColValues = new HashMap<>();
 					for (int i = 0; i < partitionColNames.length; i++) {
 						String partitionValue = partition.getValues().get(i);
 						DataType type = tableSchema.getFieldDataType(partitionColNames[i]).get();
-						Object partitionObject = restoreObjectInfoFromType(partitionValue, type);
+						Object partitionObject = restorePartitionValueFromFromType(partitionValue, type);
 						partitionColValues.put(partitionColNames[i], partitionObject);
 					}
 					allPartitions.add(new HiveTablePartition(sd, partitionColValues));
@@ -117,14 +118,14 @@ public class HiveTableSource extends InputFormatTableSource<Row> {
 			} else {
 				allPartitions.add(new HiveTablePartition(client.getTable(dbName, tableName).getSd(), null));
 			}
-		} catch (Exception e) {
-			logger.error("Failed to collect all partitions from hive metaStore", e);
+		} catch (TException e) {
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
 	}
 
-	private Object restoreObjectInfoFromType(String valStr, DataType type) {
+	private Object restorePartitionValueFromFromType(String valStr, DataType type) {
 		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+		//note: it's not a complete list ofr partition key types that Hive support, we may need add more later.
 		switch (typeRoot) {
 			case CHAR:
 			case VARCHAR:
@@ -146,7 +147,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> {
 			case DATE:
 				return Date.valueOf(valStr);
 			default:
-				logger.warn(String.format("Can not convert %s to type %s for partition value", valStr, type));
+				break;
 		}
 		throw new FlinkHiveException(
 				new IllegalArgumentException(String.format("Can not convert %s to type %s for partition value", valStr, type)));
