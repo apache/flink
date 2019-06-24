@@ -19,7 +19,13 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.util.Preconditions;
+
+import java.util.List;
 
 /**
  * Definition of a built-in function. It enables unique identification across different
@@ -37,15 +43,27 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 	private final FunctionKind kind;
 
+	private final TypeInference typeInference;
+
 	private BuiltInFunctionDefinition(
 			String name,
-			FunctionKind kind) {
+			FunctionKind kind,
+			TypeInference typeInference) {
 		this.name = Preconditions.checkNotNull(name, "Name must not be null.");
 		this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
+		this.typeInference = Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
 	}
 
 	public String getName() {
 		return name;
+	}
+
+	/**
+	 * Currently, the type inference is just exposed here. In the future, function definition will
+	 * require it.
+	 */
+	public TypeInference getTypeInference() {
+		return typeInference;
 	}
 
 	@Override
@@ -69,6 +87,8 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 		private FunctionKind kind;
 
+		private TypeInference.Builder typeInferenceBuilder = new TypeInference.Builder();
+
 		public Builder() {
 			// default constructor to allow a fluent definition
 		}
@@ -83,8 +103,33 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 			return this;
 		}
 
+		public Builder inputTypeValidator(InputTypeValidator inputTypeValidator) {
+			this.typeInferenceBuilder.inputTypeValidator(inputTypeValidator);
+			return this;
+		}
+
+		public Builder accumulatorTypeStrategy(TypeStrategy accumulatorTypeStrategy) {
+			this.typeInferenceBuilder.accumulatorTypeStrategy(accumulatorTypeStrategy);
+			return this;
+		}
+
+		public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
+			this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
+			return this;
+		}
+
+		public Builder namedArguments(List<String> argumentNames) {
+			this.typeInferenceBuilder.namedArguments(argumentNames);
+			return this;
+		}
+
+		public Builder typedArguments(List<DataType> argumentTypes) {
+			this.typeInferenceBuilder.typedArguments(argumentTypes);
+			return this;
+		}
+
 		public BuiltInFunctionDefinition build() {
-			return new BuiltInFunctionDefinition(name, kind);
+			return new BuiltInFunctionDefinition(name, kind, typeInferenceBuilder.build());
 		}
 	}
 }

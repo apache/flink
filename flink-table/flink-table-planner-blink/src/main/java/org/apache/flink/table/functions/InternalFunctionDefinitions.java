@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.table.types.inference.TypeStrategies;
+
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 
 /**
@@ -29,6 +31,7 @@ public class InternalFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("throwException")
 			.kind(SCALAR)
+			.outputTypeStrategy(TypeStrategies.MISSING)
 			.build();
 
 }

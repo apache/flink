@@ -22,15 +22,25 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.InputTypeSpec;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeInferenceUtil;
+import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.typeutils.TypeCoercion;
 import org.apache.flink.table.validate.ValidationFailure;
 import org.apache.flink.table.validate.ValidationResult;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
@@ -75,6 +85,71 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				})
 				.collect(Collectors.toList());
 
+			if (unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
+				final BuiltInFunctionDefinition definition =
+					(BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition();
+				if (definition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
+					return runTypeInference(
+						unresolvedCall,
+						definition.getTypeInference(),
+						resolvedArgs);
+				}
+			}
+			return runLegacyTypeInference(unresolvedCall, resolvedArgs);
+		}
+
+		private ResolvedExpression runTypeInference(
+				UnresolvedCallExpression unresolvedCall,
+				TypeInference inference,
+				List<ResolvedExpression> resolvedArgs) {
+
+			final String name = unresolvedCall.getObjectIdentifier()
+				.map(ObjectIdentifier::toString)
+				.orElseGet(() -> unresolvedCall.getFunctionDefinition().toString());
+
+			final TypeInferenceUtil.Result inferenceResult = TypeInferenceUtil.runTypeInference(
+				inference,
+				new TableApiCallContext(name, unresolvedCall.getFunctionDefinition(), resolvedArgs));
+
+			final List<ResolvedExpression> adaptedArguments = adaptArguments(inferenceResult, resolvedArgs);
+
+			return unresolvedCall.resolve(adaptedArguments, inferenceResult.getOutputDataType());
+		}
+
+		/**
+		 * Adapts the arguments according to the properties of the {@link TypeInferenceUtil.Result}.
+		 */
+		private List<ResolvedExpression> adaptArguments(
+				TypeInferenceUtil.Result inferenceResult,
+				List<ResolvedExpression> resolvedArgs) {
+
+			return IntStream.range(0, resolvedArgs.size())
+				.mapToObj(pos -> {
+					final ResolvedExpression argument = resolvedArgs.get(pos);
+					final DataType argumentType = argument.getOutputDataType();
+					final DataType expectedType = inferenceResult.getExpectedArgumentTypes().get(pos);
+					if (!argumentType.equals(expectedType)) {
+						return resolutionContext
+							.postResolutionFactory()
+							.cast(argument, expectedType);
+					}
+					return argument;
+				})
+				.collect(Collectors.toList());
+		}
+
+		@Override
+		protected Expression defaultMethod(Expression expression) {
+			return expression;
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// legacy code
+		// ----------------------------------------------------------------------------------------
+
+		private ResolvedExpression runLegacyTypeInference(
+				UnresolvedCallExpression unresolvedCall,
+				List<ResolvedExpression> resolvedArgs) {
 			final PlannerExpression plannerCall = resolutionContext.bridge(unresolvedCall);
 
 			if (plannerCall instanceof InputTypeSpec) {
@@ -160,10 +235,72 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					expectedType));
 			}
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private class TableApiCallContext implements CallContext {
+
+		private final String name;
+
+		private final FunctionDefinition definition;
+
+		private final List<ResolvedExpression> resolvedArgs;
+
+		public TableApiCallContext(
+				String name,
+				FunctionDefinition definition,
+				List<ResolvedExpression> resolvedArgs) {
+			this.name = name;
+			this.definition = definition;
+			this.resolvedArgs = resolvedArgs;
+		}
 
 		@Override
-		protected Expression defaultMethod(Expression expression) {
-			return expression;
+		public List<DataType> getArgumentDataTypes() {
+			return resolvedArgs.stream()
+				.map(ResolvedExpression::getOutputDataType)
+				.collect(Collectors.toList());
+		}
+
+		@Override
+		public FunctionDefinition getFunctionDefinition() {
+			return definition;
+		}
+
+		@Override
+		public boolean isArgumentLiteral(int pos) {
+			return getArgument(pos) instanceof ValueLiteralExpression;
+		}
+
+		@Override
+		public boolean isArgumentNull(int pos) {
+			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
+			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
+			return literal.isNull();
+		}
+
+		@Override
+		public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
+			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
+			return literal.getValueAs(clazz);
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+
+		private ResolvedExpression getArgument(int pos) {
+			if (pos >= resolvedArgs.size()) {
+				throw new IndexOutOfBoundsException(
+					String.format(
+						"Not enough arguments to access literal at position %d for function '%s'.",
+						pos,
+						name));
+			}
+			return resolvedArgs.get(pos);
 		}
 	}
 }
