@@ -59,7 +59,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	 * Write out a new or updated savepoint.
 	 * @param path The path to where the savepoint should be written.
 	 */
-	public abstract void write(String path) throws IOException;
+	public abstract void write(String path);
 
 	protected void write(
 		Path savepointPath,

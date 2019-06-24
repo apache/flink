@@ -301,7 +301,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	}
 
 	@Override
-	public void write(String path) throws IOException {
+	public void write(String path) {
 		Path savepointPath = new Path(path);
 
 		Set<OperatorID> droppedIDs = droppedOperators
@@ -312,7 +312,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 		List<OperatorState> remainingOperators = metadata
 			.getOperatorStates()
 			.stream()
-			.filter(operator -> droppedIDs.contains(operator.getOperatorID()))
+			.filter(operator -> !droppedIDs.contains(operator.getOperatorID()))
 			.collect(Collectors.toList());
 
 		DataSet<OperatorState> existingOperators = env
