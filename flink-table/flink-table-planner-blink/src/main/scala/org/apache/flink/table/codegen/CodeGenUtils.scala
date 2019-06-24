@@ -199,6 +199,7 @@ object CodeGenUtils {
 
   def hashCodeForType(
       ctx: CodeGeneratorContext, t: LogicalType, term: String): String = t.getTypeRoot match {
+    case BOOLEAN => s"${className[JBoolean]}.hashCode($term)"
     case TINYINT => s"${className[JByte]}.hashCode($term)"
     case SMALLINT => s"${className[JShort]}.hashCode($term)"
     case INTEGER => s"${className[JInt]}.hashCode($term)"
