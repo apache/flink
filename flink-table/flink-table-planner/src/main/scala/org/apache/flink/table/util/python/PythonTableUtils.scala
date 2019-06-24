@@ -20,6 +20,8 @@ package org.apache.flink.table.util.python
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.util.TimeZone
 import java.util.function.BiConsumer
 
 import org.apache.flink.api.common.functions.MapFunction
@@ -131,7 +133,10 @@ object PythonTableUtils {
     }
 
     case _ if dataType == Types.SQL_DATE => (obj: Any) => nullSafeConvert(obj) {
-      case c: Int => new Date(c * 86400000)
+      case c: Int =>
+        val millisLocal = c.toLong * 86400000
+        val millisUtc = millisLocal - getOffsetFromLocalMillis(millisLocal)
+        new Date(millisUtc)
     }
 
     case _ if dataType == Types.SQL_TIME => (obj: Any) => nullSafeConvert(obj) {
@@ -388,5 +393,27 @@ object PythonTableUtils {
         }
         array
     }
+  }
+
+  def getOffsetFromLocalMillis(millisLocal: Long): Int = {
+    val localZone = TimeZone.getDefault
+    var result = localZone.getRawOffset
+    // the actual offset should be calculated based on milliseconds in UTC
+    val offset = localZone.getOffset(millisLocal - result)
+    if (offset != result) {
+      // DayLight Saving Time
+      result = localZone.getOffset(millisLocal - offset)
+      if (result != offset) {
+        // fallback to do the reverse lookup using java.time.LocalDateTime
+        // this should only happen near the start or end of DST
+        val localDate = LocalDate.ofEpochDay(millisLocal / 86400000)
+        val localTime = LocalTime.ofNanoOfDay(
+          Math.floorMod(millisLocal, 86400000) * 1000 * 1000)
+        val localDateTime = LocalDateTime.of(localDate, localTime)
+        val millisEpoch = localDateTime.atZone(localZone.toZoneId).toInstant.toEpochMilli
+        result = (millisLocal - millisEpoch).toInt
+      }
+    }
+    result
   }
 }
