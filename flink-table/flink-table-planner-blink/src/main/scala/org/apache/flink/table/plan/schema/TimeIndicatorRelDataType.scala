@@ -37,7 +37,7 @@ class TimeIndicatorRelDataType(
     originalType.getSqlTypeName,
     originalType.getPrecision) {
 
-  isNullable = nullable
+  this.isNullable = nullable
   computeDigest()
 
   override def hashCode(): Int = {
