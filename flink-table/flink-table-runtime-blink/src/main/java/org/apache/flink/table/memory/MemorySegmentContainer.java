@@ -19,7 +19,6 @@
 package org.apache.flink.table.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.DataInput;
@@ -77,17 +76,26 @@ public abstract class MemorySegmentContainer {
 
 	/**
 	 * Expand this container with additional memory segments.
-	 * @param newSegments new memory segments to add.
+	 * @param additionalSegments new memory segments to add.
 	 * @return the expanded memory segment.
 	 */
-	public MemorySegmentContainer expand(MemorySegment[] newSegments) {
-		Preconditions.checkArgument(newSegments != null && newSegments.length >= 1,
+	public MemorySegmentContainer expand(MemorySegment[] additionalSegments) {
+		Preconditions.checkArgument(additionalSegments != null && additionalSegments.length >= 1,
 			"The set of new memory segments cannot be empty");
 
-		Preconditions.checkArgument(newSegments[0].size() == segmentSize);
-		if () {
+		Preconditions.checkArgument(additionalSegments[0].size() == segmentSize,
+			"The new segments must have the same segment size as the current ones.");
 
+		MemorySegment[] newSegments = new MemorySegment[segments.length + additionalSegments.length];
+		for (int i = 0; i < segments.length; i++) {
+			newSegments[i] = segments[i];
 		}
+
+		for (int i = 0; i < additionalSegments.length; i++) {
+			newSegments[i + segments.length] = additionalSegments[i];
+		}
+
+		return MemorySegmentContainer.createMemorySegmentContainer(newSegments);
 	}
 
 	public byte get(int index) {
