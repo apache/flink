@@ -18,7 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
 import org.hamcrest.Matchers;
 
@@ -63,5 +68,20 @@ public class PartitionTestUtils {
 		} catch (PartitionNotFoundException notFound) {
 			assertThat(partitionId, Matchers.is(notFound.getPartitionId()));
 		}
+	}
+
+	static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(ResultPartitionType partitionType) {
+		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
+			new IntermediateDataSetID(),
+			shuffleDescriptor.getResultPartitionID().getPartitionId(),
+			partitionType,
+			1,
+			0);
+		return new ResultPartitionDeploymentDescriptor(
+			partitionDescriptor,
+			shuffleDescriptor,
+			1,
+			true);
 	}
 }
