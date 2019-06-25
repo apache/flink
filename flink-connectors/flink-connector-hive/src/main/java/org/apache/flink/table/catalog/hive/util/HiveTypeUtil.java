@@ -29,6 +29,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
@@ -165,14 +166,15 @@ public class HiveTypeUtil {
 		}
 
 		if (dataType instanceof FieldsDataType) {
-			Map<String, DataType> fieldDataTypes = ((FieldsDataType) dataType).getFieldDataTypes();
+			FieldsDataType fieldsDataType = (FieldsDataType) dataType;
+			// need to retrieve field names in order
+			List<String> names = ((RowType) fieldsDataType.getLogicalType()).getFieldNames();
 
-			List<String> names = new ArrayList(fieldDataTypes.size());
-			List<TypeInfo> typeInfos = new ArrayList<>(fieldDataTypes.size());
+			Map<String, DataType> nameToType = fieldsDataType.getFieldDataTypes();
+			List<TypeInfo> typeInfos = new ArrayList<>(names.size());
 
-			for (Map.Entry<String, DataType> e : fieldDataTypes.entrySet()) {
-				names.add(e.getKey());
-				typeInfos.add(toHiveTypeInfo(e.getValue()));
+			for (String name : names) {
+				typeInfos.add(toHiveTypeInfo(nameToType.get(name)));
 			}
 
 			return TypeInfoFactory.getStructTypeInfo(names, typeInfos);

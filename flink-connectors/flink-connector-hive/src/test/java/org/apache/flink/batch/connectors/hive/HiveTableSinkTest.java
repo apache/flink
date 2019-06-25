@@ -18,10 +18,9 @@
 
 package org.apache.flink.batch.connectors.hive;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -31,6 +30,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogPartition;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -50,6 +50,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
@@ -127,19 +128,92 @@ public class HiveTableSinkTest {
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
-	private RowTypeInfo createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
+	@Test
+	public void testWriteComplexType() throws Exception {
+		String dbName = "default";
+		String tblName = "dest";
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-		TableSchema tableSchema = new TableSchema(
-				new String[]{"i", "l", "d", "s"},
-				new TypeInformation[]{
-						BasicTypeInfo.INT_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO}
-		);
+
+		TableSchema.Builder builder = new TableSchema.Builder();
+		builder.fields(new String[]{"a", "m", "s"}, new DataType[]{
+				DataTypes.ARRAY(DataTypes.INT()),
+				DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
+				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING()))});
+
+		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		List<Row> toWrite = new ArrayList<>();
+		Row row = new Row(rowTypeInfo.getArity());
+		Object[] array = new Object[]{1, 2, 3};
+		Map<Integer, String> map = new HashMap<Integer, String>() {{
+			put(1, "a");
+			put(2, "b");
+		}};
+		Row struct = new Row(2);
+		struct.setField(0, 3);
+		struct.setField(1, "c");
+
+		row.setField(0, array);
+		row.setField(1, map);
+		row.setField(2, struct);
+		toWrite.add(row);
+
+		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		tableEnv.registerDataSet("complexSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
+
+		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+		tableEnv.registerTableSink("complexSink", new HiveTableSink(new JobConf(hiveConf), rowTypeInfo,
+				"default", "dest", HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
+		tableEnv.sqlQuery("select * from complexSrc").insertInto("complexSink");
+		execEnv.execute();
+
+		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), Collections.singletonList("1 2 3,1 a 2 b,3 c"));
+		hiveCatalog.dropTable(tablePath, false);
+
+		// nested complex types
+		builder = new TableSchema.Builder();
+		// array of rows
+		builder.fields(new String[]{"a"}, new DataType[]{DataTypes.ARRAY(
+				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING())))});
+		rowTypeInfo = createDestTable(dbName, tblName, builder.build(), 0);
+		row = new Row(rowTypeInfo.getArity());
+		array = new Object[3];
+		row.setField(0, array);
+		for (int i = 0; i < array.length; i++) {
+			struct = new Row(2);
+			struct.setField(0, 1 + i);
+			struct.setField(1, String.valueOf((char) ('a' + i)));
+			array[i] = struct;
+		}
+		toWrite.clear();
+		toWrite.add(row);
+
+		tableEnv.registerDataSet("nestedSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		tableEnv.registerTableSink("nestedSink", new HiveTableSink(new JobConf(hiveConf), rowTypeInfo,
+				"default", "dest", HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
+		tableEnv.sqlQuery("select * from nestedSrc").insertInto("nestedSink");
+		execEnv.execute();
+
+		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), Collections.singletonList("1 a 2 b 3 c"));
+		hiveCatalog.dropTable(tablePath, false);
+	}
+
+	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
 		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
-		hiveCatalog.createTable(tablePath, catalogTable, false);
+		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);
 		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+	}
+
+	private RowTypeInfo createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
+		TableSchema.Builder builder = new TableSchema.Builder();
+		builder.fields(new String[]{"i", "l", "d", "s"},
+				new DataType[]{
+						DataTypes.INT(),
+						DataTypes.BIGINT(),
+						DataTypes.DOUBLE(),
+						DataTypes.STRING()});
+		return createDestTable(dbName, tblName, builder.build(), numPartCols);
 	}
 
 	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
@@ -165,19 +239,25 @@ public class HiveTableSinkTest {
 		return res;
 	}
 
-	private void verifyWrittenData(Path outputFile, List<Row> expected, int numPartCols) throws Exception {
+	private void verifyWrittenData(Path outputFile, List<Row> expectedRows, int numPartCols) throws Exception {
+		int[] fields = IntStream.range(0, expectedRows.get(0).getArity() - numPartCols).toArray();
+		List<String> expected = new ArrayList<>(expectedRows.size());
+		for (Row row : expectedRows) {
+			expected.add(Row.project(row, fields).toString());
+		}
+		verifyWrittenData(outputFile, expected);
+	}
+
+	private void verifyWrittenData(Path outputFile, List<String> expected) throws Exception {
 		FileSystem fs = outputFile.getFileSystem(hiveConf);
 		assertTrue(fs.exists(outputFile));
-		int[] fields = IntStream.range(0, expected.get(0).getArity() - numPartCols).toArray();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(outputFile)))) {
 			int numWritten = 0;
 			String line = reader.readLine();
 			while (line != null) {
-				Row expectedRow = Row.project(expected.get(numWritten++), fields);
-				assertEquals(expectedRow.toString(), line.replaceAll("\u0001", ","));
+				assertEquals(expected.get(numWritten++), line.replaceAll("\u0001", ",").replaceAll("\u0002", " ").replaceAll("\u0003", " "));
 				line = reader.readLine();
 			}
-			reader.close();
 			assertEquals(expected.size(), numWritten);
 		}
 	}

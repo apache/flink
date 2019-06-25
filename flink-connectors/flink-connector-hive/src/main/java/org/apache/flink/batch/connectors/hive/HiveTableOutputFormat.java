@@ -32,6 +32,9 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
+import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -132,6 +135,9 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient int dynamicPartitionOffset;
 
 	private transient String hiveVersion;
+
+	// to convert Flink object to Hive object
+	private transient HiveObjectConversion[] hiveConversions;
 
 	public HiveTableOutputFormat(JobConf jobConf, String databaseName, String tableName, List<String> partitionColumns,
 								RowTypeInfo rowTypeInfo, HiveTablePartition hiveTablePartition,
@@ -274,21 +280,24 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			dynamicPartitionOffset = rowTypeInfo.getArity() - partitionColumns.size() + hiveTablePartition.getPartitionSpec().size();
 		}
 
-		List<ObjectInspector> objectInspectors = new ArrayList<>();
-		for (int i = 0; i < rowTypeInfo.getArity() - partitionColumns.size(); i++) {
-			objectInspectors.add(HiveTableUtil.getObjectInspector(LegacyTypeInfoDataTypeConverter.toDataType(rowTypeInfo.getTypeAt(i))));
+		numNonPartitionColumns = isPartitioned ? rowTypeInfo.getArity() - partitionColumns.size() : rowTypeInfo.getArity();
+		hiveConversions = new HiveObjectConversion[numNonPartitionColumns];
+		List<ObjectInspector> objectInspectors = new ArrayList<>(hiveConversions.length);
+		for (int i = 0; i < numNonPartitionColumns; i++) {
+			DataType dataType = LegacyTypeInfoDataTypeConverter.toDataType(rowTypeInfo.getTypeAt(i));
+			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(dataType);
+			objectInspectors.add(objectInspector);
+			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, dataType.getLogicalType());
 		}
 
 		if (!isPartitioned) {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()),
 				objectInspectors);
-			numNonPartitionColumns = rowTypeInfo.getArity();
 		} else {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
 				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionColumns.size()),
 				objectInspectors);
-			numNonPartitionColumns = rowTypeInfo.getArity() - partitionColumns.size();
 		}
 		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
 	}
@@ -385,11 +394,11 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		outputCommitter.commitJob(jobContext);
 	}
 
-	// converts a Row to a list so that Hive can serialize it
+	// converts a Row to a list of Hive objects so that Hive can serialize it
 	private Object getConvertedRow(Row record) {
 		List<Object> res = new ArrayList<>(numNonPartitionColumns);
 		for (int i = 0; i < numNonPartitionColumns; i++) {
-			res.add(record.getField(i));
+			res.add(hiveConversions[i].toHiveObject(record.getField(i)));
 		}
 		return res;
 	}
