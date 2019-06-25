@@ -344,10 +344,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 		}
 
-		jobManagerHeartbeatManager.stop();
-
-		resourceManagerHeartbeatManager.stop();
-
 		if (throwable != null) {
 			try {
 				stopTaskExecutorServices();
