@@ -30,8 +30,12 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
@@ -146,15 +150,31 @@ public class HiveTableUtil {
 		return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType));
 	}
 
-	// TODO: reuse Hive's TypeInfoUtils?
 	private static ObjectInspector getObjectInspector(TypeInfo type) throws IOException {
 		switch (type.getCategory()) {
 
 			case PRIMITIVE:
 				PrimitiveTypeInfo primitiveType = (PrimitiveTypeInfo) type;
 				return PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(primitiveType);
+			case LIST:
+				ListTypeInfo listType = (ListTypeInfo) type;
+				return ObjectInspectorFactory.getStandardListObjectInspector(
+						getObjectInspector(listType.getListElementTypeInfo()));
+			case MAP:
+				MapTypeInfo mapType = (MapTypeInfo) type;
+				return ObjectInspectorFactory.getStandardMapObjectInspector(
+						getObjectInspector(mapType.getMapKeyTypeInfo()), getObjectInspector(mapType.getMapValueTypeInfo()));
+			case STRUCT:
+				StructTypeInfo structType = (StructTypeInfo) type;
+				List<TypeInfo> fieldTypes = structType.getAllStructFieldTypeInfos();
 
-			// TODO: support complex types
+				List<ObjectInspector> fieldInspectors = new ArrayList<ObjectInspector>();
+				for (TypeInfo fieldType : fieldTypes) {
+					fieldInspectors.add(getObjectInspector(fieldType));
+				}
+
+				return ObjectInspectorFactory.getStandardStructObjectInspector(
+						structType.getAllStructFieldNames(), fieldInspectors);
 			default:
 				throw new IOException("Unsupported Hive type category " + type.getCategory());
 		}
