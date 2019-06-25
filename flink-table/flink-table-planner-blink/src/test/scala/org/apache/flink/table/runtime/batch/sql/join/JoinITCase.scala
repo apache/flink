@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_T
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.{TableConfigOptions, Types}
+import org.apache.flink.table.expressions.utils.FuncWithOpen
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase
@@ -783,6 +784,18 @@ class JoinITCase() extends BatchTestBase {
         row(2, 2L, 4L, 4L),
         row(2, 2L, 4L, 4L)
       )
+    )
+  }
+
+  @Test
+  def testJoinWithUDFFilter(): Unit = {
+    tEnv.registerFunction("funcWithOpen", new FuncWithOpen)
+    checkResult(
+      "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt"))
     )
   }
 }

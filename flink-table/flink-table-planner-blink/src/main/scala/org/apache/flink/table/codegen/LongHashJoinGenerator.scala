@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.codegen
 
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, baseRowFieldReadAccess, newName}
+import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, baseRowFieldReadAccess, className, newName}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.generated.{GeneratedJoinCondition, GeneratedProjection}
@@ -136,6 +137,9 @@ object LongHashJoinGenerator {
     ctx.addReusableMember(s"${condFunc.getClassName} condFunc;")
     val condRefs = ctx.addReusableObject(condFunc.getReferences, "condRefs")
     ctx.addReusableInitStatement(s"condFunc = new ${condFunc.getClassName}($condRefs);")
+    ctx.addReusableOpenStatement(s"condFunc.setRuntimeContext(getRuntimeContext());")
+    ctx.addReusableOpenStatement(s"condFunc.open(new ${className[Configuration]}());")
+    ctx.addReusableCloseStatement(s"condFunc.close();")
 
     val gauge = classOf[Gauge[_]].getCanonicalName
     ctx.addReusableOpenStatement(

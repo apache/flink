@@ -179,11 +179,10 @@ object FunctionCodeGenerator {
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): GeneratedJoinCondition = {
     val funcName = newName(name)
 
-    val baseClass = classOf[JoinCondition]
-
     val funcCode =
       j"""
-      public class $funcName implements ${baseClass.getCanonicalName} {
+      public class $funcName extends ${className[AbstractRichFunction]}
+          implements ${className[JoinCondition]} {
 
         ${ctx.reuseMemberCode()}
 
@@ -194,11 +193,22 @@ object FunctionCodeGenerator {
         ${ctx.reuseConstructorCode(funcName)}
 
         @Override
+        public void open(${className[Configuration]} parameters) throws Exception {
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
         public boolean apply($BASE_ROW $input1Term, $BASE_ROW $input2Term) throws Exception {
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
           $bodyCode
+        }
+
+        @Override
+        public void close() throws Exception {
+          super.close();
+          ${ctx.reuseCloseCode()}
         }
       }
      """.stripMargin

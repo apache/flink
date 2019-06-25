@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.codegen;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedJoinCondition;
@@ -79,7 +80,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 	/**
 	 * Test cond.
 	 */
-	public static class MyJoinCondition implements JoinCondition {
+	public static class MyJoinCondition extends AbstractRichFunction implements JoinCondition {
 
 		public MyJoinCondition(Object[] reference) {}
 

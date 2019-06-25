@@ -21,9 +21,11 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.utils.FuncWithOpen
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1104,6 +1106,25 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     env.execute()
 
     val expected = List("500")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testJoinWithUDFFilter(): Unit = {
+    val ds1 = failingDataSource(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = failingDataSource(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    tEnv.registerTable("T3", ds1)
+    tEnv.registerTable("T5", ds2)
+    tEnv.registerFunction("funcWithOpen", new FuncWithOpen)
+
+    val sql = "SELECT c, g FROM T3 join T5 on funcWithOpen(a + d) where b = e"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.runtime.join.stream;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -76,7 +78,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	protected final long minRetentionTime;
 	protected final boolean stateCleaningEnabled;
 
-	protected transient JoinCondition joinCondition;
+	protected transient JoinConditionWithNullFilters joinCondition;
 	protected transient TimestampedCollector<BaseRow> collector;
 
 	public AbstractStreamingJoinOperator(
@@ -103,17 +105,26 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	public void open() throws Exception {
 		super.open();
 
-		this.joinCondition = new JoinConditionWithNullFilters(
-			generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader()));
+		JoinCondition condition = generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
+		condition.setRuntimeContext(getRuntimeContext());
+		condition.open(new Configuration());
+
+		this.joinCondition = new JoinConditionWithNullFilters(condition);
 
 		this.collector = new TimestampedCollector<>(output);
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		joinCondition.backingJoinCondition.close();
 	}
 
 	// ----------------------------------------------------------------------------------------
 	// Utility Classes
 	// ----------------------------------------------------------------------------------------
 
-	private class JoinConditionWithNullFilters implements JoinCondition {
+	private class JoinConditionWithNullFilters extends AbstractRichFunction implements JoinCondition {
 
 		final JoinCondition backingJoinCondition;
 
