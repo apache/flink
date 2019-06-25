@@ -29,18 +29,21 @@ public class DescriptiveStatisticsHistogram implements org.apache.flink.metrics.
 
 	private final DescriptiveStatistics descriptiveStatistics;
 
+	private long elementsSeen = 0L;
+
 	public DescriptiveStatisticsHistogram(int windowSize) {
 		this.descriptiveStatistics = new DescriptiveStatistics(windowSize);
 	}
 
 	@Override
 	public void update(long value) {
+		elementsSeen += 1L;
 		this.descriptiveStatistics.addValue(value);
 	}
 
 	@Override
 	public long getCount() {
-		return this.descriptiveStatistics.getN();
+		return this.elementsSeen;
 	}
 
 	@Override
