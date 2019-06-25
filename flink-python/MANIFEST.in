@@ -16,4 +16,14 @@
 # limitations under the License.
 ################################################################################
 
-__version__ = "1.9.dev0"
+global-exclude *.py[cod] __pycache__ .DS_Store
+recursive-include deps/lib *.jar
+recursive-include deps/opt *.jar *.txt *.zip
+graft deps/bin
+graft deps/conf
+recursive-include deps/examples *.py
+graft deps/licenses
+include README.md
+include pyflink/LICENSE
+include pyflink/NOTICE
+include pyflink/README.txt

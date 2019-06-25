@@ -18,8 +18,13 @@
 ################################################################################
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
+. "$bin"/find-flink-home.sh
 
-. "$bin"/config.sh
+_PYFLINK_HOME=$FLINK_HOME
+
+cd "$FLINK_HOME"/bin
+
+. "$FLINK_HOME"/bin/config.sh
 
 FLINK_CLASSPATH=`constructFlinkClassPath`
 PYTHON_JAR_PATH=`echo "$FLINK_OPT_DIR"/flink-python*java-binding.jar`

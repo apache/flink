@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,4 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-__version__ = "1.9.dev0"
+cd "$( dirname "$0" )"
+
+python pip_test_code.py

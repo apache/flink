@@ -58,6 +58,17 @@ mvn clean install -DskipTests -Dfast
 
 The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink with HDFS and YARN.
 
+## Build PyFlink
+
+If you wish to build a pip installable PyFlink package, you need to build Flink jars first as described in [Build Flink](##Build Flink).
+Then enter the root directory of flink source code and run this command to build a sdist package:
+
+{% highlight bash %}
+cd flink-python; python setup.py sdist
+{% endhighlight %}
+
+The sdist package will be found under `./flink-python/dist/` and can be used for pip installation.
+
 ## Dependency Shading
 
 Flink [shades away](https://maven.apache.org/plugins/maven-shade-plugin/) some of the libraries it uses, in order to avoid version clashes with user programs that use different versions of these libraries. Among the shaded libraries are *Google Guava*, *Asm*, *Apache Curator*, *Apache HTTP Components*, *Netty*, and others.
