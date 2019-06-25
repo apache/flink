@@ -40,9 +40,7 @@ def _find_flink_home():
         return os.environ['FLINK_HOME']
     else:
         try:
-            # in python site-packages dir
             current_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
-            # in source code dir
             flink_root_dir = os.path.abspath(current_dir + "/../../")
             build_target = flink_root_dir + "/build-target"
             if is_flink_home(build_target):

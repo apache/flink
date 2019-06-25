@@ -139,7 +139,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * t.select("a + 1, b, c").insert_into("stream_sink")
     *
     * st_env.exec_env().execute()
-      '''
+'''
 utf8_out.write(welcome_msg)
 
 bt_env = BatchTableEnvironment.create(ExecutionEnvironment.get_execution_environment())

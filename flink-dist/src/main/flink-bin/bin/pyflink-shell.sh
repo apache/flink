@@ -20,7 +20,7 @@ bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 . "$bin"/find-flink-home.sh
 
-_PYFLINK_HOME=$FLINK_HOME
+_FLINK_HOME_DETERMINED=1
 
 cd "$FLINK_HOME"/bin
 

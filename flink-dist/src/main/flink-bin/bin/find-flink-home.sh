@@ -22,9 +22,7 @@ FIND_FLINK_HOME_PYTHON_SCRIPT="$CURRENT_DIR/find_flink_home.py"
 
 if [ ! -f "$FIND_FLINK_HOME_PYTHON_SCRIPT" ]; then
     export FLINK_HOME="$( cd "$CURRENT_DIR"/.. ; pwd -P )"
-    echo $FLINK_HOME
 else
     PYFLINK_PYTHON="${PYFLINK_PYTHON:-"python"}"
     export FLINK_HOME=$($PYFLINK_PYTHON "$FIND_FLINK_HOME_PYTHON_SCRIPT")
-    echo $FLINK_HOME
 fi

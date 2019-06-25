@@ -67,7 +67,7 @@ The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink w
 cd flink-python; python setup.py sdist
 {% endhighlight %}
 
-构建好的源码发布包在`./flink-python/dist/`目录下，可以通过pip安装使用。
+构建好的源码发布包位于`./flink-python/dist/`目录下。
 
 ## Dependency Shading
 

@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+# test pyflink shell environment
 from pyflink.shell import bt_env, FileSystem, OldCsv, DataTypes, Schema
 
 import tempfile
