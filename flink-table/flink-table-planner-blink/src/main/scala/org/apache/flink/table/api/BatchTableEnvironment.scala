@@ -41,6 +41,7 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.PlanUtil
 import org.apache.flink.util.InstantiationUtil
+
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
@@ -201,7 +202,7 @@ abstract class BatchTableEnvironment(
     * @param extended Flag to include detailed optimizer estimates.
     */
   def explain(table: Table, extended: Boolean): String = {
-    val ast = table.asInstanceOf[TableImpl].getRelNode
+    val ast = getRelBuilder.queryOperation(table.getQueryOperation).build()
     val execNodeDag = compileToExecNodePlan(ast)
     val transformations = translateToPlan(execNodeDag)
     val streamGraph = translateStreamGraph(transformations)

@@ -78,8 +78,8 @@ abstract class TableTestBase {
   def batchTestUtil(): BatchTableTestUtil = BatchTableTestUtil(this)
 
   def verifyTableEquals(expected: Table, actual: Table): Unit = {
-    val expectedString = FlinkRelOptUtil.toString(expected.asInstanceOf[TableImpl].getRelNode)
-    val actualString = FlinkRelOptUtil.toString(actual.asInstanceOf[TableImpl].getRelNode)
+    val expectedString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(expected))
+    val actualString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(actual))
     assertEquals(
       "Logical plans do not match",
       LogicalPlanFormatUtils.formatTempTableId(expectedString),
@@ -259,7 +259,7 @@ abstract class TableTestUtil(test: TableTestBase) {
 
   def verifyPlanNotExpected(table: Table, notExpected: String*): Unit = {
     require(notExpected.nonEmpty)
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
@@ -307,7 +307,7 @@ abstract class TableTestUtil(test: TableTestBase) {
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(sql)
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
@@ -361,7 +361,7 @@ abstract class TableTestUtil(test: TableTestBase) {
       withRetractTraits: Boolean,
       printPlanBefore: Boolean,
       printResource: Boolean = false): Unit = {
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
       explainLevel,
@@ -715,4 +715,11 @@ object TableTestUtil {
     config
   }
 
+  /**
+    * Converts operation tree in the given table to a RelNode tree.
+    */
+  def toRelNode(table: Table): RelNode = {
+    table.asInstanceOf[TableImpl].tableEnv
+      .getRelBuilder.queryOperation(table.getQueryOperation).build()
+  }
 }

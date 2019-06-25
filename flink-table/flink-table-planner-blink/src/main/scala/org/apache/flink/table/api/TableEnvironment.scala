@@ -248,7 +248,8 @@ abstract class TableEnvironment(
       table: Table,
       sink: TableSink[T],
       sinkName: String = null): Unit = {
-    sinkNodes += LogicalSink.create(table.asInstanceOf[TableImpl].getRelNode, sink, sinkName)
+    val input = getRelBuilder.queryOperation(table.getQueryOperation).build()
+    sinkNodes += LogicalSink.create(input, sink, sinkName)
   }
 
   /**

@@ -19,9 +19,8 @@
 package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableImpl
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -450,8 +449,8 @@ class GroupingSetsTest extends TableTestBase {
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {
     val table1 = util.tableEnv.sqlQuery(sql1)
     val table2 = util.tableEnv.sqlQuery(sql2)
-    val optimized1 = util.tableEnv.optimize(table1.asInstanceOf[TableImpl].getRelNode)
-    val optimized2 = util.tableEnv.optimize(table2.asInstanceOf[TableImpl].getRelNode)
+    val optimized1 = util.tableEnv.optimize(TableTestUtil.toRelNode(table1))
+    val optimized2 = util.tableEnv.optimize(TableTestUtil.toRelNode(table2))
     assertEquals(FlinkRelOptUtil.toString(optimized1), FlinkRelOptUtil.toString(optimized2))
   }
 

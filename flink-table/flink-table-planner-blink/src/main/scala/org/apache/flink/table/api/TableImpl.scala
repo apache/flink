@@ -22,8 +22,6 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.TemporalTableFunction
 import org.apache.flink.table.operations.QueryOperation
 
-import org.apache.calcite.rel.RelNode
-
 /**
   * The implementation of the [[Table]].
   *
@@ -38,13 +36,6 @@ import org.apache.calcite.rel.RelNode
 class TableImpl(val tableEnv: TableEnvironment, operationTree: QueryOperation) extends Table {
 
   private lazy val tableSchema: TableSchema = operationTree.getTableSchema
-
-  /**
-    * Returns the Calcite RelNode represent this Table.
-    */
-  def getRelNode: RelNode = {
-    tableEnv.getRelBuilder.queryOperation(operationTree).build()
-  }
 
   override def getQueryOperation: QueryOperation = operationTree
 
