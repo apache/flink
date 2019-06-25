@@ -78,6 +78,7 @@ public class KeyedStateInputFormatTest {
 
 		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new ReaderFunction());
 		KeyGroupRangeInputSplit[] splits = format.createInputSplits(129);
+
 		Assert.assertEquals("Failed to properly partition operator state into input splits", 128, splits.length);
 	}
 
