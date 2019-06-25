@@ -21,6 +21,7 @@ package org.apache.flink.state.api.runtime;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A minimally implemented {@link TaskManagerRuntimeInfo} that provides the functionality required
@@ -30,7 +31,7 @@ class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	private final IOManager ioManager;
 
 	SavepointTaskManagerRuntimeInfo(IOManager ioManager) {
-		this.ioManager = ioManager;
+		this.ioManager = Preconditions.checkNotNull(ioManager);
 	}
 
 	@Override

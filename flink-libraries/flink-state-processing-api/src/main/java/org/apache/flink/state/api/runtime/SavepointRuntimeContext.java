@@ -43,6 +43,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -71,8 +72,8 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	private boolean stateRegistrationAllowed;
 
 	public SavepointRuntimeContext(RuntimeContext ctx, KeyedStateStore keyedStateStore) {
-		this.ctx = ctx;
-		this.keyedStateStore = keyedStateStore;
+		this.ctx = Preconditions.checkNotNull(ctx);
+		this.keyedStateStore = Preconditions.checkNotNull(keyedStateStore);
 		this.stateRegistrationAllowed = true;
 
 		this.registeredDescriptors = new ArrayList<>();

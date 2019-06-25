@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Iterator;
 import java.util.List;
@@ -44,9 +45,9 @@ final class MultiStateKeyIterator<K> implements Iterator<K> {
 	private K currentKey;
 
 	MultiStateKeyIterator(List<? extends StateDescriptor<?, ?>> descriptors, AbstractKeyedStateBackend<K> backend) {
-		this.descriptors = descriptors;
+		this.descriptors = Preconditions.checkNotNull(descriptors);
 
-		this.backend = backend;
+		this.backend = Preconditions.checkNotNull(backend);
 
 		this.internal = descriptors
 			.stream()

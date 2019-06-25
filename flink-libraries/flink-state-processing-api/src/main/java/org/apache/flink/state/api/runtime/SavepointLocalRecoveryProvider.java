@@ -27,6 +27,9 @@ import java.io.File;
  * required to run the {@code state-processor-api}.
  */
 final class SavepointLocalRecoveryProvider implements LocalRecoveryDirectoryProvider {
+
+	private static final long serialVersionUID = 9205635927790634162L;
+
 	private static final String MSG = "This method should never be called";
 
 	@Override

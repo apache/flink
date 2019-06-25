@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.Map;
@@ -86,10 +87,13 @@ public class SavepointEnvironment implements Environment {
 		this.jobID = new JobID();
 		this.vertexID = new JobVertexID();
 		this.attemptID = new ExecutionAttemptID();
-		this.ctx = ctx;
-		this.configuration = configuration;
+		this.ctx = Preconditions.checkNotNull(ctx);
+		this.configuration = Preconditions.checkNotNull(configuration);
+
+		Preconditions.checkArgument(maxParallelism > 0 && indexOfSubtask < maxParallelism);
 		this.maxParallelism = maxParallelism;
 		this.indexOfSubtask = indexOfSubtask;
+
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
 		this.ioManager = new IOManagerAsync();
@@ -256,7 +260,9 @@ public class SavepointEnvironment implements Environment {
 		private PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
 
 		public Builder(RuntimeContext ctx, int maxParallelism) {
-			this.ctx = ctx;
+			this.ctx = Preconditions.checkNotNull(ctx);
+
+			Preconditions.checkArgument(maxParallelism > 0);
 			this.maxParallelism = maxParallelism;
 
 			this.prioritizedOperatorSubtaskState = PrioritizedOperatorSubtaskState.emptyNotRestored();

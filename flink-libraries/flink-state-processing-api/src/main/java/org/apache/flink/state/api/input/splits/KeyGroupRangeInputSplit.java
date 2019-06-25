@@ -34,6 +34,8 @@ import java.util.List;
 @Internal
 public final class KeyGroupRangeInputSplit implements InputSplit {
 
+	private static final long serialVersionUID = -3715297712294815706L;
+
 	private final List<KeyedStateHandle> managedKeyedState;
 
 	private final List<KeyedStateHandle> rawKeyedState;

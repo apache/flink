@@ -65,6 +65,8 @@ import java.util.List;
 @Internal
 public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroupRangeInputSplit> implements KeyContext {
 
+	private static final long serialVersionUID = 8230460226049597182L;
+
 	private final OperatorState operatorState;
 
 	private final StateBackend stateBackend;

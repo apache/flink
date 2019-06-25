@@ -46,6 +46,8 @@ import org.apache.flink.util.Collector;
 @PublicEvolving
 public abstract class KeyedStateReaderFunction<K, OUT> extends AbstractRichFunction {
 
+	private static final long serialVersionUID = 3873843034140417407L;
+
 	/**
 	 * Initialization method for the function. It is called before {@link #readKey(Object,
 	 * Context, Collector)} and thus suitable for one time setup work.
