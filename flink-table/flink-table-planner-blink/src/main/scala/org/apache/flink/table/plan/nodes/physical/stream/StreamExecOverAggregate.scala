@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -33,7 +33,6 @@ import org.apache.flink.table.plan.util.{KeySelectorUtil, OverAggregateUtil, Rel
 import org.apache.flink.table.runtime.over._
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
 import org.apache.calcite.rel.`type`.RelDataType
@@ -43,8 +42,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConverters._
 
@@ -144,7 +144,7 @@ class StreamExecOverAggregate(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val tableConfig = tableEnv.getConfig
 
     if (logicWindow.groups.size > 1) {
@@ -168,7 +168,7 @@ class StreamExecOverAggregate(
     }
 
     val inputDS = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
 

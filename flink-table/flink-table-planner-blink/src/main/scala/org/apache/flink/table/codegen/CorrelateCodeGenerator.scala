@@ -22,9 +22,10 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -50,7 +51,7 @@ object CorrelateCodeGenerator {
   private[flink] def generateCorrelateTransformation(
       tableEnv: TableEnvironment,
       operatorCtx: CodeGeneratorContext,
-      inputTransformation: StreamTransformation[BaseRow],
+      inputTransformation: Transformation[BaseRow],
       inputRelType: RelDataType,
       projectProgram: Option[RexProgram],
       scan: FlinkLogicalTableFunctionScan,
@@ -60,7 +61,7 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       expression: (RexNode, List[String], Option[List[RexNode]]) => String,
-      ruleDescription: String): StreamTransformation[BaseRow] = {
+      ruleDescription: String): Transformation[BaseRow] = {
     val config = tableEnv.getConfig
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]

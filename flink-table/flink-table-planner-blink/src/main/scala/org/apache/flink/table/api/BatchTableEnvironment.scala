@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.operations.DataStreamQueryOperation
 import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
@@ -45,6 +44,7 @@ import org.apache.flink.util.InstantiationUtil
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.flink.api.dag.Transformation
 
 import _root_.scala.collection.JavaConversions._
 
@@ -117,7 +117,7 @@ abstract class BatchTableEnvironment(
   }
 
   protected override def translateStreamGraph(
-      streamingTransformations: Seq[StreamTransformation[_]],
+      streamingTransformations: Seq[Transformation[_]],
       jobName: Option[String]): StreamGraph = {
     mergeParameters()
 
@@ -168,16 +168,16 @@ abstract class BatchTableEnvironment(
   }
 
   override protected def translateToPlan(
-      sinks: Seq[ExecNode[_, _]]): Seq[StreamTransformation[_]] = sinks.map(translateToPlan)
+      sinks: Seq[ExecNode[_, _]]): Seq[Transformation[_]] = sinks.map(translateToPlan)
 
   /**
-    * Translates a [[BatchExecNode]] plan into a [[StreamTransformation]].
+    * Translates a [[BatchExecNode]] plan into a [[Transformation]].
     * Converts to target type if necessary.
     *
     * @param node        The plan to translate.
-    * @return The [[StreamTransformation]] that corresponds to the given node.
+    * @return The [[Transformation]] that corresponds to the given node.
     */
-  private def translateToPlan(node: ExecNode[_, _]): StreamTransformation[_] = {
+  private def translateToPlan(node: ExecNode[_, _]): Transformation[_] = {
     node match {
       case node: BatchExecNode[_] => node.translateToPlan(this)
       case _ =>

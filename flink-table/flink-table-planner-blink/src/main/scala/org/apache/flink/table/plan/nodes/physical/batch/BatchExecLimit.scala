@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.FlinkCost._
@@ -27,14 +27,14 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil.fetchToString
 import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.runtime.sort.LimitOperator
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -100,9 +100,9 @@ class BatchExecLimit(
   }
 
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
-        .asInstanceOf[StreamTransformation[BaseRow]]
+        .asInstanceOf[Transformation[BaseRow]]
     val inputType = input.getOutputType
     val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
     new OneInputTransformation(

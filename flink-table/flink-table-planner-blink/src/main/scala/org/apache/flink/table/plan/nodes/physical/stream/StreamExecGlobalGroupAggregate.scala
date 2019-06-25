@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -33,13 +33,13 @@ import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -112,7 +112,7 @@ class StreamExecGlobalGroupAggregate(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val tableConfig = tableEnv.getConfig
 
     if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime < 0) {
@@ -122,7 +122,7 @@ class StreamExecGlobalGroupAggregate(
     }
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 

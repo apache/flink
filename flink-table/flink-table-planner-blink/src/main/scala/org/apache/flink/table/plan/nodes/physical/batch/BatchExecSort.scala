@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
@@ -30,14 +30,14 @@ import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.sort.SortOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -102,9 +102,9 @@ class BatchExecSort(
   }
 
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
-        .asInstanceOf[StreamTransformation[BaseRow]]
+        .asInstanceOf[Transformation[BaseRow]]
 
     val conf = tableEnv.getConfig
     val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)

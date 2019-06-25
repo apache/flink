@@ -22,12 +22,12 @@ import java.util.{Collections, List => JList}
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.{PlannerFactory, TableEnvironmentImpl}
 import org.apache.flink.table.api.scala.StreamTableEnvironment
@@ -36,7 +36,7 @@ import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
-import org.apache.flink.table.operations.{ScalaDataStreamQueryOperation, OutputConversionModifyOperation}
+import org.apache.flink.table.operations.{OutputConversionModifyOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
@@ -185,7 +185,7 @@ class StreamTableEnvironmentImpl (
     : DataStream[T] = {
     val transformations = planner
       .translate(Collections.singletonList(modifyOperation))
-    val streamTransformation: StreamTransformation[T] = getStreamTransformation(
+    val streamTransformation: Transformation[T] = getTransformation(
       table,
       transformations)
     scalaExecutionEnvironment.getWrappedStreamExecutionEnvironment.addOperator(streamTransformation)
@@ -194,10 +194,10 @@ class StreamTableEnvironmentImpl (
         .getWrappedStreamExecutionEnvironment, streamTransformation))
   }
 
-  private def getStreamTransformation[T](
+  private def getTransformation[T](
       table: Table,
-      transformations: util.List[StreamTransformation[_]])
-    : StreamTransformation[T] = {
+      transformations: util.List[Transformation[_]])
+    : Transformation[T] = {
     if (transformations.size != 1) {
       throw new TableException(String
         .format(
@@ -205,7 +205,7 @@ class StreamTableEnvironmentImpl (
           table.getQueryOperation.asSummaryString,
           transformations))
     }
-    transformations.get(0).asInstanceOf[StreamTransformation[T]]
+    transformations.get(0).asInstanceOf[Transformation[T]]
   }
 
   private def asQueryOperation[T](

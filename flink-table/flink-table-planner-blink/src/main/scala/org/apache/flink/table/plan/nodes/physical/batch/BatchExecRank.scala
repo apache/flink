@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, PlannerConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
@@ -32,7 +32,6 @@ import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType}
 import org.apache.flink.table.runtime.sort.RankOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
@@ -40,8 +39,9 @@ import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList, Util}
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -246,9 +246,9 @@ class BatchExecRank(
   }
 
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
-        .asInstanceOf[StreamTransformation[BaseRow]]
+        .asInstanceOf[Transformation[BaseRow]]
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val partitionBySortingKeys = partitionKey.toArray
     // The collation for the partition-by fields is inessential here, we only use the

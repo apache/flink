@@ -22,14 +22,13 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase;
@@ -194,7 +193,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		public SinkFunction<?> sinkFunction;
 
 		public DataStreamMock(StreamExecutionEnvironment environment, TypeInformation<Tuple2<Boolean, Row>> outType) {
-			super(environment, new StreamTransformationMock("name", outType, 1));
+			super(environment, new TransformationMock("name", outType, 1));
 		}
 
 		@Override
@@ -204,19 +203,14 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		}
 	}
 
-	private static class StreamTransformationMock extends StreamTransformation<Tuple2<Boolean, Row>> {
+	private static class TransformationMock extends Transformation<Tuple2<Boolean, Row>> {
 
-		public StreamTransformationMock(String name, TypeInformation<Tuple2<Boolean, Row>> outputType, int parallelism) {
+		public TransformationMock(String name, TypeInformation<Tuple2<Boolean, Row>> outputType, int parallelism) {
 			super(name, outputType, parallelism);
 		}
 
 		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-			// do nothing
-		}
-
-		@Override
-		public Collection<StreamTransformation<?>> getTransitivePredecessors() {
+		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return null;
 		}
 	}

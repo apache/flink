@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.SinkCodeGenerator.{extractTableSinkTypeClass, generateRowConverterOperator}
@@ -34,11 +34,11 @@ import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -83,18 +83,18 @@ class StreamExecSink[T](
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[Any] = {
+      tableEnv: StreamTableEnvironment): Transformation[Any] = {
     val resultTransformation = sink match {
       case streamTableSink: StreamTableSink[T] =>
         val transformation = streamTableSink match {
           case _: RetractStreamTableSink[T] =>
-            translateToStreamTransformation(withChangeFlag = true, tableEnv)
+            translateToTransformation(withChangeFlag = true, tableEnv)
 
           case upsertSink: UpsertStreamTableSink[T] =>
             // check for append only table
             val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
             upsertSink.setIsAppendOnly(isAppendOnlyTable)
-            translateToStreamTransformation(withChangeFlag = true, tableEnv)
+            translateToTransformation(withChangeFlag = true, tableEnv)
 
           case _: AppendStreamTableSink[T] =>
             // verify table is an insert-only (append-only) table
@@ -108,7 +108,7 @@ class StreamExecSink[T](
               throw new TableException(
                 "AppendStreamTableSink can not be used to output retraction messages.")
             }
-            translateToStreamTransformation(withChangeFlag = false, tableEnv)
+            translateToTransformation(withChangeFlag = false, tableEnv)
 
           case _ =>
             throw new TableException(
@@ -148,25 +148,25 @@ class StreamExecSink[T](
         // In case of table to stream through BatchTableEnvironment#translateToDataStream,
         // we insert a DataStreamTableSink then wrap it as a LogicalSink, there is no real batch
         // table sink, so we do not need to invoke TableSink#emitBoundedStream and set resource,
-        // just a translation to StreamTransformation is ok.
-        translateToStreamTransformation(dsTableSink.withChangeFlag, tableEnv)
+        // just a translation to Transformation is ok.
+        translateToTransformation(dsTableSink.withChangeFlag, tableEnv)
 
       case _ =>
         throw new TableException(s"Only Support StreamTableSink! " +
           s"However ${sink.getClass.getCanonicalName} is not a StreamTableSink.")
     }
-    resultTransformation.asInstanceOf[StreamTransformation[Any]]
+    resultTransformation.asInstanceOf[Transformation[Any]]
   }
 
   /**
-    * Translates a logical [[RelNode]] into a [[StreamTransformation]].
+    * Translates a logical [[RelNode]] into a [[Transformation]].
     *
     * @param withChangeFlag Set to true to emit records with change flags.
-    * @return The [[StreamTransformation]] that corresponds to the translated [[Table]].
+    * @return The [[Transformation]] that corresponds to the translated [[Table]].
     */
-  private def translateToStreamTransformation(
+  private def translateToTransformation(
       withChangeFlag: Boolean,
-      tableEnv: StreamTableEnvironment): StreamTransformation[T] = {
+      tableEnv: StreamTableEnvironment): Transformation[T] = {
     val inputNode = getInput
     // if no change flags are requested, verify table is an insert-only (append-only) table.
     if (!withChangeFlag && !UpdatingPlanChecker.isAppendOnly(inputNode)) {
@@ -211,7 +211,7 @@ class StreamExecSink[T](
     val resultType = fromDataTypeToLegacyInfo(resultDataType)
     val typeClass = extractTableSinkTypeClass(sink)
     if (CodeGenUtils.isInternalClass(typeClass, resultDataType)) {
-      parTransformation.asInstanceOf[StreamTransformation[T]]
+      parTransformation.asInstanceOf[Transformation[T]]
     } else {
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(tableEnv.getConfig),

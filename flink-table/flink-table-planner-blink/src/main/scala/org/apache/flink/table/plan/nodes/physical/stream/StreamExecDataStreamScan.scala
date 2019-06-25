@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -34,15 +33,15 @@ import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToL
 import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER
 import org.apache.flink.table.typeutils.TypeCheckUtils
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -77,7 +76,7 @@ class StreamExecDataStreamScan(
 
   override def deriveRowType(): RelDataType = outputRowType
 
-  def getSourceTransformation: StreamTransformation[_] =
+  def getSourceTransformation: Transformation[_] =
     dataStreamTable.dataStream.getTransformation
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -106,7 +105,7 @@ class StreamExecDataStreamScan(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
     val transform = inputDataStream.getTransformation
@@ -143,7 +142,7 @@ class StreamExecDataStreamScan(
       ret.setParallelism(getResource.getParallelism)
       ret
     } else {
-      transform.asInstanceOf[StreamTransformation[BaseRow]]
+      transform.asInstanceOf[Transformation[BaseRow]]
     }
   }
 

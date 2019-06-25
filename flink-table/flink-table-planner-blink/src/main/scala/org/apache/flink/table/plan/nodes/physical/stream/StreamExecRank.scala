@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.EqualiserCodeGenerator
@@ -30,13 +30,13 @@ import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRul
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.rank._
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.util.ImmutableBitSet
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -126,7 +126,7 @@ class StreamExecRank(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val tableConfig = tableEnv.getConfig
     rankType match {
       case RankType.ROW_NUMBER => // ignore
@@ -201,7 +201,7 @@ class StreamExecRank(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
     val outputRowTypeInfo = BaseRowTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
     val ret = new OneInputTransformation(

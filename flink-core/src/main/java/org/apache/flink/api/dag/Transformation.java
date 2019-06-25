@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.transformations;
+package org.apache.flink.api.dag;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -35,19 +34,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@code StreamTransformation} represents the operation that creates a
+ * A {@code Transformation} represents the operation that creates a
  * DataStream. Every DataStream has an underlying
- * {@code StreamTransformation} that is the origin of said DataStream.
+ * {@code Transformation} that is the origin of said DataStream.
  *
  * <p>API operations such as DataStream#map create
- * a tree of {@code StreamTransformation}s underneath. When the stream program is to be executed
+ * a tree of {@code Transformation}s underneath. When the stream program is to be executed
  * this graph is translated to a StreamGraph using StreamGraphGenerator.
  *
- * <p>A {@code StreamTransformation} does not necessarily correspond to a physical operation
+ * <p>A {@code Transformation} does not necessarily correspond to a physical operation
  * at runtime. Some operations are only logical concepts. Examples of this are union,
  * split/select data stream, partitioning.
  *
- * <p>The following graph of {@code StreamTransformations}:
+ * <p>The following graph of {@code Transformations}:
  * <pre>{@code
  *   Source              Source
  *      +                   +
@@ -91,15 +90,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The information about partitioning, union, split/select end up being encoded in the edges
  * that connect the sources to the map operation.
  *
- * @param <T> The type of the elements that result from this {@code StreamTransformation}
+ * @param <T> The type of the elements that result from this {@code Transformation}
  */
 @Internal
-public abstract class StreamTransformation<T> {
+public abstract class Transformation<T> {
 
 	// Has to be equal to StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
 	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
 
-	// This is used to assign a unique ID to every StreamTransformation
+	// This is used to assign a unique ID to every Transformation
 	protected static Integer idCounter = 0;
 
 	public static int getNewNodeId() {
@@ -155,13 +154,13 @@ public abstract class StreamTransformation<T> {
 	private String coLocationGroupKey;
 
 	/**
-	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
+	 * Creates a new {@code Transformation} with the given name, output type and parallelism.
 	 *
-	 * @param name The name of the {@code StreamTransformation}, this will be shown in Visualizations and the Log
-	 * @param outputType The output type of this {@code StreamTransformation}
-	 * @param parallelism The parallelism of this {@code StreamTransformation}
+	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
+	 * @param outputType The output type of this {@code Transformation}
+	 * @param parallelism The parallelism of this {@code Transformation}
 	 */
-	public StreamTransformation(String name, TypeInformation<T> outputType, int parallelism) {
+	public Transformation(String name, TypeInformation<T> outputType, int parallelism) {
 		this.id = getNewNodeId();
 		this.name = Preconditions.checkNotNull(name);
 		this.outputType = outputType;
@@ -170,37 +169,37 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the unique ID of this {@code StreamTransformation}.
+	 * Returns the unique ID of this {@code Transformation}.
 	 */
 	public int getId() {
 		return id;
 	}
 
 	/**
-	 * Changes the name of this {@code StreamTransformation}.
+	 * Changes the name of this {@code Transformation}.
 	 */
 	public void setName(String name) {
 		this.name = name;
 	}
 
 	/**
-	 * Returns the name of this {@code StreamTransformation}.
+	 * Returns the name of this {@code Transformation}.
 	 */
 	public String getName() {
 		return name;
 	}
 
 	/**
-	 * Returns the parallelism of this {@code StreamTransformation}.
+	 * Returns the parallelism of this {@code Transformation}.
 	 */
 	public int getParallelism() {
 		return parallelism;
 	}
 
 	/**
-	 * Sets the parallelism of this {@code StreamTransformation}.
+	 * Sets the parallelism of this {@code Transformation}.
 	 *
-	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}.
+	 * @param parallelism The new parallelism to set on this {@code Transformation}.
 	 */
 	public void setParallelism(int parallelism) {
 		Preconditions.checkArgument(
@@ -300,7 +299,7 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets an ID for this {@link StreamTransformation}. This is will later be hashed to a uidHash which is then used to
+	 * Sets an ID for this {@link Transformation}. This is will later be hashed to a uidHash which is then used to
 	 * create the JobVertexID (that is shown in logs and the web ui).
 	 *
 	 * <p>The specified ID is used to assign the same operator ID across job
@@ -400,10 +399,10 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the output type of this {@code StreamTransformation} as a {@link TypeInformation}. Once
+	 * Returns the output type of this {@code Transformation} as a {@link TypeInformation}. Once
 	 * this is used once the output type cannot be changed anymore using {@link #setOutputType}.
 	 *
-	 * @return The output type of this {@code StreamTransformation}
+	 * @return The output type of this {@code Transformation}
 	 */
 	public TypeInformation<T> getOutputType() {
 		if (outputType instanceof MissingTypeInfo) {
@@ -422,12 +421,7 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets the chaining strategy of this {@code StreamTransformation}.
-	 */
-	public abstract void setChainingStrategy(ChainingStrategy strategy);
-
-	/**
-	 * Set the buffer timeout of this {@code StreamTransformation}. The timeout defines how long data
+	 * Set the buffer timeout of this {@code Transformation}. The timeout defines how long data
 	 * may linger in a partially full buffer before being sent over the network.
 	 *
 	 * <p>Lower timeouts lead to lower tail latencies, but may affect throughput.
@@ -443,7 +437,7 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the buffer timeout of this {@code StreamTransformation}.
+	 * Returns the buffer timeout of this {@code Transformation}.
 	 *
 	 * @see #setBufferTimeout(long)
 	 */
@@ -452,13 +446,13 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns all transitive predecessor {@code StreamTransformation}s of this {@code StreamTransformation}. This
+	 * Returns all transitive predecessor {@code Transformation}s of this {@code Transformation}. This
 	 * is, for example, used when determining whether a feedback edge of an iteration
 	 * actually has the iteration head as a predecessor.
 	 *
 	 * @return The list of transitive predecessors.
 	 */
-	public abstract Collection<StreamTransformation<?>> getTransitivePredecessors();
+	public abstract Collection<Transformation<?>> getTransitivePredecessors();
 
 	@Override
 	public String toString() {
@@ -475,11 +469,11 @@ public abstract class StreamTransformation<T> {
 		if (this == o) {
 			return true;
 		}
-		if (!(o instanceof StreamTransformation)) {
+		if (!(o instanceof Transformation)) {
 			return false;
 		}
 
-		StreamTransformation<?> that = (StreamTransformation<?>) o;
+		Transformation<?> that = (Transformation<?>) o;
 
 		if (bufferTimeout != that.bufferTimeout) {
 			return false;

@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.delegation.Planner;
 
 import java.util.List;
@@ -29,7 +30,7 @@ import java.util.List;
  *
  * <p>A tree of {@link QueryOperation} with a {@link ModifyOperation} on top
  * represents a runnable query that can be transformed into a graph of
- * {@link org.apache.flink.streaming.api.transformations.StreamTransformation}
+ * {@link Transformation}
  * via {@link Planner#translate(List)}
  *
  * @see QueryOperation

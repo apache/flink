@@ -26,7 +26,6 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite._
@@ -51,15 +50,15 @@ import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType, TypeIn
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.types.Row
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql._
 import org.apache.calcite.tools._
-
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
+
+import org.apache.flink.api.dag.Transformation
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
@@ -121,7 +120,7 @@ abstract class TableEnvironment(
   // TODO use SinkNode(LogicalNode) instead of Sink(RelNode) after we introduce [Expression]
   private[flink] var sinkNodes = new mutable.ArrayBuffer[Sink]
 
-  private[flink] val transformations = new mutable.ArrayBuffer[StreamTransformation[_]]
+  private[flink] val transformations = new mutable.ArrayBuffer[Transformation[_]]
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
@@ -179,11 +178,11 @@ abstract class TableEnvironment(
     * @return A [[StreamGraph]] describing the given job.
     */
   protected def translateStreamGraph(
-      streamingTransformations: Seq[StreamTransformation[_]],
+      streamingTransformations: Seq[Transformation[_]],
       jobName: Option[String] = None): StreamGraph = ???
 
   /**
-    * Compile the sinks to [[org.apache.flink.streaming.api.transformations.StreamTransformation]].
+    * Compile the sinks to [[Transformation]].
     */
   protected def compile(): Unit = {
     if (sinkNodes.isEmpty) {
@@ -230,12 +229,12 @@ abstract class TableEnvironment(
   }
 
   /**
-    * Translates a [[ExecNode]] DAG into a [[StreamTransformation]] DAG.
+    * Translates a [[ExecNode]] DAG into a [[Transformation]] DAG.
     *
     * @param sinks The node DAG to translate.
-    * @return The [[StreamTransformation]] DAG that corresponds to the node DAG.
+    * @return The [[Transformation]] DAG that corresponds to the node DAG.
     */
-  protected def translateToPlan(sinks: Seq[ExecNode[_, _]]): Seq[StreamTransformation[_]]
+  protected def translateToPlan(sinks: Seq[ExecNode[_, _]]): Seq[Transformation[_]]
 
   /**
     * Writes a [[Table]] to a [[TableSink]].

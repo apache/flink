@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.{PartitionTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.PartitionTransformation
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -32,11 +32,11 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.runtime.BinaryHashPartitioner
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -57,7 +57,7 @@ import scala.collection.JavaConversions._
   * +---------------------------------------------------------------------------------------------+
   * |                                                                                             |
   * | +-----------------------------+                                                             |
-  * | | StreamTransformation        | ------------------------------------>                       |
+  * | |       Transformation        | ------------------------------------>                       |
   * | +-----------------------------+                                     |                       |
   * |                 |                                                   |                       |
   * |                 |                                                   |                       |
@@ -101,7 +101,7 @@ class BatchExecExchange(
   // currently, an Exchange' input transformation will be reused if it is reusable,
   // and different PartitionTransformation objects will be created which have same input.
   // cache input transformation to reuse
-  private var reusedInput: Option[StreamTransformation[BaseRow]] = None
+  private var reusedInput: Option[Transformation[BaseRow]] = None
   // the required exchange mode for reusable ExchangeBatchExec
   // if it's None, use value from getDataExchangeMode
   private var requiredExchangeMode: Option[DataExchangeMode] = None
@@ -150,12 +150,12 @@ class BatchExecExchange(
   }
 
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val input = reusedInput match {
       case Some(transformation) => transformation
       case None =>
         val input = getInputNodes.get(0).translateToPlan(tableEnv)
-            .asInstanceOf[StreamTransformation[BaseRow]]
+            .asInstanceOf[Transformation[BaseRow]]
         reusedInput = Some(input)
         input
     }

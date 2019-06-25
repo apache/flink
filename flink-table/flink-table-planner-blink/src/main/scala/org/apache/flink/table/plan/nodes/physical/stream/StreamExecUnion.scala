@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.transformations.{StreamTransformation, UnionTransformation}
+import org.apache.flink.streaming.api.transformations.UnionTransformation
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.{RelNode, RelWriter}
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -80,9 +80,9 @@ class StreamExecUnion(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val transformations = getInputNodes.map {
-      input => input.translateToPlan(tableEnv).asInstanceOf[StreamTransformation[BaseRow]]
+      input => input.translateToPlan(tableEnv).asInstanceOf[Transformation[BaseRow]]
     }
     new UnionTransformation(transformations)
   }

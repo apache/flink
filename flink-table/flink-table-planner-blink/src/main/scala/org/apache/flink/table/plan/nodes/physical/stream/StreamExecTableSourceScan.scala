@@ -22,7 +22,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -36,13 +35,13 @@ import org.apache.flink.table.runtime.AbstractProcessStreamOperator
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource, TableSourceUtil}
 import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -58,7 +57,7 @@ class StreamExecTableSourceScan(
   with StreamExecNode[BaseRow] {
 
   // cache table source transformation.
-  private var sourceTransform: StreamTransformation[_] = _
+  private var sourceTransform: Transformation[_] = _
 
   override def producesUpdates: Boolean = false
 
@@ -93,7 +92,7 @@ class StreamExecTableSourceScan(
   }
 
   def getSourceTransformation(
-      streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
+      streamEnv: StreamExecutionEnvironment): Transformation[_] = {
     if (sourceTransform == null) {
       sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
           getDataStream(streamEnv).getTransformation
@@ -102,7 +101,7 @@ class StreamExecTableSourceScan(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val config = tableEnv.getConfig
     val inputTransform = getSourceTransformation(tableEnv.execEnv)
     inputTransform.setParallelism(getResource.getParallelism)
@@ -144,7 +143,7 @@ class StreamExecTableSourceScan(
         classOf[AbstractProcessStreamOperator[BaseRow]])
       val conversionTransform = ScanUtil.convertToInternalRow(
         ctx,
-        inputTransform.asInstanceOf[StreamTransformation[Any]],
+        inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
         producedDataType,
         getRowType,
@@ -156,7 +155,7 @@ class StreamExecTableSourceScan(
       conversionTransform.setParallelism(getResource.getParallelism)
       conversionTransform
     } else {
-      inputTransform.asInstanceOf[StreamTransformation[BaseRow]]
+      inputTransform.asInstanceOf[Transformation[BaseRow]]
     }
 
     val ingestedTable = new DataStream(tableEnv.execEnv, streamTransformation)

@@ -20,13 +20,13 @@ package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -289,12 +289,12 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	}
 
 	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
-		List<StreamTransformation<?>> transformations = planner.translate(Collections.singletonList(modifyOperation));
+		List<Transformation<?>> transformations = planner.translate(Collections.singletonList(modifyOperation));
 
-		StreamTransformation<T> streamTransformation = getStreamTransformation(table, transformations);
+		Transformation<T> transformation = getTransformation(table, transformations);
 
-		executionEnvironment.addOperator(streamTransformation);
-		return new DataStream<>(executionEnvironment, streamTransformation);
+		executionEnvironment.addOperator(transformation);
+		return new DataStream<>(executionEnvironment, transformation);
 	}
 
 	@Override
@@ -317,9 +317,9 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> StreamTransformation<T> getStreamTransformation(
+	private <T> Transformation<T> getTransformation(
 		Table table,
-		List<StreamTransformation<?>> transformations) {
+		List<Transformation<?>> transformations) {
 		if (transformations.size() != 1) {
 			throw new TableException(String.format(
 				"Expected a single transformation for query: %s\n Got: %s",
@@ -327,7 +327,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 				transformations));
 		}
 
-		return (StreamTransformation<T>) transformations.get(0);
+		return (Transformation<T>) transformations.get(0);
 	}
 
 	private <T> DataType wrapWithChangeFlag(TypeInformation<T> outputType) {

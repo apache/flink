@@ -26,6 +26,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -50,7 +51,6 @@ import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -465,7 +465,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
 		iteration.closeWith(filter).print();
 
-		List<StreamTransformation<?>> transformations = new ArrayList<>();
+		List<Transformation<?>> transformations = new ArrayList<>();
 		transformations.add(source.getTransformation());
 		transformations.add(iteration.getTransformation());
 		transformations.add(map.getTransformation());

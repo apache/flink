@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import java.{lang, util}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -26,7 +27,6 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.BaseRow
@@ -35,13 +35,13 @@ import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
 import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import scala.collection.JavaConversions._
@@ -59,7 +59,7 @@ class BatchExecTableSourceScan(
   with BatchExecNode[BaseRow]{
 
   // cache table source transformation.
-  private var sourceTransform: StreamTransformation[_] = _
+  private var sourceTransform: Transformation[_] = _
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
@@ -89,7 +89,7 @@ class BatchExecTableSourceScan(
   }
 
   def getSourceTransformation(
-      streamEnv: StreamExecutionEnvironment): StreamTransformation[_] = {
+      streamEnv: StreamExecutionEnvironment): Transformation[_] = {
     if (sourceTransform == null) {
       sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
           getDataStream(streamEnv).getTransformation
@@ -98,7 +98,7 @@ class BatchExecTableSourceScan(
   }
 
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val config = tableEnv.getConfig
     val inputTransform = getSourceTransformation(tableEnv.execEnv)
     inputTransform.setParallelism(getResource.getParallelism)
@@ -129,7 +129,7 @@ class BatchExecTableSourceScan(
     if (needInternalConversion) {
       val conversionTransform = ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
-        inputTransform.asInstanceOf[StreamTransformation[Any]],
+        inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
         producedDataType,
         getRowType,
@@ -139,7 +139,7 @@ class BatchExecTableSourceScan(
       conversionTransform.setParallelism(getResource.getParallelism)
       conversionTransform
     } else {
-      inputTransform.asInstanceOf[StreamTransformation[BaseRow]]
+      inputTransform.asInstanceOf[Transformation[BaseRow]]
     }
 
   }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.nodes.resource.parallelism;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
@@ -79,21 +79,21 @@ public class FinalParallelismSetter {
 	}
 
 	private void calculateTableSource(BatchExecTableSourceScan tableSourceScan) {
-		StreamTransformation transformation = tableSourceScan.getSourceTransformation(env);
+		Transformation transformation = tableSourceScan.getSourceTransformation(env);
 		if (transformation.getMaxParallelism() > 0) {
 			tableSourceScan.getResource().setMaxParallelism(transformation.getMaxParallelism());
 		}
 	}
 
 	private void calculateTableSource(StreamExecTableSourceScan tableSourceScan) {
-		StreamTransformation transformation = tableSourceScan.getSourceTransformation(env);
+		Transformation transformation = tableSourceScan.getSourceTransformation(env);
 		if (transformation.getMaxParallelism() > 0) {
 			tableSourceScan.getResource().setMaxParallelism(transformation.getMaxParallelism());
 		}
 	}
 
 	private void calculateBoundedStreamScan(BatchExecBoundedStreamScan boundedStreamScan) {
-		StreamTransformation transformation = boundedStreamScan.getSourceTransformation();
+		Transformation transformation = boundedStreamScan.getSourceTransformation();
 		int parallelism = transformation.getParallelism();
 		if (parallelism <= 0) {
 			parallelism = env.getParallelism();
@@ -102,7 +102,7 @@ public class FinalParallelismSetter {
 	}
 
 	private void calculateDataStreamScan(StreamExecDataStreamScan dataStreamScan) {
-		StreamTransformation transformation = dataStreamScan.getSourceTransformation();
+		Transformation transformation = dataStreamScan.getSourceTransformation();
 		int parallelism = transformation.getParallelism();
 		if (parallelism <= 0) {
 			parallelism = env.getParallelism();
