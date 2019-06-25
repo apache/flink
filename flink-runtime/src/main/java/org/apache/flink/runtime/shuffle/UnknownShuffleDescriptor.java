@@ -21,6 +21,7 @@ package org.apache.flink.runtime.shuffle;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import java.util.EnumSet;
 import java.util.Optional;
 
 /**
@@ -55,5 +56,10 @@ public final class UnknownShuffleDescriptor implements ShuffleDescriptor {
 	@Override
 	public Optional<ResourceID> storesLocalResourcesOn() {
 		return Optional.empty();
+	}
+
+	@Override
+	public EnumSet<ReleaseType> getSupportedReleaseTypes() {
+		return EnumSet.noneOf(ReleaseType.class);
 	}
 }
