@@ -337,10 +337,9 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 
 	private boolean checkFinished() throws Exception {
 		if (getInput(lastReadInputIndex).isFinished()) {
-			inputSelection = (lastReadInputIndex == 0) ? InputSelection.SECOND : InputSelection.FIRST;
-
 			synchronized (lock) {
 				operatorChain.endInput(getInputId(lastReadInputIndex));
+				inputSelection = inputSelector.nextSelection();
 			}
 		}
 
