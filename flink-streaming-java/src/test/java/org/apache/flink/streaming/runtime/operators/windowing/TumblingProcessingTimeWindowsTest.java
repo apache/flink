@@ -48,7 +48,7 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	@Test
 	public void testWindowAssignment() {
 		WindowAssigner.WindowAssignerContext mockContext =
-				mock(WindowAssigner.WindowAssignerContext.class);
+			mock(WindowAssigner.WindowAssignerContext.class);
 
 		TumblingProcessingTimeWindows assigner = TumblingProcessingTimeWindows.of(Time.milliseconds(5000));
 
@@ -63,9 +63,9 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
-	public void testWindowAssignmentWithOffset() {
+	public void testWindowAssignmentWithGlobalOffset() {
 		WindowAssigner.WindowAssignerContext mockContext =
-				mock(WindowAssigner.WindowAssignerContext.class);
+			mock(WindowAssigner.WindowAssignerContext.class);
 
 		TumblingProcessingTimeWindows assigner = TumblingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(100));
 
@@ -80,7 +80,7 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
-	public void testWindowAssignmentWithNegativeOffset() {
+	public void testWindowAssignmentWithNegativeGlobalOffset() {
 		WindowAssigner.WindowAssignerContext mockContext =
 			mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -101,7 +101,7 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 		// sanity check with one other time unit
 
 		WindowAssigner.WindowAssignerContext mockContext =
-				mock(WindowAssigner.WindowAssignerContext.class);
+			mock(WindowAssigner.WindowAssignerContext.class);
 
 		TumblingProcessingTimeWindows assigner = TumblingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1));
 
