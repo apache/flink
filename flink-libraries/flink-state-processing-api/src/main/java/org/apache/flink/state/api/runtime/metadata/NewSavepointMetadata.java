@@ -21,6 +21,7 @@ package org.apache.flink.state.api.runtime.metadata;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -48,5 +49,10 @@ public class NewSavepointMetadata implements SavepointMetadata {
 	@Override
 	public Collection<OperatorState> getOperatorStates() {
 		return Collections.emptyList();
+	}
+
+	@Override
+	public OperatorState getOperatorState(String uid) throws IOException{
+		throw new IOException("Savepoint does not contain state with operator uid " + uid);
 	}
 }

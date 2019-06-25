@@ -43,6 +43,11 @@ public interface SavepointMetadata extends Serializable {
 	Collection<MasterState> getMasterStates();
 
 	/**
+	 * @return Operator states for the savepoint.
+	 */
+	Collection<OperatorState> getOperatorStates();
+
+	/**
 	 * @return Operator state for the given UID.
 	 *
 	 * @throws IOException If the savepoint does not contain operator state with the given uid.

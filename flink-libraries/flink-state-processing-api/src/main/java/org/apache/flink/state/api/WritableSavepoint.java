@@ -29,7 +29,6 @@ import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**

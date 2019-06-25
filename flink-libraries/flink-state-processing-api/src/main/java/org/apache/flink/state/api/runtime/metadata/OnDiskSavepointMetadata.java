@@ -27,6 +27,7 @@ import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -77,6 +78,11 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 	@Override
 	public Collection<MasterState> getMasterStates() {
 		return masterStates;
+	}
+
+	@Override
+	public Collection<OperatorState> getOperatorStates() {
+		return new ArrayList<>(operatorStateIndex.values());
 	}
 
 	/**
