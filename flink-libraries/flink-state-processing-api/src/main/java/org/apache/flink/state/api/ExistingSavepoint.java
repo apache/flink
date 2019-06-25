@@ -27,12 +27,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.input.BroadcastStateInputFormat;
 import org.apache.flink.state.api.input.ListStateInputFormat;
 import org.apache.flink.state.api.input.UnionStateInputFormat;
-import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.metadata.OnDiskSavepointMetadata;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
@@ -71,7 +69,7 @@ public class ExistingSavepoint {
 	 * @throws IOException If the savepoint path is invalid or the uid does not exist.
 	 */
 	public <T> DataSet<T> readListState(String uid, String name, TypeInformation<T> typeInfo) throws IOException {
-		OperatorState operatorState = getOperatorState(uid);
+		OperatorState operatorState = metadata.getOperatorState(uid);
 		ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
 		ListStateInputFormat<T> inputFormat = new ListStateInputFormat<>(operatorState, descriptor);
 		return env.createInput(inputFormat, typeInfo);
@@ -95,7 +93,7 @@ public class ExistingSavepoint {
 		TypeInformation<T> typeInfo,
 		TypeSerializer<T> serializer) throws IOException {
 
-		OperatorState operatorState = getOperatorState(uid);
+		OperatorState operatorState = metadata.getOperatorState(uid);
 		ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
 		ListStateInputFormat<T> inputFormat = new ListStateInputFormat<>(operatorState, descriptor);
 		return env.createInput(inputFormat, typeInfo);
@@ -111,7 +109,7 @@ public class ExistingSavepoint {
 	 * @throws IOException If the savepoint path is invalid or the uid does not exist.
 	 */
 	public <T> DataSet<T> readUnionState(String uid, String name, TypeInformation<T> typeInfo) throws IOException {
-		OperatorState operatorState = getOperatorState(uid);
+		OperatorState operatorState = metadata.getOperatorState(uid);
 		ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
 		UnionStateInputFormat<T> inputFormat = new UnionStateInputFormat<>(operatorState, descriptor);
 		return env.createInput(inputFormat, typeInfo);
@@ -135,7 +133,7 @@ public class ExistingSavepoint {
 		TypeInformation<T> typeInfo,
 		TypeSerializer<T> serializer) throws IOException {
 
-		OperatorState operatorState = getOperatorState(uid);
+		OperatorState operatorState = metadata.getOperatorState(uid);
 		ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
 		UnionStateInputFormat<T> inputFormat = new UnionStateInputFormat<>(operatorState, descriptor);
 		return env.createInput(inputFormat, typeInfo);
@@ -158,7 +156,7 @@ public class ExistingSavepoint {
 		TypeInformation<K> keyTypeInfo,
 		TypeInformation<V> valueTypeInfo) throws IOException {
 
-		OperatorState operatorState = getOperatorState(uid);
+		OperatorState operatorState = metadata.getOperatorState(uid);
 		MapStateDescriptor<K, V> descriptor = new MapStateDescriptor<>(name, keyTypeInfo, valueTypeInfo);
 		BroadcastStateInputFormat<K, V> inputFormat = new BroadcastStateInputFormat<>(operatorState, descriptor);
 		return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
@@ -187,27 +185,9 @@ public class ExistingSavepoint {
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<V> valueSerializer) throws IOException {
 
-		OperatorState operatorState = getOperatorState(uid);
+		OperatorState operatorState = metadata.getOperatorState(uid);
 		MapStateDescriptor<K, V> descriptor = new MapStateDescriptor<>(name, keySerializer, valueSerializer);
 		BroadcastStateInputFormat<K, V> inputFormat = new BroadcastStateInputFormat<>(operatorState, descriptor);
 		return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
-	}
-
-	/**
-	 * Finds the {@link OperatorState} for a uid within a savepoint.
-	 *
-	 * @return A handle to the operator state in the savepoint with the provided uid.
-	 * @throws IOException If the savepoint path is invalid or the uid does not exist.
-	 */
-	private OperatorState getOperatorState(String uid) throws IOException {
-		OperatorID operatorID = OperatorIDGenerator.fromUid(uid);
-
-		for (final OperatorState state : metadata.getOperatorStates()) {
-			if (state.getOperatorID().equals(operatorID)) {
-				return state;
-			}
-		}
-
-		throw new IOException("Savepoint does not contain state with operator uid " + uid);
 	}
 }

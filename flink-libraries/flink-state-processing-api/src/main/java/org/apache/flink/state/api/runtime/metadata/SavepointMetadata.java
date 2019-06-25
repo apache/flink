@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 
@@ -42,7 +43,9 @@ public interface SavepointMetadata extends Serializable {
 	Collection<MasterState> getMasterStates();
 
 	/**
-	 * @return Operator states for the savepoint.
+	 * @return Operator state for the given UID.
+	 *
+	 * @throws IOException If the savepoint does not contain operator state with the given uid.
 	 */
-	Collection<OperatorState> getOperatorStates();
+	OperatorState getOperatorState(String uid) throws IOException;
 }

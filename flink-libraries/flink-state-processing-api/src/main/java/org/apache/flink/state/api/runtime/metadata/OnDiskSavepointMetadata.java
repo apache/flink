@@ -22,11 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Returns metadata about an existing savepoint.
@@ -40,7 +44,7 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 
 	private final Collection<MasterState> masterStates;
 
-	private final Collection<OperatorState> operatorStates;
+	private final Map<OperatorID, OperatorState> operatorStateIndex;
 
 	public OnDiskSavepointMetadata(String path) throws IOException {
 		Savepoint savepoint = SavepointLoader.loadSavepoint(path);
@@ -54,7 +58,9 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 
 		this.masterStates = savepoint.getMasterStates();
 
-		this.operatorStates = savepoint.getOperatorStates();
+		Collection<OperatorState> operatorStates = savepoint.getOperatorStates();
+		this.operatorStateIndex = new HashMap<>(operatorStates.size());
+		operatorStates.forEach(state -> this.operatorStateIndex.put(state.getOperatorID(), state));
 	}
 
 	/**
@@ -74,10 +80,17 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 	}
 
 	/**
-	 * @return Operator states for the savepoint.
+	 * @return Operator state for the given UID.
 	 */
 	@Override
-	public Collection<OperatorState> getOperatorStates() {
-		return operatorStates;
+	public OperatorState getOperatorState(String uid) throws IOException {
+		OperatorID operatorID = OperatorIDGenerator.fromUid(uid);
+
+		OperatorState operatorState = operatorStateIndex.get(operatorID);
+		if (operatorState == null) {
+			throw new IOException("Savepoint does not contain state with operator uid " + uid);
+		}
+
+		return operatorState;
 	}
 }
