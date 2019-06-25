@@ -95,6 +95,26 @@ public abstract class CatalogTestBase extends CatalogTest {
 			TEST_COMMENT);
 	}
 
+	@Override
+	public CatalogView createView() {
+		return new CatalogViewImpl(
+			String.format("select * from %s", t1),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+			createTableSchema(),
+			getBatchTableProperties(),
+			"This is a view");
+	}
+
+	@Override
+	public CatalogView createAnotherView() {
+		return new CatalogViewImpl(
+			String.format("select * from %s", t2),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+			createAnotherTableSchema(),
+			getBatchTableProperties(),
+			"This is another view");
+	}
+
 	protected Map<String, String> getBatchTableProperties() {
 		return new HashMap<String, String>() {{
 			put(IS_STREAMING, "false");

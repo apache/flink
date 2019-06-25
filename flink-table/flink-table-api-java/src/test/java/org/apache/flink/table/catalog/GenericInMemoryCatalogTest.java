@@ -166,62 +166,8 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Override
-	public CatalogTable createTable() {
-		return new CatalogTableImpl(
-			createTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherTable() {
-		return new CatalogTableImpl(
-			createAnotherTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createPartitionedTable() {
-		return new CatalogTableImpl(
-			createTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherPartitionedTable() {
-		return new CatalogTableImpl(
-			createAnotherTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
 	public CatalogPartition createPartition() {
 		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
-	}
-
-	@Override
-	public CatalogView createView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t1),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is a view");
-	}
-
-	@Override
-	public CatalogView createAnotherView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t2),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createAnotherTableSchema(),
-			new HashMap<>(),
-			"This is another view");
 	}
 
 	private CatalogColumnStatistics createColumnStats() {

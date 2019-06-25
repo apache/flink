@@ -61,6 +61,22 @@ public class CatalogTestUtil {
 		}
 	}
 
+	public static void checkEquals(CatalogView v1, CatalogView v2) {
+		assertEquals(v1.getClass(), v2.getClass());
+		assertEquals(v1.getSchema(), v1.getSchema());
+		assertEquals(v1.getComment(), v2.getComment());
+		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
+		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
+
+		// Hive tables may have properties created by itself
+		// thus properties of Hive table is a super set of those in its corresponding Flink table
+		if (Boolean.valueOf(v1.getProperties().get(CatalogConfig.IS_GENERIC))) {
+			assertEquals(v1.getProperties(), v2.getProperties());
+		} else {
+			assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
+		}
+	}
+
 	public static void checkEquals(TableStats ts1, TableStats ts2) {
 		assertEquals(ts1.getRowCount(), ts2.getRowCount());
 		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());

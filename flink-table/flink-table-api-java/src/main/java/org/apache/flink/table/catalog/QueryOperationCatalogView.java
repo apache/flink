@@ -28,7 +28,7 @@ import java.util.Optional;
  * A view created from a {@link QueryOperation} via operations on {@link org.apache.flink.table.api.Table}.
  */
 @Internal
-public class QueryOperationCatalogView extends AbstractCatalogView {
+public class QueryOperationCatalogView extends CatalogViewImpl {
 	private final QueryOperation queryOperation;
 
 	public QueryOperationCatalogView(QueryOperation queryOperation) {

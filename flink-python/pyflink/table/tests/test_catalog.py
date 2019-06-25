@@ -155,7 +155,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_view():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_view = gateway.jvm.GenericCatalogView(
+        j_view = gateway.jvm.CatalogViewImpl(
             "select * from t1",
             "select * from test-catalog.db1.t1",
             table_schema._j_table_schema,
@@ -167,7 +167,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_view():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_view = gateway.jvm.GenericCatalogView(
+        j_view = gateway.jvm.CatalogViewImpl(
             "select * from t2",
             "select * from test-catalog.db2.t2",
             table_schema._j_table_schema,

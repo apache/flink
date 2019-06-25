@@ -21,7 +21,9 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.util.StringUtils;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -29,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An abstract catalog view.
  */
-public abstract class AbstractCatalogView implements CatalogView {
+public class CatalogViewImpl implements CatalogView {
 	// Original text of the view definition.
 	private final String originalQuery;
 
@@ -43,8 +45,12 @@ public abstract class AbstractCatalogView implements CatalogView {
 	private final Map<String, String> properties;
 	private final String comment;
 
-	public AbstractCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
-			Map<String, String> properties, String comment) {
+	public CatalogViewImpl(
+			String originalQuery,
+			String expandedQuery,
+			TableSchema schema,
+			Map<String, String> properties,
+			String comment) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(originalQuery), "originalQuery cannot be null or empty");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(expandedQuery), "expandedQuery cannot be null or empty");
 
@@ -79,4 +85,24 @@ public abstract class AbstractCatalogView implements CatalogView {
 		return this.comment;
 	}
 
+	@Override
+	public CatalogBaseTable copy() {
+		return new CatalogViewImpl(
+			getOriginalQuery(),
+			getExpandedQuery(),
+			getSchema().copy(),
+			new HashMap<>(getProperties()),
+			getComment()
+		);
+	}
+
+	@Override
+	public Optional<String> getDescription() {
+		return Optional.ofNullable(getComment());
+	}
+
+	@Override
+	public Optional<String> getDetailedDescription() {
+		return Optional.of("This is a catalog view implementation");
+	}
 }

@@ -25,9 +25,7 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
-import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
-import org.apache.flink.table.catalog.GenericCatalogView;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -39,7 +37,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -276,26 +273,6 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	@Override
 	protected boolean isGeneric() {
 		return true;
-	}
-
-	@Override
-	public CatalogView createView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t1),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is a view");
-	}
-
-	@Override
-	public CatalogView createAnotherView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t2),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createAnotherTableSchema(),
-			new HashMap<>(),
-			"This is another view");
 	}
 
 	@Override
