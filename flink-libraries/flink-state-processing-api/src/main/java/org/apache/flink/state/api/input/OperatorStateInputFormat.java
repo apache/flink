@@ -58,6 +58,8 @@ import java.util.Map;
 @Internal
 abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, OperatorStateInputSplit> {
 
+	private static final long serialVersionUID = -2286490341042373742L;
+
 	private final OperatorState operatorState;
 
 	private final boolean isUnionType;

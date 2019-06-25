@@ -32,6 +32,8 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public class UnionStateInputFormat <OT> extends OperatorStateInputFormat<OT> {
 
+	private static final long serialVersionUID = 499388405631162440L;
+
 	private final ListStateDescriptor<OT> descriptor;
 
 	/**

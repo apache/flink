@@ -36,6 +36,9 @@ import java.util.stream.StreamSupport;
  */
 @Internal
 public class BroadcastStateInputFormat<K, V> extends OperatorStateInputFormat<Tuple2<K, V>> {
+
+	private static final long serialVersionUID = -7625225340801402409L;
+
 	private final MapStateDescriptor<K, V> descriptor;
 
 	/**

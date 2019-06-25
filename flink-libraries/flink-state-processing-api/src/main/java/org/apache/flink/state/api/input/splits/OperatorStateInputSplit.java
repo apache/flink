@@ -32,6 +32,8 @@ import java.util.List;
 @Internal
 public final class OperatorStateInputSplit implements InputSplit {
 
+	private static final long serialVersionUID = -1892383531558135420L;
+
 	private final List<StateObjectCollection<OperatorStateHandle>> managedOperatorState;
 
 	private final int splitNum;

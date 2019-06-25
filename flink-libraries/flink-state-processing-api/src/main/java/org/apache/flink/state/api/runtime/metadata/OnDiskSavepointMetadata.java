@@ -34,6 +34,8 @@ import java.util.Comparator;
 @Internal
 public class OnDiskSavepointMetadata implements SavepointMetadata {
 
+	private static final long serialVersionUID = 3623389893479485802L;
+
 	private final int maxParallelism;
 
 	private final Collection<MasterState> masterStates;
