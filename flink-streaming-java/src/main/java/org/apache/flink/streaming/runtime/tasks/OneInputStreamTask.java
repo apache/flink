@@ -26,7 +26,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import javax.annotation.Nullable;
@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
 @Internal
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
-	private StreamInputProcessor<IN> inputProcessor;
+	private StreamOneInputProcessor<IN> inputProcessor;
 
 	private final WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
@@ -77,7 +77,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 
-			inputProcessor = new StreamInputProcessor<>(
+			inputProcessor = new StreamOneInputProcessor<>(
 					inputGates,
 					inSerializer,
 					this,
