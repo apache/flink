@@ -29,11 +29,12 @@ import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkRelOptClusterFactory;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.FlinkTypeSystem;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
-import org.apache.flink.table.validate.FunctionCatalog;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -47,7 +48,6 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
-import org.apache.calcite.sql.util.ListSqlOperatorTable;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
@@ -220,11 +220,11 @@ public class PlannerContext {
 	}
 
 	/**
-	 * Returns builtin the operator table for this environment.
+	 * Returns builtin the operator table and external the operator for this environment.
 	 */
 	private SqlOperatorTable getBuiltinSqlOperatorTable(FunctionCatalog functionCatalog) {
 		return ChainedSqlOperatorTable.of(
-				new ListSqlOperatorTable(functionCatalog.sqlFunctions()),
+				new FunctionCatalogOperatorTable(functionCatalog, typeFactory),
 				FlinkSqlOperatorTable.instance());
 	}
 

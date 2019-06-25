@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite._
-import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, CatalogManagerCalciteSchema, ConnectorCatalogTable, GenericInMemoryCatalog, ObjectPath, QueryOperationCatalogView}
+import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, CatalogManagerCalciteSchema, ConnectorCatalogTable, FunctionCatalog, GenericInMemoryCatalog, ObjectPath, QueryOperationCatalogView}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, extractResultTypeFromTableFunction, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -47,10 +47,9 @@ import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformationAnyType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
+import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType, TypeInfoDataTypeConverter}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.JavaScalaConversionUtil
-import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -84,7 +83,8 @@ abstract class TableEnvironment(
   protected val defaultCatalogName: String = config.getBuiltInCatalogName
   protected val defaultDatabaseName: String = config.getBuiltInDatabaseName
 
-  private val functionCatalog = new FunctionCatalog
+  private val functionCatalog = new FunctionCatalog(
+    catalogManager.getCurrentCatalog, catalogManager.getCurrentDatabase)
 
   private val plannerContext: PlannerContext =
     new PlannerContext(
@@ -526,10 +526,7 @@ abstract class TableEnvironment(
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    functionCatalog.registerScalarFunction(
-      name,
-      function,
-      getTypeFactory)
+    functionCatalog.registerScalarFunction(name, function)
   }
 
   /**
@@ -556,11 +553,7 @@ abstract class TableEnvironment(
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    functionCatalog.registerTableFunction(
-      name,
-      function,
-      fromLegacyInfoToDataType(implicitly[TypeInformation[T]]),
-      getTypeFactory)
+    functionCatalog.registerTableFunction(name, function, implicitly[TypeInformation[T]])
   }
 
   /**
@@ -597,20 +590,23 @@ abstract class TableEnvironment(
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    val resultTypeInfo = getResultTypeOfAggregateFunction(
-      function,
-      fromLegacyInfoToDataType(implicitly[TypeInformation[T]]))
+    val resultTypeInfo = TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
+      getResultTypeOfAggregateFunction(
+        function,
+        fromLegacyInfoToDataType(implicitly[TypeInformation[T]]))
+    ).asInstanceOf[TypeInformation[T]]
 
-    val accTypeInfo = getAccumulatorTypeOfAggregateFunction(
-      function,
-      fromLegacyInfoToDataType(implicitly[TypeInformation[ACC]]))
+    val accTypeInfo = TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
+      getAccumulatorTypeOfAggregateFunction(
+        function,
+        fromLegacyInfoToDataType(implicitly[TypeInformation[ACC]]))
+    ).asInstanceOf[TypeInformation[ACC]]
 
     functionCatalog.registerAggregateFunction(
       name,
       function,
       resultTypeInfo,
-      accTypeInfo,
-      getTypeFactory)
+      accTypeInfo)
   }
 
   /**

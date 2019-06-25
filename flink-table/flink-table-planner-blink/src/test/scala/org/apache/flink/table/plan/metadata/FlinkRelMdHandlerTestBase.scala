@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.metadata
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
@@ -42,7 +43,6 @@ import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType, Variabl
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.util.CountAggFunction
-import org.apache.flink.table.validate.FunctionCatalog
 
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
@@ -78,7 +78,7 @@ class FlinkRelMdHandlerTestBase {
   val plannerContext: PlannerContext =
     new PlannerContext(
       tableConfig,
-      new FunctionCatalog,
+      new FunctionCatalog(tableConfig.getBuiltInCatalogName, tableConfig.getBuiltInDatabaseName),
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
         ConventionTraitDef.INSTANCE,
