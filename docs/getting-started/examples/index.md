@@ -2,8 +2,8 @@
 title: Examples
 nav-id: examples
 nav-title: '<i class="fa fa-file-code-o title appetizer" aria-hidden="true"></i> Examples'
-nav-parent_id: root
-nav-pos: 3
+nav-parent_id: getting-started
+nav-pos: 2
 nav-show_overview: true
 ---
 <!--

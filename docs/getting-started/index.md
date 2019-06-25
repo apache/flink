@@ -1,12 +1,10 @@
 ---
-title: Concepts
-nav-id: concepts
-nav-pos: 2
-nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts'
+title: "Getting Started"
+nav-id: getting-started
+nav-title: '<i class="fa fa-rocket title appetizer" aria-hidden="true"></i> Getting Started'
 nav-parent_id: root
-layout: redirect
-redirect: /concepts/programming-model.html
-permalink: /concepts/index.html
+section-break: true
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
