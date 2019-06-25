@@ -28,10 +28,10 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlKind, SqlNode}
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.QueryConfigProvider
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
@@ -120,7 +120,7 @@ class StreamPlanner(
   }
 
   override def translate(tableOperations: util.List[ModifyOperation])
-    : util.List[StreamTransformation[_]] = {
+    : util.List[Transformation[_]] = {
     tableOperations.asScala.map(translate).filter(Objects.nonNull).asJava
   }
 
@@ -152,7 +152,7 @@ class StreamPlanner(
   }
 
   private def translate(tableOperation: ModifyOperation)
-    : StreamTransformation[_] = {
+    : Transformation[_] = {
     tableOperation match {
       case s : UnregisteredSinkModifyOperation[_] =>
         writeToSink(s.getChild, s.getSink, unwrapQueryConfig)
@@ -250,7 +250,7 @@ class StreamPlanner(
       tableOperation: QueryOperation,
       sink: TableSink[T],
       queryConfig: StreamQueryConfig)
-    : StreamTransformation[_] = {
+    : Transformation[_] = {
 
     val resultSink = sink match {
       case retractSink: RetractStreamTableSink[T] =>

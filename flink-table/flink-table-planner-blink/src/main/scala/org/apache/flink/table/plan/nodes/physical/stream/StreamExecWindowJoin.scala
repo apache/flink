@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction,
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap, TwoInputStreamOperator}
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation, TwoInputTransformation, UnionTransformation}
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation, UnionTransformation}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
@@ -32,14 +32,14 @@ import org.apache.flink.table.plan.util.{JoinTypeUtil, KeySelectorUtil, RelExpla
 import org.apache.flink.table.runtime.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Collector
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -120,7 +120,7 @@ class StreamExecWindowJoin(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val isLeftAppendOnly = UpdatingPlanChecker.isAppendOnly(left)
     val isRightAppendOnly = UpdatingPlanChecker.isAppendOnly(right)
     if (!isLeftAppendOnly || !isRightAppendOnly) {
@@ -130,9 +130,9 @@ class StreamExecWindowJoin(
     }
 
     val leftPlan = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
     val rightPlan = getInputNodes.get(1).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
     flinkJoinType match {
       case FlinkJoinType.INNER |
@@ -200,11 +200,11 @@ class StreamExecWindowJoin(
   }
 
   private def createNegativeWindowSizeJoin(
-      leftPlan: StreamTransformation[BaseRow],
-      rightPlan: StreamTransformation[BaseRow],
+      leftPlan: Transformation[BaseRow],
+      rightPlan: Transformation[BaseRow],
       leftArity: Int,
       rightArity: Int,
-      returnTypeInfo: BaseRowTypeInfo): StreamTransformation[BaseRow] = {
+      returnTypeInfo: BaseRowTypeInfo): Transformation[BaseRow] = {
     // We filter all records instead of adding an empty source to preserve the watermarks.
     val allFilter = new FlatMapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
       override def flatMap(value: BaseRow, out: Collector[BaseRow]): Unit = {}
@@ -273,12 +273,12 @@ class StreamExecWindowJoin(
   }
 
   private def createProcTimeJoin(
-      leftPlan: StreamTransformation[BaseRow],
-      rightPlan: StreamTransformation[BaseRow],
+      leftPlan: Transformation[BaseRow],
+      rightPlan: Transformation[BaseRow],
       returnTypeInfo: BaseRowTypeInfo,
       joinFunction: GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
       leftKeys: Array[Int],
-      rightKeys: Array[Int]): StreamTransformation[BaseRow] = {
+      rightKeys: Array[Int]): Transformation[BaseRow] = {
     val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val procJoinFunc = new ProcTimeBoundedStreamJoin(
@@ -313,13 +313,13 @@ class StreamExecWindowJoin(
   }
 
   private def createRowTimeJoin(
-      leftPlan: StreamTransformation[BaseRow],
-      rightPlan: StreamTransformation[BaseRow],
+      leftPlan: Transformation[BaseRow],
+      rightPlan: Transformation[BaseRow],
       returnTypeInfo: BaseRowTypeInfo,
       joinFunction: GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
       leftKeys: Array[Int],
       rightKeys: Array[Int]
-  ): StreamTransformation[BaseRow] = {
+  ): Transformation[BaseRow] = {
     val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val rowJoinFunc = new RowTimeBoundedStreamJoin(

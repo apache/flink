@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.operators.ProcessOperator
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.LookupJoinCodeGenerator._
@@ -44,7 +44,6 @@ import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformati
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
@@ -55,11 +54,11 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.mapping.IntPair
-
 import com.google.common.primitives.Primitives
-
 import java.util.Collections
 import java.util.concurrent.CompletableFuture
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -145,10 +144,10 @@ abstract class CommonLookupJoin(
   // ----------------------------------------------------------------------------------------
 
   def translateToPlanInternal(
-      inputTransformation: StreamTransformation[BaseRow],
+      inputTransformation: Transformation[BaseRow],
       env: StreamExecutionEnvironment,
       config: TableConfig,
-      relBuilder: RelBuilder): StreamTransformation[BaseRow] = {
+      relBuilder: RelBuilder): Transformation[BaseRow] = {
 
     val inputRowType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
     val tableSourceRowType = FlinkTypeFactory.toLogicalRowType(tableRowType)

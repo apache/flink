@@ -24,7 +24,7 @@ import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.streaming.api.transformations.{StreamTransformation, TwoInputTransformation}
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
@@ -35,8 +35,9 @@ import org.apache.flink.table.runtime.join.FlinkJoinType
 import org.apache.flink.table.runtime.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
 import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -133,15 +134,15 @@ class StreamExecJoin(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
 
     val tableConfig = tableEnv.getConfig
     val returnType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val leftTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
     val rightTransform = getInputNodes.get(1).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
     val leftType = leftTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val rightType = rightTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]

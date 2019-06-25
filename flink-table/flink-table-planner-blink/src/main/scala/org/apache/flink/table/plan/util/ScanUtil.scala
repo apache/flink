@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
@@ -30,10 +30,10 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TimeIndicatorTypeInfo}
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -56,7 +56,7 @@ object ScanUtil {
 
   private[flink] def convertToInternalRow(
       ctx: CodeGeneratorContext,
-      input: StreamTransformation[Any],
+      input: Transformation[Any],
       fieldIndexes: Array[Int],
       inputType: DataType,
       outRowType: RelDataType,
@@ -64,7 +64,7 @@ object ScanUtil {
       config: TableConfig,
       rowtimeExpr: Option[RexNode] = None,
       beforeConvert: String = "",
-      afterConvert: String = ""): StreamTransformation[BaseRow] = {
+      afterConvert: String = ""): Transformation[BaseRow] = {
 
     val outputRowType = FlinkTypeFactory.toLogicalRowType(outRowType)
 

@@ -21,7 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
@@ -294,7 +294,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		fullPath.add(0, path);
 
 		queryConfigProvider.setConfig((StreamQueryConfig) queryConfig);
-		List<StreamTransformation<?>> translate = planner.translate(Collections.singletonList(
+		List<Transformation<?>> translate = planner.translate(Collections.singletonList(
 			new CatalogSinkModifyOperation(
 				fullPath,
 				table.getQueryOperation())));
@@ -320,7 +320,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		if (operation instanceof ModifyOperation) {
 			queryConfigProvider.setConfig((StreamQueryConfig) config);
-			List<StreamTransformation<?>> transformations =
+			List<Transformation<?>> transformations =
 				planner.translate(Collections.singletonList((ModifyOperation) operation));
 
 			execEnv.apply(transformations);

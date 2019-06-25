@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.operations.DataStreamQueryOperation
@@ -47,10 +46,10 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 import org.apache.flink.table.types.{DataType, LogicalTypeDataTypeConverter}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.util.PlanUtil
-
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.flink.api.dag.Transformation
 
 import _root_.scala.collection.JavaConversions._
 
@@ -143,7 +142,7 @@ abstract class StreamTableEnvironment(
   }
 
   protected override def translateStreamGraph(
-      streamingTransformations: Seq[StreamTransformation[_]],
+      streamingTransformations: Seq[Transformation[_]],
       jobName: Option[String] = None): StreamGraph = {
     mergeParameters()
 
@@ -220,7 +219,7 @@ abstract class StreamTableEnvironment(
     new DataStream(execEnv, transformation).asInstanceOf[DataStream[T]]
   }
 
-  private def translateSink(sink: LogicalSink): StreamTransformation[_] = {
+  private def translateSink(sink: LogicalSink): Transformation[_] = {
     mergeParameters()
 
     val optimizedPlan = optimize(sink)
@@ -230,15 +229,15 @@ abstract class StreamTableEnvironment(
   }
 
   override protected def translateToPlan(
-      sinks: Seq[ExecNode[_, _]]): Seq[StreamTransformation[_]] = sinks.map(translateToPlan)
+      sinks: Seq[ExecNode[_, _]]): Seq[Transformation[_]] = sinks.map(translateToPlan)
 
   /**
-    * Translates a [[StreamExecNode]] plan into a [[StreamTransformation]].
+    * Translates a [[StreamExecNode]] plan into a [[Transformation]].
     *
     * @param node The plan to translate.
-    * @return The [[StreamTransformation]] of type [[BaseRow]].
+    * @return The [[Transformation]] of type [[BaseRow]].
     */
-  private def translateToPlan(node: ExecNode[_, _]): StreamTransformation[_] = {
+  private def translateToPlan(node: ExecNode[_, _]): Transformation[_] = {
     node match {
       case node: StreamExecNode[_] => node.translateToPlan(this)
       case _ =>
@@ -307,7 +306,7 @@ abstract class StreamTableEnvironment(
     */
   def explain(extended: Boolean): String = {
     val sinkExecNodes = compileToExecNodePlan(sinkNodes: _*)
-    // translate relNodes to StreamTransformations
+    // translate relNodes to Transformations
     val sinkTransformations = translateToPlan(sinkExecNodes)
     val streamGraph = translateStreamGraph(sinkTransformations)
     val sqlPlan = PlanUtil.explainStreamGraph(streamGraph)

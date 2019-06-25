@@ -19,7 +19,7 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -32,7 +32,7 @@ import java.util.List;
  * <li>SQL parser - transforms a SQL string into a Table API specific tree of
  * {@link Operation}s</li>
  * <li>relational planner - provides a way to plan, optimize and transform tree of
- * {@link ModifyOperation} into a runnable form ({@link StreamTransformation})</li>
+ * {@link ModifyOperation} into a runnable form ({@link Transformation})</li>
  * </ul>.
  *
  * <p>The Planner is execution agnostic. It is up to the
@@ -67,18 +67,18 @@ public interface Planner {
 
 	/**
 	 * Converts a relational tree of {@link ModifyOperation}s into a set of runnable
-	 * {@link StreamTransformation}s.
+	 * {@link Transformation}s.
 	 *
 	 * <p>This method accepts a list of {@link ModifyOperation}s to allow reusing common
 	 * subtrees of multiple relational queries. Each query's top node should be a {@link ModifyOperation}
-	 * in order to pass the expected properties of the output {@link StreamTransformation} such as
+	 * in order to pass the expected properties of the output {@link Transformation} such as
 	 * output mode (append, retract, upsert) or the expected output type.
 	 *
 	 * @param modifyOperations list of relational operations to plan, optimize and convert in a
 	 * single run.
-	 * @return list of corresponding {@link StreamTransformation}s.
+	 * @return list of corresponding {@link Transformation}s.
 	 */
-	List<StreamTransformation<?>> translate(List<ModifyOperation> modifyOperations);
+	List<Transformation<?>> translate(List<ModifyOperation> modifyOperations);
 
 	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan

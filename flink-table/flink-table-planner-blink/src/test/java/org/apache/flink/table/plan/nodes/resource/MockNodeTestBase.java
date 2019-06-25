@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.resource;
 
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecCalc;
@@ -65,18 +65,18 @@ public class MockNodeTestBase {
 		when(node.getResource()).thenReturn(resource);
 		when(node.toString()).thenReturn("id: " + index);
 		if (node instanceof BatchExecTableSourceScan) {
-			StreamTransformation transformation = mock(StreamTransformation.class);
+			Transformation transformation = mock(Transformation.class);
 			when(((BatchExecTableSourceScan) node).getSourceTransformation(any())).thenReturn(transformation);
 			when(transformation.getMaxParallelism()).thenReturn(-1);
 		} else if (node instanceof StreamExecTableSourceScan) {
-			StreamTransformation transformation = mock(StreamTransformation.class);
+			Transformation transformation = mock(Transformation.class);
 			when(((StreamExecTableSourceScan) node).getSourceTransformation(any())).thenReturn(transformation);
 			when(transformation.getMaxParallelism()).thenReturn(-1);
 		} else if (node instanceof BatchExecBoundedStreamScan) {
-			StreamTransformation transformation = mock(StreamTransformation.class);
+			Transformation transformation = mock(Transformation.class);
 			when(((BatchExecBoundedStreamScan) node).getSourceTransformation()).thenReturn(transformation);
 		} else if (node instanceof StreamExecDataStreamScan) {
-			StreamTransformation transformation = mock(StreamTransformation.class);
+			Transformation transformation = mock(Transformation.class);
 			when(((StreamExecDataStreamScan) node).getSourceTransformation()).thenReturn(transformation);
 		} else if (node instanceof BatchExecExchange) {
 			RelDistribution distribution = mock(RelDistribution.class);
