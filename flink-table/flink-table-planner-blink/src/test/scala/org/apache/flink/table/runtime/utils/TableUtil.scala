@@ -23,6 +23,7 @@ import org.apache.flink.table.api.{BatchTableEnvironment, TableImpl}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConversions._
@@ -51,7 +52,7 @@ object TableUtil {
   def collectSink[T](
       table: TableImpl, sink: CollectTableSink[T], jobName: Option[String] = None): Seq[T] = {
     // get schema information of table
-    val rowType = table.getRelNode.getRowType
+    val rowType = TableTestUtil.toRelNode(table).getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList
       .map(field => FlinkTypeFactory.toLogicalType(field.getType)).toArray

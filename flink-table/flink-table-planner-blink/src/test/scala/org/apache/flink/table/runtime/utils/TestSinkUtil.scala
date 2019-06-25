@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.runtime.utils
 
-import org.apache.flink.table.api.{Table, TableException, TableImpl}
+import org.apache.flink.table.api.{Table, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row
 import org.apache.flink.util.StringUtils
 
@@ -37,7 +38,7 @@ import scala.collection.JavaConverters._
 object TestSinkUtil {
 
   def configureSink[T <: TableSink[_]](table: Table, sink: T): T = {
-    val rowType = table.asInstanceOf[TableImpl].getRelNode.getRowType
+    val rowType = TableTestUtil.toRelNode(table).getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList.asScala
       .map(field => FlinkTypeFactory.toLogicalType(field.getType))
