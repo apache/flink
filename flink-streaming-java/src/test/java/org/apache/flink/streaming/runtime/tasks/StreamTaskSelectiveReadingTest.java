@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -239,7 +240,7 @@ public class StreamTaskSelectiveReadingTest {
 	 * Test operator for sequential reading.
 	 */
 	public static class SequentialReadingStreamOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
+		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable, BoundedMultiInput {
 
 		private final String name;
 
@@ -265,13 +266,18 @@ public class StreamTaskSelectiveReadingTest {
 		@Override
 		public void processElement2(StreamRecord<Integer> element) {
 			output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
+		}
 
-			this.inputSelection = InputSelection.SECOND;
+		@Override
+		public void endInput(int inputId) {
+			if (inputId == 1) {
+				inputSelection = InputSelection.SECOND;
+			}
 		}
 	}
 
 	private static class SpecialRuleReadingStreamOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
+		implements TwoInputStreamOperator<String, Integer, String>, InputSelectable, BoundedMultiInput {
 
 		private final String name;
 
@@ -337,6 +343,11 @@ public class StreamTaskSelectiveReadingTest {
 			}
 
 			inputSelection = InputSelection.SECOND;
+		}
+
+		@Override
+		public void endInput(int inputId) {
+			inputSelection = (inputId == 1) ? InputSelection.SECOND : InputSelection.FIRST;
 		}
 	}
 
