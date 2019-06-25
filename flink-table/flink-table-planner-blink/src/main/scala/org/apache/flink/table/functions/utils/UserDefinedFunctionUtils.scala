@@ -19,15 +19,6 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
-import java.sql.{Date, Time, Timestamp}
-
-import com.google.common.primitives.Primitives
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
@@ -37,14 +28,25 @@ import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.plan.schema.DeferredTypeFlinkTableFunction
 import org.apache.flink.table.types.ClassDataTypeConverter.fromClassToDataType
-import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
+import org.apache.flink.table.types.ClassLogicalTypeConverter.{getDefaultExternalClassForType, getInternalClassForType}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
+import org.apache.flink.table.typeutils.TypeCheckUtils.isAny
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
+
+import com.google.common.primitives.Primitives
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
+
+import java.lang.reflect.{Method, Modifier}
+import java.lang.{Integer => JInt, Long => JLong}
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -694,7 +696,7 @@ object UserDefinedFunctionUtils {
       if (t == null) {
         null
       } else {
-        ClassLogicalTypeConverter.getDefaultExternalClassForType(t)
+        getDefaultExternalClassForType(t)
       }
     }.toArray
 
@@ -729,9 +731,13 @@ object UserDefinedFunctionUtils {
       internal: LogicalType,
       parameterType: DataType): Boolean = {
     val paraInternalType = fromDataTypeToLogicalType(parameterType)
-    // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...
-    paraInternalType == internal ||
-        getInternalClassForType(internal) == getInternalClassForType(paraInternalType)
+    if (isAny(internal) && isAny(paraInternalType)) {
+      getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
+    } else {
+      // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...
+      paraInternalType == internal ||
+          getInternalClassForType(internal) == getInternalClassForType(paraInternalType)
+    }
   }
 
   def getOperandType(callBinding: SqlOperatorBinding): Seq[LogicalType] = {

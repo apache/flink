@@ -17,11 +17,15 @@
  */
 package org.apache.flink.table.runtime.stream.sql
 
+import java.lang.{Boolean => JBoolean}
+
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
+import org.apache.flink.table.util.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -145,6 +149,31 @@ class CorrelateITCase extends StreamingTestBase {
     assertEquals(
       expected.sorted,
       (sink1.getAppendResults ++ sink2.getAppendResults).sorted)
+  }
+
+  @Test
+  def testMultipleEvals(): Unit = {
+    val row = Row.of(
+      12.asInstanceOf[Integer],
+      true.asInstanceOf[JBoolean],
+      Row.of(1.asInstanceOf[Integer], 2.asInstanceOf[Integer], 3.asInstanceOf[Integer])
+    )
+
+    val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+    val in = env.fromElements(row, row)(rowType).toTable(tEnv, 'a, 'b, 'c)
+
+    val sink = new TestingAppendSink
+
+    tEnv.registerTable("MyTable", in)
+    tEnv.registerFunction("rfFunc", new RF)
+    tEnv.registerFunction("tfFunc", new TableFunc7)
+    tEnv.sqlQuery(
+      "SELECT rfFunc(a) as d, e FROM MyTable, LATERAL TABLE(tfFunc(rfFunc(a))) as T(e)")
+        .toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    assertEquals(List(), sink.getAppendResults.sorted)
   }
 
   @Ignore // TODO DATE_ADD
