@@ -37,7 +37,8 @@ import java.util.Set;
  * also contains information about the nullability of a value for efficient handling of scalar
  * expressions.
  *
- * <p>Subclasses of this class define characteristics of built-in or user-defined types.
+ * <p>Subclasses of this class define characteristics of built-in or user-defined types. Every logical
+ * type must support nullability.
  *
  * <p>Instances of this class describe the fully parameterized, immutable type with additional
  * information such as numeric precision or expected length.
