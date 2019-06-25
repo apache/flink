@@ -35,7 +35,6 @@ import org.junit.Test
 
 import _root_.java.lang.{Long => JLong}
 import _root_.java.sql.Timestamp
-import _root_.java.util
 import _root_.java.util.concurrent.CompletableFuture
 import _root_.java.util.{Collection => JCollection}
 
@@ -71,15 +70,6 @@ class LookupJoinTest extends TableTestBase with Serializable {
       classOf[TableException]
     )
 
-    // can't on non-key fields
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN temporalTest " +
-        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.age",
-      "Temporal table join requires an equality condition on ALL fields of table " +
-        "[TestTemporalTable(id, name, age)]'s PRIMARY KEY or (UNIQUE) INDEX(s).",
-      classOf[TableException]
-    )
-
     // only support left or inner join
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
@@ -92,8 +82,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a + 1 = D.id + 2",
-      "Temporal table join requires an equality condition on ALL fields of table " +
-        "[TestTemporalTable(id, name, age)]'s PRIMARY KEY or (UNIQUE) INDEX(s).",
+      "Temporal table join requires an equality condition on fields of table " +
+        "[TestTemporalTable(id, name, age)].",
       classOf[TableException]
     )
 
@@ -354,8 +344,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
 
 class TestTemporalTable
-  extends LookupableTableSource[BaseRow]
-  with DefinedIndexes {
+  extends LookupableTableSource[BaseRow] {
 
   val fieldNames: Array[String] = Array("id", "name", "age")
   val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.INT)
@@ -379,26 +368,13 @@ class TestTemporalTable
   }
 
   override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
-
-  override def getIndexes: util.Collection[TableIndex] = {
-    val index1 = TableIndex.builder()
-      .normalIndex()
-      .indexedColumns("name")
-      .build()
-    val index2 = TableIndex.builder()
-      .uniqueIndex()
-      .indexedColumns("id")
-      .build()
-    util.Arrays.asList(index1, index2)
-  }
 }
 
 class TestInvalidTemporalTable private(
     async: Boolean,
     fetcher: TableFunction[_],
     asyncFetcher: AsyncTableFunction[_])
-  extends LookupableTableSource[BaseRow]
-  with DefinedIndexes {
+  extends LookupableTableSource[BaseRow] {
 
   val fieldNames: Array[String] = Array("id", "name", "age", "ts")
   val fieldTypes: Array[TypeInformation[_]] = Array(
@@ -430,13 +406,6 @@ class TestInvalidTemporalTable private(
   }
 
   override def isAsyncEnabled: Boolean = async
-
-  override def getIndexes: util.Collection[TableIndex] = {
-    util.Collections.singleton(TableIndex.builder()
-      .uniqueIndex()
-      .indexedColumns("id", "name", "ts")
-      .build())
-  }
 }
 
 class InvalidTableFunctionResultType extends TableFunction[String] {

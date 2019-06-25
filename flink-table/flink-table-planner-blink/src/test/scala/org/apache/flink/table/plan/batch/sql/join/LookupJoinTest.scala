@@ -55,15 +55,6 @@ class LookupJoinTest extends TableTestBase {
       classOf[TableException]
     )
 
-    // can't on non-key fields
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN temporalTest " +
-        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.age",
-      "Temporal table join requires an equality condition on ALL fields of table " +
-        "[TestTemporalTable(id, name, age)]'s PRIMARY KEY or (UNIQUE) INDEX(s).",
-      classOf[TableException]
-    )
-
     // only support left or inner join
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
@@ -76,8 +67,8 @@ class LookupJoinTest extends TableTestBase {
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a + 1 = D.id + 1",
-      "Temporal table join requires an equality condition on ALL fields of table " +
-        "[TestTemporalTable(id, name, age)]'s PRIMARY KEY or (UNIQUE) INDEX(s).",
+      "Temporal table join requires an equality condition on fields of table " +
+        "[TestTemporalTable(id, name, age)].",
       classOf[TableException]
     )
   }

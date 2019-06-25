@@ -24,7 +24,6 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext, TableFunction}
 import org.apache.flink.table.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction}
-import org.apache.flink.table.sources.TableIndex.IndexType
 import org.apache.flink.table.sources._
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
@@ -46,23 +45,8 @@ class InMemoryLookupableTableSource(
     fieldNames: Array[String],
     fieldTypes: Array[TypeInformation[_]],
     data: List[Row],
-    primaryKey: Option[Array[String]],
-    tableIndexes: Array[TableIndex],
     asyncEnabled: Boolean)
-  extends LookupableTableSource[Row]
-  with DefinedPrimaryKey
-  with DefinedIndexes {
-
-  lazy val uniqueKeys: Array[Array[String]] = {
-    val keys = new mutable.ArrayBuffer[Array[String]]()
-    if (getPrimaryKeyColumns != null) {
-      keys += getPrimaryKeyColumns.asScala.toArray
-    }
-    getIndexes.asScala
-      .filter(_.getIndexType == IndexType.UNIQUE)
-      .foreach(keys += _.getIndexedColumns.asScala.toArray)
-    keys.toArray
-  }
+  extends LookupableTableSource[Row] {
 
   val resourceCounter = new AtomicInteger(0)
 
@@ -75,26 +59,15 @@ class InMemoryLookupableTableSource(
   }
 
   private def convertDataToMap(lookupKeys: Array[String]): Map[Row, List[Row]] = {
-    val isUniqueKey = uniqueKeys.contains(lookupKeys)
     val lookupFieldIndexes = lookupKeys.map(fieldNames.indexOf(_))
     val map = mutable.HashMap[Row, List[Row]]()
-    if (isUniqueKey) {
-      data.foreach { row =>
-        val key = Row.of(lookupFieldIndexes.map(row.getField): _*)
-        val oldValue = map.put(key, List(row))
-        if (oldValue.isDefined) {
-          throw new IllegalStateException("data contains duplicate keys.")
-        }
-      }
-    } else {
-      data.foreach { row =>
-        val key = Row.of(lookupFieldIndexes.map(row.getField): _*)
-        val oldValue = map.get(key)
-        if (oldValue.isDefined) {
-          map.put(key, oldValue.get ++ List(row))
-        } else {
-          map.put(key, List(row))
-        }
+    data.foreach { row =>
+      val key = Row.of(lookupFieldIndexes.map(row.getField): _*)
+      val oldValue = map.get(key)
+      if (oldValue.isDefined) {
+        map.put(key, oldValue.get ++ List(row))
+      } else {
+        map.put(key, List(row))
       }
     }
     map.toMap
@@ -105,13 +78,6 @@ class InMemoryLookupableTableSource(
   override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
 
   override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
-
-  override def getPrimaryKeyColumns: util.List[String] = primaryKey match {
-    case Some(pk) => pk.toList.asJava
-    case None => null // return null to indicate no primary key is defined.
-  }
-
-  override def getIndexes: util.Collection[TableIndex] = tableIndexes.toList.asJava
 
   @VisibleForTesting
   def getResourceCounter: Int = resourceCounter.get()
@@ -136,8 +102,6 @@ object InMemoryLookupableTableSource {
     *       .field("age", Types.INT)
     *       .field("id", Types.LONG)
     *       .field("name", Types.STRING)
-    *       .primaryKey("id")
-    *       .addNormalIndex("name")
     *       .enableAsync()
     *       .build()
     * }}}
@@ -163,16 +127,12 @@ object InMemoryLookupableTableSource {
     *       .field("age", Types.INT)
     *       .field("id", Types.LONG)
     *       .field("name", Types.STRING)
-    *       .primaryKey("id")
-    *       .addNormalIndex("name")
     *       .enableAsync()
     *       .build()
     * }}}
     */
   class Builder {
     private val schema = new mutable.LinkedHashMap[String, TypeInformation[_]]()
-    private val tableIndexes = new mutable.ArrayBuffer[TableIndex]()
-    private var primaryKey: Option[Array[String]] = None
     private var data: List[Product] = _
     private var asyncEnabled: Boolean = false
 
@@ -201,50 +161,6 @@ object InMemoryLookupableTableSource {
     }
 
     /**
-      * Sets primary key for the table source.
-      */
-    def primaryKey(fields: String*): Builder = {
-      if (fields.isEmpty) {
-        throw new IllegalArgumentException("fields should not be empty.")
-      }
-      if (primaryKey != null && primaryKey.isDefined) {
-        throw new IllegalArgumentException("primary key has been set.")
-      }
-      this.primaryKey = Some(fields.toArray)
-      this
-    }
-
-    /**
-      * Adds a normal [[TableIndex]] for the table source
-      */
-    def addNormalIndex(fields: String*): Builder = {
-      if (fields.isEmpty) {
-        throw new IllegalArgumentException("fields should not be empty.")
-      }
-      val index = TableIndex.builder()
-        .normalIndex()
-        .indexedColumns(fields: _*)
-        .build()
-      tableIndexes += index
-      this
-    }
-
-    /**
-      * Adds an unique [[TableIndex]] for the table source
-      */
-    def addUniqueIndex(fields: String*): Builder = {
-      if (fields.isEmpty) {
-        throw new IllegalArgumentException("fields should not be empty.")
-      }
-      val index = TableIndex.builder()
-        .uniqueIndex()
-        .indexedColumns(fields: _*)
-        .build()
-      tableIndexes += index
-      this
-    }
-
-    /**
       * Enables async lookup for the table source
       */
     def enableAsync(): Builder = {
@@ -269,8 +185,6 @@ object InMemoryLookupableTableSource {
         fieldNames,
         fieldTypes,
         rowData,
-        primaryKey,
-        tableIndexes.toArray,
         asyncEnabled
       )
     }

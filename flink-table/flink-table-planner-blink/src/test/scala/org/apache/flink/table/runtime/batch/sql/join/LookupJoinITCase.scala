@@ -44,7 +44,6 @@ class LookupJoinITCase extends BatchTestBase {
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
-    .primaryKey("id")
     .build()
 
   val userAsyncTableSource = InMemoryLookupableTableSource.builder()
@@ -52,7 +51,6 @@ class LookupJoinITCase extends BatchTestBase {
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
-    .primaryKey("id")
     .enableAsync()
     .build()
 
