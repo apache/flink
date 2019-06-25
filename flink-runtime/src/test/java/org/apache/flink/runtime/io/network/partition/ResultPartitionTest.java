@@ -19,20 +19,15 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.shuffle.PartitionDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -188,7 +183,7 @@ public class ResultPartitionTest {
 		TaskActions taskActions = new NoOpTaskActions();
 		ResultPartition partition = createPartition(partitionType);
 		ResultPartitionWriter consumableNotifyingPartitionWriter = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-			Collections.singleton(createPartitionDeploymentDescriptor(partitionType)),
+			Collections.singleton(PartitionTestUtils.createPartitionDeploymentDescriptor(partitionType)),
 			new ResultPartitionWriter[] {partition},
 			taskActions,
 			jobId,
@@ -317,25 +312,10 @@ public class ResultPartitionTest {
 			JobID jobId,
 			ResultPartitionConsumableNotifier notifier) {
 		return ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-			Collections.singleton(createPartitionDeploymentDescriptor(partitionType)),
+			Collections.singleton(PartitionTestUtils.createPartitionDeploymentDescriptor(partitionType)),
 			new ResultPartitionWriter[] {createPartition(partitionType)},
 			taskActions,
 			jobId,
 			notifier)[0];
-	}
-
-	private ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(ResultPartitionType partitionType) {
-		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
-		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-			new IntermediateDataSetID(),
-			shuffleDescriptor.getResultPartitionID().getPartitionId(),
-			partitionType,
-			1,
-			0);
-		return new ResultPartitionDeploymentDescriptor(
-			partitionDescriptor,
-			shuffleDescriptor,
-			1,
-			true);
 	}
 }
