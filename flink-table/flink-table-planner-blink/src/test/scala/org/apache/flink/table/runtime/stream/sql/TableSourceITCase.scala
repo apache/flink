@@ -26,11 +26,12 @@ import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.util._
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+
+import scala.collection.mutable
 
 class TableSourceITCase extends StreamingTestBase {
 
@@ -314,4 +315,25 @@ class TableSourceITCase extends StreamingTestBase {
     val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testCsvTableSource(): Unit = {
+    val csvTable = TestTableSources.getPersonCsvTableSource
+    tEnv.registerTableSource("persons", csvTable)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(
+      "SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
+      .toAppendStream[Row]
+      .addSink(sink)
+
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,Mike,Smith,12.3",
+      "2,Bob,Taylor,45.6",
+      "3,Sam,Miller,7.89")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
 }

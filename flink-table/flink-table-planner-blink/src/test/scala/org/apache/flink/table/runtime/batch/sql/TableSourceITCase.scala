@@ -24,9 +24,8 @@ import org.apache.flink.table.api.{DataTypes, TableConfigOptions, TableSchema, T
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestProjectableTableSource}
+import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
@@ -148,6 +147,25 @@ class TableSourceITCase extends BatchTestBase {
         row(6, "Record_6"),
         row(7, "Record_7"),
         row(8, "Record_8"))
+    )
+  }
+
+  @Test
+  def testCsvTableSource(): Unit = {
+    val csvTable = TestTableSources.getPersonCsvTableSource
+    tEnv.registerTableSource("csvTable", csvTable)
+    checkResult(
+      "SELECT id, `first`, `last`, score FROM csvTable",
+      Seq(
+        row(1, "Mike", "Smith", 12.3),
+        row(2, "Bob", "Taylor", 45.6),
+        row(3, "Sam", "Miller", 7.89),
+        row(4, "Peter", "Smith", 0.12),
+        row(5, "Liz", "Williams", 34.5),
+        row(6, "Sally", "Miller", 6.78),
+        row(7, "Alice", "Smith", 90.1),
+        row(8, "Kelly", "Williams", 2.34)
+      )
     )
   }
 }
