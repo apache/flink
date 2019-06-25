@@ -24,7 +24,7 @@ from pyflink.table.table_schema import TableSchema
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
            'CatalogColumnStatistics', 'HiveCatalog', 'HiveCatalogFunction',
-           'HiveCatalogPartition', 'HiveCatalogView']
+           'HiveCatalogPartition']
 
 
 class Catalog(object):
@@ -626,11 +626,7 @@ class CatalogBaseTable(object):
 
     @staticmethod
     def _get(j_catalog_base_table):
-        if j_catalog_base_table.getClass().getName() == \
-                "org.apache.flink.table.catalog.hive.HiveCatalogView":
-            return HiveCatalogView(j_hive_catalog_view=j_catalog_base_table)
-        else:
-            return CatalogBaseTable(j_catalog_base_table)
+        return CatalogBaseTable(j_catalog_base_table)
 
     def get_properties(self):
         """
@@ -1011,17 +1007,3 @@ class HiveCatalogPartition(CatalogPartition):
 
     def get_location(self):
         return self._j_catalog_partition.getLocation()
-
-
-class HiveCatalogView(CatalogBaseTable):
-    """
-    A Hive catalog view implementation.
-    """
-
-    def __init__(self, original_query=None, expanded_query=None, table_schema=None,
-                 properties=None, comment=None, j_hive_catalog_view=None):
-        gateway = get_gateway()
-        if j_hive_catalog_view is None:
-            j_hive_catalog_view = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalogView(
-                original_query, expanded_query, table_schema._j_table_schema, properties, comment)
-        super(HiveCatalogView, self).__init__(j_hive_catalog_view)

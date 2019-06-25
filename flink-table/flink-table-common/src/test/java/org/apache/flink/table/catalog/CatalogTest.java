@@ -377,13 +377,13 @@ public abstract class CatalogTest {
 		CatalogView view = createView();
 		catalog.createTable(path3, view, false);
 
-		checkEquals(view, (CatalogView) catalog.getTable(path3));
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path3));
 
 		CatalogView newView = createAnotherView();
 		catalog.alterTable(path3, newView, false);
 
 		assertNotEquals(view, catalog.getTable(path3));
-		checkEquals(newView, (CatalogView) catalog.getTable(path3));
+		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path3));
 	}
 
 	@Test
@@ -493,7 +493,7 @@ public abstract class CatalogTest {
 		catalog.createTable(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		checkEquals(view, (CatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -523,12 +523,12 @@ public abstract class CatalogTest {
 		catalog.createTable(path1, view, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		checkEquals(view, (CatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
 
 		catalog.createTable(path1, createAnotherView(), true);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		checkEquals(view, (CatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -550,13 +550,13 @@ public abstract class CatalogTest {
 		CatalogView view = createView();
 		catalog.createTable(path1, view, false);
 
-		checkEquals(view, (CatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(view, (CatalogView) catalog.getTable(path1));
 
 		CatalogView newView = createAnotherView();
 		catalog.alterTable(path1, newView, false);
 
 		assertTrue(catalog.getTable(path1) instanceof CatalogView);
-		checkEquals(newView, (CatalogView) catalog.getTable(path1));
+		CatalogTestUtil.checkEquals(newView, (CatalogView) catalog.getTable(path1));
 	}
 
 	@Test
@@ -1324,14 +1324,6 @@ public abstract class CatalogTest {
 
 	// ------ equality check utils ------
 	// Can be overriden by sub test class
-
-	protected void checkEquals(CatalogView v1, CatalogView v2) {
-		assertEquals(v1.getSchema(), v1.getSchema());
-		assertEquals(v1.getProperties(), v2.getProperties());
-		assertEquals(v1.getComment(), v2.getComment());
-		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
-		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
-	}
 
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());

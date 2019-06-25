@@ -26,7 +26,6 @@ import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
-import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -141,26 +140,6 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	}
 
 	@Override
-	public CatalogView createView() {
-		return new HiveCatalogView(
-			String.format("select * from %s", t1),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is a hive view");
-	}
-
-	@Override
-	public CatalogView createAnotherView() {
-		return new HiveCatalogView(
-			String.format("select * from %s", t2),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createAnotherTableSchema(),
-			new HashMap<>(),
-			"This is another hive view");
-	}
-
-	@Override
 	protected CatalogFunction createFunction() {
 		return new HiveCatalogFunction("test.class.name");
 	}
@@ -173,18 +152,6 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	@Override
 	public CatalogPartition createPartition() {
 		return new HiveCatalogPartition(getBatchTableProperties());
-	}
-
-	@Override
-	protected void checkEquals(CatalogView v1, CatalogView v2) {
-		assertEquals(v1.getSchema(), v1.getSchema());
-		assertEquals(v1.getComment(), v2.getComment());
-		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
-		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
-
-		// Hive views may have properties created by itself
-		// thus properties of Hive view is a super set of those in its corresponding Flink view
-		assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
 	}
 
 	@Override

@@ -16,34 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.hive;
+package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.AbstractCatalogView;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * A Hive catalog view implementation.
+ * An implementation of catalog view.
  */
-public class HiveCatalogView extends AbstractCatalogView {
-
-	public HiveCatalogView(
+public class CatalogViewImpl extends AbstractCatalogView {
+	public CatalogViewImpl(
 			String originalQuery,
 			String expandedQuery,
-			TableSchema tableSchema,
+			TableSchema schema,
 			Map<String, String> properties,
 			String comment) {
-		super(originalQuery, expandedQuery, tableSchema, properties, comment);
+		super(originalQuery, expandedQuery, schema, properties, comment);
 	}
 
 	@Override
 	public CatalogBaseTable copy() {
-		return new HiveCatalogView(
-			this.getOriginalQuery(), this.getExpandedQuery(), this.getSchema().copy(), new HashMap<>(this.getProperties()), getComment());
+		return new CatalogViewImpl(
+			getOriginalQuery(),
+			getExpandedQuery(),
+			getSchema().copy(),
+			new HashMap<>(getProperties()),
+			getComment()
+		);
 	}
 
 	@Override
@@ -53,8 +55,6 @@ public class HiveCatalogView extends AbstractCatalogView {
 
 	@Override
 	public Optional<String> getDetailedDescription() {
-		// TODO: return a detailed description
-		return Optional.ofNullable(getComment());
+		return Optional.of("This is a catalog view implementation");
 	}
-
 }
