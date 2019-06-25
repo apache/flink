@@ -35,8 +35,7 @@ import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.table.plan.util.LookupJoinUtil._
 import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
-import org.apache.flink.table.sources.TableIndex.IndexType
-import org.apache.flink.table.sources.{LookupableTableSource, TableIndex, TableSource}
+import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
 import org.apache.flink.table.types.ClassLogicalTypeConverter
 import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -85,19 +84,12 @@ abstract class CommonLookupJoin(
   with FlinkRelNode {
 
   val joinKeyPairs: Array[IntPair] = getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
-  val indexKeys: Array[TableIndex] = getTableIndexes(tableSource)
   // all potential index keys, mapping from field index in table source to LookupKey
   val allLookupKeys: Map[Int, LookupKey] = analyzeLookupKeys(
     cluster.getRexBuilder,
     joinKeyPairs,
-    indexKeys,
     tableSource.getTableSchema,
     calcOnTemporalTable)
-  // the matched best lookup fields which is in defined order, maybe empty
-  val matchedLookupFields: Option[Array[Int]] = findMatchedIndex(
-    indexKeys,
-    tableSource.getTableSchema,
-    allLookupKeys)
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -171,12 +163,10 @@ abstract class CommonLookupJoin(
       tableSource,
       inputRowType,
       tableSourceRowType,
-      indexKeys,
       allLookupKeys,
-      matchedLookupFields,
       joinType)
 
-    val lookupFieldsInOrder = matchedLookupFields.get
+    val lookupFieldsInOrder = allLookupKeys.keys.toList.sorted.toArray
     val lookupFieldNamesInOrder = lookupFieldsInOrder.map(tableSchema.getFieldNames()(_))
     val lookupFieldTypesInOrder = lookupFieldsInOrder
       .map(tableSchema.getFieldDataTypes()(_)).map(fromDataTypeToLogicalType)
@@ -486,13 +476,8 @@ abstract class CommonLookupJoin(
   def analyzeLookupKeys(
       rexBuilder: RexBuilder,
       joinKeyPairs: Array[IntPair],
-      tableIndexes: Array[TableIndex],
       temporalTableSchema: TableSchema,
       calcOnTemporalTable: Option[RexProgram]): Map[Int, LookupKey] = {
-    val fieldNames = temporalTableSchema.getFieldNames
-    val allIndexFields = tableIndexes
-      .flatMap(_.getIndexedColumns.asScala.map(fieldNames.indexOf(_)))
-      .toSet
     // field_index_in_table_source => constant_lookup_key
     val constantLookupKeys = new mutable.HashMap[Int, ConstantLookupKey]
     // analyze constant lookup keys
@@ -502,40 +487,10 @@ abstract class CommonLookupJoin(
         cluster.getRexBuilder,
         program.expandLocalRef(program.getCondition))
       // presume 'A = 1 AND A = 2' will be reduced to ALWAYS_FALSE
-      extractConstantFieldsFromEquiCondition(condition, allIndexFields, constantLookupKeys)
+      extractConstantFieldsFromEquiCondition(condition, constantLookupKeys)
     }
     val fieldRefLookupKeys = joinKeyPairs.map(p => (p.target, FieldRefLookupKey(p.source)))
     (constantLookupKeys ++ fieldRefLookupKeys).toMap
-  }
-
-  private def findMatchedIndex(
-      tableIndexes: Array[TableIndex],
-      temporalTableSchema: TableSchema,
-      allLookupKeys: Map[Int, LookupKey]): Option[Array[Int]] = {
-
-    val fieldNames = temporalTableSchema.getFieldNames
-
-    // [(indexFields, isUniqueIndex)]
-    val indexes: Array[(Array[Int], Boolean)] = tableIndexes.map { tableIndex =>
-      val indexFields = tableIndex.getIndexedColumns.asScala.map(fieldNames.indexOf(_)).toArray
-      val isUniqueIndex = tableIndex.getIndexType.equals(IndexType.UNIQUE)
-      (indexFields, isUniqueIndex)
-    }
-
-    val matchedIndexes = indexes.filter(_._1.forall(allLookupKeys.contains))
-    if (matchedIndexes.length > 1) {
-      // find a best one, we prefer a unique index key here
-      val uniqueIndex = matchedIndexes.find(_._2).map(_._1)
-      if (uniqueIndex.isDefined) {
-        uniqueIndex
-      } else {
-        // all the matched index are normal index, select anyone from matched indexes
-        matchedIndexes.map(_._1).headOption
-      }
-    } else {
-      // select anyone from matched indexes
-      matchedIndexes.map(_._1).headOption
-    }
   }
 
   // ----------------------------------------------------------------------------------------
@@ -569,17 +524,15 @@ abstract class CommonLookupJoin(
 
   private def extractConstantFieldsFromEquiCondition(
       condition: RexNode,
-      allIndexFields: Set[Int],
       constantFieldMap: mutable.HashMap[Int, ConstantLookupKey]): Unit = condition match {
     case c: RexCall if c.getKind == SqlKind.AND =>
-      c.getOperands.asScala.foreach(r => extractConstantField(r, allIndexFields, constantFieldMap))
-    case rex: RexNode => extractConstantField(rex, allIndexFields, constantFieldMap)
+      c.getOperands.asScala.foreach(r => extractConstantField(r, constantFieldMap))
+    case rex: RexNode => extractConstantField(rex, constantFieldMap)
     case _ =>
   }
 
   private def extractConstantField(
       pred: RexNode,
-      allIndexFields: Set[Int],
       constantFieldMap: mutable.HashMap[Int, ConstantLookupKey]): Unit = pred match {
     case c: RexCall if c.getKind == SqlKind.EQUALS =>
       val left = c.getOperands.get(0)
@@ -588,10 +541,8 @@ abstract class CommonLookupJoin(
         case (literal: RexLiteral, ref: RexInputRef) => (ref, literal)
         case (ref: RexInputRef, literal: RexLiteral) => (ref, literal)
       }
-      if (allIndexFields.contains(inputRef.getIndex)) {
-        val dataType = FlinkTypeFactory.toLogicalType(inputRef.getType)
-        constantFieldMap.put(inputRef.getIndex, ConstantLookupKey(dataType, literal))
-      }
+      val dataType = FlinkTypeFactory.toLogicalType(inputRef.getType)
+      constantFieldMap.put(inputRef.getIndex, ConstantLookupKey(dataType, literal))
     case _ => // ignore
   }
 
@@ -603,23 +554,14 @@ abstract class CommonLookupJoin(
       tableSource: TableSource[_],
       inputRowType: RowType,
       tableSourceRowType: RowType,
-      tableIndexes: Array[TableIndex],
       allLookupKeys: Map[Int, LookupKey],
-      matchedLookupFields: Option[Array[Int]],
       joinType: JoinRelType): Unit = {
 
-    // checked PRIMARY KEY or (UNIQUE) INDEX is defined.
-    if (tableIndexes.isEmpty) {
-      throw new TableException(
-        s"Temporal table join requires table [${tableSource.explainSource()}] defines " +
-          s"a PRIMARY KEY or (UNIQUE) INDEX.")
-    }
-
     // check join on all fields of PRIMARY KEY or (UNIQUE) INDEX
-    if (allLookupKeys.isEmpty || matchedLookupFields.isEmpty) {
+    if (allLookupKeys.isEmpty || allLookupKeys.isEmpty) {
       throw new TableException(
-        "Temporal table join requires an equality condition on ALL fields of " +
-          s"table [${tableSource.explainSource()}]'s PRIMARY KEY or (UNIQUE) INDEX(s).")
+        "Temporal table join requires an equality condition on fields of " +
+          s"table [${tableSource.explainSource()}].")
     }
 
     if (!tableSource.isInstanceOf[LookupableTableSource[_]]) {
@@ -627,9 +569,8 @@ abstract class CommonLookupJoin(
         s"implement LookupableTableSource interface if it is used in temporal table join.")
     }
 
-    val checkedLookupFields = matchedLookupFields.get
 
-    val lookupKeyPairs = joinKeyPairs.filter(p => checkedLookupFields.contains(p.target))
+    val lookupKeyPairs = joinKeyPairs.filter(p => allLookupKeys.contains(p.target))
     val leftKeys = lookupKeyPairs.map(_.source)
     val rightKeys = lookupKeyPairs.map(_.target)
     val leftKeyTypes = leftKeys.map(inputRowType.getTypeAt)

@@ -55,7 +55,6 @@ class LookupJoinITCase extends StreamingTestBase {
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
-    .primaryKey("id")
     .build()
 
   val userTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
@@ -63,7 +62,6 @@ class LookupJoinITCase extends StreamingTestBase {
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
-    .addUniqueIndex("id", "name")
     .build()
 
   @Test
