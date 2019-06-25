@@ -25,8 +25,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 import org.apache.flink.util.FlinkException;
 
 /**
@@ -103,12 +101,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void performDefaultAction(ActionContext context) throws Exception {
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
 		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
-		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread();
+		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread(getName());
 		sourceThread.start();
 
-		// We run an alternative mailbox loop that does not involve default actions and synchronizes around actions.
+		// We run an legacy source mailbox loop that does not involve default actions and synchronizes around actions.
 		try {
-			runAlternativeMailboxLoop();
+			mailboxProcessor.switchToLegacySourceCompatibilityMailboxLoop(getCheckpointLock());
 		} catch (Exception mailboxEx) {
 			// We cancel the source function if some runtime exception escaped the mailbox.
 			if (!isCanceled()) {
@@ -122,21 +120,6 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		sourceThread.checkThrowSourceExecutionException();
 
 		context.allActionsCompleted();
-	}
-
-	private void runAlternativeMailboxLoop() throws InterruptedException, MailboxStateException {
-
-		assert taskMailboxExecutor.isMailboxThread() : "Alternative mailbox loop must run in declared mailbox thread!";
-
-		final Mailbox mailbox = taskMailboxExecutor.getMailbox();
-		while (isMailboxLoopRunning()) {
-
-			Runnable letter = mailbox.takeMail();
-
-			synchronized (getCheckpointLock()) {
-				letter.run();
-			}
-		}
 	}
 
 	@Override
@@ -175,7 +158,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 		private Throwable sourceExecutionThrowable;
 
-		LegacySourceFunctionThread() {
+		LegacySourceFunctionThread(String taskDescription) {
+			super("Legacy Source Thread - " + taskDescription);
 			this.sourceExecutionThrowable = null;
 		}
 
@@ -185,14 +169,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
 			} catch (Throwable t) {
 				sourceExecutionThrowable = t;
-			}
-
-			try {
-				taskMailboxExecutor.getMailbox().putFirst(mailboxPoisonLetter);
-			} catch (InterruptedException ie) {
-				Thread.currentThread().interrupt();
-			} catch (MailboxStateException me) {
-				LOG.debug("Could not submit poison letter to mailbox.", me);
+			} finally {
+				mailboxProcessor.allActionsCompleted();
 			}
 		}
 
