@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -15,7 +16,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import codecs
 import platform
+import sys
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
@@ -23,6 +26,11 @@ from pyflink.table import *
 from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
 from pyflink.table.window import *
+
+if sys.version > '3':
+    utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
+else:
+    utf8_out = codecs.getwriter("utf-8")(sys.stdout)
 
 print("Using Python version %s (%s, %s)" % (
     platform.python_version(),
@@ -131,8 +139,8 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * t.select("a + 1, b, c").insert_into("stream_sink")
     *
     * st_env.exec_env().execute()
-      '''
-print(welcome_msg)
+'''
+utf8_out.write(welcome_msg)
 
 bt_env = BatchTableEnvironment.create(ExecutionEnvironment.get_execution_environment())
 

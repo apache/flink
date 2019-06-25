@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,8 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-"""
-The pyflink version will be consistent with the flink version and follow the PEP440.
-.. seealso:: https://www.python.org/dev/peps/pep-0440
-"""
-__version__ = "1.9.dev0"
+cd "$( dirname "$0" )"
+
+python pip_test_code.py

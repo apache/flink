@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,8 +17,12 @@
 # limitations under the License.
 ################################################################################
 
-"""
-The pyflink version will be consistent with the flink version and follow the PEP440.
-.. seealso:: https://www.python.org/dev/peps/pep-0440
-"""
-__version__ = "1.9.dev0"
+CURRENT_DIR="$( cd "$(dirname "$0")" ; pwd -P )"
+FIND_FLINK_HOME_PYTHON_SCRIPT="$CURRENT_DIR/find_flink_home.py"
+
+if [ ! -f "$FIND_FLINK_HOME_PYTHON_SCRIPT" ]; then
+    export FLINK_HOME="$( cd "$CURRENT_DIR"/.. ; pwd -P )"
+else
+    PYFLINK_PYTHON="${PYFLINK_PYTHON:-"python"}"
+    export FLINK_HOME=$("$FIND_FLINK_HOME_PYTHON_SCRIPT")
+fi
