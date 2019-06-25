@@ -99,7 +99,7 @@ public class PlannerContext {
 				.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig), functionCatalog))
 				// set the executor to evaluate constant expressions
 				.executor(new ExpressionReducer(tableConfig, false))
-				.context(new FlinkContextImpl(tableConfig))
+				.context(new FlinkContextImpl(tableConfig, functionCatalog))
 				.traitDefs(traitDefs)
 				.build();
 	}

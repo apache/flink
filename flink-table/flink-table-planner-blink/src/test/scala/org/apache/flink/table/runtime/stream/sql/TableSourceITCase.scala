@@ -300,4 +300,18 @@ class TableSourceITCase extends StreamingTestBase {
       "3,Mike,30000,true,3000")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testTableSourceWithFilterable(): Unit = {
+    tEnv.registerTableSource("MyTable", TestFilterableTableSource(false))
+
+    val sqlQuery = "SELECT id, name FROM MyTable WHERE amount > 4 AND price < 9"
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }

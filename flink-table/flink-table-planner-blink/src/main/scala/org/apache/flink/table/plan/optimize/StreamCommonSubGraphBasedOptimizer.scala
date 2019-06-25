@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.optimize
 
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig}
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.calcite.Sink
@@ -141,6 +142,8 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
     programs.optimize(relNode, new StreamOptimizeContext() {
 
       override def getTableConfig: TableConfig = config
+
+      override def getFunctionCatalog: FunctionCatalog = tEnv.functionCatalog
 
       override def getRexBuilder: RexBuilder = tEnv.getRelBuilder.getRexBuilder
 

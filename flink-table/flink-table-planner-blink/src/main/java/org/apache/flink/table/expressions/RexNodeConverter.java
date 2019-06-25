@@ -26,7 +26,10 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.InternalFunctionDefinitions;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
@@ -43,6 +46,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -177,6 +181,15 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return relBuilder.call(FlinkSqlOperatorTable.MULTIPLY, child);
 		} else if (BuiltInFunctionDefinitions.MOD.equals(def)) {
 			return relBuilder.call(FlinkSqlOperatorTable.MOD, child);
+		} else if (def instanceof ScalarFunctionDefinition) {
+			ScalarFunction scalarFunc = ((ScalarFunctionDefinition) def).getScalarFunction();
+			SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
+				// TODO use the name under which the function is registered
+				scalarFunc.functionIdentifier(),
+				scalarFunc.toString(),
+				scalarFunc,
+				typeFactory);
+			return relBuilder.call(sqlFunction, child);
 		} else {
 			throw new UnsupportedOperationException(def.toString());
 		}

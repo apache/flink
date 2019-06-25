@@ -158,6 +158,14 @@ object FlinkBatchRuleSets {
   )
 
   /**
+    * RuleSet to do push predicate into table scan
+    */
+  val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
+    // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE
+  )
+
+  /**
     * RuleSet to prune empty results rules
     */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
@@ -217,6 +225,7 @@ object FlinkBatchRuleSets {
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoTableSourceScanRule.INSTANCE,
 
     // reorder sort and projection
     SortProjectTransposeRule.INSTANCE,

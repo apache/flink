@@ -132,4 +132,9 @@ public class PlannerConfigOptions {
 					.withDescription("Sets how many rows one localAgg processes. We will infer agg degree to decide whether " +
 							"to use localAgg according to it.");
 
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED =
+			key("sql.optimizer.predicate_pushdown.enabled")
+					.defaultValue(true)
+					.withDescription("Allow trying to push predicate down to a FilterableTableSource. " +
+						"the default value is true, means allow the attempt.");
 }

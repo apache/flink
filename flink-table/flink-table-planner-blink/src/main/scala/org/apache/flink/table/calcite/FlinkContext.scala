@@ -19,6 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.catalog.FunctionCatalog
 
 import org.apache.calcite.plan.Context
 
@@ -31,6 +32,11 @@ trait FlinkContext extends Context {
     * Gets [[TableConfig]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
     */
   def getTableConfig: TableConfig
+
+  /**
+    * Gets [[FunctionCatalog]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
+    */
+  def getFunctionCatalog: FunctionCatalog
 
   override def unwrap[C](clazz: Class[C]): C = {
     if (clazz.isInstance(this)) clazz.cast(this) else null.asInstanceOf[C]

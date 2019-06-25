@@ -18,28 +18,32 @@
 
 package org.apache.flink.table.plan.util
 
-import java.util.{List => JList}
-import java.math.BigDecimal
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter
 
-import org.apache.calcite.adapter.java.JavaTypeFactory
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode, RexProgram, RexProgramBuilder}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+
+import java.math.BigDecimal
+import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 abstract class RexNodeTestBase {
 
-  val typeFactory: JavaTypeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
 
   val allFieldNames: java.util.List[String] = List("name", "id", "amount", "price", "flag").asJava
 
-  val allFieldTypes: java.util.List[RelDataType] =
-    List(VARCHAR, BIGINT, INTEGER, DOUBLE, BOOLEAN).map(typeFactory.createSqlType).asJava
+  val allFieldTypes: java.util.List[RelDataType] = List(DataTypes.VARCHAR(100),
+    DataTypes.BIGINT(), DataTypes.INT(), DataTypes.DOUBLE(), DataTypes.BOOLEAN())
+    .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+    .map(typeFactory.createFieldTypeFromLogicalType)
+    .asJava
 
   var rexBuilder: RexBuilder = new RexBuilder(typeFactory)
 

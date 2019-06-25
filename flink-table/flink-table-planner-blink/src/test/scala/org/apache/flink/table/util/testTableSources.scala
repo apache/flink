@@ -22,7 +22,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression, UnresolvedCallExpression, ValueLiteralExpression}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
@@ -30,9 +34,11 @@ import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, Preserv
 import org.apache.flink.types.Row
 
 import java.util
-import java.util.Collections
+import java.util.{Collections, List => JList}
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class TestTableSourceWithTime[T](
     isBatch: Boolean,
@@ -232,5 +238,213 @@ class TestNestedProjectableTableSource(
 
   override def explainSource(): String = {
     s"TestSource(read nested fields: ${readNestedFields.mkString(", ")})"
+  }
+}
+
+/**
+  * A data source that implements some very basic filtering in-memory in order to test
+  * expression push-down logic.
+  *
+  * @param isBatch whether this is a bounded source
+  * @param rowTypeInfo The type info for the rows.
+  * @param data The data that filtering is applied to in order to get the final dataset.
+  * @param filterableFields The fields that are allowed to be filtered.
+  * @param filterPredicates The predicates that should be used to filter.
+  * @param filterPushedDown Whether predicates have been pushed down yet.
+  */
+class TestFilterableTableSource(
+    isBatch: Boolean,
+    rowTypeInfo: RowTypeInfo,
+    data: Seq[Row],
+    filterableFields: Set[String] = Set(),
+    filterPredicates: Seq[Expression] = Seq(),
+    val filterPushedDown: Boolean = false)
+  extends StreamTableSource[Row]
+    with FilterableTableSource[Row] {
+
+  val fieldNames: Array[String] = rowTypeInfo.getFieldNames
+
+  val fieldTypes: Array[TypeInformation[_]] = rowTypeInfo.getFieldTypes
+
+  override def isBounded: Boolean = isBatch
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
+      .setParallelism(1).setMaxParallelism(1)
+  }
+
+  override def explainSource(): String = {
+    if (filterPredicates.nonEmpty) {
+      s"filter=[${filterPredicates.reduce((l, r) => unresolvedCall(AND, l, r)).toString}]"
+    } else {
+      ""
+    }
+  }
+
+  override def getReturnType: TypeInformation[Row] = rowTypeInfo
+
+  override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
+    val predicatesToUse = new mutable.ListBuffer[Expression]()
+    val iterator = predicates.iterator()
+    while (iterator.hasNext) {
+      val expr = iterator.next()
+      if (shouldPushDown(expr)) {
+        predicatesToUse += expr
+        iterator.remove()
+      }
+    }
+
+    new TestFilterableTableSource(
+      isBatch,
+      rowTypeInfo,
+      data,
+      filterableFields,
+      predicatesToUse,
+      filterPushedDown = true)
+  }
+
+  override def isFilterPushedDown: Boolean = filterPushedDown
+
+  private def applyPredicatesToRows(rows: Seq[Row]): Seq[Row] = rows.filter(shouldKeep)
+
+  private def shouldPushDown(expr: Expression): Boolean = {
+    expr match {
+      case expr: UnresolvedCallExpression if expr.getChildren.size() == 2 => shouldPushDown(expr)
+      case _ => false
+    }
+  }
+
+  private def shouldPushDown(binExpr: UnresolvedCallExpression): Boolean = {
+    val children = binExpr.getChildren
+    require(children.size() == 2)
+    (children.head, children.last) match {
+      case (f: FieldReferenceExpression, _: ValueLiteralExpression) =>
+        filterableFields.contains(f.getName)
+      case (_: ValueLiteralExpression, f: FieldReferenceExpression) =>
+        filterableFields.contains(f.getName)
+      case (f1: FieldReferenceExpression, f2: FieldReferenceExpression) =>
+        filterableFields.contains(f1.getName) && filterableFields.contains(f2.getName)
+      case (_, _) => false
+    }
+  }
+
+  private def shouldKeep(row: Row): Boolean = {
+    filterPredicates.isEmpty || filterPredicates.forall {
+      case expr: UnresolvedCallExpression if expr.getChildren.size() == 2 =>
+        binaryFilterApplies(expr, row)
+      case expr => throw new RuntimeException(expr + " not supported!")
+    }
+  }
+
+  private def binaryFilterApplies(binExpr: UnresolvedCallExpression, row: Row): Boolean = {
+    val children = binExpr.getChildren
+    require(children.size() == 2)
+    val (lhsValue, rhsValue) = extractValues(binExpr, row)
+
+    binExpr.getFunctionDefinition match {
+      case BuiltInFunctionDefinitions.GREATER_THAN =>
+        lhsValue.compareTo(rhsValue) > 0
+      case BuiltInFunctionDefinitions.LESS_THAN =>
+        lhsValue.compareTo(rhsValue) < 0
+      case BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL =>
+        lhsValue.compareTo(rhsValue) >= 0
+      case BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL =>
+        lhsValue.compareTo(rhsValue) <= 0
+      case BuiltInFunctionDefinitions.EQUALS =>
+        lhsValue.compareTo(rhsValue) == 0
+      case BuiltInFunctionDefinitions.NOT_EQUALS =>
+        lhsValue.compareTo(rhsValue) != 0
+    }
+  }
+
+  private def extractValues(
+      binExpr: UnresolvedCallExpression,
+      row: Row): (Comparable[Any], Comparable[Any]) = {
+    val children = binExpr.getChildren
+    require(children.size() == 2)
+
+    (children.head, children.last) match {
+      case (l: FieldReferenceExpression, r: ValueLiteralExpression) =>
+        val idx = rowTypeInfo.getFieldIndex(l.getName)
+        val lv = row.getField(idx).asInstanceOf[Comparable[Any]]
+        val rv = getValue(r)
+        (lv, rv)
+      case (l: ValueLiteralExpression, r: FieldReferenceExpression) =>
+        val idx = rowTypeInfo.getFieldIndex(r.getName)
+        val lv = getValue(l)
+        val rv = row.getField(idx).asInstanceOf[Comparable[Any]]
+        (lv, rv)
+      case (l: ValueLiteralExpression, r: ValueLiteralExpression) =>
+        val lv = getValue(l)
+        val rv = getValue(r)
+        (lv, rv)
+      case (l: FieldReferenceExpression, r: FieldReferenceExpression) =>
+        val lidx = rowTypeInfo.getFieldIndex(l.getName)
+        val ridx = rowTypeInfo.getFieldIndex(r.getName)
+        val lv = row.getField(lidx).asInstanceOf[Comparable[Any]]
+        val rv = row.getField(ridx).asInstanceOf[Comparable[Any]]
+        (lv, rv)
+      case _ => throw new RuntimeException(binExpr + " not supported!")
+    }
+  }
+
+  private def getValue(v: ValueLiteralExpression): Comparable[Any] = {
+    val value = v.getValueAs(v.getOutputDataType.getConversionClass)
+    if (value.isPresent) {
+      value.get().asInstanceOf[Comparable[Any]]
+    } else {
+      null
+    }
+  }
+
+  override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+}
+
+object TestFilterableTableSource {
+
+  /**
+    * @return The default filterable table source.
+    */
+  def apply(isBatch: Boolean): TestFilterableTableSource = {
+    apply(isBatch, defaultTypeInfo, defaultRows, defaultFilterableFields)
+  }
+
+  /**
+    * A filterable data source with custom data.
+    *
+    * @param isBatch whether this is a bounded source
+    * @param rowTypeInfo The type of the data. Its expected that both types and field
+    *                    names are provided.
+    * @param rows The data as a sequence of rows.
+    * @param filterableFields The fields that are allowed to be filtered on.
+    * @return The table source.
+    */
+  def apply(
+      isBatch: Boolean,
+      rowTypeInfo: RowTypeInfo,
+      rows: Seq[Row],
+      filterableFields: Set[String]): TestFilterableTableSource = {
+    new TestFilterableTableSource(isBatch, rowTypeInfo, rows, filterableFields)
+  }
+
+  private lazy val defaultFilterableFields = Set("amount")
+
+  private lazy val defaultTypeInfo: RowTypeInfo = {
+    val fieldNames: Array[String] = Array("name", "id", "amount", "price")
+    val fieldTypes: Array[TypeInformation[_]] =
+      Array(Types.STRING, Types.LONG, Types.INT, Types.DOUBLE)
+    new RowTypeInfo(fieldTypes, fieldNames)
+  }
+
+  private lazy val defaultRows: Seq[Row] = {
+    for {
+      cnt <- 0 until 33
+    } yield {
+      Row.of(
+        s"Record_$cnt",
+        cnt.toLong.asInstanceOf[AnyRef],
+        cnt.toInt.asInstanceOf[AnyRef],
+        cnt.toDouble.asInstanceOf[AnyRef])
+    }
   }
 }

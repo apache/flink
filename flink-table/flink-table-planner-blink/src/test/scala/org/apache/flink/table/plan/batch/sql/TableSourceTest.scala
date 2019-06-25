@@ -18,14 +18,18 @@
 
 package org.apache.flink.table.plan.batch.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.util._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
+
+import java.sql.{Date, Time, Timestamp}
+import java.util.TimeZone
 
 class TableSourceTest extends TableTestBase {
 
@@ -33,10 +37,11 @@ class TableSourceTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.VARCHAR(32))).build()
-    util.tableEnv.registerTableSource("MyTable", new TestProjectableTableSource(
+    util.tableEnv.registerTableSource("ProjectableTable", new TestProjectableTableSource(
       true,
       tableSchema,
       new RowTypeInfo(
@@ -44,16 +49,17 @@ class TableSourceTest extends TableTestBase {
         tableSchema.getFieldNames),
       Seq.empty[Row])
     )
+    util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
   }
 
   @Test
   def testSimpleProject(): Unit = {
-    util.verifyPlan("SELECT a, c FROM MyTable")
+    util.verifyPlan("SELECT a, c FROM ProjectableTable")
   }
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    util.verifyPlan("SELECT COUNT(1) FROM MyTable")
+    util.verifyPlan("SELECT COUNT(1) FROM ProjectableTable")
   }
 
   @Test
@@ -93,6 +99,85 @@ class TableSourceTest extends TableTestBase {
         |    deepNested.nested2.flag AS nestedFlag,
         |    deepNested.nested2.num AS nestedNum
         |FROM T
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testFilterCanPushDown(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2")
+  }
+
+  @Test
+  def testFilterCannotPushDown(): Unit = {
+    // TestFilterableTableSource only accept predicates with `amount`
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE price > 10")
+  }
+
+  @Test
+  def testFilterPartialPushDown(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
+  }
+
+  @Test
+  def testFilterFullyPushDown(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
+  }
+
+  @Test
+  def testFilterCannotPushDown2(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
+  }
+
+  @Test
+  def testFilterCannotPushDown3(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
+  }
+
+  @Test
+  def testFilterPushDownUnconvertedExpression(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * FROM FilterableTable WHERE
+        |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testFilterPushDownWithUdf(): Unit = {
+    util.addFunction("myUdf", Func1)
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
+  }
+
+  @Test
+  def testTimeLiteralExpressionPushDown(): Unit = {
+    val rowTypeInfo = new RowTypeInfo(
+      Array[TypeInformation[_]](
+        BasicTypeInfo.INT_TYPE_INFO,
+        SqlTimeTypeInfo.DATE,
+        SqlTimeTypeInfo.TIME,
+        SqlTimeTypeInfo.TIMESTAMP
+      ),
+      Array("id", "dv", "tv", "tsv")
+    )
+
+    val row = new Row(4)
+    row.setField(0, 1)
+    row.setField(1, Date.valueOf("2017-01-23"))
+    row.setField(2, Time.valueOf("14:23:02"))
+    row.setField(3, Timestamp.valueOf("2017-01-24 12:45:01.234"))
+
+    val tableSource = TestFilterableTableSource(
+      isBatch = true, rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
+    util.tableEnv.registerTableSource("FilterableTable1", tableSource)
+
+    val sqlQuery =
+      s"""
+         |SELECT id FROM FilterableTable1 WHERE
+         |  tv > TIME '14:25:02' AND
+         |  dv > DATE '2017-02-03' AND
+         |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       """.stripMargin
     util.verifyPlan(sqlQuery)
   }
