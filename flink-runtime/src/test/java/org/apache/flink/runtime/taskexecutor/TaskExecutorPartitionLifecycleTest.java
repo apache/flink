@@ -48,6 +48,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -62,6 +63,7 @@ import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.partition.PartitionTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
+import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.SerializedValue;
@@ -86,9 +88,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.StreamSupport;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the partition-lifecycle logic in the {@link TaskExecutor}.
@@ -121,6 +123,70 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	@AfterClass
 	public static void shutdownClass() throws ExecutionException, InterruptedException {
 		RPC.stopService().get();
+	}
+
+	@Test
+	public void testConnectionTerminationAfterExternalRelease() throws Exception {
+		final CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+		final JobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setDisconnectTaskManagerFunction(resourceID -> {
+				disconnectFuture.complete(null);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			}).build();
+
+		final JobManagerConnection jobManagerConnection = TaskSubmissionTestEnvironment.createJobManagerConnection(
+			jobId, jobMasterGateway, RPC, new NoOpTaskManagerActions(), timeout);
+
+		final JobManagerTable jobManagerTable = new JobManagerTable();
+		jobManagerTable.put(jobId, jobManagerConnection);
+
+		final TestingShuffleEnvironment shuffleEnvironment = new TestingShuffleEnvironment();
+
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setJobManagerTable(jobManagerTable)
+			.setShuffleEnvironment(shuffleEnvironment)
+			.setTaskSlotTable(createTaskSlotTable())
+			.build();
+
+		final PartitionTable partitionTable = new PartitionTable();
+		final ResultPartitionID resultPartitionId = new ResultPartitionID();
+
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTable);
+
+		try {
+			taskExecutor.start();
+			taskExecutor.waitUntilStarted();
+
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			// baseline, jobmanager was added in test setup
+			runInTaskExecutorThreadAndWait(taskExecutor, () -> assertTrue(jobManagerTable.contains(jobId)));
+
+			runInTaskExecutorThreadAndWait(taskExecutor, () -> partitionTable.startTrackingPartitions(jobId, Collections.singletonList(resultPartitionId)));
+
+			final CompletableFuture<Collection<ResultPartitionID>> firstReleasePartitionsCallFuture = new CompletableFuture<>();
+			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = firstReleasePartitionsCallFuture);
+
+			taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(new ResultPartitionID()));
+
+			// at this point we only know that the TE has entered releasePartitions; we cannot be certain whether it
+			// has already checked whether it should disconnect or not
+			firstReleasePartitionsCallFuture.get();
+
+			// connection should be kept alive since the table still contains partitions
+			// once this returns we know that the TE has exited releasePartitions and associated connection checks
+			runInTaskExecutorThreadAndWait(taskExecutor, () -> assertTrue(jobManagerTable.contains(jobId)));
+
+			final CompletableFuture<Collection<ResultPartitionID>> secondReleasePartitionsCallFuture = new CompletableFuture<>();
+			runInTaskExecutorThreadAndWait(taskExecutor, () -> shuffleEnvironment.releasePartitionsLocallyFuture = secondReleasePartitionsCallFuture);
+
+			// the TM should check whether partitions are still stored, and afterwards terminate the connection
+			taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(resultPartitionId));
+
+			disconnectFuture.get();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
 	}
 
 	@Test

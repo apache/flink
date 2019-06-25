@@ -713,6 +713,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		try {
 			partitionTable.stopTrackingPartitions(jobId, partitionIds);
 			shuffleEnvironment.releasePartitionsLocally(partitionIds);
+			closeJobManagerConnectionIfNoAllocatedResources(jobId);
 		} catch (Throwable t) {
 			// TODO: Do we still need this catch branch?
 			onFatalError(t);
@@ -1466,20 +1467,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				}
 
 				if (jobId != null) {
-					// check whether we still have allocated slots for the same job
-					if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty()) {
-						// we can remove the job from the job leader service
-						try {
-							jobLeaderService.removeJob(jobId);
-						} catch (Exception e) {
-							log.info("Could not remove job {} from JobLeaderService.", jobId, e);
-						}
-
-						closeJobManagerConnection(
-							jobId,
-							new FlinkException("TaskExecutor " + getAddress() +
-								" has no more allocated slots for job " + jobId + '.'));
-					}
+					closeJobManagerConnectionIfNoAllocatedResources(jobId);
 				}
 			}
 		} catch (SlotNotFoundException e) {
@@ -1487,6 +1475,23 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
+	}
+
+	private void closeJobManagerConnectionIfNoAllocatedResources(JobID jobId) {
+		// check whether we still have allocated slots for the same job
+		if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty() && !partitionTable.hasTrackedPartitions(jobId)) {
+			// we can remove the job from the job leader service
+			try {
+				jobLeaderService.removeJob(jobId);
+			} catch (Exception e) {
+				log.info("Could not remove job {} from JobLeaderService.", jobId, e);
+			}
+
+			closeJobManagerConnection(
+				jobId,
+				new FlinkException("TaskExecutor " + getAddress() +
+					" has no more allocated slots for job " + jobId + '.'));
+		}
 	}
 
 	private void timeoutSlot(AllocationID allocationId, UUID ticket) {
