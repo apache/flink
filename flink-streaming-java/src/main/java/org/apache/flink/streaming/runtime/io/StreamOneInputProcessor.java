@@ -62,9 +62,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
-public class StreamInputProcessor<IN> {
+public class StreamOneInputProcessor<IN> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamInputProcessor.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
 	private final StreamTaskInput input;
 
@@ -87,7 +87,7 @@ public class StreamInputProcessor<IN> {
 	private Counter numRecordsIn;
 
 	@SuppressWarnings("unchecked")
-	public StreamInputProcessor(
+	public StreamOneInputProcessor(
 			InputGate[] inputGates,
 			TypeSerializer<IN> inputSerializer,
 			StreamTask<?, ?> checkpointedTask,
