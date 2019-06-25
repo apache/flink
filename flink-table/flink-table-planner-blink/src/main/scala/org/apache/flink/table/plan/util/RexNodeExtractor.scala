@@ -18,14 +18,32 @@
 
 package org.apache.flink.table.plan.util
 
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
+import org.apache.flink.table.expressions.ApiExpressionUtils._
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.Logging
+import org.apache.flink.util.Preconditions
 
+import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
+import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 
+import java.sql.{Date, Time, Timestamp}
 import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
 object RexNodeExtractor extends Logging {
 
@@ -56,6 +74,41 @@ object RexNodeExtractor extends Logging {
     val visitor = new RefFieldAccessorVisitor(usedFields)
     exprs.foreach(_.accept(visitor))
     visitor.getProjectedFields
+  }
+
+  /**
+    * Convert rexNode into independent CNF expressions.
+    *
+    * @param expr            The RexNode to analyze
+    * @param inputFieldNames The input names of the RexNode
+    * @param rexBuilder      The factory to build CNF expressions
+    * @param catalog         The function catalog
+    * @return
+    */
+  def extractConjunctiveConditions(
+      expr: RexNode,
+      maxCnfNodeCount: Int,
+      inputFieldNames: JList[String],
+      rexBuilder: RexBuilder,
+      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
+    // converts the expanded expression to conjunctive normal form,
+    // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, expr)
+    // converts the cnf condition to a list of AND conditions
+    val conjunctions = RelOptUtil.conjunctions(cnf)
+
+    val convertedExpressions = new mutable.ArrayBuffer[Expression]
+    val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
+    val inputNames = inputFieldNames.asScala.toArray
+    val converter = new RexNodeToExpressionConverter(inputNames, catalog)
+
+    conjunctions.asScala.foreach(rex => {
+      rex.accept(converter) match {
+        case Some(expression) => convertedExpressions += expression
+        case None => unconvertedRexNodes += rex
+      }
+    })
+    (convertedExpressions.toArray, unconvertedRexNodes.toArray)
   }
 }
 
@@ -136,4 +189,159 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
 
   override def visitCall(call: RexCall): Unit =
     call.operands.foreach(operand => operand.accept(this))
+}
+
+/**
+  * An RexVisitor to convert RexNode to Expression.
+  *
+  * @param inputNames      The input names of the relation node
+  * @param functionCatalog The function catalog
+  */
+class RexNodeToExpressionConverter(
+    inputNames: Array[String],
+    functionCatalog: FunctionCatalog)
+  extends RexVisitor[Option[Expression]] {
+
+  override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
+    Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
+    Some(new FieldReferenceExpression(
+      inputNames(inputRef.getIndex),
+      TypeConversions.fromLogicalToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
+      0,
+      inputRef.getIndex
+    ))
+  }
+
+  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[Expression] =
+    visitInputRef(rexTableInputRef)
+
+  override def visitLocalRef(localRef: RexLocalRef): Option[Expression] = {
+    throw new TableException("Bug: RexLocalRef should have been expanded")
+  }
+
+  override def visitLiteral(literal: RexLiteral): Option[Expression] = {
+    // TODO support SqlTrimFunction.Flag
+    literal.getValue match {
+      case _: SqlTrimFunction.Flag => return None
+      case _ => // do nothing
+    }
+
+    val literalType = FlinkTypeFactory.toLogicalType(literal.getType)
+
+    val literalValue = literalType.getTypeRoot match {
+
+      case DATE =>
+        val v = literal.getValueAs(classOf[DateString])
+        new Date(DateTimeUtils.dateStringToUnixDate(v.toString) * DateTimeUtils.MILLIS_PER_DAY)
+
+      case TIME_WITHOUT_TIME_ZONE =>
+        val v = literal.getValueAs(classOf[TimeString])
+        new Time(DateTimeUtils.timeStringToUnixDate(v.toString(0)).longValue())
+
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        val v = literal.getValueAs(classOf[TimestampString])
+        new Timestamp(DateTimeUtils.timestampStringToUnixDate(v.toString(3)))
+
+      case TINYINT =>
+        // convert from BigDecimal to Byte
+        literal.getValueAs(classOf[java.lang.Byte])
+
+      case SMALLINT =>
+        // convert from BigDecimal to Short
+        literal.getValueAs(classOf[java.lang.Short])
+
+      case INTEGER =>
+        // convert from BigDecimal to Integer
+        literal.getValueAs(classOf[java.lang.Integer])
+
+      case BIGINT =>
+        // convert from BigDecimal to Long
+        literal.getValueAs(classOf[java.lang.Long])
+
+      case FLOAT =>
+        // convert from BigDecimal to Float
+        literal.getValueAs(classOf[java.lang.Float])
+
+      case DOUBLE =>
+        // convert from BigDecimal to Double
+        literal.getValueAs(classOf[java.lang.Double])
+
+      case VARCHAR | CHAR =>
+        // convert from NlsString to String
+        literal.getValueAs(classOf[java.lang.String])
+
+      case BOOLEAN =>
+        // convert to Boolean
+        literal.getValueAs(classOf[java.lang.Boolean])
+
+      case DECIMAL =>
+        // convert to BigDecimal
+        literal.getValueAs(classOf[java.math.BigDecimal])
+
+      case _ =>
+        literal.getValue
+    }
+
+    Some(valueLiteral(literalValue,
+      LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(literalType)))
+  }
+
+  override def visitCall(rexCall: RexCall): Option[Expression] = {
+    val operands = rexCall.getOperands.map(
+      operand => operand.accept(this).orNull
+    )
+
+    // return null if we cannot translate all the operands of the call
+    if (operands.contains(null)) {
+      None
+    } else {
+      rexCall.getOperator match {
+        case SqlStdOperatorTable.OR =>
+          Option(operands.reduceLeft { (l, r) => unresolvedCall(OR, l, r) })
+        case SqlStdOperatorTable.AND =>
+          Option(operands.reduceLeft { (l, r) => unresolvedCall(AND, l, r) })
+        case SqlStdOperatorTable.CAST =>
+          Option(unresolvedCall(CAST, operands.head,
+            typeLiteral(LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+              FlinkTypeFactory.toLogicalType(rexCall.getType)))))
+        case function: SqlFunction =>
+          lookupFunction(replace(function.getName), operands)
+        case postfix: SqlPostfixOperator =>
+          lookupFunction(replace(postfix.getName), operands)
+        case operator@_ =>
+          lookupFunction(replace(s"${operator.getKind}"), operands)
+      }
+    }
+  }
+
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[Expression] = None
+
+  override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[Expression] = None
+
+  override def visitRangeRef(rangeRef: RexRangeRef): Option[Expression] = None
+
+  override def visitSubQuery(subQuery: RexSubQuery): Option[Expression] = None
+
+  override def visitDynamicParam(dynamicParam: RexDynamicParam): Option[Expression] = None
+
+  override def visitOver(over: RexOver): Option[Expression] = None
+
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): Option[Expression] = None
+
+  private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
+    Try(functionCatalog.lookupFunction(name)) match {
+      case Success(f: java.util.Optional[FunctionLookup.Result]) =>
+        if (f.isPresent) {
+          Some(unresolvedCall(f.get().getFunctionDefinition, operands: _*))
+        } else {
+          None
+        }
+      case Failure(_) => None
+    }
+  }
+
+  private def replace(str: String): String = {
+    str.replaceAll("\\s|_", "")
+  }
+
 }

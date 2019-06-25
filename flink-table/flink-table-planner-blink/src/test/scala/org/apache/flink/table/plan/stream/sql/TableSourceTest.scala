@@ -18,15 +18,27 @@
 
 package org.apache.flink.table.plan.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.util._
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.{Before, Test}
+
+import java.sql.{Date, Time, Timestamp}
+import java.util.TimeZone
 
 class TableSourceTest extends TableTestBase {
+
+  private val util = streamTestUtil()
+
+  @Before
+  def setup(): Unit = {
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(false))
+  }
 
   @Test
   def testTableSourceWithLongRowTimeField(): Unit = {
@@ -38,7 +50,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rowtime", "val", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
@@ -56,7 +67,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rowtime", "val", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
@@ -74,7 +84,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rowtime", "val", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
@@ -100,7 +109,6 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "val", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "procTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), proctime = "pTime"))
@@ -118,7 +126,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
@@ -136,7 +143,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
@@ -170,7 +176,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
@@ -187,7 +192,6 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
@@ -206,7 +210,6 @@ class TableSourceTest extends TableTestBase {
       Array("p-rtime", "p-id", "p-name", "p-val"))
     val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestProjectableTableSource(
@@ -240,7 +243,6 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestNestedProjectableTableSource(false, tableSchema, returnType, Seq()))
@@ -264,11 +266,89 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name"))
 
-    val util = streamTestUtil()
     util.tableEnv.registerTableSource(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), null, null))
 
     util.verifyPlan("SELECT COUNT(1) FROM T")
+  }
+
+  @Test
+  def testFilterCanPushDown(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2")
+  }
+
+  @Test
+  def testFilterCannotPushDown(): Unit = {
+    // TestFilterableTableSource only accept predicates with `amount`
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE price > 10")
+  }
+
+  @Test
+  def testFilterPartialPushDown(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
+  }
+
+  @Test
+  def testFilterFullyPushDown(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
+  }
+
+  @Test
+  def testFilterCannotPushDown2(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
+  }
+
+  @Test
+  def testFilterCannotPushDown3(): Unit = {
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
+  }
+
+  @Test
+  def testFilterPushDownUnconvertedExpression(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * FROM FilterableTable WHERE
+        |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testFilterPushDownWithUdf(): Unit = {
+    util.addFunction("myUdf", Func1)
+    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
+  }
+
+  @Test
+  def testTimeLiteralExpressionPushDown(): Unit = {
+    val rowTypeInfo = new RowTypeInfo(
+      Array[TypeInformation[_]](
+        BasicTypeInfo.INT_TYPE_INFO,
+        SqlTimeTypeInfo.DATE,
+        SqlTimeTypeInfo.TIME,
+        SqlTimeTypeInfo.TIMESTAMP
+      ),
+      Array("id", "dv", "tv", "tsv")
+    )
+
+    val row = new Row(4)
+    row.setField(0, 1)
+    row.setField(1, Date.valueOf("2017-01-23"))
+    row.setField(2, Time.valueOf("14:23:02"))
+    row.setField(3, Timestamp.valueOf("2017-01-24 12:45:01.234"))
+
+    val tableSource = TestFilterableTableSource(
+      isBatch = false, rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
+    util.tableEnv.registerTableSource("FilterableTable1", tableSource)
+
+    val sqlQuery =
+      s"""
+         |SELECT id FROM FilterableTable1 WHERE
+         |  tv > TIME '14:25:02' AND
+         |  dv > DATE '2017-02-03' AND
+         |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
+      """.stripMargin
+    util.verifyPlan(sqlQuery)
   }
 }

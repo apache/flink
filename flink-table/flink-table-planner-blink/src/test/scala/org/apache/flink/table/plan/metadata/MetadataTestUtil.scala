@@ -20,67 +20,22 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{TableConfig, TableSchema}
-import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkContextImpl, FlinkTypeSystem}
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
-import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
-import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty, Lex}
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.rel.RelCollationTraitDef
-import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{FrameworkConfig, Frameworks}
 import org.mockito.Mockito.{mock, when}
-
-import java.util.{Collections, Properties}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 object MetadataTestUtil {
-
-  def createFrameworkConfig(defaultSchema: SchemaPlus, config: TableConfig): FrameworkConfig = {
-    val sqlParserConfig = SqlParser
-      .configBuilder()
-      .setLex(Lex.JAVA)
-      .build()
-    Frameworks.newConfigBuilder
-      .defaultSchema(defaultSchema)
-      .parserConfig(sqlParserConfig)
-      .costFactory(new FlinkCostFactory)
-      .typeSystem(new FlinkTypeSystem)
-      .operatorTable(new SqlStdOperatorTable)
-      .context(new FlinkContextImpl(config))
-      .traitDefs(Array(
-        ConventionTraitDef.INSTANCE,
-        FlinkRelDistributionTraitDef.INSTANCE,
-        RelCollationTraitDef.INSTANCE
-      ): _*)
-      .build
-  }
-
-  def createCatalogReader(
-      rootSchema: SchemaPlus,
-      typeFactory: RelDataTypeFactory): FlinkCalciteCatalogReader = {
-    val prop = new Properties()
-    prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName, "false")
-    val calciteConnConfig = new CalciteConnectionConfigImpl(prop)
-    new FlinkCalciteCatalogReader(
-      CalciteSchema.from(rootSchema),
-      Collections.emptyList(),
-      typeFactory,
-      calciteConnConfig)
-  }
 
   def initRootSchema(): SchemaPlus = {
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()

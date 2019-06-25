@@ -83,7 +83,7 @@ abstract class TableEnvironment(
   protected val defaultCatalogName: String = config.getBuiltInCatalogName
   protected val defaultDatabaseName: String = config.getBuiltInDatabaseName
 
-  private val functionCatalog = new FunctionCatalog(
+  private[flink] val functionCatalog = new FunctionCatalog(
     catalogManager.getCurrentCatalog, catalogManager.getCurrentDatabase)
 
   private val plannerContext: PlannerContext =

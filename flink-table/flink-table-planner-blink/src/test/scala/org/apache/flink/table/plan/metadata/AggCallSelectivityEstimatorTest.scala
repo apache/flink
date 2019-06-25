@@ -20,13 +20,14 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.{FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
 import org.apache.flink.table.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{AbstractRelOptPlanner, Context, Contexts, RelOptCluster}
+import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, TableScan}
 import org.apache.calcite.rel.logical.LogicalAggregate
@@ -81,7 +82,9 @@ class AggCallSelectivityEstimatorTest {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
-    val context = new FlinkContextImpl(tableConfig)
+    val functionCatalog = new FunctionCatalog(
+      tableConfig.getBuiltInCatalogName, tableConfig.getBuiltInDatabaseName)
+    val context = new FlinkContextImpl(tableConfig, functionCatalog)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getTypeFactory").thenReturn(typeFactory)

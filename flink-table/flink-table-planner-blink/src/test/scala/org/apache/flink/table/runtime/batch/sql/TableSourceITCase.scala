@@ -24,10 +24,11 @@ import org.apache.flink.table.api.{DataTypes, TableConfigOptions, TableSchema, T
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util.{TestNestedProjectableTableSource, TestProjectableTableSource}
+import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestProjectableTableSource}
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
+
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 
@@ -134,6 +135,19 @@ class TableSourceITCase extends BatchTestBase {
         row(2, "Rob", 20000, false, 2000),
         row(3, "Mike", 30000, true, 3000)
       )
+    )
+  }
+
+  @Test
+  def testTableSourceWithFilterable(): Unit = {
+    tEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
+    checkResult(
+      "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9",
+      Seq(
+        row(5, "Record_5"),
+        row(6, "Record_6"),
+        row(7, "Record_7"),
+        row(8, "Record_8"))
     )
   }
 }
