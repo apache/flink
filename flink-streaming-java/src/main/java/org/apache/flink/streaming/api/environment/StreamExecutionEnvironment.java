@@ -1502,7 +1502,23 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
+
+		return execute(getStreamGraph(jobName));
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * @param streamGraph the stream graph representing the transformations
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Internal
+	public abstract JobExecutionResult execute(StreamGraph streamGraph) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
