@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -94,7 +95,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 											.field("sixth", DataTypes.BIGINT())
 											.field("seventh", DataTypes.VARBINARY(200))
 											.build();
-		CatalogTable catalogTable = new HiveCatalogTable(tableSchema, getBatchTableProperties(), TEST_COMMENT);
+		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
 		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
