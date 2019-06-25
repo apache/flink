@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.Optional;
 
 /**
@@ -67,4 +68,32 @@ public interface ShuffleDescriptor extends Serializable {
 	 * @return the resource id of the producing task executor if the partition occupies local resources there
 	 */
 	Optional<ResourceID> storesLocalResourcesOn();
+
+	/**
+	 * Return release types supported by Shuffle Service for this partition.
+	 */
+	EnumSet<ReleaseType> getSupportedReleaseTypes();
+
+	/**
+	 * Partition release type.
+	 */
+	enum ReleaseType {
+		/**
+		 * Auto-release the partition after having been fully consumed once.
+		 *
+		 * <p>No additional actions required, like {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)}
+		 * or {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}
+		 */
+		AUTO,
+
+		/**
+		 * Manually release the partition, the partition has to support consumption multiple times.
+		 *
+		 * <p>The partition requires manual release once all consumption is done:
+		 * {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)} and
+		 * if the partition occupies producer local resources ({@link #storesLocalResourcesOn()}) then also
+		 * {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}.
+		 */
+		MANUAL
+	}
 }

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor.ReleaseType;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import java.io.Serializable;
 import java.util.Collection;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -51,20 +53,49 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
 	private final boolean sendScheduleOrUpdateConsumersMessage;
 
-	/** Whether the result partition is released on consumption. */
-	private final boolean releasedOnConsumption;
+	private final ReleaseType releaseType;
 
 	public ResultPartitionDeploymentDescriptor(
 			PartitionDescriptor partitionDescriptor,
 			ShuffleDescriptor shuffleDescriptor,
 			int maxParallelism,
 			boolean sendScheduleOrUpdateConsumersMessage) {
+		this(
+			checkNotNull(partitionDescriptor),
+			shuffleDescriptor,
+			maxParallelism,
+			sendScheduleOrUpdateConsumersMessage,
+			// Later we might have to make the scheduling adjust automatically
+			// if certain release type is not supported by shuffle service implementation at hand
+			partitionDescriptor.getPartitionType() == ResultPartitionType.BLOCKING ? ReleaseType.MANUAL : ReleaseType.AUTO);
+	}
+
+	public ResultPartitionDeploymentDescriptor(
+			PartitionDescriptor partitionDescriptor,
+			ShuffleDescriptor shuffleDescriptor,
+			int maxParallelism,
+			boolean sendScheduleOrUpdateConsumersMessage,
+			ReleaseType releaseType) {
+		checkReleaseOnConsumptionIsSupportedForPartition(shuffleDescriptor, releaseType);
 		this.partitionDescriptor = checkNotNull(partitionDescriptor);
 		this.shuffleDescriptor = checkNotNull(shuffleDescriptor);
 		KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
 		this.maxParallelism = maxParallelism;
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
-		this.releasedOnConsumption = partitionDescriptor.getPartitionType() != ResultPartitionType.BLOCKING;
+		this.releaseType = releaseType;
+	}
+
+	private static void checkReleaseOnConsumptionIsSupportedForPartition(
+			ShuffleDescriptor shuffleDescriptor,
+			ReleaseType releaseType) {
+		checkNotNull(shuffleDescriptor);
+		checkArgument(
+			shuffleDescriptor.getSupportedReleaseTypes().contains(releaseType),
+			"Release type %s is not supported by the shuffle service for this partition" +
+				"(id: %s), supported release types: %s",
+			releaseType,
+			shuffleDescriptor.getResultPartitionID(),
+			shuffleDescriptor.getSupportedReleaseTypes());
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -103,10 +134,15 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	 * by {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)}
 	 * and {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}.
 	 *
+	 * <p>The partition has to support the corresponding {@link ReleaseType} in
+	 * {@link ShuffleDescriptor#getSupportedReleaseTypes()}:
+	 * {@link ReleaseType#AUTO} for {@code isReleasedOnConsumption()} to return {@code true} and
+	 * {@link ReleaseType#MANUAL} for {@code isReleasedOnConsumption()} to return {@code false}.
+	 *
 	 * @return whether to release the partition after having been fully consumed once.
 	 */
 	public boolean isReleasedOnConsumption() {
-		return releasedOnConsumption;
+		return releaseType == ReleaseType.AUTO;
 	}
 
 	@Override

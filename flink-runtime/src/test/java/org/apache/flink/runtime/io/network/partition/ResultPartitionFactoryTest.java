@@ -58,14 +58,15 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			forceConsumptionOnRelease
 		);
 
+		ResultPartitionType partitionType = ResultPartitionType.BLOCKING;
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
 			new PartitionDescriptor(
 				new IntermediateDataSetID(),
 				new IntermediateResultPartitionID(),
-				ResultPartitionType.BLOCKING,
+				partitionType,
 				1,
 				0),
-			NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
 			1,
 			true
 		);

@@ -42,7 +42,8 @@ public enum NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor> 
 		NettyShuffleDescriptor shuffleDeploymentDescriptor = new NettyShuffleDescriptor(
 			producerDescriptor.getProducerLocation(),
 			createConnectionInfo(producerDescriptor, partitionDescriptor.getConnectionIndex()),
-			resultPartitionID);
+			resultPartitionID,
+			partitionDescriptor.getPartitionType().isBlocking());
 
 		return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
 	}

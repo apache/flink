@@ -30,6 +30,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor.ReleaseType;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
@@ -89,7 +90,8 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		ShuffleDescriptor shuffleDescriptor = new NettyShuffleDescriptor(
 			producerLocation,
 			new NetworkPartitionConnectionInfo(connectionID),
-			resultPartitionID);
+			resultPartitionID,
+			false);
 
 		ResultPartitionDeploymentDescriptor copy =
 			createCopyAndVerifyResultPartitionDeploymentDescriptor(shuffleDescriptor);
@@ -107,7 +109,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		for (ResultPartitionType partitionType : ResultPartitionType.values()) {
 			ResultPartitionDeploymentDescriptor partitionDescriptor = new ResultPartitionDeploymentDescriptor(
 				new PartitionDescriptor(resultId, partitionId, partitionType, numberOfSubpartitions, connectionIndex),
-				NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+				NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
 				1,
 				true
 			);
@@ -118,6 +120,16 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(true));
 			}
 		}
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testIncompatibleReleaseTypeManual() {
+		new ResultPartitionDeploymentDescriptor(
+			partitionDescriptor,
+			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(false).buildLocal(),
+			1,
+			true,
+			ReleaseType.MANUAL);
 	}
 
 	private static ResultPartitionDeploymentDescriptor createCopyAndVerifyResultPartitionDeploymentDescriptor(

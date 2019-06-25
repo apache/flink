@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.util.EnumSet;
 import java.util.Optional;
 
 /**
@@ -34,19 +35,29 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 
 	private static final long serialVersionUID = 852181945034989215L;
 
+	private static final EnumSet<ReleaseType> SUPPORTED_RELEASE_TYPES_FOR_BLOCKING_PARTITIONS =
+		EnumSet.of(ReleaseType.AUTO, ReleaseType.MANUAL);
+
+	private static final EnumSet<ReleaseType> SUPPORTED_RELEASE_TYPES_FOR_NON_BLOCKING_PARTITIONS =
+		EnumSet.of(ReleaseType.AUTO);
+
 	private final ResourceID producerLocation;
 
 	private final PartitionConnectionInfo partitionConnectionInfo;
 
 	private final ResultPartitionID resultPartitionID;
 
+	private final boolean isBlocking;
+
 	public NettyShuffleDescriptor(
 			ResourceID producerLocation,
 			PartitionConnectionInfo partitionConnectionInfo,
-			ResultPartitionID resultPartitionID) {
+			ResultPartitionID resultPartitionID,
+			boolean isBlocking) {
 		this.producerLocation = producerLocation;
 		this.partitionConnectionInfo = partitionConnectionInfo;
 		this.resultPartitionID = resultPartitionID;
+		this.isBlocking = isBlocking;
 	}
 
 	public ConnectionID getConnectionId() {
@@ -61,6 +72,12 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 	@Override
 	public Optional<ResourceID> storesLocalResourcesOn() {
 		return Optional.of(producerLocation);
+	}
+
+	@Override
+	public EnumSet<ReleaseType> getSupportedReleaseTypes() {
+		return isBlocking ?
+			SUPPORTED_RELEASE_TYPES_FOR_BLOCKING_PARTITIONS : SUPPORTED_RELEASE_TYPES_FOR_NON_BLOCKING_PARTITIONS;
 	}
 
 	public boolean isLocalTo(ResourceID consumerLocation) {

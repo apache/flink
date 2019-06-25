@@ -40,6 +40,7 @@ public class NettyShuffleDescriptorBuilder {
 	private InetAddress address = InetAddress.getLoopbackAddress();
 	private int dataPort = 0;
 	private int connectionIndex = 0;
+	private boolean isBlocking;
 
 	public NettyShuffleDescriptorBuilder setProducerLocation(ResourceID producerLocation) {
 		this.producerLocation = producerLocation;
@@ -73,19 +74,26 @@ public class NettyShuffleDescriptorBuilder {
 		return this;
 	}
 
+	public NettyShuffleDescriptorBuilder setBlocking(boolean isBlocking) {
+		this.isBlocking = isBlocking;
+		return this;
+	}
+
 	public NettyShuffleDescriptor buildRemote() {
 		ConnectionID connectionID = new ConnectionID(new InetSocketAddress(address, dataPort), connectionIndex);
 		return new NettyShuffleDescriptor(
 			producerLocation,
 			new NetworkPartitionConnectionInfo(connectionID),
-			id);
+			id,
+			isBlocking);
 	}
 
 	public NettyShuffleDescriptor buildLocal() {
 		return new NettyShuffleDescriptor(
 			producerLocation,
 			LocalExecutionPartitionConnectionInfo.INSTANCE,
-			id);
+			id,
+			isBlocking);
 	}
 
 	public static NettyShuffleDescriptorBuilder newBuilder() {
