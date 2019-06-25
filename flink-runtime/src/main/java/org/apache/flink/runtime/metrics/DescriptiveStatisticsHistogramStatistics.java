@@ -38,8 +38,9 @@ import java.util.Arrays;
 public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics {
 	private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
 
-	public DescriptiveStatisticsHistogramStatistics(DescriptiveStatistics latencyHistogram) {
-		latencyHistogram.apply(statisticsSummary);
+	public DescriptiveStatisticsHistogramStatistics(
+			DescriptiveStatisticsHistogram.CircularDoubleArray histogramValues) {
+		statisticsSummary.evaluate(histogramValues.toUnsortedArray());
 	}
 
 	@Override
