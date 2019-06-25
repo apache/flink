@@ -21,7 +21,7 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_BATCH_INTERVAL;
+import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
 
 /**
  * A builder to configure and build the JDBCAppendTableSink.
@@ -32,7 +32,7 @@ public class JDBCAppendTableSinkBuilder {
 	private String driverName;
 	private String dbURL;
 	private String query;
-	private int batchSize = DEFAULT_BATCH_INTERVAL;
+	private int batchSize = DEFAULT_FLUSH_MAX_SIZE;
 	private int[] parameterTypes;
 
 	/**
