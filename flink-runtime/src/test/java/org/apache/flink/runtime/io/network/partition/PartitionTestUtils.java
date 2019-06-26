@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
@@ -50,12 +51,32 @@ public class PartitionTestUtils {
 		return new ResultPartitionBuilder().setResultPartitionType(type).build();
 	}
 
+	public static ResultPartition createPartition(ResultPartitionType type, FileChannelManager channelManager) {
+		return new ResultPartitionBuilder()
+			.setResultPartitionType(type)
+			.setFileChannelManager(channelManager)
+			.build();
+	}
+
 	public static ResultPartition createPartition(
 			NettyShuffleEnvironment environment,
 			ResultPartitionType partitionType,
 			int numChannels) {
 		return new ResultPartitionBuilder()
 			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
+			.setResultPartitionType(partitionType)
+			.setNumberOfSubpartitions(numChannels)
+			.build();
+	}
+
+	public static ResultPartition createPartition(
+			NettyShuffleEnvironment environment,
+			FileChannelManager channelManager,
+			ResultPartitionType partitionType,
+			int numChannels) {
+		return new ResultPartitionBuilder()
+			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
+			.setFileChannelManager(channelManager)
 			.setResultPartitionType(partitionType)
 			.setNumberOfSubpartitions(numChannels)
 			.build();

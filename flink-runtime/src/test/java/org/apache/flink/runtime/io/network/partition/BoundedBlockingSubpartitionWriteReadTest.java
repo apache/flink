@@ -21,9 +21,14 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -48,6 +53,10 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class BoundedBlockingSubpartitionWriteReadTest {
 
+	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+
+	private static FileChannelManager fileChannelManager;
+
 	@ClassRule
 	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
@@ -70,6 +79,16 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	// ------------------------------------------------------------------------
 	//  tests
 	// ------------------------------------------------------------------------
+
+	@BeforeClass
+	public static void setUp() {
+		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+	}
+
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
+	}
 
 	@Test
 	public void testWriteAndReadData() throws Exception {
@@ -188,7 +207,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	private BoundedBlockingSubpartition createSubpartition() throws IOException {
 		return type.create(
 				0,
-				PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING),
+				PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING, fileChannelManager),
 				new File(TMP_FOLDER.newFolder(), "partitiondata"),
 				BUFFER_SIZE);
 	}
