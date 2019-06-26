@@ -189,7 +189,7 @@ public class SchedulingUtils {
 	 * but only if the scheduling really requires it.
 	 * Otherwise this method simply returns an empty set.
 	 */
-	static private Set<AllocationID> computePriorAllocationIdsIfRequiredByScheduling(
+	private static Set<AllocationID> computePriorAllocationIdsIfRequiredByScheduling(
 		final Collection<ExecutionVertex> vertices,
 		final SlotProvider slotProvider) {
 		// This is a temporary optimization to avoid computing all previous allocations if not required
@@ -206,7 +206,7 @@ public class SchedulingUtils {
 	/**
 	 * Computes and returns a set with the prior allocation ids for given execution vertices.
 	 */
-	static private Set<AllocationID> computePriorAllocationIds(final Collection<ExecutionVertex> vertices) {
+	private static Set<AllocationID> computePriorAllocationIds(final Collection<ExecutionVertex> vertices) {
 		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>(vertices.size());
 		for (ExecutionVertex executionVertex : vertices) {
 			AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();

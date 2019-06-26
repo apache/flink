@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.mock.Whitebox;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest;
@@ -80,7 +79,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -453,13 +451,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			restartStrategy,
 			TestAdaptedRestartPipelinedRegionStrategyNG::new,
 			slotProvider);
-		try {
-			eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
 		if (checkpointId >= 0) {
 			enableCheckpointing(eg);
