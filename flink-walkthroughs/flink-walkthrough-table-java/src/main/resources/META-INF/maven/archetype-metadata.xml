@@ -1,10 +1,3 @@
----
-title: "教程"
-nav-id: tutorials
-nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> 教程'
-nav-parent_id: getting-started
-nav-pos: 2
----
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -23,3 +16,21 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+<archetype-descriptor
+	xmlns="http://maven.apache.org/plugins/maven-archetype-plugin/archetype-descriptor/1.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/plugins/maven-archetype-plugin/archetype-descriptor/1.0.0 http://maven.apache.org/xsd/archetype-descriptor-1.0.0.xsd"
+	name="flink-walkthrough-table-java">
+	<fileSets>
+		<fileSet filtered="true" packaged="true" encoding="UTF-8">
+			<directory>src/main/java</directory>
+			<includes>
+				<include>**/*.java</include>
+			</includes>
+		</fileSet>
+		<fileSet encoding="UTF-8">
+			<directory>src/main/resources</directory>
+		</fileSet>
+	</fileSets>
+</archetype-descriptor>
