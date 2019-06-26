@@ -21,6 +21,9 @@ package org.apache.flink.batch.connectors.hive;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
@@ -55,30 +58,31 @@ import java.util.List;
 public class HiveTableSink extends OutputFormatTableSink<Row> {
 
 	private final JobConf jobConf;
+	private final CatalogTable catalogTable;
+	private final ObjectPath tablePath;
 	private final RowTypeInfo rowTypeInfo;
-	private final String dbName;
-	private final String tableName;
-	private final List<String> partitionColumns;
 	private final String hiveVersion;
 
 	// TODO: need OverwritableTableSink to configure this
 	private boolean overwrite = false;
 
-	public HiveTableSink(JobConf jobConf, RowTypeInfo rowTypeInfo, String dbName, String tableName,
-			List<String> partitionColumns) {
+	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTable table) {
 		this.jobConf = jobConf;
-		this.rowTypeInfo = rowTypeInfo;
-		this.dbName = dbName;
-		this.tableName = tableName;
-		this.partitionColumns = partitionColumns;
+		this.tablePath = tablePath;
+		this.catalogTable = table;
 		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
+		TableSchema tableSchema = table.getSchema();
+		rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
 	@Override
 	public OutputFormat<Row> getOutputFormat() {
+		List<String> partitionColumns = catalogTable.getPartitionKeys();
 		boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
 		// TODO: need PartitionableTableSink to decide whether it's dynamic partitioning
 		boolean isDynamicPartition = isPartitioned;
+		String dbName = tablePath.getDatabaseName();
+		String tableName = tablePath.getObjectName();
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
 			Table table = client.getTable(dbName, tableName);
 			StorageDescriptor sd = table.getSd();
@@ -109,8 +113,13 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 				sd.setLocation(toStagingDir(sdLocation, jobConf));
 				hiveTablePartition = new HiveTablePartition(sd, null);
 			}
-			return new HiveTableOutputFormat(jobConf, dbName, tableName,
-					partitionColumns, rowTypeInfo, hiveTablePartition, MetaStoreUtils.getTableMetadata(table), overwrite);
+			return new HiveTableOutputFormat(
+				jobConf,
+				tablePath,
+				catalogTable,
+				hiveTablePartition,
+				MetaStoreUtils.getTableMetadata(table),
+				overwrite);
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} catch (IOException e) {
@@ -120,7 +129,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return new HiveTableSink(jobConf, new RowTypeInfo(fieldTypes, fieldNames), dbName, tableName, partitionColumns);
+		return new HiveTableSink(jobConf, tablePath, catalogTable);
 	}
 
 	@Override

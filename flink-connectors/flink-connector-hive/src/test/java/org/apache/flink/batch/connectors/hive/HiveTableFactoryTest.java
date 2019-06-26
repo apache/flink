@@ -81,18 +81,37 @@ public class HiveTableFactoryTest {
 		properties.put("format.fields.1.name", "age");
 		properties.put("format.fields.1.type", "INT");
 
-		CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
-
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");
+		CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
 		catalog.createTable(path, table, true);
 		Optional<TableFactory> opt = catalog.getTableFactory();
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSource tableSource = tableFactory.createTableSource(table);
+		TableSource tableSource = tableFactory.createTableSource(path, table);
 		assertTrue(tableSource instanceof StreamTableSource);
-		TableSink tableSink = tableFactory.createTableSink(table);
+		TableSink tableSink = tableFactory.createTableSink(path, table);
 		assertTrue(tableSink instanceof StreamTableSink);
+	}
+
+	@Test
+	public void testHiveTable() throws Exception {
+		TableSchema schema = TableSchema.builder()
+			.field("name", DataTypes.STRING())
+			.field("age", DataTypes.INT())
+			.build();
+
+		Map<String, String> properties = new HashMap<>();
+
+		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
+		ObjectPath path = new ObjectPath("mydb", "mytable");
+		CatalogTable table = new CatalogTableImpl(schema, properties, "hive table");
+		catalog.createTable(path, table, true);
+		Optional<TableFactory> opt = catalog.getTableFactory();
+		assertTrue(opt.isPresent());
+		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
+		TableSink tableSink = tableFactory.createTableSink(path, table);
+		assertTrue(tableSink instanceof HiveTableSink);
 	}
 
 }

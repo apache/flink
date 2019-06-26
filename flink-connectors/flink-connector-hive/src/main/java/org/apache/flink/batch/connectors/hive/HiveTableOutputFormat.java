@@ -25,6 +25,9 @@ import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
@@ -108,8 +111,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private static final long serialVersionUID = 5167529504848109023L;
 
 	private transient JobConf jobConf;
-	private transient String databaseName;
-	private transient String tableName;
+	private transient ObjectPath tablePath;
 	private transient List<String> partitionColumns;
 	private transient RowTypeInfo rowTypeInfo;
 	private transient HiveTablePartition hiveTablePartition;
@@ -139,23 +141,20 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	// to convert Flink object to Hive object
 	private transient HiveObjectConversion[] hiveConversions;
 
-	public HiveTableOutputFormat(JobConf jobConf, String databaseName, String tableName, List<String> partitionColumns,
-								RowTypeInfo rowTypeInfo, HiveTablePartition hiveTablePartition,
+	public HiveTableOutputFormat(JobConf jobConf, ObjectPath tablePath, CatalogTable table, HiveTablePartition hiveTablePartition,
 								Properties tableProperties, boolean overwrite) {
 		super(jobConf.getCredentials());
 
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "DB name is empty");
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(tableName), "Table name is empty");
-		Preconditions.checkNotNull(rowTypeInfo, "RowTypeInfo cannot be null");
+		Preconditions.checkNotNull(table, "table cannot be null");
 		Preconditions.checkNotNull(hiveTablePartition, "HiveTablePartition cannot be null");
 		Preconditions.checkNotNull(tableProperties, "Table properties cannot be null");
 
 		HadoopUtils.mergeHadoopConf(jobConf);
 		this.jobConf = jobConf;
-		this.databaseName = databaseName;
-		this.tableName = tableName;
-		this.partitionColumns = partitionColumns;
-		this.rowTypeInfo = rowTypeInfo;
+		this.tablePath = tablePath;
+		this.partitionColumns = table.getPartitionKeys();
+		TableSchema tableSchema = table.getSchema();
+		this.rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 		this.hiveTablePartition = hiveTablePartition;
 		this.tableProperties = tableProperties;
 		this.overwrite = overwrite;
@@ -174,8 +173,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		out.writeObject(rowTypeInfo);
 		out.writeObject(hiveTablePartition);
 		out.writeObject(partitionColumns);
-		out.writeObject(databaseName);
-		out.writeObject(tableName);
+		out.writeObject(tablePath);
 		out.writeObject(tableProperties);
 	}
 
@@ -197,8 +195,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		rowTypeInfo = (RowTypeInfo) in.readObject();
 		hiveTablePartition = (HiveTablePartition) in.readObject();
 		partitionColumns = (List<String>) in.readObject();
-		databaseName = (String) in.readObject();
-		tableName = (String) in.readObject();
+		tablePath = (ObjectPath) in.readObject();
 		partitionToWriter = new HashMap<>();
 		tableProperties = (Properties) in.readObject();
 	}
@@ -209,7 +206,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		Path stagingDir = new Path(jobSD.getLocation());
 		FileSystem fs = stagingDir.getFileSystem(jobConf);
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
-			Table table = client.getTable(databaseName, tableName);
+			Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
 			if (!isDynamicPartition) {
 				commitJob(stagingDir.toString());
 			}
@@ -336,8 +333,9 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private void loadPartition(Path srcDir, Table table, Map<String, String> partSpec, HiveMetastoreClientWrapper client)
 			throws TException, IOException {
 		Path tblLocation = new Path(table.getSd().getLocation());
-		List<Partition> existingPart = client.listPartitions(databaseName, tableName,
-				new ArrayList<>(partSpec.values()), (short) 1);
+		String dbName = tablePath.getDatabaseName();
+		String tableName = tablePath.getObjectName();
+		List<Partition> existingPart = client.listPartitions(dbName, tableName, new ArrayList<>(partSpec.values()), (short) 1);
 		Path destDir = existingPart.isEmpty() ? new Path(tblLocation, Warehouse.makePartPath(partSpec)) :
 				new Path(existingPart.get(0).getSd().getLocation());
 		moveFiles(srcDir, destDir);
@@ -345,7 +343,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		if (existingPart.isEmpty()) {
 			StorageDescriptor sd = new StorageDescriptor(hiveTablePartition.getStorageDescriptor());
 			sd.setLocation(destDir.toString());
-			Partition partition = HiveTableUtil.createHivePartition(databaseName, tableName,
+			Partition partition = HiveTableUtil.createHivePartition(dbName, tableName,
 					new ArrayList<>(partSpec.values()), sd, new HashMap<>());
 			partition.setValues(new ArrayList<>(partSpec.values()));
 			client.add_partition(partition);

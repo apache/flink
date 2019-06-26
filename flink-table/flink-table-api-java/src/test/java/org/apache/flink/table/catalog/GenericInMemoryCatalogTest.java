@@ -158,14 +158,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Override
-	public CatalogTable createStreamingTable() {
-		return new CatalogTableImpl(
-			createTableSchema(),
-			getStreamingTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
 	public CatalogPartition createPartition() {
 		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
 	}

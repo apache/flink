@@ -177,7 +177,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public Optional<TableFactory> getTableFactory() {
-		return Optional.of(new HiveTableFactory());
+		return Optional.of(new HiveTableFactory(hiveConf));
 	}
 
 	// ------ databases ------

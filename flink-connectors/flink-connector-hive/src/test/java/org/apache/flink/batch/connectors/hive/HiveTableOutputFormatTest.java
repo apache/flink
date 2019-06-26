@@ -20,8 +20,8 @@ package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -82,12 +82,13 @@ public class HiveTableOutputFormatTest {
 	public void testInsertOverwrite() throws Exception {
 		String dbName = "default";
 		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
+		createDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
 
 		// write some data and verify
-		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, hiveTable, rowTypeInfo, null, false);
+		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, (CatalogTableImpl) table, hiveTable, null, false);
 		outputFormat.open(0, 1);
 		List<Row> toWrite = generateRecords(5);
 		writeRecords(toWrite, outputFormat);
@@ -96,7 +97,7 @@ public class HiveTableOutputFormatTest {
 		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite, 0);
 
 		// write some data to overwrite existing data and verify
-		outputFormat = createHiveTableOutputFormat(tablePath, hiveTable, rowTypeInfo, null, true);
+		outputFormat = createHiveTableOutputFormat(tablePath, (CatalogTableImpl) table, hiveTable, null, true);
 		outputFormat.open(0, 1);
 		toWrite = generateRecords(3);
 		writeRecords(toWrite, outputFormat);
@@ -111,13 +112,14 @@ public class HiveTableOutputFormatTest {
 	public void testInsertIntoStaticPartition() throws Exception {
 		String dbName = "default";
 		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
+		createDestTable(dbName, tblName, 1);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
 
 		Map<String, Object> partSpec = new HashMap<>();
 		partSpec.put("s", "a");
-		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, hiveTable, rowTypeInfo, partSpec, false);
+		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, (CatalogTableImpl) table, hiveTable, partSpec, false);
 		outputFormat.open(0, 1);
 		List<Row> toWrite = generateRecords(1);
 		writeRecords(toWrite, outputFormat);
@@ -133,7 +135,7 @@ public class HiveTableOutputFormatTest {
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
-	private RowTypeInfo createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
+	private void createDestTable(String dbName, String tblName, int numPartCols) throws Exception {
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 		TableSchema tableSchema = new TableSchema(
 				new String[]{"i", "l", "d", "s"},
@@ -145,7 +147,6 @@ public class HiveTableOutputFormatTest {
 		);
 		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(tablePath, catalogTable, false);
-		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
 	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
@@ -157,15 +158,14 @@ public class HiveTableOutputFormatTest {
 		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
 	}
 
-	private HiveTableOutputFormat createHiveTableOutputFormat(ObjectPath tablePath, Table hiveTable,
-			RowTypeInfo rowTypeInfo, Map<String, Object> partSpec, boolean overwrite) throws Exception {
+	private HiveTableOutputFormat createHiveTableOutputFormat(ObjectPath tablePath, CatalogTable catalogTable, Table hiveTable,
+			Map<String, Object> partSpec, boolean overwrite) throws Exception {
 		StorageDescriptor jobSD = hiveTable.getSd().deepCopy();
 		jobSD.setLocation(hiveTable.getSd().getLocation() + "/.staging");
 		HiveTablePartition hiveTablePartition = new HiveTablePartition(jobSD, partSpec);
 		JobConf jobConf = new JobConf(hiveConf);
-		return new HiveTableOutputFormat(jobConf, tablePath.getDatabaseName(), tablePath.getObjectName(),
-				HiveCatalog.getFieldNames(hiveTable.getPartitionKeys()), rowTypeInfo, hiveTablePartition,
-				MetaStoreUtils.getTableMetadata(hiveTable), overwrite);
+		return new HiveTableOutputFormat(jobConf, tablePath, catalogTable, hiveTablePartition,
+			MetaStoreUtils.getTableMetadata(hiveTable), overwrite);
 	}
 
 	private void verifyWrittenData(Path outputFile, List<Row> expected, int numPartCols) throws Exception {
