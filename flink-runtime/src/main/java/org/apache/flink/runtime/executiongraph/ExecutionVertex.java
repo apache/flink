@@ -591,6 +591,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			final ExecutionState oldState = oldExecution.getState();
 
 			if (oldState.isTerminal()) {
+				if (oldState == FINISHED) {
+					oldExecution.stopTrackingAndReleasePartitions();
+				}
+
 				priorExecutions.add(oldExecution.archive());
 
 				final Execution newExecution = new Execution(

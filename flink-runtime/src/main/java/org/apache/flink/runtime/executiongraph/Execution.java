@@ -1335,7 +1335,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void stopTrackingAndReleasePartitions() {
+	void stopTrackingAndReleasePartitions() {
 		LOG.info("Discarding the results produced by task execution {}.", attemptId);
 		if (producedPartitions != null && producedPartitions.size() > 0) {
 			final PartitionTracker partitionTracker = getVertex().getExecutionGraph().getPartitionTracker();
