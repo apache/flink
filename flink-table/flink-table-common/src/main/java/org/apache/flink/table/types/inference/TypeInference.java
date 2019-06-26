@@ -40,11 +40,11 @@ import java.util.Optional;
  * <p>See {@link TypeInferenceUtil} for more information about the type inference process.
  */
 @PublicEvolving
-public class TypeInference {
+public final class TypeInference {
 
 	private final InputTypeValidator inputTypeValidator;
 
-	private final TypeStrategy accumulatorTypeStrategy;
+	private final @Nullable TypeStrategy accumulatorTypeStrategy;
 
 	private final TypeStrategy outputTypeStrategy;
 
@@ -54,12 +54,12 @@ public class TypeInference {
 
 	private TypeInference(
 			InputTypeValidator inputTypeValidator,
-			TypeStrategy accumulatorTypeStrategy,
+			@Nullable TypeStrategy accumulatorTypeStrategy,
 			TypeStrategy outputTypeStrategy,
 			@Nullable List<String> argumentNames,
 			@Nullable List<DataType> argumentTypes) {
 		this.inputTypeValidator = inputTypeValidator;
-		this.accumulatorTypeStrategy = outputTypeStrategy;
+		this.accumulatorTypeStrategy = accumulatorTypeStrategy;
 		this.outputTypeStrategy = outputTypeStrategy;
 		if (argumentNames != null && argumentTypes != null && argumentNames.size() != argumentTypes.size()) {
 			throw new IllegalArgumentException(
@@ -76,8 +76,8 @@ public class TypeInference {
 		return inputTypeValidator;
 	}
 
-	public TypeStrategy getAccumulatorTypeStrategy() {
-		return accumulatorTypeStrategy;
+	public Optional<TypeStrategy> getAccumulatorTypeStrategy() {
+		return Optional.ofNullable(accumulatorTypeStrategy);
 	}
 
 	public TypeStrategy getOutputTypeStrategy() {
@@ -126,9 +126,6 @@ public class TypeInference {
 
 		/**
 		 * Sets the strategy for inferring the intermediate accumulator data type of a function call.
-		 *
-		 * <p>By default the accumulator type is assumed to be equal to the output type strategy (see
-		 * {@link #outputTypeStrategy(TypeStrategy)}).
 		 */
 		public Builder accumulatorTypeStrategy(TypeStrategy accumulatorTypeStrategy) {
 			this.accumulatorTypeStrategy =
@@ -171,11 +168,10 @@ public class TypeInference {
 		}
 
 		public TypeInference build() {
-			Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null.");
 			return new TypeInference(
 				inputTypeValidator,
-				accumulatorTypeStrategy == null ? outputTypeStrategy : accumulatorTypeStrategy,
-				outputTypeStrategy,
+				accumulatorTypeStrategy,
+				Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null."),
 				argumentNames,
 				argumentTypes);
 		}

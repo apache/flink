@@ -21,13 +21,16 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Utility for performing type inference.
  */
 @Internal
-public class TypeInferenceUtil {
+public final class TypeInferenceUtil {
 
 	public static Result runTypeInference(TypeInference typeInference, CallContext callContext) {
 		throw new UnsupportedOperationException();
@@ -38,17 +41,17 @@ public class TypeInferenceUtil {
 	 * modified in order to comply with the function's signature. This includes casts that need to be
 	 * inserted, reordering of arguments, or insertion of default values.
 	 */
-	public static class Result {
+	public static final class Result {
 
 		private final List<DataType> expectedArgumentTypes;
 
-		private final DataType accumulatorDataType;
+		private final @Nullable DataType accumulatorDataType;
 
 		private final DataType outputDataType;
 
 		public Result(
 				List<DataType> expectedArgumentTypes,
-				DataType accumulatorDataType,
+				@Nullable DataType accumulatorDataType,
 				DataType outputDataType) {
 			this.expectedArgumentTypes = expectedArgumentTypes;
 			this.accumulatorDataType = accumulatorDataType;
@@ -59,8 +62,8 @@ public class TypeInferenceUtil {
 			return expectedArgumentTypes;
 		}
 
-		public DataType getAccumulatorDataType() {
-			return accumulatorDataType;
+		public Optional<DataType> getAccumulatorDataType() {
+			return Optional.ofNullable(accumulatorDataType);
 		}
 
 		public DataType getOutputDataType() {

@@ -42,12 +42,16 @@ public interface CallContextBase {
 	/**
 	 * Returns {@code true} if the argument at the given position is a literal and {@code null},
 	 * {@code false} otherwise.
+	 *
+	 * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
 	 */
 	boolean isArgumentNull(int pos);
 
 	/**
 	 * Returns the literal value of the argument at the given position, given that the argument is a
 	 * literal, is not null, and can be expressed as an instance of the provided class.
+	 *
+	 * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
 	 */
 	<T> Optional<T> getArgumentValue(int pos, Class<T> clazz);
 

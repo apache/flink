@@ -28,17 +28,25 @@ import java.util.Optional;
 @PublicEvolving
 public interface ArgumentCount {
 
+	/**
+	 * Enables custom validation of argument counts after {@link #getMinCount()} and
+	 * {@link #getMaxCount()} have been validated.
+	 *
+	 * @param count total number of arguments including each argument for a vararg function call
+	 */
 	boolean isValidCount(int count);
 
 	/**
-	 * Returns the minimum number of argument that a function can take. {@link Optional#empty()} if
-	 * such a lower bound is not defined.
+	 * Returns the minimum number of argument (inclusive) that a function can take.
+	 *
+	 * <p>{@link Optional#empty()} if such a lower bound is not defined.
 	 */
 	Optional<Integer> getMinCount();
 
 	/**
-	 * Returns the maximum number of argument that a function can take. {@link Optional#empty()} if
-	 * such an upper bound is not defined.
+	 * Returns the maximum number of argument (inclusive) that a function can take.
+	 *
+	 * <p>{@link Optional#empty()} if such an upper bound is not defined.
 	 */
 	Optional<Integer> getMaxCount();
 }
