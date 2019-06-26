@@ -108,6 +108,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
@@ -145,6 +146,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -826,11 +828,8 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void init() throws Exception {}
-
-		@Override
-		protected void performDefaultAction(DefaultActionContext context) throws Exception {
-			context.allActionsCompleted();
+		protected void init() throws Exception {
+			inputProcessor = new EmptyInputProcessor();
 		}
 
 		@Override
@@ -1019,7 +1018,6 @@ public class StreamTaskTest extends TestLogger {
 	private static class MockStreamTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
 		private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
-		private volatile boolean inputFinished;
 
 		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
 			super(env, null, uncaughtExceptionHandler);
@@ -1033,20 +1031,47 @@ public class StreamTaskTest extends TestLogger {
 			// here for test purposes.
 			super.operatorChain = this.overrideOperatorChain;
 			super.headOperator = super.operatorChain.getHeadOperator();
+			super.inputProcessor = new EmptyInputProcessor(false);
 		}
-
-		@Override
-		protected void performDefaultAction(DefaultActionContext context) {
-			if (isCanceled() || inputFinished) {
-				context.allActionsCompleted();
-			}
-		}
-
-		@Override
-		protected void cleanup() throws Exception {}
 
 		void finishInput() {
-			this.inputFinished = true;
+			checkState(inputProcessor != null, "Tried to finishInput before MockStreamTask was started");
+			((EmptyInputProcessor) inputProcessor).finishInput();
+		}
+	}
+
+	private static class EmptyInputProcessor implements StreamInputProcessor {
+		private volatile boolean isFinished;
+
+		public EmptyInputProcessor() {
+			this(true);
+		}
+
+		public EmptyInputProcessor(boolean startFinished) {
+			isFinished = startFinished;
+		}
+
+		@Override
+		public boolean processInput() throws Exception {
+			return false;
+		}
+
+		@Override
+		public void close() throws IOException {
+		}
+
+		@Override
+		public boolean isFinished() {
+			return isFinished;
+		}
+
+		@Override
+		public CompletableFuture<?> isAvailable() {
+			return AVAILABLE;
+		}
+
+		public void finishInput() {
+			isFinished = true;
 		}
 	}
 
@@ -1262,6 +1287,7 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		protected void init() throws Exception {
+			super.init();
 			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
