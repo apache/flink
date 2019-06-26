@@ -41,15 +41,17 @@ public class ResultPartitionFactoryTest extends TestLogger {
 
 	@Test
 	public void testConsumptionOnReleaseEnabled() {
-		testConsumptionOnRelease(true);
+		final ResultPartition resultPartition = createResultPartition(ShuffleDescriptor.ReleaseType.AUTO);
+		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
 	}
 
 	@Test
 	public void testConsumptionOnReleaseDisabled() {
-		testConsumptionOnRelease(false);
+		final ResultPartition resultPartition = createResultPartition(ShuffleDescriptor.ReleaseType.MANUAL);
+		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
 	}
 
-	private static void testConsumptionOnRelease(boolean releaseOnConsumption) {
+	private static ResultPartition createResultPartition(ShuffleDescriptor.ReleaseType releaseType) {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
 			new NoOpIOManager(),
@@ -69,17 +71,9 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
 			1,
 			true,
-			releaseOnConsumption
-				? ShuffleDescriptor.ReleaseType.AUTO
-				: ShuffleDescriptor.ReleaseType.MANUAL
+			releaseType
 		);
 
-		final ResultPartition test = factory.create("test", new ExecutionAttemptID(), descriptor);
-
-		if (releaseOnConsumption) {
-			assertThat(test, instanceOf(ReleaseOnConsumptionResultPartition.class));
-		} else {
-			assertThat(test, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
-		}
+		return factory.create("test", new ExecutionAttemptID(), descriptor);
 	}
 }
