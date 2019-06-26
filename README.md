@@ -129,7 +129,7 @@ or in the `docs/` directory of the source code.
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it.
 Contact us if you are looking for implementation tasks that fit your skills.
-This article describes [how to contribute to Apache Flink](http://flink.apache.org/how-to-contribute.html).
+This article describes [how to contribute to Apache Flink](http://flink.apache.org/contributing/how-to-contribute.html).
 
 
 ## About
