@@ -45,6 +45,9 @@ import java.io.IOException;
  */
 @Internal
 public class SavepointOutputFormat implements OutputFormat<Savepoint> {
+
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointOutputFormat.class);
 
 	private final Path savepointPath;

@@ -42,6 +42,8 @@ import org.apache.flink.streaming.api.TimerService;
 @PublicEvolving
 public abstract class KeyedStateBootstrapFunction<K, IN> extends AbstractRichFunction {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Process one element from the input stream.
 	 *

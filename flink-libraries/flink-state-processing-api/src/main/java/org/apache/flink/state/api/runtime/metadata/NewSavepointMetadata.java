@@ -30,6 +30,8 @@ import java.util.Collections;
  */
 public class NewSavepointMetadata implements SavepointMetadata {
 
+	private static final long serialVersionUID = 1L;
+
 	private final int maxParallelism;
 
 	public NewSavepointMetadata(int maxParallelism) {

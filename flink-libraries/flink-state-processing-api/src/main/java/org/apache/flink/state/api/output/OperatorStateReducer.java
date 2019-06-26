@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -37,6 +38,8 @@ public class OperatorStateReducer implements GroupReduceFunction<OperatorState, 
 	private final SavepointMetadata metadata;
 
 	public OperatorStateReducer(SavepointMetadata metadata) {
+		Preconditions.checkNotNull(metadata, "Savepoint metadata must not be null");
+
 		this.metadata = metadata;
 	}
 

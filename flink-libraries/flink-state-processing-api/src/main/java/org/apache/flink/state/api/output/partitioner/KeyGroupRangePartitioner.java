@@ -27,6 +27,9 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
  */
 @Internal
 public class KeyGroupRangePartitioner implements Partitioner<Integer> {
+
+	private static final long serialVersionUID = 1L;
+
 	private final int maxParallelism;
 
 	public KeyGroupRangePartitioner(int maxParallelism) {

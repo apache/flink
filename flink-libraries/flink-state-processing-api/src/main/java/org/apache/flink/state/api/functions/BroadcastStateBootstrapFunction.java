@@ -31,6 +31,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 @PublicEvolving
 public abstract class BroadcastStateBootstrapFunction<IN> extends AbstractRichFunction  {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Writes the given value to operator state. This function is called for every record.
 	 *

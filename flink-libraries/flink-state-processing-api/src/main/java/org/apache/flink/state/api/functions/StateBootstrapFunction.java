@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 @PublicEvolving
 public abstract class StateBootstrapFunction<IN> extends AbstractRichFunction implements CheckpointedFunction {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Writes the given value to operator state. This function is called for every record.
 	 *

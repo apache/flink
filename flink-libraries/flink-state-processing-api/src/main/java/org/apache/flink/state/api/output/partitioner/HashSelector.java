@@ -30,6 +30,9 @@ import org.apache.flink.util.Preconditions;
  */
 @Internal
 public class HashSelector<IN> implements KeySelector<IN, Integer> {
+
+	private static final long serialVersionUID = 1L;
+
 	private final KeySelector<IN, ?> keySelector;
 
 	public HashSelector(KeySelector<IN, ?> keySelector) {

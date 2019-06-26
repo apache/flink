@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,6 +44,9 @@ public class OperatorSubtaskStateReducer
 	private final int maxParallelism;
 
 	public OperatorSubtaskStateReducer(String uid, int maxParallelism) {
+		Preconditions.checkNotNull(uid, "Uid must not be null.");
+		Preconditions.checkState(maxParallelism > 1);
+
 		this.uid = uid;
 		this.maxParallelism = maxParallelism;
 	}
