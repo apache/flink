@@ -26,8 +26,13 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
- * A {@link KafkaSerializationSchema} defines how to serialize values of type {@code T} into
- * {@link ProducerRecord ProducerRecords}.
+ * A {@link KafkaSerializationSchema} defines how to serialize values of type {@code T} into {@link
+ * ProducerRecord ProducerRecords}.
+ *
+ * <p>Please also implement {@link KafkaContextAware} if your serialization schema needs
+ * information
+ * about the available partitions and the number of parallel subtasks along with the subtask ID on
+ * which the Kafka Producer is running.
  *
  * @param <T> the type of values being serialized
  */

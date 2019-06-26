@@ -770,8 +770,30 @@ public class FlinkKafkaProducer<IN>
 			} else {
 				record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
 			}
-		} else {
+		} else if (kafkaSchema != null) {
+			if (kafkaSchema instanceof KafkaContextAware) {
+				@SuppressWarnings("unchecked")
+				KafkaContextAware<IN> contextAwareSchema =
+						(KafkaContextAware<IN>) kafkaSchema;
+
+				String targetTopic = contextAwareSchema.getTargetTopic(next);
+				if (targetTopic == null) {
+					targetTopic = defaultTopicId;
+				}
+				int[] partitions = topicPartitionsMap.get(targetTopic);
+
+				if (null == partitions) {
+					partitions = getPartitionsByTopic(targetTopic, transaction.producer);
+					topicPartitionsMap.put(targetTopic, partitions);
+				}
+
+				contextAwareSchema.setPartitions(partitions);
+			}
 			record = kafkaSchema.serialize(next, context.timestamp());
+		} else {
+			throw new RuntimeException(
+					"We have neither KafkaSerializationSchema nor KeyedSerializationSchema, this" +
+							"is a bug.");
 		}
 
 		pendingRecords.incrementAndGet();
@@ -1099,6 +1121,14 @@ public class FlinkKafkaProducer<IN>
 					getPartitionsByTopic(this.defaultTopicId, producer));
 			}
 			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
+		}
+
+		if (kafkaSchema instanceof KafkaContextAware) {
+			KafkaContextAware<IN> contextAwareSchema =
+					(KafkaContextAware<IN>) kafkaSchema;
+
+			contextAwareSchema.setParallelInstanceId(ctx.getIndexOfThisSubtask());
+			contextAwareSchema.setNumParallelInstances(ctx.getNumberOfParallelSubtasks());
 		}
 
 		LOG.info("Starting FlinkKafkaInternalProducer ({}/{}) to produce into default topic {}",
