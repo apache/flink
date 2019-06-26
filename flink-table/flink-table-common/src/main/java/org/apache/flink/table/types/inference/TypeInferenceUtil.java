@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Utility for performing type inference.
@@ -48,7 +47,7 @@ public final class TypeInferenceUtil {
 					callContext.getName(),
 					callContext.getArgumentDataTypes().stream()
 						.map(DataType::toString)
-						.collect(Collectors.joining())),
+						.collect(Collectors.joining(", "))),
 				e);
 		} catch (Throwable t) {
 			throw new TableException(
@@ -104,20 +103,16 @@ public final class TypeInferenceUtil {
 		try {
 			validateArgumentCount(
 				typeInference.getInputTypeValidator().getArgumentCount(),
-				callContext.getArgumentDataTypes().size());
+				argumentTypes.size());
 		} catch (ValidationException e) {
 			throw getInvalidInputException(typeInference.getInputTypeValidator(), callContext);
 		}
 
 		final List<DataType> expectedTypes = typeInference.getArgumentTypes()
-			.orElse(callContext.getArgumentDataTypes());
-
-		final List<String> expectedNames = typeInference.getArgumentNames()
-			.orElse(getDefaultArgumentNames(expectedTypes.size()));
+			.orElse(argumentTypes);
 
 		final AdaptedCallContext adaptedCallContext = adaptArguments(
 			callContext,
-			expectedNames,
 			expectedTypes);
 
 		try {
@@ -132,12 +127,6 @@ public final class TypeInferenceUtil {
 			adaptedCallContext,
 			typeInference.getAccumulatorTypeStrategy().orElse(null),
 			typeInference.getOutputTypeStrategy());
-	}
-
-	private static List<String> getDefaultArgumentNames(int argumentCount) {
-		return IntStream.range(0, argumentCount)
-			.mapToObj(i -> "arg" + i)
-			.collect(Collectors.toList());
 	}
 
 	private static ValidationException getInvalidInputException(
@@ -196,12 +185,12 @@ public final class TypeInferenceUtil {
 	 */
 	private static AdaptedCallContext adaptArguments(
 			CallContext callContext,
-			List<String> expectedNames,
 			List<DataType> expectedTypes) {
 
-		for (int pos = 0; pos < callContext.getArgumentDataTypes().size(); pos++) {
+		final List<DataType> actualTypes = callContext.getArgumentDataTypes();
+		for (int pos = 0; pos < actualTypes.size(); pos++) {
 			final DataType expectedType = expectedTypes.get(pos);
-			final DataType actualType = callContext.getArgumentDataTypes().get(pos);
+			final DataType actualType = actualTypes.get(pos);
 
 			if (!actualType.equals(expectedType) && !canCast(actualType, expectedType)) {
 				throw new ValidationException(
@@ -236,7 +225,7 @@ public final class TypeInferenceUtil {
 		if (adaptedCallContext.getFunctionDefinition().getKind() == FunctionKind.TABLE_AGGREGATE ||
 				adaptedCallContext.getFunctionDefinition().getKind() == FunctionKind.AGGREGATE) {
 			// an accumulator might be an internal feature of the planner, therefore it is not
-			// mandatory here
+			// mandatory here; we assume the output type to be the accumulator type in this case
 			if (accumulatorTypeStrategy == null) {
 				return new Result(adaptedCallContext.expectedArguments, outputType, outputType);
 			}
@@ -247,7 +236,7 @@ public final class TypeInferenceUtil {
 			return new Result(adaptedCallContext.expectedArguments, potentialAccumulatorType.get(), outputType);
 
 		} else {
-			return new Result(adaptedCallContext.expectedArguments, outputType, outputType);
+			return new Result(adaptedCallContext.expectedArguments, null, outputType);
 		}
 	}
 

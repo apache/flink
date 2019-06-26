@@ -40,6 +40,7 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.typeutils.TypeCoercion;
 import org.apache.flink.table.validate.ValidationFailure;
 import org.apache.flink.table.validate.ValidationResult;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
@@ -274,12 +275,14 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		@Override
 		public boolean isArgumentNull(int pos) {
+			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
 			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
 			return literal.isNull();
 		}
 
 		@Override
 		public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
 			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
 			return literal.getValueAs(clazz);
 		}
