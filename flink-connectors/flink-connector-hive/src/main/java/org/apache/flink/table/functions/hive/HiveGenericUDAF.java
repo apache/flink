@@ -60,7 +60,7 @@ public class HiveGenericUDAF
 	private transient ObjectInspector finalResult;
 	private transient HiveObjectConversion[] conversions;
 	private transient boolean allIdentityConverter;
-	private transient boolean inited;
+	private transient boolean initialized;
 
 	public HiveGenericUDAF(HiveFunctionWrapper funcWrapper) {
 		this(funcWrapper, false);
@@ -84,12 +84,12 @@ public class HiveGenericUDAF
 
 		// PARTIAL1: from original data to partial aggregation data:
 		// 		iterate() and terminatePartial() will be called.
-		this.partialEvaluator = newEvaluator(inputInspectors);
+		this.partialEvaluator = createEvaluator(inputInspectors);
 		ObjectInspector partialResult = partialEvaluator.init(GenericUDAFEvaluator.Mode.PARTIAL1, inputInspectors);
 
 		// FINAL: from partial aggregation to full aggregation:
 		// 		merge() and terminate() will be called.
-		this.finalEvaluator = newEvaluator(inputInspectors);
+		this.finalEvaluator = createEvaluator(inputInspectors);
 		this.finalResult = finalEvaluator.init(
 			GenericUDAFEvaluator.Mode.FINAL, new ObjectInspector[]{ partialResult });
 
@@ -100,10 +100,10 @@ public class HiveGenericUDAF
 		allIdentityConverter = Arrays.stream(conversions)
 			.allMatch(conv -> conv instanceof IdentityConversion);
 
-		inited = true;
+		initialized = true;
 	}
 
-	private GenericUDAFEvaluator newEvaluator(ObjectInspector[] inputInspectors) throws SemanticException {
+	private GenericUDAFEvaluator createEvaluator(ObjectInspector[] inputInspectors) throws SemanticException {
 		GenericUDAFResolver2 resolver;
 
 		if (isUDAFBridgeRequired) {
@@ -137,7 +137,7 @@ public class HiveGenericUDAF
 	@Override
 	public GenericUDAFEvaluator.AggregationBuffer createAccumulator() {
 		try {
-			if (!inited) {
+			if (!initialized) {
 				init();
 			}
 			return partialEvaluator.getNewAggregationBuffer();
@@ -187,7 +187,7 @@ public class HiveGenericUDAF
 	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
 		try {
 			ObjectInspector[] inputs = HiveInspectors.toInspectors(constantArguments, argTypes);
-			GenericUDAFEvaluator evaluator = newEvaluator(inputs);
+			GenericUDAFEvaluator evaluator = createEvaluator(inputs);
 
 			// The ObjectInspector for the parameters:
 			// In PARTIAL1 mode, the parameters are original data;
