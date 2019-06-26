@@ -1339,7 +1339,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	public final class ActionContext {
 
-		private final Runnable actionUnavailableLetter = ThrowingRunnable.unchecked(mailbox::waitUntilHasMail);
+		private final Runnable actionUnavailableLetter = ThrowingRunnable.unchecked(() -> mailbox.takeMail().run());
 
 		/**
 		 * This method must be called to end the stream task when all actions for the tasks have been performed.

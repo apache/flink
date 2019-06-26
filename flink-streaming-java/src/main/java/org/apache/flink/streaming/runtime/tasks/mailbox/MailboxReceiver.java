@@ -50,10 +50,4 @@ public interface MailboxReceiver {
 	 */
 	@Nonnull
 	Runnable takeMail() throws InterruptedException;
-
-	/**
-	 * This method blocks if the mailbox is empty until mail becomes available.
-	 * @throws InterruptedException on interruption.
-	 */
-	void waitUntilHasMail() throws InterruptedException;
 }

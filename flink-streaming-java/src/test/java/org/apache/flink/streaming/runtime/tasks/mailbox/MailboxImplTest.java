@@ -27,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Queue;
 
 /**
@@ -81,24 +82,7 @@ public class MailboxImplTest {
 		while (!testObjects.isEmpty()) {
 			Assert.assertEquals(testObjects.remove(), mailbox.tryTakeMail().get());
 			Assert.assertEquals(!testObjects.isEmpty(), mailbox.hasMail());
-			mailbox.waitUntilHasCapacity(); // should not block here because the mailbox is not full
 		}
-
-		Thread waitingReader = new Thread(ThrowingRunnable.unchecked(() -> mailbox.waitUntilHasMail()));
-		waitingReader.start();
-		Thread.sleep(1);
-		Assert.assertTrue(waitingReader.isAlive());
-		mailbox.tryPutMail(() -> {});
-		waitingReader.join(); // should complete here
-
-		while (mailbox.tryPutMail(() -> {})) {}
-
-		Thread waitingWriter = new Thread(ThrowingRunnable.unchecked(() -> mailbox.waitUntilHasCapacity()));
-		waitingWriter.start();
-		Thread.sleep(1);
-		Assert.assertTrue(waitingWriter.isAlive());
-		mailbox.takeMail();
-		waitingWriter.join();
 	}
 
 	/**
@@ -115,13 +99,14 @@ public class MailboxImplTest {
 	@Test
 	public void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
 		testPutTake((mailbox -> {
-				mailbox.waitUntilHasMail();
-				return mailbox.tryTakeMail().get();
+				Optional<Runnable> optionalLetter = mailbox.tryTakeMail();
+				while (!optionalLetter.isPresent()) {
+					optionalLetter = mailbox.tryTakeMail();
+				}
+				return optionalLetter.get();
 			}),
 			((mailbox, runnable) -> {
-				while (!mailbox.tryPutMail(runnable)) {
-					mailbox.waitUntilHasCapacity();
-				}
+				while (!mailbox.tryPutMail(runnable)) {}
 			}));
 	}
 

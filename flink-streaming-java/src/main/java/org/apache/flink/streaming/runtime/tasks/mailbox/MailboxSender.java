@@ -42,11 +42,4 @@ public interface MailboxSender {
 	 * @throws InterruptedException on interruption.
 	 */
 	void putMail(@Nonnull Runnable letter) throws InterruptedException;
-
-	/**
-	 * This method blocks until the mailbox has again capacity to enqueue new letters.
-	 *
-	 * @throws InterruptedException on interruption.
-	 */
-	void waitUntilHasCapacity() throws InterruptedException;
 }

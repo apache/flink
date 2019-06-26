@@ -126,19 +126,6 @@ public class MailboxImpl implements Mailbox {
 		}
 	}
 
-	@Override
-	public void waitUntilHasMail() throws InterruptedException {
-		final ReentrantLock lock = this.lock;
-		lock.lockInterruptibly();
-		try {
-			while (isEmpty()) {
-				notEmpty.await();
-			}
-		} finally {
-			lock.unlock();
-		}
-	}
-
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
@@ -166,19 +153,6 @@ public class MailboxImpl implements Mailbox {
 				notFull.await();
 			}
 			putInternal(letter);
-		} finally {
-			lock.unlock();
-		}
-	}
-
-	@Override
-	public void waitUntilHasCapacity() throws InterruptedException {
-		final ReentrantLock lock = this.lock;
-		lock.lockInterruptibly();
-		try {
-			while (isFull()) {
-				notFull.await();
-			}
 		} finally {
 			lock.unlock();
 		}
