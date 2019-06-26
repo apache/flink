@@ -373,7 +373,7 @@ private class PatternVisitor(
       pattern.timesOrMore(startNum).consecutive()
     }
 
-    if (greedy && isOptional) {
+    if (greedy && (isOptional || startNum == endNum)) {
       newPattern
     } else if (greedy) {
       newPattern.greedy()
