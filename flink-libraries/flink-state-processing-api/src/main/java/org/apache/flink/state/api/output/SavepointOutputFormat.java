@@ -19,7 +19,7 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -44,7 +45,7 @@ import java.io.IOException;
  * <p>This format may only be executed with parallelism 1.
  */
 @Internal
-public class SavepointOutputFormat implements OutputFormat<Savepoint> {
+public class SavepointOutputFormat extends RichOutputFormat<Savepoint> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -70,14 +71,15 @@ public class SavepointOutputFormat implements OutputFormat<Savepoint> {
 
 	@Override
 	public void writeRecord(Savepoint savepoint) throws IOException {
-		final CompletedCheckpointStorageLocation finalizedLocation;
+		String path = LambdaUtil.withContextClassLoader(getRuntimeContext().getUserCodeClassLoader(), () -> {
+				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
+					Checkpoints.storeCheckpointMetadata(savepoint, out);
+					CompletedCheckpointStorageLocation finalizedLocation = out.closeAndFinalizeCheckpoint();
+					return finalizedLocation.getExternalPointer();
+				}
+		});
 
-		try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
-			Checkpoints.storeCheckpointMetadata(savepoint, out);
-			finalizedLocation = out.closeAndFinalizeCheckpoint();
-		}
-
-		LOG.info("Savepoint written to " + finalizedLocation.getExternalPointer());
+		LOG.info("Savepoint written to " + path);
 	}
 
 	@Override

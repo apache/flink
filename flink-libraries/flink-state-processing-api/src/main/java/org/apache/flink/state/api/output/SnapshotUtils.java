@@ -56,8 +56,6 @@ public final class SnapshotUtils {
 			CHECKPOINT_ID,
 			options.getTargetLocation());
 
-		operator.prepareSnapshotPreBarrier(CHECKPOINT_ID);
-
 		OperatorSnapshotFutures snapshotInProgress = operator.snapshotState(
 			CHECKPOINT_ID,
 			timestamp,

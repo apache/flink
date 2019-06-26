@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.output;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -44,15 +46,15 @@ public class SavepointOutputFormatTest {
 	@Test(expected = IllegalStateException.class)
 	public void testSavepointOutputFormatOnlyWorksWithParallelismOne() throws Exception {
 		Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
-		SavepointOutputFormat format = new SavepointOutputFormat(path);
+		SavepointOutputFormat format = createSavepointOutputFormat(path);
 
 		format.open(0, 2);
 	}
 
 	@Test
 	public void testSavepointOutputFormat() throws Exception {
-		Path savepointPath = new Path(temporaryFolder.newFolder().getAbsolutePath());
-		SavepointOutputFormat format = new SavepointOutputFormat(savepointPath);
+		Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
+		SavepointOutputFormat format = createSavepointOutputFormat(path);
 
 		Savepoint savepoint = createSavepoint();
 
@@ -60,7 +62,7 @@ public class SavepointOutputFormatTest {
 		format.writeRecord(savepoint);
 		format.close();
 
-		Savepoint savepointOnDisk = SavepointLoader.loadSavepoint(savepointPath.getPath());
+		Savepoint savepointOnDisk = SavepointLoader.loadSavepoint(path.getPath());
 
 		Assert.assertEquals(
 			"Incorrect checkpoint id",
@@ -83,6 +85,15 @@ public class SavepointOutputFormatTest {
 
 		operatorState.putState(0, new OperatorSubtaskState());
 		return new SavepointV2(0, Collections.singleton(operatorState), Collections.emptyList());
+	}
+
+	private SavepointOutputFormat createSavepointOutputFormat(Path path) throws Exception {
+		RuntimeContext ctx = new MockStreamingRuntimeContext(false, 1, 0);
+
+		SavepointOutputFormat format = new SavepointOutputFormat(path);
+		format.setRuntimeContext(ctx);
+
+		return format;
 	}
 }
 
