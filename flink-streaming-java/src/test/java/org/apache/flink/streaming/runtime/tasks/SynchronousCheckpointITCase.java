@@ -159,7 +159,7 @@ public class SynchronousCheckpointITCase {
 			if (isCanceled()) {
 				context.allActionsCompleted();
 			} else {
-				context.actionsUnavailable();
+				context.suspendDefaultAction();
 			}
 		}
 
