@@ -126,6 +126,9 @@ under the License.
 						<configuration combine.children="append">
 							<artifactSet>
 								<includes combine.children="append">
+									<include>io.fabric8:kubernetes-client</include>
+									<include>io.fabric8:kubernetes-model</include>
+									<include>io.fabric8:kubernetes-model-common</include>
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
