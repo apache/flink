@@ -135,8 +135,8 @@ object PythonTableUtils {
     case _ if dataType == Types.SQL_DATE => (obj: Any) => nullSafeConvert(obj) {
       case c: Int =>
         val millisLocal = c.toLong * 86400000
-        val millisGmt = millisLocal - getOffsetFromLocalMillis(millisLocal)
-        new Date(millisGmt)
+        val millisUtc = millisLocal - getOffsetFromLocalMillis(millisLocal)
+        new Date(millisUtc)
     }
 
     case _ if dataType == Types.SQL_TIME => (obj: Any) => nullSafeConvert(obj) {
@@ -395,13 +395,13 @@ object PythonTableUtils {
     }
   }
 
-  private def getOffsetFromLocalMillis(millisLocal: Long): Int = {
+  def getOffsetFromLocalMillis(millisLocal: Long): Int = {
     val localZone = TimeZone.getDefault
     var result = localZone.getRawOffset
     // the actual offset should be calculated based on milliseconds in UTC
     val offset = localZone.getOffset(millisLocal - result)
     if (offset != result) {
-      // consider DayLight Saving Time
+      // DayLight Saving Time
       result = localZone.getOffset(millisLocal - offset)
       if (result != offset) {
         // fallback to do the reverse lookup using java.time.LocalDateTime
