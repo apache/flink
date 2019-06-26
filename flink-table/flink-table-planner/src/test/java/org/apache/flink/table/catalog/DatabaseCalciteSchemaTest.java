@@ -53,7 +53,8 @@ public class DatabaseCalciteSchemaTest {
 			catalogName,
 			catalog);
 
-		catalog.createTable(new ObjectPath(databaseName, tableName), new TestCatalogBaseTable(), false);
+		ObjectPath tablePath = new ObjectPath(databaseName, tableName);
+		catalog.createTable(tablePath, new TestCatalogBaseTable(tablePath), false);
 		Table table = calciteSchema.getTable(tableName);
 
 		assertThat(table, instanceOf(TableSourceTable.class));
@@ -63,8 +64,8 @@ public class DatabaseCalciteSchemaTest {
 	}
 
 	private static final class TestCatalogBaseTable extends CatalogTableImpl {
-		private TestCatalogBaseTable() {
-			super(TableSchema.builder().build(), new HashMap<>(), "");
+		private TestCatalogBaseTable(ObjectPath tablePath) {
+			super(tablePath, TableSchema.builder().build(), new HashMap<>(), "");
 		}
 
 		@Override

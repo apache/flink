@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -91,8 +92,9 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), rowTypeInfo,
-				"default", "dest", HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
+		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), (CatalogTableImpl) table));
+//				HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
 		execEnv.execute();
 
@@ -113,8 +115,8 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), rowTypeInfo,
-				"default", "dest", HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
+		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), (CatalogTableImpl) table));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
 		execEnv.execute();
 
@@ -162,8 +164,8 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("complexSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		tableEnv.registerTableSink("complexSink", new HiveTableSink(new JobConf(hiveConf), rowTypeInfo,
-				"default", "dest", HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
+		CatalogTableImpl catalogTable = (CatalogTableImpl) hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("complexSink", new HiveTableSink(new JobConf(hiveConf), catalogTable));
 		tableEnv.sqlQuery("select * from complexSrc").insertInto("complexSink");
 		execEnv.execute();
 
@@ -190,8 +192,8 @@ public class HiveTableSinkTest {
 
 		tableEnv.registerDataSet("nestedSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
 		hiveTable = hiveCatalog.getHiveTable(tablePath);
-		tableEnv.registerTableSink("nestedSink", new HiveTableSink(new JobConf(hiveConf), rowTypeInfo,
-				"default", "dest", HiveCatalog.getFieldNames(hiveTable.getPartitionKeys())));
+		catalogTable = (CatalogTableImpl) hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("nestedSink", new HiveTableSink(new JobConf(hiveConf), catalogTable));
 		tableEnv.sqlQuery("select * from nestedSrc").insertInto("nestedSink");
 		execEnv.execute();
 
@@ -200,8 +202,9 @@ public class HiveTableSinkTest {
 	}
 
 	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
-		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
-		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+		CatalogTable catalogTable = createCatalogTable(tablePath, tableSchema, numPartCols);
+		hiveCatalog.createTable(tablePath, catalogTable, false);
 		return new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
@@ -216,13 +219,13 @@ public class HiveTableSinkTest {
 		return createDestTable(dbName, tblName, builder.build(), numPartCols);
 	}
 
-	private CatalogTable createCatalogTable(TableSchema tableSchema, int numPartCols) {
+	private CatalogTable createCatalogTable(ObjectPath tablePath, TableSchema tableSchema, int numPartCols) {
 		if (numPartCols == 0) {
-			return new CatalogTableImpl(tableSchema, new HashMap<>(), "");
+			return new CatalogTableImpl(tablePath, tableSchema, new HashMap<>(), "");
 		}
 		String[] partCols = new String[numPartCols];
 		System.arraycopy(tableSchema.getFieldNames(), tableSchema.getFieldNames().length - numPartCols, partCols, 0, numPartCols);
-		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
+		return new CatalogTableImpl(tablePath, tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
 	}
 
 	private List<Row> generateRecords(int numRecords) {

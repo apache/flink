@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -71,7 +72,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	// verifies that input/output formats and SerDe are set for Hive tables
 	public void testCreateTable_StorageFormatSet() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createTable(), false);
+		catalog.createTable(path1, createTable(path1), false);
 
 		Table hiveTable = ((HiveCatalog) catalog).getHiveTable(path1);
 		String inputFormat = hiveTable.getSd().getInputFormat();
@@ -95,7 +96,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 											.field("sixth", DataTypes.BIGINT())
 											.field("seventh", DataTypes.VARBINARY(200))
 											.build();
-		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
+		CatalogTable catalogTable = new CatalogTableImpl(path1, tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
 		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10, 5.2, 3, 100));
@@ -114,7 +115,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	@Test
 	public void testAlterPartitionColumnStatistics() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		CatalogTable catalogTable = createPartitionedTable();
+		CatalogTable catalogTable = createPartitionedTable(path1);
 		catalog.createTable(path1, catalogTable, false);
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, partitionSpec, createPartition(), true);
@@ -134,7 +135,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 	}
 
 	@Override
-	public CatalogTable createStreamingTable() {
+	public CatalogTable createStreamingTable(ObjectPath tablePath) {
 		throw new UnsupportedOperationException(
 			"Hive table cannot be streaming."
 		);

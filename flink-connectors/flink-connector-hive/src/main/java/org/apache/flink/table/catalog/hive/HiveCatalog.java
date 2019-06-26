@@ -147,6 +147,10 @@ public class HiveCatalog extends AbstractCatalog {
 		return new HiveConf();
 	}
 
+	public HiveConf getHiveConf() {
+		return hiveConf;
+	}
+
 	@VisibleForTesting
 	public String getHiveVersion() {
 		return hiveVersion;
@@ -176,7 +180,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public Optional<TableFactory> getTableFactory() {
-		return Optional.of(new HiveTableFactory());
+		return Optional.of(new HiveTableFactory(this));
 	}
 
 	// ------ databases ------
@@ -516,7 +520,8 @@ public class HiveCatalog extends AbstractCatalog {
 				);
 			}
 		} else {
-			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
+			return new CatalogTableImpl(new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()),
+				tableSchema, partitionKeys, properties, comment);
 		}
 	}
 

@@ -49,8 +49,8 @@ public abstract class CatalogTestBase extends CatalogTest {
 	}
 
 	@Override
-	public CatalogTable createTable() {
-		return new CatalogTableImpl(
+	public CatalogTable createTable(ObjectPath tablePath) {
+		return new CatalogTableImpl(tablePath,
 			createTableSchema(),
 			getBatchTableProperties(),
 			TEST_COMMENT
@@ -58,8 +58,8 @@ public abstract class CatalogTestBase extends CatalogTest {
 	}
 
 	@Override
-	public CatalogTable createAnotherTable() {
-		return new CatalogTableImpl(
+	public CatalogTable createAnotherTable(ObjectPath tablePath) {
+		return new CatalogTableImpl(tablePath,
 			createAnotherTableSchema(),
 			getBatchTableProperties(),
 			TEST_COMMENT
@@ -67,19 +67,19 @@ public abstract class CatalogTestBase extends CatalogTest {
 	}
 
 	@Override
-	public CatalogTable createStreamingTable() {
+	public CatalogTable createStreamingTable(ObjectPath tablePath) {
 		Map<String, String> prop = getBatchTableProperties();
 		prop.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 
-		return new CatalogTableImpl(
+		return new CatalogTableImpl(tablePath,
 			createTableSchema(),
 			getStreamingTableProperties(),
 			TEST_COMMENT);
 	}
 
 	@Override
-	public CatalogTable createPartitionedTable() {
-		return new CatalogTableImpl(
+	public CatalogTable createPartitionedTable(ObjectPath tablePath) {
+		return new CatalogTableImpl(tablePath,
 			createTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),
@@ -87,8 +87,8 @@ public abstract class CatalogTestBase extends CatalogTest {
 	}
 
 	@Override
-	public CatalogTable createAnotherPartitionedTable() {
-		return new CatalogTableImpl(
+	public CatalogTable createAnotherPartitionedTable(ObjectPath tablePath) {
+		return new CatalogTableImpl(tablePath,
 			createAnotherTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),
