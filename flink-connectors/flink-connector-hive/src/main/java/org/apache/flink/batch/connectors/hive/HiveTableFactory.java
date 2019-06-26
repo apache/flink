@@ -21,7 +21,6 @@ package org.apache.flink.batch.connectors.hive;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.config.CatalogConfig;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -32,6 +31,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 
 import java.util.List;
@@ -43,10 +43,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A table factory implementation for tables stored in Hive catalog.
  */
 public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFactory<Row> {
-	private HiveCatalog hiveCatalog;
+	private HiveConf hiveConf;
 
-	public HiveTableFactory(HiveCatalog hiveCatalog) {
-		this.hiveCatalog = checkNotNull(hiveCatalog, "hiveCatalog cannot be null");
+	public HiveTableFactory(HiveConf hiveConf) {
+		this.hiveConf = checkNotNull(hiveConf, "hiveConf  cannot be null");
 	}
 
 	@Override
@@ -109,7 +109,7 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 	 * Creates and configures a {@link org.apache.flink.table.sinks.OutputFormatTableSink} using the given {@link CatalogTable}.
 	 */
 	private OutputFormatTableSink<Row> createOutputFormatTableSink(CatalogTableImpl table) {
-		return new HiveTableSink(new JobConf(hiveCatalog.getHiveConf()), table);
+		return new HiveTableSink(new JobConf(hiveConf), table);
 	}
 
 }

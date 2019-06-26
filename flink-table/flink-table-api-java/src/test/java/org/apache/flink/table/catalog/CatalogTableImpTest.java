@@ -43,7 +43,7 @@ public class CatalogTableImpTest {
 		TableSchema schema = createTableSchema();
 		Map<String, String> prop = createProperties();
 		CatalogTable table = new CatalogTableImpl(
-			new ObjectPath(),
+			new ObjectPath("test", "test"),
 			schema,
 			createPartitionKeys(),
 			prop,

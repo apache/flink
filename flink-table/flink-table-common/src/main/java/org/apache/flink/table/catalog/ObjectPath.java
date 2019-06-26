@@ -20,9 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.util.StringUtils;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -30,20 +28,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * A database name and object (table/view/function) name combo in a catalog.
  */
-public class ObjectPath {
-	// Default database name
-	private static final String DEFAULT_DB_NAME = "default";
-	// Default object name
-	private static final String DEFAULT_OBJECT_NAME = "default";
+public class ObjectPath implements Serializable {
 
-	private String databaseName = DEFAULT_DB_NAME;
-	private String objectName = DEFAULT_OBJECT_NAME;
-
-	/**
-	 * Default constructor used for serialization/de-serialization.
-	 */
-	public ObjectPath() {
-	}
+	private String databaseName;
+	private String objectName;
 
 	public ObjectPath(String databaseName, String objectName) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
@@ -102,16 +90,6 @@ public class ObjectPath {
 	@Override
 	public String toString() {
 		return String.format("%s.%s", databaseName, objectName);
-	}
-
-	public void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeObject(databaseName);
-		out.writeObject(objectName);
-	}
-
-	public void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		databaseName = (String) in.readObject();
-		objectName = (String) in.readObject();
 	}
 
 }

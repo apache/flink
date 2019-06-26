@@ -173,7 +173,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		out.writeObject(rowTypeInfo);
 		out.writeObject(hiveTablePartition);
 		out.writeObject(partitionColumns);
-		tablePath.writeObject(out);
+		out.writeObject(tablePath);
 		out.writeObject(tableProperties);
 	}
 
@@ -195,10 +195,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		rowTypeInfo = (RowTypeInfo) in.readObject();
 		hiveTablePartition = (HiveTablePartition) in.readObject();
 		partitionColumns = (List<String>) in.readObject();
-		if (tablePath == null) {
-			tablePath = new ObjectPath();
-		}
-		tablePath.readObject(in);
+		tablePath = (ObjectPath) in.readObject();
 		partitionToWriter = new HashMap<>();
 		tableProperties = (Properties) in.readObject();
 	}

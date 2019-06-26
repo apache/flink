@@ -147,10 +147,6 @@ public class HiveCatalog extends AbstractCatalog {
 		return new HiveConf();
 	}
 
-	public HiveConf getHiveConf() {
-		return hiveConf;
-	}
-
 	@VisibleForTesting
 	public String getHiveVersion() {
 		return hiveVersion;
@@ -180,7 +176,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public Optional<TableFactory> getTableFactory() {
-		return Optional.of(new HiveTableFactory(this));
+		return Optional.of(new HiveTableFactory(hiveConf));
 	}
 
 	// ------ databases ------
@@ -552,6 +548,8 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table columns and partition keys
 		if (table instanceof CatalogTableImpl) {
 			CatalogTableImpl catalogTable = (CatalogTableImpl) table;
+
+			checkArgument(tablePath.equals(catalogTable.getTablePath()));
 
 			if (catalogTable.isPartitioned()) {
 				int partitionKeySize = catalogTable.getPartitionKeys().size();
