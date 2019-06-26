@@ -190,7 +190,7 @@ public class Int2SortMergeJoinOperatorTest {
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {
-						return (in1, in2) -> true;
+						return new Int2HashJoinOperatorTest.TrueCondition();
 					}
 				},
 				new GeneratedProjection("", "", new Object[0]) {

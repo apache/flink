@@ -313,7 +313,7 @@ public class String2HashJoinOperatorTest implements Serializable {
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {
-						return (in1, in2) -> true;
+						return new Int2HashJoinOperatorTest.TrueCondition();
 					}
 				},
 				reverseJoinFunction, new boolean[]{true},

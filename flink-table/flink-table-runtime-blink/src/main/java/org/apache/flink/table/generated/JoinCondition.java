@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.generated;
 
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 
 /**
  * Interface for code generated condition function for [[org.apache.calcite.rel.core.Join]].
  */
-public interface JoinCondition {
+public interface JoinCondition extends RichFunction {
 
 	/**
 	 * @return true if the join condition stays true for the joined row (in1, in2)

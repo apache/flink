@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.join;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -409,7 +410,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {
-						return (in1, in2) -> true;
+						return new TrueCondition();
 					}
 				},
 				reverseJoinFunction, new boolean[]{true},
@@ -427,5 +428,16 @@ public class Int2HashJoinOperatorTest implements Serializable {
 				},
 				false, 20, 10000,
 				10000, RowType.of(new IntType()));
+	}
+
+	/**
+	 * Test util.
+	 */
+	public static class TrueCondition extends AbstractRichFunction implements JoinCondition {
+
+		@Override
+		public boolean apply(BaseRow in1, BaseRow in2) {
+			return true;
+		}
 	}
 }
