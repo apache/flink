@@ -46,7 +46,7 @@ This pubsub connector has not received widespread testing yet.
 ## Consuming or Producing PubSubMessages
 
 The connector provides a connectors for receiving and sending messages from and to Google PubSub.
-Google PubSub has an `Atleast-Once` guarantee and as such the connector delivers the same guarantees.
+Google PubSub has an `at-least-once` guarantee and as such the connector delivers the same guarantees.
 
 ### PubSub SourceFunction
 
