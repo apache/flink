@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
@@ -30,6 +31,7 @@ import java.util.Map;
  * Common class that defines necessary properties to choose and create both
  * {@link Executor} and {@link Planner}.
  */
+@PublicEvolving
 public class PlannerDescriptor {
 	public static final String BATCH_MODE = "batch-mode";
 	public static final String CLASS_NAME = "class-name";

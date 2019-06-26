@@ -27,12 +27,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A common inteface for {@link PlannerFactory} and
- * {@link org.apache.flink.table.executor.ExecutorFactory}. It enables further disambiguating if there are mutliple
- * implementations present.
+ * A common interface for {@link PlannerFactory} and
+ * {@link org.apache.flink.table.delegation.ExecutorFactory}. It enables further disambiguating
+ * if there are multiple implementations present.
  */
 @Internal
-public interface ComponentTableFactory extends TableFactory {
+public interface ComponentFactory extends TableFactory {
 	/**
 	 * Specifies a context of optional parameters that if exist should have the
 	 * given values. This enables further disambiguating if there are multiple

@@ -32,20 +32,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Factory to construct a {@link Planner}. It will look for the planner on the classpath.
+ * Factory to construct a {@link StreamPlanner}.
  */
 @Internal
 public final class StreamPlannerFactory implements PlannerFactory {
 
-	/**
-	 * Looks up {@link Planner} on the class path via reflection.
-	 *
-	 * @param executor The executor required by the planner.
-	 * @param tableConfig The configuration of the planner to use.
-	 * @param functionCatalog The function catalog to look up user defined functions.
-	 * @param catalogManager The catalog manager to look up tables and views.
-	 * @return instance of a {@link Planner}
-	 */
+	@Override
 	public Planner create(
 		Map<String, String> properties,
 		Executor executor,

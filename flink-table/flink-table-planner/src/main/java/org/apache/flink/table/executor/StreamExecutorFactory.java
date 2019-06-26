@@ -40,20 +40,16 @@ import java.util.Map;
 public class StreamExecutorFactory implements ExecutorFactory {
 
 	/**
-	 * Creates a {@link StreamExecutor} that is backed by given {@link StreamExecutionEnvironment}.
+	 * Creates a corresponding {@link StreamExecutor}.
 	 *
+	 * @param properties Static properties of the {@link Executor}, the same that were used for factory lookup.
 	 * @param executionEnvironment a {@link StreamExecutionEnvironment} to use while executing Table programs.
-	 * @return {@link StreamExecutor}
+	 * @return instance of a {@link Executor}
 	 */
 	public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment) {
 		return new StreamExecutor(executionEnvironment);
 	}
 
-	/**
-	 * Creates a {@link StreamExecutor} that is backed by a default {@link StreamExecutionEnvironment}.
-	 *
-	 * @return {@link StreamExecutor}
-	 */
 	@Override
 	public Executor create(Map<String, String> properties) {
 		return new StreamExecutor(StreamExecutionEnvironment.getExecutionEnvironment());

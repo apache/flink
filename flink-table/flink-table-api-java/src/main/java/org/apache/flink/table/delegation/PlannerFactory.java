@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.factories.ComponentTableFactory;
+import org.apache.flink.table.factories.ComponentFactory;
 
 import java.util.Map;
 
@@ -35,7 +35,7 @@ import java.util.Map;
  * initialization configuration such as if the queries should be executed in batch mode.
  */
 @Internal
-public interface PlannerFactory extends ComponentTableFactory {
+public interface PlannerFactory extends ComponentFactory {
 
 	/**
 	 * Creates a corresponding {@link Planner}.
