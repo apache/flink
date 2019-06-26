@@ -56,7 +56,7 @@ import static org.junit.Assert.assertThat;
  */
 public class RegionFailoverITCase extends TestLogger {
 
-	final long JOB_EXECUTION_TIMEOUT = 120_000L;
+	private static final long JOB_EXECUTION_TIMEOUT = 120_000L;
 
 	/**
 	 * Region failover strategy for a streaming job that will have one task failure.

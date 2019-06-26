@@ -48,6 +48,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilJobStatus;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -56,7 +57,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest extends TestLogger {
 
-	public final int DEFAULT_PARALLELISM = 2;
+	private static final int DEFAULT_PARALLELISM = 2;
 
 	@ClassRule
 	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
@@ -220,20 +221,13 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		// trigger global recovery
 		testMainThreadUtil.execute(restartStrategy::triggerNextAction);
 
-		// verify the state and attempt number
-		// do in main thread as the global recovery process is scheduled async to this thread
-		testMainThreadUtil.execute(() -> {
-			assertEquals(JobStatus.RUNNING, eg.getState());
-			assertEquals(2, eg.getGlobalModVersion());
-			assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
-			assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
-			assertEquals(ExecutionState.CREATED, ev21.getExecutionState());
-			assertEquals(ExecutionState.CREATED, ev22.getExecutionState());
-			assertEquals(1, ev11.getCurrentExecutionAttempt().getAttemptNumber());
-			assertEquals(1, ev12.getCurrentExecutionAttempt().getAttemptNumber());
-			assertEquals(1, ev21.getCurrentExecutionAttempt().getAttemptNumber());
-			assertEquals(1, ev22.getCurrentExecutionAttempt().getAttemptNumber());
-		});
+		// verify the job state and vertex attempt number
+		waitUntilJobStatus(eg, JobStatus.RUNNING, 2000L);
+		assertEquals(2, eg.getGlobalModVersion());
+		assertEquals(1, ev11.getCurrentExecutionAttempt().getAttemptNumber());
+		assertEquals(1, ev12.getCurrentExecutionAttempt().getAttemptNumber());
+		assertEquals(1, ev21.getCurrentExecutionAttempt().getAttemptNumber());
+		assertEquals(1, ev22.getCurrentExecutionAttempt().getAttemptNumber());
 	}
 
 	/**
@@ -352,7 +346,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 			jid,
 			"test job");
 
-		// build a simple execution graph with on job vertex, parallelism 2
 		final Time timeout = Time.seconds(10L);
 		final ExecutionGraph graph = new ExecutionGraph(
 			jobInformation,

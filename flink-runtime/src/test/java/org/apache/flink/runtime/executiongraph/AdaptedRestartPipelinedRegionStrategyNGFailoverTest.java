@@ -96,9 +96,9 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 	 * Tests for region failover for job in EAGER mode.
 	 * This applies to streaming job, with no BLOCKING edge.
 	 * <pre>
-	 *     (v11) -+-> (v21)
+	 *     (v11) ---> (v21)
 	 *
-	 *     (v12) -+-> (v22)
+	 *     (v12) ---> (v22)
 	 *
 	 *            ^
 	 *            |

@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph.failover;
+package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -32,23 +33,34 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 
-/**
- * This class contains scheduling logic similar to that in ExecutionGraph.
- * It is used by legacy failover strategy as the strategy will do the re-scheduling work by itself.
- * We extract it from ExecutionGraph to avoid affect existing scheduling logic.
- */
-public class AdaptedSchedulingUtils {
+import static org.apache.flink.util.Preconditions.checkState;
 
-	static CompletableFuture<Void> scheduleLazy(
-		final Set<ExecutionVertex> vertices,
+/**
+ * This class contains scheduling logic for EAGER and LAZY_FROM_SOURCES.
+ * It is used for normal scheduling and legacy failover strategy re-scheduling.
+ */
+public class SchedulingUtils {
+
+	/**
+	 * Schedule vertices lazy. That means only vertices satisfying its input constraint will be scheduled.
+	 *
+	 * @param vertices A list of topologically sorted vertices to schedule.
+	 * @param executionGraph The graph the given vertices belongs to.
+	 */
+	public static CompletableFuture<Void> scheduleLazy(
+		final List<ExecutionVertex> vertices,
 		final ExecutionGraph executionGraph) {
 
-		final Set<AllocationID> previousAllocations = getAllPriorAllocationIds(vertices);
+		executionGraph.assertRunningInJobMasterMainThread();
+
+		final Set<AllocationID> previousAllocations = computePriorAllocationIdsIfRequiredByScheduling(
+			vertices, executionGraph.getSlotProvider());
 
 		final ArrayList<CompletableFuture<Void>> schedulingFutures = new ArrayList<>(vertices.size());
 		for (ExecutionVertex executionVertex : vertices) {
@@ -69,9 +81,19 @@ public class AdaptedSchedulingUtils {
 		return FutureUtils.waitForAll(schedulingFutures);
 	}
 
-	static CompletableFuture<Void> scheduleEager(
-		final Set<ExecutionVertex> vertices,
+	/**
+	 * Schedule vertices lazy. That means all vertices will be scheduled at once.
+	 *
+	 * @param vertices A list of topologically sorted vertices to schedule.
+	 * @param executionGraph The graph the given vertices belongs to.
+	 */
+	public static CompletableFuture<Void> scheduleEager(
+		final List<ExecutionVertex> vertices,
 		final ExecutionGraph executionGraph) {
+
+		executionGraph.assertRunningInJobMasterMainThread();
+
+		checkState(executionGraph.getState() == JobStatus.RUNNING, "job is not running currently");
 
 		// Important: reserve all the space we need up front.
 		// that way we do not have any operation that can fail between allocating the slots
@@ -82,9 +104,10 @@ public class AdaptedSchedulingUtils {
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>(vertices.size());
 
-		final Set<AllocationID> allPreviousAllocationIds = Collections.unmodifiableSet(getAllPriorAllocationIds(vertices));
+		final Set<AllocationID> allPreviousAllocationIds = Collections.unmodifiableSet(
+			computePriorAllocationIdsIfRequiredByScheduling(vertices, executionGraph.getSlotProvider()));
 
-		// allocate the slots (obtain all their futures
+		// allocate the slots (obtain all their futures)
 		for (ExecutionVertex ev : vertices) {
 			// these calls are not blocking, they only return futures
 			CompletableFuture<Execution> allocationFuture = ev.getCurrentExecutionAttempt().allocateResourcesForExecution(
@@ -99,7 +122,7 @@ public class AdaptedSchedulingUtils {
 
 		// this future is complete once all slot futures are complete.
 		// the future fails once one slot future fails.
-		final FutureUtils.ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
+		final ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
 
 		return allAllocationsFuture.thenAccept(
 			(Collection<Execution> executionsToDeploy) -> {
@@ -162,9 +185,28 @@ public class AdaptedSchedulingUtils {
 	}
 
 	/**
-	 * Computes and returns a set with the prior allocation ids from all execution vertices in the graph.
+	 * Returns the result of {@link #computePriorAllocationIds(Collection)},
+	 * but only if the scheduling really requires it.
+	 * Otherwise this method simply returns an empty set.
 	 */
-	static Set<AllocationID> getAllPriorAllocationIds(final Set<ExecutionVertex> vertices) {
+	static private Set<AllocationID> computePriorAllocationIdsIfRequiredByScheduling(
+		final Collection<ExecutionVertex> vertices,
+		final SlotProvider slotProvider) {
+		// This is a temporary optimization to avoid computing all previous allocations if not required
+		// This can go away when we progress with the implementation of the Scheduler.
+		if (slotProvider instanceof Scheduler &&
+			((Scheduler) slotProvider).requiresPreviousExecutionGraphAllocations()) {
+
+			return computePriorAllocationIds(vertices);
+		} else {
+			return Collections.emptySet();
+		}
+	}
+
+	/**
+	 * Computes and returns a set with the prior allocation ids for given execution vertices.
+	 */
+	static private Set<AllocationID> computePriorAllocationIds(final Collection<ExecutionVertex> vertices) {
 		HashSet<AllocationID> allPreviousAllocationIds = new HashSet<>(vertices.size());
 		for (ExecutionVertex executionVertex : vertices) {
 			AllocationID latestPriorAllocation = executionVertex.getLatestPriorAllocation();

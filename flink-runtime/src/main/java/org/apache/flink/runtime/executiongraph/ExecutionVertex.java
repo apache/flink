@@ -576,7 +576,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 */
 	public Execution resetForNewExecution(final long timestamp, final long originatingGlobalModVersion)
 			throws GlobalModVersionMismatch {
-		LOG.info("Resetting execution vertex {} to CREATED state for new execution.", getTaskNameWithSubtaskIndex());
+		LOG.debug("Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
 
 		synchronized (priorExecutions) {
 			// check if another global modification has been triggered since the

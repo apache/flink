@@ -28,8 +28,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
+import org.apache.flink.runtime.executiongraph.SchedulingUtils;
 import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -42,6 +42,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -190,15 +192,21 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	}
 
 	private void rescheduleTasks(final Set<ExecutionVertex> vertices, final long globalModVersion) throws Exception {
+
+		// sort vertices topologically
+		// this is to reduce the possibility that downstream tasks get launched earlier,
+		// which may cause lots of partition state checks in EAGER mode
+		final List<ExecutionVertex> sortedVertices = sortVerticesTopologically(vertices);
+
 		final CompletableFuture<Void> newSchedulingFuture;
 		switch (executionGraph.getScheduleMode()) {
 
 			case LAZY_FROM_SOURCES:
-				newSchedulingFuture = AdaptedSchedulingUtils.scheduleLazy(vertices, executionGraph);
+				newSchedulingFuture = SchedulingUtils.scheduleLazy(sortedVertices, executionGraph);
 				break;
 
 			case EAGER:
-				newSchedulingFuture = AdaptedSchedulingUtils.scheduleEager(vertices, executionGraph);
+				newSchedulingFuture = SchedulingUtils.scheduleEager(sortedVertices, executionGraph);
 				break;
 
 			default:
@@ -260,9 +268,19 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		return new ExecutionVertexID(vertex.getJobvertexId(), vertex.getParallelSubtaskIndex());
 	}
 
-	@VisibleForTesting
-	public FailoverRegion getFailoverRegion(ExecutionVertex executionVertex) {
-		return restartPipelinedRegionStrategy.getFailoverRegion(getExecutionVertexID(executionVertex));
+	private List<ExecutionVertex> sortVerticesTopologically(final Set<ExecutionVertex> vertices) {
+		// org execution vertex by jobVertexId
+		final Map<JobVertexID, List<ExecutionVertex>> verticesMap = new HashMap<>();
+		for (ExecutionVertex vertex : vertices) {
+			verticesMap.computeIfAbsent(vertex.getJobvertexId(), id -> new ArrayList<>()).add(vertex);
+		}
+
+		// sort in jobVertex topological order
+		final List<ExecutionVertex> sortedVertices = new ArrayList<>(vertices.size());
+		for (ExecutionJobVertex jobVertex : executionGraph.getVerticesTopologically()) {
+			sortedVertices.addAll(verticesMap.getOrDefault(jobVertex.getJobVertexId(), Collections.emptyList()));
+		}
+		return sortedVertices;
 	}
 
 	@Override
