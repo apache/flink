@@ -57,22 +57,18 @@ public class ResultPartitionFactory {
 
 	private final int floatingNetworkBuffersPerGate;
 
-	private final boolean forcePartitionReleaseOnConsumption;
-
 	public ResultPartitionFactory(
 		@Nonnull ResultPartitionManager partitionManager,
 		@Nonnull IOManager ioManager,
 		@Nonnull BufferPoolFactory bufferPoolFactory,
 		int networkBuffersPerChannel,
-		int floatingNetworkBuffersPerGate,
-		boolean forcePartitionReleaseOnConsumption) {
+		int floatingNetworkBuffersPerGate) {
 
 		this.partitionManager = partitionManager;
 		this.ioManager = ioManager;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.bufferPoolFactory = bufferPoolFactory;
-		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 	}
 
 	public ResultPartition create(
@@ -86,7 +82,7 @@ public class ResultPartitionFactory {
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
-			desc.isReleasedOnConsumption() || forcePartitionReleaseOnConsumption,
+			desc.isReleasedOnConsumption(),
 			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
 	}
 

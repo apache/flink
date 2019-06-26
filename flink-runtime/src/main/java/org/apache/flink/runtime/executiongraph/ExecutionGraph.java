@@ -305,6 +305,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Shuffle master to register partitions for task deployment. */
 	private final ShuffleMaster<?> shuffleMaster;
 
+	private boolean forcePartitionReleaseOnConsumption;
+
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -406,7 +408,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			userClassLoader,
 			blobWriter,
 			allocationTimeout,
-			NettyShuffleMaster.INSTANCE);
+			NettyShuffleMaster.INSTANCE,
+			true);
 	}
 
 	public ExecutionGraph(
@@ -421,7 +424,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			ClassLoader userClassLoader,
 			BlobWriter blobWriter,
 			Time allocationTimeout,
-			ShuffleMaster<?> shuffleMaster) throws IOException {
+			ShuffleMaster<?> shuffleMaster,
+			boolean forcePartitionReleaseOnConsumption) throws IOException {
 
 		checkNotNull(futureExecutor);
 
@@ -470,6 +474,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					"Call to ExecutionGraph.start(...) required.");
 
 		this.shuffleMaster = checkNotNull(shuffleMaster);
+
+		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
@@ -695,6 +701,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	public long getNumberOfFullRestarts() {
 		// subtract one, because the version starts at one
 		return globalModVersion - 1;
+	}
+
+	boolean isForcePartitionReleaseOnConsumption() {
+		return forcePartitionReleaseOnConsumption;
 	}
 
 	@Override

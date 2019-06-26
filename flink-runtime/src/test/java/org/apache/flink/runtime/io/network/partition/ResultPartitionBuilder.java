@@ -125,8 +125,7 @@ public class ResultPartitionBuilder {
 			ioManager,
 			networkBufferPool,
 			networkBuffersPerChannel,
-			floatingNetworkBuffersPerGate,
-			true);
+			floatingNetworkBuffersPerGate);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));

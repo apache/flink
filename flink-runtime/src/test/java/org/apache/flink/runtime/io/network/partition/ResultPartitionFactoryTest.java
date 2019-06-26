@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
 
@@ -39,23 +40,24 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class ResultPartitionFactoryTest extends TestLogger {
 
 	@Test
-	public void testForceConsumptionOnReleaseEnabled() {
-		testForceConsumptionOnRelease(true);
+	public void testConsumptionOnReleaseEnabled() {
+		final ResultPartition resultPartition = createResultPartition(ShuffleDescriptor.ReleaseType.AUTO);
+		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
 	}
 
 	@Test
-	public void testForceConsumptionOnReleaseDisabled() {
-		testForceConsumptionOnRelease(false);
+	public void testConsumptionOnReleaseDisabled() {
+		final ResultPartition resultPartition = createResultPartition(ShuffleDescriptor.ReleaseType.MANUAL);
+		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
 	}
 
-	private static void testForceConsumptionOnRelease(boolean forceConsumptionOnRelease) {
+	private static ResultPartition createResultPartition(ShuffleDescriptor.ReleaseType releaseType) {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
 			new NoOpIOManager(),
 			new NetworkBufferPool(1, 64, 1),
 			1,
-			1,
-			forceConsumptionOnRelease
+			1
 		);
 
 		ResultPartitionType partitionType = ResultPartitionType.BLOCKING;
@@ -68,15 +70,10 @@ public class ResultPartitionFactoryTest extends TestLogger {
 				0),
 			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
 			1,
-			true
+			true,
+			releaseType
 		);
 
-		final ResultPartition test = factory.create("test", new ExecutionAttemptID(), descriptor);
-
-		if (forceConsumptionOnRelease) {
-			assertThat(test, instanceOf(ReleaseOnConsumptionResultPartition.class));
-		} else {
-			assertThat(test, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
-		}
+		return factory.create("test", new ExecutionAttemptID(), descriptor);
 	}
 }

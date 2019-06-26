@@ -650,12 +650,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				.getExecutionGraph()
 				.getShuffleMaster()
 				.registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
+
+			final boolean releasePartitionOnConsumption =
+				vertex.getExecutionGraph().isForcePartitionReleaseOnConsumption()
+				|| !partitionDescriptor.getPartitionType().isBlocking();
+
 			CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration = shuffleDescriptorFuture
 				.thenApply(shuffleDescriptor -> new ResultPartitionDeploymentDescriptor(
 					partitionDescriptor,
 					shuffleDescriptor,
 					maxParallelism,
-					lazyScheduling));
+					lazyScheduling,
+					releasePartitionOnConsumption
+						? ShuffleDescriptor.ReleaseType.AUTO
+						: ShuffleDescriptor.ReleaseType.MANUAL));
 			partitionRegistrations.add(partitionRegistration);
 		}
 

@@ -104,24 +104,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
 	}
 
-	@Test
-	public void testReleasedOnConsumptionFlag() {
-		for (ResultPartitionType partitionType : ResultPartitionType.values()) {
-			ResultPartitionDeploymentDescriptor partitionDescriptor = new ResultPartitionDeploymentDescriptor(
-				new PartitionDescriptor(resultId, partitionId, partitionType, numberOfSubpartitions, connectionIndex),
-				NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
-				1,
-				true
-			);
-
-			if (partitionType == ResultPartitionType.BLOCKING) {
-				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(false));
-			} else {
-				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(true));
-			}
-		}
-	}
-
 	@Test(expected = IllegalArgumentException.class)
 	public void testIncompatibleReleaseTypeManual() {
 		new ResultPartitionDeploymentDescriptor(
