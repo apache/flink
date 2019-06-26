@@ -285,7 +285,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		List<ObjectInspector> objectInspectors = new ArrayList<>(hiveConversions.length);
 		for (int i = 0; i < numNonPartitionColumns; i++) {
 			DataType dataType = LegacyTypeInfoDataTypeConverter.toDataType(rowTypeInfo.getTypeAt(i));
-			ObjectInspector objectInspector = HiveTableUtil.getObjectInspector(dataType);
+			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(dataType);
 			objectInspectors.add(objectInspector);
 			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, dataType.getLogicalType());
 		}

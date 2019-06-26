@@ -19,6 +19,8 @@
 package org.apache.flink.table.functions.hive.conversion;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 import org.apache.flink.table.types.DataType;
@@ -44,6 +46,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ConstantObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
@@ -77,7 +80,10 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspec
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.StringObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.VoidObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -394,14 +400,40 @@ public class HiveInspectors {
 		return getObjectInspector(typeInfo);
 	}
 
+	/**
+	 * Get Hive {@link ObjectInspector} for a Flink {@link TypeInformation}.
+	 */
+	public static ObjectInspector getObjectInspector(DataType flinkType) {
+		return getObjectInspector(HiveTypeUtil.toHiveTypeInfo(flinkType));
+	}
+
 	private static ObjectInspector getObjectInspector(TypeInfo type) {
 		switch (type.getCategory()) {
+
 			case PRIMITIVE:
 				PrimitiveTypeInfo primitiveType = (PrimitiveTypeInfo) type;
 				return PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(primitiveType);
+			case LIST:
+				ListTypeInfo listType = (ListTypeInfo) type;
+				return ObjectInspectorFactory.getStandardListObjectInspector(
+						getObjectInspector(listType.getListElementTypeInfo()));
+			case MAP:
+				MapTypeInfo mapType = (MapTypeInfo) type;
+				return ObjectInspectorFactory.getStandardMapObjectInspector(
+						getObjectInspector(mapType.getMapKeyTypeInfo()), getObjectInspector(mapType.getMapValueTypeInfo()));
+			case STRUCT:
+				StructTypeInfo structType = (StructTypeInfo) type;
+				List<TypeInfo> fieldTypes = structType.getAllStructFieldTypeInfos();
+
+				List<ObjectInspector> fieldInspectors = new ArrayList<ObjectInspector>();
+				for (TypeInfo fieldType : fieldTypes) {
+					fieldInspectors.add(getObjectInspector(fieldType));
+				}
+
+				return ObjectInspectorFactory.getStandardStructObjectInspector(
+						structType.getAllStructFieldNames(), fieldInspectors);
 			default:
-				throw new FlinkHiveUDFException(
-					String.format("TypeInfo %s is not supported yet", type));
+				throw new CatalogException("Unsupported Hive type category " + type.getCategory());
 		}
 	}
 
