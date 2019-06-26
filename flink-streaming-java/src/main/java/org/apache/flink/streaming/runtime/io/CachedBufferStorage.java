@@ -88,7 +88,7 @@ public class CachedBufferStorage extends AbstractBufferStorage {
 		}
 
 		CachedBufferOrEventSequence currentSequence = new CachedBufferOrEventSequence(currentBuffers, bytesBlocked);
-		currentBuffers = new ArrayDeque<BufferOrEvent>();
+		currentBuffers = new ArrayDeque<>();
 		bytesBlocked = 0L;
 
 		return currentSequence;
