@@ -264,9 +264,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * @throws Exception
 	 */
 	public void waitForTaskCompletion(long timeout) throws Exception {
-		if (taskThread == null) {
-			throw new IllegalStateException("Task thread was not started.");
-		}
+		Preconditions.checkState(taskThread != null, "Task thread was not started.");
 
 		taskThread.join(timeout);
 		if (taskThread.getError() != null) {
@@ -291,9 +289,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * @throws Exception
 	 */
 	public void waitForTaskRunning(long timeout) throws Exception {
-		if (taskThread == null || taskThread.task == null) {
-			throw new IllegalStateException("Task thread was not started.");
-		}
+		Preconditions.checkState(taskThread != null, "Task thread was not started.");
 		StreamTask<?, ?> streamTask = taskThread.task;
 		while (!streamTask.isRunning()) {
 			Thread.sleep(10);
