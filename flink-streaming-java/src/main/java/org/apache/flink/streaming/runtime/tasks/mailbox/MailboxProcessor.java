@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +33,12 @@ public class MailboxProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
-	private final Runnable DEFAULT_ACTION_AVAILABLE = () -> {};
-
 	private final Mailbox mailbox;
 	private final TaskMailboxExecutorService taskMailboxExecutor;
 	private final MailboxDefaultAction mailboxDefaultAction;
 
 	private boolean mailboxLoopRunning;
+	private boolean defaultActionUnavailable;
 	private final Runnable mailboxPoisonLetter;
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
@@ -50,6 +48,7 @@ public class MailboxProcessor {
 
 		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
+		this.defaultActionUnavailable = false;
 	}
 
 	public TaskMailboxExecutorService getTaskMailboxExecutor() {
@@ -130,7 +129,7 @@ public class MailboxProcessor {
 		}
 	}
 
-	private boolean processMail(Mailbox mailbox) throws MailboxStateException {
+	private boolean processMail(Mailbox mailbox) throws MailboxStateException, InterruptedException {
 
 		if (!mailbox.hasMail()) {
 			return true;
@@ -142,7 +141,15 @@ public class MailboxProcessor {
 			maybeLetter.get().run();
 		}
 
+		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
+			mailbox.takeMail().run();
+		}
+
 		return isMailboxLoopRunning();
+	}
+
+	private boolean isDefaultActionUnavailable() {
+		return defaultActionUnavailable;
 	}
 
 	private boolean isMailboxLoopRunning() {
@@ -151,11 +158,10 @@ public class MailboxProcessor {
 
 	private final class MailboxDefaultActionContext implements MailboxDefaultAction.ActionContext {
 
-		/** Special value, letter that "wakes up" a waiting mailbox loop. */
-		private final Runnable actionUnavailableLetter;
+		private MailboxDefaultAction.SuspendedDefaultAction activeSuspend;
 
 		MailboxDefaultActionContext() {
-			this.actionUnavailableLetter = ThrowingRunnable.unchecked(() -> mailbox.takeMail().run());
+			this.activeSuspend = null;
 		}
 
 		@Override
@@ -164,34 +170,57 @@ public class MailboxProcessor {
 		}
 
 		/**
-		 * Calling this method signals that the mailbox-thread should continue invoking the default action, e.g. because
-		 * new input became available for processing.
-		 */
-		public void actionsAvailable() {
-			putOrExecuteDirectly(DEFAULT_ACTION_AVAILABLE);
-		}
-
-		/**
 		 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
 		 * e.g. because there is currently no input available.
 		 */
-		public void actionsUnavailable() {
-			putOrExecuteDirectly(actionUnavailableLetter);
+		@Override
+		public MailboxDefaultAction.SuspendedDefaultAction suspendDefaultAction() {
+
+			assert taskMailboxExecutor.isMailboxThread();
+
+			if (!defaultActionUnavailable) {
+				defaultActionUnavailable = true;
+				activeSuspend = new SuspendDefaultActionRunnable();
+				try {
+					mailbox.tryPutMail(() -> {});
+				} catch (MailboxStateException me) {
+					LOG.debug("Action context could not submit letter to mailbox.", me);
+				}
+			}
+
+			return activeSuspend;
 		}
 
-		private void putOrExecuteDirectly(Runnable letter) {
-			try {
-				if (taskMailboxExecutor.isMailboxThread()) {
-					if (!mailbox.tryPutMail(letter)) {
-						letter.run();
+		private final class SuspendDefaultActionRunnable implements MailboxDefaultAction.SuspendedDefaultAction {
+
+			/** Ensuring idempotent behavior, we ensure this is only accessed from the main thread. */
+			private boolean valid;
+
+			SuspendDefaultActionRunnable() {
+				this.valid = true;
+			}
+
+			@Override
+			public void resume() {
+				try {
+					if (taskMailboxExecutor.isMailboxThread()) {
+						resumeInternal();
+					} else {
+						mailbox.putMail(this::resumeInternal);
 					}
-				} else {
-					mailbox.putMail(letter);
+				} catch (InterruptedException ie) {
+					Thread.currentThread().interrupt();
+				} catch (MailboxStateException me) {
+					LOG.debug("Action context could not submit letter to mailbox.", me);
 				}
-			} catch (InterruptedException ie) {
-				Thread.currentThread().interrupt();
-			} catch (MailboxStateException me) {
-				LOG.debug("Action context could not submit letter {} to mailbox.", letter, me);
+			}
+
+			private void resumeInternal() {
+				if (valid) {
+					valid = false;
+					defaultActionUnavailable = false;
+					activeSuspend = null;
+				}
 			}
 		}
 	}

@@ -38,6 +38,7 @@ public interface MailboxDefaultAction {
 	 */
 	interface ActionContext {
 
+
 		/**
 		 * This method must be called to end the stream task when all actions for the tasks have been performed. This
 		 * method can be invoked from any thread.
@@ -45,15 +46,20 @@ public interface MailboxDefaultAction {
 		void allActionsCompleted();
 
 		/**
-		 * Calling this method signals that the mailbox-thread should continue invoking the default action, e.g. because
-		 * new input became available for processing.
+		 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
+		 * e.g. because there is currently no input available. This method must be invoked from the mailbox-thread only!
 		 */
-		void actionsAvailable();
+		SuspendedDefaultAction suspendDefaultAction();
+	}
+
+	/**
+	 * Represents the suspended state of the default action, ready to resume.
+	 */
+	interface SuspendedDefaultAction {
 
 		/**
-		 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
-		 * e.g. because there is currently no input available.
+		 * Resume execution of the default action. Can be called from any thread.
 		 */
-		void actionsUnavailable();
+		void resume();
 	}
 }
