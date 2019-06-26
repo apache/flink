@@ -1,9 +1,9 @@
 ---
-title: "教程"
-nav-id: tutorials
-nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> 教程'
+title: "Code Walkthroughs"
+nav-id: walkthroughs
+nav-title: '<i class="fa fa-bolt title appetizer" aria-hidden="true"></i> Code Walkthroughs'
 nav-parent_id: getting-started
-nav-pos: 2
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
