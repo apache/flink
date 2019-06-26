@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.AsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -62,19 +61,6 @@ public class CheckpointedInputGate implements AsyncDataInput<BufferOrEvent> {
 	/** Indicate end of the input. Set to true after encountering {@link #endOfInputGate} and depleting
 	 * {@link #bufferStorage}. */
 	private boolean isFinished;
-
-	/**
-	 * Creates a new checkpoint stream aligner.
-	 *
-	 * <p>There is no limit to how much data may be buffered during an alignment.
-	 *
-	 * @param inputGate The input gate to draw the buffers and events from.
-	 * @param bufferStorage The storage to hold the buffers and events for blocked channels.
-	 */
-	@VisibleForTesting
-	CheckpointedInputGate(InputGate inputGate, BufferStorage bufferStorage) {
-		this (inputGate, bufferStorage, "Testing: No task associated", null);
-	}
 
 	public CheckpointedInputGate(
 			InputGate inputGate,
