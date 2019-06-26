@@ -668,7 +668,7 @@ metrics.reporter.influxdb.port: 8086
 metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
-metrics.reporter.influxdb.retentionPolicy: one_hr
+metrics.reporter.influxdb.retentionPolicy: one_hour
 
 {% endhighlight %}
 

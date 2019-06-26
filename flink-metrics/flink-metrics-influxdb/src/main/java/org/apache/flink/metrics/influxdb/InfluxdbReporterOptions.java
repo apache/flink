@@ -55,7 +55,7 @@ public class InfluxdbReporterOptions {
 	public static final ConfigOption<String> RETENTION_POLICY = ConfigOptions
 		.key("retentionPolicy")
 		.defaultValue("")
-		.withDescription("(optional) the retention policy for metrics");
+		.withDescription("(optional) the InfluxDB retention policy for metrics");
 
 	static String getString(MetricConfig config, ConfigOption<String> key) {
 		return config.getString(key.key(), key.defaultValue());
