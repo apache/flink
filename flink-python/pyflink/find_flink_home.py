@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# ################################################################################
+#################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -22,7 +22,7 @@ import os
 import sys
 
 
-def is_flink_home(path):
+def _is_flink_home(path):
     pyflink_file = path + "/bin/pyflink-gateway-server.sh"
     flink_dist_jar_file = path + "/lib/flink-dist*.jar"
     if os.path.isfile(pyflink_file) and len(glob.glob(flink_dist_jar_file)) > 0:
@@ -43,28 +43,20 @@ def _find_flink_home():
             current_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
             flink_root_dir = os.path.abspath(current_dir + "/../../")
             build_target = flink_root_dir + "/build-target"
-            if is_flink_home(build_target):
+            if _is_flink_home(build_target):
                 os.environ['FLINK_HOME'] = build_target
                 return build_target
 
             if sys.version < "3":
                 import imp
-                try:
-                    module_home = imp.find_module("pyflink")[1]
-                    if is_flink_home(module_home):
-                        os.environ['FLINK_HOME'] = module_home
-                        return module_home
-                except ImportError:
-                    pass
+                module_home = imp.find_module("pyflink")[1]
             else:
                 from importlib.util import find_spec
-                try:
-                    module_home = os.path.dirname(find_spec("pyflink").origin)
-                    if is_flink_home(module_home):
-                        os.environ['FLINK_HOME'] = module_home
-                        return module_home
-                except ImportError:
-                    pass
+                module_home = os.path.dirname(find_spec("pyflink").origin)
+
+            if _is_flink_home(module_home):
+                os.environ['FLINK_HOME'] = module_home
+                return module_home
         except Exception:
             pass
         logging.error("Could not find valid FLINK_HOME(Flink distribution directory) "

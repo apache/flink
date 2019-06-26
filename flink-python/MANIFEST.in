@@ -17,10 +17,12 @@
 ################################################################################
 
 global-exclude *.py[cod] __pycache__ .DS_Store
-recursive-include deps/lib *.jar
-recursive-include deps/opt *.jar *.txt *.zip
+graft deps/lib
+recursive-include deps/opt *
+recursive-include deps/plugins *
 graft deps/bin
 graft deps/conf
+graft deps/log
 recursive-include deps/examples *.py
 graft deps/licenses
 include README.md

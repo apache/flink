@@ -49,8 +49,10 @@ TEMP_PATH = "deps"
 LIB_TEMP_PATH = os.path.join(TEMP_PATH, "lib")
 OPT_TEMP_PATH = os.path.join(TEMP_PATH, "opt")
 CONF_TEMP_PATH = os.path.join(TEMP_PATH, "conf")
+LOG_TEMP_PATH = os.path.join(TEMP_PATH, "log")
 EXAMPLES_TEMP_PATH = os.path.join(TEMP_PATH, "examples")
 LICENSES_TEMP_PATH = os.path.join(TEMP_PATH, "licenses")
+PLUGINS_TEMP_PATH = os.path.join(TEMP_PATH, "plugins")
 SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 
 LICENSE_FILE_TEMP_PATH = os.path.join("pyflink", "LICENSE")
@@ -88,6 +90,7 @@ run sdist.
         CONF_PATH = os.path.join(FLINK_HOME, "conf")
         EXAMPLES_PATH = os.path.join(FLINK_HOME, "examples")
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
+        PLUGINS_PATH = os.path.join(FLINK_HOME, "plugins")
         SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_HOME, "LICENSE")
@@ -104,6 +107,7 @@ run sdist.
             os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
             os.symlink(LICENSES_PATH, LICENSES_TEMP_PATH)
+            os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             os.symlink(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             os.symlink(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
@@ -114,10 +118,15 @@ run sdist.
             copytree(CONF_PATH, CONF_TEMP_PATH)
             copytree(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
             copytree(LICENSES_PATH, LICENSES_TEMP_PATH)
+            copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             copy(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
+        os.mkdir(LOG_TEMP_PATH)
+        with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
+            f.write("This file is used to force setuptools to include the log directory. "
+                    "You can delete it at any time after installation.")
     else:
         if not os.path.isdir(LIB_TEMP_PATH) or not os.path.isdir(OPT_TEMP_PATH) \
                 or not os.path.isdir(SCRIPTS_TEMP_PATH):
@@ -142,25 +151,31 @@ run sdist.
                   'pyflink.lib',
                   'pyflink.opt',
                   'pyflink.conf',
+                  'pyflink.log',
                   'pyflink.examples',
                   'pyflink.licenses',
+                  'pyflink.plugins',
                   'pyflink.bin'],
         include_package_data=True,
         package_dir={
             'pyflink.lib': TEMP_PATH + '/lib',
             'pyflink.opt': TEMP_PATH + '/opt',
             'pyflink.conf': TEMP_PATH + '/conf',
+            'pyflink.log': TEMP_PATH + '/log',
             'pyflink.examples': TEMP_PATH + '/examples',
             'pyflink.licenses': TEMP_PATH + '/licenses',
+            'pyflink.plugins': TEMP_PATH + '/plugins',
             'pyflink.bin': TEMP_PATH + '/bin'
         },
         package_data={
             'pyflink': ['LICENSE', 'NOTICE', 'README.txt'],
             'pyflink.lib': ['*.jar'],
-            'pyflink.opt': ['*.jar', '*.txt', '*/*.zip', '*/*.txt'],
+            'pyflink.opt': ['*', '*/*'],
             'pyflink.conf': ['*'],
+            'pyflink.log': ['*'],
             'pyflink.examples': ['*.py', '*/*.py'],
             'pyflink.licenses': ['*'],
+            'pyflink.plugins': ['*', '*/*'],
             'pyflink.bin': ['*']
         },
         scripts=scripts,
@@ -191,6 +206,7 @@ finally:
             os.remove(CONF_TEMP_PATH)
             os.remove(EXAMPLES_TEMP_PATH)
             os.remove(LICENSES_TEMP_PATH)
+            os.remove(PLUGINS_TEMP_PATH)
             os.remove(SCRIPTS_TEMP_PATH)
             os.remove(LICENSE_FILE_TEMP_PATH)
             os.remove(NOTICE_FILE_TEMP_PATH)
@@ -201,8 +217,10 @@ finally:
             rmtree(CONF_TEMP_PATH)
             rmtree(EXAMPLES_TEMP_PATH)
             rmtree(LICENSES_TEMP_PATH)
+            rmtree(PLUGINS_TEMP_PATH)
             rmtree(SCRIPTS_TEMP_PATH)
             os.remove(LICENSE_FILE_TEMP_PATH)
             os.remove(NOTICE_FILE_TEMP_PATH)
             os.remove(README_FILE_TEMP_PATH)
+        rmtree(LOG_TEMP_PATH)
         os.rmdir(TEMP_PATH)

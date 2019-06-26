@@ -22,8 +22,6 @@ bin=`cd "$bin"; pwd`
 
 _FLINK_HOME_DETERMINED=1
 
-cd "$FLINK_HOME"/bin
-
 . "$FLINK_HOME"/bin/config.sh
 
 FLINK_CLASSPATH=`constructFlinkClassPath`
