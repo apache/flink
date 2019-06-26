@@ -29,42 +29,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A catalog table implementation.
  */
 public class CatalogTableImpl extends AbstractCatalogTable {
 
-	// The path of the table in its catalog.
-	private final ObjectPath tablePath;
-
 	public CatalogTableImpl(
-			ObjectPath tablePath,
 			TableSchema tableSchema,
 			Map<String, String> properties,
 			String comment) {
-		this(tablePath, tableSchema, new ArrayList<>(), properties, comment);
+		this(tableSchema, new ArrayList<>(), properties, comment);
 	}
 
 	public CatalogTableImpl(
-			ObjectPath tablePath,
 			TableSchema tableSchema,
 			List<String> partitionKeys,
 			Map<String, String> properties,
 			String comment) {
 		super(tableSchema, partitionKeys, properties, comment);
-		this.tablePath = checkNotNull(tablePath, "tablePath cannot be null");
 	}
 
 	@Override
 	public CatalogBaseTable copy() {
 		return new CatalogTableImpl(
-			tablePath,
-			getSchema().copy(),
-			new ArrayList<>(getPartitionKeys()),
-			new HashMap<>(getProperties()),
-			getComment());
+			getSchema().copy(), new ArrayList<>(getPartitionKeys()), new HashMap<>(getProperties()), getComment());
 	}
 
 	@Override
@@ -90,9 +78,4 @@ public class CatalogTableImpl extends AbstractCatalogTable {
 
 		return descriptor.asMap();
 	}
-
-	public ObjectPath getTablePath() {
-		return tablePath;
-	}
-
 }

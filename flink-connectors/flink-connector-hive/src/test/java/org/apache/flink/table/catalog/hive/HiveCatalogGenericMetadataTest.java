@@ -28,7 +28,6 @@ import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericCatalogFunction;
 import org.apache.flink.table.catalog.GenericCatalogView;
-import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -88,7 +87,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 			DataTypes.VARBINARY(VarBinaryType.MAX_LENGTH)
 		};
 
-		CatalogTable table = createCatalogTable(path1, types);
+		CatalogTable table = createCatalogTable(types);
 
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, table, false);
@@ -143,7 +142,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 		verifyDataTypes(types);
 	}
 
-	private CatalogTable createCatalogTable(ObjectPath tablePath, DataType[] types) {
+	private CatalogTable createCatalogTable(DataType[] types) {
 		String[] colNames = new String[types.length];
 
 		for (int i = 0; i < types.length; i++) {
@@ -154,7 +153,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 			.fields(colNames, types)
 			.build();
 
-		return new CatalogTableImpl(tablePath,
+		return new CatalogTableImpl(
 			schema,
 			getBatchTableProperties(),
 			TEST_COMMENT
@@ -162,7 +161,7 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	}
 
 	private void verifyDataTypes(DataType[] types) throws Exception {
-		CatalogTable table = createCatalogTable(path1, types);
+		CatalogTable table = createCatalogTable(types);
 
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, table, false);

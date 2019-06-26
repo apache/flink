@@ -141,7 +141,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	// to convert Flink object to Hive object
 	private transient HiveObjectConversion[] hiveConversions;
 
-	public HiveTableOutputFormat(JobConf jobConf, CatalogTableImpl table, HiveTablePartition hiveTablePartition,
+	public HiveTableOutputFormat(JobConf jobConf, ObjectPath tablePath, CatalogTableImpl table, HiveTablePartition hiveTablePartition,
 			Properties tableProperties, boolean overwrite) {
 		super(jobConf.getCredentials());
 
@@ -151,7 +151,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 
 		HadoopUtils.mergeHadoopConf(jobConf);
 		this.jobConf = jobConf;
-		this.tablePath = table.getTablePath();
+		this.tablePath = tablePath;
 		this.partitionColumns = table.getPartitionKeys();
 		TableSchema tableSchema = table.getSchema();
 		this.rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());

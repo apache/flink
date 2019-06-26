@@ -516,8 +516,7 @@ public class HiveCatalog extends AbstractCatalog {
 				);
 			}
 		} else {
-			return new CatalogTableImpl(new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()),
-				tableSchema, partitionKeys, properties, comment);
+			return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
 		}
 	}
 
@@ -548,8 +547,6 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table columns and partition keys
 		if (table instanceof CatalogTableImpl) {
 			CatalogTableImpl catalogTable = (CatalogTableImpl) table;
-
-			checkArgument(tablePath.equals(catalogTable.getTablePath()));
 
 			if (catalogTable.isPartitioned()) {
 				int partitionKeySize = catalogTable.getPartitionKeys().size();

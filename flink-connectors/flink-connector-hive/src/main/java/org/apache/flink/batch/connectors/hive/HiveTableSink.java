@@ -59,14 +59,16 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 
 	private final JobConf jobConf;
 	private final CatalogTableImpl catalogTable;
+	private final ObjectPath tablePath;
 	private final RowTypeInfo rowTypeInfo;
 	private final String hiveVersion;
 
 	// TODO: need OverwritableTableSink to configure this
 	private boolean overwrite = false;
 
-	public HiveTableSink(JobConf jobConf, CatalogTableImpl table) {
+	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTableImpl table) {
 		this.jobConf = jobConf;
+		this.tablePath = tablePath;
 		this.catalogTable = table;
 		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
 		TableSchema tableSchema = table.getSchema();
@@ -79,7 +81,6 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 		boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
 		// TODO: need PartitionableTableSink to decide whether it's dynamic partitioning
 		boolean isDynamicPartition = isPartitioned;
-		ObjectPath tablePath = catalogTable.getTablePath();
 		String dbName = tablePath.getDatabaseName();
 		String tableName = tablePath.getObjectName();
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
@@ -112,7 +113,13 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 				sd.setLocation(toStagingDir(sdLocation, jobConf));
 				hiveTablePartition = new HiveTablePartition(sd, null);
 			}
-			return new HiveTableOutputFormat(jobConf, this.catalogTable, hiveTablePartition, MetaStoreUtils.getTableMetadata(table), overwrite);
+			return new HiveTableOutputFormat(
+				jobConf,
+				tablePath,
+				catalogTable,
+				hiveTablePartition,
+				MetaStoreUtils.getTableMetadata(table),
+				overwrite);
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);
 		} catch (IOException e) {
@@ -122,7 +129,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return new HiveTableSink(jobConf, catalogTable);
+		return new HiveTableSink(jobConf, tablePath, catalogTable);
 	}
 
 	@Override

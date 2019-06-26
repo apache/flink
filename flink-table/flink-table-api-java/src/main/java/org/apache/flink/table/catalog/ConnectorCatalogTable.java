@@ -29,10 +29,8 @@ import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -95,34 +93,9 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	}
 
 	@Override
-	public boolean isPartitioned() {
-		return false;
-	}
-
-	@Override
-	public List<String> getPartitionKeys() {
-		return new ArrayList<>();
-	}
-
-	@Override
 	public Map<String, String> toProperties() {
 		// This effectively makes sure the table cannot be persisted in a catalog.
 		throw new UnsupportedOperationException("ConnectorCatalogTable cannot be converted to properties");
-	}
-
-	@Override
-	public Map<String, String> getProperties() {
-		return new HashMap<>();
-	}
-
-	@Override
-	public TableSchema getSchema() {
-		return null;
-	}
-
-	@Override
-	public String getComment() {
-		return null;
 	}
 
 	@Override

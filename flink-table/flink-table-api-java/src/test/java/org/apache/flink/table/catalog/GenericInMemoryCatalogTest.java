@@ -56,7 +56,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Test
 	public void testDropTable_partitionedTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createPartitionedTable(path1), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
 		CatalogPartition catalogPartition = createPartition();
 		CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
 		catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
@@ -72,7 +72,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Test
 	public void testRenameTable_partitionedTable() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		CatalogTable table = createPartitionedTable(path1);
+		CatalogTable table = createPartitionedTable();
 		catalog.createTable(path1, table, false);
 		CatalogPartition catalogPartition = createPartition();
 		CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
@@ -94,7 +94,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Test
 	public void testAlterPartition_differentTypedPartition() throws Exception {
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createPartitionedTable(path1), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
 
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		CatalogPartition partition = createPartition();
@@ -115,7 +115,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	public void testStatistics() throws Exception {
 		// Table related
 		catalog.createDatabase(db1, createDb(), false);
-		CatalogTable table = createTable(path1);
+		CatalogTable table = createTable();
 		catalog.createTable(path1, table, false);
 
 		CatalogTestUtil.checkEquals(catalog.getTableStatistics(path1), CatalogTableStatistics.UNKNOWN);
@@ -130,7 +130,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 
 		// Partition related
 		catalog.createDatabase(db2, createDb(), false);
-		CatalogTable table2 = createPartitionedTable(path2);
+		CatalogTable table2 = createPartitionedTable();
 		catalog.createTable(path2, table2, false);
 		CatalogPartitionSpec partitionSpec = createPartitionSpec();
 		catalog.createPartition(path2, partitionSpec, createPartition(), false);
@@ -158,32 +158,32 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Override
-	public CatalogTable createStreamingTable(ObjectPath tablePath) {
-		return new CatalogTableImpl(tablePath,
+	public CatalogTable createStreamingTable() {
+		return new CatalogTableImpl(
 			createTableSchema(),
 			getStreamingTableProperties(),
 			TEST_COMMENT);
 	}
 
 	@Override
-	public CatalogTable createTable(ObjectPath tablePath) {
-		return new CatalogTableImpl(tablePath,
+	public CatalogTable createTable() {
+		return new CatalogTableImpl(
 			createTableSchema(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
 
 	@Override
-	public CatalogTable createAnotherTable(ObjectPath tablePath) {
-		return new CatalogTableImpl(tablePath,
+	public CatalogTable createAnotherTable() {
+		return new CatalogTableImpl(
 			createAnotherTableSchema(),
 			getBatchTableProperties(),
 			TEST_COMMENT);
 	}
 
 	@Override
-	public CatalogTable createPartitionedTable(ObjectPath tablePath) {
-		return new CatalogTableImpl(tablePath,
+	public CatalogTable createPartitionedTable() {
+		return new CatalogTableImpl(
 			createTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),
@@ -191,8 +191,8 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	@Override
-	public CatalogTable createAnotherPartitionedTable(ObjectPath tablePath) {
-		return new CatalogTableImpl(tablePath,
+	public CatalogTable createAnotherPartitionedTable() {
+		return new CatalogTableImpl(
 			createAnotherTableSchema(),
 			createPartitionKeys(),
 			getBatchTableProperties(),

@@ -79,7 +79,7 @@ class DatabaseCalciteSchema implements Schema {
 			} else if (table instanceof ConnectorCatalogTable) {
 				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
 			} else if (table instanceof CatalogTable) {
-				return convertCatalogTable((CatalogTable) table);
+				return convertCatalogTable(tablePath, (CatalogTable) table);
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}
@@ -103,9 +103,9 @@ class DatabaseCalciteSchema implements Schema {
 			.orElseThrow(() -> new TableException("Cannot query a sink only table."));
 	}
 
-	private Table convertCatalogTable(CatalogTable table) {
+	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
 		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource(table))
+		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource(tablePath, table))
 			.orElse(TableFactoryUtil.findAndCreateTableSource(table));
 
 		if (!(tableSource instanceof StreamTableSource)) {

@@ -29,9 +29,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * A database name and object (table/view/function) name combo in a catalog.
  */
 public class ObjectPath implements Serializable {
-
-	private String databaseName;
-	private String objectName;
+	private final String databaseName;
+	private final String objectName;
 
 	public ObjectPath(String databaseName, String objectName) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");

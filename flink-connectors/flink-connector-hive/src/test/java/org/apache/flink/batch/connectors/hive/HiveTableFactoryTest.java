@@ -83,14 +83,14 @@ public class HiveTableFactoryTest {
 
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");
-		CatalogTable table = new CatalogTableImpl(path, schema, properties, "csv table");
+		CatalogTable table = new CatalogTableImpl(schema, properties, "csv table");
 		catalog.createTable(path, table, true);
 		Optional<TableFactory> opt = catalog.getTableFactory();
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSource tableSource = tableFactory.createTableSource(table);
+		TableSource tableSource = tableFactory.createTableSource(path, table);
 		assertTrue(tableSource instanceof StreamTableSource);
-		TableSink tableSink = tableFactory.createTableSink(table);
+		TableSink tableSink = tableFactory.createTableSink(path, table);
 		assertTrue(tableSink instanceof StreamTableSink);
 	}
 
@@ -105,12 +105,12 @@ public class HiveTableFactoryTest {
 
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");
-		CatalogTable table = new CatalogTableImpl(path, schema, properties, "hive table");
+		CatalogTable table = new CatalogTableImpl(schema, properties, "hive table");
 		catalog.createTable(path, table, true);
 		Optional<TableFactory> opt = catalog.getTableFactory();
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
-		TableSink tableSink = tableFactory.createTableSink(table);
+		TableSink tableSink = tableFactory.createTableSink(path, table);
 		assertTrue(tableSink instanceof HiveTableSink);
 	}
 
