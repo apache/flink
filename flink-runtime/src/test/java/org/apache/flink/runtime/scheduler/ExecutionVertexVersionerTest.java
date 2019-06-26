@@ -35,7 +35,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -117,7 +116,6 @@ public class ExecutionVertexVersionerTest extends TestLogger {
 		final Set<ExecutionVertexID> unmodifiedExecutionVertices =
 			executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
-		assertThat(unmodifiedExecutionVertices, not(containsInAnyOrder(TEST_EXECUTION_VERTEX_ID1)));
 		assertThat(unmodifiedExecutionVertices, containsInAnyOrder(TEST_EXECUTION_VERTEX_ID2));
 	}
 }

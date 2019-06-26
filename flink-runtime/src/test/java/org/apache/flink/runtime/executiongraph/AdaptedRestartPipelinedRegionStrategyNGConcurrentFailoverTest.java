@@ -21,8 +21,8 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AdaptedRestartPipelinedRegionStrategyNGFailoverTest.TestAdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
@@ -41,11 +40,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilJobStatus;
@@ -110,12 +105,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		// start job scheduling
 		testMainThreadUtil.execute(eg::scheduleForExecution);
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		assertEquals(1, eg.getGlobalModVersion());
-		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
-		assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
-		assertEquals(ExecutionState.CREATED, ev21.getExecutionState());
-		assertEquals(ExecutionState.CREATED, ev22.getExecutionState());
 
 		// fail ev11 to trigger region failover of {ev11}, {ev21}, {ev22}
 		testMainThreadUtil.execute(() -> ev11.getCurrentExecutionAttempt().fail(new Exception("task failure 1")));
@@ -132,98 +121,13 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		assertEquals(ExecutionState.CANCELED, ev22.getExecutionState());
 
 		// complete region failover blocker to trigger region failover recovery
-		testMainThreadUtil.execute(() -> failoverStrategy.blockerFuture.complete(null));
+		testMainThreadUtil.execute(() -> failoverStrategy.getBlockerFuture().complete(null));
 
 		// verify that all tasks are recovered and no task is restarted more than once
 		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
 		assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
 		assertEquals(ExecutionState.CREATED, ev21.getExecutionState());
 		assertEquals(ExecutionState.CREATED, ev22.getExecutionState());
-		assertEquals(1, ev11.getCurrentExecutionAttempt().getAttemptNumber());
-		assertEquals(1, ev12.getCurrentExecutionAttempt().getAttemptNumber());
-		assertEquals(1, ev21.getCurrentExecutionAttempt().getAttemptNumber());
-		assertEquals(1, ev22.getCurrentExecutionAttempt().getAttemptNumber());
-	}
-
-	/**
-	 * Tests that a local failover does not try to trump a global failover.
-	 * <pre>
-	 *     (v11) -+-> (v21)
-	 *            x
-	 *     (v12) -+-> (v22)
-	 *
-	 *            ^
-	 *            |
-	 *       (blocking)
-	 * </pre>
-	 */
-	@Test
-	public void testRegionFailoverWhenInGlobalFailover() throws Exception {
-
-		// the logic in this test is as follows:
-		//  - start a job
-		//  - cause a global failure and delay the recovery action via the manual executor
-		//  - cause a task failure to trigger local recovery
-		//  - validate that the local recovery does not restart tasks
-
-		final JobID jid = new JobID();
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, DEFAULT_PARALLELISM);
-		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
-
-		final ExecutionGraph eg = createExecutionGraph(
-			jid,
-			TestAdaptedRestartPipelinedRegionStrategyNG::new,
-			restartStrategy,
-			slotProvider);
-
-		final Iterator<ExecutionVertex> vertexIterator = eg.getAllExecutionVertices().iterator();
-		final ExecutionVertex ev11 = vertexIterator.next();
-		final ExecutionVertex ev12 = vertexIterator.next();
-		final ExecutionVertex ev21 = vertexIterator.next();
-		final ExecutionVertex ev22 = vertexIterator.next();
-
-		// start job scheduling
-		testMainThreadUtil.execute(eg::scheduleForExecution);
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
-		assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
-		assertEquals(ExecutionState.CREATED, ev21.getExecutionState());
-		assertEquals(ExecutionState.CREATED, ev22.getExecutionState());
-
-		// trigger global failover cancelling
-		testMainThreadUtil.execute(() -> eg.failGlobal(new Exception("Test global failure")));
-		assertEquals(JobStatus.FAILING, eg.getState());
-		assertEquals(ExecutionState.CANCELING, ev11.getExecutionState());
-		assertEquals(ExecutionState.CANCELING, ev12.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev21.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev22.getExecutionState());
-
-		// fail ev11 to trigger region failover
-		// this should just complete ev11 cancelling and not trigger region failover
-		testMainThreadUtil.execute(() -> ev11.getCurrentExecutionAttempt().fail(new Exception("task failure")));
-		assertEquals(JobStatus.FAILING, eg.getState());
-		assertEquals(ExecutionState.CANCELED, ev11.getExecutionState());
-		assertEquals(ExecutionState.CANCELING, ev12.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev21.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev22.getExecutionState());
-
-		// complete task cancellations
-		// the global failover recovery will be blocked by manually triggered restart strategy
-		testMainThreadUtil.execute(() -> ev12.getCurrentExecutionAttempt().completeCancelling());
-
-		// verify that no task is restarted
-		assertEquals(JobStatus.RESTARTING, eg.getState());
-		assertEquals(ExecutionState.CANCELED, ev11.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev12.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev21.getExecutionState());
-		assertEquals(ExecutionState.CANCELED, ev22.getExecutionState());
-
-		// trigger global recovery
-		testMainThreadUtil.execute(restartStrategy::triggerNextAction);
-
-		// verify the job state and vertex attempt number
-		waitUntilJobStatus(eg, JobStatus.RUNNING, 2000L);
-		assertEquals(2, eg.getGlobalModVersion());
 		assertEquals(1, ev11.getCurrentExecutionAttempt().getAttemptNumber());
 		assertEquals(1, ev12.getCurrentExecutionAttempt().getAttemptNumber());
 		assertEquals(1, ev21.getCurrentExecutionAttempt().getAttemptNumber());
@@ -274,11 +178,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		// start job scheduling
 		testMainThreadUtil.execute(eg::scheduleForExecution);
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
-		assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
-		assertEquals(ExecutionState.CREATED, ev21.getExecutionState());
-		assertEquals(ExecutionState.CREATED, ev22.getExecutionState());
 
 		// fail ev11 to trigger region failover of {ev11}, {ev21}, {ev22}
 		testMainThreadUtil.execute(() -> ev11.getCurrentExecutionAttempt().fail(new Exception("task failure")));
@@ -295,18 +194,16 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 			restartStrategy.triggerNextAction();
 		});
 
-		// verify the state in main thread as the global recovery process is scheduled async to this thread
-		testMainThreadUtil.execute(() -> {
-			assertEquals(JobStatus.RUNNING, eg.getState());
-			assertEquals(2, eg.getGlobalModVersion());
-			assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
-			assertEquals(ExecutionState.DEPLOYING, ev12.getExecutionState());
-			assertEquals(ExecutionState.CREATED, ev21.getExecutionState());
-			assertEquals(ExecutionState.CREATED, ev22.getExecutionState());
-		});
+		// verify the job state and vertex attempt number
+		waitUntilJobStatus(eg, JobStatus.RUNNING, 2000L);
+		assertEquals(2, eg.getGlobalModVersion());
+		assertEquals(1, ev11.getCurrentExecutionAttempt().getAttemptNumber());
+		assertEquals(1, ev12.getCurrentExecutionAttempt().getAttemptNumber());
+		assertEquals(1, ev21.getCurrentExecutionAttempt().getAttemptNumber());
+		assertEquals(1, ev22.getCurrentExecutionAttempt().getAttemptNumber());
 
 		// complete region failover blocker to trigger region failover
-		testMainThreadUtil.execute(() -> failoverStrategy.blockerFuture.complete(null));
+		testMainThreadUtil.execute(() -> failoverStrategy.getBlockerFuture().complete(null));
 
 		// verify that no task is restarted by region failover
 		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
@@ -334,7 +231,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 	 *            |
 	 *       (blocking)
 	 * </pre>
-	 * 4 regions. Each has 1 execution vertex.
+	 * 4 regions. Each consists of one individual execution vertex.
 	 */
 	private ExecutionGraph createExecutionGraph(
 		JobID jid,
@@ -375,32 +272,5 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 		graph.start(testMainThreadUtil.getMainThreadExecutor());
 
 		return graph;
-	}
-
-	/**
-	 * Test implementation of the {@link AdaptedRestartPipelinedRegionStrategyNG} that makes it possible
-	 * to control when the failover action is performed via {@link CompletableFuture}.
-	 */
-	static class TestAdaptedRestartPipelinedRegionStrategyNG extends AdaptedRestartPipelinedRegionStrategyNG {
-
-		@Nonnull
-		CompletableFuture<?> blockerFuture;
-
-		TestAdaptedRestartPipelinedRegionStrategyNG(ExecutionGraph executionGraph) {
-			super(executionGraph);
-			this.blockerFuture = CompletableFuture.completedFuture(null);
-		}
-
-		void setBlockerFuture(@Nonnull CompletableFuture<?> blockerFuture) {
-			this.blockerFuture = blockerFuture;
-		}
-
-		@Override
-		protected CompletableFuture<?> cancelTasks(final Set<ExecutionVertexID> verticesToRestart) {
-			ArrayList<CompletableFuture<?>> terminationAndBlocker = new ArrayList<>(2);
-			terminationAndBlocker.add(super.cancelTasks(verticesToRestart));
-			terminationAndBlocker.add(blockerFuture);
-			return FutureUtils.waitForAll(terminationAndBlocker);
-		}
 	}
 }

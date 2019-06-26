@@ -68,7 +68,8 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 	private final ExecutionGraph executionGraph;
 
 	/** The underlying new generation region failover strategy. */
-	private RestartPipelinedRegionStrategy restartPipelinedRegionStrategy;
+	@VisibleForTesting
+	protected RestartPipelinedRegionStrategy restartPipelinedRegionStrategy;
 
 	/** The versioner helps to maintain execution vertex versions. */
 	private final ExecutionVertexVersioner executionVertexVersioner;
@@ -102,7 +103,8 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		restartTasks(tasksToRestart);
 	}
 
-	private void restartTasks(final Set<ExecutionVertexID> verticesToRestart) {
+	@VisibleForTesting
+	protected void restartTasks(final Set<ExecutionVertexID> verticesToRestart) {
 		// record current versions
 		final long globalModVersion = executionGraph.getGlobalModVersion();
 		final Set<ExecutionVertexVersion> vertexVersions = new HashSet<>(
