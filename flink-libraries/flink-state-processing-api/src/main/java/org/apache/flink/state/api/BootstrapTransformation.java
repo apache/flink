@@ -19,6 +19,7 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
@@ -40,6 +41,8 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.OptionalInt;
+
 /**
  * Bootstrapped data that can be written into a {@code Savepoint}.
  * @param <T> The input type of the transformation.
@@ -57,10 +60,14 @@ public class BootstrapTransformation<T> {
 	@Nullable
 	private final TypeInformation<?> keyType;
 
+	private final OptionalInt operatorMaxParallelism;
+
 	BootstrapTransformation(
 		DataSet<T> dataSet,
+		OptionalInt operatorMaxParallelism,
 		SavepointWriterOperatorFactory factory) {
 		this.dataSet = dataSet;
+		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.factory = factory;
 		this.keySelector = null;
 		this.keyType = null;
@@ -68,23 +75,42 @@ public class BootstrapTransformation<T> {
 
 	<K> BootstrapTransformation(
 		DataSet<T> dataSet,
+		OptionalInt operatorMaxParallelism,
 		SavepointWriterOperatorFactory factory,
 		@Nonnull KeySelector<T, K> keySelector,
 		@Nonnull TypeInformation<K> keyType) {
 		this.dataSet = dataSet;
+		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.factory = factory;
 		this.keySelector = new HashSelector<>(keySelector);
 		this.keyType = keyType;
 	}
 
+	/**
+	 * @return The max parallelism for this operator.
+	 */
+	int getMaxParallelism(SavepointMetadata metadata) {
+		return operatorMaxParallelism.orElse(metadata.maxParallelism());
+	}
+
+	/**
+	 * @param uid The uid for the stream operator.
+	 * @param stateBackend The state backend for the job.
+	 * @param metadata Metadata about the resulting savepoint.
+	 * @param savepointPath The path where the savepoint will be written.
+	 * @return The operator subtask states for this bootstrap transformation.
+	 */
 	DataSet<TaggedOperatorSubtaskState> getOperatorSubtaskStates(
 		String uid,
 		StateBackend stateBackend,
 		SavepointMetadata metadata,
 		Path savepointPath) {
+
 		DataSet<T> input = dataSet;
+		int localMaxParallelism = getMaxParallelism(metadata);
+
 		if (keySelector != null) {
-			input = dataSet.partitionCustom(new KeyGroupRangePartitioner(metadata.maxParallelism()), keySelector);
+			input = dataSet.partitionCustom(new KeyGroupRangePartitioner(localMaxParallelism), keySelector);
 		}
 
 		final StreamConfig config;
@@ -108,7 +134,7 @@ public class BootstrapTransformation<T> {
 
 		BoundedOneInputStreamTaskRunner<T> operatorRunner = new BoundedOneInputStreamTaskRunner<>(
 			config,
-			metadata
+			localMaxParallelism
 		);
 
 		MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates = input
@@ -118,12 +144,21 @@ public class BootstrapTransformation<T> {
 		if (operator instanceof BroadcastStateBootstrapOperator) {
 			subtaskStates = subtaskStates.setParallelism(1);
 		} else {
-			int currentParallelism = subtaskStates.getParallelism();
-			if (currentParallelism > metadata.maxParallelism()) {
-				subtaskStates.setParallelism(metadata.maxParallelism());
+			int currentParallelism = getParallelism(subtaskStates);
+			if (currentParallelism > localMaxParallelism) {
+				subtaskStates.setParallelism(localMaxParallelism);
 			}
 		}
 
 		return subtaskStates;
+	}
+
+	private static <T> int getParallelism(MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates) {
+		int parallelism = subtaskStates.getParallelism();
+		if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
+			parallelism = subtaskStates.getExecutionEnvironment().getParallelism();
+		}
+
+		return parallelism;
 	}
 }

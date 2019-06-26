@@ -24,9 +24,6 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.runtime.metadata.NewSavepointMetadata;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * A new savepoint.
  */
@@ -36,28 +33,9 @@ public class NewSavepoint extends WritableSavepoint<NewSavepoint> {
 
 	private final int maxParallelism;
 
-	private final Map<String, BootstrapTransformation> transformations;
-
 	NewSavepoint(StateBackend stateBackend, int maxParallelism) {
 		this.stateBackend = stateBackend;
 		this.maxParallelism = maxParallelism;
-		this.transformations = new HashMap<>();
-	}
-
-	@Override
-	public NewSavepoint removeOperator(String uid) {
-		transformations.remove(uid);
-		return this;
-	}
-
-	@Override
-	public <T> NewSavepoint withOperator(String uid, BootstrapTransformation<T> transformation) {
-		if (transformations.containsKey(uid)) {
-			throw new IllegalArgumentException("Duplicate uid " + uid + ". All uid's must be unique");
-		}
-
-		transformations.put(uid, transformation);
-		return this;
 	}
 
 	@Override

@@ -25,6 +25,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
 
+import java.util.OptionalInt;
+
 /**
  * A {@link KeyedOperatorTransformation} represents a {@link OneInputOperatorTransformation} on which operator state is
  * partitioned by key using a provided {@link KeySelector}.
@@ -37,15 +39,19 @@ import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
 public class KeyedOperatorTransformation<K, T> {
 	private final DataSet<T> dataSet;
 
+	private final OptionalInt operatorMaxParallelism;
+
 	private final KeySelector<T, K> keySelector;
 
 	private final TypeInformation<K> keyType;
 
 	KeyedOperatorTransformation(
 		DataSet<T> dataSet,
+		OptionalInt operatorMaxParallelism,
 		KeySelector<T, K> keySelector,
 		TypeInformation<K> keyType) {
 		this.dataSet = dataSet;
+		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}
@@ -74,7 +80,7 @@ public class KeyedOperatorTransformation<K, T> {
 	 * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
 	 */
 	private BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
-		return new BootstrapTransformation<>(dataSet, factory, keySelector, keyType);
+		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, factory, keySelector, keyType);
 	}
 }
 

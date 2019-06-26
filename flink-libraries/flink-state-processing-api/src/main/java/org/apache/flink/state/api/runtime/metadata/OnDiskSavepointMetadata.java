@@ -41,6 +41,8 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 
 	private static final long serialVersionUID = 3623389893479485802L;
 
+	private final String path;
+
 	private final int maxParallelism;
 
 	private final Collection<MasterState> masterStates;
@@ -49,6 +51,8 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 
 	public OnDiskSavepointMetadata(String path) throws IOException {
 		Savepoint savepoint = SavepointLoader.loadSavepoint(path);
+
+		this.path = path;
 
 		this.maxParallelism = savepoint
 			.getOperatorStates()
@@ -98,5 +102,10 @@ public class OnDiskSavepointMetadata implements SavepointMetadata {
 		}
 
 		return operatorState;
+	}
+
+	@Override
+	public String toString() {
+		return "Savepoint<" + path + ">";
 	}
 }

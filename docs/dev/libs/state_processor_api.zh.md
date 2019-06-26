@@ -126,9 +126,9 @@ CREATE TABLE currency_converter.rates (
 CREATE NAMESPACE summarize;
  
 CREATE TABLE summarize.keyed_state (
-   key   INTEGER PRIMARY KEY,
+   `key`   INTEGER PRIMARY KEY,
    total DOUBLE,
-   count INTEGER
+   `count` INTEGER
 );
 {% endhighlight %}
 
@@ -146,7 +146,7 @@ In general, the savepoint ↔ database relationship can be summarized as:
 ## Reading State
 
 Reading state begins by specifiying the path to a valid savepoint or checkpoint along with the `StateBackend` that should be used to restore the data.
-The compatability guarantees for restoring state are identical to those when restoring a `DataStream` application.
+The comparability guarantees for restoring state are identical to those when restoring a `DataStream` application.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -382,10 +382,10 @@ BootstrapTransformation<Account> transformation = OperatorTransformation
 case class Account(id: Int, amount: Double, timestamp: Long)
  
 class AccountBootstrapper extends KeyedStateBootstrapFunction[Integer, Account] {
-    var state: ValueState[Double]
+    var state: ValueState[java.lang.Double]
 
     override def open(parameters: Configuration): Unit = {
-        val descriptor = new ValueStateDescriptor[Double]("total",Types.DOUBLE)
+        val descriptor = new ValueStateDescriptor("total",Types.DOUBLE)
         state = getRuntimeContext().getState(descriptor)
     }
 

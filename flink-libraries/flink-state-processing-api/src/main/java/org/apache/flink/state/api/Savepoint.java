@@ -20,10 +20,13 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.state.api.runtime.metadata.OnDiskSavepointMetadata;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+
+import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 /**
  * A {@link Savepoint} is a collection of operator states that can be used to supply initial state
@@ -40,10 +43,10 @@ public final class Savepoint {
 	 *
 	 * @param env The execution enviornment used to transform the savepoint.
 	 * @param path The path to an existing savepoint on disk.
-	 * @param stateBackend The state backend of the savepoint used for keyed state.
+	 * @param stateBackend The state backend of the savepoint.
 	 */
 	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
-		return new ExistingSavepoint(env, path, stateBackend);
+		return new ExistingSavepoint(env, new OnDiskSavepointMetadata(path), stateBackend);
 	}
 
 	/**
@@ -54,7 +57,11 @@ public final class Savepoint {
 	 * @return A new savepoint.
 	 */
 	public static NewSavepoint create(StateBackend stateBackend, int maxParallelism) {
-		maxParallelism = KeyGroupRangeAssignment.computeDefaultMaxParallelism(maxParallelism);
+		Preconditions.checkArgument(maxParallelism > 0
+				&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+			"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
+				+ ". Found: " + maxParallelism);
+
 		return new NewSavepoint(stateBackend, maxParallelism);
 	}
 }

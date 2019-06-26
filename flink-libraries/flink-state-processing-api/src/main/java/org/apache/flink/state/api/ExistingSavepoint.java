@@ -40,15 +40,11 @@ import org.apache.flink.state.api.input.KeyedStateInputFormat;
 import org.apache.flink.state.api.input.ListStateInputFormat;
 import org.apache.flink.state.api.input.UnionStateInputFormat;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
-import org.apache.flink.state.api.runtime.metadata.OnDiskSavepointMetadata;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -60,27 +56,18 @@ import java.util.stream.Collectors;
 public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	private final ExecutionEnvironment env;
 
-	private final String existingPath;
-
 	private final SavepointMetadata metadata;
 
 	private final StateBackend stateBackend;
 
-	private final Map<String, BootstrapTransformation> transformations;
-
-	private final List<String> droppedOperators;
-
-	ExistingSavepoint(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
+	ExistingSavepoint(ExecutionEnvironment env, SavepointMetadata metadata, StateBackend stateBackend) throws IOException {
 		Preconditions.checkNotNull(env, "The execution environment must not be null");
-		Preconditions.checkNotNull(path, "The savepoint path must not be null");
+		Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 
 		this.env = env;
-		this.existingPath = path;
-		this.metadata = new OnDiskSavepointMetadata(path);
+		this.metadata = metadata;
 		this.stateBackend = stateBackend;
-		this.transformations = new HashMap<>();
-		this.droppedOperators = new ArrayList<>();
 	}
 
 	/**
@@ -284,23 +271,6 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	}
 
 	@Override
-	public ExistingSavepoint removeOperator(String uid) {
-		droppedOperators.add(uid);
-		transformations.remove(uid);
-		return this;
-	}
-
-	@Override
-	public <T> ExistingSavepoint withOperator(String uid, BootstrapTransformation<T> transformation) {
-		if (transformations.containsKey(uid)) {
-			throw new IllegalArgumentException("Duplicate uid " + uid + ". All uid's must be unique");
-		}
-
-		transformations.put(uid, transformation);
-		return this;
-	}
-
-	@Override
 	public void write(String path) {
 		Path savepointPath = new Path(path);
 
@@ -315,9 +285,20 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 			.filter(operator -> !droppedIDs.contains(operator.getOperatorID()))
 			.collect(Collectors.toList());
 
+		Set<OperatorID> existingOperatorIDs = remainingOperators
+			.stream()
+			.map(OperatorState::getOperatorID)
+			.collect(Collectors.toSet());
+
+		for (String uid : transformations.keySet()) {
+			if (existingOperatorIDs.contains(OperatorIDGenerator.fromUid(uid))) {
+				throw new IllegalArgumentException("The base savepoint " + path + " already contains uid " + uid + ". All uid's must be unique");
+			}
+		}
+
 		DataSet<OperatorState> existingOperators = env
 			.fromCollection(remainingOperators)
-			.name(existingPath);
+			.name(metadata.toString());
 
 		write(savepointPath, transformations, stateBackend, metadata, existingOperators);
 	}

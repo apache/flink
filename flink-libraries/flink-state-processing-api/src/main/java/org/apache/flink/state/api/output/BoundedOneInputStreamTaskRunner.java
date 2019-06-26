@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.util.Collector;
 
@@ -41,7 +40,7 @@ import org.apache.flink.util.Collector;
 public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
 	private final StreamConfig streamConfig;
 
-	private final SavepointMetadata metadata;
+	private final int maxParallelism;
 
 	private transient SavepointEnvironment env;
 
@@ -49,27 +48,24 @@ public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunctio
 	 * Create a new {@link BoundedOneInputStreamTaskRunner}.
 	 *
 	 * @param streamConfig The internal configuration for the task.
-	 * @param provider Provides the max parallelism of the operator. Equivalent to setting {@link
-	 *     org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setMaxParallelism(int)}.
+	 * @param  maxParallelism The max parallelism of the operator.
 	 */
 	public BoundedOneInputStreamTaskRunner(
 		StreamConfig streamConfig,
-		SavepointMetadata provider) {
+		int maxParallelism) {
 
 		this.streamConfig = streamConfig;
-		this.metadata = provider;
+		this.maxParallelism = maxParallelism;
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		int maxParallelism = metadata.maxParallelism();
 
 		env = new SavepointEnvironment
 			.Builder(getRuntimeContext(), maxParallelism)
 			.setConfiguration(streamConfig.getConfiguration())
 			.build();
-
 	}
 
 	@Override

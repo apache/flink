@@ -29,6 +29,9 @@ import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,12 +42,26 @@ import java.util.Map;
 @SuppressWarnings("WeakerAccess")
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
+	protected final Map<String, BootstrapTransformation> transformations;
+
+	protected final List<String> droppedOperators;
+
+	WritableSavepoint() {
+		this.transformations  = new HashMap<>();
+		this.droppedOperators = new ArrayList<>();
+	}
+
 	/**
 	 * Drop an existing operator from the savepoint.
 	 * @param uid The uid of the operator.
 	 * @return A modified savepoint.
 	 */
-	public abstract F removeOperator(String uid);
+	@SuppressWarnings("unchecked")
+	public F removeOperator(String uid) {
+		droppedOperators.add(uid);
+		transformations.remove(uid);
+		return (F) this;
+	}
 
 	/**
 	 * Adds a new operator to the savepoint.
@@ -52,7 +69,15 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	 * @param transformation The operator to be included.
 	 * @return The modified savepoint.
 	 */
-	public abstract <T> F withOperator(String uid, BootstrapTransformation<T> transformation);
+	@SuppressWarnings("unchecked")
+	public <T> F withOperator(String uid, BootstrapTransformation<T> transformation) {
+		if (transformations.containsKey(uid)) {
+			throw new IllegalArgumentException("The savepoint already contains uid " + uid + ". All uid's must be unique");
+		}
+
+		transformations.put(uid, transformation);
+		return (F) this;
+	}
 
 	/**
 	 * Write out a new or updated savepoint.
@@ -60,7 +85,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	 */
 	public abstract void write(String path);
 
-	protected void write(
+	protected static void write(
 		Path savepointPath,
 		Map<String, BootstrapTransformation> transformations,
 		StateBackend stateBackend,
@@ -89,7 +114,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private DataSet<OperatorState> getOperatorStates(
+	private static DataSet<OperatorState> getOperatorStates(
 		Path savepointPath,
 		String uid,
 		StateBackend stateBackend,
@@ -98,7 +123,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
 		return operator
 			.getOperatorSubtaskStates(uid, stateBackend, metadata, savepointPath)
-			.reduceGroup(new OperatorSubtaskStateReducer(uid, metadata.maxParallelism()))
+			.reduceGroup(new OperatorSubtaskStateReducer(uid, operator.getMaxParallelism(metadata)))
 			.name("reduce(OperatorSubtaskState)");
 	}
 }

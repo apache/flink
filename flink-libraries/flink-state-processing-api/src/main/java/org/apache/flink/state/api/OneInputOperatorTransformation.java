@@ -33,6 +33,8 @@ import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperat
 import org.apache.flink.state.api.output.operators.StateBootstrapOperator;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
+import java.util.OptionalInt;
+
 /**
  * {@code OneInputOperatorTransformation} represents a user defined transformation applied on
  * an {@link OperatorTransformation} with one input.
@@ -44,8 +46,26 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 public class OneInputOperatorTransformation<T> {
 	private final DataSet<T> dataSet;
 
+	private OptionalInt operatorMaxParallelism = OptionalInt.empty();
+
 	OneInputOperatorTransformation(DataSet<T> dataSet) {
 		this.dataSet = dataSet;
+	}
+
+
+	/**
+	 * Sets the maximum parallelism of this operator.
+	 *
+	 * <p>The maximum parallelism specifies the upper bound for dynamic scaling. It also defines the
+	 * number of key groups used for partitioned state.
+	 *
+	 * @param maxParallelism Maximum parallelism
+	 * @return The operator with set maximum parallelism
+	 */
+	@PublicEvolving
+	public OneInputOperatorTransformation<T> setMaxParallelism(int maxParallelism) {
+		this.operatorMaxParallelism = OptionalInt.of(maxParallelism);
+		return this;
 	}
 
 	/**
@@ -88,7 +108,7 @@ public class OneInputOperatorTransformation<T> {
 	 * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
 	 */
 	public BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
-		return new BootstrapTransformation<>(dataSet, factory);
+		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, factory);
 	}
 
 	/**
@@ -100,7 +120,7 @@ public class OneInputOperatorTransformation<T> {
 	 */
 	public <K> KeyedOperatorTransformation<K, T> keyBy(KeySelector<T, K> keySelector) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, dataSet.getType());
-		return new KeyedOperatorTransformation<>(dataSet, keySelector, keyType);
+		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, keySelector, keyType);
 	}
 
 	/**
@@ -112,7 +132,7 @@ public class OneInputOperatorTransformation<T> {
 	 * @return The {@code BootstrapTransformation} with partitioned state.
 	 */
 	public <K> KeyedOperatorTransformation<K, T> keyBy(KeySelector<T, K> keySelector, TypeInformation<K> keyType) {
-		return new KeyedOperatorTransformation<>(dataSet, keySelector, keyType);
+		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, keySelector, keyType);
 	}
 
 	/**
@@ -150,7 +170,7 @@ public class OneInputOperatorTransformation<T> {
 			dataSet.getExecutionEnvironment().getConfig());
 
 		TypeInformation<Tuple> keyType = TypeExtractor.getKeySelectorTypes(keySelector, dataSet.getType());
-		return new KeyedOperatorTransformation<>(dataSet, keySelector, keyType);
+		return new KeyedOperatorTransformation<>(dataSet, operatorMaxParallelism, keySelector, keyType);
 	}
 }
 
