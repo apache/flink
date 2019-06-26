@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -52,6 +51,8 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
+
+	public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -91,8 +92,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Determines the threshold that we tolerance declined checkpoint failure number.
-	 * -1 means undetermined by calling {@link #setTolerableCheckpointFailureNumber(int)} but still acts as fail the
-	 * whole job once a checkpoint fail.
+	 * The default value is -1 meaning undetermined and not set via {@link #setTolerableCheckpointFailureNumber(int)}.
 	 * */
 	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
@@ -300,8 +300,14 @@ public class CheckpointConfig implements java.io.Serializable {
 	/**
 	 * Get the tolerable checkpoint failure number which used by the checkpoint failure manager
 	 * to determine when we need to fail the job.
+	 *
+	 * <p>If the {@link #tolerableCheckpointFailureNumber} has not been configured, this method would return 0
+	 * which means the checkpoint failure manager would not tolerate any declined checkpoint failure.
 	 */
 	public int getTolerableCheckpointFailureNumber() {
+		if (tolerableCheckpointFailureNumber == UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER) {
+			return 0;
+		}
 		return tolerableCheckpointFailureNumber;
 	}
 
