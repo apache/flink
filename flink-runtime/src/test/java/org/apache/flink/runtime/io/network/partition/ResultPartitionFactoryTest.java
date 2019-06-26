@@ -39,23 +39,22 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class ResultPartitionFactoryTest extends TestLogger {
 
 	@Test
-	public void testForceConsumptionOnReleaseEnabled() {
-		testForceConsumptionOnRelease(true);
+	public void testConsumptionOnReleaseEnabled() {
+		testConsumptionOnRelease(true);
 	}
 
 	@Test
-	public void testForceConsumptionOnReleaseDisabled() {
-		testForceConsumptionOnRelease(false);
+	public void testConsumptionOnReleaseDisabled() {
+		testConsumptionOnRelease(false);
 	}
 
-	private static void testForceConsumptionOnRelease(boolean forceConsumptionOnRelease) {
+	private static void testConsumptionOnRelease(boolean releaseOnConsumption) {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
 			new NoOpIOManager(),
 			new NetworkBufferPool(1, 64, 1),
 			1,
-			1,
-			forceConsumptionOnRelease
+			1
 		);
 
 		ResultPartitionType partitionType = ResultPartitionType.BLOCKING;
@@ -68,12 +67,13 @@ public class ResultPartitionFactoryTest extends TestLogger {
 				0),
 			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
 			1,
-			true
+			true,
+			releaseOnConsumption
 		);
 
 		final ResultPartition test = factory.create("test", new ExecutionAttemptID(), descriptor);
 
-		if (forceConsumptionOnRelease) {
+		if (releaseOnConsumption) {
 			assertThat(test, instanceOf(ReleaseOnConsumptionResultPartition.class));
 		} else {
 			assertThat(test, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));

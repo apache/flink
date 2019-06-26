@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -55,6 +56,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	private final ReleaseType releaseType;
 
+	@VisibleForTesting
 	public ResultPartitionDeploymentDescriptor(
 			PartitionDescriptor partitionDescriptor,
 			ShuffleDescriptor shuffleDescriptor,
@@ -65,9 +67,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 			shuffleDescriptor,
 			maxParallelism,
 			sendScheduleOrUpdateConsumersMessage,
-			// Later we might have to make the scheduling adjust automatically
-			// if certain release type is not supported by shuffle service implementation at hand
-			partitionDescriptor.getPartitionType() == ResultPartitionType.BLOCKING ? ReleaseType.MANUAL : ReleaseType.AUTO);
+			ReleaseType.AUTO);
 	}
 
 	public ResultPartitionDeploymentDescriptor(

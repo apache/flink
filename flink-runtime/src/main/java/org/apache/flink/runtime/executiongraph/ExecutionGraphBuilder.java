@@ -115,6 +115,9 @@ public class ExecutionGraphBuilder {
 		final int maxPriorAttemptsHistoryLength =
 				jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
+		final boolean forcePartitionReleaseOnConsumption =
+			jobManagerConfig.getBoolean(JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
+
 		// create a new execution graph, if none exists so far
 		final ExecutionGraph executionGraph;
 		try {
@@ -131,7 +134,8 @@ public class ExecutionGraphBuilder {
 					classLoader,
 					blobWriter,
 					allocationTimeout,
-					shuffleMaster);
+					shuffleMaster,
+					forcePartitionReleaseOnConsumption);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

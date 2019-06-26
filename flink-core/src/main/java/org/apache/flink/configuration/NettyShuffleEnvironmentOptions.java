@@ -210,11 +210,6 @@ public class NettyShuffleEnvironmentOptions {
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
 			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
-	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
-	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
-			key("taskmanager.network.partition.force-release-on-consumption")
-			.defaultValue(true);
-
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated. */
