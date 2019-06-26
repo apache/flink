@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
@@ -52,7 +52,7 @@ public class ResultPartitionFactory {
 	private final ResultPartitionManager partitionManager;
 
 	@Nonnull
-	private final IOManager ioManager;
+	private final FileChannelManager channelManager;
 
 	@Nonnull
 	private final BufferPoolFactory bufferPoolFactory;
@@ -63,13 +63,13 @@ public class ResultPartitionFactory {
 
 	public ResultPartitionFactory(
 		@Nonnull ResultPartitionManager partitionManager,
-		@Nonnull IOManager ioManager,
+		@Nonnull FileChannelManager channelManager,
 		@Nonnull BufferPoolFactory bufferPoolFactory,
 		int networkBuffersPerChannel,
 		int floatingNetworkBuffersPerGate) {
 
 		this.partitionManager = partitionManager;
-		this.ioManager = ioManager;
+		this.channelManager = channelManager;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.bufferPoolFactory = bufferPoolFactory;
@@ -135,7 +135,7 @@ public class ResultPartitionFactory {
 		// Create the subpartitions.
 		switch (type) {
 			case BLOCKING:
-				initializeBoundedBlockingPartitions(subpartitions, partition, ioManager, networkBufferSize);
+				initializeBoundedBlockingPartitions(subpartitions, partition, networkBufferSize, channelManager);
 				break;
 
 			case PIPELINED:
@@ -154,13 +154,13 @@ public class ResultPartitionFactory {
 	private static void initializeBoundedBlockingPartitions(
 		ResultSubpartition[] subpartitions,
 		ResultPartition parent,
-		IOManager ioManager,
-		int networkBufferSize) {
+		int networkBufferSize,
+		FileChannelManager channelManager) {
 
 		int i = 0;
 		try {
 			for (; i < subpartitions.length; i++) {
-				final File spillFile = ioManager.createChannel().getPathFile();
+				final File spillFile = channelManager.createChannel().getPathFile();
 				subpartitions[i] = BOUNDED_BLOCKING_TYPE.create(i, parent, spillFile, networkBufferSize);
 			}
 		}

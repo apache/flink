@@ -21,7 +21,6 @@ package org.apache.flink.runtime.shuffle;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 
 import java.net.InetAddress;
@@ -39,7 +38,6 @@ public class ShuffleEnvironmentContext {
 	private final InetAddress hostAddress;
 	private final TaskEventPublisher eventPublisher;
 	private final MetricGroup parentMetricGroup;
-	private final IOManager ioManager;
 
 	public ShuffleEnvironmentContext(
 			Configuration configuration,
@@ -48,8 +46,7 @@ public class ShuffleEnvironmentContext {
 			boolean localCommunicationOnly,
 			InetAddress hostAddress,
 			TaskEventPublisher eventPublisher,
-			MetricGroup parentMetricGroup,
-			IOManager ioManager) {
+			MetricGroup parentMetricGroup) {
 		this.configuration = checkNotNull(configuration);
 		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
 		this.maxJvmHeapMemory = maxJvmHeapMemory;
@@ -57,7 +54,6 @@ public class ShuffleEnvironmentContext {
 		this.hostAddress = checkNotNull(hostAddress);
 		this.eventPublisher = checkNotNull(eventPublisher);
 		this.parentMetricGroup = checkNotNull(parentMetricGroup);
-		this.ioManager = checkNotNull(ioManager);
 	}
 
 	public Configuration getConfiguration() {
@@ -86,9 +82,5 @@ public class ShuffleEnvironmentContext {
 
 	public MetricGroup getParentMetricGroup() {
 		return parentMetricGroup;
-	}
-
-	public IOManager getIOManager() {
-		return ioManager;
 	}
 }
