@@ -113,12 +113,39 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
       "SELECT c FROM AllNullTable3 EXCEPT SELECT c FROM AllNullTable3",
       Seq())
   }
+
+  @Test
+  def testIntersectAll(): Unit = {
+    BatchScalaTableEnvUtil.registerCollection(tEnv, "T1", Seq(1, 1, 1, 2, 2), "c")
+    BatchScalaTableEnvUtil.registerCollection(tEnv, "T2", Seq(1, 2, 2, 2, 3), "c")
+    checkResult(
+      "SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2",
+      Seq(row(1), row(2), row(2)))
+  }
+
+  @Test
+  def testMinusAll(): Unit = {
+    BatchScalaTableEnvUtil.registerCollection(tEnv, "T2", Seq((1, 1L, "Hi")), "a, b, c")
+    val t1 = "SELECT * FROM SmallTable3"
+    val t2 = "SELECT * FROM T2"
+    checkResult(
+      s"SELECT c FROM (($t1 UNION ALL $t1 UNION ALL $t1) EXCEPT ALL ($t2 UNION ALL $t2))",
+      Seq(
+        row("Hi"),
+        row("Hello"),
+        row("Hello"),
+        row("Hello"),
+        row("Hello world"),
+        row("Hello world"),
+        row("Hello world")))
+  }
 }
 
 object SetOperatorsITCase {
   @Parameterized.Parameters(name = "{0}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
+      // TODO
 //      Array(BroadcastHashJoin),
 //      Array(HashJoin),
 //      Array(NestedLoopJoin),

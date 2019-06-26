@@ -87,4 +87,48 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testIntersectAll(): Unit = {
+    val t1 = failingDataSource(Seq(1, 1, 1, 2, 2)).toTable(tEnv, 'c)
+    val t2 = failingDataSource(Seq(1, 2, 2, 2, 3)).toTable(tEnv, 'c)
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sqlQuery = "SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = mutable.MutableList("1", "2", "2")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testMinusAll(): Unit = {
+    val tableA = failingDataSource(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("tableA", tableA)
+    val tableB = failingDataSource(Seq((1, 1L, "Hi"), (1, 1L, "Hi"))).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("tableB", tableB)
+
+    val t1 = "SELECT * FROM tableA"
+    val t2 = "SELECT * FROM tableB"
+    val sqlQuery =
+      s"SELECT c FROM (($t1 UNION ALL $t1 UNION ALL $t1) EXCEPT ALL $t2)"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = mutable.MutableList(
+      "Hi",
+      "Hello",
+      "Hello",
+      "Hello",
+      "Hello world",
+      "Hello world",
+      "Hello world"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
 }
