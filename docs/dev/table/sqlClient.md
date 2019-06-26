@@ -214,8 +214,8 @@ execution:
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
   restart-strategy:                 # optional: restart strategy
     type: fallback                  #   "fallback" to global restart strategy by default
-  current-catalog: catalog_1
-  current-database: mydb1
+  current-catalog: catalog_1        # optional: name of the current catalog of the session ("default_catalog" by default)
+  current-database: mydb1           # optional: name of the current database of the current catalog (default value is the default database name of the current catalog)
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
@@ -232,9 +232,9 @@ catalogs:
    - name: catalog_2
      type: hive
      property-version: 1
-     default-database: mydb2
-     hive-site-path: file://...
-     hive-version: 1.2.1
+     default-database: mydb2        # optional: name of default database of this catalog
+     hive-site-path: file://...     # optional: path of the hive-site.xml file. (Default value is created by HiveConf)
+     hive-version: 1.2.1            # optional: version of Hive (2.3.4 by default)
 {% endhighlight %}
 
 This configuration:
@@ -431,20 +431,22 @@ This process can be recursively performed until all the constructor parameters a
 Catalogs
 --------
 
-Catalogs can be defined as a set of yaml properties and are automatically registered to the environment upon starting SQL Cli. Users can specify in section `execution` that which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database.
+Catalogs can be defined as a set of yaml properties and are automatically registered to the environment upon starting SQL Cli.
+
+Users can specify in section `execution` that which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database. 
 
 {% highlight yaml %}
 execution:
    ...
-   current-catalog: catalog_1 # Optional, default value is "default_catalog"
-   current-database: mydb1 # Optional, default value is the default database of the current-catalog
+   current-catalog: catalog_1
+   current-database: mydb1
 
 catalogs:
    - name: catalog_1
      type: hive
      property-version: 1
-     default-database: mydb2 # Optional, default value is the default database of this catalog
-     hive-version: 1.2.1 # Optional, default value is 2.3.4
+     default-database: mydb2
+     hive-version: 1.2.1
      hive-site-path: <path of hive-site.xml>
    - name: catalog_2
      type: hive
