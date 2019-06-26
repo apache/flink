@@ -43,12 +43,8 @@ public abstract class AbstractCatalogView implements CatalogView {
 	private final Map<String, String> properties;
 	private final String comment;
 
-	public AbstractCatalogView(
-			String originalQuery,
-			String expandedQuery,
-			TableSchema schema,
-			Map<String, String> properties,
-			String comment) {
+	public AbstractCatalogView(String originalQuery, String expandedQuery, TableSchema schema,
+			Map<String, String> properties, String comment) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(originalQuery), "originalQuery cannot be null or empty");
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(expandedQuery), "expandedQuery cannot be null or empty");
 
@@ -82,4 +78,5 @@ public abstract class AbstractCatalogView implements CatalogView {
 	public String getComment() {
 		return this.comment;
 	}
+
 }
