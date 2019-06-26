@@ -21,20 +21,15 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.ConnectionUtils;
-import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -76,14 +71,10 @@ public class LeaderRetrievalUtils {
 			LeaderRetrievalService leaderRetrievalService,
 			FiniteDuration timeout
 	) throws LeaderRetrievalException {
-		LeaderConnectionInfoListener listener = new LeaderConnectionInfoListener();
-
 		try {
+			OneTimeLeaderListenerFuture listener = new OneTimeLeaderListenerFuture();
 			leaderRetrievalService.start(listener);
-
-			Future<LeaderConnectionInfo> connectionInfoFuture = listener.getLeaderConnectionInfoFuture();
-
-			return Await.result(connectionInfoFuture, timeout);
+			return listener.future().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			throw new LeaderRetrievalException("Could not retrieve the leader address and leader " +
 					"session ID.", e);
@@ -125,38 +116,6 @@ public class LeaderRetrievalUtils {
 				leaderRetrievalService.stop();
 			} catch (Exception fe) {
 				LOG.warn("Could not stop the leader retrieval service.", fe);
-			}
-		}
-	}
-
-	/**
-	 * Helper class which is used by the retrieveLeaderConnectionInfo method to retrieve the
-	 * leader's akka URL and the current leader session ID.
-	 */
-	public static class LeaderConnectionInfoListener implements  LeaderRetrievalListener {
-		private final Promise<LeaderConnectionInfo> connectionInfo = new scala.concurrent.impl.Promise.DefaultPromise<>();
-
-		public Future<LeaderConnectionInfo> getLeaderConnectionInfoFuture() {
-			return connectionInfo.future();
-		}
-
-		@Override
-		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-			if (leaderAddress != null && !leaderAddress.equals("") && !connectionInfo.isCompleted()) {
-				try {
-					final LeaderConnectionInfo leaderConnectionInfo = new LeaderConnectionInfo(leaderAddress, leaderSessionID);
-					connectionInfo.success(leaderConnectionInfo);
-				} catch (FlinkException e) {
-					connectionInfo.failure(e);
-				}
-
-			}
-		}
-
-		@Override
-		public void handleError(Exception exception) {
-			if (!connectionInfo.isCompleted()) {
-				connectionInfo.failure(exception);
 			}
 		}
 	}

@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.minicluster;
+package org.apache.flink.runtime.util;
 
-import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.util.FlinkException;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public class OneTimeLeaderListenerFuture implements LeaderRetrievalListener {
 
-	private final CompletableFuture<LeaderAddressAndId> future;
+	private final CompletableFuture<LeaderConnectionInfo> future;
 
 	public OneTimeLeaderListenerFuture() {
 		this.future = new CompletableFuture<>();
@@ -41,7 +41,7 @@ public class OneTimeLeaderListenerFuture implements LeaderRetrievalListener {
 	 * Gets the future that is completed with the leader address and ID.
 	 * @return The future.
 	 */
-	public CompletableFuture<LeaderAddressAndId> future() {
+	public CompletableFuture<LeaderConnectionInfo> future() {
 		return future;
 	}
 
@@ -49,7 +49,11 @@ public class OneTimeLeaderListenerFuture implements LeaderRetrievalListener {
 
 	@Override
 	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-		future.complete(new LeaderAddressAndId(leaderAddress, leaderSessionID));
+		try {
+			future.complete(new LeaderConnectionInfo(leaderAddress, leaderSessionID));
+		} catch (FlinkException e) {
+			future.completeExceptionally(e);
+		}
 	}
 
 	@Override
