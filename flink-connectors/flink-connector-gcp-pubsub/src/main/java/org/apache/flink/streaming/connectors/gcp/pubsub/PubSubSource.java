@@ -70,7 +70,11 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 	protected transient volatile boolean isRunning;
 
-	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, int maxMessagesToAcknowledge, AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
+	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema,
+				 PubSubSubscriberFactory pubSubSubscriberFactory,
+				 Credentials credentials,
+				 int maxMessagesToAcknowledge,
+				 AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
 		this.deserializationSchema = deserializationSchema;
 		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 		this.credentials = credentials;
@@ -160,14 +164,18 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		return deserializationSchema.getProducedType();
 	}
 
-	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema,
+															String projectName,
+															String subscriptionName) {
 		Preconditions.checkNotNull(deserializationSchema);
 		Preconditions.checkNotNull(projectName);
 		Preconditions.checkNotNull(subscriptionName);
 		return new PubSubSourceBuilder<>(new DeserializationSchemaWrapper<>(deserializationSchema), projectName, subscriptionName);
 	}
 
-	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(PubSubDeserializationSchema<OUT> deserializationSchema,
+															String projectName,
+															String subscriptionName) {
 		Preconditions.checkNotNull(deserializationSchema);
 		Preconditions.checkNotNull(projectName);
 		Preconditions.checkNotNull(subscriptionName);
