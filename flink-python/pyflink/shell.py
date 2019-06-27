@@ -94,16 +94,16 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *         shutil.rmtree(sink_path)
     * b_env.set_parallelism(1)
     * t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * bt_env.connect(FileSystem().path(sink_path))\
+    * bt_env.connect(FileSystem().path(sink_path)) \\
     *     .with_format(OldCsv()
     *                  .field_delimiter(',')
     *                  .field("a", DataTypes.BIGINT())
     *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING()))\
+    *                  .field("c", DataTypes.STRING())) \\
     *     .with_schema(Schema()
     *                  .field("a", DataTypes.BIGINT())
     *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING()))\
+    *                  .field("c", DataTypes.STRING())) \\
     *     .register_table_sink("batch_sink")
     *
     * t.select("a + 1, b, c").insert_into("batch_sink")
@@ -124,16 +124,16 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *         shutil.rmtree(sink_path)
     * s_env.set_parallelism(1)
     * t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * st_env.connect(FileSystem().path(sink_path))\\
+    * st_env.connect(FileSystem().path(sink_path)) \\
     *     .with_format(OldCsv()
     *                  .field_delimiter(',')
     *                  .field("a", DataTypes.BIGINT())
     *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING()))\\
+    *                  .field("c", DataTypes.STRING())) \\
     *     .with_schema(Schema()
     *                  .field("a", DataTypes.BIGINT())
     *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING()))\\
+    *                  .field("c", DataTypes.STRING())) \\
     *     .register_table_sink("stream_sink")
     * 
     * t.select("a + 1, b, c").insert_into("stream_sink")
