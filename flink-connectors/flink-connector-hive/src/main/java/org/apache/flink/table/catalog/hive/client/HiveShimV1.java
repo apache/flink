@@ -24,10 +24,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -94,5 +96,13 @@ public class HiveShimV1 implements HiveShim {
 		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
 			throw new IOException("Failed to move " + path + " to trash", e);
 		}
+	}
+
+	@Override
+	public void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table) throws InvalidOperationException, MetaException, TException {
+		// For Hive-1.2.1, we need to tell HMS not to update stats. Otherwise, the stats we put in the table
+		// parameters can be overridden. The extra config we add here will be removed by HMS after it's used.
+		table.getParameters().put(StatsSetupConst.DO_NOT_UPDATE_STATS, "true");
+		client.alter_table(databaseName, tableName, table);
 	}
 }

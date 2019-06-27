@@ -1059,8 +1059,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Table hiveTable = getHiveTable(tablePath);
 			// Set table stats
-			if (needToUpdateStatistics(tableStatistics, hiveTable.getParameters())) {
-				updateStatisticsParameters(tableStatistics, hiveTable.getParameters());
+			if (compareAndUpdateStatisticsProperties(tableStatistics, hiveTable.getParameters())) {
 				client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
 			}
 		} catch (TableNotExistException e) {
@@ -1091,27 +1090,34 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static boolean needToUpdateStatistics(CatalogTableStatistics statistics, Map<String, String> oldParameters) {
-		String oldRowCount = oldParameters.getOrDefault(StatsSetupConst.ROW_COUNT, "0");
-		String oldTotalSize = oldParameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, "0");
-		String oldNumFiles = oldParameters.getOrDefault(StatsSetupConst.NUM_FILES, "0");
-		String oldRawDataSize = oldParameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, "0");
-		return statistics.getRowCount() != Long.parseLong(oldRowCount) || statistics.getTotalSize() != Long.parseLong(oldTotalSize)
+	/**
+	 * Determine if statistics is need to be updated, if it needs to be updated and updated its parameters.
+	 * @param statistics original ``hive table statistics.
+	 * @param parameters new catalog table statistics parameters.
+	 * @return needUpdateStatistics flag which indicates whether need to update stats.
+	 */
+	private static boolean compareAndUpdateStatisticsProperties(CatalogTableStatistics statistics, Map<String, String> parameters) {
+		boolean needUpdateStatistics;
+		String oldRowCount = parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
+		String oldTotalSize = parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
+		String oldNumFiles = parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
+		String oldRawDataSize = parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST);
+		needUpdateStatistics = statistics.getRowCount() != Long.parseLong(oldRowCount) || statistics.getTotalSize() != Long.parseLong(oldTotalSize)
 			|| statistics.getFileCount() != Integer.parseInt(oldNumFiles) || statistics.getRawDataSize() != Long.parseLong(oldRawDataSize);
-	}
-
-	private static void updateStatisticsParameters(CatalogTableStatistics tableStatistics, Map<String, String> parameters) {
-		parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(tableStatistics.getRowCount()));
-		parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(tableStatistics.getTotalSize()));
-		parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(tableStatistics.getFileCount()));
-		parameters.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(tableStatistics.getRawDataSize()));
+		if (needUpdateStatistics) {
+			parameters.put(StatsSetupConst.ROW_COUNT, String.valueOf(statistics.getRowCount()));
+			parameters.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(statistics.getTotalSize()));
+			parameters.put(StatsSetupConst.NUM_FILES, String.valueOf(statistics.getFileCount()));
+			parameters.put(StatsSetupConst.RAW_DATA_SIZE, String.valueOf(statistics.getRawDataSize()));
+		}
+		return needUpdateStatistics;
 	}
 
 	private static CatalogTableStatistics createCatalogTableStatistics(Map<String, String> parameters) {
-		long rowRount = Long.parseLong(parameters.getOrDefault(StatsSetupConst.ROW_COUNT, "0"));
-		long totalSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, "0"));
-		int numFiles = Integer.parseInt(parameters.getOrDefault(StatsSetupConst.NUM_FILES, "0"));
-		long rawDataSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, "0"));
+		long rowRount = Long.parseLong(parameters.getOrDefault(StatsSetupConst.ROW_COUNT, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
+		long totalSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.TOTAL_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
+		int numFiles = Integer.parseInt(parameters.getOrDefault(StatsSetupConst.NUM_FILES, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
+		long rawDataSize = Long.parseLong(parameters.getOrDefault(StatsSetupConst.RAW_DATA_SIZE, HiveStatsUtil.DEFAULT_STATS_ZERO_CONST));
 		return new CatalogTableStatistics(rowRount, numFiles, totalSize, rawDataSize);
 	}
 
@@ -1120,8 +1126,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			// Set table stats
-			if (needToUpdateStatistics(partitionStatistics, hivePartition.getParameters())) {
-				updateStatisticsParameters(partitionStatistics, hivePartition.getParameters());
+			if (compareAndUpdateStatisticsProperties(partitionStatistics, hivePartition.getParameters())) {
 				client.alter_partition(tablePath.getDatabaseName(), tablePath.getObjectName(), hivePartition);
 			}
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
@@ -1160,12 +1165,12 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public CatalogTableStatistics getTableStatistics(ObjectPath tablePath) throws TableNotExistException,
-			CatalogException, TableNotPartitionedException {
+			CatalogException {
 		Table hiveTable = getHiveTable(tablePath);
 		if (!isTablePartitioned(hiveTable)) {
 			return createCatalogTableStatistics(hiveTable.getParameters());
 		} else {
-			throw new TableNotPartitionedException(getName(), tablePath);
+			return CatalogTableStatistics.UNKNOWN;
 		}
 	}
 
@@ -1195,7 +1200,7 @@ public class HiveCatalog extends AbstractCatalog {
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
 			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
 		} catch (TException e) {
-			throw new CatalogException(String.format("Failed to get table stats of table %s 's partition %s",
+			throw new CatalogException(String.format("Failed to get partition stats of table %s 's partition %s",
 													tablePath.getFullName(), String.valueOf(partitionSpec)), e);
 		}
 	}

@@ -1061,7 +1061,7 @@ public abstract class CatalogTest {
 	@Test
 	public void testGetTableStats_TableNotExistException() throws Exception{
 		catalog.createDatabase(db1, createDb(), false);
-		exception.expect(org.apache.flink.table.api.TableNotExistException.class);
+		exception.expect(org.apache.flink.table.catalog.exceptions.TableNotExistException.class);
 		catalog.getTableStatistics(path1);
 	}
 
@@ -1070,8 +1070,11 @@ public abstract class CatalogTest {
 		catalog.createDatabase(db1, createDb(), false);
 		catalog.createTable(path1, createPartitionedTable(), false);
 		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
-		// there're essentially no stats, so nothing to assert
-		catalog.getPartitionStatistics(path1, createPartitionSpec());
+		CatalogTableStatistics tableStatistics = catalog.getPartitionStatistics(path1, createPartitionSpec());
+		assertEquals(0, tableStatistics.getFileCount());
+		assertEquals(0, tableStatistics.getRawDataSize());
+		assertEquals(0, tableStatistics.getTotalSize());
+		assertEquals(0, tableStatistics.getRowCount());
 	}
 
 	@Test
@@ -1084,7 +1087,9 @@ public abstract class CatalogTest {
 		catalog.alterTableStatistics(path1, tableStats, false);
 		CatalogTableStatistics actual = catalog.getTableStatistics(path1);
 
-		assertEquals(tableStats.toString(), actual.toString());
+		// we don't check fileCount and totalSize here for hive will automatically calc and set to real num.
+		assertEquals(tableStats.getRowCount(), actual.getRowCount());
+		assertEquals(tableStats.getRawDataSize(), actual.getRawDataSize());
 	}
 
 	@Test
@@ -1092,7 +1097,8 @@ public abstract class CatalogTest {
 		// alterTableStats() should do nothing for partitioned tables
 		// getTableStats() should return empty column stats for partitioned tables
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createPartitionedTable(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
 
 		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
 
@@ -1102,14 +1108,28 @@ public abstract class CatalogTest {
 	}
 
 	@Test
+	public void testAlterPartitionTableStats() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		catalog.createPartition(path1, partitionSpec, createPartition(), true);
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+		catalog.alterPartitionStatistics(path1, partitionSpec, stats, false);
+		CatalogTableStatistics actual = catalog.getPartitionStatistics(path1, partitionSpec);
+		assertEquals(stats.getRowCount(), actual.getRowCount());
+		assertEquals(stats.getRawDataSize(), actual.getRawDataSize());
+	}
+
+	@Test
 	public void testAlterTableStats_TableNotExistException() throws Exception {
 		exception.expect(TableNotExistException.class);
-		catalog.alterTableStatistics(new ObjectPath(catalog.getDefaultDatabase(), "nonexist"), null, false);
+		catalog.alterTableStatistics(new ObjectPath(catalog.getDefaultDatabase(), "nonexist"), CatalogTableStatistics.UNKNOWN, false);
 	}
 
 	@Test
 	public void testAlterTableStats_TableNotExistException_ignore() throws Exception {
-		catalog.alterTableStatistics(new ObjectPath("non", "exist"), null, true);
+		catalog.alterTableStatistics(new ObjectPath("non", "exist"), CatalogTableStatistics.UNKNOWN, true);
 	}
 
 

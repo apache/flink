@@ -266,6 +266,14 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	public void testListPartitionPartialSpec() throws Exception {
 	}
 
+	@Override
+	public void testGetPartitionStats() throws Exception {
+	}
+
+	@Override
+	public void testAlterPartitionTableStats() throws Exception {
+	}
+
 	// ------ test utils ------
 
 	@Override
