@@ -187,10 +187,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
-				resultPartitions[counter++] = resultPartitionFactory.create(
-					ownerContext.getOwnerName(),
-					ownerContext.getExecutionAttemptID(),
-					rpdd);
+				resultPartitions[counter++] = resultPartitionFactory.create(ownerContext.getOwnerName(), rpdd);
 			}
 
 			registerOutputMetrics(config.isNetworkDetailedMetrics(), ownerContext.getOutputGroup(), resultPartitions);
