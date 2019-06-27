@@ -36,6 +36,15 @@ class QueryConfig(object):
 class StreamQueryConfig(QueryConfig):
     """
     The :class:`StreamQueryConfig` holds parameters to configure the behavior of streaming queries.
+
+    Example:
+    ::
+
+        >>> query_config = StreamQueryConfig() \\
+        ...     .with_idle_state_retention_time(datetime.timedelta(days=1),
+        ...                                     datetime.timedelta(days=3))
+        >>> table_env.sql_update("...", query_config)
+
     """
 
     def __init__(self, j_stream_query_config=None):

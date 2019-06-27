@@ -43,6 +43,12 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setStateBackend(...)
 {% endhighlight %}
 </div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+env.set_state_backend(...)
+{% endhighlight %}
+</div>
 </div>
 
 {% top %}
