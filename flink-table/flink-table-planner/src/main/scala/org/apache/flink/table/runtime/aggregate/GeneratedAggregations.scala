@@ -149,7 +149,7 @@ class SingleElementIterable[T] extends java.lang.Iterable[T] {
       }
     }
 
-    override def remove(): Unit = new java.lang.UnsupportedOperationException
+    override def remove(): Unit = throw new java.lang.UnsupportedOperationException
   }
 
   val it = new SingleElementIterator
