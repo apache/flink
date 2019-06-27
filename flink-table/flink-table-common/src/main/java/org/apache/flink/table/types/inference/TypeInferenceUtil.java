@@ -179,7 +179,7 @@ public final class TypeInferenceUtil {
 			}
 		});
 
-		if (argumentCount.isValidCount(actualCount)) {
+		if (!argumentCount.isValidCount(actualCount)) {
 			throw new ValidationException(
 				String.format(
 					"Invalid number of arguments. %d arguments passed.",
