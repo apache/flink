@@ -19,17 +19,21 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -83,18 +87,30 @@ public final class LogicalTypeChecks {
 		return getLength(logicalType) == length;
 	}
 
+	/**
+	 * Returns the precision of all types that define a precision implicitly or explicitly.
+	 */
 	public static int getPrecision(LogicalType logicalType) {
 		return logicalType.accept(PRECISION_EXTRACTOR);
 	}
 
+	/**
+	 * Checks the precision of a type that defines a precision implicitly or explicitly.
+	 */
 	public static boolean hasPrecision(LogicalType logicalType, int precision) {
 		return getPrecision(logicalType) == precision;
 	}
 
+	/**
+	 * Returns the scale of all types that define a scale implicitly or explicitly.
+	 */
 	public static int getScale(LogicalType logicalType) {
 		return logicalType.accept(SCALE_EXTRACTOR);
 	}
 
+	/**
+	 * Checks the scale of all types that define a scale implicitly or explicitly.
+	 */
 	public static boolean hasScale(LogicalType logicalType, int scale) {
 		return getScale(logicalType) == scale;
 	}
@@ -174,6 +190,26 @@ public final class LogicalTypeChecks {
 		}
 
 		@Override
+		public Integer visit(TinyIntType tinyIntType) {
+			return TinyIntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(SmallIntType smallIntType) {
+			return SmallIntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(IntType intType) {
+			return IntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(BigIntType bigIntType) {
+			return BigIntType.PRECISION;
+		}
+
+		@Override
 		public Integer visit(TimeType timeType) {
 			return timeType.getPrecision();
 		}
@@ -199,6 +235,26 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(DecimalType decimalType) {
 			return decimalType.getScale();
+		}
+
+		@Override
+		public Integer visit(TinyIntType tinyIntType) {
+			return 0;
+		}
+
+		@Override
+		public Integer visit(SmallIntType smallIntType) {
+			return 0;
+		}
+
+		@Override
+		public Integer visit(IntType intType) {
+			return 0;
+		}
+
+		@Override
+		public Integer visit(BigIntType bigIntType) {
+			return 0;
 		}
 	}
 
