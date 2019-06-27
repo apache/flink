@@ -93,6 +93,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -107,9 +108,6 @@ public class HiveCatalog extends AbstractCatalog {
 	private static final StorageFormatFactory storageFormatFactory = new StorageFormatFactory();
 	private static final String DEFAULT_HIVE_TABLE_STORAGE_FORMAT = "TextFile";
 
-	// Prefix used to distinguish properties created by Hive and Flink,
-	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
-	private static final String FLINK_PROPERTY_PREFIX = "flink.";
 	private static final String FLINK_PROPERTY_IS_GENERIC = FLINK_PROPERTY_PREFIX + CatalogConfig.IS_GENERIC;
 
 	// Prefix used to distinguish Flink functions from Hive functions.
@@ -482,7 +480,7 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
-		boolean isGeneric = Boolean.valueOf(properties.computeIfAbsent(FLINK_PROPERTY_IS_GENERIC, k -> String.valueOf(false)));
+		boolean isGeneric = Boolean.valueOf(properties.get(FLINK_PROPERTY_IS_GENERIC));
 		if (isGeneric) {
 			properties = retrieveFlinkProperties(properties);
 		}

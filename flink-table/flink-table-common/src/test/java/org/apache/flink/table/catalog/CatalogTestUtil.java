@@ -33,6 +33,7 @@ import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.Map;
 
+import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -57,6 +58,7 @@ public class CatalogTestUtil {
 		if (Boolean.valueOf(t1.getProperties().get(CatalogConfig.IS_GENERIC))) {
 			assertEquals(t1.getProperties(), t2.getProperties());
 		} else {
+			assertTrue(t2.getProperties().keySet().stream().noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
 			assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
 		}
 	}
@@ -73,6 +75,7 @@ public class CatalogTestUtil {
 		if (Boolean.valueOf(v1.getProperties().get(CatalogConfig.IS_GENERIC))) {
 			assertEquals(v1.getProperties(), v2.getProperties());
 		} else {
+			assertTrue(v2.getProperties().keySet().stream().noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
 			assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
 		}
 	}
