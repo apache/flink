@@ -20,7 +20,10 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.inference.InputTypeValidators;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.TypeTransformations;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -33,6 +36,7 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.inference.TypeStrategies.cascade;
 
 /**
  * Dictionary of function definitions for all built-in functions.
@@ -45,19 +49,22 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("and")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(cascade(TypeStrategies.BOOLEAN_NOT_NULL, TypeTransformations.TO_NULLABLE))
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN, LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition OR =
 		new BuiltInFunctionDefinition.Builder()
 			.name("or")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(cascade(TypeStrategies.BOOLEAN_NOT_NULL, TypeTransformations.TO_NULLABLE))
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN, LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition NOT =
 		new BuiltInFunctionDefinition.Builder()
 			.name("not")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(cascade(TypeStrategies.BOOLEAN_NOT_NULL, TypeTransformations.TO_NULLABLE))
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition IF =
 		new BuiltInFunctionDefinition.Builder()
@@ -119,25 +126,29 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("isTrue")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(TypeStrategies.BOOLEAN_NOT_NULL)
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition IS_FALSE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isFalse")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(TypeStrategies.BOOLEAN_NOT_NULL)
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition IS_NOT_TRUE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isNotTrue")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(TypeStrategies.BOOLEAN_NOT_NULL)
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition IS_NOT_FALSE =
 		new BuiltInFunctionDefinition.Builder()
 			.name("isNotFalse")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(TypeStrategies.BOOLEAN_NOT_NULL)
+			.inputTypeValidator(InputTypeValidators.typeRoot(LogicalTypeRoot.BOOLEAN))
 			.build();
 	public static final BuiltInFunctionDefinition BETWEEN =
 		new BuiltInFunctionDefinition.Builder()

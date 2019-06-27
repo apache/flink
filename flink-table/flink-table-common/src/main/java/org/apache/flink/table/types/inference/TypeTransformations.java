@@ -19,35 +19,21 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.types.inference.validators.PassingTypeValidator;
-import org.apache.flink.table.types.inference.validators.TypeRootTypeValidator;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
-
-import java.util.Arrays;
+import org.apache.flink.table.types.inference.transformations.ToNullableTransformation;
 
 /**
- * Validators for checking the input data types of a function call.
- *
- * @see InputTypeValidator
+ * Transformations that can be used in {@link TypeStrategy}s with e.g.
+ * {@link TypeStrategies#cascade(TypeStrategy, TypeTransformation...)}.
  */
 @Internal
-public final class InputTypeValidators {
+public class TypeTransformations {
 
 	/**
-	 * Validator that does not perform any validation and always passes.
+	 * Type transformation where a result type is transformed into the same type
+	 * but nullable if any of the calls operands is nullable.
 	 */
-	public static final InputTypeValidator PASSING = new PassingTypeValidator();
+	public static final TypeTransformation TO_NULLABLE = new ToNullableTransformation();
 
-	/**
-	 * Validator which checks if operands are of given type roots.
-	 */
-	public static InputTypeValidator typeRoot(LogicalTypeRoot... types) {
-		return new TypeRootTypeValidator(Arrays.asList(types));
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private InputTypeValidators() {
-		// no instantiation
+	private TypeTransformations() {
 	}
 }
