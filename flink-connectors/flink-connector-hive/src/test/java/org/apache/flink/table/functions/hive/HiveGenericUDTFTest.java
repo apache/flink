@@ -29,7 +29,6 @@ import org.apache.hadoop.hive.ql.udf.generic.Collector;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFInline;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFPosExplode;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFReplicateRows;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFStack;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
@@ -108,29 +107,6 @@ public class HiveGenericUDTFTest {
 		udf.eval("1,2,3,5");
 
 		assertEquals(Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")), collector.result);
-	}
-
-	@Test
-	public void testReplicateRows() throws Exception {
-		Object[] constantArgs = new Object[] {
-			2L,
-			null
-		};
-
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.BIGINT(),
-			DataTypes.INT()
-		};
-
-		HiveGenericUDTF udf = init(
-			GenericUDTFReplicateRows.class,
-			constantArgs,
-			dataTypes
-		);
-
-		udf.eval(2L, 5);
-
-		assertEquals(Arrays.asList(Row.of(2L, 5), Row.of(2L, 5)), collector.result);
 	}
 
 	@Test
