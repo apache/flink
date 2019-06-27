@@ -18,37 +18,42 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A generic catalog function implementation.
+ * A catalog function implementation.
  */
-public class GenericCatalogFunction extends AbstractCatalogFunction {
+public class CatalogFunctionImpl implements CatalogFunction {
+	private final String className; // Fully qualified class name of the function
+	private final Map<String, String> properties;
 
-	public GenericCatalogFunction(String className) {
-		this(className, new HashMap<>());
-	}
+	public CatalogFunctionImpl(String className, Map<String, String> properties) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
 
-	public GenericCatalogFunction(String className, Map<String, String> properties) {
-		super(className, properties);
-		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-	}
-
-	@Override
-	public GenericCatalogFunction copy() {
-		return new GenericCatalogFunction(getClassName(), new HashMap<>(getProperties()));
+		this.className = className;
+		this.properties = checkNotNull(properties, "properties cannot be null");
 	}
 
 	@Override
-	public String toString() {
-		return "GenericCatalogFunction{" +
-			", className='" + getClassName() + '\'' +
-			", properties=" + getProperties() +
-			'}';
+	public String getClassName() {
+		return this.className;
+	}
+
+	@Override
+	public Map<String, String> getProperties() {
+		return this.properties;
+	}
+
+	@Override
+	public CatalogFunction copy() {
+		return new CatalogFunctionImpl(getClassName(), new HashMap<>(getProperties()));
 	}
 
 	@Override
@@ -61,4 +66,11 @@ public class GenericCatalogFunction extends AbstractCatalogFunction {
 		return Optional.of("This is a user-defined function");
 	}
 
+	@Override
+	public String toString() {
+		return "CatalogFunctionImpl{" +
+			", className='" + getClassName() + '\'' +
+			", properties=" + getProperties() +
+			'}';
+	}
 }

@@ -188,16 +188,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		return new CatalogColumnStatistics(colStatsMap);
 	}
 
-	@Override
-	protected CatalogFunction createFunction() {
-		return new GenericCatalogFunction(MyScalarFunction.class.getName(), new HashMap<>());
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName(), new HashMap<>());
-	}
-
 	/**
 	 * Test UDF.
 	 */
