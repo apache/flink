@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
+package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.annotation.Internal;
 
@@ -33,36 +33,5 @@ public interface MailboxDefaultAction {
 	 * @param context context object for collaborative interaction between the default action and the mailbox loop.
 	 * @throws Exception on any problems in the action.
 	 */
-	void runDefaultAction(ActionContext context) throws Exception;
-
-	/**
-	 * This context is a feedback interface for the default action to interact with the mailbox execution. In particular
-	 * it offers ways to signal that the execution of the default action should be finished or temporarily suspended.
-	 */
-	interface ActionContext {
-
-
-		/**
-		 * This method must be called to end the stream task when all actions for the tasks have been performed. This
-		 * method can be invoked from any thread.
-		 */
-		void allActionsCompleted();
-
-		/**
-		 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
-		 * e.g. because there is currently no input available. This method must be invoked from the mailbox-thread only!
-		 */
-		SuspendedDefaultAction suspendDefaultAction();
-	}
-
-	/**
-	 * Represents the suspended state of the default action, ready to resume.
-	 */
-	interface SuspendedDefaultAction {
-
-		/**
-		 * Resume execution of the default action. Can be called from any thread.
-		 */
-		void resume();
-	}
+	void runDefaultAction(DefaultActionContext context) throws Exception;
 }

@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
+package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.SuspendedMailboxDefaultAction;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -81,7 +85,7 @@ public class MailboxProcessorTest {
 		AtomicBoolean stop = new AtomicBoolean(false);
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(ActionContext context) throws Exception {
+			public void runDefaultAction(DefaultActionContext context) throws Exception {
 				if (stop.get()) {
 					context.allActionsCompleted();
 				} else {
@@ -102,7 +106,7 @@ public class MailboxProcessorTest {
 		final AtomicInteger counter = new AtomicInteger(0);
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(ActionContext context) {
+			public void runDefaultAction(DefaultActionContext context) {
 				if (counter.incrementAndGet() == expectedInvocations) {
 					context.allActionsCompleted();
 				}
@@ -118,14 +122,14 @@ public class MailboxProcessorTest {
 	public void testSignalUnAvailable() throws Exception {
 
 		final AtomicInteger counter = new AtomicInteger(0);
-		final AtomicReference<MailboxDefaultAction.SuspendedDefaultAction> suspendedActionRef = new AtomicReference<>();
+		final AtomicReference<SuspendedMailboxDefaultAction> suspendedActionRef = new AtomicReference<>();
 		final OneShotLatch actionSuspendedLatch = new OneShotLatch();
 		final int blockAfterInvocations = 3;
 		final int totalInvocations = blockAfterInvocations * 2;
 
 		MailboxThread mailboxThread = new MailboxThread() {
 			@Override
-			public void runDefaultAction(ActionContext context) {
+			public void runDefaultAction(DefaultActionContext context) {
 				if (counter.incrementAndGet() == blockAfterInvocations) {
 					suspendedActionRef.set(context.suspendDefaultAction());
 					actionSuspendedLatch.trigger();
@@ -146,13 +150,13 @@ public class MailboxProcessorTest {
 
 	@Test
 	public void testSignalUnAvailablePingPong() throws Exception {
-		final AtomicReference<MailboxDefaultAction.SuspendedDefaultAction> suspendedActionRef = new AtomicReference<>();
+		final AtomicReference<SuspendedMailboxDefaultAction> suspendedActionRef = new AtomicReference<>();
 		final int totalSwitches = 10000;
 		final MailboxThread mailboxThread = new MailboxThread() {
 			int count = 0;
 
 			@Override
-			public void runDefaultAction(ActionContext context) {
+			public void runDefaultAction(DefaultActionContext context) {
 
 				// If this is violated, it means that the default action was invoked while we assumed suspension
 				Assert.assertTrue(suspendedActionRef.compareAndSet(null, context.suspendDefaultAction()));
@@ -179,7 +183,7 @@ public class MailboxProcessorTest {
 			int count = 0;
 			while (!Thread.currentThread().isInterrupted()) {
 
-				final MailboxDefaultAction.SuspendedDefaultAction resume =
+				final SuspendedMailboxDefaultAction resume =
 					suspendedActionRef.getAndSet(null);
 				if (resume != null) {
 					resume.resume();
@@ -247,7 +251,7 @@ public class MailboxProcessorTest {
 		}
 
 		@Override
-		public void runDefaultAction(ActionContext context) throws Exception {
+		public void runDefaultAction(DefaultActionContext context) throws Exception {
 			context.allActionsCompleted();
 		}
 

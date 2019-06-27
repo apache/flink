@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
+package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxImpl;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -74,7 +77,7 @@ public class MailboxProcessor {
 	 * default action (suspended if not-null) and to reuse the object as return value in consecutive suspend attempts.
 	 * Must only be accessed from mailbox thread.
 	 */
-	private MailboxDefaultAction.SuspendedDefaultAction suspendedDefaultAction;
+	private SuspendedMailboxDefaultAction suspendedDefaultAction;
 
 	/** Special action that is used to terminate the mailbox loop. */
 	private final Runnable mailboxPoisonLetter;
@@ -225,7 +228,7 @@ public class MailboxProcessor {
 	 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
 	 * e.g. because there is currently no input available.
 	 */
-	private MailboxDefaultAction.SuspendedDefaultAction suspendDefaultAction() {
+	private SuspendedMailboxDefaultAction suspendDefaultAction() {
 
 		assert taskMailboxExecutor.isMailboxThread();
 
@@ -260,10 +263,10 @@ public class MailboxProcessor {
 	}
 
 	/**
-	 * Implementation of {@link MailboxDefaultAction.ActionContext} that is connected to a {@link MailboxProcessor}
+	 * Implementation of {@link DefaultActionContext} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private final class MailboxDefaultActionContext implements MailboxDefaultAction.ActionContext {
+	private final class MailboxDefaultActionContext implements DefaultActionContext {
 
 		private final MailboxProcessor mailboxProcessor;
 
@@ -277,7 +280,7 @@ public class MailboxProcessor {
 		}
 
 		@Override
-		public MailboxDefaultAction.SuspendedDefaultAction suspendDefaultAction() {
+		public SuspendedMailboxDefaultAction suspendDefaultAction() {
 			return mailboxProcessor.suspendDefaultAction();
 		}
 	}
@@ -285,7 +288,7 @@ public class MailboxProcessor {
 	/**
 	 * Represents the suspended state of the default action and offers an idempotent method to resume execution.
 	 */
-	private final class SuspendDefaultActionRunnable implements MailboxDefaultAction.SuspendedDefaultAction {
+	private final class SuspendDefaultActionRunnable implements SuspendedMailboxDefaultAction {
 
 		/** Ensuring idempotent behavior, we ensure this is only accessed from the main thread. */
 		private boolean valid;

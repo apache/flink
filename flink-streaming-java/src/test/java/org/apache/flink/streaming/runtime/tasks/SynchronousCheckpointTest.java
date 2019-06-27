@@ -27,6 +27,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -171,7 +172,7 @@ public class SynchronousCheckpointTest {
 		}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			runningLatch.trigger();
 			execLatch.await();
 			super.performDefaultAction(context);

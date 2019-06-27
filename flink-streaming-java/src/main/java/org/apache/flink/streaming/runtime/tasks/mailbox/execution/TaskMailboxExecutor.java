@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
+package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
+
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
 
 import javax.annotation.Nonnull;
 

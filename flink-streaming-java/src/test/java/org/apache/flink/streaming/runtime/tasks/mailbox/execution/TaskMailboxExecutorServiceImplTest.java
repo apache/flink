@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
+package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxImpl;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.After;
@@ -42,7 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TaskMailboxExecutorServiceImplTest {
 
 	private TaskMailboxExecutorServiceImpl mailboxExecutorService;
-	private ExecutorService otherThreadExecuter;
+	private ExecutorService otherThreadExecutor;
 	private MailboxImpl mailbox;
 
 	@Before
@@ -50,21 +51,21 @@ public class TaskMailboxExecutorServiceImplTest {
 		this.mailbox = new MailboxImpl();
 		this.mailbox.open();
 		this.mailboxExecutorService = new TaskMailboxExecutorServiceImpl(mailbox);
-		this.otherThreadExecuter = Executors.newSingleThreadScheduledExecutor();
+		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 
 	@After
 	public void tearDown() {
-		otherThreadExecuter.shutdown();
+		otherThreadExecutor.shutdown();
 		try {
-			if (!otherThreadExecuter.awaitTermination(60, TimeUnit.SECONDS)) {
-				otherThreadExecuter.shutdownNow();
-				if (!otherThreadExecuter.awaitTermination(60, TimeUnit.SECONDS)) {
+			if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
+				otherThreadExecutor.shutdownNow();
+				if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
 					throw new IllegalStateException("Thread pool did not terminate on time!");
 				}
 			}
 		} catch (InterruptedException ie) {
-			otherThreadExecuter.shutdownNow();
+			otherThreadExecutor.shutdownNow();
 			Thread.currentThread().interrupt();
 		}
 	}
@@ -76,26 +77,26 @@ public class TaskMailboxExecutorServiceImplTest {
 		final TestRunnable testRunnable = new TestRunnable();
 		Assert.assertTrue(mailboxExecutorService.tryExecute(testRunnable));
 		Assert.assertEquals(testRunnable, mailbox.tryTakeMail().get());
-		CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecuter).get();
+		CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecutor).get();
 		Assert.assertEquals(testRunnable, mailbox.takeMail());
 		final TestRunnable yieldRun = new TestRunnable();
 		final TestRunnable leftoverRun = new TestRunnable();
 		Assert.assertTrue(mailboxExecutorService.tryExecute(yieldRun));
 		Future<?> leftoverFuture = CompletableFuture.supplyAsync(
-			() -> mailboxExecutorService.submit(leftoverRun), otherThreadExecuter).get();
+			() -> mailboxExecutorService.submit(leftoverRun), otherThreadExecutor).get();
 		mailboxExecutorService.shutdown();
 		Assert.assertTrue(mailboxExecutorService.isShutdown());
 		Assert.assertFalse(mailboxExecutorService.isTerminated());
 
 		try {
-			CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecuter).get();
+			CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecutor).get();
 			Assert.fail("execution should not work after shutdown().");
 		} catch (ExecutionException expected) {
 			Assert.assertTrue(expected.getCause() instanceof RejectedExecutionException);
 		}
 
 		try {
-			CompletableFuture.runAsync(() -> mailboxExecutorService.tryExecute(testRunnable), otherThreadExecuter).get();
+			CompletableFuture.runAsync(() -> mailboxExecutorService.tryExecute(testRunnable), otherThreadExecutor).get();
 			Assert.fail("execution should not work after shutdown().");
 		} catch (ExecutionException expected) {
 			Assert.assertTrue(expected.getCause() instanceof RejectedExecutionException);
@@ -129,7 +130,7 @@ public class TaskMailboxExecutorServiceImplTest {
 	@Test
 	public void testTryYield() throws Exception {
 		final TestRunnable testRunnable = new TestRunnable();
-		CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecuter).get();
+		CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecutor).get();
 		Assert.assertTrue(mailboxExecutorService.tryYield());
 		Assert.assertFalse(mailbox.tryTakeMail().isPresent());
 		Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());

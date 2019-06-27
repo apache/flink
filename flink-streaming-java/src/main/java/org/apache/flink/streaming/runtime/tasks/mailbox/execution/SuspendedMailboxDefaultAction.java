@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
-
-import java.util.concurrent.ExecutorService;
+package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 /**
- * Interface for an {@link ExecutorService} build around a {@link Mailbox}-based execution model.
+ * Represents the suspended state of a {@link MailboxDefaultAction}, ready to resume.
  */
-public interface TaskMailboxExecutorService extends TaskMailboxExecutor, ExecutorService {
+public interface SuspendedMailboxDefaultAction {
+
+	/**
+	 * Resume execution of the default action. Can be called from any thread.
+	 */
+	void resume();
 }

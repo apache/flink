@@ -58,9 +58,9 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.TaskMailboxExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -122,7 +122,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Internal
 public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		extends AbstractInvokable
-		implements AsyncExceptionHandler, MailboxDefaultAction {
+		implements AsyncExceptionHandler {
 
 	/** The thread group that holds all trigger timer threads. */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -240,17 +240,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriters = createRecordWriters(configuration, environment);
 		this.syncSavepointLatch = new SynchronousSavepointLatch();
-		this.mailboxProcessor = new MailboxProcessor(this);
+		this.mailboxProcessor = new MailboxProcessor(this::performDefaultAction);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Life cycle methods for specific implementations
 	// ------------------------------------------------------------------------
-
-	@Override
-	public final void runDefaultAction(ActionContext context) throws Exception {
-		performDefaultAction(context);
-	}
 
 	protected abstract void init() throws Exception;
 
@@ -270,7 +265,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param context context object for collaborative interaction between the action and the stream task.
 	 * @throws Exception on any problems in the action.
 	 */
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void performDefaultAction(DefaultActionContext context) throws Exception {
 		if (!inputProcessor.processInput()) {
 			context.allActionsCompleted();
 		}
