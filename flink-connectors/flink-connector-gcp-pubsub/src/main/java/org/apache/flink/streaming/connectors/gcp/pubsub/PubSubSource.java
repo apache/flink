@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -159,6 +160,13 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		return deserializationSchema.getProducedType();
 	}
 
+	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+		Preconditions.checkNotNull(deserializationSchema);
+		Preconditions.checkNotNull(projectName);
+		Preconditions.checkNotNull(subscriptionName);
+		return new PubSubSourceBuilder<>(new DeserializationSchemaWrapper<>(deserializationSchema), projectName, subscriptionName);
+	}
+
 	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 		Preconditions.checkNotNull(deserializationSchema);
 		Preconditions.checkNotNull(projectName);
@@ -199,7 +207,6 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private Credentials credentials;
-		private int maxMessagesPerPull = 100;
 		private int maxMessageToAcknowledge = 10000;
 
 		protected PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
