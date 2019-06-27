@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.NoOpIOManager;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -74,6 +73,6 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			releaseType
 		);
 
-		return factory.create("test", new ExecutionAttemptID(), descriptor);
+		return factory.create("test", descriptor);
 	}
 }

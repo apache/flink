@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -73,12 +72,11 @@ public class ResultPartitionFactory {
 
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
-		@Nonnull ExecutionAttemptID executionAttemptID,
 		@Nonnull ResultPartitionDeploymentDescriptor desc) {
 
 		return create(
 			taskNameWithSubtaskAndId,
-			new ResultPartitionID(desc.getPartitionId(), executionAttemptID),
+			desc.getShuffleDescriptor().getResultPartitionID(),
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
