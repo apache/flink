@@ -24,4 +24,10 @@ package org.apache.flink.table.catalog.config;
 public class CatalogConfig {
 
 	public static final String IS_GENERIC = "is_generic";
+
+	// Globally reserved prefix for catalog properties.
+	// User defined properties should not with this prefix.
+	// Used to distinguish properties created by Hive and Flink,
+	// as Hive metastore has its own properties created upon table creation and migration between different versions of metastore.
+	public static final String FLINK_PROPERTY_PREFIX = "flink.";
 }
