@@ -658,6 +658,7 @@ Parameters:
 - `db` - the InfluxDB database to store metrics
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
+- `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
 
 Example configuration:
 
@@ -669,10 +670,11 @@ metrics.reporter.influxdb.port: 8086
 metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
+metrics.reporter.influxdb.retentionPolicy: one_hour
 
 {% endhighlight %}
 
-The reporter would send metrics using http protocol with default retention policy defined on InfluxDB server.
+The reporter would send metrics using http protocol to the InfluxDB server with the specified retention policy (or the default policy specified on the server).
 All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported as InfluxDB tags.
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
