@@ -20,8 +20,9 @@ import codecs
 import platform
 import sys
 
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.common import *
+from pyflink.dataset import *
+from pyflink.datastream import *
 from pyflink.table import *
 from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
