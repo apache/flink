@@ -157,7 +157,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			if (needToCleanupState(timestamp)) {
 
 				// we check whether there are still records which have not been processed yet
-				boolean noRecordsToProcess = !inputState.contains(timestamp);
+				boolean noRecordsToProcess = !inputState.keys().iterator().hasNext();
 				if (noRecordsToProcess) {
 					// we clean the state
 					cleanupState(inputState, accState);
