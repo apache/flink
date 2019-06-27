@@ -133,14 +133,30 @@ public final class TypeInferenceUtil {
 	private static ValidationException getInvalidInputException(
 			InputTypeValidator validator,
 			CallContext callContext) {
+
+		final String expectedSignatures = validator.getExpectedSignatures(callContext.getFunctionDefinition())
+			.stream()
+			.map(s -> formatSignature(callContext.getName(), s))
+			.collect(Collectors.joining("\n"));
 		return new ValidationException(
 			String.format(
 				"Invalid input arguments. Expected signatures are:\n%s",
-				String.join(
-					"\n",
-					validator.getExpectedSignatures(
-						callContext.getName(),
-						callContext.getFunctionDefinition()))));
+				expectedSignatures));
+	}
+
+	private static String formatSignature(String name, Signature s) {
+		final String arguments = s.getArguments()
+			.stream()
+			.map(TypeInferenceUtil::formatArgument)
+			.collect(Collectors.joining(", "));
+		return String.format("%s(%s)", name, arguments);
+	}
+
+	private static String formatArgument(Signature.Argument arg) {
+		final StringBuilder stringBuilder = new StringBuilder();
+		arg.getName().ifPresent(n -> stringBuilder.append(n).append(" => "));
+		stringBuilder.append(arg.getType());
+		return stringBuilder.toString();
 	}
 
 	private static void validateArgumentCount(ArgumentCount argumentCount, int actualCount) {

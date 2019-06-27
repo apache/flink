@@ -51,10 +51,7 @@ public interface InputTypeValidator {
 	/**
 	 * Returns a summary of the function's expected signatures.
 	 *
-	 * <p>e.g. "SUBSTR(string VARCHAR, start INTEGER, length INTEGER)", "SUBSTR(string VARCHAR, start INTEGER)"
-	 *
-	 * @param name the function's name usually referencing the function in a catalog; the name is
-	 *             meant for debugging purposes only.
+	 * @param definition the function definition that defines the function currently being called.
 	 */
-	List<String> getExpectedSignatures(String name, FunctionDefinition definition);
+	List<Signature> getExpectedSignatures(FunctionDefinition definition);
 }
