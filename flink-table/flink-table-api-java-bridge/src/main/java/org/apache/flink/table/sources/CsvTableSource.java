@@ -150,6 +150,9 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 
 	@Override
 	public CsvTableSource projectFields(int[] fields) {
+		if (fields.length == 0) {
+			fields = new int[]{0};
+		}
 		return new CsvTableSource(config.select(fields));
 	}
 
