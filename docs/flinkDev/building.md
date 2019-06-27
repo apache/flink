@@ -61,13 +61,18 @@ The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink w
 ## Build PyFlink
 
 If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](##Build Flink).
-Then go to the root directory of flink source code and run this command to build a sdist package:
+Then go to the root directory of flink source code and run this command to build the sdist package and wheel package:
 
 {% highlight bash %}
-cd flink-python; python setup.py sdist
+cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
 
-The sdist package will be found under `./flink-python/dist/`.
+The sdist and wheel package will be found under `./flink-python/dist/`. Either of them could be used for pip installation:
+
+{% highlight bash %}
+pip install dist/*.tar.gz
+pip install dist/*.whl
+{% endhighlight %}
 
 ## Dependency Shading
 
