@@ -39,10 +39,20 @@ public class MockInputGate extends InputGate {
 
 	private final boolean[] closed;
 
-	MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
+	private final boolean finishAfterLastBuffer;
+
+	public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
+		this(numberOfChannels, bufferOrEvents, true);
+	}
+
+	public MockInputGate(
+			int numberOfChannels,
+			List<BufferOrEvent> bufferOrEvents,
+			boolean finishAfterLastBuffer) {
 		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
 		this.closed = new boolean[numberOfChannels];
+		this.finishAfterLastBuffer = finishAfterLastBuffer;
 
 		isAvailable = AVAILABLE;
 	}
@@ -58,12 +68,15 @@ public class MockInputGate extends InputGate {
 
 	@Override
 	public boolean isFinished() {
-		return bufferOrEvents.isEmpty();
+		return finishAfterLastBuffer && bufferOrEvents.isEmpty();
 	}
 
 	@Override
 	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
+		if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
+			resetIsAvailable();
+		}
 		if (next == null) {
 			return Optional.empty();
 		}
