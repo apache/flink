@@ -196,7 +196,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 		inputGate.setBufferPool(bufferPool);
 
 		// Local
-		ResultPartitionID localPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
+		ResultPartitionID localPartitionId = new ResultPartitionID();
 
 		InputChannelBuilder.newBuilder()
 			.setPartitionId(localPartitionId)
@@ -205,7 +205,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.buildLocalAndSetToGate(inputGate);
 
 		// Unknown
-		ResultPartitionID unknownPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
+		ResultPartitionID unknownPartitionId = new ResultPartitionID();
 
 		InputChannelBuilder.newBuilder()
 			.setChannelIndex(1)
