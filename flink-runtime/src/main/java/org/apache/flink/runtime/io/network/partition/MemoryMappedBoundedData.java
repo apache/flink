@@ -219,7 +219,7 @@ final class MemoryMappedBoundedData implements BoundedData {
 
 		/** The memory mapped region we currently read from.
 		 * Max 2GB large. Further regions may be in the {@link #furtherData} field. */
-		private ByteBuffer data;
+		private ByteBuffer currentData;
 
 		/** Further byte buffers, to handle cases where there is more data than fits into
 		 * one mapped byte buffer (2GB = Integer.MAX_VALUE). */
@@ -227,7 +227,7 @@ final class MemoryMappedBoundedData implements BoundedData {
 
 		BufferSlicer(Iterable<ByteBuffer> data) {
 			this.furtherData = data.iterator();
-			this.data = furtherData.next();
+			this.currentData = furtherData.next();
 		}
 
 		@Override
@@ -235,9 +235,9 @@ final class MemoryMappedBoundedData implements BoundedData {
 		public Buffer nextBuffer() {
 			// should only be null once empty or disposed, in which case this method
 			// should not be called any more
-			assert data != null;
+			assert currentData != null;
 
-			final Buffer next = BufferReaderWriterUtil.sliceNextBuffer(data);
+			final Buffer next = BufferReaderWriterUtil.sliceNextBuffer(currentData);
 			if (next != null) {
 				return next;
 			}
@@ -246,7 +246,7 @@ final class MemoryMappedBoundedData implements BoundedData {
 				return null;
 			}
 
-			data = furtherData.next();
+			currentData = furtherData.next();
 			return nextBuffer();
 		}
 
