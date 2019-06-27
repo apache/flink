@@ -92,7 +92,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *         os.remove(sink_path)
     *     else:
     *         shutil.rmtree(sink_path)
-    * bt_env.exec_env().set_parallelism(1)
+    * b_env.set_parallelism(1)
     * t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
     * bt_env.connect(FileSystem().path(sink_path))\
     *     .with_format(OldCsv()
@@ -108,7 +108,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *
     * t.select("a + 1, b, c").insert_into("batch_sink")
     *
-    * bt_env.exec_env().execute()
+    * b_env.execute()
 
   Streaming - Use the 'st_env' variable
 
@@ -122,7 +122,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *         os.remove(sink_path)
     *     else:
     *         shutil.rmtree(sink_path)
-    * st_env.exec_env().set_parallelism(1)
+    * s_env.set_parallelism(1)
     * t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
     * st_env.connect(FileSystem().path(sink_path))\\
     *     .with_format(OldCsv()
@@ -138,10 +138,14 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * 
     * t.select("a + 1, b, c").insert_into("stream_sink")
     *
-    * st_env.exec_env().execute()
+    * s_env.execute()
 '''
 utf8_out.write(welcome_msg)
 
-bt_env = BatchTableEnvironment.create(ExecutionEnvironment.get_execution_environment())
+b_env = ExecutionEnvironment.get_execution_environment()
 
-st_env = StreamTableEnvironment.create(StreamExecutionEnvironment.get_execution_environment())
+bt_env = BatchTableEnvironment.create(b_env)
+
+s_env = StreamExecutionEnvironment.get_execution_environment()
+
+st_env = StreamTableEnvironment.create(s_env)

@@ -187,6 +187,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             CsvTableSink(field_names, field_types, tmp_csv))
         t_env.scan("Orders").insert_into("Results")
 
-        plan = t_env.exec_env().get_execution_plan()
+        plan = self.env.get_execution_plan()
 
         json.loads(plan)

@@ -52,7 +52,7 @@ class Table(object):
         ...
         >>> t_env.register_table_sink("result", ...)
         >>> t.insert_into("result")
-        >>> t_env.exec_env().execute()
+        >>> env.execute()
 
     Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,
     :func:`~pyflink.table.Table.where` and :func:`~pyflink.table.Table.group_by`
