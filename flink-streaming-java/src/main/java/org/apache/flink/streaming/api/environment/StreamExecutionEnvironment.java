@@ -1453,17 +1453,16 @@ public abstract class StreamExecutionEnvironment {
 	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
 
+		if (function instanceof ResultTypeQueryable) {
+			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
+		}
 		if (typeInfo == null) {
-			if (function instanceof ResultTypeQueryable) {
-				typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-			} else {
-				try {
-					typeInfo = TypeExtractor.createTypeInfo(
-							SourceFunction.class,
-							function.getClass(), 0, null, null);
-				} catch (final InvalidTypesException e) {
-					typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
-				}
+			try {
+				typeInfo = TypeExtractor.createTypeInfo(
+						SourceFunction.class,
+						function.getClass(), 0, null, null);
+			} catch (final InvalidTypesException e) {
+				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
 			}
 		}
 
