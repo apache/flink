@@ -19,10 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxDefaultAction;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.SuspendedMailboxDefaultAction;
 
 import org.junit.Assert;
 import org.junit.Test;

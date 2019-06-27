@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.TaskMailboxExecutor;
-
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.RejectedExecutionException;
