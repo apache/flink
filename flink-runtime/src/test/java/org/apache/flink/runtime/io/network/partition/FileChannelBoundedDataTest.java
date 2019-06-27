@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.junit.AssumptionViolatedException;
-
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -29,12 +27,17 @@ import java.nio.file.Path;
 public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 
 	@Override
+	protected boolean isRegionBased() {
+		return false;
+	}
+
+	@Override
 	protected BoundedData createBoundedData(Path tempFilePath) throws IOException {
 		return FileChannelBoundedData.create(tempFilePath, BUFFER_SIZE);
 	}
 
 	@Override
 	protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException {
-		throw new AssumptionViolatedException("FileChannelBoundedData is not region based");
+		throw new UnsupportedOperationException();
 	}
 }
