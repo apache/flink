@@ -22,17 +22,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.state.api.output.OperatorStateReducer;
-import org.apache.flink.state.api.output.OperatorSubtaskStateReducer;
+import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Any savepoint that can be written to from a batch context.
@@ -42,13 +38,15 @@ import java.util.Map;
 @SuppressWarnings("WeakerAccess")
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
-	protected final Map<String, BootstrapTransformation> transformations;
+	protected final ModifiableSavepointMetadata metadata;
 
-	protected final List<String> droppedOperators;
+	protected final StateBackend stateBackend;
 
-	WritableSavepoint() {
-		this.transformations  = new HashMap<>();
-		this.droppedOperators = new ArrayList<>();
+	WritableSavepoint(ModifiableSavepointMetadata metadata, StateBackend stateBackend) {
+		Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
+		Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
+		this.metadata = metadata;
+		this.stateBackend = stateBackend;
 	}
 
 	/**
@@ -58,8 +56,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	 */
 	@SuppressWarnings("unchecked")
 	public F removeOperator(String uid) {
-		droppedOperators.add(uid);
-		transformations.remove(uid);
+		metadata.removeOperator(uid);
 		return (F) this;
 	}
 
@@ -71,11 +68,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> F withOperator(String uid, BootstrapTransformation<T> transformation) {
-		if (transformations.containsKey(uid)) {
-			throw new IllegalArgumentException("The savepoint already contains uid " + uid + ". All uid's must be unique");
-		}
-
-		transformations.put(uid, transformation);
+		metadata.addOperator(uid, transformation);
 		return (F) this;
 	}
 
@@ -83,47 +76,54 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	 * Write out a new or updated savepoint.
 	 * @param path The path to where the savepoint should be written.
 	 */
-	public abstract void write(String path);
+	public final void write(String path) {
+		final Path savepointPath = new Path(path);
 
-	protected static void write(
-		Path savepointPath,
-		Map<String, BootstrapTransformation> transformations,
-		StateBackend stateBackend,
-		SavepointMetadata metadata,
-		@Nullable DataSet<OperatorState> existingOperators) {
+		DataSet<OperatorState> newOperatorStates = getOperatorStates(savepointPath);
 
-		DataSet<OperatorState> newOperatorStates = transformations
-			.entrySet()
-			.stream()
-			.map(entry -> getOperatorStates(savepointPath, entry.getKey(), stateBackend, entry.getValue(), metadata))
-			.reduce(DataSet::union)
-			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
+		List<OperatorState> existingOperators = getExistingOperatorStates();
 
-		DataSet<OperatorState> finalOperatorStates;
-		if (existingOperators == null) {
-			finalOperatorStates = newOperatorStates;
-		} else {
-			finalOperatorStates = newOperatorStates.union(existingOperators);
-		}
+		DataSet<OperatorState> finalOperatorStates = unionOperatorStates(newOperatorStates, existingOperators);
 
 		finalOperatorStates
-			.reduceGroup(new OperatorStateReducer(metadata))
+			.reduceGroup(new MergeOperatorStates(metadata))
 			.name("reduce(OperatorState)")
 			.output(new SavepointOutputFormat(savepointPath))
-			.name(savepointPath.toString());
+			.name(path);
 	}
 
-	@SuppressWarnings("unchecked")
-	private static DataSet<OperatorState> getOperatorStates(
-		Path savepointPath,
-		String uid,
-		StateBackend stateBackend,
-		BootstrapTransformation operator,
-		SavepointMetadata metadata) {
+	private DataSet<OperatorState> unionOperatorStates(DataSet<OperatorState> newOperatorStates, List<OperatorState> existingOperators) {
+		DataSet<OperatorState> finalOperatorStates;
+		if (existingOperators.isEmpty()) {
+			finalOperatorStates = newOperatorStates;
+		} else {
+			DataSet<OperatorState> wrappedCollection = newOperatorStates
+				.getExecutionEnvironment()
+				.fromCollection(existingOperators);
 
-		return operator
-			.getOperatorSubtaskStates(uid, stateBackend, metadata, savepointPath)
-			.reduceGroup(new OperatorSubtaskStateReducer(uid, operator.getMaxParallelism(metadata)))
-			.name("reduce(OperatorSubtaskState)");
+			finalOperatorStates = newOperatorStates.union(wrappedCollection);
+		}
+		return finalOperatorStates;
+	}
+
+	private List<OperatorState> getExistingOperatorStates() {
+		return metadata
+				.getOperatorStates()
+				.entrySet()
+				.stream()
+				.filter(entry -> entry.getValue().isLeft())
+				.map(entry -> entry.getValue().left())
+				.collect(Collectors.toList());
+	}
+
+	private DataSet<OperatorState> getOperatorStates(Path savepointPath) {
+		return metadata
+				.getOperatorStates()
+				.entrySet()
+				.stream()
+				.filter(entry -> entry.getValue().isRight())
+				.map(entry -> entry.getValue().right().writeOperatorState(entry.getKey(), stateBackend, metadata, savepointPath))
+				.reduce(DataSet::union)
+				.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
 	}
 }

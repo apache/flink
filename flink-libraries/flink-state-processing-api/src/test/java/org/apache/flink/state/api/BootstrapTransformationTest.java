@@ -30,11 +30,14 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
-import org.apache.flink.state.api.runtime.metadata.NewSavepointMetadata;
+import org.apache.flink.state.api.runtime.OperatorIDGenerator;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Collections;
 
 /**
  * Tests for bootstrap transformations.
@@ -52,11 +55,12 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.bootstrapWith(input)
 			.transform(new ExampleBroadcastStateBootstrapFunction());
 
-		DataSet<TaggedOperatorSubtaskState> result = transformation.getOperatorSubtaskStates(
-			"uid",
+		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(4, Collections.emptyList()));
+		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
+			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
-			new NewSavepointMetadata(4),
-			new Path()
+			new Path(),
+			maxParallelism
 		);
 
 		Assert.assertEquals("Broadcast transformations should always be run at parallelism 1",
@@ -75,11 +79,12 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		DataSet<TaggedOperatorSubtaskState> result = transformation.getOperatorSubtaskStates(
-			"uid",
+		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(10, Collections.emptyList()));
+		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
+			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
-			new NewSavepointMetadata(10),
-			new Path()
+			new Path(),
+			maxParallelism
 		);
 
 		Assert.assertEquals(
@@ -99,11 +104,12 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		DataSet<TaggedOperatorSubtaskState> result = transformation.getOperatorSubtaskStates(
-			"uid",
+		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(4, Collections.emptyList()));
+		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
+			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
-			new NewSavepointMetadata(4),
-			new Path()
+			new Path(),
+			maxParallelism
 		);
 
 		Assert.assertEquals(
@@ -124,11 +130,12 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.setMaxParallelism(1)
 			.transform(new ExampleStateBootstrapFunction());
 
-		DataSet<TaggedOperatorSubtaskState> result = transformation.getOperatorSubtaskStates(
-			"uid",
+		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(4, Collections.emptyList()));
+		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
+			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
-			new NewSavepointMetadata(4),
-			new Path()
+			new Path(),
+			maxParallelism
 		);
 
 		Assert.assertEquals("The parallelism of a data set should be constrained my the savepoint max parallelism", 1, getParallelism(result));

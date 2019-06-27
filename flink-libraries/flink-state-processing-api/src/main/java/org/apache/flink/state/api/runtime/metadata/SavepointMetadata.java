@@ -20,9 +20,7 @@ package org.apache.flink.state.api.runtime.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.MasterState;
-import org.apache.flink.runtime.checkpoint.OperatorState;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 
@@ -30,27 +28,30 @@ import java.util.Collection;
  * Returns metadata about a savepoint.
  */
 @Internal
-public interface SavepointMetadata extends Serializable {
+public class SavepointMetadata implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private final int maxParallelism;
+
+	private final Collection<MasterState> masterStates;
+
+	public SavepointMetadata(int maxParallelism, Collection<MasterState> masterStates) {
+		this.maxParallelism = maxParallelism;
+		this.masterStates = masterStates;
+	}
 
 	/**
 	 * @return The max parallelism for the savepoint.
 	 */
-	int maxParallelism();
+	public int maxParallelism() {
+		return maxParallelism;
+	}
 
 	/**
 	 * @return Masters states for the savepoint.
 	 */
-	Collection<MasterState> getMasterStates();
-
-	/**
-	 * @return Operator states for the savepoint.
-	 */
-	Collection<OperatorState> getOperatorStates();
-
-	/**
-	 * @return Operator state for the given UID.
-	 *
-	 * @throws IOException If the savepoint does not contain operator state with the given uid.
-	 */
-	OperatorState getOperatorState(String uid) throws IOException;
+	public Collection<MasterState> getMasterStates() {
+		return masterStates;
+	}
 }

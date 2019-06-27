@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.state.api.runtime.OperatorIDGenerator;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -39,15 +39,15 @@ import java.util.stream.StreamSupport;
 public class OperatorSubtaskStateReducer
 	extends RichGroupReduceFunction<TaggedOperatorSubtaskState, OperatorState> {
 
-	private final String uid;
+	private final OperatorID operatorID;
 
 	private final int maxParallelism;
 
-	public OperatorSubtaskStateReducer(String uid, int maxParallelism) {
-		Preconditions.checkNotNull(uid, "Uid must not be null.");
+	public OperatorSubtaskStateReducer(OperatorID operatorID, int maxParallelism) {
+		Preconditions.checkNotNull(operatorID, "Operator id must not be null.");
 		Preconditions.checkState(maxParallelism > 1);
 
-		this.uid = uid;
+		this.operatorID = operatorID;
 		this.maxParallelism = maxParallelism;
 	}
 
@@ -62,7 +62,7 @@ public class OperatorSubtaskStateReducer
 			.stream(values.spliterator(), false)
 			.collect(Collectors.toList());
 
-		OperatorState operatorState = new OperatorState(OperatorIDGenerator.fromUid(uid), subtasks.size(), maxParallelism);
+		OperatorState operatorState = new OperatorState(operatorID, subtasks.size(), maxParallelism);
 
 		for (TaggedOperatorSubtaskState value : subtasks) {
 			operatorState.putState(value.index, value.state);

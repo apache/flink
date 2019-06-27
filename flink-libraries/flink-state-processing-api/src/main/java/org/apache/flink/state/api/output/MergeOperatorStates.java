@@ -34,10 +34,10 @@ import java.util.stream.StreamSupport;
  * A reducer that aggregates multiple {@link OperatorState}'s into a single {@link Savepoint}.
  */
 @Internal
-public class OperatorStateReducer implements GroupReduceFunction<OperatorState, Savepoint> {
+public class MergeOperatorStates implements GroupReduceFunction<OperatorState, Savepoint> {
 	private final SavepointMetadata metadata;
 
-	public OperatorStateReducer(SavepointMetadata metadata) {
+	public MergeOperatorStates(SavepointMetadata metadata) {
 		Preconditions.checkNotNull(metadata, "Savepoint metadata must not be null");
 
 		this.metadata = metadata;

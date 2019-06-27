@@ -19,6 +19,7 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -26,14 +27,16 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.output.BoundedOneInputStreamTaskRunner;
+import org.apache.flink.state.api.output.OperatorSubtaskStateReducer;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperator;
 import org.apache.flink.state.api.output.partitioner.HashSelector;
 import org.apache.flink.state.api.output.partitioner.KeyGroupRangePartitioner;
 import org.apache.flink.state.api.runtime.BoundedStreamConfig;
-import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -94,21 +97,32 @@ public class BootstrapTransformation<T> {
 	}
 
 	/**
-	 * @param uid The uid for the stream operator.
+	 * @param operatorID The operator id for the stream operator.
 	 * @param stateBackend The state backend for the job.
 	 * @param metadata Metadata about the resulting savepoint.
 	 * @param savepointPath The path where the savepoint will be written.
 	 * @return The operator subtask states for this bootstrap transformation.
 	 */
-	DataSet<TaggedOperatorSubtaskState> getOperatorSubtaskStates(
-		String uid,
+	DataSet<OperatorState> writeOperatorState(
+		OperatorID operatorID,
 		StateBackend stateBackend,
 		SavepointMetadata metadata,
 		Path savepointPath) {
-
-		DataSet<T> input = dataSet;
 		int localMaxParallelism = getMaxParallelism(metadata);
 
+		return writeOperatorSubtaskStates(operatorID, stateBackend, savepointPath, localMaxParallelism)
+			.reduceGroup(new OperatorSubtaskStateReducer(operatorID, localMaxParallelism))
+			.name("reduce(OperatorSubtaskState)");
+	}
+
+	@VisibleForTesting
+	MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
+		OperatorID operatorID,
+		StateBackend stateBackend,
+		Path savepointPath,
+		int localMaxParallelism) {
+
+		DataSet<T> input = dataSet;
 		if (keySelector != null) {
 			input = dataSet.partitionCustom(new KeyGroupRangePartitioner(localMaxParallelism), keySelector);
 		}
@@ -128,8 +142,8 @@ public class BootstrapTransformation<T> {
 		operator = dataSet.clean(operator);
 		config.setStreamOperator(operator);
 
-		config.setOperatorName(uid);
-		config.setOperatorID(OperatorIDGenerator.fromUid(uid));
+		config.setOperatorName(operatorID.toHexString());
+		config.setOperatorID(operatorID);
 		config.setStateBackend(stateBackend);
 
 		BoundedOneInputStreamTaskRunner<T> operatorRunner = new BoundedOneInputStreamTaskRunner<>(
@@ -139,7 +153,7 @@ public class BootstrapTransformation<T> {
 
 		MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates = input
 			.mapPartition(operatorRunner)
-			.name(uid);
+			.name(operatorID.toHexString());
 
 		if (operator instanceof BroadcastStateBootstrapOperator) {
 			subtaskStates = subtaskStates.setParallelism(1);
@@ -149,7 +163,6 @@ public class BootstrapTransformation<T> {
 				subtaskStates.setParallelism(localMaxParallelism);
 			}
 		}
-
 		return subtaskStates;
 	}
 

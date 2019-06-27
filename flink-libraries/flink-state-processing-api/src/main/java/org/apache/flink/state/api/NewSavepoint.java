@@ -19,30 +19,15 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.state.api.runtime.metadata.NewSavepointMetadata;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
 
 /**
  * A new savepoint.
  */
 @PublicEvolving
 public class NewSavepoint extends WritableSavepoint<NewSavepoint> {
-	private final StateBackend stateBackend;
-
-	private final int maxParallelism;
-
-	NewSavepoint(StateBackend stateBackend, int maxParallelism) {
-		this.stateBackend = stateBackend;
-		this.maxParallelism = maxParallelism;
-	}
-
-	@Override
-	public void write(String path) {
-		Path savepointPath = new Path(path);
-		SavepointMetadata provider = new NewSavepointMetadata(maxParallelism);
-
-		write(savepointPath, transformations, stateBackend, provider, null);
+	NewSavepoint(ModifiableSavepointMetadata metadata, StateBackend stateBackend) {
+		super(metadata, stateBackend);
 	}
 }

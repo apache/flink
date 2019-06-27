@@ -20,18 +20,16 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -53,13 +51,15 @@ public class SavepointTest {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		new NewSavepoint(new MemoryStateBackend(), 1)
+		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(1, Collections.emptyList(), Collections.emptyList());
+
+		new NewSavepoint(metadata, new MemoryStateBackend())
 			.withOperator(UID, transformation)
 			.withOperator(UID, transformation);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testExistingSavepointEnforceUniqueUIDs() throws IOException {
+	public void testExistingSavepointEnforceUniqueUIDs() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(10);
 
@@ -69,13 +69,18 @@ public class SavepointTest {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		new ExistingSavepoint(env, new TestSavepointMetadata(), new MemoryStateBackend())
+		Collection<OperatorState> operatorStates = Collections.singletonList(new OperatorState(
+			OperatorIDGenerator.fromUid(UID), 1, 4));
+
+		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(4, Collections.emptyList(), operatorStates);
+
+		new ExistingSavepoint(env, metadata, new MemoryStateBackend())
 			.withOperator(UID, transformation)
 			.withOperator(UID, transformation);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() throws IOException {
+	public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(10);
 
@@ -85,7 +90,12 @@ public class SavepointTest {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		new ExistingSavepoint(env, new TestSavepointMetadata(), new MemoryStateBackend())
+		Collection<OperatorState> operatorStates = Collections.singletonList(new OperatorState(
+			OperatorIDGenerator.fromUid(UID), 1, 4));
+
+		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(4, Collections.emptyList(), operatorStates);
+
+		new ExistingSavepoint(env, metadata, new MemoryStateBackend())
 			.withOperator(UID, transformation)
 			.write("");
 	}
@@ -102,30 +112,6 @@ public class SavepointTest {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-		}
-	}
-
-	private static class TestSavepointMetadata implements SavepointMetadata {
-
-		@Override
-		public int maxParallelism() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Collection<MasterState> getMasterStates() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Collection<OperatorState> getOperatorStates() {
-			return Collections.singletonList(new OperatorState(
-				OperatorIDGenerator.fromUid(UID), 1, 4));
-		}
-
-		@Override
-		public OperatorState getOperatorState(String uid) throws IOException {
-			throw new UnsupportedOperationException();
 		}
 	}
 }
