@@ -175,7 +175,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
 		if (isProcessingTimeTimer(ctx)) {
-			if (needToCleanupState(timestamp)) {
+			if (stateCleaningEnabled) {
 
 				Iterator<Long> keysIt = inputState.keys().iterator();
 				Long lastProcessedTime = lastTriggeringTsState.value();

@@ -170,7 +170,7 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 		registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
 
 		if (isProcessingTimeTimer(ctx)) {
-			if (needToCleanupState(timestamp)) {
+			if (stateCleaningEnabled) {
 
 				Iterator<Long> keysIt = inputState.keys().iterator();
 				Long lastProcessedTime = lastTriggeringTsState.value();
