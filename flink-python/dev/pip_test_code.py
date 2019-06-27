@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 # test pyflink shell environment
-from pyflink.shell import bt_env, FileSystem, OldCsv, DataTypes, Schema
+from pyflink.shell import b_env, bt_env, FileSystem, OldCsv, DataTypes, Schema
 
 import tempfile
 import os
@@ -28,7 +28,7 @@ if os.path.exists(sink_path):
         os.remove(sink_path)
     else:
         shutil.rmtree(sink_path)
-bt_env.exec_env().set_parallelism(1)
+b_env.set_parallelism(1)
 t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
 bt_env.connect(FileSystem().path(sink_path)) \
     .with_format(OldCsv()
@@ -44,7 +44,7 @@ bt_env.connect(FileSystem().path(sink_path)) \
 
 t.select("a + 1, b, c").insert_into("batch_sink")
 
-bt_env.exec_env().execute()
+b_env.execute()
 
 with open(sink_path, 'r') as f:
     lines = f.read()

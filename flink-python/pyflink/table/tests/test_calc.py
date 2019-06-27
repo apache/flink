@@ -97,7 +97,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
               PythonOnlyPoint(3.0, 4.0))],
             schema)
         t.insert_into("Results")
-        t_env.exec_env().execute()
+        self.env.execute()
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'

@@ -22,6 +22,7 @@ from py4j.compat import unicode
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamQueryConfig
 from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
 from pyflink.table.table_config import TableConfig
 from pyflink.table.types import DataTypes, RowType
@@ -53,7 +54,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             source_sink_utils.TestAppendSink(field_names, field_types))
 
         t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).insert_into("Sinks")
-        t_env.exec_env().execute()
+        self.env.execute()
         actual = source_sink_utils.results()
 
         expected = ['1,Hi,Hello']
@@ -114,7 +115,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         result = t_env.sql_query("select a + 1, b, c from %s" % source)
         result.insert_into("sinks")
-        t_env.exec_env().execute()
+        self.env.execute()
         actual = source_sink_utils.results()
 
         expected = ['2,Hi,Hello', '3,Hello,Hello']
@@ -130,7 +131,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             source_sink_utils.TestAppendSink(field_names, field_types))
 
         t_env.sql_update("insert into sinks select * from %s" % source)
-        t_env.exec_env().execute("test_sql_job")
+        self.env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
         expected = ['1,Hi,Hello', '2,Hello,Hello']
@@ -144,25 +145,25 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         t_env.register_table_sink(
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
-        query_config = t_env.query_config()
+        query_config = StreamQueryConfig()
         query_config.with_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
 
         t_env.sql_update("insert into sinks select * from %s" % source, query_config)
-        t_env.exec_env().execute("test_sql_job")
+        self.env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
         expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
     def test_query_config(self):
-        query_config = self.t_env.query_config()
+        query_config = StreamQueryConfig()
 
         query_config.with_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
 
-        assert query_config.get_max_idle_state_retention_time() == 2 * 24 * 3600 * 1000
-        assert query_config.get_min_idle_state_retention_time() == 24 * 3600 * 1000
+        self.assertEqual(2 * 24 * 3600 * 1000, query_config.get_max_idle_state_retention_time())
+        self.assertEqual(24 * 3600 * 1000, query_config.get_min_idle_state_retention_time())
 
     def test_create_table_environment(self):
         table_config = TableConfig()

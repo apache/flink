@@ -24,7 +24,7 @@ class ShellExampleTests(PyFlinkTestCase):
     """
 
     def test_batch_case(self):
-        from pyflink.shell import bt_env, FileSystem, OldCsv, DataTypes, Schema
+        from pyflink.shell import b_env, bt_env, FileSystem, OldCsv, DataTypes, Schema
         # example begin
 
         import tempfile
@@ -36,7 +36,7 @@ class ShellExampleTests(PyFlinkTestCase):
                 os.remove(sink_path)
             else:
                 shutil.rmtree(sink_path)
-        bt_env.exec_env().set_parallelism(1)
+        b_env.set_parallelism(1)
         t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
         bt_env.connect(FileSystem().path(sink_path))\
             .with_format(OldCsv()
@@ -52,7 +52,7 @@ class ShellExampleTests(PyFlinkTestCase):
 
         t.select("a + 1, b, c").insert_into("batch_sink")
 
-        bt_env.exec_env().execute()
+        b_env.execute()
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:
@@ -60,7 +60,7 @@ class ShellExampleTests(PyFlinkTestCase):
             self.assertEqual(lines, '2,hi,hello\n' + '3,hi,hello\n')
 
     def test_stream_case(self):
-        from pyflink.shell import st_env, FileSystem, OldCsv, DataTypes, Schema
+        from pyflink.shell import s_env, st_env, FileSystem, OldCsv, DataTypes, Schema
         # example begin
 
         import tempfile
@@ -72,7 +72,7 @@ class ShellExampleTests(PyFlinkTestCase):
                 os.remove(sink_path)
             else:
                 shutil.rmtree(sink_path)
-        st_env.exec_env().set_parallelism(1)
+        s_env.set_parallelism(1)
         t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
         st_env.connect(FileSystem().path(sink_path))\
             .with_format(OldCsv()
@@ -88,7 +88,7 @@ class ShellExampleTests(PyFlinkTestCase):
 
         t.select("a + 1, b, c").insert_into("stream_sink")
 
-        st_env.exec_env().execute()
+        s_env.execute()
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:

@@ -19,11 +19,9 @@ import os
 import tempfile
 from abc import ABCMeta, abstractmethod
 
-from pyflink.dataset import ExecutionEnvironment
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table.query_config import StreamQueryConfig, BatchQueryConfig, QueryConfig
+from pyflink.table.query_config import QueryConfig
 from pyflink.table.table_config import TableConfig
 from pyflink.table.descriptors import (StreamTableDescriptor, ConnectorDescriptor,
                                        BatchTableDescriptor)
@@ -383,28 +381,11 @@ class TableEnvironment(object):
         self._j_tenv.useDatabase(database_name)
 
     @abstractmethod
-    def exec_env(self):
-        """
-        :return: The execution environment of this table environment.
-        """
-        pass
-
-    @abstractmethod
     def get_config(self):
         """
         Returns the table config to define the runtime behavior of the Table API.
 
         :return: Current :class:`TableConfig`.
-        """
-        pass
-
-    @abstractmethod
-    def query_config(self):
-        """
-        Returns a :class:`StreamQueryConfig` that holds parameters to configure the behavior of
-        streaming queries.
-
-        :return: A new :class:`StreamQueryConfig` or :class:`BatchQueryConfig`.
         """
         pass
 
@@ -548,15 +529,6 @@ class StreamTableEnvironment(TableEnvironment):
         table_config._j_table_config = self._j_tenv.getConfig()
         return table_config
 
-    def query_config(self):
-        """
-        Returns a :class:`StreamQueryConfig` that holds parameters to configure the behavior of
-        streaming queries.
-
-        :return: A new :class:`StreamQueryConfig`.
-        """
-        return StreamQueryConfig()
-
     def connect(self, connector_descriptor):
         """
         Creates a table source and/or table sink from a descriptor.
@@ -587,12 +559,6 @@ class StreamTableEnvironment(TableEnvironment):
         # type: (ConnectorDescriptor) -> StreamTableDescriptor
         return StreamTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-
-    def exec_env(self):
-        """
-        :return: The stream execution environment of this table environment.
-        """
-        return StreamExecutionEnvironment(self._j_tenv.execEnv())
 
     @classmethod
     def create(cls, stream_execution_environment, table_config=None):
@@ -630,15 +596,6 @@ class BatchTableEnvironment(TableEnvironment):
         table_config._j_table_config = self._j_tenv.getConfig()
         return table_config
 
-    def query_config(self):
-        """
-        Returns the :class:`BatchQueryConfig` that holds parameters to configure the behavior of
-        batch queries.
-
-        :return: A new :class:`BatchQueryConfig`.
-        """
-        return BatchQueryConfig()
-
     def connect(self, connector_descriptor):
         """
         Creates a table source and/or table sink from a descriptor.
@@ -669,12 +626,6 @@ class BatchTableEnvironment(TableEnvironment):
         # type: (ConnectorDescriptor) -> BatchTableDescriptor
         return BatchTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-
-    def exec_env(self):
-        """
-        :return: The stream execution environment of this table environment.
-        """
-        return ExecutionEnvironment(self._j_tenv.execEnv())
 
     @classmethod
     def create(cls, execution_environment, table_config=None):
