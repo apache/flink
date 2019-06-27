@@ -27,6 +27,11 @@ import java.nio.file.Path;
 public class FileChannelMemoryMappedBoundedDataTest extends BoundedDataTestBase {
 
 	@Override
+	protected boolean isRegionBased() {
+		return true;
+	}
+
+	@Override
 	protected BoundedData createBoundedData(Path tempFilePath) throws IOException {
 		return FileChannelMemoryMappedBoundedData.create(tempFilePath);
 	}

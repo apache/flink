@@ -53,6 +53,8 @@ public abstract class BoundedDataTestBase {
 	//  BoundedData Instantiation
 	// ------------------------------------------------------------------------
 
+	protected abstract boolean isRegionBased();
+
 	protected abstract BoundedData createBoundedData(Path tempFilePath) throws IOException;
 
 	protected abstract BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException;
@@ -78,6 +80,10 @@ public abstract class BoundedDataTestBase {
 
 	@Test
 	public void testWriteAndReadDataAcrossRegions() throws Exception {
+		if (!isRegionBased()) {
+			return;
+		}
+
 		try (BoundedData bd = createBoundedDataWithRegion(1_276_347)) {
 			testWriteAndReadData(bd);
 		}
@@ -125,6 +131,10 @@ public abstract class BoundedDataTestBase {
 
 	@Test
 	public void testGetSizeMultipleRegions() throws Exception {
+		if (!isRegionBased()) {
+			return;
+		}
+
 		try (BoundedData bd = createBoundedDataWithRegion(100_000)) {
 			testGetSize(bd);
 		}
