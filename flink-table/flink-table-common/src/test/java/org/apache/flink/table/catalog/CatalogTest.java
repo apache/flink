@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
-import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -657,21 +656,6 @@ public abstract class CatalogTest {
 	}
 
 	@Test
-	public void testAlterFunction_differentTypedFunction() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		CatalogFunction function = createFunction();
-		catalog.createFunction(path1, createFunction(), false);
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage(
-			String.format("Function types don't match. " +
-				"Existing function is '%s' and " +
-				"new function is 'org.apache.flink.table.catalog.CatalogTest$TestFunction'.",
-				function.getClass().getName()));
-		catalog.alterFunction(path1, new TestFunction(), false);
-	}
-
-	@Test
 	public void testAlterFunction_FunctionNotExistException() throws Exception {
 		exception.expect(FunctionNotExistException.class);
 		exception.expectMessage("Function db1.nonexist does not exist in Catalog");
@@ -1214,24 +1198,6 @@ public abstract class CatalogTest {
 	}
 
 	/**
-	 * A Flink function for test.
-	 */
-	public static class MyScalarFunction extends ScalarFunction {
-		public Integer eval(Integer i) {
-			return i + 1;
-		}
-	}
-
-	/**
-	 * Another Flink function for test.
-	 */
-	public static class MyOtherScalarFunction extends ScalarFunction {
-		public String eval(Integer i) {
-			return String.valueOf(i);
-		}
-	}
-
-	/**
 	 * Test table used to assert on table of different class.
 	 */
 	public static class TestTable implements CatalogBaseTable {
@@ -1278,36 +1244,6 @@ public abstract class CatalogTest {
 
 		@Override
 		public CatalogPartition copy() {
-			return null;
-		}
-
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
-
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
-		}
-	}
-
-	/**
-	 * Test function used to assert on function of different class.
-	 */
-	public static class TestFunction implements CatalogFunction {
-		@Override
-		public String getClassName() {
-			return null;
-		}
-
-		@Override
-		public Map<String, String> getProperties() {
-			return null;
-		}
-
-		@Override
-		public CatalogFunction copy() {
 			return null;
 		}
 

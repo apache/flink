@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -137,16 +136,6 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		throw new UnsupportedOperationException(
 			"Hive table cannot be streaming."
 		);
-	}
-
-	@Override
-	protected CatalogFunction createFunction() {
-		return new HiveCatalogFunction("test.class.name");
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new HiveCatalogFunction("test.another.class.name");
 	}
 
 	@Override

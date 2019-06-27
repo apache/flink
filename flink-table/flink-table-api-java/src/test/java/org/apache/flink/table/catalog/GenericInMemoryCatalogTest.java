@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
-import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -179,33 +178,4 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		colStatsMap.put("bb6", binaryColStats);
 		return new CatalogColumnStatistics(colStatsMap);
 	}
-
-	@Override
-	protected CatalogFunction createFunction() {
-		return new GenericCatalogFunction(MyScalarFunction.class.getName(), new HashMap<>());
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName(), new HashMap<>());
-	}
-
-	/**
-	 * Test UDF.
-	 */
-	public static class MyScalarFunction extends ScalarFunction {
-		public Integer eval(Integer i) {
-			return i + 1;
-		}
-	}
-
-	/**
-	 * Test UDF.
-	 */
-	public static class MyOtherScalarFunction extends ScalarFunction {
-		public String eval(Integer i) {
-			return String.valueOf(i);
-		}
-	}
-
 }
