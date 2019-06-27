@@ -132,6 +132,34 @@ env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 {% endhighlight %}
 </div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# start a checkpoint every 1000 ms
+env.enable_checkpointing(1000)
+
+# advanced options:
+
+# set mode to exactly-once (this is the default)
+env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONCE)
+
+# make sure 500 ms of progress happen between checkpoints
+env.get_checkpoint_config().set_min_pause_between_checkpoints(500)
+
+# checkpoints have to complete within one minute, or are discarded
+env.get_checkpoint_config().set_checkpoint_timeout(60000)
+
+# allow only one checkpoint to be in progress at the same time
+env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
+
+# enable externalized checkpoints which are retained after job cancellation
+env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+
+# allow job recovery fallback to checkpoint when there is a more recent savepoint
+env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
+{% endhighlight %}
+</div>
 </div>
 
 ### Related Config Options

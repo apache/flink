@@ -59,7 +59,7 @@ class TableEnvironment(object):
 
             >>> csv_table_source = CsvTableSource(
             ...     csv_file_path, ['a', 'b'], [DataTypes.STRING(), DataTypes.BIGINT()])
-            ... table_env.from_table_source(csv_table_source)
+            >>> table_env.from_table_source(csv_table_source)
 
         :param table_source: The table source used as table.
         :return: The result :class:`Table`.
@@ -95,6 +95,12 @@ class TableEnvironment(object):
         Registers a :class:`Table` under a unique name in the TableEnvironment's catalog.
         Registered tables can be referenced in SQL queries.
 
+        Example:
+        ::
+
+            >>> tab = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
+            >>> table_env.register_table("source", tab)
+
         :param name: The name under which the table will be registered.
         :param table: The table to register.
         """
@@ -104,6 +110,15 @@ class TableEnvironment(object):
         """
         Registers an external :class:`TableSource` in this :class:`TableEnvironment`'s catalog.
         Registered tables can be referenced in SQL queries.
+
+        Example:
+        ::
+
+            >>> table_env.register_table_source("source",
+            ...                                 CsvTableSource("./1.csv",
+            ...                                                ["a", "b"],
+            ...                                                [DataTypes.INT(),
+            ...                                                 DataTypes.STRING()]))
 
         :param name: The name under which the :class:`TableSource` is registered.
         :param table_source: The :class:`TableSource` to register.
@@ -115,6 +130,15 @@ class TableEnvironment(object):
         Registers an external :class:`TableSink` with given field names and types in this
         :class:`TableEnvironment`'s catalog.
         Registered sink tables can be referenced in SQL DML statements.
+
+        Example:
+        ::
+
+            >>> table_env.register_table_sink("sink",
+            ...                               CsvTableSink(["a", "b"],
+            ...                                            [DataTypes.INT(),
+            ...                                             DataTypes.STRING()],
+            ...                                            "./2.csv"))
 
         :param name: The name under which the :class:`TableSink` is registered.
         :param table_sink: The :class:`TableSink` to register.
@@ -135,12 +159,12 @@ class TableEnvironment(object):
         Scanning a directly registered table
         ::
 
-            >>> tab = t_env.scan("tableName")
+            >>> tab = table_env.scan("tableName")
 
         Scanning a table from a registered catalog
         ::
 
-            >>> tab = t_env.scan("catalogName", "dbName", "tableName")
+            >>> tab = table_env.scan("catalogName", "dbName", "tableName")
 
         :param table_path: The path of the table to scan.
         :throws: Exception if no table is found using the given table path.
@@ -160,8 +184,8 @@ class TableEnvironment(object):
         Example:
         ::
 
-            >>> tab = t_env.scan("tableName")
-            >>> t_env.insert_into(tab, "print")
+            >>> tab = table_env.scan("tableName")
+            >>> table_env.insert_into(tab, "sink")
 
         :param table: :class:`Table` to write to the sink.
         :param table_path: The first part of the path of the registered :class:`TableSink` to which
@@ -225,7 +249,7 @@ class TableEnvironment(object):
 
             >>> table = ...
             # the table is not registered to the table environment
-            >>> t_env.sql_query("SELECT * FROM %s" % table)
+            >>> table_env.sql_query("SELECT * FROM %s" % table)
 
         :param query: The sql query string.
         :return: The result :class:`Table`.
@@ -248,10 +272,10 @@ class TableEnvironment(object):
         ::
 
             # register the table sink into which the result is inserted.
-            >>> t_env.register_table_sink("sink_table", table_sink)
+            >>> table_env.register_table_sink("sink_table", table_sink)
             >>> source_table = ...
             # source_table is not registered to the table environment
-            >>> tEnv.sql_update(s"INSERT INTO sink_table SELECT * FROM %s" % source_table)
+            >>> table_env.sql_update("INSERT INTO sink_table SELECT * FROM %s" % source_table)
 
         :param stmt: The SQL statement to evaluate.
         :param query_config: The :class:`QueryConfig` to use.
@@ -404,16 +428,16 @@ class TableEnvironment(object):
         Example:
         ::
 
-            >>> table_env\\
+            >>> table_env \\
             ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11"))\\
+            ...              .version("0.11")) \\
             ...     .with_format(Json()
-            ...                 .json_schema("{...}")
-            ...                 .fail_on_missing_field(False))\\
+            ...                  .json_schema("{...}")
+            ...                  .fail_on_missing_field(False)) \\
             ...     .with_schema(Schema()
-            ...                 .field("user-name", "VARCHAR")
-            ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL"))\\
+            ...                  .field("user-name", "VARCHAR")
+            ...                  .from_origin_field("u_name")
+            ...                  .field("count", "DECIMAL")) \\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -425,11 +449,50 @@ class TableEnvironment(object):
     def from_elements(self, elements, schema=None, verify_schema=True):
         """
         Creates a table from a collection of elements.
+        The elements types must be acceptable atomic types or acceptable composite types.
+        All elements must be of the same type.
+        If the elements types are composite types, the composite types must be strictly equal,
+        and its subtypes must also be acceptable types.
+        e.g. if the elements are tuples, the length of the tuples must be equal, the element types
+        of the tuples must be equal in order.
+
+        The built-in acceptable atomic element types contains:
+
+        **int**, **long**, **str**, **unicode**, **bool**,
+        **float**, **bytearray**, **datetime.date**, **datetime.time**, **datetime.datetime**,
+        **datetime.timedelta**, **decimal.Decimal**
+
+        The built-in acceptable composite element types contains:
+
+        **list**, **tuple**, **dict**, **array**, :class:`pyflink.table.Row`
+
+        If the element type is a composite type, it will be unboxed.
+        e.g. table_env.from_elements([(1, 'Hi'), (2, 'Hello')]) will return a table like:
+
+        +----+-------+
+        | _1 |  _2   |
+        +====+=======+
+        | 1  |  Hi   |
+        +----+-------+
+        | 2  | Hello |
+        +----+-------+
+
+        "_1" and "_2" are generated field names.
 
         Example:
         ::
 
+            # use the second parameter to specify custom field names
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
+            # use the second parameter to specify custom table schema
+            >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
+            ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+            ...                                        DataTypes.FIELD("b", DataTypes.STRING())]))
+            # use the thrid parameter to switch whether to verify the elements against the schema
+            >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
+            ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+            ...                                        DataTypes.FIELD("b", DataTypes.STRING())]),
+            ...                         False)
 
         :param elements: The elements to create a table from.
         :param schema: The schema of the table.
@@ -541,16 +604,16 @@ class StreamTableEnvironment(TableEnvironment):
         registering a table source as "MyTable":
         ::
 
-            >>> table_env\\
+            >>> table_env \\
             ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11"))\\
+            ...              .version("0.11")) \\
             ...     .with_format(Json()
-            ...                 .json_schema("{...}")
-            ...                 .fail_on_missing_field(False))\\
+            ...                  .json_schema("{...}")
+            ...                  .fail_on_missing_field(False)) \\
             ...     .with_schema(Schema()
-            ...                 .field("user-name", "VARCHAR")
-            ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL"))\\
+            ...                  .field("user-name", "VARCHAR")
+            ...                  .from_origin_field("u_name")
+            ...                  .field("count", "DECIMAL")) \\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -560,8 +623,28 @@ class StreamTableEnvironment(TableEnvironment):
         return StreamTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
-    @classmethod
-    def create(cls, stream_execution_environment, table_config=None):
+    @staticmethod
+    def create(stream_execution_environment, table_config=None):
+        """
+        Creates a :class:`TableEnvironment` for a :class:`StreamExecutionEnvironment`
+
+        Example:
+        ::
+
+            >>> env = StreamExecutionEnvironment.get_execution_environment()
+            # create without TableConfig
+            >>> table_env = StreamTableEnvironment.create(env)
+            # create with TableConfig
+            >>> table_config = TableConfig()
+            >>> table_config.set_null_check(False)
+            >>> table_env = StreamTableEnvironment.create(env, table_config)
+
+        :param stream_execution_environment: The :class:`StreamExecutionEnvironment` of the
+                                             TableEnvironment.
+        :param table_config: The configuration of the TableEnvironment, optional.
+        :return: The :class:`StreamTableEnvironment` created from given StreamExecutionEnvironment
+                 and configuration.
+        """
         gateway = get_gateway()
         if table_config is not None:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
@@ -608,16 +691,16 @@ class BatchTableEnvironment(TableEnvironment):
         registering a table source as "MyTable":
         ::
 
-            >>> table_env\\
+            >>> table_env \\
             ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11"))\\
+            ...              .version("0.11")) \\
             ...     .with_format(Json()
-            ...                 .json_schema("{...}")
-            ...                 .fail_on_missing_field(False))\\
+            ...                  .json_schema("{...}")
+            ...                  .fail_on_missing_field(False)) \\
             ...     .with_schema(Schema()
-            ...                 .field("user-name", "VARCHAR")
-            ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL"))\\
+            ...                  .field("user-name", "VARCHAR")
+            ...                  .from_origin_field("u_name")
+            ...                  .field("count", "DECIMAL")) \\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -627,8 +710,26 @@ class BatchTableEnvironment(TableEnvironment):
         return BatchTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
-    @classmethod
-    def create(cls, execution_environment, table_config=None):
+    @staticmethod
+    def create(execution_environment, table_config=None):
+        """
+        Creates a :class:`TableEnvironment` for a batch :class:`ExecutionEnvironment`.
+
+        Example:
+        ::
+
+            >>> env = ExecutionEnvironment.get_execution_environment()
+            >>> table_env = BatchTableEnvironment.create(env)
+            >>> table_config = TableConfig()
+            >>> table_config.set_null_check(False)
+            >>> table_env = BatchTableEnvironment.create(env, table_config)
+
+        :param execution_environment: The batch :class:`ExecutionEnvironment` of the
+                                      TableEnvironment.
+        :param table_config: The configuration of the TableEnvironment, optional.
+        :return: The :class:`BatchTableEnvironment` created from given ExecutionEnvironment and
+                 configuration.
+        """
         gateway = get_gateway()
         if table_config is not None:
             j_tenv = gateway.jvm.BatchTableEnvironment.create(

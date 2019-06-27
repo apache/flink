@@ -814,9 +814,9 @@ class Kafka(ConnectorDescriptor):
             |    Flink Sinks --------- Kafka Partitions
             |        1    ---------------->    1
             |        2    ---------------->    2
-            |                                  3
-            |                                  4
-            |                                  5
+            |             ................     3
+            |             ................     4
+            |             ................     5
 
         :return: This object.
         """
@@ -1199,6 +1199,8 @@ class ConnectTableDescriptor(Descriptor):
 class StreamTableDescriptor(ConnectTableDescriptor):
     """
     Descriptor for specifying a table source and/or sink in a streaming environment.
+
+    .. seealso:: parent class: :class:`ConnectTableDescriptor`
     """
 
     def __init__(self, j_stream_table_descriptor):
@@ -1259,6 +1261,8 @@ class StreamTableDescriptor(ConnectTableDescriptor):
 class BatchTableDescriptor(ConnectTableDescriptor):
     """
     Descriptor for specifying a table source and/or sink in a batch environment.
+
+    .. seealso:: parent class: :class:`ConnectTableDescriptor`
     """
 
     def __init__(self, j_batch_table_descriptor):

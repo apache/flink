@@ -59,7 +59,7 @@ from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWin
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
                                              BatchTableEnvironment)
-from pyflink.table.sinks import TableSink, CsvTableSink
+from pyflink.table.sinks import TableSink, CsvTableSink, WriteMode
 from pyflink.table.sources import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
 from pyflink.table.table_schema import TableSchema
@@ -78,6 +78,7 @@ __all__ = [
     'BatchQueryConfig',
     'TableSink',
     'TableSource',
+    'WriteMode',
     'CsvTableSink',
     'CsvTableSource',
     'DataTypes',

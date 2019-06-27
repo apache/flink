@@ -49,7 +49,7 @@ class Table(object):
         >>> t_env.register_table_source("source", ...)
         >>> t = t_env.scan("source")
         >>> t.select(...)
-        ...
+        >>> ...
         >>> t_env.register_table_sink("result", ...)
         >>> t.insert_into("result")
         >>> env.execute()
@@ -452,6 +452,13 @@ class Table(object):
             If the :func:`~pyflink.table.GroupWindowedTable.group_by` only references a GroupWindow
             alias, the streamed table will be processed by a single task, i.e., with parallelism 1.
 
+        Example:
+        ::
+
+            >>> tab.window(Tumble.over("10.minutes").on("rowtime").alias("w")) \\
+            ...     .group_by("w") \\
+            ...     .select("a.sum as a, w.start as b, w.end as c, w.rowtime as d")
+
         :param window: A :class:`pyflink.table.window.GroupWindow` created from
                        :class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`
                        or :class:`pyflink.table.window.Slide`.
@@ -470,8 +477,8 @@ class Table(object):
         Example:
         ::
 
-            >>> table.window(Over.partition_by("c").order_by("rowTime")\\
-            ...     .preceding("10.seconds").alias("ow"))\\
+            >>> table.window(Over.partition_by("c").order_by("rowTime") \\
+            ...     .preceding("10.seconds").alias("ow")) \\
             ...     .select("c, b.count over ow, e.sum over ow")
 
         .. note::
@@ -563,7 +570,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.insert_into("print")
+            >>> tab.insert_into("sink")
 
         :param table_path: The first part of the path of the registered :class:`TableSink` to which
                the :class:`Table` is written. This is to ensure at least the name of the
@@ -641,7 +648,7 @@ class GroupWindowedTable(object):
         Example:
         ::
 
-            >>> tab.window(groupWindow.alias("w")).group_by("w, key").select("key, value.avg")
+            >>> tab.window(group_window.alias("w")).group_by("w, key").select("key, value.avg")
 
         :param fields: Group keys.
         :return: A :class:`WindowGroupedTable`.

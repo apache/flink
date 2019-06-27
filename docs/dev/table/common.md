@@ -80,13 +80,42 @@ tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
-// Create a Table from a SQL query
+// create a Table from a SQL query
 val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
 tapiResult.insertInto("outputTable")
 
 // execute
+env.execute()
+
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# for batch programs use ExecutionEnvironment instead of StreamExecutionEnvironment
+env = StreamExecutionEnvironment.get_execution_environment()
+
+# create a TableEnvironment
+table_env = StreamTableEnvironment.create(env)
+
+# register a Table
+table_env.register_table("table1", ...)           # or
+table_env.register_table_source("table2", ...)
+
+# register an output Table
+table_env.register_table_sink("outputTable", ...);
+
+# create a Table from a Table API query
+tapi_result = table_env.scan("table1").select(...)
+# create a Table from a SQL query
+sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
+
+# emit a Table API result Table to a TableSink, same for SQL result
+tapi_result.insert_into("outputTable")
+
+# execute
 env.execute()
 
 {% endhighlight %}
@@ -121,6 +150,7 @@ Make sure to choose the `BatchTableEnvironment`/`StreamTableEnvironment` that ma
 // ***************
 // STREAMING QUERY
 // ***************
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -130,6 +160,7 @@ StreamTableEnvironment sTableEnv = StreamTableEnvironment.create(sEnv);
 // ***********
 // BATCH QUERY
 // ***********
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 
 ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
@@ -143,6 +174,7 @@ BatchTableEnvironment bTableEnv = BatchTableEnvironment.create(bEnv);
 // ***************
 // STREAMING QUERY
 // ***************
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 
 val sEnv = StreamExecutionEnvironment.getExecutionEnvironment
@@ -152,11 +184,36 @@ val sTableEnv = StreamTableEnvironment.create(sEnv)
 // ***********
 // BATCH QUERY
 // ***********
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.scala.BatchTableEnvironment
 
 val bEnv = ExecutionEnvironment.getExecutionEnvironment
 // create a TableEnvironment for batch queries
 val bTableEnv = BatchTableEnvironment.create(bEnv)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# ***************
+# STREAMING QUERY
+# ***************
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.table import StreamTableEnvironment
+
+s_env = StreamExecutionEnvironment.get_execution_environment()
+# create a TableEnvironment for streaming queries
+s_table_env = StreamTableEnvironment.create(s_env)
+
+# ***********
+# BATCH QUERY
+# ***********
+from pyflink.dataset import ExecutionEnvironment
+from pyflink.table import BatchTableEnvironment
+
+b_env = ExecutionEnvironment.get_execution_environment()
+# create a TableEnvironment for batch queries
+b_table_env = BatchTableEnvironment.create(b_env)
 {% endhighlight %}
 </div>
 </div>
@@ -186,10 +243,10 @@ A `Table` is registered in a `TableEnvironment` as follows:
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-// Table is the result of a simple projection query 
+// table is the result of a simple projection query 
 Table projTable = tableEnv.scan("X").select(...);
 
-// register the Table projTable as table "projectedX"
+// register the Table projTable as table "projectedTable"
 tableEnv.registerTable("projectedTable", projTable);
 {% endhighlight %}
 </div>
@@ -199,11 +256,24 @@ tableEnv.registerTable("projectedTable", projTable);
 // get a TableEnvironment
 val tableEnv = StreamTableEnvironment.create(env)
 
-// Table is the result of a simple projection query 
+// table is the result of a simple projection query 
 val projTable: Table = tableEnv.scan("X").select(...)
 
-// register the Table projTable as table "projectedX"
+// register the Table projTable as table "projectedTable"
 tableEnv.registerTable("projectedTable", projTable)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a TableEnvironment
+table_env = StreamTableEnvironment.create(env)
+
+# table is the result of a simple projection query 
+proj_table = table_env.scan("X").select(...)
+
+# register the Table projTable as table "projectedTable"
+table_env.register_table("projectedTable", proj_table)
 {% endhighlight %}
 </div>
 </div>
@@ -244,6 +314,19 @@ val csvSource: TableSource = new CsvTableSource("/path/to/file", ...)
 
 // register the TableSource as table "CsvTable"
 tableEnv.registerTableSource("CsvTable", csvSource)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a TableEnvironment
+table_env = StreamTableEnvironment.create(env)
+
+# create a TableSource
+csv_source = CsvTableSource("/path/to/file", ...)
+
+# register the TableSource as table "csvTable"
+table_env.register_table_source("csvTable", csv_source)
 {% endhighlight %}
 </div>
 </div>
@@ -290,6 +373,23 @@ val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types
 
 // register the TableSink as table "CsvSinkTable"
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a TableEnvironment
+table_env = StreamTableEnvironment.create(env)
+
+# define the field names and types
+field_names = ["a", "b", "c"]
+field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.BIGINT()]
+
+# create a TableSink
+csv_sink = CsvTableSink(field_names, field_types, "/path/to/file", ...)
+
+# register the TableSink as table "CsvSinkTable"
+table_env.register_table_sink("CsvSinkTable", csv_sink)
 {% endhighlight %}
 </div>
 </div>
@@ -392,6 +492,26 @@ val revenue = orders
 
 **Note:** The Scala Table API uses Scala Symbols, which start with a single tick (`'`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._` in order to use Scala implicit conversions.
 </div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+table_env = StreamTableEnvironment.create(env)
+
+# register Orders table
+
+# scan registered Orders table
+orders = table_env.scan("Orders")
+# compute revenue for all customers from France
+revenue = orders \
+    .filter("cCountry === 'FRANCE'") \
+    .group_by("cID, cName") \
+    .select("cID, cName, revenue.sum AS revSum")
+
+# emit or convert Table
+# execute query
+{% endhighlight %}
+</div>
 </div>
 
 {% top %}
@@ -445,6 +565,26 @@ val revenue = tableEnv.sqlQuery("""
 {% endhighlight %}
 
 </div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+table_env = StreamTableEnvironment.create(env)
+
+# register Orders table
+
+# compute revenue for all customers from France
+revenue = table_env.sql_query(
+    "SELECT cID, cName, SUM(revenue) AS revSum "
+    "FROM Orders "
+    "WHERE cCountry = 'FRANCE' "
+    "GROUP BY cID, cName"
+)
+
+# emit or convert Table
+# execute query
+{% endhighlight %}
+</div>
 </div>
 
 The following example shows how to specify an update query that inserts its result into a registered table.
@@ -491,6 +631,27 @@ tableEnv.sqlUpdate("""
 // execute query
 {% endhighlight %}
 
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+table_env = StreamTableEnvironment.create(env)
+
+# register "Orders" table
+# register "RevenueFrance" output table
+
+# compute revenue for all customers from France and emit to "RevenueFrance"
+table_env.sql_update(
+    "INSERT INTO RevenueFrance "
+    "SELECT cID, cName, SUM(revenue) AS revSum "
+    "FROM Orders "
+    "WHERE cCountry = 'FRANCE' "
+    "GROUP BY cID, cName"
+)
+
+# execute query
+{% endhighlight %}
 </div>
 </div>
 
@@ -561,6 +722,29 @@ val result: Table = ...
 result.insertInto("CsvSinkTable")
 
 // execute the program
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# get a TableEnvironment
+table_env = StreamTableEnvironment.create(env)
+
+field_names = ["a", "b", "c"]
+field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.BIGINT()]
+
+# create a TableSink
+sink = CsvTableSink(field_names, field_types, "/path/to/file", "|")
+
+table_env.register_table_sink("CsvSinkTable", sink)
+
+# compute a result Table using Table API operators and/or SQL queries
+result = ...
+
+# emit the result Table to the registered TableSink
+result.insert_into("CsvSinkTable")
+
+# execute the program
 {% endhighlight %}
 </div>
 </div>
@@ -1168,6 +1352,22 @@ val table = table1
 
 val explanation: String = tEnv.explain(table)
 println(explanation)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+t_env = StreamTableEnvironment.create(env)
+
+table1 = t_env.from_elements([(1, "hello")], ["count", "word"])
+table2 = t_env.from_elements([(1, "hello")], ["count", "word"])
+table = table1 \
+    .where("LIKE(word, 'F%')") \
+    .union_all(table2)
+
+explanation = t_env.explain(table)
+print(explanation)
 {% endhighlight %}
 </div>
 </div>

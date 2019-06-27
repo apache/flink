@@ -20,7 +20,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.types import _to_java_type, DataType
 from pyflink.util import utils
 
-__all__ = ['TableSink', 'CsvTableSink']
+__all__ = ['TableSink', 'CsvTableSink', 'WriteMode']
 
 
 class TableSink(object):
@@ -41,12 +41,20 @@ class CsvTableSink(TableSink):
     """
     A simple :class:`TableSink` to emit data as CSV files.
 
+    Example:
+    ::
+
+        >>> CsvTableSink(["a", "b"], [DataTypes.INT(), DataTypes.STRING()],
+        ...              "/csv/file/path", "|", 1, WriteMode.OVERWRITE)
+
     :param field_names: The list of field names.
     :param field_types: The list of field data types.
     :param path: The output path to write the Table to.
     :param field_delimiter: The field delimiter.
     :param num_files: The number of files to write to.
-    :param write_mode: The write mode to specify whether existing files are overwritten or not.
+    :param write_mode: The write mode to specify whether existing files are overwritten or not,
+                       which contains: :data:`WriteMode.NO_OVERWRITE`
+                       and :data:`WriteMode.OVERWRITE`.
     """
 
     def __init__(self, field_names, field_types, path, field_delimiter=',', num_files=1,

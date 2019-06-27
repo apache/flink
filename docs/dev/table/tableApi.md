@@ -101,9 +101,11 @@ The following example shows how a Python Table API program is constructed and ho
 
 {% highlight python %}
 from pyflink.table import *
+from pyflink.dataset import *
 
 # environment configuration
-t_env = TableEnvironment.create(TableConfig.Builder().as_batch_execution().build())
+env = ExecutionEnvironment.get_execution_environment()
+t_env = TableEnvironment.create(env, TableConfig())
 
 # register Orders table and Result table sink in table environment
 # ...
@@ -113,7 +115,7 @@ orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
 
 orders.group_by("a").select("a, b.count as cnt").insert_into("result")
 
-t_env.execute()
+env.execute()
 
 {% endhighlight %}
 
@@ -2287,10 +2289,10 @@ A session window is defined by using the `Session` class as follows:
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Session Event-time Window
-.window(Session.withGap("10.minutes").on("rowtime").alias("w"))
+.window(Session.with_gap("10.minutes").on("rowtime").alias("w"))
 
 # Session Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Session.withGap("10.minutes").on("proctime").alias("w"))
+.window(Session.with_gap("10.minutes").on("proctime").alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2324,7 +2326,7 @@ val table = input
 {% highlight python %}
 # define over window with alias w and aggregate over the over window w
 table = input.over_window([OverWindow w].alias("w")) \
-             .select("a, b.sum over w, c.min over w")
+    .select("a, b.sum over w, c.min over w")
 {% endhighlight %}
 </div>
 </div>
