@@ -65,7 +65,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			int maxConcurrentCheckpoints,
 			CheckpointRetentionPolicy checkpointRetentionPolicy,
 			boolean isExactlyOnce,
-			boolean isPerfetCheckpointForRecovery,
+			boolean isPreferCheckpointForRecovery,
 			int tolerableCpFailureNumber) {
 
 		// sanity checks
@@ -81,7 +81,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
 		this.isExactlyOnce = isExactlyOnce;
-		this.isPreferCheckpointForRecovery = isPerfetCheckpointForRecovery;
+		this.isPreferCheckpointForRecovery = isPreferCheckpointForRecovery;
 		this.tolerableCheckpointFailureNumber = tolerableCpFailureNumber;
 	}
 

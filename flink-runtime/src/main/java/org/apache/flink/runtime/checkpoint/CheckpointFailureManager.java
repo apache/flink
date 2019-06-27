@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointFailureManager {
 
-	private final static int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
+	public static final int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
 
 	private final int tolerableCpFailureNumber;
 	private final FailJobCallback failureCallback;

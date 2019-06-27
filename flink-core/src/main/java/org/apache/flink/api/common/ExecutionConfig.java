@@ -154,7 +154,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
 	private boolean useSnapshotCompression = false;
 
-	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
+	/**
+	 * @deprecated Should no longer be used because we would not support to let task directly fail on checkpoint error.
+	 */
+	@Deprecated
 	private boolean failTaskOnCheckpointError = true;
 
 	/** The default input dependency constraint to schedule tasks. */
@@ -948,20 +951,22 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
-	 * the task. This should not be called by the user, please use CheckpointConfig.isFailTaskOnCheckpointError()
-	 * instead.
+	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
+	 * to the task, and we have not supported task to fail on checkpoint error.
+	 * Please use CheckpointConfig.getTolerableCheckpointFailureNumber() to know the behavior on checkpoint errors.
 	 */
+	@Deprecated
 	@Internal
 	public boolean isFailTaskOnCheckpointError() {
 		return failTaskOnCheckpointError;
 	}
 
 	/**
-	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
-	 * the task. This should not be called by the user, please use CheckpointConfig.setFailOnCheckpointingErrors(...)
-	 * instead.
+	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
+	 * to the task, and we have not supported task to fail on checkpoint error.
+	 * Please use CheckpointConfig.setTolerableCheckpointFailureNumber(int) to determine the behavior on checkpoint errors.
 	 */
+	@Deprecated
 	@Internal
 	public void setFailTaskOnCheckpointError(boolean failTaskOnCheckpointError) {
 		this.failTaskOnCheckpointError = failTaskOnCheckpointError;

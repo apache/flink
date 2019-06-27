@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -606,11 +605,7 @@ public class StreamingJobGraphGenerator {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
-		if (interval >= 10) {
-			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
-			// propagate the expected behaviour for checkpoint errors to task.
-			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
-		} else {
+		if (interval < 10) {
 			// interval of max value means disable periodic checkpoint
 			interval = Long.MAX_VALUE;
 		}
