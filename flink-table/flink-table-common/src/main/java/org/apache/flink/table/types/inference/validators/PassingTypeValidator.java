@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeValidator;
+import org.apache.flink.table.types.inference.Signature;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,8 +48,8 @@ public class PassingTypeValidator implements InputTypeValidator {
 	}
 
 	@Override
-	public List<String> getExpectedSignatures(String name, FunctionDefinition definition) {
-		return Collections.singletonList(name + "(*)");
+	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+		return Collections.singletonList(Signature.newInstance().arg("*"));
 	}
 
 	private static class PassingArgumentCount implements ArgumentCount {
