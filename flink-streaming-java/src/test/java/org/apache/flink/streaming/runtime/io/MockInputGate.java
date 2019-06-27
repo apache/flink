@@ -39,8 +39,6 @@ public class MockInputGate extends InputGate {
 
 	private final boolean[] closed;
 
-	private int closedChannels;
-
 	MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
 		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
@@ -77,7 +75,6 @@ public class MockInputGate extends InputGate {
 		}
 		if (next.isEvent() && next.getEvent() instanceof EndOfPartitionEvent) {
 			closed[channelIdx] = true;
-			closedChannels++;
 		}
 		return Optional.of(next);
 	}
