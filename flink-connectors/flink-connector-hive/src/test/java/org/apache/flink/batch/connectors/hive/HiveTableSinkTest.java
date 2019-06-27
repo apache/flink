@@ -23,7 +23,6 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -92,8 +91,8 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, (CatalogTableImpl) table));
+		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
 		execEnv.execute();
 
@@ -114,8 +113,8 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, (CatalogTableImpl) table));
+		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
 		execEnv.execute();
 
@@ -163,7 +162,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("complexSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		CatalogTableImpl catalogTable = (CatalogTableImpl) hiveCatalog.getTable(tablePath);
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
 		tableEnv.registerTableSink("complexSink", new HiveTableSink(new JobConf(hiveConf), tablePath, catalogTable));
 		tableEnv.sqlQuery("select * from complexSrc").insertInto("complexSink");
 		execEnv.execute();
@@ -191,7 +190,7 @@ public class HiveTableSinkTest {
 
 		tableEnv.registerDataSet("nestedSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
 		hiveTable = hiveCatalog.getHiveTable(tablePath);
-		catalogTable = (CatalogTableImpl) hiveCatalog.getTable(tablePath);
+		catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
 		tableEnv.registerTableSink("nestedSink", new HiveTableSink(new JobConf(hiveConf), tablePath, catalogTable));
 		tableEnv.sqlQuery("select * from nestedSrc").insertInto("nestedSink");
 		execEnv.execute();

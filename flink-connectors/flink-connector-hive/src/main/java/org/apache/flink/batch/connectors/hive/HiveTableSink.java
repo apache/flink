@@ -22,7 +22,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -58,7 +58,7 @@ import java.util.List;
 public class HiveTableSink extends OutputFormatTableSink<Row> {
 
 	private final JobConf jobConf;
-	private final CatalogTableImpl catalogTable;
+	private final CatalogTable catalogTable;
 	private final ObjectPath tablePath;
 	private final RowTypeInfo rowTypeInfo;
 	private final String hiveVersion;
@@ -66,7 +66,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 	// TODO: need OverwritableTableSink to configure this
 	private boolean overwrite = false;
 
-	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTableImpl table) {
+	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTable table) {
 		this.jobConf = jobConf;
 		this.tablePath = tablePath;
 		this.catalogTable = table;

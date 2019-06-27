@@ -26,7 +26,7 @@ import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -141,8 +141,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	// to convert Flink object to Hive object
 	private transient HiveObjectConversion[] hiveConversions;
 
-	public HiveTableOutputFormat(JobConf jobConf, ObjectPath tablePath, CatalogTableImpl table, HiveTablePartition hiveTablePartition,
-			Properties tableProperties, boolean overwrite) {
+	public HiveTableOutputFormat(JobConf jobConf, ObjectPath tablePath, CatalogTable table, HiveTablePartition hiveTablePartition,
+								Properties tableProperties, boolean overwrite) {
 		super(jobConf.getCredentials());
 
 		Preconditions.checkNotNull(table, "table cannot be null");

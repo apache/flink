@@ -47,7 +47,7 @@ public class HiveTableFactory implements TableSourceFactory<Row>, TableSinkFacto
 	private HiveConf hiveConf;
 
 	public HiveTableFactory(HiveConf hiveConf) {
-		this.hiveConf = checkNotNull(hiveConf, "hiveConf  cannot be null");
+		this.hiveConf = checkNotNull(hiveConf, "hiveConf cannot be null");
 	}
 
 	@Override

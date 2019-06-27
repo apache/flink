@@ -158,7 +158,7 @@ public class HiveTableOutputFormatTest {
 		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
 	}
 
-	private HiveTableOutputFormat createHiveTableOutputFormat(ObjectPath tablePath, CatalogTableImpl catalogTable, Table hiveTable,
+	private HiveTableOutputFormat createHiveTableOutputFormat(ObjectPath tablePath, CatalogTable catalogTable, Table hiveTable,
 			Map<String, Object> partSpec, boolean overwrite) throws Exception {
 		StorageDescriptor jobSD = hiveTable.getSd().deepCopy();
 		jobSD.setLocation(hiveTable.getSd().getLocation() + "/.staging");
