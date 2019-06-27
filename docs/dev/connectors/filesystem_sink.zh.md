@@ -34,7 +34,7 @@ under the License.
 </dependency>
 {% endhighlight %}
 
-注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考 [here]({{site.baseurl}}/dev/projectsetup/dependencies.html)。
+注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考 [here]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html)。
 
 #### 分桶文件 Sink
 
