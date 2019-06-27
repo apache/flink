@@ -65,6 +65,7 @@ notifications:
 stages:
   - name: compile
   - name: test
+  - name: connector_hive_1
   - name: E2E
     if: type = cron
   - name: cleanup
@@ -111,6 +112,11 @@ jobs:
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: misc
+    - if: type in (pull_request, push)
+      stage: connector_hive_1
+      script: ./tools/travis_controller.sh connector_hive_1
+      env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
+      name: connector_hive_1
     - if: type in (pull_request, push)
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
