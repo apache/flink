@@ -56,19 +56,19 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
                  .line_delimiter(' ')
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .register_table_source('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
                  .field_delimiter('\t')
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .register_table_sink('mySink')
 {% endhighlight %}
 
@@ -79,9 +79,9 @@ t_env.connect(FileSystem().path('/tmp/output')) \
 接下来，我们介绍如何创建一个作业：该作业读取表`mySource`中的数据，进行一些变换，然后将结果写入表`mySink`。
 
 {% highlight python %}
-t_env.scan('mySource')\
-    .group_by('word')\
-    .select('word, count(1)')\
+t_env.scan('mySource') \
+    .group_by('word') \
+    .select('word, count(1)') \
     .insert_into('mySink')
 {% endhighlight %}
 
@@ -108,24 +108,24 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
                  .line_delimiter(' ')
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .register_table_source('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
                  .field_delimiter('\t')
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .register_table_sink('mySink')
 
-t_env.scan('mySource')\
-    .group_by('word')\
-    .select('word, count(1)')\
+t_env.scan('mySource') \
+    .group_by('word') \
+    .select('word, count(1)') \
     .insert_into('mySink')
 
 exec_env.execute()
@@ -143,4 +143,4 @@ $ python WordCount.py
 可以参考[作业提交示例]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples)。
 
 上述教程介绍了如何编写并运行一个Flink Python Table API程序，如果想了解Flink Python Table API
-的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}zh//api/python)。
+的更多信息，可以参考[Flink Python Table API文档]({{ site.pythondocs_baseurl }}zh/api/python)。

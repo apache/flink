@@ -39,7 +39,7 @@ for more details about this.
 ## Writing a Flink Python Table API Program
 
 The first step in a Flink Python Table API program is to create a `BatchTableEnvironment`
-(or `StreamTableEnvironment` if you are writing a streaming job). It is the main entrypoint
+(or `StreamTableEnvironment` if you are writing a streaming job). It is the main entry point
 for Python Table API jobs.
 
 {% highlight python %}
@@ -52,7 +52,7 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 The `ExecutionEnvironment` (or `StreamExecutionEnvironment` if you are writing a streaming job)
 can be used to set execution parameters, such as the restart strategy, default parallelism, etc.
 
-The `TableConfig` can be used by set the parameters such as the built-in catalog name, the
+The `TableConfig` can be used by setting the parameters such as the built-in catalog name, the
 threshold where generating code, etc.
 
 Next we will create a source table and a sink table.
@@ -61,19 +61,19 @@ Next we will create a source table and a sink table.
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
                  .line_delimiter(' ')
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .register_table_source('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
                  .field_delimiter('\t')
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .register_table_sink('mySink')
 {% endhighlight %}
 
@@ -86,9 +86,9 @@ Then we need to create a job which reads input from table `mySource`, preforms s
 operations and writes the results to table `mySink`.
 
 {% highlight python %}
-t_env.scan('mySource')\
-    .group_by('word')\
-    .select('word, count(1)')\
+t_env.scan('mySource') \
+    .group_by('word') \
+    .select('word, count(1)') \
     .insert_into('mySink')
 {% endhighlight %}
 
@@ -116,24 +116,24 @@ t_env = BatchTableEnvironment.create(exec_env, t_config)
 t_env.connect(FileSystem().path('/tmp/input')) \
     .with_format(OldCsv()
                  .line_delimiter(' ')
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .with_schema(Schema()
-                 .field('word', DataTypes.STRING()))\
+                 .field('word', DataTypes.STRING())) \
     .register_table_source('mySource')
 
 t_env.connect(FileSystem().path('/tmp/output')) \
     .with_format(OldCsv()
                  .field_delimiter('\t')
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .with_schema(Schema()
                  .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT()))\
+                 .field('count', DataTypes.BIGINT())) \
     .register_table_sink('mySink')
 
-t_env.scan('mySource')\
-    .group_by('word')\
-    .select('word, count(1)')\
+t_env.scan('mySource') \
+    .group_by('word') \
+    .select('word, count(1)') \
     .insert_into('mySink')
 
 exec_env.execute()
