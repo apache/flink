@@ -39,7 +39,18 @@ public class ParamsTest {
 
 		ParamInfo<String> optionalWithoutDefault =
 			ParamInfoFactory.createParamInfo("a", String.class).build();
-		assert params.get(optionalWithoutDefault) == null;
+		/**
+		 * It should call params.contain to check when get the param in this case.
+		 *
+		 * example:
+		 *
+		 * in {@link HasPredDetailColName}, it should be optional, and has not default value.
+		 *
+		 * @see HasPredDetailColName
+		 */
+		thrown.expect(RuntimeException.class);
+		thrown.expectMessage("Not have defaultValue for parameter: a");
+		params.get(optionalWithoutDefault);
 
 		ParamInfo<String> optionalWithDefault =
 			ParamInfoFactory.createParamInfo("a", String.class).setHasDefaultValue("def").build();
