@@ -104,8 +104,6 @@ public class TaskMailboxExecutorServiceImplTest {
 
 		Assert.assertTrue(mailboxExecutorService.tryYield());
 		Assert.assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
-
-		Assert.assertFalse(mailboxExecutorService.awaitTermination(1L, TimeUnit.SECONDS));
 		Assert.assertFalse(leftoverFuture.isDone());
 
 		List<Runnable> leftoverTasks = mailboxExecutorService.shutdownNow();

@@ -125,8 +125,9 @@ public class MailboxProcessor {
 	 */
 	public void runMailboxLoop() throws Exception {
 
-		assert taskMailboxExecutor.isMailboxThread() :
-			"StreamTask::run must be executed by declared mailbox thread!";
+		Preconditions.checkState(
+			taskMailboxExecutor.isMailboxThread(),
+			"Method must be executed by declared mailbox thread!");
 
 		final Mailbox localMailbox = mailbox;
 
@@ -150,12 +151,15 @@ public class MailboxProcessor {
 	public void switchToLegacySourceCompatibilityMailboxLoop(
 		final Object checkpointLock) throws MailboxStateException, InterruptedException {
 
-		assert taskMailboxExecutor.isMailboxThread() :
-			"Legacy source compatibility mailbox loop must run in mailbox thread!";
+		Preconditions.checkState(
+			taskMailboxExecutor.isMailboxThread(),
+			"Method must be executed by declared mailbox thread!");
+
+		final Mailbox localMailbox = mailbox;
 
 		while (isMailboxLoopRunning()) {
 
-			Runnable letter = mailbox.takeMail();
+			Runnable letter = localMailbox.takeMail();
 
 			synchronized (checkpointLock) {
 				letter.run();
@@ -202,8 +206,10 @@ public class MailboxProcessor {
 	 */
 	private boolean processMail(Mailbox mailbox) throws MailboxStateException, InterruptedException {
 
+		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
+		// acquired after this point.
 		if (!mailbox.hasMail()) {
-			// We can directly return true because all changes to #isMailboxLoopRunning must be connected to
+			// We can also directly return true because all changes to #isMailboxLoopRunning must be connected to
 			// mailbox.hasMail() == true.
 			return true;
 		}
@@ -266,7 +272,7 @@ public class MailboxProcessor {
 	 * Implementation of {@link DefaultActionContext} that is connected to a {@link MailboxProcessor}
 	 * instance.
 	 */
-	private final class MailboxDefaultActionContext implements DefaultActionContext {
+	private static final class MailboxDefaultActionContext implements DefaultActionContext {
 
 		private final MailboxProcessor mailboxProcessor;
 
@@ -299,16 +305,16 @@ public class MailboxProcessor {
 
 		@Override
 		public void resume() {
-			try {
-				if (taskMailboxExecutor.isMailboxThread()) {
-					resumeInternal();
-				} else {
+			if (taskMailboxExecutor.isMailboxThread()) {
+				resumeInternal();
+			} else {
+				try {
 					mailbox.putMail(this::resumeInternal);
+				} catch (InterruptedException ie) {
+					Thread.currentThread().interrupt();
+				} catch (MailboxStateException me) {
+					LOG.debug("Action context could not submit letter to mailbox.", me);
 				}
-			} catch (InterruptedException ie) {
-				Thread.currentThread().interrupt();
-			} catch (MailboxStateException me) {
-				LOG.debug("Action context could not submit letter to mailbox.", me);
 			}
 		}
 

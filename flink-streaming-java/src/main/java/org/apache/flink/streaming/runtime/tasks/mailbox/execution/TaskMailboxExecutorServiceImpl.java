@@ -128,7 +128,7 @@ public class TaskMailboxExecutorServiceImpl extends AbstractExecutorService impl
 
 	@Override
 	public boolean awaitTermination(long timeout, @Nonnull TimeUnit unit) {
-		return isTerminated();
+		throw new UnsupportedOperationException("This method is not supported by this implementation.");
 	}
 
 	/**
