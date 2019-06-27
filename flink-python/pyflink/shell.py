@@ -80,7 +80,7 @@ welcome_msg = u'''
 
 NOTE: Use the prebound Table Environment to implement batch or streaming Table programs.
 
-  Batch - Use the 'bt_env' variable
+  Batch - Use 'b_env' and 'bt_env' variables
 
     *
     * import tempfile
@@ -110,7 +110,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *
     * b_env.execute()
 
-  Streaming - Use the 'st_env' variable
+  Streaming - Use 's_env' and 'st_env' variables
 
     *
     * import tempfile
