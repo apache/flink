@@ -148,6 +148,9 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	@Override
 	public CompletableFuture<?> isAvailable() {
+		if (currentRecordDeserializer != null) {
+			return AVAILABLE;
+		}
 		return checkpointedInputGate.isAvailable();
 	}
 
