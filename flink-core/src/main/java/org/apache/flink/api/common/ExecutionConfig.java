@@ -90,6 +90,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Defines how data exchange happens - batch or pipelined */
 	private ExecutionMode executionMode = ExecutionMode.PIPELINED;
 
+	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
+
 	private ClosureCleanerLevel closureCleanerLevel = ClosureCleanerLevel.RECURSIVE;
 
 	private int parallelism = PARALLELISM_DEFAULT;
@@ -142,7 +144,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
 		new RestartStrategies.FallbackRestartStrategyConfiguration();
-	
+
 	private long taskCancellationIntervalMillis = -1;
 
 	/**
@@ -540,6 +542,24 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
+	 * Sets the {@link ScheduleMode} that should be used when executing. This can be used, for
+	 * example, to enforce batch-style execution. <b>Use this only if you know what you're
+	 * doing.</b>
+	 */
+	@PublicEvolving
+	public void setScheduleMode(ScheduleMode scheduleMode) {
+		this.scheduleMode = scheduleMode;
+	}
+
+	/**
+	 * Returns the {@link ScheduleMode} that should be used.
+	 */
+	@PublicEvolving
+	public ScheduleMode getScheduleMode() {
+		return scheduleMode;
+	}
+
+	/**
 	 * Sets the default input dependency constraint for vertex scheduling. It indicates when a task
 	 * should be scheduled considering its inputs status.
 	 *
@@ -587,7 +607,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Enables the use generic types which are serialized via Kryo.
-	 * 
+	 *
 	 * <p>Generic types are enabled by default.
 	 *
 	 * @see #disableGenericTypes()
@@ -605,12 +625,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * that would go through Kryo serialization during runtime. Rather than checking types
 	 * individually, using this option will throw exceptions eagerly in the places where generic
 	 * types are used.
-	 * 
+	 *
 	 * <p><b>Important:</b> We recommend to use this option only during development and pre-production
 	 * phases, not during actual production use. The application program and/or the input data may be
 	 * such that new, previously unseen, types occur at some point. In that case, setting this option
 	 * would cause the program to fail.
-	 * 
+	 *
 	 * @see #enableGenericTypes()
 	 */
 	public void disableGenericTypes() {
@@ -620,9 +640,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/**
 	 * Checks whether generic types are supported. Generic types are types that go through Kryo during
 	 * serialization.
-	 * 
+	 *
 	 * <p>Generic types are enabled by default.
-	 * 
+	 *
 	 * @see #enableGenericTypes()
 	 * @see #disableGenericTypes()
 	 */
@@ -713,7 +733,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public boolean isObjectReuseEnabled() {
 		return objectReuse;
 	}
-	
+
 	/**
 	 * @deprecated The code analysis code has been removed and this method has no effect.
 	 */
@@ -721,7 +741,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@Deprecated
 	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
 	}
-	
+
 	/**
 	 * @deprecated The code analysis code has been removed and this method does not return anything interesting.
 	 */
@@ -733,7 +753,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Enables the printing of progress update messages to {@code System.out}
-	 * 
+	 *
 	 * @return The ExecutionConfig object, to allow for function chaining.
 	 */
 	public ExecutionConfig enableSysoutLogging() {
@@ -753,7 +773,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Gets whether progress update messages should be printed to {@code System.out}
-	 * 
+	 *
 	 * @return True, if progress update messages should be printed, false otherwise.
 	 */
 	public boolean isSysoutLoggingEnabled() {
@@ -1033,7 +1053,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public boolean canEqual(Object obj) {
 		return obj instanceof ExecutionConfig;
 	}
-	
+
 	@Override
 	@Internal
 	public ArchivedExecutionConfig archive() {

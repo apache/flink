@@ -1530,11 +1530,12 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
 		return new StreamGraphGenerator(transformations, config, checkpointCfg)
-			.setStateBackend(defaultStateBackend)
-			.setChaining(isChainingEnabled)
-			.setUserArtifacts(cacheFile)
-			.setTimeCharacteristic(timeCharacteristic)
-			.setDefaultBufferTimeout(bufferTimeout);
+				.setStateBackend(defaultStateBackend)
+				.setChaining(isChainingEnabled)
+				.setUserArtifacts(cacheFile)
+				.setTimeCharacteristic(timeCharacteristic)
+				.setDefaultBufferTimeout(bufferTimeout)
+				.setScheduleMode(config.getScheduleMode());
 	}
 
 	/**

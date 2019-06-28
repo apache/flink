@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.ScheduleMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,7 +43,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -224,6 +227,44 @@ public class StreamExecutionEnvironmentTest {
 		// override config
 		env.getStreamGraph().getJobGraph();
 		Assert.assertEquals(1 << 15 , operator.getTransformation().getMaxParallelism());
+	}
+
+	@Test
+	public void eagerScheduleModeIsForwardedToStreamGraph() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setScheduleMode(ScheduleMode.EAGER);
+
+		// we need to add at least one source, otherwise we wouldn't get a StreamGraph
+		env.fromElements("Hello").map((in) -> in);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		assertThat(streamGraph.getScheduleMode(), is(ScheduleMode.EAGER));
+	}
+
+	@Test
+	public void lazyScheduleModeIsForwardedToStreamGraph() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
+
+		// we need to add at least one source, otherwise we wouldn't get a StreamGraph
+		env.fromElements("Hello").map((in) -> in);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		assertThat(streamGraph.getScheduleMode(), is(ScheduleMode.LAZY_FROM_SOURCES));
+	}
+
+	@Test
+	public void defaultScheduleModeIsLazy() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// we need to add at least one source, otherwise we wouldn't get a StreamGraph
+		env.fromElements("Hello").map((in) -> in);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+
+		assertThat(streamGraph.getScheduleMode(), is(ScheduleMode.LAZY_FROM_SOURCES));
 	}
 
 	/////////////////////////////////////////////////////////////
