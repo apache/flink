@@ -522,7 +522,7 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
     expectedOutput.add(new StreamRecord(
       baserow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
     expectedOutput.add(new StreamRecord(
-      baserow(20011L: JLong, "ccc", 3L: JLong, 1L: JLong, 3L: JLong)))
+      baserow(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()

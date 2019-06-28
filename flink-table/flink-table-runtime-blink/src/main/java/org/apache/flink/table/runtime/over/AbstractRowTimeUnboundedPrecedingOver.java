@@ -154,7 +154,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
 		if (isProcessingTimeTimer(ctx)) {
-			if (needToCleanupState(timestamp)) {
+			if (stateCleaningEnabled) {
 
 				// we check whether there are still records which have not been processed yet
 				boolean noRecordsToProcess = !inputState.keys().iterator().hasNext();

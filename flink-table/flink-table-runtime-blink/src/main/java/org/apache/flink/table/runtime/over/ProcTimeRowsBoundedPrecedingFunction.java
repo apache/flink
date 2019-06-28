@@ -220,7 +220,7 @@ public class ProcTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 			long timestamp,
 			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
-		if (needToCleanupState(timestamp)) {
+		if (stateCleaningEnabled) {
 			cleanupState(inputState, accState, counterState, smallestTsState);
 			function.cleanup();
 		}

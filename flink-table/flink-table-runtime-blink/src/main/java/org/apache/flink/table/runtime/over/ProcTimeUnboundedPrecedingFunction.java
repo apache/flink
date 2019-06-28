@@ -111,7 +111,7 @@ public class ProcTimeUnboundedPrecedingFunction<K> extends KeyedProcessFunctionW
 			long timestamp,
 			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
 			Collector<BaseRow> out) throws Exception {
-		if (needToCleanupState(timestamp)) {
+		if (stateCleaningEnabled) {
 			cleanupState(accState);
 			function.cleanup();
 		}
