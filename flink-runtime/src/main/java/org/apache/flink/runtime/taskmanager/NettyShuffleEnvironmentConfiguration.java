@@ -59,6 +59,8 @@ public class NettyShuffleEnvironmentConfiguration {
 	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
 	private final int floatingNetworkBuffersPerGate;
 
+	private final long requestSegmentsTimeoutInMillis;
+
 	private final boolean isCreditBased;
 
 	private final boolean isNetworkDetailedMetrics;
@@ -74,6 +76,7 @@ public class NettyShuffleEnvironmentConfiguration {
 			int partitionRequestMaxBackoff,
 			int networkBuffersPerChannel,
 			int floatingNetworkBuffersPerGate,
+			long requestSegmentsTimeoutInMillis,
 			boolean isCreditBased,
 			boolean isNetworkDetailedMetrics,
 			@Nullable NettyConfig nettyConfig,
@@ -85,6 +88,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		this.requestSegmentsTimeoutInMillis = requestSegmentsTimeoutInMillis;
 		this.isCreditBased = isCreditBased;
 		this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
 		this.nettyConfig = nettyConfig;
@@ -115,6 +119,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	public int floatingNetworkBuffersPerGate() {
 		return floatingNetworkBuffersPerGate;
+	}
+
+	public long getRequestSegmentsTimeoutInMillis() {
+		return requestSegmentsTimeoutInMillis;
 	}
 
 	public NettyConfig nettyConfig() {
@@ -171,6 +179,9 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
 
+		long requestSegmentsTimeoutInMillis = configuration.getLong(
+				NettyShuffleEnvironmentOptions.NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS);
+
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -178,6 +189,7 @@ public class NettyShuffleEnvironmentConfiguration {
 			maxRequestBackoff,
 			buffersPerChannel,
 			extraBuffersPerGate,
+			requestSegmentsTimeoutInMillis,
 			isCreditBased,
 			isNetworkDetailedMetrics,
 			nettyConfig,
@@ -479,6 +491,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + partitionRequestMaxBackoff;
 		result = 31 * result + networkBuffersPerChannel;
 		result = 31 * result + floatingNetworkBuffersPerGate;
+		result = 31 * result + (int) requestSegmentsTimeoutInMillis;
 		result = 31 * result + (isCreditBased ? 1 : 0);
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
 		result = 31 * result + Arrays.hashCode(tempDirs);
@@ -502,6 +515,7 @@ public class NettyShuffleEnvironmentConfiguration {
 					this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff &&
 					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
 					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
+					this.requestSegmentsTimeoutInMillis == that.requestSegmentsTimeoutInMillis &&
 					this.isCreditBased == that.isCreditBased &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
 					Arrays.equals(this.tempDirs, that.tempDirs);
@@ -517,6 +531,7 @@ public class NettyShuffleEnvironmentConfiguration {
 				", partitionRequestMaxBackoff=" + partitionRequestMaxBackoff +
 				", networkBuffersPerChannel=" + networkBuffersPerChannel +
 				", floatingNetworkBuffersPerGate=" + floatingNetworkBuffersPerGate +
+				", requestSegmentsTimeoutInMillis=" + requestSegmentsTimeoutInMillis +
 				", isCreditBased=" + isCreditBased +
 				", nettyConfig=" + nettyConfig +
 				", tempDirs=" + Arrays.toString(tempDirs) +

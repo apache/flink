@@ -476,4 +476,46 @@ public class NetworkBufferPoolTest extends TestLogger {
 			globalPool.destroy();
 		}
 	}
+
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()} and verifies it will end exceptionally
+	 * when failing to acquire all the segments in the specific timeout.
+	 */
+	@Test
+	public void testRequestMemorySegmentsTimeout() throws Exception {
+		final int numBuffers = 10;
+		final int numberOfSegmentsToRequest = 2;
+		final long requestSegmentsTimeoutInMillis = 1000L;
+
+		NetworkBufferPool globalPool = new NetworkBufferPool(
+				numBuffers,
+				128,
+				numberOfSegmentsToRequest,
+				requestSegmentsTimeoutInMillis);
+
+		BufferPool localBufferPool = globalPool.createBufferPool(0, numBuffers);
+		for (int i = 0; i < numBuffers; ++i) {
+			localBufferPool.requestBuffer();
+		}
+
+		assertEquals(0, globalPool.getNumberOfAvailableMemorySegments());
+
+		CheckedThread asyncRequest = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				globalPool.requestMemorySegments();
+			}
+		};
+
+		asyncRequest.start();
+
+		try {
+			asyncRequest.trySync(requestSegmentsTimeoutInMillis * 10);
+			fail("Requesting exclusive buffer does not timeout and throw exception as expected.");
+		} catch (IOException ignored) {
+			// Expected exception
+		}  finally {
+			globalPool.destroy();
+		}
+	}
 }

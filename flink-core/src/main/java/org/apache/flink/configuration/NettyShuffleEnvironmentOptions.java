@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -139,6 +140,18 @@ public class NettyShuffleEnvironmentOptions {
 				" The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can" +
 				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
+
+	/**
+	 * The timeout for requesting exclusive buffers for each channel.
+	 */
+	@Documentation.ExcludeFromDocumentation("This option is purely implementation related, and may be removed as the implementation changes.")
+	public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
+		key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
+			.defaultValue(30000L)
+			.withDescription("The timeout for requesting exclusive buffers for each channel. Since the number of maximum buffers and " +
+					"the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream" +
+					"tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks" +
+					"the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
 
 	// ------------------------------------------------------------------------
 	//  Netty Options
