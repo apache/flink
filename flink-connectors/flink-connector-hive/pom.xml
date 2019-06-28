@@ -35,6 +35,13 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<servlet-api.version>2.5</servlet-api.version>
+		<commons-configuration.version>1.6</commons-configuration.version>
+		<commons-logging.version>1.2</commons-logging.version>
+	</properties>
+
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -62,6 +69,13 @@ under the License.
 
 		<!-- Hadoop dependency -->
 		<!-- Hadoop as provided dependencies, so we can depend on them without pulling in Hadoop -->
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-auth</artifactId>
+			<version>${hivemetastore.hadoop.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
@@ -383,6 +397,33 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Dependencies required to contact remote Hive Metastore Service -->
+		<!-- These dependencies are not required to compile and run tests in flink-connector-hive,
+			 because flink-connector-hive uses embedded Hive Metastore for testing.
+			 Depend on them more as a reminder to users and developers that they need to add them
+			 into their classpath when running in production -->
+
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>servlet-api</artifactId>
+			<version>${servlet-api.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-configuration</groupId>
+			<artifactId>commons-configuration</artifactId>
+			<version>${commons-configuration.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-logging</groupId>
+			<artifactId>commons-logging</artifactId>
+			<version>${commons-logging.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
@@ -452,29 +493,15 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
-								<!-- Needs end-to-end tests to ensure the built flink-connector-hive jar contains all required dependencies and can run -->
 								<includes>
-									<include>commons-dbcp:commons-dbcp</include>
-									<include>commons-pool:commons-pool</include>
-									<include>commons-beanutils:commons-beanutils</include>
-									<include>com.fasterxml.jackson.core:*</include>
-									<include>com.jolbox:bonecp</include>
-									<include>org.apache.thrift:libthrift</include>
-									<include>org.datanucleus:*</include>
-									<include>org.antlr:antlr-runtime</include>
+									<include>*:*</include>
 								</includes>
 							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
 							<filters>
 								<filter>
-									<!-- some dependencies bring their own LICENSE.txt which we don't need -->
 									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/LICENSE.txt</exclude>
-										<exclude>META-INF/ASM_LICENSE.txt</exclude>
-										<exclude>META-INF/ASL2.0</exclude>
-									</excludes>
 								</filter>
 							</filters>
 						</configuration>
