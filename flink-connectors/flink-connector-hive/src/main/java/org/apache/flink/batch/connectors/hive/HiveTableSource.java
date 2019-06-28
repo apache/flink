@@ -19,9 +19,10 @@
 package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -52,42 +53,33 @@ public class HiveTableSource extends InputFormatTableSource<Row> {
 
 	private static Logger logger = LoggerFactory.getLogger(HiveTableSource.class);
 
-	private final TableSchema tableSchema;
 	private final JobConf jobConf;
-	private final String dbName;
-	private final String tableName;
-	private final Boolean isPartitionTable;
-	private final String[] partitionColNames;
+	private final ObjectPath tablePath;
+	private final CatalogTable catalogTable;
 	private List<HiveTablePartition> allPartitions;
 	private String hiveVersion;
 
-	public HiveTableSource(TableSchema tableSchema,
-						JobConf jobConf,
-						String dbName,
-						String tableName,
-						String[] partitionColNames) {
-		this.tableSchema = tableSchema;
+	public HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
 		this.jobConf = jobConf;
-		this.dbName = dbName;
-		this.tableName = tableName;
-		this.isPartitionTable = (null != partitionColNames && partitionColNames.length != 0);
-		this.partitionColNames = partitionColNames;
+		this.tablePath = tablePath;
+		this.catalogTable = catalogTable;
 		this.hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
 	}
 
 	@Override
 	public InputFormat getInputFormat() {
 		initAllPartitions();
-		return new HiveTableInputFormat(jobConf, isPartitionTable, partitionColNames, allPartitions, new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames()));
+		return new HiveTableInputFormat(jobConf, catalogTable, allPartitions);
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return tableSchema;
+		return catalogTable.getSchema();
 	}
 
 	@Override
 	public DataType getProducedDataType() {
+		TableSchema tableSchema = catalogTable.getSchema();
 		DataTypes.Field[] fields = new DataTypes.Field[tableSchema.getFieldCount()];
 		for (int i = 0; i < fields.length; i++) {
 			fields[i] = DataTypes.FIELD(tableSchema.getFieldName(i).get(), tableSchema.getFieldDataType(i).get());
@@ -101,17 +93,21 @@ public class HiveTableSource extends InputFormatTableSource<Row> {
 		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
 		// refactoring. We will postpone this until we merge Blink to Flink.
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
-			if (isPartitionTable) {
+			String dbName = tablePath.getDatabaseName();
+			String tableName = tablePath.getObjectName();
+			List<String> partitionColNames = catalogTable.getPartitionKeys();
+			if (partitionColNames != null && partitionColNames.size() > 0) {
 				List<Partition> partitions =
 						client.listPartitions(dbName, tableName, (short) -1);
 				for (Partition partition : partitions) {
 					StorageDescriptor sd = partition.getSd();
 					Map<String, Object> partitionColValues = new HashMap<>();
-					for (int i = 0; i < partitionColNames.length; i++) {
+					for (int i = 0; i < partitionColNames.size(); i++) {
+						String partitionColName = partitionColNames.get(i);
 						String partitionValue = partition.getValues().get(i);
-						DataType type = tableSchema.getFieldDataType(partitionColNames[i]).get();
+						DataType type = catalogTable.getSchema().getFieldDataType(partitionColName).get();
 						Object partitionObject = restorePartitionValueFromFromType(partitionValue, type);
-						partitionColValues.put(partitionColNames[i], partitionObject);
+						partitionColValues.put(partitionColName, partitionObject);
 					}
 					allPartitions.add(new HiveTablePartition(sd, partitionColValues));
 				}
