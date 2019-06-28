@@ -72,7 +72,19 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isSin
 /**
  * Utilities for casting {@link LogicalType}.
  *
- * <p>This class aims to be compatible with the SQL standard cast specification.
+ * <p>This class aims to be compatible with the SQL standard. It is inspired by Apache Calcite's
+ * {@code SqlTypeUtil#canCastFrom} method.
+ *
+ * <p>Casts can be performed in two ways: implicit or explicit.
+ *
+ * <p>Explicit casts correspond to the SQL cast specification and represent the logic behind a
+ * {@code CAST(sourceType AS targetType)} operation. For example, it allows for converting most types
+ * of the {@link LogicalTypeFamily#PREDEFINED} family to types of the {@link LogicalTypeFamily#CHARACTER_STRING}
+ * family.
+ *
+ * <p>Implicit casts are used for safe type widening and type generalization (finding a common supertype
+ * for a set of types) without loss of information. Implicit casts are similar to the Java semantics
+ * (e.g. this is not possible: {@code int x = (String) z}).
  *
  * <p>Conversions that are defined by the {@link LogicalType} (e.g. interpreting a {@link DateType}
  * as integer value) are not considered here. They are an internal bridging feature that is not
@@ -117,7 +129,7 @@ public final class LogicalTypeCasts {
 			.build();
 
 		castTo(BINARY)
-			.implicitFromFamily(BINARY_STRING)
+			.implicitFrom(BINARY)
 			.build();
 
 		castTo(VARBINARY)
@@ -155,7 +167,7 @@ public final class LogicalTypeCasts {
 			.build();
 
 		castTo(DOUBLE)
-			.implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL)
+			.implicitFromFamily(NUMERIC)
 			.explicitFromFamily(CHARACTER_STRING)
 			.build();
 
@@ -195,10 +207,25 @@ public final class LogicalTypeCasts {
 			.build();
 	}
 
+	/**
+	 * Returns whether the source type can be safely casted to the target type without loosing information.
+	 *
+	 * <p>Implicit casts are used for type widening and type generalization (finding a common supertype
+	 * for a set of types). Implicit casts are similar to the Java semantics (e.g. this is not possible:
+	 * {@code int x = (String) z}).
+	 */
 	public static boolean supportsImplicitCast(LogicalType sourceType, LogicalType targetType) {
 		return supportsCasting(sourceType, targetType, false);
 	}
 
+	/**
+	 * Returns whether the source type can be casted to the target type.
+	 *
+	 * <p>Explicit casts correspond to the SQL cast specification and represent the logic behind a
+	 * {@code CAST(sourceType AS targetType)} operation. For example, it allows for converting most types
+	 * of the {@link LogicalTypeFamily#PREDEFINED} family to types of the {@link LogicalTypeFamily#CHARACTER_STRING}
+	 * family.
+	 */
 	public static boolean supportsExplicitCast(LogicalType sourceType, LogicalType targetType) {
 		return supportsCasting(sourceType, targetType, true);
 	}
@@ -291,51 +318,55 @@ public final class LogicalTypeCasts {
 
 	private static class CastingRuleBuilder {
 
-		private final LogicalTypeRoot sourceType;
-		private Set<LogicalTypeRoot> implicitTargetTypes = new HashSet<>();
-		private Set<LogicalTypeRoot> explicitTargetTypes = new HashSet<>();
+		private final LogicalTypeRoot targetType;
+		private Set<LogicalTypeRoot> implicitSourceTypes = new HashSet<>();
+		private Set<LogicalTypeRoot> explicitSourceTypes = new HashSet<>();
 
-		CastingRuleBuilder(LogicalTypeRoot sourceType) {
-			this.sourceType = sourceType;
+		CastingRuleBuilder(LogicalTypeRoot targetType) {
+			this.targetType = targetType;
 		}
 
-		CastingRuleBuilder implicitFrom(LogicalTypeRoot... targetTypes) {
-			this.implicitTargetTypes.addAll(Arrays.asList(targetTypes));
+		CastingRuleBuilder implicitFrom(LogicalTypeRoot... sourceTypes) {
+			this.implicitSourceTypes.addAll(Arrays.asList(sourceTypes));
 			return this;
 		}
 
-		CastingRuleBuilder implicitFromFamily(LogicalTypeFamily... targetFamilies) {
-			for (LogicalTypeFamily family : targetFamilies) {
+		CastingRuleBuilder implicitFromFamily(LogicalTypeFamily... sourceFamilies) {
+			for (LogicalTypeFamily family : sourceFamilies) {
 				for (LogicalTypeRoot root : LogicalTypeRoot.values()) {
 					if (root.getFamilies().contains(family)) {
-						this.implicitTargetTypes.add(root);
+						this.implicitSourceTypes.add(root);
 					}
 				}
 			}
 			return this;
 		}
 
-		CastingRuleBuilder explicitFrom(LogicalTypeRoot... targetTypes) {
-			this.explicitTargetTypes.addAll(Arrays.asList(targetTypes));
+		CastingRuleBuilder explicitFrom(LogicalTypeRoot... sourceTypes) {
+			this.explicitSourceTypes.addAll(Arrays.asList(sourceTypes));
 			return this;
 		}
 
-		CastingRuleBuilder explicitFromFamily(LogicalTypeFamily... targetFamilies) {
-			for (LogicalTypeFamily family : targetFamilies) {
+		CastingRuleBuilder explicitFromFamily(LogicalTypeFamily... sourceFamilies) {
+			for (LogicalTypeFamily family : sourceFamilies) {
 				for (LogicalTypeRoot root : LogicalTypeRoot.values()) {
 					if (root.getFamilies().contains(family)) {
-						this.explicitTargetTypes.add(root);
+						this.explicitSourceTypes.add(root);
 					}
 				}
 			}
 			return this;
 		}
 
-		CastingRuleBuilder explicitNotFromFamily(LogicalTypeFamily... targetFamilies) {
-			for (LogicalTypeFamily family : targetFamilies) {
+		/**
+		 * Should be called after {@link #explicitFromFamily(LogicalTypeFamily...)} to remove previously
+		 * added types.
+		 */
+		CastingRuleBuilder explicitNotFromFamily(LogicalTypeFamily... sourceFamilies) {
+			for (LogicalTypeFamily family : sourceFamilies) {
 				for (LogicalTypeRoot root : LogicalTypeRoot.values()) {
 					if (root.getFamilies().contains(family)) {
-						this.explicitTargetTypes.remove(root);
+						this.explicitSourceTypes.remove(root);
 					}
 				}
 			}
@@ -343,8 +374,8 @@ public final class LogicalTypeCasts {
 		}
 
 		void build() {
-			implicitCastingRules.put(sourceType, implicitTargetTypes);
-			explicitCastingRules.put(sourceType, explicitTargetTypes);
+			implicitCastingRules.put(targetType, implicitSourceTypes);
+			explicitCastingRules.put(targetType, explicitSourceTypes);
 		}
 	}
 
