@@ -23,6 +23,12 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,6 +46,9 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INF
 import static org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 
 class JDBCTypeUtil {
+
+	private static final Logger LOG = LoggerFactory.getLogger(JDBCTypeUtil.class);
+
 	private static final Map<TypeInformation<?>, Integer> TYPE_MAPPING;
 	private static final Map<Integer, String> SQL_TYPE_NAMES;
 
@@ -100,4 +109,142 @@ class JDBCTypeUtil {
 		return SQL_TYPE_NAMES.get(typeInformationToSqlType(type));
 	}
 
+	static void setFieldToStatement(int index, int type, Object value, PreparedStatement statement) throws SQLException {
+		if (value == null) {
+			statement.setNull(index + 1, type);
+		}
+
+		switch (type) {
+			case java.sql.Types.NULL:
+				statement.setNull(index + 1, type);
+				break;
+			case java.sql.Types.BOOLEAN:
+			case java.sql.Types.BIT:
+				statement.setBoolean(index + 1, (boolean) value);
+				break;
+			case java.sql.Types.CHAR:
+			case java.sql.Types.NCHAR:
+			case java.sql.Types.VARCHAR:
+			case java.sql.Types.LONGVARCHAR:
+			case java.sql.Types.LONGNVARCHAR:
+				statement.setString(index + 1, (String) value);
+				break;
+			case java.sql.Types.TINYINT:
+				statement.setByte(index + 1, (byte) value);
+				break;
+			case java.sql.Types.SMALLINT:
+				statement.setShort(index + 1, (short) value);
+				break;
+			case java.sql.Types.INTEGER:
+				statement.setInt(index + 1, (int) value);
+				break;
+			case java.sql.Types.BIGINT:
+				statement.setLong(index + 1, (long) value);
+				break;
+			case java.sql.Types.REAL:
+				statement.setFloat(index + 1, (float) value);
+				break;
+			case java.sql.Types.FLOAT:
+			case java.sql.Types.DOUBLE:
+				statement.setDouble(index + 1, (double) value);
+				break;
+			case java.sql.Types.DECIMAL:
+			case java.sql.Types.NUMERIC:
+				statement.setBigDecimal(index + 1, (java.math.BigDecimal) value);
+				break;
+			case java.sql.Types.DATE:
+				statement.setDate(index + 1, (java.sql.Date) value);
+				break;
+			case java.sql.Types.TIME:
+				statement.setTime(index + 1, (java.sql.Time) value);
+				break;
+			case java.sql.Types.TIMESTAMP:
+				statement.setTimestamp(index + 1, (java.sql.Timestamp) value);
+				break;
+			case java.sql.Types.BINARY:
+			case java.sql.Types.VARBINARY:
+			case java.sql.Types.LONGVARBINARY:
+				statement.setBytes(index + 1, (byte[]) value);
+				break;
+			default:
+				statement.setObject(index + 1, value);
+				LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to set its value: {}.",
+						type, index + 1, value);
+				// case java.sql.Types.SQLXML
+				// case java.sql.Types.ARRAY:
+				// case java.sql.Types.JAVA_OBJECT:
+				// case java.sql.Types.BLOB:
+				// case java.sql.Types.CLOB:
+				// case java.sql.Types.NCLOB:
+				// case java.sql.Types.DATALINK:
+				// case java.sql.Types.DISTINCT:
+				// case java.sql.Types.OTHER:
+				// case java.sql.Types.REF:
+				// case java.sql.Types.ROWID:
+				// case java.sql.Types.STRUC
+		}
+	}
+
+	static Object getFieldFromResultSet(int index, int type, ResultSet set) throws SQLException {
+		if (set.wasNull()) {
+			return null;
+		}
+
+		switch (type) {
+			case java.sql.Types.NULL:
+				return null;
+			case java.sql.Types.BOOLEAN:
+			case java.sql.Types.BIT:
+				return set.getBoolean(index + 1);
+			case java.sql.Types.CHAR:
+			case java.sql.Types.NCHAR:
+			case java.sql.Types.VARCHAR:
+			case java.sql.Types.LONGVARCHAR:
+			case java.sql.Types.LONGNVARCHAR:
+				return set.getString(index + 1);
+			case java.sql.Types.TINYINT:
+				return set.getByte(index + 1);
+			case java.sql.Types.SMALLINT:
+				return set.getShort(index + 1);
+			case java.sql.Types.INTEGER:
+				return set.getInt(index + 1);
+			case java.sql.Types.BIGINT:
+				return set.getLong(index + 1);
+			case java.sql.Types.REAL:
+				return set.getFloat(index + 1);
+			case java.sql.Types.FLOAT:
+			case java.sql.Types.DOUBLE:
+				return set.getDouble(index + 1);
+			case java.sql.Types.DECIMAL:
+			case java.sql.Types.NUMERIC:
+				return set.getBigDecimal(index + 1);
+			case java.sql.Types.DATE:
+				return set.getDate(index + 1);
+			case java.sql.Types.TIME:
+				return set.getTime(index + 1);
+			case java.sql.Types.TIMESTAMP:
+				return set.getTimestamp(index + 1);
+			case java.sql.Types.BINARY:
+			case java.sql.Types.VARBINARY:
+			case java.sql.Types.LONGVARBINARY:
+				return set.getBytes(index + 1);
+			default:
+				LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to get its value: {}.",
+						type, index + 1);
+				return set.getObject(index + 1);
+
+				// case java.sql.Types.SQLXML
+				// case java.sql.Types.ARRAY:
+				// case java.sql.Types.JAVA_OBJECT:
+				// case java.sql.Types.BLOB:
+				// case java.sql.Types.CLOB:
+				// case java.sql.Types.NCLOB:
+				// case java.sql.Types.DATALINK:
+				// case java.sql.Types.DISTINCT:
+				// case java.sql.Types.OTHER:
+				// case java.sql.Types.REF:
+				// case java.sql.Types.ROWID:
+				// case java.sql.Types.STRUC
+		}
+	}
 }
