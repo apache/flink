@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.ScheduleMode;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;

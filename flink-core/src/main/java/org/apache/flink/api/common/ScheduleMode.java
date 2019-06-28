@@ -16,24 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.api.common;
 
 /**
- * The ScheduleMode decides how tasks of an execution graph are started.  
+ * The {@link ScheduleMode} defines how/when operations/tasks of a Flink pipeline are started.
  */
 public enum ScheduleMode {
 
-	/** Schedule tasks lazily from the sources. Downstream tasks are started once their input data are ready */
+	/**
+	 * Schedule tasks lazily from the sources. Downstream tasks are started once their input data
+	 * are ready
+	 */
 	LAZY_FROM_SOURCES,
 
 	/** Schedules all tasks immediately. */
 	EAGER;
-	
+
 	/**
 	 * Returns whether we are allowed to deploy consumers lazily.
 	 */
 	public boolean allowLazyDeployment() {
 		return this == LAZY_FROM_SOURCES;
 	}
-	
+
 }

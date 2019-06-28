@@ -18,9 +18,8 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{JobExecutionResult, ScheduleMode}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.jobgraph.ScheduleMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment}
@@ -40,7 +39,6 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.util.PlanUtil
 import org.apache.flink.util.InstantiationUtil
-
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
