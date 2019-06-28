@@ -24,6 +24,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -112,8 +114,8 @@ public class HiveInputFormatTest {
 		RowTypeInfo rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 		List<HiveTablePartition> partitions = new ArrayList<>();
 		partitions.add(new HiveTablePartition(sd, new HashMap<>()));
-		HiveTableInputFormat hiveTableInputFormat = new HiveTableInputFormat(new JobConf(hiveConf), false, null,
-																			partitions, rowTypeInfo);
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(new ObjectPath(dbName, tblName));
+		HiveTableInputFormat hiveTableInputFormat = new HiveTableInputFormat(new JobConf(hiveConf), catalogTable, partitions);
 		DataSet<Row> rowDataSet = env.createInput(hiveTableInputFormat);
 		List<Row> rows = rowDataSet.collect();
 		Assert.assertEquals(4, rows.size());

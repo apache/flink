@@ -26,6 +26,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -110,7 +112,9 @@ public class HiveTableSourceTest {
 		client.createTable(tbl);
 		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(execEnv);
-		HiveTableSource hiveTableSource = new HiveTableSource(tableSchema, new JobConf(hiveConf), dbName, tblName, null);
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
+		HiveTableSource hiveTableSource = new HiveTableSource(new JobConf(hiveConf), tablePath, catalogTable);
 		Table src = tEnv.fromTableSource(hiveTableSource);
 		DataSet<Row> rowDataSet = tEnv.toDataSet(src, new RowTypeInfo(tableSchema.getFieldTypes(),
 																	tableSchema.getFieldNames()));
