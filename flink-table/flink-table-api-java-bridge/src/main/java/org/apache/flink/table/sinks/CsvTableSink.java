@@ -34,8 +34,7 @@ import org.apache.flink.types.Row;
 /**
  * A simple [[TableSink]] to emit data as CSV files.
  */
-public class CsvTableSink implements BatchTableSink<Row>,
-	StreamTableSink<Row> {
+public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<Row> {
 	private String path;
 	private String fieldDelim;
 	private int numFiles = -1;
@@ -64,10 +63,10 @@ public class CsvTableSink implements BatchTableSink<Row>,
 	}
 
 	/**
-	 * A simple [[TableSink]] to emit data as CSV files using comma as field delimiter, with
-	 * default parallelism and write mode.
+	 * A simple [[TableSink]] to emit data as CSV files using comma as field delimiter, with default
+	 * parallelism and write mode.
 	 *
-	 * @param path       The output path to write the Table to.
+	 * @param path The output path to write the Table to.
 	 */
 	public CsvTableSink(String path) {
 		this(path, ",");
