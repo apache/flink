@@ -428,16 +428,16 @@ class TableEnvironment(object):
         Example:
         ::
 
-            >>> table_env\\
+            >>> table_env \\
             ...     .connect(ExternalSystemXYZ()
             ...              .version("0.11")) \\
             ...     .with_format(Json()
-            ...                 .json_schema("{...}")
-            ...                 .fail_on_missing_field(False)) \\
+            ...                  .json_schema("{...}")
+            ...                  .fail_on_missing_field(False)) \\
             ...     .with_schema(Schema()
-            ...                 .field("user-name", "VARCHAR")
-            ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL")) \\
+            ...                  .field("user-name", "VARCHAR")
+            ...                  .from_origin_field("u_name")
+            ...                  .field("count", "DECIMAL")) \\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -608,12 +608,12 @@ class StreamTableEnvironment(TableEnvironment):
             ...     .connect(ExternalSystemXYZ()
             ...              .version("0.11")) \\
             ...     .with_format(Json()
-            ...                 .json_schema("{...}")
-            ...                 .fail_on_missing_field(False)) \\
+            ...                  .json_schema("{...}")
+            ...                  .fail_on_missing_field(False)) \\
             ...     .with_schema(Schema()
-            ...                 .field("user-name", "VARCHAR")
-            ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL")) \\
+            ...                  .field("user-name", "VARCHAR")
+            ...                  .from_origin_field("u_name")
+            ...                  .field("count", "DECIMAL")) \\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -623,8 +623,8 @@ class StreamTableEnvironment(TableEnvironment):
         return StreamTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
-    @classmethod
-    def create(cls, stream_execution_environment, table_config=None):
+    @staticmethod
+    def create(stream_execution_environment, table_config=None):
         """
         Creates a :class:`TableEnvironment` for a :class:`StreamExecutionEnvironment`
 
@@ -695,12 +695,12 @@ class BatchTableEnvironment(TableEnvironment):
             ...     .connect(ExternalSystemXYZ()
             ...              .version("0.11")) \\
             ...     .with_format(Json()
-            ...                 .json_schema("{...}")
-            ...                 .fail_on_missing_field(False)) \\
+            ...                  .json_schema("{...}")
+            ...                  .fail_on_missing_field(False)) \\
             ...     .with_schema(Schema()
-            ...                 .field("user-name", "VARCHAR")
-            ...                 .from_origin_field("u_name")
-            ...                 .field("count", "DECIMAL")) \\
+            ...                  .field("user-name", "VARCHAR")
+            ...                  .from_origin_field("u_name")
+            ...                  .field("count", "DECIMAL")) \\
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
@@ -710,8 +710,8 @@ class BatchTableEnvironment(TableEnvironment):
         return BatchTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
-    @classmethod
-    def create(cls, execution_environment, table_config=None):
+    @staticmethod
+    def create(execution_environment, table_config=None):
         """
         Creates a :class:`TableEnvironment` for a batch :class:`ExecutionEnvironment`.
 

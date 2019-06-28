@@ -70,7 +70,7 @@ class ExecutionEnvironment(object):
         """
         Gets the config object that defines execution parameters.
 
-        :return: The environment's execution configuration.
+        :return: An :class:`ExecutionConfig` object, the environment's execution configuration.
         """
         return ExecutionConfig(self._j_execution_environment.getConfig())
 
@@ -179,15 +179,15 @@ class ExecutionEnvironment(object):
         """
         return self._j_execution_environment.getExecutionPlan()
 
-    @classmethod
-    def get_execution_environment(cls):
+    @staticmethod
+    def get_execution_environment():
         """
         Creates an execution environment that represents the context in which the program is
         currently executed. If the program is invoked standalone, this method returns a local
         execution environment. If the program is invoked from within the command line client to be
         submitted to a cluster, this method returns the execution environment of this cluster.
 
-        :return: The execution environment of the context in which the program is executed.
+        :return: The :class:`ExecutionEnvironment` of the context in which the program is executed.
         """
         gateway = get_gateway()
         j_execution_environment = gateway.jvm.org.apache.flink.api.java.ExecutionEnvironment\

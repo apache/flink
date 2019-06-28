@@ -422,8 +422,8 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getExecutionPlan()
 
-    @classmethod
-    def get_execution_environment(cls):
+    @staticmethod
+    def get_execution_environment():
         """
         Creates an execution environment that represents the context in which the
         program is currently executed. If the program is invoked standalone, this

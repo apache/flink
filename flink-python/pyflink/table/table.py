@@ -49,7 +49,7 @@ class Table(object):
         >>> t_env.register_table_source("source", ...)
         >>> t = t_env.scan("source")
         >>> t.select(...)
-        ...
+        >>> ...
         >>> t_env.register_table_sink("result", ...)
         >>> t.insert_into("result")
         >>> env.execute()
