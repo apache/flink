@@ -54,12 +54,42 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 
 	private final CsvInputFormatConfig config;
 
-	private CsvTableSource(
+
+	/**
+	 * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
+	 * (logically) unlimited number of fields.
+	 *
+	 * @param path The path to the CSV file.
+	 * @param fieldNames The names of the table fields.
+	 * @param fieldTypes The types of the table fields.
+	 */
+	public CsvTableSource(String path, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+		this(path, fieldNames, fieldTypes,
+			IntStream.range(0, fieldNames.length).toArray(),
+			CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
+			null, false, null, false);
+	}
+
+	/**
+	 * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
+	 * (logically) unlimited number of fields.
+	 *
+	 * @param path The path to the CSV file.
+	 * @param fieldNames The names of the table fields.
+	 * @param fieldTypes The types of the table fields.
+	 * @param fieldDelim The field delimiter, "," by default.
+	 * @param lineDelim The row delimiter, "\n" by default.
+	 * @param quoteCharacter An optional quote character for String values, null by default.
+	 * @param ignoreFirstLine Flag to ignore the first line, false by default.
+	 * @param ignoreComments An optional prefix to indicate comments, null by default.
+	 * @param lenient Flag to skip records with parse error instead to fail, false by default.
+	 */
+	public CsvTableSource(
 		String path,
 		String[] fieldNames,
 		TypeInformation<?>[] fieldTypes,
 		String fieldDelim,
-		String rowDelim,
+		String lineDelim,
 		Character quoteCharacter,
 		boolean ignoreFirstLine,
 		String ignoreComments,
@@ -67,11 +97,27 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 
 		this(path, fieldNames, fieldTypes,
 			IntStream.range(0, fieldNames.length).toArray(),
-			fieldDelim, rowDelim,
+			fieldDelim, lineDelim,
 			quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
 	}
 
-	private CsvTableSource(
+	/**
+	 * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
+	 * (logically) unlimited number of fields.
+	 *
+	 * @param path The path to the CSV file.
+	 * @param fieldNames The names of the table fields.
+	 * @param fieldTypes The types of the table fields.
+	 * @param selectedFields The fields which will be read and returned by the table source.
+	 *                       If None, all fields are returned.
+	 * @param fieldDelim The field delimiter, "," by default.
+	 * @param lineDelim The row delimiter, "\n" by default.
+	 * @param quoteCharacter An optional quote character for String values, null by default.
+	 * @param ignoreFirstLine Flag to ignore the first line, false by default.
+	 * @param ignoreComments An optional prefix to indicate comments, null by default.
+	 * @param lenient Flag to skip records with parse error instead to fail, false by default.
+	 */
+	public CsvTableSource(
 		String path,
 		String[] fieldNames,
 		TypeInformation<?>[] fieldTypes,
@@ -469,7 +515,7 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 		RowCsvInputFormat createInputFormat() {
 			RowCsvInputFormat inputFormat = new RowCsvInputFormat(
 				new Path(path),
-				fieldTypes,
+				getSelectedFieldTypes(),
 				lineDelim,
 				fieldDelim,
 				selectedFields);
