@@ -24,15 +24,19 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /**
  * The facade for the provided I/O manager services.
@@ -82,39 +86,26 @@ public abstract class IOManager implements AutoCloseable {
 	}
 
 	/**
-	 * Close method, marks the I/O manager as closed
-	 * and removed all temporary files.
+	 * Removes all temporary files.
 	 */
 	@Override
-	public void close() {
-		// remove all of our temp directories
-		for (File path : paths) {
-			try {
-				if (path != null) {
-					if (path.exists()) {
-						FileUtils.deleteDirectory(path);
-						LOG.info("I/O manager removed spill file directory {}", path.getAbsolutePath());
-					}
-				}
-			} catch (Throwable t) {
-				LOG.error("IOManager failed to properly clean up temp file directory: " + path, t);
-			}
-		}
+	public void close() throws Exception {
+		IOUtils.closeAll(Arrays.stream(paths)
+			.filter(File::exists)
+			.map(IOManager::getFileCloser)
+			.collect(Collectors.toList()));
 	}
 
-	/**
-	 * Utility method to check whether the IO manager has been properly shut down.
-	 * For this base implementation, this means that all files have been removed.
-	 *
-	 * @return True, if the IO manager has properly shut down, false otherwise.
-	 */
-	public boolean isProperlyShutDown() {
-		for (File path : paths) {
-			if (path != null && path.exists()) {
-				return false;
+	private static AutoCloseable getFileCloser(File path) {
+		return () -> {
+			try {
+				FileUtils.deleteDirectory(path);
+				LOG.info("I/O manager removed spill file directory {}", path.getAbsolutePath());
+			} catch (IOException e) {
+				String errorMessage = String.format("IOManager failed to properly clean up temp file directory: %s", path);
+				throw new IOException(errorMessage, e);
 			}
-		}
-		return true;
+		};
 	}
 
 	// ------------------------------------------------------------------------

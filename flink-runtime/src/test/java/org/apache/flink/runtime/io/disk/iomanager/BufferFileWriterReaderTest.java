@@ -57,7 +57,7 @@ public class BufferFileWriterReaderTest {
 	private LinkedBlockingQueue<Buffer> returnedBuffers = new LinkedBlockingQueue<>();
 
 	@AfterClass
-	public static void shutdown() {
+	public static void shutdown() throws Exception {
 		ioManager.close();
 	}
 

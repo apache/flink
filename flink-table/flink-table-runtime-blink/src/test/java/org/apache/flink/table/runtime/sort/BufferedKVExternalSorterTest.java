@@ -102,11 +102,8 @@ public class BufferedKVExternalSorterTest {
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
 		this.ioManager.close();
-		if (!this.ioManager.isProperlyShutDown()) {
-			Assert.fail("I/O Manager was not properly shut down.");
-		}
 	}
 
 	@Test

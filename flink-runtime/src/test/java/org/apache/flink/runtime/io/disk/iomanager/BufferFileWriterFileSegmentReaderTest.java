@@ -60,7 +60,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
 
 	@AfterClass
-	public static void shutdown() {
+	public static void shutdown() throws Exception {
 		ioManager.close();
 	}
 

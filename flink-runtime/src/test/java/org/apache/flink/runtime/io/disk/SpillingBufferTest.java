@@ -71,11 +71,8 @@ public class SpillingBufferTest {
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
 		ioManager.close();
-		if (!ioManager.isProperlyShutDown()) {
-			Assert.fail("I/O Manager was not properly shut down.");
-		}
 		
 		if (memoryManager != null) {
 			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 

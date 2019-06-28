@@ -316,7 +316,7 @@ public class AsynchronousFileIOChannelTest {
 	}
 
 	@Test
-	public void testExceptionForwardsToClose() {
+	public void testExceptionForwardsToClose() throws Exception {
 		try (IOManagerAsync ioMan = new IOManagerAsync()) {
 			testExceptionForwardsToClose(ioMan, 100, 1);
 			testExceptionForwardsToClose(ioMan, 100, 50);

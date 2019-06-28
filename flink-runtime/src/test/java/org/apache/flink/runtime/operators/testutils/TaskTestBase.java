@@ -156,7 +156,7 @@ public abstract class TaskTestBase extends TestLogger {
 	}
 
 	@After
-	public void shutdown() {
+	public void shutdown() throws Exception {
 		mockEnv.close();
 	}
 }
