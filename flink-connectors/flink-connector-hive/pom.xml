@@ -64,65 +64,10 @@ under the License.
 		<!-- Hadoop as provided dependencies, so we can depend on them without pulling in Hadoop -->
 
 		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-common</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop-2-uber</artifactId>
+			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-client</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-recipes</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.avro</groupId>
-					<artifactId>avro</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-digester</groupId>
-					<artifactId>commons-digester</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-json</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.jackson</groupId>
-					<artifactId>jackson-mapper-asl</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-mapreduce-client-core</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-test</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-yarn-common</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.avro</groupId>
-					<artifactId>avro</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.jackson</groupId>
-					<artifactId>jackson-core-asl</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<!-- Hive dependencies -->
@@ -452,29 +397,15 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
-								<!-- Needs end-to-end tests to ensure the built flink-connector-hive jar contains all required dependencies and can run -->
 								<includes>
-									<include>commons-dbcp:commons-dbcp</include>
-									<include>commons-pool:commons-pool</include>
-									<include>commons-beanutils:commons-beanutils</include>
-									<include>com.fasterxml.jackson.core:*</include>
-									<include>com.jolbox:bonecp</include>
-									<include>org.apache.thrift:libthrift</include>
-									<include>org.datanucleus:*</include>
-									<include>org.antlr:antlr-runtime</include>
+									<include>*:*</include>
 								</includes>
 							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
 							<filters>
 								<filter>
-									<!-- some dependencies bring their own LICENSE.txt which we don't need -->
 									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/LICENSE.txt</exclude>
-										<exclude>META-INF/ASM_LICENSE.txt</exclude>
-										<exclude>META-INF/ASL2.0</exclude>
-									</excludes>
 								</filter>
 							</filters>
 						</configuration>
