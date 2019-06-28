@@ -71,10 +71,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	protected transient volatile boolean isRunning;
 
 	PubSubSource(PubSubDeserializationSchema<OUT> deserializationSchema,
-				 PubSubSubscriberFactory pubSubSubscriberFactory,
-				 Credentials credentials,
-				 int maxMessagesToAcknowledge,
-				 AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
+				PubSubSubscriberFactory pubSubSubscriberFactory,
+				Credentials credentials,
+				int maxMessagesToAcknowledge,
+				AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory) {
 		this.deserializationSchema = deserializationSchema;
 		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 		this.credentials = credentials;
