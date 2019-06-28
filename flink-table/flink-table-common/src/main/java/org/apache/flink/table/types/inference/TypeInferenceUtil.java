@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import javax.annotation.Nullable;
 
@@ -206,7 +207,9 @@ public final class TypeInferenceUtil {
 	}
 
 	private static boolean canCast(DataType sourceDataType, DataType targetDataType) {
-		return false; // TODO unsupported for now
+		return LogicalTypeCasts.supportsImplicitCast(
+			sourceDataType.getLogicalType(),
+			targetDataType.getLogicalType());
 	}
 
 	private static Result inferTypes(
