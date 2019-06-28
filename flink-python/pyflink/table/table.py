@@ -455,7 +455,8 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.window(Tumble.over("10.minutes").on("rowtime").alias("w")).group_by("w") \\
+            >>> tab.window(Tumble.over("10.minutes").on("rowtime").alias("w")) \\
+            ...     .group_by("w") \\
             ...     .select("a.sum as a, w.start as b, w.end as c, w.rowtime as d")
 
         :param window: A :class:`pyflink.table.window.GroupWindow` created from
@@ -569,7 +570,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.insert_into("print")
+            >>> tab.insert_into("sink")
 
         :param table_path: The first part of the path of the registered :class:`TableSink` to which
                the :class:`Table` is written. This is to ensure at least the name of the

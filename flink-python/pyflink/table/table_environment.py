@@ -185,7 +185,7 @@ class TableEnvironment(object):
         ::
 
             >>> tab = table_env.scan("tableName")
-            >>> table_env.insert_into(tab, "print")
+            >>> table_env.insert_into(tab, "sink")
 
         :param table: :class:`Table` to write to the sink.
         :param table_path: The first part of the path of the registered :class:`TableSink` to which
@@ -632,7 +632,9 @@ class StreamTableEnvironment(TableEnvironment):
         ::
 
             >>> env = StreamExecutionEnvironment.get_execution_environment()
+            # create without TableConfig
             >>> table_env = StreamTableEnvironment.create(env)
+            # create with TableConfig
             >>> table_config = TableConfig()
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)

@@ -80,7 +80,7 @@ tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
-// Create a Table from a SQL query
+// create a Table from a SQL query
 val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
@@ -102,14 +102,14 @@ table_env = StreamTableEnvironment.create(env)
 
 # register a Table
 table_env.register_table("table1", ...)           # or
-table_env.register_table_source("table2", ...)     # or
+table_env.register_table_source("table2", ...)
 
 # register an output Table
 table_env.register_table_sink("outputTable", ...);
 
 # create a Table from a Table API query
 tapi_result = table_env.scan("table1").select(...)
-# Create a Table from a SQL query
+# create a Table from a SQL query
 sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
 
 # emit a Table API result Table to a TableSink, same for SQL result
@@ -150,6 +150,7 @@ Make sure to choose the `BatchTableEnvironment`/`StreamTableEnvironment` that ma
 // ***************
 // STREAMING QUERY
 // ***************
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -159,6 +160,7 @@ StreamTableEnvironment sTableEnv = StreamTableEnvironment.create(sEnv);
 // ***********
 // BATCH QUERY
 // ***********
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 
 ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
@@ -172,6 +174,7 @@ BatchTableEnvironment bTableEnv = BatchTableEnvironment.create(bEnv);
 // ***************
 // STREAMING QUERY
 // ***************
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 
 val sEnv = StreamExecutionEnvironment.getExecutionEnvironment
@@ -181,6 +184,7 @@ val sTableEnv = StreamTableEnvironment.create(sEnv)
 // ***********
 // BATCH QUERY
 // ***********
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.scala.BatchTableEnvironment
 
 val bEnv = ExecutionEnvironment.getExecutionEnvironment
@@ -194,6 +198,7 @@ val bTableEnv = BatchTableEnvironment.create(bEnv)
 # ***************
 # STREAMING QUERY
 # ***************
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment
 
 s_env = StreamExecutionEnvironment.get_execution_environment()
@@ -203,6 +208,7 @@ s_table_env = StreamTableEnvironment.create(s_env)
 # ***********
 # BATCH QUERY
 # ***********
+from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment
 
 b_env = ExecutionEnvironment.get_execution_environment()
@@ -240,7 +246,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // Table is the result of a simple projection query 
 Table projTable = tableEnv.scan("X").select(...);
 
-// register the Table projTable as table "projectedX"
+// register the Table projTable as table "projectedTable"
 tableEnv.registerTable("projectedTable", projTable);
 {% endhighlight %}
 </div>
@@ -253,7 +259,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 // Table is the result of a simple projection query 
 val projTable: Table = tableEnv.scan("X").select(...)
 
-// register the Table projTable as table "projectedX"
+// register the Table projTable as table "projectedTable"
 tableEnv.registerTable("projectedTable", projTable)
 {% endhighlight %}
 </div>
@@ -266,7 +272,7 @@ table_env = StreamTableEnvironment.create(env)
 # Table is the result of a simple projection query 
 proj_table = table_env.scan("X").select(...)
 
-# register the Table projTable as table "projectedX"
+# register the Table projTable as table "projectedTable"
 table_env.register_table("projectedTable", proj_table)
 {% endhighlight %}
 </div>
@@ -498,8 +504,8 @@ table_env = StreamTableEnvironment.create(env)
 orders = table_env.scan("Orders")
 # compute revenue for all customers from France
 revenue = orders \
-    .filter("cCountry === 'FRANCE'")
-    .group_by("cID, cName")
+    .filter("cCountry === 'FRANCE'") \
+    .group_by("cID, cName") \
     .select("cID, cName, revenue.sum AS revSum")
 
 # emit or convert Table

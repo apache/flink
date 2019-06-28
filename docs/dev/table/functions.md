@@ -429,7 +429,7 @@ STRING1.like(STRING2)
     <tr>
       <td>
         {% highlight java %}
-STRING.similar(STRING)
+STRING1.similar(STRING2)
 {% endhighlight %}
       </td>
       <td>

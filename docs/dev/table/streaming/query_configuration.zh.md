@@ -165,7 +165,7 @@ qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 <div data-lang="python" markdown="1">
 {% highlight python %}
 
-q_config = ...
+q_config = ...  # type: StreamQueryConfig
 
 # set idle state retention time: min = 12 hours, max = 24 hours
 q_config.with_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
