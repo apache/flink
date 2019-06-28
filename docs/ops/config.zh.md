@@ -100,9 +100,9 @@ The default fraction for managed memory can be adjusted using the taskmanager.me
 
 {% include generated/security_configuration.html %}
 
-### Network Environment
+### Netty Shuffle Environment
 
-{% include generated/network_environment_configuration.html %}
+{% include generated/netty_shuffle_environment_configuration.html %}
 
 ### Network Communication (via Netty)
 
