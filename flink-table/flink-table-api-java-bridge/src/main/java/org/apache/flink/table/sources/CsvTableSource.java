@@ -38,7 +38,6 @@ import org.apache.flink.types.Row;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,7 +49,7 @@ import java.util.stream.IntStream;
  * (logically) unlimited number of fields.
  */
 public class CsvTableSource extends InputFormatTableSource<Row> implements
-	LookupableTableSource<Row>, ProjectableTableSource<Row>, DefinedIndexes, BatchTableSource<Row> {
+	LookupableTableSource<Row>, ProjectableTableSource<Row>, BatchTableSource<Row> {
 
 	private final CsvInputFormatConfig config;
 
@@ -181,17 +180,6 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	@Override
 	public TableSchema getTableSchema() {
 		return new TableSchema(config.fieldNames, config.fieldTypes);
-	}
-
-	@Override
-	// CsvLookupTableSource can use any field as an index field since the whole file is
-	// loaded and can be rearranged by any required key.
-	public Collection<TableIndex> getIndexes() {
-		List<TableIndex> idxes = new ArrayList<>();
-		for (String f : config.getSelectedFieldNames()) {
-			idxes.add(TableIndex.builder().normalIndex().name(f).indexedColumns(f).build());
-		}
-		return idxes;
 	}
 
 	@Override
