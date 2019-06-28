@@ -54,7 +54,7 @@ public class BufferSpillerTest extends BufferStorageTestBase {
 	}
 
 	@AfterClass
-	public static void shutdownIOManager() {
+	public static void shutdownIOManager() throws Exception {
 		ioManager.close();
 	}
 

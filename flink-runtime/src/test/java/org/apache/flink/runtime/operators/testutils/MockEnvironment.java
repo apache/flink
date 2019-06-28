@@ -336,7 +336,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		// close() method should be idempotent and calling memManager.verifyEmpty() will throw after it was shutdown.
 		if (!memManager.isShutdown()) {
 			checkState(memManager.verifyEmpty(), "Memory Manager managed memory was not completely freed.");
@@ -344,8 +344,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		memManager.shutdown();
 		ioManager.close();
-
-		checkState(ioManager.isProperlyShutDown(), "IO Manager has not properly shut down.");
 	}
 
 	public void setExpectedExternalFailureCause(Class<Throwable> expectedThrowableClass) {

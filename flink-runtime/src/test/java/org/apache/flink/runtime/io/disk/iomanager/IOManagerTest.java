@@ -40,7 +40,7 @@ public class IOManagerTest {
 	public final TemporaryFolder  temporaryFolder = new TemporaryFolder();
 
 	@Test
-	public void channelEnumerator() throws IOException {
+	public void channelEnumerator() throws Exception {
 		File tempPath = temporaryFolder.newFolder();
 
 		String[] tempDirs = new String[]{

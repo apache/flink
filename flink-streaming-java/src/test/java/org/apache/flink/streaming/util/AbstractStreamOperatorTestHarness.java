@@ -523,7 +523,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		}
 		setupCalled = false;
 
-		internalEnvironment.ifPresent(MockEnvironment::close);
+		if (internalEnvironment.isPresent()) {
+			internalEnvironment.get().close();
+		}
 	}
 
 	public void setProcessingTime(long time) throws Exception {
