@@ -19,7 +19,20 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import org.junit.Test;
@@ -44,87 +57,118 @@ public class LogicalTypeCastsTest {
 	public static List<Object[]> testData() {
 		return Arrays.asList(
 			new Object[][]{
-				{DataTypes.SMALLINT(), DataTypes.BIGINT(), true, true},
+				{new SmallIntType(), new BigIntType(), true, true},
 
 				// nullability does not match
-				{DataTypes.SMALLINT().notNull(), DataTypes.SMALLINT(), true, true},
+				{new SmallIntType(false), new SmallIntType(), true, true},
 
-				{DataTypes.SMALLINT(), DataTypes.SMALLINT().notNull(), false, false},
+				{new SmallIntType(), new SmallIntType(false), false, false},
 
-				{DataTypes.INTERVAL(DataTypes.YEAR()), DataTypes.SMALLINT(), true, true},
+				{
+					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
+					new SmallIntType(),
+					true,
+					true
+				},
 
 				// not an interval with single field
-				{DataTypes.INTERVAL(DataTypes.YEAR(), DataTypes.MONTH()), DataTypes.SMALLINT(), false, false},
+				{
+					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
+					new SmallIntType(),
+					false,
+					false
+				},
 
-				{DataTypes.INT(), DataTypes.DECIMAL(5, 5), true, true},
+				{new IntType(), new DecimalType(5, 5), true, true},
 
 				// loss of precision
-				{DataTypes.FLOAT(), DataTypes.INT(), false, true},
+				{new FloatType(), new IntType(), false, true},
 
-				{DataTypes.STRING(), DataTypes.FLOAT(), false, true},
+				{new VarCharType(Integer.MAX_VALUE), new FloatType(), false, true},
 
-				{DataTypes.FLOAT(), DataTypes.STRING(), false, true},
+				{new FloatType(), new VarCharType(Integer.MAX_VALUE), false, true},
 
-				{DataTypes.DECIMAL(3, 2), DataTypes.STRING(), false, true},
+				{new DecimalType(3, 2), new VarCharType(Integer.MAX_VALUE), false, true},
 
 				{
-					DataTypes.ANY(Types.GENERIC(LogicalTypesTest.class)),
-					DataTypes.ANY(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
 					true,
 					true
 				},
 
 				{
-					DataTypes.ANY(Types.GENERIC(LogicalTypesTest.class)),
-					DataTypes.ANY(Types.GENERIC(Object.class)),
+					new TypeInformationAnyType<>(Types.GENERIC(LogicalTypesTest.class)),
+					new TypeInformationAnyType<>(Types.GENERIC(Object.class)),
 					false,
 					false
 				},
 
-				{DataTypes.NULL(), DataTypes.INT(), true, true},
+				{new NullType(), new IntType(), true, true},
 
-				{DataTypes.ARRAY(DataTypes.INT()), DataTypes.ARRAY(DataTypes.BIGINT()), true, true},
+				{new ArrayType(new IntType()), new ArrayType(new BigIntType()), true, true},
 
-				{DataTypes.ARRAY(DataTypes.INT()), DataTypes.ARRAY(DataTypes.STRING()), false, true},
+				{new ArrayType(new IntType()), new ArrayType(new VarCharType(Integer.MAX_VALUE)), false, true},
 
 				{
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT()),
-						DataTypes.FIELD("f2", DataTypes.INT())),
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT()),
-						DataTypes.FIELD("f2", DataTypes.BIGINT())),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new IntType())
+						)
+					),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new BigIntType())
+						)
+					),
 					true,
 					true
 				},
 
 				{
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT(), "description"),
-						DataTypes.FIELD("f2", DataTypes.INT())),
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT()),
-						DataTypes.FIELD("f2", DataTypes.BIGINT())),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType(), "description"),
+							new RowField("f2", new IntType())
+						)
+					),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new BigIntType())
+						)
+					),
 					true,
 					true
 				},
 
 				{
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT()),
-						DataTypes.FIELD("f2", DataTypes.INT())),
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT()),
-						DataTypes.FIELD("f2", DataTypes.BOOLEAN())),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new IntType())
+						)
+					),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new BooleanType())
+						)
+					),
 					false,
 					false
 				},
 
 				{
-					DataTypes.ROW(
-						DataTypes.FIELD("f1", DataTypes.INT()),
-						DataTypes.FIELD("f2", DataTypes.INT())),
-					DataTypes.STRING(),
+					new RowType(
+						Arrays.asList(
+							new RowField("f1", new IntType()),
+							new RowField("f2", new IntType())
+						)
+					),
+					new VarCharType(Integer.MAX_VALUE),
 					false,
 					false
 				}
@@ -133,10 +177,10 @@ public class LogicalTypeCastsTest {
 	}
 
 	@Parameter
-	public DataType sourceType;
+	public LogicalType sourceType;
 
 	@Parameter(1)
-	public DataType targetType;
+	public LogicalType targetType;
 
 	@Parameter(2)
 	public boolean supportsImplicit;
@@ -147,14 +191,14 @@ public class LogicalTypeCastsTest {
 	@Test
 	public void testImplicitCasting() {
 		assertThat(
-			LogicalTypeCasts.supportsImplicitCast(sourceType.getLogicalType(), targetType.getLogicalType()),
+			LogicalTypeCasts.supportsImplicitCast(sourceType, targetType),
 			equalTo(supportsImplicit));
 	}
 
 	@Test
 	public void testExplicitCasting() {
 		assertThat(
-			LogicalTypeCasts.supportsExplicitCast(sourceType.getLogicalType(), targetType.getLogicalType()),
+			LogicalTypeCasts.supportsExplicitCast(sourceType, targetType),
 			equalTo(supportsExplicit));
 	}
 }
