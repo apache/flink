@@ -23,6 +23,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +52,6 @@ import java.util.Optional;
  *
  * <p>This class has a open-prepareClose-close lifecycle that is connected with and maps to the lifecycle of the
  * encapsulated {@link Mailbox} (which is open-quiesce-close).
- *
- * <p>The method {@link #switchToLegacySourceCompatibilityMailboxLoop(Object)} exists to run the current sources
- * (see {@link org.apache.flink.streaming.runtime.tasks.SourceStreamTask} with the mailbox model in a compatibility
- * mode. Once we drop the old source interface for the new one (FLIP-27) this method can eventually go away.
  */
 public class MailboxProcessor {
 
@@ -141,43 +138,21 @@ public class MailboxProcessor {
 	}
 
 	/**
-	 * This method exists to run the current sources with the mailbox model in a compatibility mode. Once we drop the
-	 * old source interface for the new one (FLIP-27) this method can eventually go away.
-	 *
-	 * @param checkpointLock the task's checkpointing lock.
-	 * @throws MailboxStateException if mailbox is closed.
-	 * @throws InterruptedException on interruption.
-	 */
-	public void switchToLegacySourceCompatibilityMailboxLoop(
-		final Object checkpointLock) throws MailboxStateException, InterruptedException {
-
-		Preconditions.checkState(
-			taskMailboxExecutor.isMailboxThread(),
-			"Method must be executed by declared mailbox thread!");
-
-		final Mailbox localMailbox = mailbox;
-
-		while (isMailboxLoopRunning()) {
-
-			Runnable letter = localMailbox.takeMail();
-
-			synchronized (checkpointLock) {
-				letter.run();
-			}
-		}
-	}
-
-	/**
 	 * Cancels the mailbox loop execution. All pending mailbox actions will not be executed anymore, if they are
 	 * instance of {@link java.util.concurrent.RunnableFuture}, they will be cancelled.
 	 */
 	public void cancelMailboxExecution() {
-		try {
-			List<Runnable> droppedRunnables = mailbox.clearAndPut(mailboxPoisonLetter);
-			FutureUtils.cancelRunnableFutures(droppedRunnables);
-		} catch (MailboxStateException msex) {
-			LOG.debug("Mailbox already closed in cancel().", msex);
-		}
+		clearMailboxAndRunPriorityAction(mailboxPoisonLetter);
+	}
+
+	/**
+	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending letters.
+	 * @param throwable to report by rethrowing from the mailbox loop.
+	 */
+	public void reportThrowable(Throwable throwable) {
+		clearMailboxAndRunPriorityAction(() -> {
+			throw new WrappingRuntimeException(throwable);
+		});
 	}
 
 	/**
@@ -224,7 +199,8 @@ public class MailboxProcessor {
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			mailbox.takeMail().run();
+			Runnable letter = mailbox.takeMail();
+			letter.run();
 		}
 
 		return isMailboxLoopRunning();
@@ -265,6 +241,15 @@ public class MailboxProcessor {
 			} catch (MailboxStateException me) {
 				LOG.debug("Mailbox closed when trying to submit letter for control flow signal.", me);
 			}
+		}
+	}
+
+	private void clearMailboxAndRunPriorityAction(Runnable priorityLetter) {
+		try {
+			List<Runnable> droppedRunnables = mailbox.clearAndPut(priorityLetter);
+			FutureUtils.cancelRunnableFutures(droppedRunnables);
+		} catch (MailboxStateException msex) {
+			LOG.debug("Mailbox already closed in cancel().", msex);
 		}
 	}
 

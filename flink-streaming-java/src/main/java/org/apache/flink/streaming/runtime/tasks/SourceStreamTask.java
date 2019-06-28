@@ -28,6 +28,8 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.util.FlinkException;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
  *
@@ -100,27 +102,20 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+
+		context.suspendDefaultAction();
+
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
 		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
 		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread(getName());
 		sourceThread.start();
-
-		// We run an legacy source mailbox loop that does not involve default actions and synchronizes around actions.
-		try {
-			mailboxProcessor.switchToLegacySourceCompatibilityMailboxLoop(getCheckpointLock());
-		} catch (Exception mailboxEx) {
-			// We cancel the source function if some runtime exception escaped the mailbox.
-			if (!isCanceled()) {
-				cancelTask();
+		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
+			if (sourceThreadThrowable == null) {
+				mailboxProcessor.allActionsCompleted();
+			} else {
+				mailboxProcessor.reportThrowable(sourceThreadThrowable);
 			}
-			sourceThread.interrupt();
-			throw mailboxEx;
-		}
-
-		sourceThread.join();
-		sourceThread.checkThrowSourceExecutionException();
-
-		context.allActionsCompleted();
+		});
 	}
 
 	@Override
@@ -157,28 +152,25 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	 */
 	private class LegacySourceFunctionThread extends Thread {
 
-		private Throwable sourceExecutionThrowable;
+		private final CompletableFuture<Void> completionFuture;
 
 		LegacySourceFunctionThread(String taskDescription) {
 			super("Legacy Source Thread - " + taskDescription);
-			this.sourceExecutionThrowable = null;
+			this.completionFuture = new CompletableFuture<>();
 		}
 
 		@Override
 		public void run() {
 			try {
 				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
+				completionFuture.complete(null);
 			} catch (Throwable t) {
-				sourceExecutionThrowable = t;
-			} finally {
-				mailboxProcessor.allActionsCompleted();
+				completionFuture.completeExceptionally(t);
 			}
 		}
 
-		void checkThrowSourceExecutionException() throws Exception {
-			if (sourceExecutionThrowable != null) {
-				throw new Exception(sourceExecutionThrowable);
-			}
+		CompletableFuture<Void> getCompletionFuture() {
+			return completionFuture;
 		}
 	}
 }

@@ -65,18 +65,6 @@ public class MailboxProcessorTest {
 	}
 
 	@Test
-	public void testLegacySourceLoop() throws Exception {
-		final Object lock = new Object();
-		final MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
-		mailboxProcessor.open();
-		mailboxProcessor.getTaskMailboxExecutor().tryExecute(() -> {
-			Assert.assertTrue(Thread.holdsLock(lock));
-			mailboxProcessor.allActionsCompleted();
-		});
-		mailboxProcessor.switchToLegacySourceCompatibilityMailboxLoop(lock);
-	}
-
-	@Test
 	public void testRunDefaultActionAndLetters() throws Exception {
 		AtomicBoolean stop = new AtomicBoolean(false);
 		MailboxThread mailboxThread = new MailboxThread() {
