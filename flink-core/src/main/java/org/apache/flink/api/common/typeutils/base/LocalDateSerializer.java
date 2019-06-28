@@ -33,15 +33,16 @@ public final class LocalDateSerializer extends TypeSerializerSingleton<LocalDate
 	private static final long serialVersionUID = 1L;
 
 	public static final LocalDateSerializer INSTANCE = new LocalDateSerializer();
+	private static final LocalDate EPOCH = LocalDate.ofEpochDay(0L);
 
 	@Override
 	public boolean isImmutableType() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public LocalDate createInstance() {
-		return LocalDate.of(1970, 1, 1);
+		return EPOCH;
 	}
 
 	@Override

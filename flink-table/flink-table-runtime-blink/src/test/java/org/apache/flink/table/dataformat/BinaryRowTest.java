@@ -33,6 +33,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
@@ -48,6 +50,11 @@ import static org.junit.Assert.assertTrue;
  * Test of {@link BinaryRow} and {@link BinaryRowWriter}.
  */
 public class BinaryRowTest {
+
+	public static void main(String[] args) {
+		System.out.println(LocalDate.ofEpochDay(0));
+		System.out.println(LocalTime.ofSecondOfDay(0));
+	}
 
 	@Test
 	public void testBasic() {

@@ -38,7 +38,7 @@ public final class LocalDateTimeSerializer extends TypeSerializerSingleton<Local
 
 	@Override
 	public boolean isImmutableType() {
-		return false;
+		return true;
 	}
 
 	@Override

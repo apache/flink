@@ -36,12 +36,12 @@ public final class LocalTimeSerializer extends TypeSerializerSingleton<LocalTime
 
 	@Override
 	public boolean isImmutableType() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public LocalTime createInstance() {
-		return LocalTime.of(0, 0);
+		return LocalTime.MIDNIGHT;
 	}
 
 	@Override
