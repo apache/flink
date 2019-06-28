@@ -152,7 +152,7 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the config object.
+	 * Returns the {@link ExecutionConfig}.
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
