@@ -158,7 +158,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 			Object topicPartitionBookkeeping = getValue(topicPartitionBookkeeper, "topicPartitionBookkeeping");
 
 			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
-			invoke(topicPartitionBookkeeping, "clear");
+			invoke(topicPartitionBookkeeper, "reset");
 
 			Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
 			setValue(producerIdAndEpoch, "producerId", producerId);

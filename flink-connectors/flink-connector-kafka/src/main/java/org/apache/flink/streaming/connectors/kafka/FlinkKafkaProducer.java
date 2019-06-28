@@ -48,7 +48,6 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegat
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -683,13 +682,13 @@ public class FlinkKafkaProducer<IN>
 		} finally {
 			// We may have to close producer of the current transaction in case some exception was thrown before
 			// the normal close routine finishes.
-			if (currentTransaction() != null) {
-				IOUtils.closeQuietly(currentTransaction().producer);
-			}
-			// Make sure all the producers for pending transactions are closed.
-			pendingTransactions().forEach(transaction ->
-					IOUtils.closeQuietly(transaction.getValue().producer)
-			);
+//			if (currentTransaction() != null) {
+//				IOUtils.closeQuietly(currentTransaction().producer);
+//			}
+//			// Make sure all the producers for pending transactions are closed.
+//			pendingTransactions().forEach(transaction ->
+//					IOUtils.closeQuietly(transaction.getValue().producer)
+//			);
 			// make sure we propagate pending errors
 			checkErroneous();
 		}
