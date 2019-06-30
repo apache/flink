@@ -19,12 +19,18 @@
 package org.apache.flink.addons.hbase;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.connectors.hbase.util.HBaseTypeUtils;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -179,8 +185,58 @@ public class HBaseTableSchema implements Serializable {
 	 *
 	 * @return The charset for value strings and HBase identifiers.
 	 */
-	String getStringCharset() {
+	public String getStringCharset() {
 		return this.charset;
+	}
+
+	/**
+	 * A helper method returns a flat qualifiers list in defining order.
+	 * Qualifier info is a Tuple3 representation:
+	 * (byte[] columnFamily, byte[] qualifier, TypeInformation typeInfo)
+	 */
+	public List<Tuple3<byte[], byte[], TypeInformation<?>>> getFlatByteQualifiers() {
+		List<Tuple3<byte[], byte[], TypeInformation<?>>> qualifierList = new ArrayList<>();
+
+		for (String family : getFamilyNames()) {
+			byte[] columnBytes = Bytes.toBytes(family);
+			String[] qualifierNames = getQualifierNames(family);
+			TypeInformation<?>[] qualifierTypes = getQualifierTypes(family);
+			for (int idx = 0; idx < qualifierNames.length; idx++) {
+				qualifierList.add(new Tuple3<>(columnBytes, Bytes.toBytes(qualifierNames[idx]), qualifierTypes[idx]));
+			}
+		}
+		return qualifierList;
+	}
+
+	/**
+	 * Adds a column defined by family, qualifier, and type to the table schema.
+	 *
+	 * @param family    the family name
+	 * @param qualifier the qualifier name
+	 * @param type the data type info of the qualifier
+	 */
+	public void addColumn(String family, String qualifier, TypeInformation<?> type) {
+		Preconditions.checkNotNull(family, "family name");
+		Preconditions.checkNotNull(qualifier, "qualifier name");
+		Preconditions.checkNotNull(type, "qualifier type");
+		Map<String, TypeInformation<?>> qualifierMap = this.familyMap.get(family);
+
+		if (!HBaseTypeUtils.isSupportedType(type)) {
+			// throw exception
+			throw new IllegalArgumentException("Unsupported type found " + type + ". " +
+				"Better to use byte[].class and deserialize using user defined scalar functions");
+		}
+
+		if (qualifierMap == null) {
+			qualifierMap = new LinkedHashMap<>();
+		}
+
+		// validate qualifier name's uniqueness
+		if (qualifierMap.containsKey(qualifier)) {
+			throw new IllegalArgumentException("qualifier[" + qualifier + "] in column[" + family + "] already exists!");
+		}
+		qualifierMap.put(qualifier, type);
+		familyMap.put(family, qualifierMap);
 	}
 
 }
