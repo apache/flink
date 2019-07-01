@@ -60,6 +60,28 @@ public final class Documentation {
 	}
 
 	/**
+	 * Annotation used on config option fields to include them in the "Table Options" section.
+	 *
+	 * <p>The {@link TableOption#execMode()} argument indicate which exec mode the config works for,
+	 * for batch, streaming or both.
+	 *
+	 */
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface TableOption {
+
+		ExecMode execMode() default ExecMode.BOTH;
+	}
+
+	/**
+	 * Which exec mode the config works for.
+	 */
+	public enum ExecMode {
+		BATCH, STREAMING, BOTH
+	}
+
+	/**
 	 * Annotation used on config option fields to exclude the config option from documentation.
 	 */
 	@Target(ElementType.FIELD)

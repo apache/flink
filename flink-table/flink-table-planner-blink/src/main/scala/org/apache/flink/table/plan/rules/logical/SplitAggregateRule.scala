@@ -114,7 +114,7 @@ class SplitAggregateRule extends RelOptRule(
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
 
-    val isMiniBatchEnabled = tableConfig.getConf.getLong(
+    val isMiniBatchEnabled = tableConfig.getMillisecondFromConfigDuration(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
     val splitSkewDistinctAggEnabled = tableConfig.getConf.getBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED)

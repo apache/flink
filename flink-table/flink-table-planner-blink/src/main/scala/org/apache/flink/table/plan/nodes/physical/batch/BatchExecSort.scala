@@ -117,12 +117,8 @@ class BatchExecSort(
     val reservedMemorySize = conf.getConf.getInteger(
       TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
 
-    val perRequestSize = conf.getConf.getInteger(
-      TableConfigOptions.SQL_EXEC_PER_REQUEST_MEM) * NodeResourceConfig.SIZE_IN_MB
-
     val operator = new SortOperator(
       reservedMemorySize,
-      perRequestSize.toLong,
       codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
       codeGen.generateRecordComparator("BatchExecSortComparator"))
 

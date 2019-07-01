@@ -145,7 +145,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
   @Test
   def testEventTimeTumblingWindowWithAllowLateness(): Unit = {
     // wait 10 millisecond for late elements
-    tEnv.getConfig.withIdleStateRetentionTime(Time.milliseconds(10), Time.milliseconds(10L))
+    tEnv.getConfig.withIdleStateRetentionTime(Time.milliseconds(10))
     // emit result without delay after watermark
     tEnv.getConfig.withLateFireInterval(Time.of(0, TimeUnit.NANOSECONDS))
     val data = List(

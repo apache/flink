@@ -37,7 +37,7 @@ class StreamingWithAggTestBase(
   override def before(): Unit = {
     super.before()
     // in order to cover more code paths
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     if (aggMode.isLocalAggEnabled) {
       tEnv.getConfig.getConf.setString(
         PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, AggPhaseEnforcer.TWO_PHASE.toString)

@@ -1,0 +1,58 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>sql.optimizer.agg-phase.strategy</h5><br> <span class="label label-primary">BATCH</span> <span class="label label-primary">STREAMING</span></td>
+            <td style="word-wrap: break-word;">"NONE"</td>
+            <td>Strategy for aggregate phase. Only NONE, TWO_PHASE or ONE_PHASE can be set.
+NONE: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one stage aggregate depends on cost. 
+TWO_PHASE: Enforce to use two stage aggregate which has localAggregate and globalAggregate. NOTE: If aggregate call does not support split into two phase, still use one stage aggregate.
+ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.</td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.broadcast.join.threshold</h5><br> <span class="label label-primary">BATCH</span></td>
+            <td style="word-wrap: break-word;">1048576</td>
+            <td>Configures the maximum size in bytes for a table that will be broadcast to all worker nodes when performing a join.  By setting this value to -1 broadcasting can be disabled. </td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.data-skew.distinct-agg.bucket</h5><br> <span class="label label-primary">STREAMING</span></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>Configure the number of buckets when splitting distinct aggregation. The number is used in the first level aggregation to calculate a bucket key 'hash_code(distinct_key) % BUCKET_NUM' which is used as a group by key after splitting.</td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.data-skew.distinct-agg.enabled</h5><br> <span class="label label-primary">STREAMING</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Tell the optimizer whether there is data skew in distinct aggregation. For example: COUNT(DISTINCT col), SUM(DISTINCT col). If true, this will enable the optimizer to split distinct aggregation into two level. This will increase some overhead, e.g. network shuffle, but gives the ability to scale-up the job. Default is false.</td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.predicate-pushdown.enabled</h5><br> <span class="label label-primary">BATCH</span> <span class="label label-primary">STREAMING</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>If it is true, enable predicate pushdown to the FilterableTableSource. Default value is true.</td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.reuse.sub-plan.enabled</h5><br> <span class="label label-primary">BATCH</span> <span class="label label-primary">STREAMING</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>When it is true, optimizer will try to find out duplicated sub-plan and reuse them.</td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.reuse.table-source.enabled</h5><br> <span class="label label-primary">BATCH</span> <span class="label label-primary">STREAMING</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>When it is true, optimizer will try to find out duplicated table-source and reuse them. This works only when sql.optimizer.reuse.sub-plan.enabled is true.</td>
+        </tr>
+        <tr>
+            <td><h5>sql.optimizer.shuffle.partial-key.enabled</h5><br> <span class="label label-primary">BATCH</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Enables shuffling by partial partition keys. For example, A join with join condition: L.c1 = R.c1 and L.c2 = R.c2. If this flag is enabled, there are 3 shuffle strategy:
+ 1. L and R shuffle by c1 
+2. L and R shuffle by c2
+3. L and R shuffle by c1 and c2
+It can reduce some shuffle cost someTimes.</td>
+        </tr>
+    </tbody>
+</table>

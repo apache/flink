@@ -64,7 +64,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMaxWithRetractOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConf
-      .setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 100L)
+      .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
       "group by a1"
     util.verifyPlanWithTrait(query)
@@ -73,7 +73,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMinWithRetractOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConf
-      .setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 100L)
+      .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)"
     util.verifyPlanWithTrait(query)
   }
@@ -81,7 +81,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMinCanNotOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConf
-      .setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 100L)
+      .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
     util.verifyPlanWithTrait(query)

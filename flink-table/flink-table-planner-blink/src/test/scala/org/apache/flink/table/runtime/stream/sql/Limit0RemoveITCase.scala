@@ -19,19 +19,13 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendTableSink, TestingUpsertTableSink}
 
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Test}
+import org.junit.Test
 
 class Limit0RemoveITCase extends StreamingTestBase() {
-
-  @Before
-  def setup(): Unit = {
-    tEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SOURCE_VALUES_INPUT_ENABLED, true)
-  }
 
   @Test
   def testSimpleLimitRemove(): Unit = {

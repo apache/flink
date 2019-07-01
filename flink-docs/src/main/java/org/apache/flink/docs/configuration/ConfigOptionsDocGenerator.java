@@ -62,7 +62,9 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
 		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
-		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state")
+		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state"),
+		new OptionsClassLocation("flink-table/flink-table-planner-blink", "org.apache.flink.table.api"),
+		new OptionsClassLocation("flink-table/flink-table-runtime-blink", "org.apache.flink.table.api")
 	};
 
 	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
@@ -260,10 +262,26 @@ public class ConfigOptionsDocGenerator {
 	private static String toHtmlString(final OptionWithMetaInfo optionWithMetaInfo) {
 		ConfigOption<?> option = optionWithMetaInfo.option;
 		String defaultValue = stringifyDefault(optionWithMetaInfo);
+		Documentation.TableOption tableOption = optionWithMetaInfo.field.getAnnotation(Documentation.TableOption.class);
+		StringBuilder sb = new StringBuilder();
+		if (tableOption != null) {
+			Documentation.ExecMode execMode = tableOption.execMode();
+			if (Documentation.ExecMode.BATCH.equals(execMode) || Documentation.ExecMode.STREAMING.equals(execMode)) {
+				sb.append("<br> <span class=\"label label-primary\">")
+						.append(execMode.toString())
+						.append("</span>");
+			} else if (Documentation.ExecMode.BOTH.equals(execMode)) {
+				sb.append("<br> <span class=\"label label-primary\">")
+						.append("BATCH")
+						.append("</span> <span class=\"label label-primary\">")
+						.append("STREAMING")
+						.append("</span>");
+			}
+		}
 
 		return "" +
 			"        <tr>\n" +
-			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
+			"            <td><h5>" + escapeCharacters(option.key()) + "</h5>" + sb.toString() + "</td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(addWordBreakOpportunities(defaultValue)) + "</td>\n" +
 			"            <td>" + formatter.format(option.description()) + "</td>\n" +
 			"        </tr>\n";

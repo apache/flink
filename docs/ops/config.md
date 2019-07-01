@@ -183,6 +183,12 @@ unless user define a `OptionsFactory` and set via `RocksDBStateBackend.setOption
 
 {% include generated/rocks_db_configurable_configuration.html %}
 
+### blink table planner
+{% include generated/planner_config_configuration.html %}
+
+### blink table runtime
+{% include generated/table_config_configuration.html %}
+
 ### Queryable State
 
 {% include generated/queryable_state_configuration.html %}

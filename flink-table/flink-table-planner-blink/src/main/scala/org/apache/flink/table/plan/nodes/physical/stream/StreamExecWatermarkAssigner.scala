@@ -76,7 +76,7 @@ class StreamExecWatermarkAssigner(
         "None"
       case MiniBatchMode.ProcTime =>
         val config = cluster.getPlanner.getContext.asInstanceOf[FlinkOptimizeContext].getTableConfig
-        val miniBatchLatency = config.getConf.getLong(
+        val miniBatchLatency = config.getMillisecondFromConfigDuration(
           TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch latency must be greater that 0.", null)

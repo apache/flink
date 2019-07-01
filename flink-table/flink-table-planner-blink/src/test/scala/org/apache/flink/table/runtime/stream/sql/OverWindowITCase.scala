@@ -256,7 +256,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(2), Time.hours(3))
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(2))
 
     val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime)
 

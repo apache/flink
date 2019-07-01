@@ -113,7 +113,7 @@ class StreamExecDeduplicate(
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val tableConfig = tableEnv.getConfig
-    val isMiniBatchEnabled = tableConfig.getConf.getLong(
+    val isMiniBatchEnabled = tableConfig.getMillisecondFromConfigDuration(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = tableEnv.execEnv.getConfig

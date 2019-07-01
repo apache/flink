@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.common
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
@@ -62,6 +63,7 @@ import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.duration.Duration
 
 /**
   * Common abstract RelNode for temporal table join which shares most methods.
@@ -186,8 +188,8 @@ abstract class CommonLookupJoin(
     val operator = if (lookupableTableSource.isAsyncEnabled) {
       val asyncBufferCapacity= config.getConf
         .getInteger(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
-      val asyncTimeout = config.getConf
-        .getLong(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT_MS)
+      val asyncTimeout = config.getMillisecondFromConfigDuration(
+        TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT)
 
       val asyncLookupFunction = lookupableTableSource
         .getAsyncLookupFunction(lookupFieldNamesInOrder)

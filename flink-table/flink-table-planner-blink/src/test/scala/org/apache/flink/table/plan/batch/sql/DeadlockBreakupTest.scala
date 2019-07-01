@@ -89,7 +89,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConf.setString(
       TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin")
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, -1)
+      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |
@@ -109,7 +109,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConf.setBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, -1)
+      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     util.tableEnv.getConfig.getConf.setString(
       TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     val sqlQuery =
@@ -161,7 +161,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConf.setBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, -1)
+      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery = "SELECT * FROM t t1, t t2 WHERE t1.a = t2.a AND t1.b > 10 AND t2.c LIKE 'Test%'"
     util.verifyPlan(sqlQuery)
   }
