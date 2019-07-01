@@ -565,7 +565,21 @@ public class TaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testOnPartitionStateUpdate() throws Exception {
+	public void testOnPartitionStateUpdateWhileRunning() throws Exception {
+		testOnPartitionStateUpdate(ExecutionState.RUNNING);
+	}
+
+	/**
+	 * Partition state updates can also happen when {@link Task} is in
+	 * {@link ExecutionState#DEPLOYING} state, because we are requesting for partitions during
+	 * setting up input gates.
+	 */
+	@Test
+	public void testOnPartitionStateUpdateWhileDeploying() throws Exception {
+		testOnPartitionStateUpdate(ExecutionState.DEPLOYING);
+	}
+
+	public void testOnPartitionStateUpdate(ExecutionState initialTaskState) throws Exception {
 		final ResultPartitionID partitionId = new ResultPartitionID();
 
 		final Task task = createTaskBuilder()
@@ -583,10 +597,10 @@ public class TaskTest extends TestLogger {
 			expected.put(state, ExecutionState.FAILED);
 		}
 
-		expected.put(ExecutionState.RUNNING, ExecutionState.RUNNING);
-		expected.put(ExecutionState.SCHEDULED, ExecutionState.RUNNING);
-		expected.put(ExecutionState.DEPLOYING, ExecutionState.RUNNING);
-		expected.put(ExecutionState.FINISHED, ExecutionState.RUNNING);
+		expected.put(ExecutionState.RUNNING, initialTaskState);
+		expected.put(ExecutionState.SCHEDULED, initialTaskState);
+		expected.put(ExecutionState.DEPLOYING, initialTaskState);
+		expected.put(ExecutionState.FINISHED, initialTaskState);
 
 		expected.put(ExecutionState.CANCELED, ExecutionState.CANCELING);
 		expected.put(ExecutionState.CANCELING, ExecutionState.CANCELING);
@@ -594,7 +608,7 @@ public class TaskTest extends TestLogger {
 
 		int producingStateCounter = 0;
 		for (ExecutionState state : ExecutionState.values()) {
-			setState(task, ExecutionState.RUNNING);
+			setState(task, initialTaskState);
 
 			if (checker.isProducerReadyOrAbortConsumption(task.new PartitionProducerStateResponseHandle(state, null))) {
 				producingStateCounter++;

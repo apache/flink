@@ -834,12 +834,14 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 	@VisibleForTesting
 	public static void setupPartitionsAndGates(
-		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException, InterruptedException {
 
 		for (ResultPartitionWriter partition : producedPartitions) {
 			partition.setup();
 		}
 
+		// InputGates must be initialized after the partitions, since during InputGate#setup
+		// we are requesting partitions
 		for (InputGate gate : inputGates) {
 			gate.setup();
 		}

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -419,6 +422,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			RemoteInputChannel remote =
 				InputChannelBuilder.newBuilder()
 					.setupFromNettyShuffleEnvironment(network)
+					.setConnectionManager(new TestingConnectionManager())
 					.buildRemoteAndSetToGate(inputGate);
 			inputGate.setup();
 
@@ -498,13 +502,27 @@ public class SingleInputGateTest extends InputGateTestBase {
 	@Test
 	public void testUpdateUnknownInputChannel() throws Exception {
 		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
+
+		final ResultPartition localResultPartition = new ResultPartitionBuilder()
+			.setResultPartitionManager(network.getResultPartitionManager())
+			.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
+			.build();
+
+		final ResultPartition remoteResultPartition = new ResultPartitionBuilder()
+			.setResultPartitionManager(network.getResultPartitionManager())
+			.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
+			.build();
+
+		localResultPartition.setup();
+		remoteResultPartition.setup();
+
 		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
 
 		try {
-			final ResultPartitionID localResultPartitionId = new ResultPartitionID();
+			final ResultPartitionID localResultPartitionId = localResultPartition.getPartitionId();
 			addUnknownInputChannel(network, inputGate, localResultPartitionId, 0);
 
-			final ResultPartitionID remoteResultPartitionId = new ResultPartitionID();
+			final ResultPartitionID remoteResultPartitionId = remoteResultPartition.getPartitionId();
 			addUnknownInputChannel(network, inputGate, remoteResultPartitionId, 1);
 
 			inputGate.setup();
@@ -628,6 +646,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.setChannelIndex(channelIndex)
 			.setPartitionId(partitionId)
 			.setupFromNettyShuffleEnvironment(network)
+			.setConnectionManager(new TestingConnectionManager())
 			.buildUnknownAndSetToGate(inputGate);
 	}
 

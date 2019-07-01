@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.metrics.CreditBasedInputBuffersUsageGauge;
 import org.apache.flink.runtime.io.network.metrics.ExclusiveBuffersUsageGauge;
 import org.apache.flink.runtime.io.network.metrics.FloatingBuffersUsageGauge;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.util.TestLogger;
 
@@ -58,7 +60,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 	}
 
 	@Test
-	public void testCalculateTotalBuffersSize() throws IOException {
+	public void testCalculateTotalBuffersSize() throws Exception {
 		int numberOfRemoteChannels = 2;
 		int numberOfLocalChannels = 0;
 
@@ -76,6 +78,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 			numberOfRemoteChannels,
 			numberOfLocalChannels).f0;
 		closeableRegistry.registerCloseable(inputGate1::close);
+		inputGate1.setup();
 
 		SingleInputGate[] inputGates = new SingleInputGate[]{inputGate1};
 		FloatingBuffersUsageGauge floatingBuffersUsageGauge = new FloatingBuffersUsageGauge(inputGates);
@@ -94,7 +97,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 	}
 
 	@Test
-	public void testExclusiveBuffersUsage() throws IOException {
+	public void testExclusiveBuffersUsage() throws Exception {
 		int numberOfRemoteChannelsGate1 = 2;
 		int numberOfLocalChannelsGate1 = 0;
 		int numberOfRemoteChannelsGate2 = 1;
@@ -124,6 +127,8 @@ public class InputBuffersMetricsTest extends TestLogger {
 		SingleInputGate inputGate2 = tuple2.f0;
 		closeableRegistry.registerCloseable(inputGate1::close);
 		closeableRegistry.registerCloseable(inputGate2::close);
+		inputGate1.setup();
+		inputGate2.setup();
 
 		List<RemoteInputChannel> remoteInputChannels = tuple1.f1;
 
@@ -155,7 +160,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 	}
 
 	@Test
-	public void testFloatingBuffersUsage() throws IOException, InterruptedException {
+	public void testFloatingBuffersUsage() throws Exception {
 
 		int numberOfRemoteChannelsGate1 = 2;
 		int numberOfLocalChannelsGate1 = 0;
@@ -185,6 +190,8 @@ public class InputBuffersMetricsTest extends TestLogger {
 		SingleInputGate inputGate1 = tuple1.f0;
 		closeableRegistry.registerCloseable(inputGate1::close);
 		closeableRegistry.registerCloseable(inputGate2::close);
+		inputGate1.setup();
+		inputGate2.setup();
 
 		RemoteInputChannel remoteInputChannel1 = tuple1.f1.get(0);
 
@@ -250,7 +257,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 	private Tuple2<SingleInputGate, List<RemoteInputChannel>> buildInputGate(
 		NettyShuffleEnvironment network,
 		int numberOfRemoteChannels,
-		int numberOfLocalChannels) throws IOException {
+		int numberOfLocalChannels) throws Exception {
 
 		SingleInputGate inputGate = new SingleInputGateBuilder()
 			.setNumberOfChannels(numberOfRemoteChannels + numberOfLocalChannels)
@@ -262,22 +269,31 @@ public class InputBuffersMetricsTest extends TestLogger {
 
 		int channelIdx = 0;
 		for (int i = 0; i < numberOfRemoteChannels; i++) {
-			res.f1.add(buildRemoteChannel(channelIdx, inputGate, network));
+			ResultPartition partition = PartitionTestUtils.createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 1);
+			closeableRegistry.registerCloseable(partition::close);
+			partition.setup();
+
+			res.f1.add(buildRemoteChannel(channelIdx, inputGate, network, partition));
 			channelIdx++;
 		}
 
 		for (int i = 0; i < numberOfLocalChannels; i++) {
-			buildLocalChannel(channelIdx, inputGate, network);
+			ResultPartition partition = PartitionTestUtils.createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 1);
+			closeableRegistry.registerCloseable(partition::close);
+			partition.setup();
+
+			buildLocalChannel(channelIdx, inputGate, network, partition);
 		}
-		inputGate.setup();
 		return res;
 	}
 
 	private RemoteInputChannel buildRemoteChannel(
 		int channelIndex,
 		SingleInputGate inputGate,
-		NettyShuffleEnvironment network) {
+		NettyShuffleEnvironment network,
+		ResultPartition partition) {
 		return new InputChannelBuilder()
+			.setPartitionId(partition.getPartitionId())
 			.setChannelIndex(channelIndex)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())
@@ -287,8 +303,10 @@ public class InputBuffersMetricsTest extends TestLogger {
 	private void buildLocalChannel(
 		int channelIndex,
 		SingleInputGate inputGate,
-		NettyShuffleEnvironment network) {
+		NettyShuffleEnvironment network,
+		ResultPartition partition) {
 		new InputChannelBuilder()
+			.setPartitionId(partition.getPartitionId())
 			.setChannelIndex(channelIndex)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())

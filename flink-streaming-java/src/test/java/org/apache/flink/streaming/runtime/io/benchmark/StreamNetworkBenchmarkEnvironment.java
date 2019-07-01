@@ -50,7 +50,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -231,7 +230,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		return consumableNotifyingPartitionWriter;
 	}
 
-	private InputGate createInputGate(TaskManagerLocation senderLocation) throws IOException {
+	private InputGate createInputGate(TaskManagerLocation senderLocation) throws Exception {
 		InputGate[] gates = new InputGate[channels];
 		for (int channel = 0; channel < channels; ++channel) {
 			final InputGateDeploymentDescriptor gateDescriptor = createInputGateDeploymentDescriptor(

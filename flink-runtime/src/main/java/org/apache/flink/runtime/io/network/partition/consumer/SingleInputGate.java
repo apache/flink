@@ -202,7 +202,7 @@ public class SingleInputGate extends InputGate {
 	}
 
 	@Override
-	public void setup() throws IOException {
+	public void setup() throws IOException, InterruptedException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		if (isCreditBased) {
 			// assign exclusive buffers to input channels directly and use the rest for floating buffers
@@ -211,6 +211,8 @@ public class SingleInputGate extends InputGate {
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
+
+		requestPartitions();
 	}
 
 	// ------------------------------------------------------------------------
@@ -481,7 +483,6 @@ public class SingleInputGate extends InputGate {
 			throw new IllegalStateException("Released");
 		}
 
-		requestPartitions();
 		Optional<InputWithData<InputChannel, BufferAndAvailability>> next = waitAndGetNextData(blocking);
 		if (!next.isPresent()) {
 			return Optional.empty();
