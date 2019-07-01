@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.lookups;
+package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.resolver.LookupCallResolver;
+import org.apache.flink.table.functions.FunctionDefinition;
 
-import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Provides a way to look up table reference by the name of the table.
+ * Resolves {@link org.apache.flink.table.expressions.LookupCallExpression} to
+ * a corresponding {@link FunctionDefinition}.
  */
 @Internal
-public interface TableReferenceLookup {
-
-	/**
-	 * Tries to resolve given name to {@link TableReferenceExpression}.
-	 *
-	 * @param name name of table to look for
-	 * @return resolved field reference or empty if could not find table with given name.
-	 */
-	Optional<TableReferenceExpression> lookupTable(String name);
+final class LookupCallByNameRule implements ResolverRule {
+	@Override
+	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+		LookupCallResolver lookupCallResolver = new LookupCallResolver(context.functionLookup());
+		return expression.stream().map(expr -> expr.accept(lookupCallResolver)).collect(Collectors.toList());
+	}
 }

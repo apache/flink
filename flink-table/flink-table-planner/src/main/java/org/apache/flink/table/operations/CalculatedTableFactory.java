@@ -26,7 +26,7 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.ResolvedExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -36,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.TABLE;
 

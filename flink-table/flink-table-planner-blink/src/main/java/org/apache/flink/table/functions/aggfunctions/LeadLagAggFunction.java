@@ -26,10 +26,10 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.typeLiteral;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * LEAD and LAG aggregate functions return the value of given expression evaluated at given offset.

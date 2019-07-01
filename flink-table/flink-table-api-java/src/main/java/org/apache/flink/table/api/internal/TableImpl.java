@@ -36,7 +36,7 @@ import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
-import org.apache.flink.table.expressions.LookupCallResolver;
+import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;

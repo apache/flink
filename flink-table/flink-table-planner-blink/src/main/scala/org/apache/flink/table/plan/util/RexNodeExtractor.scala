@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
-import org.apache.flink.table.expressions.ApiExpressionUtils._
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter

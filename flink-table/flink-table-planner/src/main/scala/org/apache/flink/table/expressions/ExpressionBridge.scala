@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.table.catalog.FunctionLookup
+import org.apache.flink.table.expressions.resolver.LookupCallResolver
 
 /**
   * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.

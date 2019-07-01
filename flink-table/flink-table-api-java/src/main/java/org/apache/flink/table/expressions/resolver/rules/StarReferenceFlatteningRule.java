@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.rules;
+package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.Expression;

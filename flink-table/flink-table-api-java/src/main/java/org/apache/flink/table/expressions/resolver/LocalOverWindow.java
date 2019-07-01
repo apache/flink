@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.resolver;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.Expression;
 
 import javax.annotation.Nullable;
 
@@ -28,7 +28,6 @@ import java.util.Optional;
 /**
  * Local over window created during expression resolution.
  */
-@Internal
 public final class LocalOverWindow {
 
 	private Expression alias;

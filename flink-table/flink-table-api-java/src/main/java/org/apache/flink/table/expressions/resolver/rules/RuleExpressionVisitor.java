@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.rules;
+package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.rules.ResolverRule.ResolutionContext;
+import org.apache.flink.table.expressions.resolver.rules.ResolverRule.ResolutionContext;
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 
 /**
  * Utility class for {@link ResolverRule} specific visitor that unifies access to

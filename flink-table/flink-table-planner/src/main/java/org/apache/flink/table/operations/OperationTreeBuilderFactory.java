@@ -23,7 +23,7 @@ import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.PlannerExpressionConverter$;
-import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 
 /**
  * Temporary solution for looking up the {@link OperationTreeBuilder}. The tree builder

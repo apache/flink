@@ -21,9 +21,9 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.ResolvedExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 
 import java.util.List;
 import java.util.stream.Collectors;

@@ -25,7 +25,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.greaterThan;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
@@ -35,6 +34,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.expressions.ExpressionBuilder.or;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
 import static org.apache.flink.table.expressions.ExpressionBuilder.throwException;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * Base class for built-in single value aggregate function.

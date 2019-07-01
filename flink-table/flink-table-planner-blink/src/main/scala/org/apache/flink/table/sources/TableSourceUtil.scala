@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, typeLiteral}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, typeLiteral}
 import org.apache.flink.table.expressions.{PlannerResolvedFieldReference, ResolvedFieldReference, RexNodeConverter}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter

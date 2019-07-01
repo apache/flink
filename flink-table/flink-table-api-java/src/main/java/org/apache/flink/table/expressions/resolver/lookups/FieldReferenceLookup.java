@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.lookups;
+package org.apache.flink.table.expressions.resolver.lookups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;

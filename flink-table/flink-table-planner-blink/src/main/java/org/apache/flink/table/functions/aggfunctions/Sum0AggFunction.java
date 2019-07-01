@@ -27,12 +27,12 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * built-in sum0 aggregate function.

@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * API for aggregation functions that are expressed in terms of expressions.
