@@ -26,11 +26,11 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * built-in sum aggregate function.

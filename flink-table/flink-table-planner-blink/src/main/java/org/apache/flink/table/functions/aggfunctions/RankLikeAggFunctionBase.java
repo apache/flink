@@ -32,11 +32,11 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Optional;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * built-in rank like aggregate function, e.g. rank, dense_rank

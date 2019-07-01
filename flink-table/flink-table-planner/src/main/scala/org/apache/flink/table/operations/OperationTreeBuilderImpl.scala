@@ -22,10 +22,12 @@ import java.util.{Collections, Optional, List => JList}
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.FunctionLookup
-import org.apache.flink.table.expressions.ApiExpressionUtils.{isFunctionOfKind, unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.expressions.ExpressionResolver.resolverFor
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{isFunctionOfKind, unresolvedCall, unresolvedRef, valueLiteral}
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.resolverFor
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.lookups.TableReferenceLookup
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
+import org.apache.flink.table.expressions.resolver.{ExpressionResolver, LookupCallResolver}
+import org.apache.flink.table.expressions.utils.{ApiExpressionDefaultVisitor, ApiExpressionUtils}
 import org.apache.flink.table.functions.FunctionKind.{SCALAR, TABLE}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{AggregateFunctionDefinition, BuiltInFunctionDefinitions, TableFunctionDefinition}

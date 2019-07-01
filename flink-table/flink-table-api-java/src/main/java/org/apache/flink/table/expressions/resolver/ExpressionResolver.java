@@ -16,17 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.resolver;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
-import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
-import org.apache.flink.table.expressions.rules.ResolverRule;
-import org.apache.flink.table.expressions.rules.ResolverRules;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup;
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
+import org.apache.flink.table.expressions.resolver.rules.ResolverRule;
+import org.apache.flink.table.expressions.resolver.rules.ResolverRules;
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.QueryOperation;
@@ -42,8 +49,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.typeLiteral;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral;
 
 /**
  * Tries to resolve all unresolved expressions such as {@link UnresolvedReferenceExpression}

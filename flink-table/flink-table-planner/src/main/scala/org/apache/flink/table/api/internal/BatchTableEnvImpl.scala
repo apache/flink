@@ -30,7 +30,8 @@ import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{ApiExpressionDefaultVisitor, Expression, UnresolvedCallExpression}
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
+import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.BatchOptimizer

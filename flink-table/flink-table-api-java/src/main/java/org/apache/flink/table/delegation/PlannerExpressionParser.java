@@ -16,17 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionParser;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
 
 /**
- * Parser for expressions inside a String. This parses exactly the same expressions that
- * would be accepted by the Scala Expression DSL.
+ * Temporary utility for parsing expressions inside a String. This parses exactly the same expressions
+ * that would be accepted by the Scala Expression DSL.
  *
  * <p>{@link PlannerExpressionParser} is used by {@link ExpressionParser} to parse expressions.
  */

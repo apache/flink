@@ -22,7 +22,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.catalog.FunctionCatalog
-import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
 import org.apache.flink.table.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}

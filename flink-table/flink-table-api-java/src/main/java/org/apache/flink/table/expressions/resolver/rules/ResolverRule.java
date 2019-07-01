@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions.rules;
+package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionResolver;
-import org.apache.flink.table.expressions.LocalOverWindow;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
-import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
-import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.resolver.LocalOverWindow;
+import org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup;
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.List;

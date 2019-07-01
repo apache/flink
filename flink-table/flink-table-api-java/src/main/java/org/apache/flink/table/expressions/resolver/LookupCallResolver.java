@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.resolver;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LookupCallExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 
 import java.util.List;
 import java.util.stream.Collectors;

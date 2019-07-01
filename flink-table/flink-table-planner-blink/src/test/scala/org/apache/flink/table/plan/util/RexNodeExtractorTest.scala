@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.catalog.FunctionCatalog
-import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.functions.AggregateFunctionDefinition

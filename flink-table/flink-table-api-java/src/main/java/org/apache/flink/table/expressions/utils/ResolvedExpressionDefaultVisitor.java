@@ -16,9 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.expressions;
+package org.apache.flink.table.expressions.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.ResolvedExpressionVisitor;
+import org.apache.flink.table.expressions.TableReferenceExpression;
+import org.apache.flink.table.expressions.TypeLiteralExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 
 /**
  * A utility {@link ResolvedExpressionVisitor} that calls {@link #defaultMethod(ResolvedExpression)}
