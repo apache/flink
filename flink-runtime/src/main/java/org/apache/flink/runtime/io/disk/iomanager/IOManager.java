@@ -19,24 +19,20 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.Enumerator;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.stream.Collectors;
 
 /**
  * The facade for the provided I/O manager services.
@@ -44,14 +40,9 @@ import java.util.stream.Collectors;
 public abstract class IOManager implements AutoCloseable {
 	protected static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 
-	/** The temporary directories for files. */
-	private final File[] paths;
+	private static final String DIR_NAME_PREFIX = "io";
 
-	/** A random number generator for the anonymous ChannelIDs. */
-	private final Random random;
-
-	/** The number of the next path to use. */
-	private volatile int nextPath;
+	private final FileChannelManager fileChannelManager;
 
 	// -------------------------------------------------------------------------
 	//               Constructors / Destructors
@@ -63,26 +54,7 @@ public abstract class IOManager implements AutoCloseable {
 	 * @param tempDirs The basic directories for files underlying anonymous channels.
 	 */
 	protected IOManager(String[] tempDirs) {
-		if (tempDirs == null || tempDirs.length == 0) {
-			throw new IllegalArgumentException("The temporary directories must not be null or empty.");
-		}
-
-		this.random = new Random();
-		this.nextPath = 0;
-
-		this.paths = new File[tempDirs.length];
-		for (int i = 0; i < tempDirs.length; i++) {
-			File baseDir = new File(tempDirs[i]);
-			String subfolder = String.format("flink-io-%s", UUID.randomUUID().toString());
-			File storageDir = new File(baseDir, subfolder);
-
-			if (!storageDir.exists() && !storageDir.mkdirs()) {
-				throw new RuntimeException(
-						"Could not create storage directory for IOManager: " + storageDir.getAbsolutePath());
-			}
-			paths[i] = storageDir;
-			LOG.info("I/O manager uses directory {} for spill files.", storageDir.getAbsolutePath());
-		}
+		this.fileChannelManager = new FileChannelManagerImpl(Preconditions.checkNotNull(tempDirs), DIR_NAME_PREFIX);
 	}
 
 	/**
@@ -90,22 +62,7 @@ public abstract class IOManager implements AutoCloseable {
 	 */
 	@Override
 	public void close() throws Exception {
-		IOUtils.closeAll(Arrays.stream(paths)
-			.filter(File::exists)
-			.map(IOManager::getFileCloser)
-			.collect(Collectors.toList()));
-	}
-
-	private static AutoCloseable getFileCloser(File path) {
-		return () -> {
-			try {
-				FileUtils.deleteDirectory(path);
-				LOG.info("I/O manager removed spill file directory {}", path.getAbsolutePath());
-			} catch (IOException e) {
-				String errorMessage = String.format("IOManager failed to properly clean up temp file directory: %s", path);
-				throw new IOException(errorMessage, e);
-			}
-		};
+		fileChannelManager.close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -119,8 +76,7 @@ public abstract class IOManager implements AutoCloseable {
 	 * @return A channel to a temporary directory.
 	 */
 	public ID createChannel() {
-		final int num = getNextPathNum();
-		return new ID(this.paths[num], num, this.random);
+		return fileChannelManager.createChannel();
 	}
 
 	/**
@@ -130,7 +86,7 @@ public abstract class IOManager implements AutoCloseable {
 	 * @return An enumerator for channels.
 	 */
 	public Enumerator createChannelEnumerator() {
-		return new Enumerator(this.paths, this.random);
+		return fileChannelManager.createChannelEnumerator();
 	}
 
 	/**
@@ -145,6 +101,29 @@ public abstract class IOManager implements AutoCloseable {
 				LOG.warn("IOManager failed to delete temporary file {}", channel.getPath());
 			}
 		}
+	}
+
+	/**
+	 * Gets the directories that the I/O manager spills to.
+	 *
+	 * @return The directories that the I/O manager spills to.
+	 */
+	public File[] getSpillingDirectories() {
+		return fileChannelManager.getPaths();
+	}
+
+	/**
+	 * Gets the directories that the I/O manager spills to, as path strings.
+	 *
+	 * @return The directories that the I/O manager spills to, as path strings.
+	 */
+	public String[] getSpillingDirectoriesPaths() {
+		File[] paths = fileChannelManager.getPaths();
+		String[] strings = new String[paths.length];
+		for (int i = 0; i < strings.length; i++) {
+			strings[i] = paths[i].getAbsolutePath();
+		}
+		return strings;
 	}
 
 	// ------------------------------------------------------------------------
@@ -245,38 +224,4 @@ public abstract class IOManager implements AutoCloseable {
 		ID channelID,
 		List<MemorySegment> targetSegments,
 		int numBlocks) throws IOException;
-
-
-	// ------------------------------------------------------------------------
-	//                          Utilities
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Gets the directories that the I/O manager spills to.
-	 *
-	 * @return The directories that the I/O manager spills to.
-	 */
-	public File[] getSpillingDirectories() {
-		return this.paths;
-	}
-
-	/**
-	 * Gets the directories that the I/O manager spills to, as path strings.
-	 *
-	 * @return The directories that the I/O manager spills to, as path strings.
-	 */
-	public String[] getSpillingDirectoriesPaths() {
-		String[] strings = new String[this.paths.length];
-		for (int i = 0; i < strings.length; i++) {
-			strings[i] = paths[i].getAbsolutePath();
-		}
-		return strings;
-	}
-
-	private int getNextPathNum() {
-		final int next = this.nextPath;
-		final int newNext = next + 1;
-		this.nextPath = newNext >= this.paths.length ? 0 : newNext;
-		return next;
-	}
 }
