@@ -252,10 +252,7 @@ object StreamTableEnvironment {
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
     create(
       executionEnvironment,
-      EnvironmentSettings.newInstance()
-        .useAnyPlanner()
-        .inStreamMode()
-        .build())
+      EnvironmentSettings.newInstance().build())
   }
 
   /**
@@ -287,10 +284,7 @@ object StreamTableEnvironment {
     StreamTableEnvironmentImpl
       .create(
         executionEnvironment,
-        EnvironmentSettings.newInstance()
-          .useAnyPlanner()
-          .inStreamMode()
-          .build(),
+        EnvironmentSettings.newInstance().build(),
         tableConfig)
   }
 }

@@ -36,7 +36,7 @@ import java.util.Map;
  * <pre>{@code
  *    EnvironmentSettings.newInstance()
  *      .useOldPlanner()
- *      .inStreamMode()
+ *      .inStreamingMode()
  *      .withBuiltInCatalogName("default_catalog")
  *      .withBuiltInDatabaseName("default_database")
  *      .build()
@@ -146,7 +146,7 @@ public class EnvironmentSettings {
 		private boolean isBatchMode = false;
 
 		/**
-		 * Sets the old Flink planner as the required module.
+		 * Sets the old Flink planner as the required module. Default {@link #useAnyPlanner()} enabled.
 		 */
 		public Builder useOldPlanner() {
 			this.plannerClass = "org.apache.flink.table.planner.StreamPlannerFactory";
@@ -155,7 +155,7 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets the blink planner as the required module.
+		 * Sets the blink planner as the required module. Default {@link #useAnyPlanner()} enabled.
 		 */
 		public Builder useBlinkPlanner() {
 			throw new UnsupportedOperationException("Blink planner is not supported yet.");
@@ -163,7 +163,7 @@ public class EnvironmentSettings {
 
 		/**
 		 * Does not set a planner explicitly. There will be a lookup performed. It will use the found
-		 * planner, if it is the only planner available.
+		 * planner, if it is the only planner available. Enabled by default.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;
@@ -172,7 +172,7 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets that the components should work in a batch mode.
+		 * Sets that the components should work in a batch mode. Default: streaming mode.
 		 */
 		public Builder inBatchMode() {
 			this.isBatchMode = true;
@@ -180,16 +180,16 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets that the components should work in a stream mode.
+		 * Sets that the components should work in a stream mode. Enabled by default.
 		 */
-		public Builder inStreamMode() {
+		public Builder inStreamingMode() {
 			this.isBatchMode = false;
 			return this;
 		}
 
 		/**
 		 * Specifies the name of the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}.
+		 * a {@link TableEnvironment}. Default: "default_catalog".
 		 */
 		public Builder withBuiltInCatalogName(String builtInCatalogName) {
 			this.builtInCatalogName = builtInCatalogName;
@@ -198,7 +198,7 @@ public class EnvironmentSettings {
 
 		/**
 		 * Specifies the name of the default database in the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}.
+		 * a {@link TableEnvironment}. Default: "default_database".
 		 */
 		public Builder withBuiltInDatabaseName(String builtInDatabaseName) {
 			this.builtInDatabaseName = builtInDatabaseName;
