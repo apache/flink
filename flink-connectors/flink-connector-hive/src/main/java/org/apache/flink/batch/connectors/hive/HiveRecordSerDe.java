@@ -19,6 +19,7 @@
 package org.apache.flink.batch.connectors.hive;
 
 import org.apache.flink.types.Row;
+
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.serde2.SerDeException;
