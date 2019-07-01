@@ -18,21 +18,26 @@
 
 package org.apache.flink.table.api.validation
 
-import java.util
-import java.util.Collections
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JExecEnv}
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{TableException, TableSchema, Types, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
-import org.apache.flink.table.utils.{TableTestBase, TestInputFormatTableSource, TestTableSourceWithTime}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.utils.{TableTestBase, TestTableSourceWithTime}
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.time.LocalDateTime
+import java.util
+import java.util.Collections
 
 class TableSourceValidationTest extends TableTestBase{
 
@@ -268,6 +273,36 @@ class TableSourceValidationTest extends TableTestBase{
 
     // should fail because configured rowtime field is not of type Long or Timestamp
     tEnv.registerTableSource("testTable", ts)
+  }
+
+  @Test
+  def testLocalDateTimeInTableField(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("Unsupported conversion from data type 'TIMESTAMP(3)'" +
+      " (conversion class: java.time.LocalDateTime) to type information")
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    tEnv.registerTableSource("table", new StreamTableSource[Row] {
+
+      override def getDataStream(execEnv: JExecEnv): DataStream[Row] = env.getJavaEnv
+        .fromElements(Row.of(LocalDateTime.of(1, 1, 1, 1, 1)))
+
+      override def getTableSchema: TableSchema = TableSchema.builder()
+        .field("f0", DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime]))
+        .build()
+
+      override def getProducedDataType: DataType = DataTypes
+        .ROW(DataTypes
+          .FIELD(
+            "f0",
+            DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime])))
+    })
+
+    val table = tEnv.scan("table").select("f0")
+
+    tEnv.explain(table)
+    // expression thrown, legacy planner does not support LocalDateTime
   }
 
   // CsvTableSource Tests

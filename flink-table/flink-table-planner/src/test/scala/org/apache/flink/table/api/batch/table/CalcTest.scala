@@ -28,6 +28,7 @@ import org.apache.flink.table.utils.TableTestUtil._
 
 import org.junit.Test
 
+import java.sql.Timestamp
 import java.time.LocalDateTime
 
 class CalcTest extends TableTestBase {
@@ -124,7 +125,8 @@ class CalcTest extends TableTestBase {
   def testSelectLiterals(): Unit = {
     val util = batchTestUtil()
     val sourceTable = util.addTable[Int]("MyTable", 'a)
-    val resultTable = sourceTable.select("ABC", BigDecimal(1234), LocalDateTime.of(1, 1, 1, 1, 1))
+    val resultTable = sourceTable
+      .select("ABC", BigDecimal(1234), Timestamp.valueOf(LocalDateTime.of(1, 1, 1, 1, 1)))
       .select('*)
 
     val expected = unaryNode(
@@ -141,7 +143,7 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTable[Int]("MyTable", 'a)
     val resultTable = sourceTable
-      .select("ABC", BigDecimal(1234), LocalDateTime.of(1, 1, 1, 1, 1))
+      .select("ABC", BigDecimal(1234), Timestamp.valueOf(LocalDateTime.of(1, 1, 1, 1, 1)))
       .groupBy('_c0)
       .select('*)
 

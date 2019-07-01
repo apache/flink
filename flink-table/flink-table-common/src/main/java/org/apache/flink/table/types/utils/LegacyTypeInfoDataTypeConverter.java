@@ -48,6 +48,7 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -200,7 +201,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return Types.STRING;
 		}
 
-		else if (canConvertToTimestampLenient(logicalType)) {
+		else if (canConvertToTimestampTypeInfoLenient(dataType)) {
 			return Types.SQL_TIMESTAMP;
 		}
 
@@ -238,8 +239,11 @@ public final class LegacyTypeInfoDataTypeConverter {
 				dataType.getConversionClass().getName()));
 	}
 
-	private static boolean canConvertToTimestampLenient(LogicalType logicalType) {
-		return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) && LogicalTypeChecks.getPrecision(logicalType) <= 3;
+	private static boolean canConvertToTimestampTypeInfoLenient(DataType dataType) {
+		LogicalType logicalType = dataType.getLogicalType();
+		return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() != LocalDateTime.class &&
+			LogicalTypeChecks.getPrecision(logicalType) <= 3;
 	}
 
 	private static DataType createLegacyType(LogicalTypeRoot typeRoot, TypeInformation<?> typeInfo) {

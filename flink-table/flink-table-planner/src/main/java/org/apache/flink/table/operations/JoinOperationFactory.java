@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
@@ -94,7 +95,8 @@ public class JoinOperationFactory {
 
 	private void verifyConditionType(ResolvedExpression condition) {
 		DataType conditionType = condition.getOutputDataType();
-		if (!LogicalTypeChecks.hasRoot(conditionType.getLogicalType(), LogicalTypeRoot.BOOLEAN)) {
+		LogicalType logicalType = conditionType.getLogicalType();
+		if (!LogicalTypeChecks.hasRoot(logicalType, LogicalTypeRoot.BOOLEAN)) {
 			throw new ValidationException(String.format("Filter operator requires a boolean expression as input, " +
 				"but %s is of type %s", condition, conditionType));
 		}

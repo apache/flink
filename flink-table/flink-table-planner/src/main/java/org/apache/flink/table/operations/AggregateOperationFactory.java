@@ -503,10 +503,6 @@ public final class AggregateOperationFactory {
 			} else if (logicalType.getTypeRoot() == LogicalTypeRoot.ANY) {
 				// we don't know anything about the ANY type, we don't know if it is comparable and hashable.
 				return false;
-			} else if (logicalType instanceof StructuredType) {
-				StructuredType.StructuredComparision comparision = ((StructuredType) logicalType).getComparision();
-				return comparision == StructuredType.StructuredComparision.FULL ||
-					comparision == StructuredType.StructuredComparision.EQUALS;
 			}
 
 			return true;
@@ -519,6 +515,12 @@ public final class AggregateOperationFactory {
 
 		@Override
 		public Boolean visit(FieldsDataType fieldsDataType) {
+			LogicalType logicalType = fieldsDataType.getLogicalType();
+			if (logicalType instanceof StructuredType) {
+				StructuredType.StructuredComparision comparision = ((StructuredType) logicalType).getComparision();
+				return comparision == StructuredType.StructuredComparision.FULL ||
+					comparision == StructuredType.StructuredComparision.EQUALS;
+			}
 			return fieldsDataType.getFieldDataTypes().values().stream().allMatch(t -> t.accept(this));
 		}
 
