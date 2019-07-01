@@ -49,7 +49,15 @@ import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
+import org.apache.flink.table.types.AtomicDataType;
+import org.apache.flink.table.types.CollectionDataType;
+import org.apache.flink.table.types.DataTypeVisitor;
+import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
@@ -82,14 +90,14 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTim
  * Utility class for creating a valid {@link AggregateQueryOperation} or {@link WindowAggregateQueryOperation}.
  */
 @Internal
-public class AggregateOperationFactory {
+public final class AggregateOperationFactory {
 
 	private final boolean isStreaming;
 	private final ExpressionBridge<PlannerExpression> expressionBridge;
-	private final GroupingExpressionValidator groupingExpressionValidator = new GroupingExpressionValidator();
 	private final NoNestedAggregates noNestedAggregates = new NoNestedAggregates();
 	private final ValidateDistinct validateDistinct = new ValidateDistinct();
-	private AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator();
+	private final AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator();
+	private final IsKeyTypeChecker isKeyTypeChecker = new IsKeyTypeChecker();
 
 	public AggregateOperationFactory(ExpressionBridge<PlannerExpression> expressionBridge, boolean isStreaming) {
 		this.expressionBridge = expressionBridge;
@@ -413,7 +421,7 @@ public class AggregateOperationFactory {
 	}
 
 	private void validateGroupings(List<ResolvedExpression> groupings) {
-		groupings.forEach(expr -> expr.accept(groupingExpressionValidator));
+		groupings.forEach(expr -> expr.getOutputDataType().accept(isKeyTypeChecker));
 	}
 
 	private void validateAggregates(List<ResolvedExpression> aggregates) {
@@ -501,16 +509,38 @@ public class AggregateOperationFactory {
 		}
 	}
 
-	private class GroupingExpressionValidator extends ResolvedExpressionDefaultVisitor<Void> {
-		@Override
-		protected Void defaultMethod(ResolvedExpression expression) {
-			TypeInformation<?> groupingType = expressionBridge.bridge(expression).resultType();
+	private static class IsKeyTypeChecker implements DataTypeVisitor<Boolean> {
 
-			if (!groupingType.isKeyType()) {
-				throw new ValidationException(format("Expression %s cannot be used as a grouping expression " +
-					"because it's not a valid key type which must be hashable and comparable", expression));
+		@Override
+		public Boolean visit(AtomicDataType atomicDataType) {
+			LogicalType logicalType = atomicDataType.getLogicalType();
+			if (logicalType instanceof LegacyTypeInformationType) {
+				return ((LegacyTypeInformationType) logicalType).getTypeInformation().isKeyType();
+			} else if (logicalType.getTypeRoot() == LogicalTypeRoot.ANY) {
+				// we don't know anything about the ANY type, we don't know if it is comparable and hashable.
+				return false;
+			} else if (logicalType instanceof StructuredType) {
+				StructuredType.StructuredComparision comparision = ((StructuredType) logicalType).getComparision();
+				return comparision == StructuredType.StructuredComparision.FULL ||
+					comparision == StructuredType.StructuredComparision.EQUALS;
 			}
-			return null;
+
+			return true;
+		}
+
+		@Override
+		public Boolean visit(CollectionDataType collectionDataType) {
+			return collectionDataType.getElementDataType().accept(this);
+		}
+
+		@Override
+		public Boolean visit(FieldsDataType fieldsDataType) {
+			return fieldsDataType.getFieldDataTypes().values().stream().allMatch(t -> t.accept(this));
+		}
+
+		@Override
+		public Boolean visit(KeyValueDataType keyValueDataType) {
+			return keyValueDataType.getKeyDataType().accept(this) && keyValueDataType.getValueDataType().accept(this);
 		}
 	}
 
