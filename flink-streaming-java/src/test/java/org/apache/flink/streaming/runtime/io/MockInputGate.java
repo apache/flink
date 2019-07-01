@@ -98,10 +98,6 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
-	public void requestPartitions() {
-	}
-
-	@Override
 	public void sendTaskEvent(TaskEvent event) {
 	}
 

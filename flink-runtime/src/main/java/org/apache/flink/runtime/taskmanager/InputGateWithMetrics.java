@@ -66,11 +66,6 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public void requestPartitions() throws IOException, InterruptedException {
-		inputGate.requestPartitions();
-	}
-
-	@Override
 	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 		return updateMetrics(inputGate.getNext());
 	}

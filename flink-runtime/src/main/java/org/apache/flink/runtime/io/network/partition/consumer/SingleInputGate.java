@@ -215,6 +215,32 @@ public class SingleInputGate extends InputGate {
 		requestPartitions();
 	}
 
+	private void requestPartitions() throws IOException, InterruptedException {
+		synchronized (requestLock) {
+			if (!requestedPartitionsFlag) {
+				if (closeFuture.isDone()) {
+					throw new IllegalStateException("Already released.");
+				}
+
+				// Sanity checks
+				if (numberOfInputChannels != inputChannels.size()) {
+					throw new IllegalStateException(String.format(
+						"Bug in input gate setup logic: mismatch between " +
+						"number of total input channels [%s] and the currently set number of input " +
+						"channels [%s].",
+						inputChannels.size(),
+						numberOfInputChannels));
+				}
+
+				for (InputChannel inputChannel : inputChannels.values()) {
+					inputChannel.requestSubpartition(consumedSubpartitionIndex);
+				}
+			}
+
+			requestedPartitionsFlag = true;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Properties
 	// ------------------------------------------------------------------------
@@ -434,30 +460,6 @@ public class SingleInputGate extends InputGate {
 	@Override
 	public boolean isFinished() {
 		return hasReceivedAllEndOfPartitionEvents;
-	}
-
-	@Override
-	public void requestPartitions() throws IOException, InterruptedException {
-		synchronized (requestLock) {
-			if (!requestedPartitionsFlag) {
-				if (closeFuture.isDone()) {
-					throw new IllegalStateException("Already released.");
-				}
-
-				// Sanity checks
-				if (numberOfInputChannels != inputChannels.size()) {
-					throw new IllegalStateException("Bug in input gate setup logic: mismatch between " +
-							"number of total input channels and the currently set number of input " +
-							"channels.");
-				}
-
-				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestSubpartition(consumedSubpartitionIndex);
-				}
-			}
-
-			requestedPartitionsFlag = true;
-		}
 	}
 
 	// ------------------------------------------------------------------------
