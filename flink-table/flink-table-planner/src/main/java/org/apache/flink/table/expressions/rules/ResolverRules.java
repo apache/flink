@@ -28,9 +28,9 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 public final class ResolverRules {
 
 	/**
-	 * Rule that resolves flatten call. See {@link FlattenCallRule} for details.
+	 * Rule that resolves flatten call. See {@link ResolveFlattenCallRule} for details.
 	 */
-	public static final ResolverRule FLATTEN_CALL = new FlattenCallRule();
+	public static final ResolverRule FLATTEN_CALL = new ResolveFlattenCallRule();
 
 	/**
 	 * Resolves {@link UnresolvedReferenceExpression}. See {@link ReferenceResolverRule} for details.

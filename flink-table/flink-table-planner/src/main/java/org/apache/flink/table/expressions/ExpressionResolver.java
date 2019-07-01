@@ -19,14 +19,9 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
-import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
-import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
@@ -36,14 +31,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.plan.logical.LogicalOverWindow;
-import org.apache.flink.table.plan.logical.LogicalWindow;
-import org.apache.flink.table.plan.logical.SessionGroupWindow;
-import org.apache.flink.table.plan.logical.SlidingGroupWindow;
-import org.apache.flink.table.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,11 +43,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import scala.Some;
-
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Tries to resolve all unresolved expressions such as {@link UnresolvedReferenceExpression}
@@ -97,14 +83,12 @@ public class ExpressionResolver {
 			ResolverRules.EXPAND_COLUMN_FUNCTIONS,
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
-			ResolverRules.FLATTEN_CALL,
 			ResolverRules.QUALIFY_BUILT_IN_FUNCTIONS,
-			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS);
+			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS,
+			ResolverRules.FLATTEN_CALL);
 	}
 
 	private static final VerifyResolutionVisitor VERIFY_RESOLUTION_VISITOR = new VerifyResolutionVisitor();
-
-	private final PlannerExpressionConverter bridgeConverter = PlannerExpressionConverter.INSTANCE();
 
 	private final FieldReferenceLookup fieldLookup;
 
@@ -187,54 +171,6 @@ public class ExpressionResolver {
 	}
 
 	/**
-	 * Converts an API class to a logical window for planning with expressions already resolved.
-	 *
-	 * @param window window to resolve
-	 * @return logical window with expressions resolved
-	 */
-	public LogicalWindow resolveGroupWindow(GroupWindow window) {
-		Expression alias = window.getAlias();
-
-		if (!(alias instanceof UnresolvedReferenceExpression)) {
-			throw new ValidationException("Alias of group window should be an UnresolvedFieldReference");
-		}
-
-		final String windowName = ((UnresolvedReferenceExpression) alias).getName();
-		List<Expression> resolvedTimeFieldExpression =
-			prepareExpressions(Collections.singletonList(window.getTimeField()));
-		if (resolvedTimeFieldExpression.size() != 1) {
-			throw new ValidationException("Group Window only supports a single time field column.");
-		}
-		PlannerExpression timeField = resolvedTimeFieldExpression.get(0).accept(bridgeConverter);
-
-		//TODO replace with LocalReferenceExpression
-		WindowReference resolvedAlias = new WindowReference(windowName, new Some<>(timeField.resultType()));
-
-		if (window instanceof TumbleWithSizeOnTimeWithAlias) {
-			TumbleWithSizeOnTimeWithAlias tw = (TumbleWithSizeOnTimeWithAlias) window;
-			return new TumblingGroupWindow(
-				resolvedAlias,
-				timeField,
-				resolveFieldsInSingleExpression(tw.getSize()).accept(bridgeConverter));
-		} else if (window instanceof SlideWithSizeAndSlideOnTimeWithAlias) {
-			SlideWithSizeAndSlideOnTimeWithAlias sw = (SlideWithSizeAndSlideOnTimeWithAlias) window;
-			return new SlidingGroupWindow(
-				resolvedAlias,
-				timeField,
-				resolveFieldsInSingleExpression(sw.getSize()).accept(bridgeConverter),
-				resolveFieldsInSingleExpression(sw.getSlide()).accept(bridgeConverter));
-		} else if (window instanceof SessionWithGapOnTimeWithAlias) {
-			SessionWithGapOnTimeWithAlias sw = (SessionWithGapOnTimeWithAlias) window;
-			return new SessionGroupWindow(
-				resolvedAlias,
-				timeField,
-				resolveFieldsInSingleExpression(sw.getGap()).accept(bridgeConverter));
-		} else {
-			throw new TableException("Unknown window type");
-		}
-	}
-
-	/**
 	 * Enables the creation of resolved expressions for transformations after the actual resolution.
 	 */
 	public PostResolverFactory postResolverFactory() {
@@ -249,20 +185,6 @@ public class ExpressionResolver {
 					new ExpressionResolverContext())),
 				Function::andThen
 			);
-	}
-
-	private void prepareLocalReferencesFromGroupWindows(@Nullable GroupWindow groupWindow) {
-		if (groupWindow != null) {
-			String windowName = ((UnresolvedReferenceExpression) groupWindow.getAlias()).getName();
-			TypeInformation<?> windowType =
-				prepareExpressions(Collections.singletonList(groupWindow.getTimeField())).get(0)
-					.accept(bridgeConverter)
-					.resultType();
-
-			localReferences.put(
-				windowName,
-				new LocalReferenceExpression(windowName, fromLegacyInfoToDataType(windowType)));
-		}
 	}
 
 	private Map<Expression, LogicalOverWindow> prepareOverWindows(List<OverWindow> overWindows) {
@@ -343,11 +265,6 @@ public class ExpressionResolver {
 		public Optional<LogicalOverWindow> getOverWindow(Expression alias) {
 			return Optional.ofNullable(overWindows.get(alias));
 		}
-
-		@Override
-		public PlannerExpression bridge(Expression expression) {
-			return expression.accept(bridgeConverter);
-		}
 	}
 
 	private LogicalOverWindow resolveOverWindow(OverWindow overWindow) {
@@ -400,6 +317,17 @@ public class ExpressionResolver {
 				lookupOfDefinition.getFunctionDefinition(),
 				Collections.singletonList(expression),
 				expression.getOutputDataType()); // the output type is equal to the input type
+		}
+
+		public CallExpression get(ResolvedExpression composite, ValueLiteralExpression key, DataType dataType) {
+			final FunctionLookup.Result lookupOfGet = functionLookup
+				.lookupBuiltInFunction(BuiltInFunctionDefinitions.GET);
+
+			return new CallExpression(
+				lookupOfGet.getObjectIdentifier(),
+				lookupOfGet.getFunctionDefinition(),
+				Arrays.asList(composite, key),
+				dataType);
 		}
 	}
 
