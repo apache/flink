@@ -201,21 +201,18 @@ __注意:__ 如果你使用其他类而不是 *StreamingJob* 作为应用程序�
 
 ## 下一步
 
-开始编写你的应用！
+开始编写应用！
 
 如果你准备编写流处理应用，正在寻找灵感来写什么，
-可以看看[流处理应用程序教程]({{ site.baseurl }}/zh/tutorials/datastream_api.html#writing-a-flink-program)
-
-如果你准备编写批处理应用，正在寻找灵感来写什么，
-可以看看[批处理应用程序示例]({{ site.baseurl }}/zh/dev/batch/examples.html)
+可以看看[流处理应用程序教程]({{ site.baseurl }}/zh/getting-started/tutorials/datastream_api.html#writing-a-flink-program)
 
 有关 API 的完整概述，请查看
 [DataStream API]({{ site.baseurl }}/zh/dev/datastream_api.html) 和
-[DataSet API]({{ site.baseurl }}/zh/dev/batch/index.html) 部分。
+[DataSet API]({{ site.baseurl }}/zh/dev/batch/index.html) 章节。
 
-在[这里]({{ site.baseurl }}/zh/tutorials/local_setup.html)，你可以找到如何在IDE外的本地集群中运行应用程序。
+在[这里]({{ site.baseurl }}/zh/tutorials/local_setup.html)，你可以找到如何在 IDE 之外的本地集群中运行应用程序。
 
-如果你有任何问题，请发信至我们的[邮箱列表](http://mail-archives.apache.org/mod_mbox/flink-user/)。
-我们很乐意提供帮助。
+如果你有任何问题，请发信至我们的[邮箱列表](http://mail-archives.apache.org/mod_mbox/flink-user/)，我们很乐意提供帮助。
 
 {% top %}
+

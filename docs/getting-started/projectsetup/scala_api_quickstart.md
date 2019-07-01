@@ -23,19 +23,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-* This will be replaced by the TOC
-{:toc}
 
-
-## Build Tools
-
-Flink projects can be built with different build tools.
-In order to get started quickly, Flink provides project templates for the following build tools:
+Flink projects can be built with a number of different build tools.
+In order to get started quickly, the community offer project templates for the following build tools:
 
 - [SBT](#sbt)
 - [Maven](#maven)
 
-These templates help you to set up the project structure and to create the initial build files.
+These templates can help you to set up the project structure and to create initial build files.
+
+* This will be replaced by the TOC
+{:toc}
 
 ## SBT
 
@@ -212,12 +210,9 @@ can run time application from the JAR file without additionally specifying the m
 Write your application!
 
 If you are writing a streaming application and you are looking for inspiration what to write,
-take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/tutorials/datastream_api.html#writing-a-flink-program)
+take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/getting-started/tutorials/datastream_api.html#writing-a-flink-program).
 
-If you are writing a batch processing application and you are looking for inspiration what to write,
-take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html)
-
-For a complete overview over the APIa, have a look at the
+For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
 

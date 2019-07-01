@@ -1,8 +1,8 @@
 ---
-title: "Project Build Setup"
+title: "项目构建设置"
 nav-id: projectsetup
-nav-title: 'Project Build Setup'
-nav-parent_id: dev
+nav-title: '<i class="fa fa-file-code-o title appetizer" aria-hidden="true"></i> 项目构建设置'
+nav-parent_id: getting-started
 nav-pos: 0
 ---
 <!--
