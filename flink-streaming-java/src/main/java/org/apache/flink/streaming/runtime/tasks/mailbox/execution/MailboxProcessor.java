@@ -281,13 +281,6 @@ public class MailboxProcessor {
 	 */
 	private final class SuspendDefaultActionRunnable implements SuspendedMailboxDefaultAction {
 
-		/** Ensuring idempotent behavior, we ensure this is only accessed from the main thread. */
-		private boolean valid;
-
-		SuspendDefaultActionRunnable() {
-			this.valid = true;
-		}
-
 		@Override
 		public void resume() {
 			if (taskMailboxExecutor.isMailboxThread()) {
@@ -304,8 +297,7 @@ public class MailboxProcessor {
 		}
 
 		private void resumeInternal() {
-			if (valid) {
-				valid = false;
+			if (suspendedDefaultAction == this) {
 				suspendedDefaultAction = null;
 			}
 		}
