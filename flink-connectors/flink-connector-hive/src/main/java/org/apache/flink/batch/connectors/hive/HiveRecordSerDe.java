@@ -18,11 +18,16 @@
 
 package org.apache.flink.batch.connectors.hive;
 
+import org.apache.flink.types.Row;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.DateObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveCharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector;
@@ -32,6 +37,9 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectIn
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Class used to serialize to and from raw hdfs file type.
@@ -47,12 +55,65 @@ public class HiveRecordSerDe {
 		Object res;
 		if (fieldObjectInspector.getCategory() == ObjectInspector.Category.PRIMITIVE) {
 			res = convertPrimitiveField(field, (PrimitiveObjectInspector) fieldObjectInspector);
+		} else if (fieldObjectInspector.getCategory() == ObjectInspector.Category.STRUCT) {
+			res = convertStruct(field, (StructObjectInspector) fieldObjectInspector);
+		} else if (fieldObjectInspector.getCategory() == ObjectInspector.Category.LIST) {
+			res = convertList(field, (ListObjectInspector) fieldObjectInspector);
+		} else if (fieldObjectInspector.getCategory() == ObjectInspector.Category.MAP) {
+			res = convertMap(field, (MapObjectInspector) fieldObjectInspector);
 		} else {
 			throw new FlinkHiveException(new SerDeException(
 					String.format("HiveRecordSerDe doesn't support category %s, type %s yet",
 					fieldObjectInspector.getCategory(), fieldObjectInspector.getTypeName())));
 		}
 		return res;
+	}
+
+	private static Object convertStruct(Object field, StructObjectInspector soi) {
+		List<? extends StructField> fields = soi.getAllStructFieldRefs();
+		List<Object> list = soi.getStructFieldsDataAsList(field);
+
+		if (list == null) {
+			return null;
+		}
+		Row row = new Row(list.size());
+		for (int i = 0; i < fields.size(); i++) {
+			// Get the field objectInspector and the field object.
+			ObjectInspector foi = fields.get(i).getFieldObjectInspector();
+			Object f = list.get(i);
+			row.setField(i, obtainFlinkRowField(f, foi));
+		}
+		return row;
+	}
+
+	private static Object convertList(Object field, ListObjectInspector loi) {
+		List fields = loi.getList(field);
+		if (fields == null) {
+			return null;
+		}
+
+		ObjectInspector elementOI = loi.getListElementObjectInspector();
+		Object[] objects = new Object[fields.size()];
+		for (int i = 0; i < fields.size(); i++) {
+			objects[i] = obtainFlinkRowField(fields.get(i), elementOI);
+		}
+		return objects;
+	}
+
+	private static Object convertMap(Object field, MapObjectInspector moi) {
+		ObjectInspector koi = moi.getMapKeyObjectInspector();
+		ObjectInspector voi = moi.getMapValueObjectInspector();
+		Map<Object, Object> m = new HashMap<>();
+
+		Map<?, ?> readMap = moi.getMap(field);
+		if (readMap == null) {
+			return null;
+		} else {
+			for (Map.Entry<?, ?> entry : readMap.entrySet()) {
+				m.put(obtainFlinkRowField(entry.getKey(), koi), obtainFlinkRowField(entry.getValue(), voi));
+			}
+		}
+		return m;
 	}
 
 	/**
