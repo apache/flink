@@ -115,25 +115,12 @@ public class TableFactoryService {
 	}
 
 	/**
-	 * Finds a table factory of the given class and descriptor.
-	 *
-	 * @param factoryClass desired factory class
-	 * @param descriptor descriptor describing the factory configuration
-	 * @param <T> factory class type
-	 * @return the matching factory
-	 */
-	public static <T extends TableFactory> List<T> findAll(Class<T> factoryClass, Descriptor descriptor) {
-		Preconditions.checkNotNull(descriptor);
-		return findAllInternal(factoryClass, descriptor.toProperties(), Optional.empty());
-	}
-
-	/**
-	 * Finds a table factory of the given class and property map.
+	 * Finds all table factories of the given class and property map.
 	 *
 	 * @param factoryClass desired factory class
 	 * @param propertyMap properties that describe the factory configuration
 	 * @param <T> factory class type
-	 * @return the matching factory
+	 * @return all the matching factories
 	 */
 	public static <T extends TableFactory> List<T> findAll(Class<T> factoryClass, Map<String, String> propertyMap) {
 		return findAllInternal(factoryClass, propertyMap, Optional.empty());
@@ -186,14 +173,9 @@ public class TableFactoryService {
 	}
 
 	/**
-	 * Finds a table factory of the given class, property map, and classloader.
-	 *
-	 * @param factoryClass desired factory class
-	 * @param properties properties that describe the factory configuration
-	 * @param <T> factory class type
-	 * @return the matching factory
+	 * Filters found factories by factory class and with matching context.
 	 */
-	public static <T extends TableFactory> List<T> filter(
+	private static <T extends TableFactory> List<T> filter(
 			List<TableFactory> foundFactories,
 			Class<T> factoryClass,
 			Map<String, String> properties) {
