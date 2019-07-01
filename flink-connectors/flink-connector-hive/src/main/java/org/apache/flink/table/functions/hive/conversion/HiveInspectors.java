@@ -39,6 +39,7 @@ import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.io.DateWritable;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
 import org.apache.hadoop.hive.serde2.io.HiveCharWritable;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.HiveVarcharWritable;
 import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritable;
@@ -58,6 +59,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.DateObjectInspect
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.DoubleObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.FloatObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveCharObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveVarcharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBinaryObjectInspector;
@@ -94,6 +96,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -165,7 +168,6 @@ public class HiveInspectors {
 			case TIMESTAMP:
 				return new JavaConstantTimestampObjectInspector((Timestamp) value);
 			case DECIMAL:
-				// TODO: Needs more testing
 				return new JavaConstantHiveDecimalObjectInspector((HiveDecimal) value);
 			case BINARY:
 				return new JavaConstantBinaryObjectInspector((byte[]) value);
@@ -200,9 +202,9 @@ public class HiveInspectors {
 				return o -> new HiveChar((String) o, ((CharType) dataType).getLength());
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
 				return o -> new HiveVarchar((String) o, ((VarCharType) dataType).getLength());
+			} else if (inspector instanceof HiveDecimalObjectInspector) {
+				return o -> HiveDecimal.create((BigDecimal) o);
 			}
-
-			// TODO: handle decimal type
 		}
 
 		if (inspector instanceof ListObjectInspector) {
@@ -299,9 +301,11 @@ public class HiveInspectors {
 				HiveVarcharObjectInspector oi = (HiveVarcharObjectInspector) inspector;
 
 				return oi.getPrimitiveJavaObject(data).getValue();
-			}
+			} else if (inspector instanceof HiveDecimalObjectInspector) {
+				HiveDecimalObjectInspector oi = (HiveDecimalObjectInspector) inspector;
 
-			// TODO: handle decimal type
+				return oi.getPrimitiveJavaObject(data).bigDecimalValue();
+			}
 		}
 
 		if (inspector instanceof ListObjectInspector) {
@@ -392,6 +396,9 @@ public class HiveInspectors {
 		} else if (clazz.equals(HiveVarchar.class) || clazz.equals(HiveVarcharWritable.class)) {
 
 			typeInfo = TypeInfoFactory.varcharTypeInfo;
+		} else if (clazz.equals(HiveDecimal.class) || clazz.equals(HiveDecimalWritable.class)) {
+
+			typeInfo = TypeInfoFactory.decimalTypeInfo;
 		} else {
 			throw new FlinkHiveUDFException(
 				String.format("Class %s is not supported yet", clazz.getName()));
