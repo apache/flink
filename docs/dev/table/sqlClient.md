@@ -431,7 +431,7 @@ This process can be recursively performed until all the constructor parameters a
 Catalogs
 --------
 
-Catalogs can be defined as a set of yaml properties and are automatically registered to the environment upon starting SQL Cli.
+Catalogs can be defined as a set of yaml properties and are automatically registered to the environment upon starting SQL Client.
 
 Users can specify in section `execution` that which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database. 
 
