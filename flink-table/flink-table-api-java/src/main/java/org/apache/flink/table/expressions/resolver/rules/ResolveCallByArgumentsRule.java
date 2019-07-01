@@ -19,6 +19,8 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -38,21 +40,26 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static java.util.Collections.singletonList;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+
 /**
  * This rule checks if a {@link UnresolvedCallExpression} can work with the given arguments and infers
  * the output data type. All function calls are resolved {@link CallExpression} after applying this
- * rule except for the special case of {@link BuiltInFunctionDefinitions#FLATTEN}.
+ * rule.
+ *
+ * <p>This rule also resolves {@code flatten()} calls on composite types.
  *
  * <p>If the call expects different types of arguments, but the given arguments have types that can
  * be casted, a {@link BuiltInFunctionDefinitions#CAST} expression is inserted.
- *
- * @see ResolveFlattenCallRule
  */
 @Internal
 final class ResolveCallByArgumentsRule implements ResolverRule {
@@ -60,39 +67,27 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 	@Override
 	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
 		return expression.stream()
-			.map(expr -> expr.accept(new CallArgumentsCastingVisitor(context)))
+			.flatMap(expr -> expr.accept(new ResolvingCallVisitor(context)).stream())
 			.collect(Collectors.toList());
 	}
 
-	private class CallArgumentsCastingVisitor extends RuleExpressionVisitor<Expression> {
+	// --------------------------------------------------------------------------------------------
 
-		CallArgumentsCastingVisitor(ResolutionContext context) {
+	private class ResolvingCallVisitor extends RuleExpressionVisitor<List<ResolvedExpression>> {
+
+		ResolvingCallVisitor(ResolutionContext context) {
 			super(context);
 		}
 
 		@Override
-		public Expression visit(UnresolvedCallExpression unresolvedCall) {
+		public List<ResolvedExpression> visit(UnresolvedCallExpression unresolvedCall) {
 
 			final List<ResolvedExpression> resolvedArgs = unresolvedCall.getChildren().stream()
-				.map(c -> c.accept(this))
-				.map(e -> {
-					// special case: FLATTEN
-					// a call chain `myFunc().flatten().flatten()` is not allowed
-					if (e instanceof UnresolvedCallExpression &&
-							((UnresolvedCallExpression) e).getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
-						throw new ValidationException("Consecutive flattening calls are not allowed.");
-					}
-					if (e instanceof ResolvedExpression) {
-						return (ResolvedExpression) e;
-					}
-					throw new TableException("Unexpected unresolved expression: " + e);
-				})
+				.flatMap(c -> c.accept(this).stream())
 				.collect(Collectors.toList());
 
-			// FLATTEN is a special case and the only call that remains unresolved after this rule
-			// it will be resolved by ResolveFlattenCallRule
 			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
-				return unresolvedCall.replaceArgs(new ArrayList<>(resolvedArgs));
+				return executeFlatten(resolvedArgs);
 			}
 
 			if (unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
@@ -100,13 +95,48 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					(BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition();
 
 				if (definition.getTypeInference().getOutputTypeStrategy() != TypeStrategies.MISSING) {
-					return runTypeInference(
-						unresolvedCall,
-						definition.getTypeInference(),
-						resolvedArgs);
+					return Collections.singletonList(
+						runTypeInference(
+							unresolvedCall,
+							definition.getTypeInference(),
+							resolvedArgs));
 				}
 			}
-			return runLegacyTypeInference(unresolvedCall, resolvedArgs);
+			return Collections.singletonList(
+				runLegacyTypeInference(unresolvedCall, resolvedArgs));
+		}
+
+		@Override
+		protected List<ResolvedExpression> defaultMethod(Expression expression) {
+			if (expression instanceof ResolvedExpression) {
+				return Collections.singletonList((ResolvedExpression) expression);
+			}
+			throw new TableException("Unexpected unresolved expression: " + expression);
+		}
+
+		private List<ResolvedExpression> executeFlatten(List<ResolvedExpression> args) {
+			if (args.size() != 1) {
+				throw new ValidationException("Invalid number of arguments for flattening.");
+			}
+			final ResolvedExpression composite = args.get(0);
+			final TypeInformation<?> resultType = fromDataTypeToLegacyInfo(composite.getOutputDataType());
+			if (resultType instanceof CompositeType) {
+				return flattenCompositeType(composite, (CompositeType<?>) resultType);
+			} else {
+				return singletonList(composite);
+			}
+		}
+
+		private List<ResolvedExpression> flattenCompositeType(ResolvedExpression composite, CompositeType<?> resultType) {
+			return IntStream.range(0, resultType.getArity())
+				.mapToObj(idx ->
+					resolutionContext.postResolutionFactory()
+						.get(
+							composite,
+							valueLiteral(resultType.getFieldNames()[idx]),
+							fromLegacyInfoToDataType(resultType.getTypeAt(idx)))
+				)
+				.collect(Collectors.toList());
 		}
 
 		private ResolvedExpression runTypeInference(
@@ -162,11 +192,6 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 					return argument;
 				})
 				.collect(Collectors.toList());
-		}
-
-		@Override
-		protected Expression defaultMethod(Expression expression) {
-			return expression;
 		}
 	}
 

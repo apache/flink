@@ -90,8 +90,7 @@ public class ExpressionResolver {
 			ResolverRules.OVER_WINDOWS,
 			ResolverRules.FIELD_RESOLVE,
 			ResolverRules.QUALIFY_BUILT_IN_FUNCTIONS,
-			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS,
-			ResolverRules.FLATTEN_CALL);
+			ResolverRules.RESOLVE_CALL_BY_ARGUMENTS);
 	}
 
 	private static final VerifyResolutionVisitor VERIFY_RESOLUTION_VISITOR = new VerifyResolutionVisitor();
