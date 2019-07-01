@@ -20,9 +20,6 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.expressions.ExpressionBridge;
-import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.expressions.PlannerExpressionConverter$;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 
 /**
@@ -35,12 +32,8 @@ public final class OperationTreeBuilderFactory {
 	public static OperationTreeBuilder create(
 			TableReferenceLookup tableReferenceLookup,
 			FunctionLookup functionLookup) {
-		ExpressionBridge<PlannerExpression> expressionBridge = new ExpressionBridge<>(
-			functionLookup,
-			PlannerExpressionConverter$.MODULE$.INSTANCE());
 		return new OperationTreeBuilderImpl(
 			tableReferenceLookup,
-			expressionBridge,
 			functionLookup,
 			true
 		);

@@ -75,7 +75,6 @@ abstract class TableEnvImpl(
 
   private[flink] val operationTreeBuilder = new OperationTreeBuilderImpl(
     tableLookup,
-    expressionBridge,
     functionCatalog,
     !isBatch)
 

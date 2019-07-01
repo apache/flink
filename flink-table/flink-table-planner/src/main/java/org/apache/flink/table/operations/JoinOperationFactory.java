@@ -19,18 +19,17 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -43,12 +42,7 @@ import static java.util.Arrays.asList;
 @Internal
 public class JoinOperationFactory {
 
-	private final ExpressionBridge<PlannerExpression> expressionBridge;
 	private final EquiJoinExistsChecker equiJoinExistsChecker = new EquiJoinExistsChecker();
-
-	public JoinOperationFactory(ExpressionBridge<PlannerExpression> expressionBridge) {
-		this.expressionBridge = expressionBridge;
-	}
 
 	/**
 	 * Creates a valid {@link JoinQueryOperation} operation.
@@ -99,9 +93,8 @@ public class JoinOperationFactory {
 	}
 
 	private void verifyConditionType(ResolvedExpression condition) {
-		PlannerExpression plannerExpression = expressionBridge.bridge(condition);
-		TypeInformation<?> conditionType = plannerExpression.resultType();
-		if (conditionType != Types.BOOLEAN) {
+		DataType conditionType = condition.getOutputDataType();
+		if (!LogicalTypeChecks.hasRoot(conditionType.getLogicalType(), LogicalTypeRoot.BOOLEAN)) {
 			throw new ValidationException(String.format("Filter operator requires a boolean expression as input, " +
 				"but %s is of type %s", condition, conditionType));
 		}

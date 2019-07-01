@@ -25,7 +25,10 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.time.LocalDateTime
 
 class CalcTest extends TableTestBase {
 
@@ -113,6 +116,45 @@ class CalcTest extends TableTestBase {
       batchTableNode(sourceTable),
       term("select", "a", "b")
     )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testSelectLiterals(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[Int]("MyTable", 'a)
+    val resultTable = sourceTable.select("ABC", BigDecimal(1234), LocalDateTime.of(1, 1, 1, 1, 1))
+      .select('*)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(sourceTable),
+      term("select", "'ABC' AS _c0", "1234 AS _c1", "0001-01-01 01:01:00 AS _c2")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testGroupByLiteral(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[Int]("MyTable", 'a)
+    val resultTable = sourceTable
+      .select("ABC", BigDecimal(1234), LocalDateTime.of(1, 1, 1, 1, 1))
+      .groupBy('_c0)
+      .select('*)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetDistinct",
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(sourceTable),
+          term("select", "'ABC' AS _c0")
+        ), term("distinct", "_c0")),
+      term("select", "'ABC' AS _c0"))
 
     util.verifyTable(resultTable, expected)
   }
