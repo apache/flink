@@ -742,13 +742,13 @@ public abstract class CatalogTest {
 
 		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
 		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1, createPartitionSpecSubset()));
-		checkEquals(createPartition(), catalog.getPartition(path1, createPartitionSpec()));
+		CatalogTestUtil.checkEquals(createPartition(), catalog.getPartition(path1, createPartitionSpec()));
 
 		catalog.createPartition(path1, createAnotherPartitionSpec(), createPartition(), false);
 
 		assertEquals(Arrays.asList(createPartitionSpec(), createAnotherPartitionSpec()), catalog.listPartitions(path1));
 		assertEquals(Arrays.asList(createPartitionSpec(), createAnotherPartitionSpec()), catalog.listPartitions(path1, createPartitionSpecSubset()));
-		checkEquals(createPartition(), catalog.getPartition(path1, createAnotherPartitionSpec()));
+		CatalogTestUtil.checkEquals(createPartition(), catalog.getPartition(path1, createAnotherPartitionSpec()));
 	}
 
 	@Test
@@ -891,16 +891,19 @@ public abstract class CatalogTest {
 
 		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
 		CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
-		checkEquals(createPartition(), cp);
+		CatalogTestUtil.checkEquals(createPartition(), cp);
 		assertNull(cp.getProperties().get("k"));
 
 		CatalogPartition another = createPartition();
 		another.getProperties().put("k", "v");
+
 		catalog.alterPartition(path1, createPartitionSpec(), another, false);
 
 		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+
 		cp = catalog.getPartition(path1, createPartitionSpec());
-		checkEquals(another, cp);
+
+		CatalogTestUtil.checkEquals(another, cp);
 		assertEquals("v", cp.getProperties().get("k"));
 	}
 
@@ -1233,41 +1236,12 @@ public abstract class CatalogTest {
 		}
 	}
 
-	/**
-	 * Test partition used to assert on partition of different class.
-	 */
-	public static class TestPartition implements CatalogPartition {
-		@Override
-		public Map<String, String> getProperties() {
-			return null;
-		}
-
-		@Override
-		public CatalogPartition copy() {
-			return null;
-		}
-
-		@Override
-		public Optional<String> getDescription() {
-			return Optional.empty();
-		}
-
-		@Override
-		public Optional<String> getDetailedDescription() {
-			return Optional.empty();
-		}
-	}
-
 	// ------ equality check utils ------
 	// Can be overriden by sub test class
 
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());
 		assertEquals(f1.getProperties(), f2.getProperties());
-	}
-
-	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
-		assertEquals(expected.getProperties(), actual.getProperties());
 	}
 
 	protected void checkEquals(CatalogColumnStatistics cs1, CatalogColumnStatistics cs2) {

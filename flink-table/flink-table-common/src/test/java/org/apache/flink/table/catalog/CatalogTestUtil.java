@@ -80,6 +80,19 @@ public class CatalogTestUtil {
 		}
 	}
 
+	public static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
+		assertEquals(p1.getClass(), p2.getClass());
+		assertEquals(p1.getComment(), p2.getComment());
+
+		// Hive tables may have properties created by itself
+		// thus properties of Hive table is a super set of those in its corresponding Flink table
+		if (Boolean.valueOf(p1.getProperties().get(CatalogConfig.IS_GENERIC))) {
+			assertEquals(p1.getProperties(), p2.getProperties());
+		} else {
+			assertTrue(p2.getProperties().entrySet().containsAll(p1.getProperties().entrySet()));
+		}
+	}
+
 	public static void checkEquals(TableStats ts1, TableStats ts2) {
 		assertEquals(ts1.getRowCount(), ts2.getRowCount());
 		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());

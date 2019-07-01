@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -88,26 +87,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 		assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
 	}
 
-	// ------ partitions ------
-
-	@Test
-	public void testAlterPartition_differentTypedPartition() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, createPartitionedTable(), false);
-
-		CatalogPartitionSpec partitionSpec = createPartitionSpec();
-		CatalogPartition partition = createPartition();
-		catalog.createPartition(path1, partitionSpec, partition, false);
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage(
-			String.format("Partition types don't match. " +
-				"Existing partition is '%s' and " +
-				"new partition is 'org.apache.flink.table.catalog.CatalogTest$TestPartition'.",
-				partition.getClass().getName()));
-		catalog.alterPartition(path1, partitionSpec, new TestPartition(), false);
-	}
-
 	// ------ statistics ------
 
 	@Test
@@ -154,11 +133,6 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Override
 	protected boolean isGeneric() {
 		return true;
-	}
-
-	@Override
-	public CatalogPartition createPartition() {
-		return new GenericCatalogPartition(getBatchTableProperties(), "Generic batch table");
 	}
 
 	private CatalogColumnStatistics createColumnStats() {
