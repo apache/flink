@@ -59,8 +59,8 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.TaskMailboxExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -489,7 +489,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	public TaskMailboxExecutor getTaskMailboxExecutor() {
+	public MailboxExecutor getTaskMailboxExecutor() {
 		return mailboxProcessor.getTaskMailboxExecutor();
 	}
 

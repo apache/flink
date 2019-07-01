@@ -25,5 +25,5 @@ import java.util.concurrent.ExecutorService;
 /**
  * Interface for an {@link ExecutorService} build around a {@link Mailbox}-based execution model.
  */
-public interface TaskMailboxExecutorService extends TaskMailboxExecutor, ExecutorService {
+public interface MailboxExecutorService extends MailboxExecutor, ExecutorService {
 }

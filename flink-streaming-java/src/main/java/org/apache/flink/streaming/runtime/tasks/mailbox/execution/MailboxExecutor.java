@@ -28,7 +28,7 @@ import java.util.concurrent.RejectedExecutionException;
 /**
  * Interface for an {@link Executor} build around a {@link Mailbox}-based execution model.
  */
-public interface TaskMailboxExecutor extends Executor {
+public interface MailboxExecutor extends Executor {
 
 	/**
 	 * Executes the given command at some time in the future in the mailbox thread. This call can block when the

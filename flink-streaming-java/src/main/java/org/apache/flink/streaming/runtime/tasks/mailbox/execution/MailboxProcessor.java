@@ -61,7 +61,7 @@ public class MailboxProcessor {
 	private final Mailbox mailbox;
 
 	/** Executor-style facade for client code to submit actions to the mailbox. */
-	private final TaskMailboxExecutorService taskMailboxExecutor;
+	private final MailboxExecutorService taskMailboxExecutor;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	private final MailboxDefaultAction mailboxDefaultAction;
@@ -82,7 +82,7 @@ public class MailboxProcessor {
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.mailbox = new MailboxImpl();
-		this.taskMailboxExecutor = new TaskMailboxExecutorServiceImpl(mailbox);
+		this.taskMailboxExecutor = new MailboxExecutorServiceImpl(mailbox);
 		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
@@ -91,7 +91,7 @@ public class MailboxProcessor {
 	/**
 	 * Returns an executor service facade to submit actions to the mailbox.
 	 */
-	public TaskMailboxExecutorService getTaskMailboxExecutor() {
+	public MailboxExecutorService getTaskMailboxExecutor() {
 		return taskMailboxExecutor;
 	}
 

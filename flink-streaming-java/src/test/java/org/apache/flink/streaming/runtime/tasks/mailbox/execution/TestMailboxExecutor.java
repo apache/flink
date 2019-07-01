@@ -23,17 +23,17 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * Dummy implementation of {@link TaskMailboxExecutor} for testing.
+ * Dummy implementation of {@link MailboxExecutor} for testing.
  */
-public class TestTaskMailboxExecutor implements TaskMailboxExecutor {
+public class TestMailboxExecutor implements MailboxExecutor {
 
 	private final Object lock;
 
-	public TestTaskMailboxExecutor(Object lock) {
+	public TestMailboxExecutor(Object lock) {
 		this.lock = lock;
 	}
 
-	public TestTaskMailboxExecutor() {
+	public TestMailboxExecutor() {
 		this(new Object());
 	}
 

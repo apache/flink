@@ -38,11 +38,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Tests for {@link TaskMailboxExecutorServiceImpl}.
+ * Tests for {@link MailboxExecutorServiceImpl}.
  */
-public class TaskMailboxExecutorServiceImplTest {
+public class MailboxExecutorServiceImplTest {
 
-	private TaskMailboxExecutorServiceImpl mailboxExecutorService;
+	private MailboxExecutorServiceImpl mailboxExecutorService;
 	private ExecutorService otherThreadExecutor;
 	private MailboxImpl mailbox;
 
@@ -50,7 +50,7 @@ public class TaskMailboxExecutorServiceImplTest {
 	public void setUp() throws Exception {
 		this.mailbox = new MailboxImpl();
 		this.mailbox.open();
-		this.mailboxExecutorService = new TaskMailboxExecutorServiceImpl(mailbox);
+		this.mailboxExecutorService = new MailboxExecutorServiceImpl(mailbox);
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 	}
 

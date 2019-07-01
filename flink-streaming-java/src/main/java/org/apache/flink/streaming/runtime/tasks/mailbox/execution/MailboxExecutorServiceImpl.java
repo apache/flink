@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Implementation of an executor service build around a mailbox-based execution model.
  */
-public class TaskMailboxExecutorServiceImpl extends AbstractExecutorService implements TaskMailboxExecutorService {
+public class MailboxExecutorServiceImpl extends AbstractExecutorService implements MailboxExecutorService {
 
 	/** Reference to the thread that executes the mailbox letters.  */
 	@Nonnull
@@ -42,11 +42,11 @@ public class TaskMailboxExecutorServiceImpl extends AbstractExecutorService impl
 	@Nonnull
 	private final Mailbox mailbox;
 
-	public TaskMailboxExecutorServiceImpl(@Nonnull Mailbox mailbox) {
+	public MailboxExecutorServiceImpl(@Nonnull Mailbox mailbox) {
 		this(mailbox, Thread.currentThread());
 	}
 
-	public TaskMailboxExecutorServiceImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread) {
+	public MailboxExecutorServiceImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread) {
 		this.mailbox = mailbox;
 		this.taskMailboxThread = taskMailboxThread;
 	}
