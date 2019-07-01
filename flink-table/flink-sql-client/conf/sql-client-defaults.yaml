@@ -124,5 +124,5 @@ deployment:
 catalogs: [] # empty list
 #  - name: myhive
 #    type: hive
-#    hive-site-path: /opt/hive_conf/hive-site.xml
+#    hive-conf-dir: /opt/hive_conf/
 #    default-database: ...

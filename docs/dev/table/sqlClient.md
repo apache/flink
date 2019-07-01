@@ -228,12 +228,12 @@ catalogs:
    - name: catalog_1
      type: hive
      property-version: 1
-     hive-site-path: file://...
+     hive-conf-dir: ...
    - name: catalog_2
      type: hive
      property-version: 1
      default-database: mydb2        # optional: name of default database of this catalog
-     hive-site-path: file://...     # optional: path of the hive-site.xml file. (Default value is created by HiveConf)
+     hive-conf-dir: ...             # optional: path of Hive conf directory. (Default value is created by HiveConf)
      hive-version: 1.2.1            # optional: version of Hive (2.3.4 by default)
 {% endhighlight %}
 
@@ -245,7 +245,7 @@ This configuration:
 - specifies a parallelism of 1 for queries executed in this streaming environment,
 - specifies an event-time characteristic, and
 - runs queries in the `table` result mode.
-- creates two `HiveCatalog` (type: hive) named with their own default databases and specified hive site path. Hive version of the first `HiveCatalog` is `2.3.4` by default and that of the second one is specified as `1.2.1`.
+- creates two `HiveCatalog` (type: hive) named with their own default databases and specified Hive conf directory. Hive version of the first `HiveCatalog` is `2.3.4` by default and that of the second one is specified as `1.2.1`.
 - use `catalog_1` as the current catalog of the environment upon start, and `mydb1` as the current database of the catalog.
 
 Depending on the use case, a configuration can be split into multiple files. Therefore, environment files can be created for general purposes (*defaults environment file* using `--defaults`) as well as on a per-session basis (*session environment file* using `--environment`). Every CLI session is initialized with the default properties followed by the session properties. For example, the defaults environment file could specify all table sources that should be available for querying in every session whereas the session environment file only declares a specific state retention time and parallelism. Both default and session environment files can be passed when starting the CLI application. If no default environment file has been specified, the SQL Client searches for `./conf/sql-client-defaults.yaml` in Flink's configuration directory.
@@ -447,11 +447,11 @@ catalogs:
      property-version: 1
      default-database: mydb2
      hive-version: 1.2.1
-     hive-site-path: <path of hive-site.xml>
+     hive-conf-dir: <path of Hive conf directory>
    - name: catalog_2
      type: hive
      property-version: 1
-     hive-site-path: <path of hive-site.xml>
+     hive-conf-dir: <path of Hive conf directory>
 {% endhighlight %}
 
 Currently Flink supports two types of catalog - `FlinkInMemoryCatalog` and `HiveCatalog`.
