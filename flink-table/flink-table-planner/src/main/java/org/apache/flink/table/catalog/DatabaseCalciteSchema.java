@@ -29,7 +29,6 @@ import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.types.Row;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -104,9 +103,19 @@ class DatabaseCalciteSchema implements Schema {
 	}
 
 	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
+		TableSource<?> tableSource;
 		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource(tablePath, table))
-			.orElse(TableFactoryUtil.findAndCreateTableSource(table));
+		if (tableFactory.isPresent()) {
+			TableFactory tf = tableFactory.get();
+			if (tf instanceof TableSourceFactory) {
+				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
+			} else {
+				throw new TableException(String.format("Cannot query a sink-only table. TableFactory provided by catalog %s must implement TableSourceFactory",
+					catalog.getClass()));
+			}
+		} else {
+			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
+		}
 
 		if (!(tableSource instanceof StreamTableSource)) {
 			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
