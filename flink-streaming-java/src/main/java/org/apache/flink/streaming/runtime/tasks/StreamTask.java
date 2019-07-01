@@ -474,7 +474,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public final void cancel() throws Exception {
-		mailboxProcessor.cancelMailboxExecution();
 		isRunning = false;
 		canceled = true;
 
@@ -485,6 +484,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			cancelTask();
 		}
 		finally {
+			mailboxProcessor.cancelMailboxExecution();
 			cancelables.close();
 		}
 	}

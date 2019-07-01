@@ -291,7 +291,7 @@ public class MailboxProcessor {
 				} catch (InterruptedException ie) {
 					Thread.currentThread().interrupt();
 				} catch (MailboxStateException me) {
-					LOG.debug("Action context could not submit letter to mailbox.", me);
+					LOG.debug("Action context could not submit letter to resume default action.", me);
 				}
 			}
 		}
