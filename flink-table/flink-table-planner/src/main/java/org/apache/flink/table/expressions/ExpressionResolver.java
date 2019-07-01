@@ -30,7 +30,6 @@ import org.apache.flink.table.expressions.rules.ResolverRules;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.plan.logical.LogicalOverWindow;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -100,13 +99,13 @@ public class ExpressionResolver {
 
 	private final Map<String, LocalReferenceExpression> localReferences;
 
-	private final Map<Expression, LogicalOverWindow> overWindows;
+	private final Map<Expression, LocalOverWindow> localOverWindows;
 
 	private ExpressionResolver(
 			TableReferenceLookup tableLookup,
 			FunctionLookup functionLookup,
 			FieldReferenceLookup fieldLookup,
-			List<OverWindow> overWindows,
+			List<OverWindow> localOverWindows,
 			List<LocalReferenceExpression> localReferences) {
 		this.tableLookup = Preconditions.checkNotNull(tableLookup);
 		this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
@@ -116,7 +115,7 @@ public class ExpressionResolver {
 			LocalReferenceExpression::getName,
 			Function.identity()
 		));
-		this.overWindows = prepareOverWindows(overWindows);
+		this.localOverWindows = prepareOverWindows(localOverWindows);
 	}
 
 	/**
@@ -187,11 +186,11 @@ public class ExpressionResolver {
 			);
 	}
 
-	private Map<Expression, LogicalOverWindow> prepareOverWindows(List<OverWindow> overWindows) {
+	private Map<Expression, LocalOverWindow> prepareOverWindows(List<OverWindow> overWindows) {
 		return overWindows.stream()
 			.map(this::resolveOverWindow)
 			.collect(Collectors.toMap(
-				LogicalOverWindow::alias,
+				LocalOverWindow::getAlias,
 				Function.identity()
 			));
 	}
@@ -262,18 +261,18 @@ public class ExpressionResolver {
 		}
 
 		@Override
-		public Optional<LogicalOverWindow> getOverWindow(Expression alias) {
-			return Optional.ofNullable(overWindows.get(alias));
+		public Optional<LocalOverWindow> getOverWindow(Expression alias) {
+			return Optional.ofNullable(localOverWindows.get(alias));
 		}
 	}
 
-	private LogicalOverWindow resolveOverWindow(OverWindow overWindow) {
-		return new LogicalOverWindow(
+	private LocalOverWindow resolveOverWindow(OverWindow overWindow) {
+		return new LocalOverWindow(
 			overWindow.getAlias(),
 			prepareExpressions(overWindow.getPartitioning()),
 			resolveFieldsInSingleExpression(overWindow.getOrder()),
 			resolveFieldsInSingleExpression(overWindow.getPreceding()),
-			overWindow.getFollowing().map(this::resolveFieldsInSingleExpression)
+			overWindow.getFollowing().map(this::resolveFieldsInSingleExpression).orElse(null)
 		);
 	}
 
