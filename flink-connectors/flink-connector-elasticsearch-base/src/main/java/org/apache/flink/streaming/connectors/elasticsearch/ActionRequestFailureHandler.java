@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.RuntimeContext;
 
 import org.elasticsearch.action.ActionRequest;
 
@@ -74,4 +75,21 @@ public interface ActionRequestFailureHandler extends Serializable {
 	 */
 	void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable;
 
+	/**
+	 * Handle a failed {@link ActionRequest}.
+	 * We could access accumulator via runtimeContext to count the exceptions in order to throw or ignore them.
+	 * Avoid new interface method or different parameters method break previous users' implements.
+	 *
+	 * @param action the {@link ActionRequest} that failed due to the failure
+	 * @param failure the cause of failure
+	 * @param restStatusCode the REST status code of the failure (-1 if none can be retrieved)
+	 * @param indexer request indexer to re-add the failed action, if intended to do so
+	 * @param runtimeContext the task's runtime context
+	 *
+	 * @throws Throwable if the sink should fail on this failure, the implementation should rethrow
+	 *                   the exception or a custom one
+	 */
+	default void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer, RuntimeContext runtimeContext) throws Throwable{
+		onFailure(action, failure, restStatusCode, indexer);
+	}
 }

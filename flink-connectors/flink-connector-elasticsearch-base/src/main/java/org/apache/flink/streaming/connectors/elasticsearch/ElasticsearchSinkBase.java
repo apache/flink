@@ -407,9 +407,9 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 							restStatus = itemResponse.getFailure().getStatus();
 							if (restStatus == null) {
-								failureHandler.onFailure(request.requests().get(i), failure, -1, failureRequestIndexer);
+								failureHandler.onFailure(request.requests().get(i), failure, -1, failureRequestIndexer, getRuntimeContext());
 							} else {
-								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), failureRequestIndexer);
+								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), failureRequestIndexer, getRuntimeContext());
 							}
 						}
 					}
@@ -431,7 +431,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 			try {
 				for (ActionRequest action : request.requests()) {
-					failureHandler.onFailure(action, failure, -1, failureRequestIndexer);
+					failureHandler.onFailure(action, failure, -1, failureRequestIndexer, getRuntimeContext());
 				}
 			} catch (Throwable t) {
 				// fail the sink and skip the rest of the items
