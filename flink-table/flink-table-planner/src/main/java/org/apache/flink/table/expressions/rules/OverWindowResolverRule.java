@@ -22,11 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LocalOverWindow;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.plan.logical.LogicalOverWindow;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;
@@ -68,17 +68,17 @@ final class OverWindowResolverRule implements ResolverRule {
 				List<Expression> children = unresolvedCall.getChildren();
 				Expression alias = children.get(1);
 
-				LogicalOverWindow referenceWindow = resolutionContext.getOverWindow(alias)
+				LocalOverWindow referenceWindow = resolutionContext.getOverWindow(alias)
 					.orElseThrow(() -> new ValidationException("Could not resolve over call."));
 
 				Expression following = calculateOverWindowFollowing(referenceWindow);
 				List<Expression> newArgs = new ArrayList<>(asList(
 					children.get(0),
-					referenceWindow.orderBy(),
-					referenceWindow.preceding(),
+					referenceWindow.getOrderBy(),
+					referenceWindow.getPreceding(),
 					following));
 
-				newArgs.addAll(referenceWindow.partitionBy());
+				newArgs.addAll(referenceWindow.getPartitionBy());
 
 				return unresolvedCall(unresolvedCall.getFunctionDefinition(), newArgs.toArray(new Expression[0]));
 			} else {
@@ -90,9 +90,9 @@ final class OverWindowResolverRule implements ResolverRule {
 			}
 		}
 
-		private Expression calculateOverWindowFollowing(LogicalOverWindow referenceWindow) {
-			return referenceWindow.following().orElseGet(() -> {
-					WindowKind kind = referenceWindow.preceding().accept(OVER_WINDOW_KIND_EXTRACTOR);
+		private Expression calculateOverWindowFollowing(LocalOverWindow referenceWindow) {
+			return referenceWindow.getFollowing().orElseGet(() -> {
+					WindowKind kind = referenceWindow.getPreceding().accept(OVER_WINDOW_KIND_EXTRACTOR);
 					if (kind == WindowKind.ROW) {
 						return unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW);
 					} else {
