@@ -192,7 +192,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		final List<MemorySegment> segments = new ArrayList<>(numberOfSegmentsToRequest);
 		try {
 			long startTimeInNanos = System.nanoTime();
-			while (segments.size() < numberOfSegmentsToRequest) {
+			while (true) {
 				if (isDestroyed) {
 					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
@@ -202,8 +202,11 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 					segments.add(segment);
 				}
 
-				if ((System.nanoTime() - startTimeInNanos) / 1_000_000 >= requestSegmentsTimeoutInMillis &&
-						segments.size() < numberOfSegmentsToRequest) {
+				if (segments.size() >= numberOfSegmentsToRequest) {
+					break;
+				}
+
+				if ((System.nanoTime() - startTimeInNanos) / 1_000_000 >= requestSegmentsTimeoutInMillis) {
 					throw new IOException(String.format("Insufficient number of network buffers: " +
 									"requesting exclusive buffers timeout. The total number of network " +
 									"buffers is currently set to %d of %d bytes each. You can increase this " +
