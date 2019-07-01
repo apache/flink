@@ -96,6 +96,11 @@ public abstract class CatalogTestBase extends CatalogTest {
 	}
 
 	@Override
+	public CatalogPartition createPartition() {
+		return new CatalogPartitionImpl(getBatchTableProperties(), TEST_COMMENT);
+	}
+
+	@Override
 	public CatalogView createView() {
 		return new CatalogViewImpl(
 			String.format("select * from %s", t1),

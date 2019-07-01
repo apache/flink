@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -43,9 +42,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test for HiveCatalog on Hive metadata.
@@ -136,21 +133,5 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 		throw new UnsupportedOperationException(
 			"Hive table cannot be streaming."
 		);
-	}
-
-	@Override
-	public CatalogPartition createPartition() {
-		return new HiveCatalogPartition(getBatchTableProperties());
-	}
-
-	@Override
-	protected void checkEquals(CatalogPartition expected, CatalogPartition actual) {
-		assertTrue(expected instanceof HiveCatalogPartition && actual instanceof HiveCatalogPartition);
-		assertEquals(expected.getClass(), actual.getClass());
-		HiveCatalogPartition hivePartition1 = (HiveCatalogPartition) expected;
-		HiveCatalogPartition hivePartition2 = (HiveCatalogPartition) actual;
-		assertEquals(hivePartition1.getDescription(), hivePartition2.getDescription());
-		assertEquals(hivePartition1.getDetailedDescription(), hivePartition2.getDetailedDescription());
-		assertTrue(hivePartition2.getProperties().entrySet().containsAll(hivePartition1.getProperties().entrySet()));
 	}
 }
