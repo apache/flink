@@ -24,7 +24,7 @@ under the License.
 -->
 
 [Apache NiFi](https://nifi.apache.org/) 连接器提供了可以读取和写入的 Source 和 Sink. 
-使用这个连接器， 需要在工程中添加下面的依赖:
+使用这个连接器，需要在工程中添加下面的依赖:
 
 {% highlight xml %}
 <dependency>
@@ -34,15 +34,15 @@ under the License.
 </dependency>
 {% endhighlight %}
 
-注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [here]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html)。
+注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [这里]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html)。
 
 #### 安装 Apache NiFi
 
-安装 Apache NiFi 集群请参考 [here](https://nifi.apache.org/docs/nifi-docs/html/administration-guide.html#how-to-install-and-start-nifi).
+安装 Apache NiFi 集群请参考 [这里](https://nifi.apache.org/docs/nifi-docs/html/administration-guide.html#how-to-install-and-start-nifi).
 
 #### Apache NiFi Source
 
-连接器提供 Source，可以从 Apache NiFi 读取数据到 Apache Flink。
+该连接器提供了一个 Source 可以用来从 Apache NiFi 读取数据到 Apache Flink。
 
 `NiFiSource(…)` 类有两个构造方法。
 
@@ -85,7 +85,7 @@ val nifiSource = new NiFiSource(clientConfig)
 
 #### Apache NiFi Sink
 
-连接器提供了 Sink，可以把 Apache Flink 数据写入到 Apache NiFi。
+该连接器提供了一个 Sink 可以用来把 Apache Flink 的数据写入到 Apache NiFi。
 
 `NiFiSink(…)` 类只有一个构造方法。
 
@@ -126,6 +126,6 @@ streamExecEnv.addSink(nifiSink)
 </div>
 </div>      
 
-更多关于 [Apache NiFi](https://nifi.apache.org) Site-to-Site Protocol 的信息请参考 [here](https://nifi.apache.org/docs/nifi-docs/html/user-guide.html#site-to-site)
+更多关于 [Apache NiFi](https://nifi.apache.org) Site-to-Site Protocol 的信息请参考 [这里](https://nifi.apache.org/docs/nifi-docs/html/user-guide.html#site-to-site)
 
 {% top %}
