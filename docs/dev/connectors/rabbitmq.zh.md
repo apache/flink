@@ -25,11 +25,11 @@ under the License.
 
 # RabbitMQ 连接器的许可证
 
-FLink 的 RabbitMQ 连接器依赖了 "RabbitMQ AMQP Java Client"，因此RabbitMQ 连接器的许可是基于 Mozilla Public License 1.1 ("MPL")、GNU General Public License version 2 ("GPL") 和 Apache License version 2 ("ASL")的。
+Flink 的 RabbitMQ 连接器依赖了 "RabbitMQ AMQP Java Client"，它基于三种协议下发行：Mozilla Public License 1.1 ("MPL")、GNU General Public License version 2 ("GPL") 和 Apache License version 2 ("ASL")。
 
-Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有从 "RabbitMQ AMQP Java Client" 打二进制包。
+Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有将 "RabbitMQ AMQP Java Client" 打二进制包。
 
-如果用户发布的内容是基于 Flink 的 RabbitMQ 连接器的（进而重新发布了 "RabbitMQ AMQP Java Client" ），那么一定要考虑到 MPL、GPL 和 ASL 的相关内容。
+如果用户发布的内容是基于 Flink 的 RabbitMQ 连接器的（进而重新发布了 "RabbitMQ AMQP Java Client" ），那么一定要注意这可能会受到 Mozilla Public License 1.1 ("MPL")、GNU General Public License version 2 ("GPL")、Apache License version 2 ("ASL") 协议的限制.
 
 # RabbitMQ 连接器
 
@@ -43,10 +43,10 @@ Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有从
 </dependency>
 {% endhighlight %}
 
-注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [here]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html).
+注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html).
 
 #### 安装 RabbitMQ
-安装 RabbitMQ 请参考 [RabbitMQ download page](http://www.rabbitmq.com/download.html)。安装完成之后，服务会自动拉起，应用程序就可以尝试 连接到 RabbitMQ 了。
+安装 RabbitMQ 请参考 [RabbitMQ 下载页面](http://www.rabbitmq.com/download.html)。安装完成之后，服务会自动拉起，应用程序就可以尝试连接到 RabbitMQ 了。
 
 #### RabbitMQ Source
 
@@ -56,9 +56,9 @@ Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有从
  - *开启 checkpointing*: 开启 checkpointing 之后，消息在 checkpoints 
  完成之后才会被确认（然后从 RabbitMQ 队列中删除）.
  - *使用关联标识（Correlation ids）*: 关联标识是 RabbitMQ 的一个特性，消息写入 RabbitMQ 时在消息属性中设置。
- 从 checkpoint 恢复时利用关联标识对被 Source 再次处理的消息进行去重。
- - *非并发 source*: 为了保证精确一次的数据投递，source 必须是非并发的（并行度设置为1。
-  这主要是由 RabbitMQ 单队列向多个消费者投递消息的方式决定的。
+ 从 checkpoint 恢复时有些消息可能会被重复处理，source 可以利用关联标识对消息进行去重。
+ - *非并发 source*: 为了保证精确一次的数据投递，source 必须是非并发的（并行度设置为1）。
+  这主要是由于 RabbitMQ 分发数据时是从单队列向多个消费者投递消息的。
 
 2. **至少一次**:  在 checkpointing 开启的条件下，如果没有使用关联标识或者 source 是并发的，
 那么 source 就只能提供至少一次的保证。
@@ -114,7 +114,7 @@ val stream = env
 </div>
 
 #### RabbitMQ Sink
-连接器通过 `RMQSink` 类向 RabbitMQ 队列发送数据。下面是 RabbitMQ sink 的代码示例：
+该连接器提供了一个 `RMQSink` 类，用来向 RabbitMQ 队列发送数据。下面是设置 RabbitMQ sink 的代码示例：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -151,6 +151,6 @@ stream.addSink(new RMQSink[String](
 </div>
 </div>
 
-更多关于 RabbitMQ 的信息请参考 [here](http://www.rabbitmq.com/).
+更多关于 RabbitMQ 的信息请参考 [这里](http://www.rabbitmq.com/).
 
 {% top %}
