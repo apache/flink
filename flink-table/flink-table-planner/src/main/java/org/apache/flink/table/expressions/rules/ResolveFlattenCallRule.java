@@ -21,8 +21,9 @@ package org.apache.flink.table.expressions.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.PlannerExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
@@ -31,16 +32,18 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
+import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
- * Replaces {@link BuiltInFunctionDefinitions#FLATTEN} with calls to {@link BuiltInFunctionDefinitions#GET} for all
- * fields of underlying field of complex type.
+ * Replaces {@link BuiltInFunctionDefinitions#FLATTEN} with resolved calls to {@link BuiltInFunctionDefinitions#GET}
+ * for all fields of underlying field of complex type.
+ *
+ * @see ResolveCallByArgumentsRule
  */
 @Internal
-final class FlattenCallRule implements ResolverRule {
+final class ResolveFlattenCallRule implements ResolverRule {
 
 	@Override
 	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
@@ -65,20 +68,28 @@ final class FlattenCallRule implements ResolverRule {
 		}
 
 		private List<Expression> executeFlatten(UnresolvedCallExpression unresolvedCall) {
-			Expression arg = unresolvedCall.getChildren().get(0);
-			PlannerExpression plannerExpression = resolutionContext.bridge(arg);
-			plannerExpression.validateInput();
-			TypeInformation<?> resultType = plannerExpression.resultType();
+			final Expression composite = unresolvedCall.getChildren().get(0);
+			if (!(composite instanceof ResolvedExpression)) {
+				throw new TableException("Resolved expression expected for flattening.");
+			}
+			final ResolvedExpression resolvedComposite = (ResolvedExpression) composite;
+			final TypeInformation<?> resultType = fromDataTypeToLegacyInfo(resolvedComposite.getOutputDataType());
 			if (resultType instanceof CompositeType) {
-				return flattenCompositeType(arg, (CompositeType<?>) resultType);
+				return flattenCompositeType(resolvedComposite, (CompositeType<?>) resultType);
 			} else {
-				return singletonList(arg);
+				return singletonList(composite);
 			}
 		}
 
-		private List<Expression> flattenCompositeType(Expression arg, CompositeType<?> resultType) {
+		private List<Expression> flattenCompositeType(ResolvedExpression resolvedComposite, CompositeType<?> resultType) {
 			return IntStream.range(0, resultType.getArity())
-				.mapToObj(idx -> unresolvedCall(GET, arg, valueLiteral(resultType.getFieldNames()[idx])))
+				.mapToObj(idx ->
+					resolutionContext.postResolutionFactory()
+						.get(
+							resolvedComposite,
+							valueLiteral(resultType.getFieldNames()[idx]),
+							fromLegacyInfoToDataType(resultType.getTypeAt(idx)))
+				)
 				.collect(Collectors.toList());
 		}
 

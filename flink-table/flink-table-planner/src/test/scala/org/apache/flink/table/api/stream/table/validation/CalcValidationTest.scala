@@ -161,4 +161,16 @@ class CalcValidationTest extends TableTestBase {
     util.addTable[(Int, Long, String)]("MyTable", 'int, 'long, 'string)
       .select('int, 'long.log as 'long, 'string)
   }
+
+  @Test
+  def testConsecutiveFlattening(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Consecutive flattening calls are not allowed.")
+
+    val util = streamTestUtil()
+    util.addTable[(Long, Int)](
+      "MyTable",
+      'tuple)
+    .select('tuple.flatten().flatten())
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
@@ -37,6 +38,7 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -44,11 +46,13 @@ import java.util.stream.IntStream;
 
 /**
  * This rule checks if a {@link UnresolvedCallExpression} can work with the given arguments and infers
- * the output data type. All function calls are resolved {@link CallExpression} after applying this rule.
+ * the output data type. All function calls are resolved {@link CallExpression} after applying this
+ * rule except for the special case of {@link BuiltInFunctionDefinitions#FLATTEN}.
  *
- * <p>If the call expects different types of arguments, but the given arguments
- * have types that can be casted, a {@link BuiltInFunctionDefinitions#CAST}
- * expression is inserted.
+ * <p>If the call expects different types of arguments, but the given arguments have types that can
+ * be casted, a {@link BuiltInFunctionDefinitions#CAST} expression is inserted.
+ *
+ * @see ResolveFlattenCallRule
  */
 @Internal
 final class ResolveCallByArgumentsRule implements ResolverRule {
@@ -67,17 +71,29 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 		}
 
 		@Override
-		public ResolvedExpression visit(UnresolvedCallExpression unresolvedCall) {
+		public Expression visit(UnresolvedCallExpression unresolvedCall) {
 
 			final List<ResolvedExpression> resolvedArgs = unresolvedCall.getChildren().stream()
 				.map(c -> c.accept(this))
 				.map(e -> {
+					// special case: FLATTEN
+					// a call chain `myFunc().flatten().flatten()` is not allowed
+					if (e instanceof UnresolvedCallExpression &&
+							((UnresolvedCallExpression) e).getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
+						throw new ValidationException("Consecutive flattening calls are not allowed.");
+					}
 					if (e instanceof ResolvedExpression) {
 						return (ResolvedExpression) e;
 					}
 					throw new TableException("Unexpected unresolved expression: " + e);
 				})
 				.collect(Collectors.toList());
+
+			// FLATTEN is a special case and the only call that remains unresolved after this rule
+			// it will be resolved by ResolveFlattenCallRule
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.FLATTEN) {
+				return unresolvedCall.replaceArgs(new ArrayList<>(resolvedArgs));
+			}
 
 			if (unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
 				final BuiltInFunctionDefinition definition =

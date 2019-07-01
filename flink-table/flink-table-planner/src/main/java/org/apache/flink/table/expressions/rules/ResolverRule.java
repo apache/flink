@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionResolver;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
-import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -77,10 +76,5 @@ public interface ResolverRule {
 		 * Lookup for over windows.
 		 */
 		Optional<LogicalOverWindow> getOverWindow(Expression alias);
-
-		/**
-		 * Temporary way to convert expression to PlannerExpression to evaluate type.
-		 */
-		PlannerExpression bridge(Expression expression);
 	}
 }
