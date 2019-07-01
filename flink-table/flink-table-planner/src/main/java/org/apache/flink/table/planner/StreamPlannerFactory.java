@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -26,9 +27,10 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.PlannerDescriptor;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -49,7 +51,7 @@ public final class StreamPlannerFactory implements PlannerFactory {
 
 	public Map<String, String> optionalContext() {
 		Map<String, String> map = new HashMap<>();
-		map.put(PlannerDescriptor.CLASS_NAME, this.getClass().getCanonicalName());
+		map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
 		return map;
 	}
 
@@ -57,7 +59,12 @@ public final class StreamPlannerFactory implements PlannerFactory {
 	public Map<String, String> requiredContext() {
 		DescriptorProperties properties = new DescriptorProperties();
 
-		properties.putBoolean(PlannerDescriptor.BATCH_MODE, false);
+		properties.putBoolean(EnvironmentSettings.BATCH_MODE, false);
 		return properties.asMap();
+	}
+
+	@Override
+	public List<String> supportedProperties() {
+		return Collections.singletonList(EnvironmentSettings.CLASS_NAME);
 	}
 }

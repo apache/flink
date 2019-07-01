@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -51,6 +52,58 @@ import org.apache.flink.table.functions.TableFunction;
  */
 @PublicEvolving
 public interface StreamTableEnvironment extends TableEnvironment {
+
+	/**
+	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
+	 * {@link DataStream}s.
+	 *
+	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
+	 */
+	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
+		return create(
+			executionEnvironment,
+			EnvironmentSettings.newInstance()
+				.useAnyPlanner()
+				.inStreamMode()
+				.build());
+	}
+
+	/**
+	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
+	 * {@link DataStream}s.
+	 *
+	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
+	 * @param settings The environment settings used to instantiate the {@link TableEnvironment}.
+	 */
+	static StreamTableEnvironment create(
+			StreamExecutionEnvironment executionEnvironment,
+			EnvironmentSettings settings) {
+		return StreamTableEnvironmentImpl.create(
+			executionEnvironment,
+			settings,
+			new TableConfig()
+		);
+	}
+
+	/**
+	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
+	 * {@link DataStream}s.
+	 *
+	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
+	 * @param tableConfig The configuration of the TableEnvironment.
+	 * @deprecated Use {@link #create(StreamExecutionEnvironment)} and {@link #getConfig()}
+	 * for manipulating {@link TableConfig}.
+	 */
+	@Deprecated
+	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
+		return StreamTableEnvironmentImpl.create(
+			executionEnvironment,
+			EnvironmentSettings.newInstance()
+				.useAnyPlanner()
+				.inStreamMode()
+				.build(),
+			tableConfig);
+	}
 
 	/**
 	 * Registers a {@link TableFunction} under a unique name in the TableEnvironment's catalog.
@@ -356,47 +409,4 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 */
 	@Override
 	StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
-
-	/**
-	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
-	 * {@link DataStream}s.
-	 *
-	 * <p>A TableEnvironment can be used to:
-	 * <ul>
-	 *     <li>convert a {@link DataStream} to a {@link Table}</li>
-	 *     <li>register a {@link DataStream} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>scan a registered table to obtain a {@link Table}</li>
-	 *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
-	 *     <li>convert a {@link Table} into a {@link DataStream}</li>
-	 *     <li>explain the AST and execution plan of a {@link Table}</li>
-	 * </ul>
-	 *
-	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 */
-	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-		return create(executionEnvironment, new TableConfig());
-	}
-
-	/**
-	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
-	 * {@link DataStream}s.
-	 *
-	 * <p>A TableEnvironment can be used to:
-	 * <ul>
-	 *     <li>convert a {@link DataStream} to a {@link Table}</li>
-	 *     <li>register a {@link DataStream} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>scan a registered table to obtain a {@link Table}</li>
-	 *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
-	 *     <li>convert a {@link Table} into a {@link DataStream}</li>
-	 *     <li>explain the AST and execution plan of a {@link Table}</li>
-	 * </ul>
-	 *
-	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 * @param tableConfig The configuration of the TableEnvironment.
-	 */
-	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
-		return StreamTableEnvironmentImpl.create(tableConfig, executionEnvironment);
-	}
 }

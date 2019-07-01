@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -27,6 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -43,7 +45,6 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.PlannerDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
@@ -77,7 +78,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	private final StreamExecutionEnvironment executionEnvironment;
 
-	private StreamTableEnvironmentImpl(
+	@VisibleForTesting
+	public StreamTableEnvironmentImpl(
 			CatalogManager catalogManager,
 			FunctionCatalog functionCatalog,
 			TableConfig tableConfig,
@@ -96,54 +98,18 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	 * @param tableConfig The configuration of the TableEnvironment.
 	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
 	 */
-	public static StreamTableEnvironmentImpl create(
-			TableConfig tableConfig,
-			StreamExecutionEnvironment executionEnvironment) {
-		CatalogManager catalogManager = new CatalogManager(
-			tableConfig.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(tableConfig.getBuiltInCatalogName(), tableConfig.getBuiltInDatabaseName()));
-		return create(catalogManager, tableConfig, executionEnvironment);
-	}
-
-	/**
-	 * Creates an instance of a {@link StreamTableEnvironment}. It uses the {@link StreamExecutionEnvironment} for
-	 * executing queries. This is also the {@link StreamExecutionEnvironment} that will be used when converting
-	 * from/to {@link DataStream}.
-	 *
-	 * @param catalogManager The {@link CatalogManager} to use for storing and looking up {@link Table}s.
-	 * @param tableConfig The configuration of the TableEnvironment.
-	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 */
-	public static StreamTableEnvironmentImpl create(
-			CatalogManager catalogManager,
-			TableConfig tableConfig,
-			StreamExecutionEnvironment executionEnvironment) {
-		return create(
-			catalogManager,
-			PlannerDescriptor.any().stream(),
-			tableConfig,
-			executionEnvironment);
-	}
-
-	/**
-	 * Creates an instance of a {@link StreamTableEnvironment}. It uses the {@link StreamExecutionEnvironment} for
-	 * executing queries. This is also the {@link StreamExecutionEnvironment} that will be used when converting
-	 * from/to {@link DataStream}.
-	 *
-	 * @param catalogManager The {@link CatalogManager} to use for storing and looking up {@link Table}s.
-	 * @param tableConfig The configuration of the TableEnvironment.
-	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 */
-	public static StreamTableEnvironmentImpl create(
-			CatalogManager catalogManager,
-			PlannerDescriptor plannerDescriptor,
-			TableConfig tableConfig,
-			StreamExecutionEnvironment executionEnvironment) {
+	public static StreamTableEnvironment create(
+			StreamExecutionEnvironment executionEnvironment,
+			EnvironmentSettings settings,
+			TableConfig tableConfig) {
 		FunctionCatalog functionCatalog = new FunctionCatalog(
-			catalogManager.getCurrentCatalog(),
-			catalogManager.getCurrentDatabase());
-		Map<String, String> plannerProperties = plannerDescriptor.toPlannerProperties();
-		Map<String, String> executorProperties = plannerDescriptor.toExecutorProperties();
+			settings.getBuiltInCatalogName(),
+			settings.getBuiltInDatabaseName());
+		CatalogManager catalogManager = new CatalogManager(
+			settings.getBuiltInCatalogName(),
+			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
+		Map<String, String> plannerProperties = settings.toPlannerProperties();
+		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = lookupExecutor(executorProperties, executionEnvironment);
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
 			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);

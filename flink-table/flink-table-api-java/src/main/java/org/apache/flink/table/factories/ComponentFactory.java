@@ -18,20 +18,16 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.delegation.PlannerFactory;
+import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
- * A common interface for {@link PlannerFactory} and
- * {@link org.apache.flink.table.delegation.ExecutorFactory}. It enables further disambiguating
- * if there are multiple implementations present.
+ * A factory interface for components that enables further disambiguating in case
+ * there are multiple matching implementations present.
  */
-@Internal
+@PublicEvolving
 public interface ComponentFactory extends TableFactory {
 	/**
 	 * Specifies a context of optional parameters that if exist should have the
@@ -45,9 +41,7 @@ public interface ComponentFactory extends TableFactory {
 	Map<String, String> optionalContext();
 
 	@Override
-	default Map<String, String> requiredContext() {
-		return Collections.emptyMap();
-	}
+	Map<String, String> requiredContext();
 
 	/**
 	 * {@inheritDoc}
@@ -55,7 +49,5 @@ public interface ComponentFactory extends TableFactory {
 	 * <p><b>NOTE:</b> All the property keys from {@link #optionalContext()} should also be included.
 	 */
 	@Override
-	default List<String> supportedProperties() {
-		return new ArrayList<>(optionalContext().keySet());
-	}
+	List<String> supportedProperties();
 }

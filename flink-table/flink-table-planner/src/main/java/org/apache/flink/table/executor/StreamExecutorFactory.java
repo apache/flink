@@ -20,12 +20,14 @@ package org.apache.flink.table.executor;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.PlannerDescriptor;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -58,14 +60,19 @@ public class StreamExecutorFactory implements ExecutorFactory {
 	@Override
 	public Map<String, String> requiredContext() {
 		DescriptorProperties properties = new DescriptorProperties();
-		properties.putBoolean(PlannerDescriptor.BATCH_MODE, false);
+		properties.putBoolean(EnvironmentSettings.BATCH_MODE, false);
 		return properties.asMap();
+	}
+
+	@Override
+	public List<String> supportedProperties() {
+		return Collections.singletonList(EnvironmentSettings.CLASS_NAME);
 	}
 
 	@Override
 	public Map<String, String> optionalContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(PlannerDescriptor.CLASS_NAME, this.getClass().getCanonicalName());
+		context.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
 		return context;
 	}
 }

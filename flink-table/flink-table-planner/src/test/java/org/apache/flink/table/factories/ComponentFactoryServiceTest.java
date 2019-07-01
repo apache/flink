@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.PlannerDescriptor;
 import org.apache.flink.table.factories.utils.TestPlannerFactory;
 import org.apache.flink.table.utils.TableTestBase;
 
@@ -39,8 +39,8 @@ public class ComponentFactoryServiceTest extends TableTestBase {
 	@Test
 	public void testLookingUpAmbiguousPlanners() {
 		Map<String, String> properties = new HashMap<>();
-		properties.put(PlannerDescriptor.CLASS_NAME, TestPlannerFactory.class.getCanonicalName());
-		properties.put(PlannerDescriptor.BATCH_MODE, Boolean.toString(true));
+		properties.put(EnvironmentSettings.CLASS_NAME, TestPlannerFactory.class.getCanonicalName());
+		properties.put(EnvironmentSettings.BATCH_MODE, Boolean.toString(true));
 		properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
 
 		PlannerFactory plannerFactory = ComponentFactoryService.find(PlannerFactory.class, properties);
@@ -53,8 +53,8 @@ public class ComponentFactoryServiceTest extends TableTestBase {
 		expectedException().expect(NoMatchingTableFactoryException.class);
 
 		Map<String, String> properties = new HashMap<>();
-		properties.put(PlannerDescriptor.CLASS_NAME, "NoSuchClass");
-		properties.put(PlannerDescriptor.BATCH_MODE, Boolean.toString(true));
+		properties.put(EnvironmentSettings.CLASS_NAME, "NoSuchClass");
+		properties.put(EnvironmentSettings.BATCH_MODE, Boolean.toString(true));
 		properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
 
 		ComponentFactoryService.find(PlannerFactory.class, properties);

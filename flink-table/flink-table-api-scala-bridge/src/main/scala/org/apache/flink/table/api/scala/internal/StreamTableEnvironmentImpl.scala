@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.api.scala.internal
 
-import java.util
-import java.util.{Collections, List => JList, Map => JMap}
-
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
@@ -33,7 +30,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, PlannerDescriptor, StreamTableDescriptor}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
@@ -41,6 +38,9 @@ import org.apache.flink.table.operations.{OutputConversionModifyOperation, Scala
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+
+import java.util
+import java.util.{Collections, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -235,72 +235,20 @@ class StreamTableEnvironmentImpl (
 
 object StreamTableEnvironmentImpl {
 
-  /**
-    * Creates an instance of a [[StreamTableEnvironment]]. It uses the
-    * [[StreamExecutionEnvironment]] for executing queries. This is also the
-    * [[StreamExecutionEnvironment]] that will be used when converting
-    * from/to [[DataStream]].
-    *
-    * @param tableConfig The configuration of the TableEnvironment.
-    * @param executionEnvironment The [[StreamExecutionEnvironment]] of the TableEnvironment.
-    */
   def create(
-      tableConfig: TableConfig,
-      executionEnvironment: StreamExecutionEnvironment)
+      executionEnvironment: StreamExecutionEnvironment,
+      settings: EnvironmentSettings,
+      tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
-    val catalogManager = new CatalogManager(
-      tableConfig.getBuiltInCatalogName,
-      new GenericInMemoryCatalog(
-        tableConfig.getBuiltInCatalogName,
-        tableConfig.getBuiltInDatabaseName)
-    )
-    create(catalogManager, tableConfig, executionEnvironment)
-  }
-
-  /**
-    * Creates an instance of a [[StreamTableEnvironment]]. It uses the
-    * [[StreamExecutionEnvironment]] for executing queries. This is also the
-    * [[StreamExecutionEnvironment]] that will be used when converting
-    * from/to [[DataStream]].
-    *
-    * @param catalogManager The [[CatalogManager]] to use for storing and looking up [[Table]]s.
-    * @param tableConfig The configuration of the TableEnvironment.
-    * @param executionEnvironment The [[StreamExecutionEnvironment]] of the TableEnvironment.
-    */
-  def create(
-      catalogManager: CatalogManager,
-      tableConfig: TableConfig,
-      executionEnvironment: StreamExecutionEnvironment)
-    : StreamTableEnvironmentImpl = {
-    create(
-      catalogManager,
-      PlannerDescriptor.any().stream(),
-      tableConfig,
-      executionEnvironment)
-  }
-
-  /**
-    * Creates an instance of a [[StreamTableEnvironment]]. It uses the
-    * [[StreamExecutionEnvironment]] for executing queries. This is also the
-    * [[StreamExecutionEnvironment]] that will be used when converting
-    * from/to [[DataStream]].
-    *
-    * @param catalogManager The [[CatalogManager]] to use for storing and looking up [[Table]]s.
-    * @param tableConfig The configuration of the TableEnvironment.
-    * @param executionEnvironment The [[StreamExecutionEnvironment]] of the TableEnvironment.
-    */
-  def create(
-      catalogManager: CatalogManager,
-      plannerDescriptor: PlannerDescriptor,
-      tableConfig: TableConfig,
-      executionEnvironment: StreamExecutionEnvironment)
-    : StreamTableEnvironmentImpl = {
-    val executorProperties = plannerDescriptor.toExecutorProperties
-    val plannerProperties = plannerDescriptor.toPlannerProperties
+    val executorProperties = settings.toExecutorProperties
+    val plannerProperties = settings.toPlannerProperties
     val executor = lookupExecutor(executorProperties, executionEnvironment)
     val functionCatalog = new FunctionCatalog(
-      tableConfig.getBuiltInCatalogName,
-      tableConfig.getBuiltInDatabaseName)
+      settings.getBuiltInCatalogName,
+      settings.getBuiltInDatabaseName)
+    val catalogManager = new CatalogManager(
+      settings.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
       .create(
         plannerProperties,

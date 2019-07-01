@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.factories.utils;
 
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.PlannerDescriptor;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -51,7 +51,7 @@ public class TestPlannerFactory implements PlannerFactory {
 	@Override
 	public Map<String, String> optionalContext() {
 		HashMap<String, String> map = new HashMap<>();
-		map.put(PlannerDescriptor.CLASS_NAME, this.getClass().getCanonicalName());
+		map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
 		return map;
 	}
 
@@ -64,6 +64,6 @@ public class TestPlannerFactory implements PlannerFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(PlannerDescriptor.CLASS_NAME, PlannerDescriptor.BATCH_MODE);
+		return Arrays.asList(EnvironmentSettings.CLASS_NAME, EnvironmentSettings.BATCH_MODE);
 	}
 }
