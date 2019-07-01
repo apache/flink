@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -31,6 +32,7 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -123,5 +125,56 @@ public class HiveInputFormatTest {
 		Assert.assertEquals("2,2,a,2000,2.22", rows.get(1).toString());
 		Assert.assertEquals("3,3,a,3000,3.33", rows.get(2).toString());
 		Assert.assertEquals("4,4,a,4000,4.44", rows.get(3).toString());
+	}
+
+	@Test
+	public void testReadComplextDataTypeFromHiveInputFormat() throws Exception {
+		final String dbName = "default";
+		final String tblName = "complext_test";
+
+		TableSchema.Builder builder = new TableSchema.Builder();
+		builder.fields(new String[]{"a", "m", "s"}, new DataType[]{
+				DataTypes.ARRAY(DataTypes.INT()),
+				DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
+				DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.INT()), DataTypes.FIELD("f2", DataTypes.STRING()))});
+
+		//Now we used metaStore client to create hive table instead of using hiveCatalog for it doesn't support set
+		//serDe temporarily.
+		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf, null);
+		org.apache.hadoop.hive.metastore.api.Table tbl = new org.apache.hadoop.hive.metastore.api.Table();
+		tbl.setDbName(dbName);
+		tbl.setTableName(tblName);
+		tbl.setCreateTime((int) (System.currentTimeMillis() / 1000));
+		tbl.setParameters(new HashMap<>());
+		StorageDescriptor sd = new StorageDescriptor();
+		String location = HiveInputFormatTest.class.getResource("/complex_test").getPath();
+		sd.setLocation(location);
+		sd.setInputFormat(DEFAULT_HIVE_INPUT_FORMAT_TEST_INPUT_FORMAT_CLASS);
+		sd.setOutputFormat(DEFAULT_OUTPUT_FORMAT_CLASS);
+		sd.setSerdeInfo(new SerDeInfo());
+		sd.getSerdeInfo().setSerializationLib(DEFAULT_HIVE_INPUT_FORMAT_TEST_SERDE_CLASS);
+		sd.getSerdeInfo().setParameters(new HashMap<>());
+		sd.getSerdeInfo().getParameters().put("serialization.format", "1");
+		sd.getSerdeInfo().getParameters().put("field.delim", ";");
+		//org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe use 'colelction.delim' as a delimiter config key
+		// it may be a typo of this class
+		sd.getSerdeInfo().getParameters().put("colelction.delim", ",");
+		sd.getSerdeInfo().getParameters().put("mapkey.delim", ":");
+		sd.setCols(HiveTableUtil.createHiveColumns(builder.build()));
+		tbl.setSd(sd);
+		tbl.setPartitionKeys(new ArrayList<>());
+
+		client.createTable(tbl);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		RowTypeInfo rowTypeInfo = new RowTypeInfo(builder.build().getFieldTypes(), builder.build().getFieldNames());
+		List<HiveTablePartition> partitions = new ArrayList<>();
+		partitions.add(new HiveTablePartition(sd, new HashMap<>()));
+		HiveTableInputFormat hiveTableInputFormat = new HiveTableInputFormat(new JobConf(hiveConf), false, null,
+																			partitions, rowTypeInfo);
+		DataSet<Row> rowDataSet = env.createInput(hiveTableInputFormat);
+		List<Row> rows = rowDataSet.collect();
+		Assert.assertEquals(1, rows.size());
+		Assert.assertEquals("[1, 2, 3],{1=a, 2=b},3,c", rows.get(0).toString());
 	}
 }
