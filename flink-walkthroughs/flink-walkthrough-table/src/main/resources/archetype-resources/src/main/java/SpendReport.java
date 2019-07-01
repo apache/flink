@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.walkthrough.common.table.StdOutTableSink;
+import org.apache.flink.walkthrough.common.table.SpendReportTableSink;
 import org.apache.flink.walkthrough.common.table.TransactionTableSource;
 import org.apache.flink.walkthrough.common.table.TruncateDateToHour;
 
@@ -36,12 +36,12 @@ public class SpendReport {
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 		tEnv.registerTableSource("transactions", new TransactionTableSource());
-		tEnv.registerTableSink("stdout", new StdOutTableSink());
+		tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 		tEnv.registerFunction("truncateDateToHour", new TruncateDateToHour());
 
 		tEnv
 			.scan("transactions")
-			.insertInto("stdout");
+			.insertInto("spend_report");
 
 		env.execute("Spend Report");
 	}

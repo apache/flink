@@ -34,38 +34,40 @@ import org.apache.flink.types.Row;
  * A simple table sink for writing to stdout.
  */
 @SuppressWarnings("deprecation")
-public class StdOutTableSink implements AppendStreamTableSink<Row>, BatchTableSink<Row> {
+public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTableSink<Row> {
 
-	private TableSchema schema;
+	private final TableSchema schema;
 
-	public StdOutTableSink() { }
+	public SpendReportTableSink() {
+		this.schema = TableSchema
+			.builder()
+			.field("accountId", Types.LONG)
+			.field("timestamp", Types.SQL_TIMESTAMP)
+			.field("amount", Types.DOUBLE)
+			.build();
+	}
 
-	private StdOutTableSink(TableSchema schema) {
+	private SpendReportTableSink(TableSchema schema) {
 		this.schema = schema;
 	}
 
 	@Override
 	public void emitDataSet(DataSet<Row> dataSet) {
 		dataSet
-			.map(StdOutTableSink::format)
+			.map(SpendReportTableSink::format)
 			.output(new PrintingOutputFormat<>(false));
 	}
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
 		dataStream
-			.map(StdOutTableSink::format)
+			.map(SpendReportTableSink::format)
 			.print();
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		return TableSchema
-			.builder()
-			.field("accountId", Types.LONG)
-			.field("timestamp", Types.SQL_TIMESTAMP)
-			.field("amount", Types.DOUBLE)
-			.build();
+		return schema;
 	}
 
 	@Override
@@ -85,10 +87,10 @@ public class StdOutTableSink implements AppendStreamTableSink<Row>, BatchTableSi
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return new StdOutTableSink(new TableSchema(fieldNames, fieldTypes));
+		return new SpendReportTableSink(new TableSchema(fieldNames, fieldTypes));
 	}
 
 	private static String format(Row row) {
 		return String.format("%s, %s, $%.2f", row.getField(0), row.getField(1), row.getField(2));
-	};
+	}
 }

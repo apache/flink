@@ -52,7 +52,7 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 ## Setting up a Maven Project
 
-We are going to use a Flink Maven Archetype for creating our project structure.
+This walkthrough provides a Flink Maven Archetype to quickly create a skeleton project for those users that wish to follow along.
 
 {% highlight bash %}
 $ mvn archetype:generate \
@@ -82,12 +82,12 @@ ExecutionEnvironment env   = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 tEnv.registerTableSource("transactions", new TransactionTableSource());
-tEnv.registerTableSink("stdout", new StdOutTableSink());
+tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 tEnv.registerFunction("truncateDateToHour", new TruncateDateToHour());
 
 tEnv
 	.scan("transactions")
-	.insertInto("stdout");
+	.insertInto("spend_report");
 
 env.execute("Spend Report");
 {% endhighlight %}
@@ -101,7 +101,7 @@ Let's break down this code by component.
 The first two lines set up our `ExecutionEnvironment`.
 The execution environment is how we set properties for our deployments, specify whether we are writing a batch or streaming application, and create our sources.
 Here we have chosen to use the batch environment since we are building a periodic batch report.
-We then wrap it in a `BatchTableEnvironment` so to have full access to the Table Api.
+We then wrap it in a `BatchTableEnvironment` so to have full access to the Table API.
 
 {% highlight java %}
 ExecutionEnvironment env   = ExecutionEnvironment.getExecutionEnvironment();
@@ -110,20 +110,16 @@ BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 #### Registering Tables
 
-Next, we register tables that we can use for the input and output of our application. 
-The TableEnvironment maintains a catalog of tables that are registered by name. There are two types of tables, input tables and output tables.
-Input tables can be referenced in Table API and SQL queries and provide input data.
-Output tables can be used to emit the result of a Table API or SQL query to an external system.
-Tables can support batch queries, streaming queries, or both. 
+Next, we register tables that we can use to connect to external systems for reading and writing both batch and streaming data. A table source provides access to data which is stored in external systems (such as a database, key-value store, message queue, or file system). A table sink emits a table to an external storage system. Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
 
 {% highlight java %}
 tEnv.registerTableSource("transactions", new TransactionTableSource());
-tEnv.registerTableSink("stdout", new StdOutTableSink());
+tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 {% endhighlight %}
 
-We register two tables, a `transactions` input table and a `stdout` output table. 
+We register two tables, a `transactions` input table and a `spend_report` output table. 
 The `transactions` table lets us read credit card transactions, which contain `accountId`'s, `timestamp`'s, and dollar `amount`'s. 
-The `stdout` table writes the output of a job to standard out so we can easily see our results. 
+The `spend_report` table writes the output of a job to standard output so we can easily see our results. 
 Both tables support running batch and streaming applications.
 
 #### Registering A UDF
@@ -142,10 +138,10 @@ From the `TableEnvironment` we can `scan` an input table to read its rows and th
 {% highlight java %}
 tEnv
     .scan("transactions")
-    .insertInto("stdout");
+    .insertInto("spend_report");
 {% endhighlight %}
 
-This intial job simply reads all transactions and writes them to standard out. 
+This initial job simply reads all transactions and writes them to standard output. 
 
 #### Execute
 
@@ -170,7 +166,7 @@ tEnv
     .select("accountId, timestamp.truncateDateToHour as timestamp, amount")
     .groupBy("accountId, timestamp")
     .select("accountId, timestamp, amount.sum as total")
-    .insertInto("stdout");
+    .insertInto("spend_report");
 {% endhighlight %}
 
 ## Adding Windows
@@ -179,8 +175,8 @@ While this works, we can do better.
 The `timestamp` column represents the [event time]({{ site.baseurl }}/dev/event_time.html) of each row, where event time is the logical time when an event took place in the real world.
 Flink understands the concept of event time, which we can leverage to clean up our code. 
 
-Bucketing data based on time is very common operation in data processing, especially when working with infinite streams. 
-A bucket based on time is called a `Window` and Flink offers flexible windowing semantics. 
+Grouping data based on time is very common operation in data processing, especially when working with infinite streams. 
+A grouping based on time is called a `Window` and Flink offers flexible windowing semantics. 
 The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap. 
 
 {% highlight java %}
@@ -189,21 +185,18 @@ tEnv
     .window(Tumble.over("1.hour").on("timestamp").as("w"))
     .groupBy("accountId, w")
     .select("accountId, w.start as timestamp, amount.sum")
-    .insertInto("stdout");
+    .insertInto("spend_report");
 {% endhighlight %}
 
 This defines our application as using one hour tumbling windows based on the timestamp column.
 So a row with timestamp `2019-06-01 01:23:47` will be put in the `2019-06-01 01:00:00` window.
-While semantically equivalent, when using windows:
 
-    * Developers clearly expresses intent on how data should be bucketed.
-    * Opens up the possibilities for more advanced windowing such as overlapping or variable length windows.
-    * Uses a stream based approach which will allow for easy migration from batch to streaming.
+Aggregations based on time are unique because time, as opposed to other attributes, generally moves forward in a continuous streaming application. Using time window-based aggregations enables Flink to perform specific optimizations such as state clean up when the framework knows that no more records will arrive for a particular window.
 
 ## Once More, With Streaming!
 
 With our buisness logic implemented it is time to go from batch to streaming.
-Because the Table Api supports running against both batch and streaming runners with the same semantics, migrating is as simple as changing the execution context.
+Because the Table API supports running against both batch and streaming runners with the same semantics, migrating is as simple as changing the execution context.
 
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -219,7 +212,7 @@ And thats it, a fully functional, stateful, distributed streaming application!
 {% highlight java %}
 package spendreport;
 
-import org.apache.flink.quickstart.common.table.StdOutTableSink;
+import org.apache.flink.quickstart.common.table.SpendReportTableSink;
 import org.apache.flink.quickstart.common.table.TransactionTableSource;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -235,14 +228,14 @@ public class SpendReport {
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.registerTableSource("transactions", new TransactionTableSource());
-        tEnv.registerTableSink("stdout", new StdOutTableSink());
+        tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 
         tEnv
             .scan("transactions")
             .window(Tumble.over("1.hour").on("timestamp").as("w"))
             .groupBy("accountId, w")
             .select("accountId, w.start as timestamp, amount.sum")
-            .insertInto("stdout");
+            .insertInto("spend_report");
 
         env.execute("Spend Report");
     }
