@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_SITE_PATH;
+import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_VERSION;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_TYPE_VALUE_HIVE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
@@ -67,7 +67,7 @@ public class HiveCatalogFactory implements CatalogFactory {
 		// default database
 		properties.add(CATALOG_DEFAULT_DATABASE);
 
-		properties.add(CATALOG_HIVE_SITE_PATH);
+		properties.add(CATALOG_HIVE_CONF_DIR);
 
 		properties.add(CATALOG_HIVE_VERSION);
 
@@ -82,26 +82,26 @@ public class HiveCatalogFactory implements CatalogFactory {
 			descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE)
 				.orElse(HiveCatalog.DEFAULT_DB);
 
-		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_SITE_PATH);
+		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
 
 		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(HiveShimLoader.getHiveVersion());
 
-		return new HiveCatalog(name, defaultDatabase, loadHiveSiteUrl(hiveSitePath.orElse(null)), version);
+		return new HiveCatalog(name, defaultDatabase, loadHiveConfDir(hiveSitePath.orElse(null)), version);
 	}
 
-	private static URL loadHiveSiteUrl(String filePath) {
+	private static URL loadHiveConfDir(String hiveConfDir) {
 
 		URL url = null;
 
-		if (!StringUtils.isNullOrWhitespaceOnly(filePath)) {
+		if (!StringUtils.isNullOrWhitespaceOnly(hiveConfDir)) {
 			try {
-				url = new File(filePath).toURI().toURL();
+				url = new File(hiveConfDir).toURI().toURL();
 
-				LOG.info("Successfully loaded '{}'", filePath);
+				LOG.info("Successfully loaded '{}'", hiveConfDir);
 
 			} catch (MalformedURLException e) {
 				throw new CatalogException(
-					String.format("Failed to get hive-site.xml from the given path '%s'", filePath), e);
+					String.format("Failed to get hive conf dir from the given path '%s'", hiveConfDir), e);
 			}
 		}
 

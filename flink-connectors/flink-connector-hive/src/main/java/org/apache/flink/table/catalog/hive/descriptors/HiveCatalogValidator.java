@@ -26,14 +26,14 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
  */
 public class HiveCatalogValidator extends CatalogDescriptorValidator {
 	public static final String CATALOG_TYPE_VALUE_HIVE = "hive";
-	public static final String CATALOG_HIVE_SITE_PATH = "hive-site-path";
+	public static final String CATALOG_HIVE_CONF_DIR = "hive-conf-dir";
 	public static final String CATALOG_HIVE_VERSION = "hive-version";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateValue(CATALOG_TYPE, CATALOG_TYPE_VALUE_HIVE, false);
-		properties.validateString(CATALOG_HIVE_SITE_PATH, true, 1);
+		properties.validateString(CATALOG_HIVE_CONF_DIR, true, 1);
 		properties.validateString(CATALOG_HIVE_VERSION, true, 1);
 	}
 }

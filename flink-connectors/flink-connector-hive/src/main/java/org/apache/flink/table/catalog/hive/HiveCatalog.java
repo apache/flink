@@ -119,10 +119,10 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private HiveMetastoreClientWrapper client;
 
-	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveSiteUrl, String hiveVersion) {
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable URL hiveConfDir, String hiveVersion) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
-			createHiveConf(hiveSiteUrl),
+			createHiveConf(hiveConfDir),
 			hiveVersion);
 	}
 
@@ -137,10 +137,10 @@ public class HiveCatalog extends AbstractCatalog {
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	private static HiveConf createHiveConf(URL hiveSiteUrl) {
-		LOG.info("Setting hive-site location as {}", hiveSiteUrl);
+	private static HiveConf createHiveConf(URL hiveConfDir) {
+		LOG.info("Setting hive-site location as {}", hiveConfDir);
 
-		HiveConf.setHiveSiteLocation(hiveSiteUrl);
+		HiveConf.setHiveSiteLocation(hiveConfDir);
 
 		return new HiveConf();
 	}
