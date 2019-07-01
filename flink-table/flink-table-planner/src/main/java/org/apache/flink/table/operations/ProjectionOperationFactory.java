@@ -19,16 +19,13 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
-import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -36,6 +33,7 @@ import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.LinkedHashSet;
@@ -63,12 +61,6 @@ public final class ProjectionOperationFactory {
 	private final StripAliases stripAliases = new StripAliases();
 	private int currentFieldIndex = 0;
 
-	private final ExpressionBridge<PlannerExpression> expressionBridge;
-
-	public ProjectionOperationFactory(ExpressionBridge<PlannerExpression> expressionBridge) {
-		this.expressionBridge = expressionBridge;
-	}
-
 	public QueryOperation create(
 			List<ResolvedExpression> projectList,
 			QueryOperation child,
@@ -89,12 +81,11 @@ public final class ProjectionOperationFactory {
 				.collect(Collectors.toList());
 		}
 
-		TypeInformation[] fieldTypes = namedExpressions.stream()
-			.map(expressionBridge::bridge)
-			.map(PlannerExpression::resultType)
-			.toArray(TypeInformation[]::new);
+		DataType[] fieldTypes = namedExpressions.stream()
+			.map(ResolvedExpression::getOutputDataType)
+			.toArray(DataType[]::new);
 
-		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
+		TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 
 		return new ProjectQueryOperation(finalExpression, child, tableSchema);
 	}

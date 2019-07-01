@@ -31,29 +31,29 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.PlannerExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionRequirement;
-import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
@@ -61,13 +61,11 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
@@ -89,14 +87,12 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTim
 public final class AggregateOperationFactory {
 
 	private final boolean isStreaming;
-	private final ExpressionBridge<PlannerExpression> expressionBridge;
 	private final NoNestedAggregates noNestedAggregates = new NoNestedAggregates();
 	private final ValidateDistinct validateDistinct = new ValidateDistinct();
 	private final AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator();
 	private final IsKeyTypeChecker isKeyTypeChecker = new IsKeyTypeChecker();
 
-	public AggregateOperationFactory(ExpressionBridge<PlannerExpression> expressionBridge, boolean isStreaming) {
-		this.expressionBridge = expressionBridge;
+	public AggregateOperationFactory(boolean isStreaming) {
 		this.isStreaming = isStreaming;
 	}
 
@@ -115,13 +111,10 @@ public final class AggregateOperationFactory {
 		validateGroupings(groupings);
 		validateAggregates(aggregates);
 
-		List<PlannerExpression> convertedGroupings = bridge(groupings);
-		List<PlannerExpression> convertedAggregates = bridge(aggregates);
-
-		TypeInformation[] fieldTypes = Stream.concat(
-			convertedGroupings.stream().map(PlannerExpression::resultType),
-			convertedAggregates.stream().flatMap(this::extractAggregateResultTypes)
-		).toArray(TypeInformation[]::new);
+		DataType[] fieldTypes = Stream.concat(
+			groupings.stream().map(ResolvedExpression::getOutputDataType),
+			aggregates.stream().flatMap(this::extractAggregateResultTypes)
+		).toArray(DataType[]::new);
 
 		String[] groupNames = groupings.stream()
 			.map(expr -> extractName(expr).orElseGet(expr::toString)).toArray(String[]::new);
@@ -130,7 +123,7 @@ public final class AggregateOperationFactory {
 			aggregates.stream().flatMap(p -> extractAggregateNames(p, Arrays.asList(groupNames)))
 		).toArray(String[]::new);
 
-		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
+		TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 
 		return new AggregateQueryOperation(groupings, aggregates, child, tableSchema);
 	}
@@ -155,15 +148,11 @@ public final class AggregateOperationFactory {
 		validateAggregates(aggregates);
 		validateWindowProperties(windowProperties, window);
 
-		List<PlannerExpression> convertedGroupings = bridge(groupings);
-		List<PlannerExpression> convertedAggregates = bridge(aggregates);
-		List<PlannerExpression> convertedWindowProperties = bridge(windowProperties);
-
-		TypeInformation[] fieldTypes = concat(
-			convertedGroupings.stream().map(PlannerExpression::resultType),
-			convertedAggregates.stream().flatMap(this::extractAggregateResultTypes),
-			convertedWindowProperties.stream().map(PlannerExpression::resultType)
-		).toArray(TypeInformation[]::new);
+		DataType[] fieldTypes = concat(
+			groupings.stream().map(ResolvedExpression::getOutputDataType),
+			aggregates.stream().flatMap(this::extractAggregateResultTypes),
+			windowProperties.stream().map(ResolvedExpression::getOutputDataType)
+		).toArray(DataType[]::new);
 
 		String[] groupNames = groupings.stream()
 			.map(expr -> extractName(expr).orElseGet(expr::toString)).toArray(String[]::new);
@@ -173,7 +162,7 @@ public final class AggregateOperationFactory {
 			windowProperties.stream().map(expr -> extractName(expr).orElseGet(expr::toString))
 		).toArray(String[]::new);
 
-		TableSchema tableSchema = new TableSchema(fieldNames, fieldTypes);
+		TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
 
 		return new WindowAggregateQueryOperation(
 			groupings,
@@ -188,12 +177,13 @@ public final class AggregateOperationFactory {
 	 * Extract result types for the aggregate or the table aggregate expression. For a table aggregate,
 	 * it may return multi result types when the composite return type is flattened.
 	 */
-	private Stream<TypeInformation<?>> extractAggregateResultTypes(PlannerExpression plannerExpression) {
-		if ((plannerExpression instanceof AggFunctionCall) &&
-			(((AggFunctionCall) plannerExpression).aggregateFunction() instanceof TableAggregateFunction)) {
-			return Stream.of(FieldInfoUtils.getFieldTypes(plannerExpression.resultType()));
+	private Stream<DataType> extractAggregateResultTypes(ResolvedExpression expression) {
+		if (ApiExpressionUtils.isFunctionOfKind(expression, TABLE_AGGREGATE)) {
+			TypeInformation<?> legacyInfo = TypeConversions.fromDataTypeToLegacyInfo(expression.getOutputDataType());
+			return Stream.of(FieldInfoUtils.getFieldTypes(legacyInfo))
+				.map(TypeConversions::fromLegacyInfoToDataType);
 		} else {
-			return Stream.of(plannerExpression.resultType());
+			return Stream.of(expression.getOutputDataType());
 		}
 	}
 
@@ -396,8 +386,8 @@ public final class AggregateOperationFactory {
 	private void validateWindowProperties(List<ResolvedExpression> windowProperties, ResolvedGroupWindow window) {
 		if (!windowProperties.isEmpty()) {
 			if (window.getType() == TUMBLE || window.getType() == SLIDE) {
-				TypeInformation<?> resultType = window.getSize().map(expressionBridge::bridge).get().resultType();
-				if (resultType == LONG_TYPE_INFO) {
+				DataType windowType = window.getSize().get().getOutputDataType();
+				if (LogicalTypeChecks.hasRoot(windowType.getLogicalType(), BIGINT)) {
 					throw new ValidationException(String.format("Window start and Window end cannot be selected " +
 						"for a row-count %s window.", window.getType().toString().toLowerCase()));
 				}
@@ -408,12 +398,6 @@ public final class AggregateOperationFactory {
 	private static <T> Stream<T> concat(Stream<T> first, Stream<T> second, Stream<T> third) {
 		Stream<T> firstConcat = Stream.concat(first, second);
 		return Stream.concat(firstConcat, third);
-	}
-
-	private List<PlannerExpression> bridge(List<ResolvedExpression> aggregates) {
-		return aggregates.stream()
-			.map(expressionBridge::bridge)
-			.collect(Collectors.toList());
 	}
 
 	private void validateGroupings(List<ResolvedExpression> groupings) {

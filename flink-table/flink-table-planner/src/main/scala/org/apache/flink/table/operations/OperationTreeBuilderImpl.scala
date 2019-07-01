@@ -19,7 +19,6 @@
 package org.apache.flink.table.operations
 
 import java.util.{Collections, Optional, List => JList}
-
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.FunctionLookup
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{isFunctionOfKind, unresolvedCall, unresolvedRef, valueLiteral}
@@ -35,6 +34,8 @@ import org.apache.flink.table.operations.AliasOperationUtils.createAliasList
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType
 import org.apache.flink.table.operations.OperationExpressionsUtils.extractAggregationsAndProperties
 import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType._
+import org.apache.flink.table.types.logical.LogicalTypeRoot
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
 import org.apache.flink.util.Preconditions
 
@@ -49,19 +50,17 @@ import _root_.scala.collection.JavaConverters._
   */
 class OperationTreeBuilderImpl(
     tableCatalog: TableReferenceLookup,
-    expressionBridge: ExpressionBridge[PlannerExpression],
     functionCatalog: FunctionLookup,
     isStreaming: Boolean)
   extends OperationTreeBuilder{
 
   private val lookupResolver = new LookupCallResolver(functionCatalog)
-  private val projectionOperationFactory = new ProjectionOperationFactory(expressionBridge)
+  private val projectionOperationFactory = new ProjectionOperationFactory()
   private val sortOperationFactory = new SortOperationFactory(isStreaming)
   private val calculatedTableFactory = new CalculatedTableFactory()
   private val setOperationFactory = new SetOperationFactory(isStreaming)
-  private val aggregateOperationFactory = new AggregateOperationFactory(expressionBridge,
-    isStreaming)
-  private val joinOperationFactory = new JoinOperationFactory(expressionBridge)
+  private val aggregateOperationFactory = new AggregateOperationFactory(isStreaming)
+  private val joinOperationFactory = new JoinOperationFactory()
 
   private val noWindowPropertyChecker = new NoWindowPropertyChecker(
     "Window start and end properties are not available for Over windows.")
@@ -443,10 +442,10 @@ class OperationTreeBuilderImpl(
 
     val resolver = resolverFor(tableCatalog, functionCatalog, child).build()
     val resolvedExpression = resolveSingleExpression(condition, resolver)
-    val convertedCondition = expressionBridge.bridge(resolvedExpression)
-    if (convertedCondition.resultType != Types.BOOLEAN) {
+    val conditionType = resolvedExpression.getOutputDataType
+    if (!LogicalTypeChecks.hasRoot(conditionType.getLogicalType, LogicalTypeRoot.BOOLEAN)) {
       throw new ValidationException(s"Filter operator requires a boolean expression as input," +
-        s" but $condition is of type ${convertedCondition.resultType}")
+        s" but $condition is of type ${conditionType}")
     }
 
     new FilterQueryOperation(resolvedExpression, child)
