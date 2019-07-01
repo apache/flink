@@ -87,6 +87,11 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setBufferPoolFactory(BufferPool bufferPool) {
+		this.bufferPoolFactory = () -> bufferPool;
+		return this;
+	}
+
 	public SingleInputGate build() {
 		return new SingleInputGate(
 			"Single Input Gate",

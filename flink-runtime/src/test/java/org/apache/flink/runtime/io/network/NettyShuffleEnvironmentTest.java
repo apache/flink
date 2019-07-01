@@ -155,23 +155,19 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 4);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		// set up remote input channels for the exclusive buffers of the credit-based flow control
-		// (note that this does not obey the partition types which is ok for the scope of the test)
-		if (enableCreditBasedFlowControl) {
-			createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
-		}
+		createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
 
 		Task.setupPartitionsAndGates(resultPartitions, inputGates);
 

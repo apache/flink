@@ -167,9 +167,6 @@ public class UnionInputGate extends InputGate {
 			return Optional.empty();
 		}
 
-		// Make sure to request the partitions, if they have not been requested before.
-		requestPartitions();
-
 		Optional<InputWithData<InputGate, BufferOrEvent>> next = waitAndGetNextData(blocking);
 		if (!next.isPresent()) {
 			return Optional.empty();

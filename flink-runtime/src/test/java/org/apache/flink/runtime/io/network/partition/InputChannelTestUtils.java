@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -189,6 +190,26 @@ public class InputChannelTestUtils {
 		@Override
 		public Collection<MemorySegment> requestMemorySegments() {
 			return Collections.emptyList();
+		}
+
+		@Override
+		public void recycleMemorySegments(Collection<MemorySegment> segments) {
+		}
+	}
+
+	/**
+	 * {@link MemorySegmentProvider} that provides unpooled {@link MemorySegment}s.
+	 */
+	public static class UnpooledMemorySegmentProvider implements MemorySegmentProvider {
+		private final int pageSize;
+
+		public UnpooledMemorySegmentProvider(int pageSize) {
+			this.pageSize = pageSize;
+		}
+
+		@Override
+		public Collection<MemorySegment> requestMemorySegments() {
+			return Collections.singletonList(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
 		}
 
 		@Override

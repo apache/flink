@@ -130,5 +130,5 @@ public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCl
 	/**
 	 * Setup gate, potentially heavy-weight, blocking operation comparing to just creation.
 	 */
-	public abstract void setup() throws IOException;
+	public abstract void setup() throws IOException, InterruptedException;
 }

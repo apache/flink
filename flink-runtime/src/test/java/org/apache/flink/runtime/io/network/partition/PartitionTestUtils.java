@@ -63,6 +63,7 @@ public class PartitionTestUtils {
 			ResultPartitionType partitionType,
 			int numChannels) {
 		return new ResultPartitionBuilder()
+			.setResultPartitionManager(environment.getResultPartitionManager())
 			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
 			.setResultPartitionType(partitionType)
 			.setNumberOfSubpartitions(numChannels)
@@ -75,6 +76,7 @@ public class PartitionTestUtils {
 			ResultPartitionType partitionType,
 			int numChannels) {
 		return new ResultPartitionBuilder()
+			.setResultPartitionManager(environment.getResultPartitionManager())
 			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
 			.setFileChannelManager(channelManager)
 			.setResultPartitionType(partitionType)
