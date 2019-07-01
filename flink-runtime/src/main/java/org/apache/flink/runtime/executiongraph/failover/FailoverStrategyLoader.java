@@ -28,14 +28,14 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 /**
- * A utility class to load failover strategies from the configuration. 
+ * A utility class to load failover strategies from the configuration.
  */
 public class FailoverStrategyLoader {
 
-	/** Config name for the {@link RestartAllStrategy} */
+	/** Config name for the {@link RestartAllStrategy}. */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartIndividualStrategy} */
+	/** Config name for the {@link RestartIndividualStrategy}. */
 	public static final String INDIVIDUAL_RESTART_STRATEGY_NAME = "individual";
 
 	/** Config name for the {@link RestartPipelinedRegionStrategy} */
