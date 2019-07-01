@@ -19,6 +19,8 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
+import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -42,6 +44,9 @@ import java.util.Set;
  *
  * <p>Instances of this class describe the fully parameterized, immutable type with additional
  * information such as numeric precision or expected length.
+ *
+ * <p>Contracts how logical types relate to other types are defined by {@link LogicalTypeCasts} and
+ * {@link LogicalTypeGeneralization}.
  *
  * <p>NOTE: A logical type is just a description of a type, a planner or runtime might not support
  * every type in every logical precision yet!
