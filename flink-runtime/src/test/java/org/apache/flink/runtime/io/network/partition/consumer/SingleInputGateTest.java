@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -192,51 +191,52 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 		// Setup reader with one local and one unknown input channel
 
-		final SingleInputGate inputGate = createInputGate();
-		final BufferPool bufferPool = mock(BufferPool.class);
-		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
+		NettyShuffleEnvironment environment = createNettyShuffleEnvironment();
+		final SingleInputGate inputGate = createInputGate(environment, 2, ResultPartitionType.PIPELINED);
+		try {
+			// Local
+			ResultPartitionID localPartitionId = new ResultPartitionID();
 
-		inputGate.setBufferPool(bufferPool);
+			InputChannelBuilder.newBuilder()
+				.setPartitionId(localPartitionId)
+				.setPartitionManager(partitionManager)
+				.setTaskEventPublisher(taskEventDispatcher)
+				.buildLocalAndSetToGate(inputGate);
 
-		// Local
-		ResultPartitionID localPartitionId = new ResultPartitionID();
+			// Unknown
+			ResultPartitionID unknownPartitionId = new ResultPartitionID();
 
-		InputChannelBuilder.newBuilder()
-			.setPartitionId(localPartitionId)
-			.setPartitionManager(partitionManager)
-			.setTaskEventPublisher(taskEventDispatcher)
-			.buildLocalAndSetToGate(inputGate);
+			InputChannelBuilder.newBuilder()
+				.setChannelIndex(1)
+				.setPartitionId(unknownPartitionId)
+				.setPartitionManager(partitionManager)
+				.setTaskEventPublisher(taskEventDispatcher)
+				.buildUnknownAndSetToGate(inputGate);
 
-		// Unknown
-		ResultPartitionID unknownPartitionId = new ResultPartitionID();
+			inputGate.setup();
 
-		InputChannelBuilder.newBuilder()
-			.setChannelIndex(1)
-			.setPartitionId(unknownPartitionId)
-			.setPartitionManager(partitionManager)
-			.setTaskEventPublisher(taskEventDispatcher)
-			.buildUnknownAndSetToGate(inputGate);
+			// Only the local channel can request
+			verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 
-		// Request partitions
-		inputGate.requestPartitions();
+			// Send event backwards and initialize unknown channel afterwards
+			final TaskEvent event = new TestTaskEvent();
+			inputGate.sendTaskEvent(event);
 
-		// Only the local channel can request
-		verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
+			// Only the local channel can send out the event
+			verify(taskEventDispatcher, times(1)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
 
-		// Send event backwards and initialize unknown channel afterwards
-		final TaskEvent event = new TestTaskEvent();
-		inputGate.sendTaskEvent(event);
+			// After the update, the pending event should be send to local channel
 
-		// Only the local channel can send out the event
-		verify(taskEventDispatcher, times(1)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+			ResourceID location = ResourceID.generate();
+			inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(unknownPartitionId.getPartitionId(), location));
 
-		// After the update, the pending event should be send to local channel
-
-		ResourceID location = ResourceID.generate();
-		inputGate.updateInputChannel(location, createRemoteWithIdAndLocation(unknownPartitionId.getPartitionId(), location));
-
-		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
-		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+			verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
+			verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+		}
+		finally {
+			inputGate.close();
+			environment.close();
+		}
 	}
 
 	/**

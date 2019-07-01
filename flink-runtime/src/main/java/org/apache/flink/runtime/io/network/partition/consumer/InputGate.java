@@ -77,8 +77,6 @@ public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCl
 
 	public abstract boolean isFinished();
 
-	public abstract void requestPartitions() throws IOException, InterruptedException;
-
 	/**
 	 * Blocking call waiting for next {@link BufferOrEvent}.
 	 *

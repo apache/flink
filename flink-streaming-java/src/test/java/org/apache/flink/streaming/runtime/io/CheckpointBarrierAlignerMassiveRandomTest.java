@@ -152,9 +152,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 
 		@Override
-		public void requestPartitions() {}
-
-		@Override
 		public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 			currentChannel = (currentChannel + 1) % numberOfChannels;
 
