@@ -111,6 +111,10 @@ under the License.
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>com.UNSHADE.amazon</pattern>
+									<shadedPattern>com.amazon</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
