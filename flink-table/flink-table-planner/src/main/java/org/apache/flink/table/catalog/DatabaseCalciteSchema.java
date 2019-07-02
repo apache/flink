@@ -110,7 +110,7 @@ class DatabaseCalciteSchema implements Schema {
 			if (tf instanceof TableSourceFactory) {
 				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
 			} else {
-				throw new TableException(String.format("TableFactory provided by catalog %s must implement TableSourceFactory",
+				throw new TableException(String.format("Cannot query a sink-only table. TableFactory provided by catalog %s must implement TableSourceFactory",
 					catalog.getClass()));
 			}
 		} else {
