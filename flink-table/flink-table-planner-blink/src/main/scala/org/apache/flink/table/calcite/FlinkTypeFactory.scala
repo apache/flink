@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.api.common.typeinfo.NothingTypeInfo
+import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
 import org.apache.flink.util.Preconditions.checkArgument
 
@@ -366,6 +367,24 @@ object FlinkTypeFactory {
 
   def isProctimeIndicatorType(relDataType: RelDataType): Boolean = relDataType match {
     case ti: TimeIndicatorRelDataType if !ti.isEventTime => true
+    case _ => false
+  }
+
+  @Deprecated
+  def isProctimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case ti: TimeIndicatorTypeInfo if !ti.isEventTime => true
+    case _ => false
+  }
+
+  @Deprecated
+  def isRowtimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case ti: TimeIndicatorTypeInfo if ti.isEventTime => true
+    case _ => false
+  }
+
+  @Deprecated
+  def isTimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case ti: TimeIndicatorTypeInfo => true
     case _ => false
   }
 
