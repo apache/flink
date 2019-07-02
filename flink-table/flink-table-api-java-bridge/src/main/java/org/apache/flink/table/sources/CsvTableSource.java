@@ -137,16 +137,10 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	/**
-	 * Return a new builder that builds a CsvTableSource.
-	 * For example:
-	 * {{{
-	 *   val source: CsvTableSource = CsvTableSource
-	 *     .builder()
-	 *     .path("/path/to/your/file.csv")
-	 *     .field("myfield", Types.STRING)
-	 *     .field("myfield2", Types.INT)
-	 *     .build()
-	 * }}}
+	 * Return a new builder that builds a CsvTableSource. For example: {{{ val source:
+	 * CsvTableSource = CsvTableSource .builder() .path("/path/to/your/file.csv") .field("myfield",
+	 * Types.STRING) .field("myfield2", Types.INT) .build() }}}
+	 *
 	 * @return a new builder to build a CsvTableSource
 	 */
 	public static Builder builder() {
@@ -201,7 +195,7 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	@Override
 	public String explainSource() {
 		String[] fields = config.getSelectedFieldNames();
-		return String.join(", ", fields);
+		return "CsvTableSource(read fields: " + String.join(", ", fields) + ")";
 	}
 
 	@Override
@@ -222,15 +216,9 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	/**
-	 * A builder for creating CsvTableSource instances.
-	 * For example:
-	 * {{{
-	 *   val source: CsvTableSource = new CsvTableSource.builder()
-	 *     .path("/path/to/your/file.csv")
-	 *     .field("myfield", Types.STRING)
-	 *     .field("myfield2", Types.INT)
-	 *     .build()
-	 * }}}
+	 * A builder for creating CsvTableSource instances. For example: {{{ val source: CsvTableSource
+	 * = new CsvTableSource.builder() .path("/path/to/your/file.csv") .field("myfield",
+	 * Types.STRING) .field("myfield2", Types.INT) .build() }}}
 	 */
 	public static class Builder {
 		private LinkedHashMap<String, TypeInformation<?>> schema = new LinkedHashMap<>();
