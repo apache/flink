@@ -26,12 +26,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-quickstart</artifactId>
+		<artifactId>flink-walkthroughs</artifactId>
 		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-walkthrough-table</artifactId>
+	<artifactId>flink-walkthrough-table-scala</artifactId>
 	<packaging>maven-archetype</packaging>
 
 </project>
