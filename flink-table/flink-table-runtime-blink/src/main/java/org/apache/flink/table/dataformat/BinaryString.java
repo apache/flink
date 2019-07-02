@@ -621,6 +621,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			if (s > e) {
 				// empty string
 				return EMPTY_UTF8;
+			} else if (s == 0 && e == this.sizeInBytes - 1) {
+				return this;
 			} else {
 				return copyBinaryStringInOneSeg(s, e);
 			}
@@ -648,6 +650,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (s > e) {
 			// empty string
 			return EMPTY_UTF8;
+		} else if (s == 0 && e == this.sizeInBytes - 1) {
+			return this;
 		} else {
 			return copyBinaryString(s, e);
 		}
@@ -679,6 +683,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			if (s == this.sizeInBytes) {
 				// empty string
 				return EMPTY_UTF8;
+			} else if (s == 0) {
+				return this;
 			} else {
 				return copyBinaryStringInOneSeg(s, this.sizeInBytes - 1);
 			}
@@ -699,6 +705,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (s == this.sizeInBytes) {
 			// empty string
 			return EMPTY_UTF8;
+		} else if (s == 0) {
+			return this;
 		} else {
 			return copyBinaryString(s, this.sizeInBytes - 1);
 		}
@@ -738,6 +746,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			// empty string
 			if (searchIdx >= sizeInBytes) {
 				return EMPTY_UTF8;
+			} else if (searchIdx == 0) {
+				return this;
 			} else {
 				return copyBinaryStringInOneSeg(searchIdx, sizeInBytes - 1);
 			}
@@ -763,6 +773,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (searchIdx == this.sizeInBytes) {
 			// empty string
 			return EMPTY_UTF8;
+		} else if (searchIdx == 0) {
+			return this;
 		} else {
 			return copyBinaryString(searchIdx, this.sizeInBytes - 1);
 		}
@@ -780,6 +792,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			if (e < 0) {
 				// empty string
 				return EMPTY_UTF8;
+			} else if (e == sizeInBytes - 1) {
+				return this;
 			} else {
 				return copyBinaryStringInOneSeg(0, e);
 			}
@@ -801,6 +815,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (e < 0) {
 			// empty string
 			return EMPTY_UTF8;
+		} else if (e == sizeInBytes - 1) {
+			return this;
 		} else {
 			return copyBinaryString(0, e);
 		}
@@ -855,6 +871,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 			if (searchIdx < 0) {
 				// empty string
 				return EMPTY_UTF8;
+			} else if (searchIdx == sizeInBytes - 1) {
+				return this;
 			} else {
 				return copyBinaryStringInOneSeg(0, searchIdx);
 			}
@@ -898,6 +916,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 		if (searchIdx < 0) {
 			// empty string
 			return EMPTY_UTF8;
+		} else if (searchIdx == sizeInBytes - 1) {
+			return this;
 		} else {
 			return copyBinaryString(0, searchIdx);
 		}
