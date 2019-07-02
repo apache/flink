@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
-
-import org.apache.flink.api.common.ScheduleMode;
+package org.apache.flink.api.common;
 
 import org.junit.Test;
 

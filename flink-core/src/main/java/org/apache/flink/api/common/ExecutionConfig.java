@@ -90,7 +90,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Defines how data exchange happens - batch or pipelined */
 	private ExecutionMode executionMode = ExecutionMode.PIPELINED;
 
-	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
+	private ScheduleMode scheduleMode = ScheduleMode.EAGER;
 
 	private ClosureCleanerLevel closureCleanerLevel = ClosureCleanerLevel.RECURSIVE;
 
