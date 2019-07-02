@@ -52,9 +52,9 @@ Starting from the stream of `Items`, we just need to *key it* by `Color`, as we 
 make sure that elements of the same color end up on the same physical machine.
 
 {% highlight java %}
-// key the shapes by color
-KeyedStream<Item, Color> colorPartitionedStream = shapeStream
-                        .keyBy(new KeySelector<Shape, Color>(){...});
+// key the items by color
+KeyedStream<Item, Color> colorPartitionedStream = itemStream
+                        .keyBy(new KeySelector<Item, Color>(){...});
 {% endhighlight %}
 
 Moving on to the `Rules`, the stream containing them should be broadcasted to all downstream tasks, and these tasks 
