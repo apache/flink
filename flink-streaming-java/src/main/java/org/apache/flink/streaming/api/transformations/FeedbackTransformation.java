@@ -61,7 +61,11 @@ public class FeedbackTransformation<T> extends Transformation<T> {
 	 *                          the operation will close and not receive any more feedback elements.
 	 */
 	public FeedbackTransformation(Transformation<T> input, Long waitTime) {
-		super("Feedback", input.getOutputType(), input.getParallelism());
+		super(
+				"Feedback",
+				input.getOutputType(),
+				input.getParallelism(),
+				false /* this is ignored because we override isBounded() */);
 		this.input = input;
 		this.waitTime = waitTime;
 		this.feedbackEdges = Lists.newArrayList();
@@ -116,6 +120,11 @@ public class FeedbackTransformation<T> extends Transformation<T> {
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
+	}
+
+	@Override
+	public boolean isBounded() {
+		return input.isBounded() && feedbackEdges.stream().allMatch(Transformation::isBounded);
 	}
 }
 

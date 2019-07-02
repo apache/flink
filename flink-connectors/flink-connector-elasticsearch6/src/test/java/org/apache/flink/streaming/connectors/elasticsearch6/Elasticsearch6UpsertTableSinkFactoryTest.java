@@ -206,7 +206,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 	private static class TransformationMock extends Transformation<Tuple2<Boolean, Row>> {
 
 		public TransformationMock(String name, TypeInformation<Tuple2<Boolean, Row>> outputType, int parallelism) {
-			super(name, outputType, parallelism);
+			super(name, outputType, parallelism, false);
 		}
 
 		@Override

@@ -202,7 +202,7 @@ public class DataGenerators {
 
 		private static class MockTransformation extends Transformation<String> {
 			public MockTransformation() {
-				super("MockTransform", BasicTypeInfo.STRING_TYPE_INFO, 1);
+				super("MockTransform", BasicTypeInfo.STRING_TYPE_INFO, 1, false);
 			}
 
 			@Override

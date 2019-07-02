@@ -72,7 +72,7 @@ public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 			String name,
 			StreamOperatorFactory<Object> operatorFactory,
 			int parallelism) {
-		super(name, TypeExtractor.getForClass(Object.class), parallelism);
+		super(name, TypeExtractor.getForClass(Object.class), parallelism, input.isBounded());
 		this.input = input;
 		this.operatorFactory = operatorFactory;
 	}

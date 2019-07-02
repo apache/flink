@@ -69,7 +69,7 @@ public class PartitionTransformation<T> extends Transformation<T> {
 			Transformation<T> input,
 			StreamPartitioner<T> partitioner,
 			ShuffleMode shuffleMode) {
-		super("Partition", input.getOutputType(), input.getParallelism());
+		super("Partition", input.getOutputType(), input.getParallelism(), input.isBounded());
 		this.input = input;
 		this.partitioner = partitioner;
 		this.shuffleMode = checkNotNull(shuffleMode);

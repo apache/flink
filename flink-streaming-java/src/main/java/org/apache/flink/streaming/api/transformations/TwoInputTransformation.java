@@ -83,7 +83,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<OUT> outputType,
 			int parallelism) {
-		super(name, outputType, parallelism);
+		super(name, outputType, parallelism, input1.isBounded() && input2.isBounded());
 		this.input1 = input1;
 		this.input2 = input2;
 		this.operatorFactory = operatorFactory;

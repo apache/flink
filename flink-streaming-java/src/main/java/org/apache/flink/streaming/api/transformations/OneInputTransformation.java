@@ -76,7 +76,7 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<OUT> outputType,
 			int parallelism) {
-		super(name, outputType, parallelism);
+		super(name, outputType, parallelism, input.isBounded());
 		this.input = input;
 		this.operatorFactory = operatorFactory;
 	}

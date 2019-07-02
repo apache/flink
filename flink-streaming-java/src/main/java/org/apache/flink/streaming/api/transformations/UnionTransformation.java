@@ -47,7 +47,11 @@ public class UnionTransformation<T> extends Transformation<T> {
 	 * @param inputs The list of input {@code Transformations}
 	 */
 	public UnionTransformation(List<Transformation<T>> inputs) {
-		super("Union", inputs.get(0).getOutputType(), inputs.get(0).getParallelism());
+		super(
+				"Union",
+				inputs.get(0).getOutputType(),
+				inputs.get(0).getParallelism(),
+				areAllBounded(inputs));
 
 		for (Transformation<T> input: inputs) {
 			if (!input.getOutputType().equals(getOutputType())) {
@@ -73,5 +77,9 @@ public class UnionTransformation<T> extends Transformation<T> {
 			result.addAll(input.getTransitivePredecessors());
 		}
 		return result;
+	}
+
+	private static <T> boolean areAllBounded(List<Transformation<T>> inputs) {
+		return inputs.stream().allMatch(Transformation::isBounded);
 	}
 }

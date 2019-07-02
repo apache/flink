@@ -40,10 +40,11 @@ public abstract class PhysicalTransformation<T> extends Transformation<T> {
 	 * @param parallelism The parallelism of this {@code Transformation}
 	 */
 	PhysicalTransformation(
-		String name,
-		TypeInformation<T> outputType,
-		int parallelism) {
-		super(name, outputType, parallelism);
+			String name,
+			TypeInformation<T> outputType,
+			int parallelism,
+			boolean isBounded) {
+		super(name, outputType, parallelism, isBounded);
 	}
 
 	/**

@@ -260,7 +260,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	private static class TransformationMock extends Transformation<Row> {
 
 		public TransformationMock(String name, TypeInformation<Row> outputType, int parallelism) {
-			super(name, outputType, parallelism);
+			super(name, outputType, parallelism, false);
 		}
 
 		@Override

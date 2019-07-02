@@ -51,9 +51,9 @@ public class SplitTransformation<T> extends Transformation<T> {
 	 * @param outputSelector The output selector
 	 */
 	public SplitTransformation(
-		Transformation<T> input,
+			Transformation<T> input,
 			OutputSelector<T> outputSelector) {
-		super("Split", input.getOutputType(), input.getParallelism());
+		super("Split", input.getOutputType(), input.getParallelism(), input.isBounded());
 		this.input = input;
 		this.outputSelector = outputSelector;
 	}

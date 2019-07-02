@@ -44,7 +44,11 @@ public class SideOutputTransformation<T> extends Transformation<T> {
 	private final OutputTag<T> tag;
 
 	public SideOutputTransformation(Transformation<?> input, final OutputTag<T> tag) {
-		super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
+		super(
+				"SideOutput",
+				tag.getTypeInfo(),
+				requireNonNull(input).getParallelism(),
+				input.isBounded());
 		this.input = input;
 		this.tag = requireNonNull(tag);
 	}

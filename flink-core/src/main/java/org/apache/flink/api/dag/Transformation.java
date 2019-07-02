@@ -153,6 +153,8 @@ public abstract class Transformation<T> {
 	@Nullable
 	private String coLocationGroupKey;
 
+	private final boolean isBounded;
+
 	/**
 	 * Creates a new {@code Transformation} with the given name, output type and parallelism.
 	 *
@@ -160,12 +162,17 @@ public abstract class Transformation<T> {
 	 * @param outputType The output type of this {@code Transformation}
 	 * @param parallelism The parallelism of this {@code Transformation}
 	 */
-	public Transformation(String name, TypeInformation<T> outputType, int parallelism) {
+	public Transformation(
+			String name,
+			TypeInformation<T> outputType,
+			int parallelism,
+			boolean isBounded) {
 		this.id = getNewNodeId();
 		this.name = Preconditions.checkNotNull(name);
 		this.outputType = outputType;
 		this.parallelism = parallelism;
 		this.slotSharingGroup = null;
+		this.isBounded = isBounded;
 	}
 
 	/**
@@ -194,6 +201,14 @@ public abstract class Transformation<T> {
 	 */
 	public int getParallelism() {
 		return parallelism;
+	}
+
+	/**
+	 * Returns {@code true} if this transformation is bounded, if this is {@code false} the
+	 * transformation is unbounded.
+	 */
+	public boolean isBounded() {
+		return isBounded;
 	}
 
 	/**

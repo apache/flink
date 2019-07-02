@@ -53,16 +53,18 @@ public class SourceTransformation<T> extends PhysicalTransformation<T> {
 			String name,
 			StreamSource<T, ?> operator,
 			TypeInformation<T> outputType,
-			int parallelism) {
-		this(name, SimpleOperatorFactory.of(operator), outputType, parallelism);
+			int parallelism,
+			boolean isBounded) {
+		this(name, SimpleOperatorFactory.of(operator), outputType, parallelism, isBounded);
 	}
 
 	public SourceTransformation(
 			String name,
 			StreamOperatorFactory<T> operatorFactory,
 			TypeInformation<T> outputType,
-			int parallelism) {
-		super(name, outputType, parallelism);
+			int parallelism,
+			boolean isBounded) {
+		super(name, outputType, parallelism, isBounded);
 		this.operatorFactory = operatorFactory;
 	}
 

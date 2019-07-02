@@ -51,9 +51,9 @@ public class SelectTransformation<T> extends Transformation<T> {
 	 *                      {@code SelectTransformation} selects.
 	 */
 	public SelectTransformation(
-		Transformation<T> input,
+			Transformation<T> input,
 			List<String> selectedNames) {
-		super("Select", input.getOutputType(), input.getParallelism());
+		super("Select", input.getOutputType(), input.getParallelism(), input.isBounded());
 		this.input = input;
 		this.selectedNames = selectedNames;
 	}

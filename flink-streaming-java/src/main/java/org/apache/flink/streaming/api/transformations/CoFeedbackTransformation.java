@@ -70,7 +70,11 @@ public class CoFeedbackTransformation<F> extends Transformation<F> {
 	public CoFeedbackTransformation(int parallelism,
 			TypeInformation<F> feedbackType,
 			Long waitTime) {
-		super("CoFeedback", feedbackType, parallelism);
+		super(
+				"CoFeedback",
+				feedbackType,
+				parallelism,
+				false /* this is not used because we override isBounded()*/);
 		this.waitTime = waitTime;
 		this.feedbackEdges = Lists.newArrayList();
 	}
@@ -113,6 +117,11 @@ public class CoFeedbackTransformation<F> extends Transformation<F> {
 	@Override
 	public Collection<Transformation<?>> getTransitivePredecessors() {
 		return Collections.<Transformation<?>>singleton(this);
+	}
+
+	@Override
+	public boolean isBounded() {
+		return feedbackEdges.stream().allMatch(Transformation::isBounded);
 	}
 }
 
