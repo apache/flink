@@ -162,6 +162,36 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat.close();
 	}
 
+	@Test(expected = RuntimeException.class)
+	public void testExceptionOnRetry() throws IOException {
+
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
+			.setSqlTypes(new int[] {
+				Types.INTEGER,
+				Types.VARCHAR,
+				Types.VARCHAR,
+				Types.DOUBLE,
+				Types.INTEGER})
+			.setRetries(3)
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		JDBCTestBase.TestEntry entry = TEST_DATA[0];
+		Row row = new Row(5);
+		row.setField(0, entry.id);
+		row.setField(1, entry.title);
+		row.setField(2, entry.author);
+		row.setField(3, entry.price);
+		row.setField(4, entry.qty);
+		jdbcOutputFormat.writeRecord(row);
+		jdbcOutputFormat.writeRecord(row); // writing the same record twice must yield a unique key violation.
+
+		jdbcOutputFormat.close();
+	}
+
 	@Test
 	public void testJDBCOutputFormat() throws IOException, SQLException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
