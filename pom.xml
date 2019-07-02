@@ -1797,6 +1797,9 @@ under the License.
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
+								<!-- These constructors should have been internal, there is no need for users to use them -->
+								<exclude>org.apache.flink.streaming.api.datastream.DataStreamSource#DataStreamSource(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.streaming.api.operators.StreamSource,boolean,java.lang.String)</exclude>
+								<exclude>org.apache.flink.streaming.api.datastream.DataStreamSource#DataStreamSource(org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator)</exclude>
 								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>

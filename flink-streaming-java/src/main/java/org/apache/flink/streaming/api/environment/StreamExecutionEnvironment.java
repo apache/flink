@@ -74,6 +74,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
@@ -1472,7 +1473,14 @@ public abstract class StreamExecutionEnvironment {
 		clean(function);
 
 		final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
-		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
+
+		SourceTransformation<OUT> sourceTransformation = new SourceTransformation<>(
+				sourceName,
+				sourceOperator,
+				typeInfo,
+				this.getParallelism());
+
+		return new DataStreamSource<>(this, sourceTransformation, isParallel);
 	}
 
 	/**
