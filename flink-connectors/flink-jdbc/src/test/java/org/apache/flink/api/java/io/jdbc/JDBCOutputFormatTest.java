@@ -133,6 +133,32 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat.writeRecord(row);
 	}
 
+	@Test
+	public void testCastFloatToDoubleType() throws IOException {
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
+			.setSqlTypes(new int[] {
+				Types.INTEGER,
+				Types.VARCHAR,
+				Types.VARCHAR,
+				Types.FLOAT,
+				Types.INTEGER})
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		Row row = new Row(5);
+		row.setField(0, 4);
+		row.setField(1, "hello");
+		row.setField(2, "world");
+		row.setField(3, 0.99f);
+		row.setField(4, 1);
+
+		jdbcOutputFormat.writeRecord(row);
+		jdbcOutputFormat.close();
+	}
+
 	@Test(expected = RuntimeException.class)
 	public void testExceptionOnClose() throws IOException {
 
