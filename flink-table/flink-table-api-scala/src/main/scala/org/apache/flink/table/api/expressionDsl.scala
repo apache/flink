@@ -22,10 +22,11 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{RANGE_TO, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper, _}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions
@@ -40,6 +41,7 @@ import _root_.scala.language.implicitConversions
   * These operations must be kept in sync with the parser in
   * [[org.apache.flink.table.expressions.ExpressionParser]].
   */
+@PublicEvolving
 trait ImplicitExpressionOperations {
   private[flink] def expr: Expression
 
@@ -998,6 +1000,7 @@ trait ImplicitExpressionOperations {
   * Implicit conversions from Scala literals to [[Expression]] and from [[Expression]]
   * to [[ImplicitExpressionOperations]].
   */
+@PublicEvolving
 trait ImplicitExpressionConversions {
 
   // ----------------------------------------------------------------------------------------------
@@ -1258,73 +1261,39 @@ trait ImplicitExpressionConversions {
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------
 
-  // we disable the object checker here as it checks for capital letters of objects
-  // but we want that objects look like functions in certain cases e.g. array(1, 2, 3)
-  // scalastyle:off object.name
-
   /**
     * Returns the current SQL date in UTC time zone.
     */
-  implicit object currentDate {
-
-    /**
-      * Returns the current SQL date in UTC time zone.
-      */
-    def apply(): Expression = {
-      unresolvedCall(CURRENT_DATE)
-    }
+  def currentDate(): Expression = {
+    unresolvedCall(CURRENT_DATE)
   }
 
   /**
     * Returns the current SQL time in UTC time zone.
     */
-  implicit object currentTime {
-
-    /**
-      * Returns the current SQL time in UTC time zone.
-      */
-    def apply(): Expression = {
-      unresolvedCall(CURRENT_TIME)
-    }
+  def currentTime(): Expression = {
+    unresolvedCall(CURRENT_TIME)
   }
 
   /**
     * Returns the current SQL timestamp in UTC time zone.
     */
-  implicit object currentTimestamp {
-
-    /**
-      * Returns the current SQL timestamp in UTC time zone.
-      */
-    def apply(): Expression = {
-      unresolvedCall(CURRENT_TIMESTAMP)
-    }
+  def currentTimestamp(): Expression = {
+    unresolvedCall(CURRENT_TIMESTAMP)
   }
 
   /**
     * Returns the current SQL time in local time zone.
     */
-  implicit object localTime {
-
-    /**
-      * Returns the current SQL time in local time zone.
-      */
-    def apply(): Expression = {
-      unresolvedCall(LOCAL_TIME)
-    }
+  def localTime(): Expression = {
+    unresolvedCall(LOCAL_TIME)
   }
 
   /**
     * Returns the current SQL timestamp in local time zone.
     */
-  implicit object localTimestamp {
-
-    /**
-      * Returns the current SQL timestamp in local time zone.
-      */
-    def apply(): Expression = {
-      unresolvedCall(LOCAL_TIMESTAMP)
-    }
+  def localTimestamp(): Expression = {
+    unresolvedCall(LOCAL_TIMESTAMP)
   }
 
   /**
@@ -1336,24 +1305,13 @@ trait ImplicitExpressionConversions {
     *
     * e.g. temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour) leads to true
     */
-  implicit object temporalOverlaps {
-
-    /**
-      * Determines whether two anchored time intervals overlap. Time point and temporal are
-      * transformed into a range defined by two time points (start, end).
-      *
-      * It evaluates: leftEnd >= rightStart && rightEnd >= leftStart
-      *
-      * e.g. temporalOverlaps("2:55:00".toTime, 1.hour, "3:30:00".toTime, 2.hour) leads to true
-      */
-    def apply(
-        leftTimePoint: Expression,
-        leftTemporal: Expression,
-        rightTimePoint: Expression,
-        rightTemporal: Expression)
-      : Expression = {
-      unresolvedCall(TEMPORAL_OVERLAPS, leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
-    }
+  def temporalOverlaps(
+      leftTimePoint: Expression,
+      leftTemporal: Expression,
+      rightTimePoint: Expression,
+      rightTemporal: Expression)
+    : Expression = {
+    unresolvedCall(TEMPORAL_OVERLAPS, leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
   }
 
   /**
@@ -1361,28 +1319,17 @@ trait ImplicitExpressionConversions {
     * The format must be compatible with MySQL's date formatting syntax as used by the
     * date_parse function.
     *
-    * For example <code>dataFormat('time, "%Y, %d %M")</code> results in strings
-    * formatted as "2017, 05 May".
+    * For example dataFormat('time, "%Y, %d %M") results in strings formatted as "2017, 05 May".
+    *
+    * @param timestamp The timestamp to format as string.
+    * @param format The format of the string.
+    * @return The formatted timestamp as string.
     */
-  implicit object dateFormat {
-
-    /**
-      * Formats a timestamp as a string using a specified format.
-      * The format must be compatible with MySQL's date formatting syntax as used by the
-      * date_parse function.
-      *
-      * For example dataFormat('time, "%Y, %d %M") results in strings formatted as "2017, 05 May".
-      *
-      * @param timestamp The timestamp to format as string.
-      * @param format The format of the string.
-      * @return The formatted timestamp as string.
-      */
-    def apply(
-        timestamp: Expression,
-        format: Expression)
-      : Expression = {
-      unresolvedCall(DATE_FORMAT, timestamp, format)
-    }
+  def dateFormat(
+      timestamp: Expression,
+      format: Expression)
+    : Expression = {
+    unresolvedCall(DATE_FORMAT, timestamp, format)
   }
 
   /**
@@ -1390,166 +1337,101 @@ trait ImplicitExpressionConversions {
     *
     * For example, timestampDiff(TimePointUnit.DAY, '2016-06-15'.toDate, '2016-06-18'.toDate leads
     * to 3.
+    *
+    * @param timePointUnit The unit to compute diff.
+    * @param timePoint1 The first point in time.
+    * @param timePoint2 The second point in time.
+    * @return The number of intervals as integer value.
     */
-  implicit object timestampDiff {
-
-    /**
-      * Returns the (signed) number of [[TimePointUnit]] between timePoint1 and timePoint2.
-      *
-      * For example, timestampDiff(TimePointUnit.DAY, '2016-06-15'.toDate, '2016-06-18'.toDate leads
-      * to 3.
-      *
-      * @param timePointUnit The unit to compute diff.
-      * @param timePoint1 The first point in time.
-      * @param timePoint2 The second point in time.
-      * @return The number of intervals as integer value.
-      */
-    def apply(
-        timePointUnit: TimePointUnit,
-        timePoint1: Expression,
-        timePoint2: Expression)
-      : Expression = {
-      unresolvedCall(TIMESTAMP_DIFF, timePointUnit, timePoint1, timePoint2)
-    }
+  def timestampDiff(
+      timePointUnit: TimePointUnit,
+      timePoint1: Expression,
+      timePoint2: Expression)
+    : Expression = {
+    unresolvedCall(TIMESTAMP_DIFF, timePointUnit, timePoint1, timePoint2)
   }
 
   /**
-    * Creates an array of literals. The array will be an array of objects (not primitives).
+    * Creates an array of literals.
     */
-  implicit object array {
-
-    /**
-      * Creates an array of literals. The array will be an array of objects (not primitives).
-      */
-    def apply(head: Expression, tail: Expression*): Expression = {
-      unresolvedCall(ARRAY, head +: tail: _*)
-    }
+  def array(head: Expression, tail: Expression*): Expression = {
+    unresolvedCall(ARRAY, head +: tail: _*)
   }
 
   /**
     * Creates a row of expressions.
     */
-  implicit object row {
-
-    /**
-      * Creates a row of expressions.
-      */
-    def apply(head: Expression, tail: Expression*): Expression = {
-      unresolvedCall(ROW, head +: tail: _*)
-    }
+  def row(head: Expression, tail: Expression*): Expression = {
+    unresolvedCall(ROW, head +: tail: _*)
   }
 
   /**
-    * Creates a map of expressions. The map will be a map between two objects (not primitives).
+    * Creates a map of expressions.
     */
-  implicit object map {
-
-    /**
-      * Creates a map of expressions. The map will be a map between two objects (not primitives).
-      */
-    def apply(key: Expression, value: Expression, tail: Expression*): Expression = {
-      unresolvedCall(MAP, key +: value +: tail: _*)
-    }
+  def map(key: Expression, value: Expression, tail: Expression*): Expression = {
+    unresolvedCall(MAP, key +: value +: tail: _*)
   }
 
   /**
     * Returns a value that is closer than any other value to pi.
     */
-  implicit object pi {
-
-    /**
-      * Returns a value that is closer than any other value to pi.
-      */
-    def apply(): Expression = {
-      unresolvedCall(PI)
-    }
+  def pi(): Expression = {
+    unresolvedCall(PI)
   }
 
   /**
     * Returns a value that is closer than any other value to e.
     */
-  implicit object e {
-
-    /**
-      * Returns a value that is closer than any other value to e.
-      */
-    def apply(): Expression = {
-      unresolvedCall(FDE)
-    }
+  def e(): Expression = {
+    unresolvedCall(E)
   }
 
   /**
     * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
     */
-  implicit object rand {
+  def rand(): Expression = {
+    unresolvedCall(RAND)
+  }
 
-    /**
-      * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
-      */
-    def apply(): Expression = {
-      unresolvedCall(RAND)
-    }
-
-    /**
-      * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
-      * initial seed. Two rand() functions will return identical sequences of numbers if they
-      * have same initial seed.
-      */
-    def apply(seed: Expression): Expression = {
-      unresolvedCall(RAND, seed)
-    }
+  /**
+    * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
+    * initial seed. Two rand() functions will return identical sequences of numbers if they
+    * have same initial seed.
+    */
+  def rand(seed: Expression): Expression = {
+    unresolvedCall(RAND, seed)
   }
 
   /**
     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified
     * value (exclusive).
     */
-  implicit object randInteger {
+  def randInteger(bound: Expression): Expression = {
+    unresolvedCall(RAND_INTEGER, bound)
+  }
 
-    /**
-      * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified
-      * value (exclusive).
-      */
-    def apply(bound: Expression): Expression = {
-      unresolvedCall(RAND_INTEGER, bound)
-    }
-
-    /**
-      * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
-      * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
-      * of numbers if they have same initial seed and same bound.
-      */
-    def apply(seed: Expression, bound: Expression): Expression = {
-      unresolvedCall(RAND_INTEGER, seed, bound)
-    }
+  /**
+    * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+    * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
+    * of numbers if they have same initial seed and same bound.
+    */
+  def randInteger(seed: Expression, bound: Expression): Expression = {
+    unresolvedCall(RAND_INTEGER, seed, bound)
   }
 
   /**
     * Returns the string that results from concatenating the arguments.
     * Returns NULL if any argument is NULL.
     */
-  implicit object concat {
-
-    /**
-      * Returns the string that results from concatenating the arguments.
-      * Returns NULL if any argument is NULL.
-      */
-    def apply(string: Expression, strings: Expression*): Expression = {
-      unresolvedCall(CONCAT, string +: strings: _*)
-    }
+  def concat(string: Expression, strings: Expression*): Expression = {
+    unresolvedCall(CONCAT, string +: strings: _*)
   }
 
   /**
     * Calculates the arc tangent of a given coordinate.
     */
-  implicit object atan2 {
-
-    /**
-      * Calculates the arc tangent of a given coordinate.
-      */
-    def apply(y: Expression, x: Expression): Expression = {
-      unresolvedCall(ATAN2, y, x)
-    }
+  def atan2(y: Expression, x: Expression): Expression = {
+    unresolvedCall(ATAN2, y, x)
   }
 
   /**
@@ -1559,10 +1441,8 @@ trait ImplicitExpressionConversions {
     * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
     * values after the separator argument.
     **/
-  implicit object concat_ws {
-    def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
-      unresolvedCall(CONCAT_WS, separator +: string +: strings: _*)
-    }
+  def concat_ws(separator: Expression, string: Expression, strings: Expression*): Expression = {
+    unresolvedCall(CONCAT_WS, separator +: string +: strings: _*)
   }
 
   /**
@@ -1571,17 +1451,8 @@ trait ImplicitExpressionConversions {
     * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
     * generator.
     */
-  implicit object uuid {
-
-    /**
-      * Returns an UUID (Universally Unique Identifier) string (e.g.,
-      * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
-      * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
-      * generator.
-      */
-    def apply(): Expression = {
-      unresolvedCall(FDUUID)
-    }
+  def uuid(): Expression = {
+    unresolvedCall(UUID)
   }
 
   /**
@@ -1589,47 +1460,33 @@ trait ImplicitExpressionConversions {
     *
     * e.g. nullOf(DataTypes.INT())
     */
-  implicit object nullOf {
+  def nullOf(dataType: DataType): Expression = {
+    valueLiteral(null, dataType)
+  }
 
-    /**
-      * Returns a null literal value of a given data type.
-      *
-      * e.g. nullOf(DataTypes.INT())
-      */
-    def apply(dataType: DataType): Expression = {
-      valueLiteral(null, dataType)
-    }
-
-    /**
-      * @deprecated This method will be removed in future versions as it uses the old type system.
-      *             It is recommended to use [[apply(DataType)]] instead which uses the new type
-      *             system based on [[DataTypes]]. Please make sure to use either the old or the new
-      *             type system consistently to avoid unintended behavior. See the website
-      *             documentation for more information.
-      */
-    def apply(typeInfo: TypeInformation[_]): Expression = {
-      apply(TypeConversions.fromLegacyInfoToDataType(typeInfo))
-    }
+  /**
+    * @deprecated This method will be removed in future versions as it uses the old type system.
+    *             It is recommended to use [[nullOf(DataType)]] instead which uses the new type
+    *             system based on [[DataTypes]]. Please make sure to use either the old or the new
+    *             type system consistently to avoid unintended behavior. See the website
+    *             documentation for more information.
+    */
+  def nullOf(typeInfo: TypeInformation[_]): Expression = {
+    nullOf(TypeConversions.fromLegacyInfoToDataType(typeInfo))
   }
 
   /**
     * Calculates the logarithm of the given value.
     */
-  implicit object log {
+  def log(value: Expression): Expression = {
+    unresolvedCall(LOG, value)
+  }
 
-    /**
-      * Calculates the natural logarithm of the given value.
-      */
-    def apply(value: Expression): Expression = {
-      unresolvedCall(LOG, value)
-    }
-
-    /**
-      * Calculates the logarithm of the given value to the given base.
-      */
-    def apply(base: Expression, value: Expression): Expression = {
-      unresolvedCall(LOG, base, value)
-    }
+  /**
+    * Calculates the logarithm of the given value to the given base.
+    */
+  def log(base: Expression, value: Expression): Expression = {
+    unresolvedCall(LOG, base, value)
   }
 
   /**
@@ -1637,22 +1494,13 @@ trait ImplicitExpressionConversions {
     * based on a evaluated boolean condition.
     *
     * e.g. ifThenElse(42 > 5, "A", "B") leads to "A"
+    *
+    * @param condition boolean condition
+    * @param ifTrue expression to be evaluated if condition holds
+    * @param ifFalse expression to be evaluated if condition does not hold
     */
-  implicit object ifThenElse {
-
-    /**
-      * Ternary conditional operator that decides which of two other expressions should be evaluated
-      * based on a evaluated boolean condition.
-      *
-      * e.g. ifThenElse(42 > 5, "A", "B") leads to "A"
-      *
-      * @param condition boolean condition
-      * @param ifTrue expression to be evaluated if condition holds
-      * @param ifFalse expression to be evaluated if condition does not hold
-      */
-    def apply(condition: Expression, ifTrue: Expression, ifFalse: Expression): Expression = {
-      unresolvedCall(IF, condition, ifTrue, ifFalse)
-    }
+  def ifThenElse(condition: Expression, ifTrue: Expression, ifFalse: Expression): Expression = {
+    unresolvedCall(IF, condition, ifTrue, ifFalse)
   }
 
   /**
@@ -1664,20 +1512,8 @@ trait ImplicitExpressionConversions {
     *
     * e.g. withColumns('b to 'c) or withColumns('*)
     */
-  implicit object withColumns {
-
-    /**
-      * Creates an expression that selects a range of columns. It can be used wherever an array of
-      * expression is accepted such as function calls, projections, or groupings.
-      *
-      * A range can either be index-based or name-based. Indices start at 1 and boundaries are
-      * inclusive.
-      *
-      * e.g. withColumns('b to 'c) or withColumns('*)
-      */
-    def apply(head: Expression, tail: Expression*): Expression = {
-      unresolvedCall(WITH_COLUMNS, head +: tail: _*)
-    }
+  def withColumns(head: Expression, tail: Expression*): Expression = {
+    unresolvedCall(WITH_COLUMNS, head +: tail: _*)
   }
 
   /**
@@ -1690,21 +1526,7 @@ trait ImplicitExpressionConversions {
     *
     * e.g. withoutColumns('b to 'c) or withoutColumns('c)
     */
-  implicit object withoutColumns {
-
-    /**
-      * Creates an expression that selects all columns except for the given range of columns. It can
-      * be used wherever an array of expression is accepted such as function calls, projections, or
-      * groupings.
-      *
-      * A range can either be index-based or name-based. Indices start at 1 and boundaries are
-      * inclusive.
-      *
-      * e.g. withoutColumns('b to 'c) or withoutColumns('c)
-      */
-    def apply(head: Expression, tail: Expression*): Expression = {
-      unresolvedCall(WITHOUT_COLUMNS, head +: tail: _*)
-    }
+  def withoutColumns(head: Expression, tail: Expression*): Expression = {
+    unresolvedCall(WITHOUT_COLUMNS, head +: tail: _*)
   }
-  // scalastyle:on object.name
 }

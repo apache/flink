@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Table
@@ -29,6 +30,7 @@ import org.apache.flink.table.expressions.Expression
   * @param inputType The [[TypeInformation]] for the type of the [[DataSet]].
   * @tparam T The type of the [[DataSet]].
   */
+@PublicEvolving
 class DataSetConversions[T](dataSet: DataSet[T], inputType: TypeInformation[T]) {
 
   /**

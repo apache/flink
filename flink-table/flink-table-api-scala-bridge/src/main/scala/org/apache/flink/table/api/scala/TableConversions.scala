@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
@@ -29,6 +30,7 @@ import org.apache.flink.table.api.{BatchQueryConfig, StreamQueryConfig, Table, T
   *
   * @param table The table to convert.
   */
+@PublicEvolving
 class TableConversions(table: Table) {
 
   private val internalTable = table.asInstanceOf[TableImpl]
