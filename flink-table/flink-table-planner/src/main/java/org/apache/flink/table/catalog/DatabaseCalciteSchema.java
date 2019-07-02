@@ -105,7 +105,7 @@ class DatabaseCalciteSchema implements Schema {
 	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
 		TableSource<?> tableSource;
 		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		if (!tableFactory.isPresent()) {
+		if (tableFactory.isPresent()) {
 			TableFactory tf = tableFactory.get();
 			if (tf instanceof TableSourceFactory) {
 				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
