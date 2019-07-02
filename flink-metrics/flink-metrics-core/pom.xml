@@ -40,9 +40,6 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<projectBuildDir>${project.parent.parent.basedir}/${japicmp.collectDir}/${project.artifactId}</projectBuildDir>
-				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
