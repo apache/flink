@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,7 +42,10 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.operations.DistinctQueryOperation;
+import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.operations.utils.factories.AggregateOperationFactory;
 import org.apache.flink.table.operations.utils.factories.AliasOperationUtils;

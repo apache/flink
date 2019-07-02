@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations;
+package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
@@ -30,6 +30,7 @@ import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.LinkedHashMap;
 import java.util.List;

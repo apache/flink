@@ -48,8 +48,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
-import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
-import static org.apache.flink.table.operations.OperationExpressionsUtils.extractNames;
+import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.extractName;
+import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.extractNames;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
