@@ -60,7 +60,7 @@ public class TableConfigOptions {
 					.defaultValue(true)
 					.withDescription("Whether to asynchronously merge sorted spill files.");
 
-	@Documentation.ExcludeFromDocumentation
+	@Documentation.ExcludeFromDocumentation(value = "Only for tests.")
 	@Documentation.TableMeta(execMode = Documentation.ExecMode.STREAMING)
 	public static final ConfigOption<Boolean> SQL_EXEC_SORT_NON_TEMPORAL_ENABLED =
 			key("sql.exec.sort.non-temporal.enabled")
@@ -170,7 +170,8 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  topN Options
 	// ------------------------------------------------------------------------
-	@Documentation.ExcludeFromDocumentation
+	@Documentation.ExcludeFromDocumentation(value = "The default cache size is enough in most cases. " +
+			"And this is a temporary solution for caching. We may want to expose cache memory size as the configuration in the future.")
 	@Documentation.TableMeta(execMode = Documentation.ExecMode.STREAMING)
 	public static final ConfigOption<Long> SQL_EXEC_TOPN_CACHE_SIZE =
 			key("sql.exec.topn.cache.size")
@@ -228,7 +229,7 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Other Exec Options
 	// ------------------------------------------------------------------------
-	@Documentation.ExcludeFromDocumentation
+	@Documentation.ExcludeFromDocumentation(value = "Only for tests.")
 	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<String> SQL_EXEC_DISABLED_OPERATORS =
 			key("sql.exec.disabled-operators")
