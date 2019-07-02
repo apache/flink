@@ -22,9 +22,10 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.utils.TestPlannerFactory;
-import org.apache.flink.table.utils.TableTestBase;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +36,11 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link ComponentFactoryService}.
  */
-public class ComponentFactoryServiceTest extends TableTestBase {
+public class ComponentFactoryServiceTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
 	@Test
 	public void testLookingUpAmbiguousPlanners() {
 		Map<String, String> properties = new HashMap<>();
@@ -50,7 +55,8 @@ public class ComponentFactoryServiceTest extends TableTestBase {
 
 	@Test
 	public void testLookingUpNonExistentClass() {
-		expectedException().expect(NoMatchingTableFactoryException.class);
+		thrown.expect(NoMatchingTableFactoryException.class);
+		thrown.expectMessage("Reason: No factory supports the additional filters");
 
 		Map<String, String> properties = new HashMap<>();
 		properties.put(EnvironmentSettings.CLASS_NAME, "NoSuchClass");
