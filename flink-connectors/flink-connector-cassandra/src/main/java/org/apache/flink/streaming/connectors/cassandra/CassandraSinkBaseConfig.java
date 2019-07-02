@@ -39,9 +39,9 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 	public static final Duration DEFAULT_MAX_CONCURRENT_REQUESTS_TIMEOUT = Duration.ofMillis(Long.MAX_VALUE);
 
 	/**
-	 * The default option to ignore null fields on insertion. By default, {@code Boolean.FALSE}.
+	 * The default option to ignore null fields on insertion. By default, {@code false}.
 	 */
-	public static final Boolean DEFAULT_IGNORE_NULL_FIELDS = false;
+	public static final boolean DEFAULT_IGNORE_NULL_FIELDS = false;
 
 
 	// ------------------------- Configuration Fields -------------------------
@@ -53,12 +53,12 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 	private final Duration maxConcurrentRequestsTimeout;
 
 	/** Whether to ignore null fields on insert. */
-	private final Boolean ignoreNullFields;
+	private final boolean ignoreNullFields;
 
 	private CassandraSinkBaseConfig(
 			int maxConcurrentRequests,
 			Duration maxConcurrentRequestsTimeout,
-			Boolean ignoreNullFields) {
+			boolean ignoreNullFields) {
 		Preconditions.checkArgument(maxConcurrentRequests > 0,
 			"Max concurrent requests is expected to be positive");
 		Preconditions.checkNotNull(maxConcurrentRequestsTimeout,
@@ -78,7 +78,7 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 		return maxConcurrentRequestsTimeout;
 	}
 
-	public Boolean getIgnoreNullFields() {
+	public boolean getIgnoreNullFields() {
 		return ignoreNullFields;
 	}
 
@@ -101,7 +101,7 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 	public static class Builder {
 		private int maxConcurrentRequests = DEFAULT_MAX_CONCURRENT_REQUESTS;
 		private Duration maxConcurrentRequestsTimeout = DEFAULT_MAX_CONCURRENT_REQUESTS_TIMEOUT;
-		private Boolean ignoreNullFields = DEFAULT_IGNORE_NULL_FIELDS;
+		private boolean ignoreNullFields = DEFAULT_IGNORE_NULL_FIELDS;
 
 		Builder() { }
 
@@ -115,7 +115,7 @@ public final class CassandraSinkBaseConfig implements Serializable  {
 			return this;
 		}
 
-		public Builder setIgnoreNullFields(Boolean ignoreNullFields) {
+		public Builder setIgnoreNullFields(boolean ignoreNullFields) {
 			this.ignoreNullFields = ignoreNullFields;
 			return this;
 		}

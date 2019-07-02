@@ -32,7 +32,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	private final String insertQuery;
 	private transient PreparedStatement ps;
-	private final Boolean ignoreNullFields;
+	private final boolean ignoreNullFields;
 
 	public AbstractCassandraTupleSink(
 			String insertQuery,
