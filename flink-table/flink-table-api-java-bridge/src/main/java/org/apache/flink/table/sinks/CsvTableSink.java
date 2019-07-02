@@ -156,6 +156,8 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	 * Formats a Row into a String with fields separated by the field delimiter.
 	 */
 	public static class CsvFormatter implements MapFunction<Row, String> {
+		private static final long serialVersionUID = 1L;
+
 		private final String fieldDelim;
 
 		/**
