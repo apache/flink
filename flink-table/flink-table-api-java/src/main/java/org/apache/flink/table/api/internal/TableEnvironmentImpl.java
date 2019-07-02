@@ -74,8 +74,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private final CatalogManager catalogManager;
 
-	private final String defaultCatalogName;
-	private final String defaultDatabaseName;
+	private final String currentCatalogName;
+	private final String currentDatabaseName;
 	private final TableConfig tableConfig;
 	private final OperationTreeBuilder operationTreeBuilder;
 
@@ -96,8 +96,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		this.tableConfig = tableConfig;
 		this.tableConfig.addPlannerConfig(queryConfigProvider);
-		this.defaultCatalogName = catalogManager.getCurrentCatalog();
-		this.defaultDatabaseName = catalogManager.getCurrentDatabase();
+		this.currentCatalogName = catalogManager.getCurrentCatalog();
+		this.currentDatabaseName = catalogManager.getCurrentDatabase();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
@@ -340,8 +340,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected void registerTableInternal(String name, CatalogBaseTable table) {
 		try {
 			checkValidTableName(name);
-			ObjectPath path = new ObjectPath(defaultDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(defaultCatalogName);
+			ObjectPath path = new ObjectPath(currentDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(currentCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().createTable(
 					path,
@@ -355,8 +355,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private void replaceTableInternal(String name, CatalogBaseTable table) {
 		try {
-			ObjectPath path = new ObjectPath(defaultDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(defaultCatalogName);
+			ObjectPath path = new ObjectPath(currentDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(currentCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().alterTable(
 					path,
@@ -385,7 +385,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
 		validateTableSource(tableSource);
-		Optional<CatalogBaseTable> table = getCatalogTable(defaultCatalogName, defaultDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(currentCatalogName, currentDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -410,7 +410,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
-		Optional<CatalogBaseTable> table = getCatalogTable(defaultCatalogName, defaultDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(currentCatalogName, currentDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
