@@ -20,7 +20,7 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
-case class PlannerResolvedFieldReference(
+case class ExestingFieldFieldReference(
     name: String,
     resultType: TypeInformation[_],
     fieldIndex: Int) extends ResolvedFieldReference

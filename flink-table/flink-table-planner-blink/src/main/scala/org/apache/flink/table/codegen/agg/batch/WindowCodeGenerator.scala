@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen.agg.batch
 import org.apache.flink.table.JLong
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.window.TimeWindow
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_ROW, boxedTypeTermForType, newName}
 import org.apache.flink.table.codegen.GenerateUtils.generateFieldAccess
@@ -59,7 +59,7 @@ abstract class WindowCodeGenerator(
     window: LogicalWindow,
     inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
-    namedProperties: Seq[NamedWindowProperty],
+    namedProperties: Seq[PlannerNamedWindowProperty],
     aggInfoList: AggregateInfoList,
     inputRowType: RelDataType,
     grouping: Array[Int],

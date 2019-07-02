@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.batch.{SortWindowCodeGenerator, WindowCodeGenerator}
@@ -58,7 +58,7 @@ abstract class BatchExecSortWindowAggregateBase(
     window: LogicalWindow,
     inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
-    namedProperties: Seq[NamedWindowProperty],
+    namedProperties: Seq[PlannerNamedWindowProperty],
     enableAssignPane: Boolean = false,
     isMerge: Boolean,
     isFinal: Boolean)

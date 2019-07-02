@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -781,7 +781,7 @@ object RelExplainUtil {
       grouping: Array[Int],
       rowType: RelDataType,
       aggs: Seq[AggregateCall],
-      namedProperties: Seq[NamedWindowProperty],
+      namedProperties: Seq[PlannerNamedWindowProperty],
       withOutputFieldNames: Boolean = true): String = {
     val inFields = inputType.getFieldNames
     val outFields = rowType.getFieldNames
