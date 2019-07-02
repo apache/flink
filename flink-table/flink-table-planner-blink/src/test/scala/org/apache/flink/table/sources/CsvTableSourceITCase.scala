@@ -69,7 +69,7 @@ class CsvTableSourceITCase {
 
     val sql =
       """
-        |SELECT C.yr, C.make, C.model, C.comment, T.yr as tyr, T.make as tmake, T.model as tmodel, T.comment as tcomment
+        |SELECT C.yr, C.make, C.model, C.comment, T.yr, T.make, T.model, T.comment
         |FROM (SELECT yr, make, model, comment, PROCTIME() as proctime FROM cars) C
         |JOIN carsTemporal FOR SYSTEM_TIME AS OF C.proctime AS T
         |ON C.make = T.make
