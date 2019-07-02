@@ -65,7 +65,7 @@ public final class BinaryRowWriter extends AbstractBinaryWriter {
 
 	@Override
 	public void setNullBit(int pos) {
-		SegmentsUtil.bitSet(segment, 0, pos + BinaryRow.HEADER_SIZE_IN_BITS);
+		SegmentsUtil.bitSet(segment, BinaryRow.HEADER_SIZE_IN_BYTES, pos);
 	}
 
 	public void writeHeader(byte header) {

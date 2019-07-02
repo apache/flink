@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen.sort
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, SEGMENT, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.dataformat.{BinaryRow, Decimal}
+import org.apache.flink.table.dataformat.{BinaryRow, BipartiteBinaryFormat, Decimal}
 import org.apache.flink.table.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.sort.SortUtil
 import org.apache.flink.table.types.PlannerTypeUtils
@@ -281,7 +281,7 @@ class SortCodeGenerator(
      */
     val reverseKeys = new mutable.ArrayBuffer[String]
     // If it is big endian, it would be better, no reverse.
-    if (BinaryRow.LITTLE_ENDIAN) {
+    if (BipartiteBinaryFormat.LITTLE_ENDIAN) {
       var reverseOffset = 0
       for (chunk <- chunks) {
         val operator = BYTE_OPERATOR_MAPPING(chunk)
