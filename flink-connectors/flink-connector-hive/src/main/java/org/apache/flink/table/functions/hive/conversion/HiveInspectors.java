@@ -48,7 +48,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
@@ -328,8 +327,8 @@ public class HiveInspectors {
 			return result;
 		}
 
-		if (inspector instanceof StandardStructObjectInspector) {
-			StandardStructObjectInspector structInspector = (StandardStructObjectInspector) inspector;
+		if (inspector instanceof StructObjectInspector) {
+			StructObjectInspector structInspector = (StructObjectInspector) inspector;
 
 			List<? extends StructField> fields = structInspector.getAllStructFieldRefs();
 
