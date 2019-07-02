@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.JDouble
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
@@ -196,7 +196,7 @@ object FlinkRelMdUtil {
   def makeNamePropertiesSelectivityRexNode(
       winAgg: SingleRel,
       fullGrouping: Array[Int],
-      namedProperties: Seq[NamedWindowProperty],
+      namedProperties: Seq[PlannerNamedWindowProperty],
       predicate: RexNode): RexNode = {
     if (predicate == null || predicate.isAlwaysTrue || namedProperties.isEmpty) {
       return predicate

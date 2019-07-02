@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.util.RelExplainUtil
@@ -39,7 +39,7 @@ abstract class BatchExecWindowAggregateBase(
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
+    namedProperties: Seq[PlannerNamedWindowProperty],
     enableAssignPane: Boolean = true,
     val isMerge: Boolean,
     val isFinal: Boolean)
@@ -56,7 +56,7 @@ abstract class BatchExecWindowAggregateBase(
 
   def getWindow: LogicalWindow = window
 
-  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+  def getNamedProperties: Seq[PlannerNamedWindowProperty] = namedProperties
 
   def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
 

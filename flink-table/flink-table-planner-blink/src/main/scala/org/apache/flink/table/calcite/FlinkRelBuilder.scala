@@ -19,7 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.table.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
-import org.apache.flink.table.expressions.WindowProperty
+import org.apache.flink.table.expressions.PlannerWindowProperty
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.plan.QueryOperationConverter
 import org.apache.flink.table.runtime.rank.{RankRange, RankType}
@@ -111,7 +111,7 @@ object FlinkRelBuilder {
     *
     * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
     */
-  case class NamedWindowProperty(name: String, property: WindowProperty)
+  case class PlannerNamedWindowProperty(name: String, property: PlannerWindowProperty)
 
   def proto(context: Context): RelBuilderFactory = new RelBuilderFactory() {
     def create(cluster: RelOptCluster, schema: RelOptSchema): RelBuilder =

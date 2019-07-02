@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
@@ -959,8 +959,8 @@ class FlinkRelMdHandlerTestBase {
   // For window start/end/proc_time the windowAttribute inferred type is a hard code val,
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
-  private lazy val windowRef: WindowReference =
-  WindowReference.apply("w$", Some(new TimestampType(3)))
+  private lazy val windowRef: PlannerWindowReference =
+  PlannerWindowReference.apply("w$", Some(new TimestampType(3)))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
@@ -973,11 +973,11 @@ class FlinkRelMdHandlerTestBase {
       intervalOfMillis(900000)
     )
 
-  protected lazy val namedPropertiesOfWindowAgg: Seq[NamedWindowProperty] =
-    Seq(NamedWindowProperty("w$start", WindowStart(windowRef)),
-      NamedWindowProperty("w$end", WindowStart(windowRef)),
-      NamedWindowProperty("w$rowtime", RowtimeAttribute(windowRef)),
-      NamedWindowProperty("w$proctime", ProctimeAttribute(windowRef)))
+  protected lazy val namedPropertiesOfWindowAgg: Seq[PlannerNamedWindowProperty] =
+    Seq(PlannerNamedWindowProperty("w$start", PlannerWindowStart(windowRef)),
+      PlannerNamedWindowProperty("w$end", PlannerWindowStart(windowRef)),
+      PlannerNamedWindowProperty("w$rowtime", PlannerRowtimeAttribute(windowRef)),
+      PlannerNamedWindowProperty("w$proctime", PlannerProctimeAttribute(windowRef)))
 
   // equivalent SQL is
   // select a, b, count(c) as s,

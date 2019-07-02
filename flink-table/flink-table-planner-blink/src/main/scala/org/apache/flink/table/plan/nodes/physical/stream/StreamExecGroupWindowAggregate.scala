@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
@@ -61,7 +61,7 @@ class StreamExecGroupWindowAggregate(
     grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
     val window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
+    namedProperties: Seq[PlannerNamedWindowProperty],
     inputTimeFieldIndex: Int,
     val emitStrategy: WindowEmitStrategy)
   extends SingleRel(cluster, traitSet, inputRel)
@@ -88,7 +88,7 @@ class StreamExecGroupWindowAggregate(
 
   def getGrouping: Array[Int] = grouping
 
-  def getWindowProperties: Seq[NamedWindowProperty] = namedProperties
+  def getWindowProperties: Seq[PlannerNamedWindowProperty] = namedProperties
 
   override def deriveRowType(): RelDataType = outputRowType
 
