@@ -1118,6 +1118,16 @@ someStream.filter(...).slotSharingGroup("name");
         </p>
       </td>
     </tr>
+    <tr>
+      <td>Enable or disable slot sharing</td>
+      <td>
+        <p>Enable or disable slot sharing globally
+{% highlight java %}
+StreamExecutionEnvironment.setSlotSharingEnabled(...);
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
