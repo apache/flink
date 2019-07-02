@@ -1374,6 +1374,10 @@ public abstract class StreamExecutionEnvironment {
 		ContinuousFileReaderOperator<OUT> reader =
 			new ContinuousFileReaderOperator<>(inputFormat);
 
+		/*
+		 * Note: this does not try and create a bounded or unbounded source based on the
+		 * FileProcessingMode, so as not to break existing behaviour.
+		 */
 		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
 				.transform("Split Reader: " + sourceName, typeInfo, reader);
 
@@ -1381,7 +1385,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Adds a Data Source to the streaming topology.
+	 * Adds an unbounded data source to the streaming topology.
 	 *
 	 * <p>By default sources have a parallelism of 1. To enable parallel execution, the user defined source should
 	 * implement {@link org.apache.flink.streaming.api.functions.source.ParallelSourceFunction} or extend {@link
@@ -1400,7 +1404,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Adds a data source with a custom type information thus opening a
+	 * Adds an unbounded data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
 	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
@@ -1418,7 +1422,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Ads a data source with a custom type information thus opening a
+	 * Adds an unbounded data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
 	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
@@ -1436,7 +1440,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Ads a data source with a custom type information thus opening a
+	 * Adds an unbounded data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
 	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
@@ -1453,6 +1457,25 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
+		return addSource(function, sourceName, typeInfo, false);
+	}
+
+	/**
+	 * Adds the given source to the environment and returns the {@link DataStream} that represents
+	 * it.
+	 *
+	 * <p>The {@code isBounded} parameter can be used to specify whether this source is bounded
+	 * or not. This is a hint to the system, which can pick different execution strategies when it
+	 * knows that all operations are bounded. However, the source also has to really be bounded,
+	 * which is something that we cannot currently express via types/API.
+	 */
+	@SuppressWarnings("unchecked")
+	@PublicEvolving
+	public <OUT> DataStreamSource<OUT> addSource(
+			SourceFunction<OUT> function,
+			String sourceName,
+			TypeInformation<OUT> typeInfo,
+			boolean isBounded) {
 
 		if (typeInfo == null) {
 			if (function instanceof ResultTypeQueryable) {
@@ -1478,7 +1501,8 @@ public abstract class StreamExecutionEnvironment {
 				sourceName,
 				sourceOperator,
 				typeInfo,
-				this.getParallelism());
+				this.getParallelism(),
+				isBounded);
 
 		return new DataStreamSource<>(this, sourceTransformation, isParallel);
 	}
