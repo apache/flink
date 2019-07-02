@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MasterNotRunningException;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
+import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.junit.AfterClass;
@@ -151,7 +152,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 		TEST_UTIL.getConfiguration().setInt("hbase.master.info.port", -1);
 
 		// Make sure the zookeeper quorum value contains the right port number (varies per run).
-		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
+		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + new MiniZooKeeperCluster().getClientPort());
 
 		conf = initialize(TEST_UTIL.getConfiguration());
 		LOG.info("HBase minicluster: Running");
@@ -176,7 +177,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 			fail("Unable to create output directory " + hbaseSiteXmlDirectory + " for the HBase minicluster");
 		}
 
-		assertNotNull("The ZooKeeper for the HBase minicluster is missing", TEST_UTIL.getZkCluster());
+		assertNotNull("The ZooKeeper for the HBase minicluster is missing", new MiniZooKeeperCluster());
 
 		createHBaseSiteXml(hbaseSiteXmlDirectory, TEST_UTIL.getConfiguration().get("hbase.zookeeper.quorum"));
 		addDirectoryToClassPath(hbaseSiteXmlDirectory);

@@ -232,7 +232,7 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 				final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
 					&& !isLastRegion ? endKey : stopRow;
 				int id = splits.size();
-				final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
+				final TableInputSplit split = new TableInputSplit(id, hosts, table.getName().getName(), splitStart, splitStop);
 				splits.add(split);
 			}
 		}
