@@ -643,7 +643,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 						return new RandomAccessFile(spillFile, "rw").getChannel();
 					}
 				} catch (IOException e) {
-					LOG.warn("Exception while find a unique file name for the spilling channel, try it again.", e);
+					LOG.warn("Exception while find a unique file name for the spilling channel on {}, try it again.", directory, e);
 				}
 			}
 
