@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.operations;
+package org.apache.flink.table.operations.utils.factories;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType;
 
 import java.util.stream.IntStream;
