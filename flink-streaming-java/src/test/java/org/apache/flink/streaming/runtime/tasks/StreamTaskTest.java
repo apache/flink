@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -94,6 +95,7 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -320,7 +322,7 @@ public class StreamTaskTest extends TestLogger {
 
 		final Exception testException = new Exception("Test exception");
 
-		RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+		RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 			declineDummyEnvironment,
 			operatorChain(
 				streamOperatorWithSnapshot(operatorSnapshotResult1),
@@ -345,6 +347,44 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that uncaught exceptions in the async part of a checkpoint operation are forwarded
+	 * to the uncaught exception handler. See <a href="https://issues.apache.org/jira/browse/FLINK-12889">FLINK-12889</a>.
+	 */
+	@Test
+	public void testUncaughtExceptionInAsynchronousCheckpointingOperation() throws Exception {
+		final RuntimeException failingCause = new RuntimeException("Test exception");
+		FailingDummyEnvironment failingDummyEnvironment = new FailingDummyEnvironment(failingCause);
+
+		// mock the returned snapshots
+		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
+			ExceptionallyDoneFuture.of(failingCause),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()));
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			failingDummyEnvironment,
+			operatorChain(streamOperatorWithSnapshot(operatorSnapshotResult)),
+			uncaughtExceptionHandler));
+		MockStreamTask streamTask = task.streamTask;
+
+		waitTaskIsRunning(streamTask, task.invocationFuture);
+
+		streamTask.triggerCheckpoint(
+			new CheckpointMetaData(42L, 1L),
+			CheckpointOptions.forCheckpointWithDefaultLocation(),
+			false);
+
+		final Throwable uncaughtException = uncaughtExceptionHandler.waitForUncaughtException();
+		assertThat(uncaughtException, is(failingCause));
+
+		streamTask.finishInput();
+		task.waitForTaskCompletion(false);
+	}
+
+	/**
 	 * Tests that in case of a failing AsyncCheckpointRunnable all operator snapshot results are
 	 * cancelled and all non partitioned state handles are discarded.
 	 */
@@ -362,7 +402,7 @@ public class StreamTaskTest extends TestLogger {
 		when(operatorSnapshotResult3.getOperatorStateRawFuture()).thenReturn(failingFuture);
 
 		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build()) {
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 				mockEnvironment,
 				operatorChain(
 					streamOperatorWithSnapshot(operatorSnapshotResult1),
@@ -453,7 +493,7 @@ public class StreamTaskTest extends TestLogger {
 			.setTaskStateManager(taskStateManager)
 			.build()) {
 
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 				mockEnvironment,
 				operatorChain(streamOperatorWithSnapshot(operatorSnapshotResult))));
 
@@ -535,7 +575,7 @@ public class StreamTaskTest extends TestLogger {
 
 		final AcknowledgeDummyEnvironment mockEnvironment = new AcknowledgeDummyEnvironment();
 
-		RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+		RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 			mockEnvironment,
 			operatorChain(streamOperator)));
 
@@ -614,7 +654,7 @@ public class StreamTaskTest extends TestLogger {
 			.setTaskStateManager(taskStateManager)
 			.build()) {
 
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 				mockEnvironment,
 				operatorChain(statelessOperator)));
 
@@ -983,8 +1023,8 @@ public class StreamTaskTest extends TestLogger {
 		private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
 		private volatile boolean inputFinished;
 
-		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain) {
-			super(env, null);
+		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+			super(env, null, uncaughtExceptionHandler);
 			this.overrideOperatorChain = operatorChain;
 		}
 
@@ -1013,6 +1053,10 @@ public class StreamTaskTest extends TestLogger {
 		void finishInput() {
 			this.inputFinished = true;
 		}
+	}
+
+	private static MockStreamTask createMockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain) {
+		return new MockStreamTask(env, operatorChain, FatalExitExceptionHandler.INSTANCE);
 	}
 
 	/**
@@ -1478,6 +1522,25 @@ public class StreamTaskTest extends TestLogger {
 
 		void awaitRun() throws InterruptedException {
 			signalRunLatch.await();
+		}
+	}
+
+	private static class FailingDummyEnvironment extends DummyEnvironment {
+
+		final RuntimeException failingCause;
+
+		private FailingDummyEnvironment(RuntimeException failingCause) {
+			this.failingCause = failingCause;
+		}
+
+		@Override
+		public void declineCheckpoint(long checkpointId, Throwable cause) {
+			throw failingCause;
+		}
+
+		@Override
+		public void failExternally(Throwable cause) {
+			throw failingCause;
 		}
 	}
 }
