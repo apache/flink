@@ -178,7 +178,7 @@ public class PlannerConfigOptions {
 					.withDescription("If it is true, enable predicate pushdown to the FilterableTableSource. " +
 			"Default value is true.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_JOIN_REORDER_ENABLED =
 			key("sql.optimizer.join-reorder.enabled")
 					.defaultValue(false)
