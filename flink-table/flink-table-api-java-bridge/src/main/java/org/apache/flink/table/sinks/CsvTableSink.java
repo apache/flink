@@ -103,7 +103,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
+	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
 		SingleOutputStreamOperator<String> csvRows =
 			dataStream.map(new CsvFormatter(fieldDelim == null ? "," : fieldDelim));
 
@@ -120,6 +120,13 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 		}
 
 		sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));
+
+		return sink;
+	}
+
+	@Override
+	public void emitDataStream(DataStream<Row> dataStream) {
+		consumeDataStream(dataStream);
 	}
 
 	@Override
