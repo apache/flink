@@ -146,6 +146,8 @@ public abstract class StreamExecutionEnvironment {
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
+	/** Enable slot sharing or not. */
+	private boolean isSlotSharingEnabled = true;
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -537,6 +539,26 @@ public abstract class StreamExecutionEnvironment {
 	@PublicEvolving
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
+	}
+
+	/**
+	 * Set slot sharing behavior. <b>Use this only if you know what you are doing.</b>
+	 *
+	 * @param isSlotSharingEnabled slot sharing is enabled or not.
+	 */
+	@PublicEvolving
+	public void setSlotSharingEnabled(boolean isSlotSharingEnabled) {
+		this.isSlotSharingEnabled = isSlotSharingEnabled;
+	}
+
+	/**
+	 * Get slot sharing behavior.
+	 *
+	 * @return is slot sharing or not.
+	 */
+	@PublicEvolving
+	public boolean isSlotSharingEnabled() {
+		return isSlotSharingEnabled;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1534,7 +1556,8 @@ public abstract class StreamExecutionEnvironment {
 			.setChaining(isChainingEnabled)
 			.setUserArtifacts(cacheFile)
 			.setTimeCharacteristic(timeCharacteristic)
-			.setDefaultBufferTimeout(bufferTimeout);
+			.setDefaultBufferTimeout(bufferTimeout)
+			.setSlotSharingEnabled(isSlotSharingEnabled);
 	}
 
 	/**
