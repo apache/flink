@@ -23,7 +23,6 @@ package org.apache.flink.table.catalog.hive;
  */
 public class HiveTableConfig {
 
-	// Comment of the Flink table
-	public static final String TABLE_COMMENT = "comment";
+	public static final String DEFAULT_LIST_COLUMN_TYPES_SEPARATOR = ":";
 
 }

@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.join;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedFunction;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
  * The function to execute row(event) time bounded stream inner-join.
@@ -38,8 +38,8 @@ public final class RowTimeBoundedStreamJoin extends TimeBoundedStreamJoin {
 			long leftLowerBound,
 			long leftUpperBound,
 			long allowedLateness,
-			TypeInformation<BaseRow> leftType,
-			TypeInformation<BaseRow> rightType,
+			BaseRowTypeInfo leftType,
+			BaseRowTypeInfo rightType,
 			GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc,
 			int leftTimeIdx,
 			int rightTimeIdx) {

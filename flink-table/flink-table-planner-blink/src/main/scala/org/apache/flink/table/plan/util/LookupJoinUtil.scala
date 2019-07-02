@@ -19,10 +19,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.sources.{DefinedIndexes, DefinedPrimaryKey, TableIndex, TableSource}
-
-import scala.collection.JavaConverters._
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * Utilities for temporal table join
@@ -39,39 +36,12 @@ object LookupJoinUtil {
     * @param dataType the field type in TableSource
     * @param literal the literal value
     */
-  case class ConstantLookupKey(dataType: InternalType, literal: RexLiteral) extends LookupKey
+  case class ConstantLookupKey(dataType: LogicalType, literal: RexLiteral) extends LookupKey
 
   /**
     * A [[LookupKey]] whose value comes from left table field.
     * @param index the index of the field in left table
     */
   case class FieldRefLookupKey(index: Int) extends LookupKey
-
-  /**
-    * Gets [[TableIndex]]s from a [[TableSource]]. This will combine primary key information
-    * of [[DefinedPrimaryKey]] and indexes information of [[DefinedIndexes]].
-    */
-  def getTableIndexes(table: TableSource[_]): Array[TableIndex] = {
-    val indexes: Array[TableIndex] = table match {
-      case t: DefinedIndexes if t.getIndexes != null => t.getIndexes.asScala.toArray
-      case _ => Array()
-    }
-
-    // add primary key into index list because primary key is an index too
-    table match {
-      case t: DefinedPrimaryKey =>
-        val primaryKey = t.getPrimaryKeyColumns
-        if (primaryKey != null && !primaryKey.isEmpty) {
-          val primaryKeyIndex = TableIndex.builder()
-              .uniqueIndex()
-              .indexedColumns(primaryKey)
-              .build()
-          indexes ++ Array(primaryKeyIndex)
-        } else {
-          indexes
-        }
-      case _ => indexes
-    }
-  }
 
 }

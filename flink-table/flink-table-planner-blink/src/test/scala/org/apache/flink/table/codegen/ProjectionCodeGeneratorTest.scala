@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.{InternalTypes, RowType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow}
 import org.apache.flink.table.generated.Projection
+import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType}
 
 import org.junit.{Assert, Test}
 
@@ -39,8 +39,8 @@ class ProjectionCodeGeneratorTest {
     val projection = ProjectionCodeGenerator.generateProjection(
       new CodeGeneratorContext(new TableConfig),
       "name",
-      new RowType(InternalTypes.INT, InternalTypes.LONG),
-      new RowType(InternalTypes.LONG, InternalTypes.INT),
+      RowType.of(new IntType(), new BigIntType()),
+      RowType.of(new BigIntType(), new IntType()),
       Array(1, 0)
     ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, BinaryRow]]
     val row: BinaryRow = projection.apply(GenericRow.of(ji(5), jl(8)))
@@ -53,8 +53,8 @@ class ProjectionCodeGeneratorTest {
     val projection = ProjectionCodeGenerator.generateProjection(
       new CodeGeneratorContext(new TableConfig),
       "name",
-      new RowType(InternalTypes.INT, InternalTypes.LONG),
-      new RowType(InternalTypes.LONG, InternalTypes.INT),
+      RowType.of(new IntType(), new BigIntType()),
+      RowType.of(new BigIntType(), new IntType()),
       Array(1, 0),
       outClass = classOf[GenericRow]
     ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, GenericRow]]
@@ -65,7 +65,7 @@ class ProjectionCodeGeneratorTest {
 
   @Test
   def testProjectionManyField(): Unit = {
-    val rowType = new RowType((0 until 100).map(_ => InternalTypes.INT).toArray: _*)
+    val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator.generateProjection(
       new CodeGeneratorContext(new TableConfig),
       "name",
@@ -83,7 +83,7 @@ class ProjectionCodeGeneratorTest {
 
   @Test
   def testProjectionManyFieldGenericRow(): Unit = {
-    val rowType = new RowType((0 until 100).map(_ => InternalTypes.INT).toArray: _*)
+    val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator.generateProjection(
       new CodeGeneratorContext(new TableConfig),
       "name",

@@ -18,15 +18,8 @@
 
 package org.apache.flink.table.codegen.agg.batch
 
-import org.apache.calcite.avatica.util.DateTimeUtils
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.tools.RelBuilder
-import org.apache.commons.math3.util.ArithmeticUtils
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.JLong
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.window.TimeWindow
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -34,11 +27,12 @@ import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_ROW, boxedTypeTermFor
 import org.apache.flink.table.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genInitFlatAggregateBuffer}
 import org.apache.flink.table.codegen.agg.batch.WindowCodeGenerator.{asLong, isTimeIntervalLiteral}
-import org.apache.flink.table.codegen._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
 import org.apache.flink.table.expressions.ExpressionBuilder._
+import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, RexNodeConverter, ValueLiteralExpression}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
@@ -47,7 +41,18 @@ import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, T
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil}
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.runtime.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
+import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+
+import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.tools.RelBuilder
+import org.apache.commons.math3.util.ArithmeticUtils
+
+import scala.collection.JavaConversions._
 
 abstract class WindowCodeGenerator(
     relBuilder: RelBuilder,
@@ -64,8 +69,8 @@ abstract class WindowCodeGenerator(
     val isFinal: Boolean) {
 
   lazy val builder: RelBuilder = relBuilder.values(inputRowType)
-  lazy val timestampInternalType: InternalType =
-    if (inputTimeIsDate) InternalTypes.INT else InternalTypes.LONG
+  lazy val timestampInternalType: LogicalType =
+    if (inputTimeIsDate) new IntType() else new BigIntType()
   lazy val timestampInternalTypeName: String = if (inputTimeIsDate) "Int" else "Long"
   lazy val aggCallToAggFunction: Array[(AggregateCall, UserDefinedFunction)] =
     aggInfoList.aggInfos.map(info => (info.agg, info.function))
@@ -86,17 +91,17 @@ abstract class WindowCodeGenerator(
       Array(s"agg$idx")
   }
 
-  lazy val aggBufferTypes: Array[Array[InternalType]] = auxGrouping.map { index =>
-    Array(FlinkTypeFactory.toInternalType(inputRowType.getFieldList.get(index).getType))
+  lazy val aggBufferTypes: Array[Array[LogicalType]] = auxGrouping.map { index =>
+    Array(FlinkTypeFactory.toLogicalType(inputRowType.getFieldList.get(index).getType))
   } ++ aggregates.map {
-    case a: DeclarativeAggregateFunction => a.getAggBufferTypes
+    case a: DeclarativeAggregateFunction => a.getAggBufferTypes.map(_.getLogicalType)
     case a: AggregateFunction[_, _] =>
-      Array(getAccumulatorTypeOfAggregateFunction(a)).map(createInternalTypeFromTypeInfo)
-  }.toArray[Array[InternalType]]
+      Array(getAccumulatorTypeOfAggregateFunction(a)).map(fromDataTypeToLogicalType)
+  }.toArray[Array[LogicalType]]
 
-  lazy val groupKeyRowType = new RowType(
+  lazy val groupKeyRowType: RowType = RowType.of(
     grouping.map { index =>
-      FlinkTypeFactory.toInternalType(inputRowType.getFieldList.get(index).getType)
+      FlinkTypeFactory.toLogicalType(inputRowType.getFieldList.get(index).getType)
     }, grouping.map(inputRowType.getFieldNames.get(_)))
 
   // get udagg instance names
@@ -105,9 +110,9 @@ abstract class WindowCodeGenerator(
       .map(a => a -> CodeGenUtils.udfFieldName(a)).toMap
       .asInstanceOf[Map[AggregateFunction[_, _], String]]
 
-  lazy val windowedGroupKeyType: RowType = new RowType(
-    groupKeyRowType.getFieldTypes :+ timestampInternalType,
-    groupKeyRowType.getFieldNames :+ "assignedTs$")
+  lazy val windowedGroupKeyType: RowType = RowType.of(
+    (groupKeyRowType.getChildren :+ timestampInternalType).toArray,
+    (groupKeyRowType.getFieldNames :+ "assignedTs$").toArray)
 
   def getOutputRowClass: Class[_ <: BaseRow] =
     if (namedProperties.isEmpty && grouping.isEmpty) classOf[GenericRow] else classOf[JoinedRow]
@@ -116,14 +121,14 @@ abstract class WindowCodeGenerator(
       enablePreAccumulate: Boolean = true): RowType = {
     if (enablePreAccumulate) {
       val (groupKeyNames, groupKeyTypes) =
-        (groupKeyRowType.getFieldNames, groupKeyRowType.getFieldTypes)
+        (groupKeyRowType.getFieldNames, groupKeyRowType.getChildren.toArray(Array[LogicalType]()))
       val (aggBuffNames, aggBuffTypes) =
         (aggBufferNames.flatten, aggBufferTypes.flatten)
-      new RowType(
+      RowType.of(
         (groupKeyTypes :+ timestampInternalType) ++ aggBuffTypes,
-        (groupKeyNames :+ "assignedTs$") ++ aggBuffNames)
+        ((groupKeyNames :+ "assignedTs$") ++ aggBuffNames).toArray)
     } else {
-      FlinkTypeFactory.toInternalRowType(inputRowType)
+      FlinkTypeFactory.toLogicalRowType(inputRowType)
     }
   }
 
@@ -182,7 +187,7 @@ abstract class WindowCodeGenerator(
     val functionName = CodeGenUtils.newName("triggerWindowProcess")
     val functionCode =
       s"""
-         |private void $functionName() {
+         |private void $functionName() throws java.lang.Exception {
          |  ${ctx.reuseLocalVariableCode()}
          |  $statements
          |}
@@ -268,7 +273,7 @@ abstract class WindowCodeGenerator(
         outputType)
     } else {
       // output assigned window and agg buffer
-      val valueRowType = new RowType(
+      val valueRowType = RowType.of(
         timestampInternalType +: aggBufferExprs.map(_.resultType): _*)
       val wStartCode = if (inputTimeIsDate) {
         convertToIntValue(s"$currentWindow.getStart()")
@@ -375,7 +380,7 @@ abstract class WindowCodeGenerator(
           ctx,
           windowedGroupKeyType,
           inputTerm,
-          windowedGroupKeyType.getArity - 1)
+          windowedGroupKeyType.getFieldCount - 1)
         if (inputTimeIsDate) {
           val timestamp = ctx.addReusableLocalVariable("long", "timestamp")
           val convertToLongCode =
@@ -383,7 +388,7 @@ abstract class WindowCodeGenerator(
                |  ${ret.code}
                |  $timestamp = ${convertToLongValue(ret.resultTerm)};
            """.stripMargin
-          GeneratedExpression(timestamp, ret.nullTerm, convertToLongCode, InternalTypes.LONG)
+          GeneratedExpression(timestamp, ret.nullTerm, convertToLongCode, new BigIntType())
         } else {
           ret
         }
@@ -469,7 +474,7 @@ abstract class WindowCodeGenerator(
         val setResultExprs = grouping.indices.map(
           generateFieldAccess(
             ctx, groupKeyRowType, lastKey.get, _)) ++
-            (GeneratedExpression(lastTimestampTerm, NEVER_NULL, NO_CODE, InternalTypes.LONG)
+            (GeneratedExpression(lastTimestampTerm, NEVER_NULL, NO_CODE, new BigIntType())
                 +: aggBufferExprs)
         val setPanedAggResultExpr = exprCodegen.generateResultExpression(
           setResultExprs,
@@ -559,7 +564,7 @@ abstract class WindowCodeGenerator(
     val inputTypeTerm = boxedTypeTermForType(inputType)
     ctx.addReusableMember(
       s"""
-         |private void $processFuncName($inputTypeTerm $inputTerm) throws java.io.IOException {
+         |private void $processFuncName($inputTypeTerm $inputTerm) throws java.lang.Exception {
          |  ${ctx.reuseLocalVariableCode()}
          |  // assign timestamp (pane/window)
          |  ${ctx.reuseInputUnboxingCode(inputTerm)}
@@ -577,7 +582,7 @@ abstract class WindowCodeGenerator(
        """.stripMargin
     ctx.addReusableMember(
       s"""
-         |private void $endProcessFuncName() throws java.io.IOException {
+         |private void $endProcessFuncName() throws java.lang.Exception {
          |  ${ctx.reuseLocalVariableCode()}
          |  $setLastPaneAggResultCode
          |}
@@ -605,11 +610,11 @@ abstract class WindowCodeGenerator(
     } else {
       // window property fields always added at last when building the LogicalWindowAggregate
       val propOutputType = {
-        val outputFields = outputType.getFieldTypes
+        val outputFields = outputType.getChildren
         val lastFieldPos = outputFields.size - 1
         val propFields =
           for (offset <- lastFieldPos - propSize + 1 to lastFieldPos) yield outputFields(offset)
-        new RowType(propFields: _*)
+        RowType.of(propFields: _*)
       }
 
       // reusable row to set window property fields
@@ -677,7 +682,7 @@ abstract class WindowCodeGenerator(
       index: Int = 0): GeneratedExpression = {
     val exprCodegen = new ExprCodeGenerator(ctx, nullableInput = false)
         .bindInput(inputType, inputTerm = inputTerm)
-    val timeStampInLong = reinterpretCast(timeField, typeLiteral(Types.LONG), false)
+    val timeStampInLong = reinterpretCast(timeField, typeLiteral(DataTypes.BIGINT()), false)
     val millValue: Long = if (inputTimeIsDate) DateTimeUtils.MILLIS_PER_DAY else 1L
     val timeStampValue = times(timeStampInLong, literal(millValue))
     val remainder = mod(minus(timeStampValue, literal(windowStart)), literal(slideSize))
@@ -749,17 +754,11 @@ object WindowCodeGenerator {
     (windowSize, slideSize)
   }
 
-  def asLong(expr: Expression): Long = expr match {
-    case literal: ValueLiteralExpression
-      if literal.getType == TimeIntervalTypeInfo.INTERVAL_MILLIS ||
-          literal.getType == BasicTypeInfo.LONG_TYPE_INFO =>
-      literal.getValue.asInstanceOf[java.lang.Long]
-    case _ => throw new IllegalArgumentException()
-  }
+  def asLong(expr: Expression): Long = extractValue(expr, classOf[JLong]).get()
 
   def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
-    case literal: ValueLiteralExpression
-      if literal.getType == TimeIntervalTypeInfo.INTERVAL_MILLIS => true
+    case literal: ValueLiteralExpression if
+      hasRoot(literal.getOutputDataType.getLogicalType, INTERVAL_DAY_TIME) => true
     case _ => false
   }
 }

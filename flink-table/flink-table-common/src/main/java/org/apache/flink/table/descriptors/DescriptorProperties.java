@@ -104,6 +104,21 @@ public class DescriptorProperties {
 	}
 
 	/**
+	 * Adds a properties map by appending the given prefix to element keys with a dot.
+	 *
+	 * <p>For example: for prefix "flink" and a map of a single property with key "k" and value "v".
+	 * The added property will be as key "flink.k" and value "v".
+	 */
+	public void putPropertiesWithPrefix(String prefix, Map<String, String> prop) {
+		checkNotNull(prefix);
+		checkNotNull(prop);
+
+		for (Map.Entry<String, String> e : prop.entrySet()) {
+			put(String.format("%s.%s", prefix, e.getKey()), e.getValue());
+		}
+	}
+
+	/**
 	 * Adds a class under the given key.
 	 */
 	public void putClass(String key, Class<?> clazz) {
@@ -703,6 +718,21 @@ public class DescriptorProperties {
 	 */
 	public boolean isValue(String key, String value) {
 		return optionalGet(key).orElseThrow(exceptionSupplier(key)).equals(value);
+	}
+
+	/**
+	 * Returns a map of properties whose key starts with the given prefix,
+	 * and the prefix is removed upon return.
+	 *
+	 * <p>For example, for prefix "flink" and a map of a single property with key "flink.k" and value "v",
+	 * this method will return it as key "k" and value "v" by identifying and removing the prefix "flink".
+	 */
+	public Map<String, String> getPropertiesWithPrefix(String prefix) {
+		String prefixWithDot = prefix + '.';
+
+		return properties.entrySet().stream()
+			.filter(e -> e.getKey().startsWith(prefixWithDot))
+			.collect(Collectors.toMap(e -> e.getKey().substring(prefix.length() + 1), Map.Entry::getValue));
 	}
 
 	// --------------------------------------------------------------------------------------------

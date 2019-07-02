@@ -28,6 +28,7 @@ flink-runtime-web/web-dashboard/web/
 flink-python/dist/
 flink-python/build/
 flink-python/pyflink.egg-info/
+flink-python/docs/_build
 flink-python/.tox/
 flink-python/dev/download
 flink-python/dev/.conda/

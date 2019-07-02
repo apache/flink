@@ -27,14 +27,12 @@ import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
-
-import java.lang.reflect.Constructor;
 
 /**
  * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
@@ -104,7 +102,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * Example:
 	 *
 	 * <pre>
-	 * {@ocde
+	 * {@code
 	 *   DataStream<Tuple2<String, Long>> stream = ...
 	 *   Table tab = tableEnv.fromDataStream(stream, "a, b");
 	 * }
@@ -399,12 +397,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param tableConfig The configuration of the TableEnvironment.
 	 */
 	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
-		try {
-			Class clazz = Class.forName("org.apache.flink.table.api.java.StreamTableEnvImpl");
-			Constructor con = clazz.getConstructor(StreamExecutionEnvironment.class, TableConfig.class);
-			return (StreamTableEnvironment) con.newInstance(executionEnvironment, tableConfig);
-		} catch (Throwable t) {
-			throw new TableException("Create StreamTableEnvironment failed.", t);
-		}
+		return StreamTableEnvironmentImpl.create(tableConfig, executionEnvironment);
 	}
 }

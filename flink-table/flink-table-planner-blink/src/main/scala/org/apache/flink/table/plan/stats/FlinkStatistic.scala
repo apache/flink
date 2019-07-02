@@ -107,6 +107,27 @@ class FlinkStatistic(
 
   override def getReferentialConstraints: util.List[RelReferentialConstraint] =
     util.Collections.emptyList()
+
+  override def toString: String = {
+    val builder = new StringBuilder
+    if (tableStats != null) {
+      builder.append(s"TableStats: " +
+        s"{rowCount: ${tableStats.getRowCount}, " +
+        s"columnStats: ${tableStats.getColumnStats}}, ")
+    }
+    if (uniqueKeys != null) {
+      builder.append(s"uniqueKeys: $uniqueKeys, ")
+    }
+    if (relModifiedMonotonicity != null) {
+      builder.append(relModifiedMonotonicity.toString).append(", ")
+    }
+
+    if (builder.nonEmpty && builder.length() > 2) {
+      // delete `, ` if build is not empty
+      builder.delete(builder.length() - 2, builder.length())
+    }
+    builder.toString()
+  }
 }
 
 /**

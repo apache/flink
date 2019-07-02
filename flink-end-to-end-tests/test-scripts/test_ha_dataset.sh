@@ -23,17 +23,11 @@ source "$(dirname "$0")"/common_ha.sh
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
 
 function ha_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   # kill the cluster and zookeeper
   stop_watchdogs
 }
 
-trap ha_cleanup INT
-trap ha_cleanup EXIT
+on_exit ha_cleanup
 
 function run_ha_test() {
     local PARALLELISM=$1

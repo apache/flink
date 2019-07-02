@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, hashCodeForType, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.generated.{GeneratedHashFunction, HashFunction}
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.util.MathUtils
 
 /**
@@ -48,7 +48,7 @@ object HashCodeGenerator {
 
   def generateRowHash(
       ctx: CodeGeneratorContext,
-      input: InternalType,
+      input: LogicalType,
       name: String,
       hashFields: Array[Int]): GeneratedHashFunction = {
     val className = newName(name)

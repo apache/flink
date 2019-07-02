@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.calcite.plan.RelOptRule
-import org.apache.calcite.rex.RexProgram
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
@@ -26,6 +24,11 @@ import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecLookupJoin
 import org.apache.flink.table.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
+
+import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.rex.RexProgram
 
 /**
   * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]]
@@ -73,8 +76,14 @@ object BatchExecLookupJoinRule {
     val joinInfo = join.analyzeCondition
     val cluster = join.getCluster
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val tableRowType = typeFactory.buildLogicalRowType(
-      tableSource.getTableSchema, isStreaming = Option.apply(false))
+    val tableRowType = typeFactory.buildRelNodeRowType(
+      tableSource.getTableSchema.getFieldNames,
+      tableSource.getTableSchema.getFieldDataTypes.map(fromDataTypeToLogicalType).map {
+        case t: TimestampType =>
+          if (t.getKind == TimestampKind.REGULAR) t else new TimestampType(3)
+        case t => t
+      }
+    )
 
     val providedTrait = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val requiredTrait = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)

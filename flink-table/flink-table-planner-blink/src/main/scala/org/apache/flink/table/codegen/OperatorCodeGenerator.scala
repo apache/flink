@@ -21,11 +21,11 @@ import org.apache.flink.streaming.api.graph.StreamConfig
 import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.StreamTask
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.generated.GeneratedOperator
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.util.Logging
 
 /**
@@ -47,7 +47,7 @@ object OperatorCodeGenerator extends Logging {
       name: String,
       processCode: String,
       endInputCode: String,
-      inputType: InternalType,
+      inputType: LogicalType,
       config: TableConfig,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       lazyInputUnboxingCode: Boolean = false,
@@ -128,8 +128,8 @@ object OperatorCodeGenerator extends Logging {
       endInputCode1: String,
       processCode2: String,
       endInputCode2: String,
-      input1Type: InternalType,
-      input2Type: InternalType,
+      input1Type: LogicalType,
+      input2Type: LogicalType,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
       useTimeCollect: Boolean = false)

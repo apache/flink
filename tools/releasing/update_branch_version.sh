@@ -57,6 +57,12 @@ perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
 perl -pi -e "s#^version_title: .*#version_title: \"${NEW_VERSION}\"#" _config.yml
 cd ..
 
+#change version of pyflink
+cd flink-python/pyflink
+perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${NEW_VERSION}\"#" version.py
+perl -pi -e "s#-SNAPSHOT#\\.dev0#" version.py
+cd ../..
+
 git commit -am "Update version to $NEW_VERSION"
 
 echo "Don't forget to push the change."

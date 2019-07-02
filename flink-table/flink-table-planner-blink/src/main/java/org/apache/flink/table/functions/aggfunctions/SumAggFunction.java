@@ -18,26 +18,25 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.calcite.FlinkTypeSystem;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.TypeConverters;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * built-in sum aggregate function.
  */
 public abstract class SumAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression sum = new UnresolvedReferenceExpression("sum");
+	private UnresolvedReferenceExpression sum = unresolvedRef("sum");
 
 	@Override
 	public int operandCount() {
@@ -50,8 +49,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] { TypeConverters.createInternalTypeFromTypeInfo(getResultType()) };
+	public DataType[] getAggBufferTypes() {
+		return new DataType[] { getResultType() };
 	}
 
 	@Override
@@ -95,8 +94,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	public static class IntSumAggFunction extends SumAggFunction {
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.INT;
+		public DataType getResultType() {
+			return DataTypes.INT();
 		}
 	}
 
@@ -105,8 +104,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class ByteSumAggFunction extends SumAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.BYTE;
+		public DataType getResultType() {
+			return DataTypes.TINYINT();
 		}
 	}
 
@@ -115,8 +114,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class ShortSumAggFunction extends SumAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SHORT;
+		public DataType getResultType() {
+			return DataTypes.SMALLINT();
 		}
 	}
 
@@ -125,8 +124,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class LongSumAggFunction extends SumAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.LONG;
+		public DataType getResultType() {
+			return DataTypes.BIGINT();
 		}
 	}
 
@@ -135,8 +134,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class FloatSumAggFunction extends SumAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.FLOAT;
+		public DataType getResultType() {
+			return DataTypes.FLOAT();
 		}
 	}
 
@@ -145,8 +144,8 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class DoubleSumAggFunction extends SumAggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.DOUBLE;
+		public DataType getResultType() {
+			return DataTypes.DOUBLE();
 		}
 	}
 
@@ -154,16 +153,16 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Decimal Sum aggregate function.
 	 */
 	public static class DecimalSumAggFunction extends SumAggFunction {
-		private DecimalTypeInfo decimalType;
+		private DecimalType decimalType;
 
-		public DecimalSumAggFunction(DecimalTypeInfo decimalType) {
+		public DecimalSumAggFunction(DecimalType decimalType) {
 			this.decimalType = decimalType;
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			DecimalType sumType = DecimalType.inferAggSumType(decimalType.scale());
-			return new DecimalTypeInfo(sumType.precision(), sumType.scale());
+		public DataType getResultType() {
+			DecimalType sumType = FlinkTypeSystem.inferAggSumType(decimalType.getScale());
+			return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
 		}
 	}
 }

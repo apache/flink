@@ -101,7 +101,7 @@ public class UnionInputGate extends InputGate {
 		synchronized (inputGatesWithData) {
 			for (InputGate inputGate : inputGates) {
 				if (inputGate instanceof UnionInputGate) {
-					// if we want to add support for this, we need to implement pollNextBufferOrEvent()
+					// if we want to add support for this, we need to implement pollNext()
 					throw new UnsupportedOperationException("Cannot union a union of input gates.");
 				}
 
@@ -137,20 +137,8 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
-	public String getOwningTaskName() {
-		// all input gates have the same owning task
-		return inputGates[0].getOwningTaskName();
-	}
-
-	@Override
 	public boolean isFinished() {
-		for (InputGate inputGate : inputGates) {
-			if (!inputGate.isFinished()) {
-				return false;
-			}
-		}
-
-		return true;
+		return inputGatesWithRemainingData.isEmpty();
 	}
 
 	@Override
@@ -165,12 +153,12 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 		return getNextBufferOrEvent(true);
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
 		return getNextBufferOrEvent(false);
 	}
 
@@ -207,13 +195,13 @@ public class UnionInputGate extends InputGate {
 			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
 			// Do not poll the gate under inputGatesWithData lock, since this can trigger notifications
 			// that could deadlock because of wrong locks taking order.
-			Optional<BufferOrEvent> bufferOrEvent = inputGate.get().pollNextBufferOrEvent();
+			Optional<BufferOrEvent> bufferOrEvent = inputGate.get().pollNext();
 
 			synchronized (inputGatesWithData) {
 				if (bufferOrEvent.isPresent() && bufferOrEvent.get().moreAvailable()) {
 					// enqueue the inputGate at the end to avoid starvation
 					inputGatesWithData.add(inputGate.get());
-				} else {
+				} else if (!inputGate.get().isFinished()) {
 					inputGate.get().isAvailable().thenRun(() -> queueInputGate(inputGate.get()));
 				}
 
@@ -254,7 +242,19 @@ public class UnionInputGate extends InputGate {
 				throw new IllegalStateException("Couldn't find input gate in set of remaining " +
 					"input gates.");
 			}
+			if (isFinished()) {
+				markAvailable();
+			}
 		}
+	}
+
+	private void markAvailable() {
+		CompletableFuture<?> toNotfiy;
+		synchronized (inputGatesWithData) {
+			toNotfiy = isAvailable;
+			isAvailable = AVAILABLE;
+		}
+		toNotfiy.complete(null);
 	}
 
 	@Override

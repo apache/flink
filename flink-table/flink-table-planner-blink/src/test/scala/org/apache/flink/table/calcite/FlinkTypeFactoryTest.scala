@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
+import org.apache.flink.table.types.logical.{ArrayType, BigIntType, BooleanType, DateType, DecimalType, DoubleType, FloatType, IntType, LogicalType, MapType, RowType, SmallIntType, TimeType, TimestampType, TinyIntType, VarBinaryType, VarCharType}
 
 import org.junit.{Assert, Test}
 
@@ -28,48 +28,57 @@ class FlinkTypeFactoryTest {
   def testInternalToRelType(): Unit = {
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
 
-    def test(t: InternalType): Unit = {
+    def test(t: LogicalType): Unit = {
       Assert.assertEquals(
-        t,
-        FlinkTypeFactory.toInternalType(
-          typeFactory.createTypeFromInternalType(t, isNullable = true))
+        t.copy(true),
+        FlinkTypeFactory.toLogicalType(
+          typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
       Assert.assertEquals(
-        t,
-        FlinkTypeFactory.toInternalType(
-          typeFactory.createTypeFromInternalType(t, isNullable = false))
+        t.copy(false),
+        FlinkTypeFactory.toLogicalType(
+          typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
       )
 
       // twice for cache.
       Assert.assertEquals(
-        t,
-        FlinkTypeFactory.toInternalType(
-          typeFactory.createTypeFromInternalType(t, isNullable = true))
+        t.copy(true),
+        FlinkTypeFactory.toLogicalType(
+          typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
       Assert.assertEquals(
-        t,
-        FlinkTypeFactory.toInternalType(
-          typeFactory.createTypeFromInternalType(t, isNullable = false))
+        t.copy(false),
+        FlinkTypeFactory.toLogicalType(
+          typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
       )
     }
 
-    test(InternalTypes.BOOLEAN)
-    test(InternalTypes.BYTE)
-    test(InternalTypes.STRING)
-    test(InternalTypes.DOUBLE)
-    test(InternalTypes.FLOAT)
-    test(InternalTypes.INT)
-    test(InternalTypes.LONG)
-    test(InternalTypes.SHORT)
-    test(InternalTypes.BINARY)
-    test(InternalTypes.DATE)
-    test(InternalTypes.TIME)
-    test(InternalTypes.TIMESTAMP)
+    test(new BooleanType())
+    test(new TinyIntType())
+    test(new VarCharType(VarCharType.MAX_LENGTH))
+    test(new DoubleType())
+    test(new FloatType())
+    test(new IntType())
+    test(new BigIntType())
+    test(new SmallIntType())
+    test(new VarBinaryType(VarBinaryType.MAX_LENGTH))
+    test(new DateType())
+    test(new TimeType())
+    test(new TimestampType(3))
 
-    test(InternalTypes.createArrayType(InternalTypes.DOUBLE))
-    test(InternalTypes.createMapType(InternalTypes.DOUBLE, InternalTypes.STRING))
-    test(InternalTypes.createRowType(InternalTypes.DOUBLE, InternalTypes.STRING))
+    test(new ArrayType(new DoubleType()))
+    test(new MapType(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
+    test(RowType.of(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
+  }
+
+  @Test def testDecimalInferType(): Unit = {
+    Assert.assertEquals(new DecimalType(20, 13), FlinkTypeSystem.inferDivisionType(5, 2, 10, 4))
+    Assert.assertEquals(new DecimalType(7, 0), FlinkTypeSystem.inferIntDivType(5, 2, 4))
+    Assert.assertEquals(new DecimalType(38, 5), FlinkTypeSystem.inferAggSumType(5))
+    Assert.assertEquals(new DecimalType(38, 6), FlinkTypeSystem.inferAggAvgType(5))
+    Assert.assertEquals(new DecimalType(8, 2), FlinkTypeSystem.inferRoundType(10, 5, 2))
+    Assert.assertEquals(new DecimalType(8, 2), FlinkTypeSystem.inferRoundType(10, 5, 2))
   }
 }

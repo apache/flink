@@ -20,6 +20,7 @@ package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.api.batch.table.CalcTest.{MyHashCode, TestCaseClass, WC, giveMeCaseClass}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
@@ -38,7 +39,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "a._1 AS a$_1",
         "a._2 AS a$_2",
@@ -61,7 +62,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "a._1 AS a$_1",
         "a._2 AS a$_2",
@@ -85,7 +86,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "giveMeCaseClass$().my AS _c0",
         "giveMeCaseClass$().clazz AS _c1",
@@ -110,7 +111,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(sourceTable),
       term("select", "a", "b")
     )
 
@@ -124,7 +125,7 @@ class CalcTest extends TableTestBase {
     val resultTable1 = sourceTable.select('*)
     val resultTable2 = sourceTable.select('a, 'b, 'c, 'd)
 
-    val expected = batchTableNode(0)
+    val expected = batchTableNode(sourceTable)
 
     util.verifyTable(resultTable1, expected)
     util.verifyTable(resultTable2, expected)
@@ -140,10 +141,10 @@ class CalcTest extends TableTestBase {
       "DataSetAggregate",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(sourceTable),
         term("select", "a", "b")
       ),
-      term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
+      term("select", "SUM(a) AS EXPR$0", "MAX(b) AS EXPR$1")
     )
 
     util.verifyTable(resultTable, expected)
@@ -160,7 +161,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(sourceTable),
       term("select", "MyHashCode$(c) AS _c0", "b")
     )
 
@@ -179,7 +180,7 @@ class CalcTest extends TableTestBase {
         "DataSetDistinct",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(sourceTable),
           term("select", "a", "c")
         ),
         term("distinct", "a", "c")
@@ -200,7 +201,7 @@ class CalcTest extends TableTestBase {
       "DataSetDistinct",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(sourceTable),
         term("select", "a", "c")
       ),
       term("distinct", "a", "c")
@@ -222,13 +223,13 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(sourceTable),
             term("select", "a", "c")
           ),
           term("groupBy", "c"),
-          term("select", "c", "SUM(a) AS TMP_0")
+          term("select", "c", "SUM(a) AS EXPR$0")
         ),
-        term("select", "TMP_0")
+        term("select", "EXPR$0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -247,15 +248,15 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(sourceTable),
             // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
             // Calcite planner doesn't promise to retain field names.
             term("select", "a", "UPPER(c) AS k")
           ),
           term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("select", "k", "SUM(a) AS EXPR$0")
         ),
-        term("select", "TMP_0")
+        term("select", "EXPR$0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -274,15 +275,15 @@ class CalcTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(sourceTable),
             // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
             // Calcite planner doesn't promise to retain field names.
             term("select", "a", "MyHashCode$(c) AS k")
           ),
           term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("select", "k", "SUM(a) AS EXPR$0")
         ),
-        term("select", "TMP_0")
+        term("select", "EXPR$0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -301,12 +302,12 @@ class CalcTest extends TableTestBase {
         "DataSetCalc",
         unaryNode(
           "DataSetAggregate",
-          batchTableNode(0),
+          batchTableNode(sourceTable),
           term("groupBy", "word"),
-          term("select", "word", "SUM(frequency) AS TMP_0")
+          term("select", "word", "SUM(frequency) AS EXPR$0")
         ),
-        term("select", "word, TMP_0 AS frequency"),
-        term("where", "=(TMP_0, 2)")
+        term("select", "word, EXPR$0 AS frequency"),
+        term("where", "=(EXPR$0, 2)")
       )
 
     util.verifyTable(resultTable, expected)
@@ -323,7 +324,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(sourceTable),
       term("select", "a", "b"),
       term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
     )

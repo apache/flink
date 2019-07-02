@@ -126,26 +126,6 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         echo "=============================================================================="
     fi
 
-    if [[ ${PROFILE} == *"jdk9"* ]]; then
-        printf "\n\n==============================================================================\n"
-        printf "Skipping end-to-end tests since they fail on Java 9.\n"
-        printf "==============================================================================\n"
-    else
-        if [ $EXIT_CODE == 0 ]; then
-            printf "\n\n==============================================================================\n"
-            printf "Running end-to-end tests\n"
-            printf "==============================================================================\n"
-
-            FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
-
-            EXIT_CODE=$?
-        else
-            printf "\n==============================================================================\n"
-            printf "Previous build failure detected, skipping end-to-end tests.\n"
-            printf "==============================================================================\n"
-        fi
-    fi
-
     if [ $EXIT_CODE == 0 ]; then
         echo "Creating cache build directory $CACHE_FLINK_DIR"
         mkdir -p "$CACHE_FLINK_DIR"
@@ -159,8 +139,16 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
     
             # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
             find "$CACHE_FLINK_DIR" -maxdepth 8 -type f -name '*.jar' \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-csv/target/flink-csv*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-json/target/flink-json*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-formats/flink-avro/target/flink-avro*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-runtime/target/flink-runtime*tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-streaming-java/target/flink-streaming-java*tests.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-dist*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-table*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*java-binding.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf
     
             # .git directory

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
-import org.apache.flink.table.operations.TableOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
@@ -87,7 +87,7 @@ public interface Table {
 	/**
 	 * Returns underlying logical representation of this table.
 	 */
-	TableOperation getTableOperation();
+	QueryOperation getQueryOperation();
 
 	/**
 	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
@@ -812,7 +812,8 @@ public interface Table {
 	Table fetch(int fetch);
 
 	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
+	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
@@ -820,13 +821,16 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tableName Name of the registered {@link TableSink} to which the {@link Table} is
-	 *                  written.
+	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
 	 */
-	void insertInto(String tableName);
+	void insertInto(String tablePath, String... tablePathContinued);
 
 	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
+	 * in the initial default catalog.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
@@ -834,10 +838,30 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tableName Name of the {@link TableSink} to which the {@link Table} is written.
+	 * @param tableName The name of the {@link TableSink} to which the {@link Table} is written.
 	 * @param conf The {@link QueryConfig} to use.
+	 * @deprecated use {@link #insertInto(QueryConfig, String, String...)}
 	 */
+	@Deprecated
 	void insertInto(String tableName, QueryConfig conf);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
+	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
+	 *
+	 * <p>A batch {@link Table} can only be written to a
+	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
+	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
+	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
+	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
+	 *
+	 * @param conf The {@link QueryConfig} to use.
+	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
+	 */
+	void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued);
 
 	/**
 	 * Groups the records of a table by assigning them to windows defined by a time or row interval.

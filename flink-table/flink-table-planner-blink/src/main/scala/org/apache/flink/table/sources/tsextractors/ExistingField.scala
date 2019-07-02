@@ -18,16 +18,15 @@
 
 package org.apache.flink.table.sources.tsextractors
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.descriptors.Rowtime
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.`type`.DecimalType
-import org.apache.flink.table.typeutils.DecimalTypeInfo
-
-import java.util
-
-import scala.collection.JavaConversions._
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 /**
   * Converts an existing [[Long]], [[java.sql.Timestamp]], or
@@ -65,28 +64,31 @@ final class ExistingField(val field: String) extends TimestampExtractor {
 
     val fieldReferenceExpr = new FieldReferenceExpression(
       fieldAccess.name,
-      fieldAccess.resultType,
+      fromLegacyInfoToDataType(fieldAccess.resultType),
       0,
       fieldAccess.fieldIndex)
 
     fieldAccess.resultType match {
       case Types.LONG =>
         // access LONG field
-        val innerDiv = new CallExpression(
+        val innerDiv = unresolvedCall(
           BuiltInFunctionDefinitions.DIVIDE,
-          List(fieldReferenceExpr,
-            new ValueLiteralExpression(new java.math.BigDecimal(1000),
-              DecimalTypeInfo.of(DecimalType.MAX_PRECISION, DecimalType.MAX_COMPACT_PRECISION)))
-        )
-        new CallExpression(
+          fieldReferenceExpr,
+          valueLiteral(new java.math.BigDecimal(1000)))
+
+        unresolvedCall(
           BuiltInFunctionDefinitions.CAST,
-          List(innerDiv, new TypeLiteralExpression(Types.SQL_TIMESTAMP)))
+          innerDiv,
+          typeLiteral(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
+
       case Types.SQL_TIMESTAMP =>
         fieldReferenceExpr
+
       case Types.STRING =>
-        new CallExpression(
+        unresolvedCall(
           BuiltInFunctionDefinitions.CAST,
-          List(fieldReferenceExpr, new TypeLiteralExpression(Types.SQL_TIMESTAMP)))
+          fieldReferenceExpr,
+          typeLiteral(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
     }
   }
 

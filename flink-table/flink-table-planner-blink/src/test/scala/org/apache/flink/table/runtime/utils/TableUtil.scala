@@ -19,10 +19,11 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeConverters.createExternalTypeInfoFromInternalType
 import org.apache.flink.table.api.{BatchTableEnvironment, TableImpl}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink}
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConversions._
@@ -51,12 +52,12 @@ object TableUtil {
   def collectSink[T](
       table: TableImpl, sink: CollectTableSink[T], jobName: Option[String] = None): Seq[T] = {
     // get schema information of table
-    val rowType = table.getRelNode.getRowType
+    val rowType = TableTestUtil.toRelNode(table).getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
     val fieldTypes = rowType.getFieldList
-      .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
+      .map(field => FlinkTypeFactory.toLogicalType(field.getType)).toArray
     val configuredSink = sink.configure(
-      fieldNames, fieldTypes.map(createExternalTypeInfoFromInternalType))
+      fieldNames, fieldTypes.map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo))
     BatchTableEnvUtil.collect(table.tableEnv.asInstanceOf[BatchTableEnvironment],
       table, configuredSink.asInstanceOf[CollectTableSink[T]], jobName)
   }

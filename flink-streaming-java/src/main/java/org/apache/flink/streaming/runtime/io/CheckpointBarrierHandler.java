@@ -18,62 +18,88 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
 /**
- * The CheckpointBarrierHandler reacts to checkpoint barrier arriving from the input channels.
+ * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input channels.
  * Different implementations may either simply track barriers, or block certain inputs on
  * barriers.
  */
-@Internal
-public interface CheckpointBarrierHandler {
+public abstract class CheckpointBarrierHandler {
+
+	/** The listener to be notified on complete checkpoints. */
+	@Nullable
+	private final AbstractInvokable toNotifyOnCheckpoint;
+
+	public CheckpointBarrierHandler(@Nullable AbstractInvokable toNotifyOnCheckpoint) {
+		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
+	}
+
+	public abstract void releaseBlocksAndResetBarriers() throws IOException;
 
 	/**
-	 * Returns the next {@link BufferOrEvent} that the operator may consume.
-	 * This call blocks until the next BufferOrEvent is available, or until the stream
-	 * has been determined to be finished.
+	 * Checks whether the channel with the given index is blocked.
 	 *
-	 * @return The next BufferOrEvent, or {@code null}, if the stream is finished.
-	 *
-	 * @throws IOException Thrown if the network or local disk I/O fails.
-	 *
-	 * @throws InterruptedException Thrown if the thread is interrupted while blocking during
-	 *                              waiting for the next BufferOrEvent to become available.
-	 * @throws Exception Thrown in case that a checkpoint fails that is started as the result of receiving
-	 *                   the last checkpoint barrier
+	 * @param channelIndex The channel index to check.
+	 * @return True if the channel is blocked, false if not.
 	 */
-	BufferOrEvent getNextNonBlocked() throws Exception;
+	public abstract boolean isBlocked(int channelIndex);
 
 	/**
-	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.
-	 *
-	 * @param task The task to notify
+	 * @return true if some blocked data should be unblocked/rolled over.
 	 */
-	void registerCheckpointEventHandler(AbstractInvokable task);
+	public abstract boolean processBarrier(CheckpointBarrier receivedBarrier, int channelIndex, long bufferedBytes) throws Exception;
 
 	/**
-	 * Cleans up all internally held resources.
-	 *
-	 * @throws IOException Thrown if the cleanup of I/O resources failed.
+	 * @return true if some blocked data should be unblocked/rolled over.
 	 */
-	void cleanup() throws IOException;
+	public abstract boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
 
 	/**
-	 * Checks if the barrier handler has buffered any data internally.
-	 * @return {@code True}, if no data is buffered internally, {@code false} otherwise.
+	 * @return true if some blocked data should be unblocked/rolled over.
 	 */
-	boolean isEmpty();
+	public abstract boolean processEndOfPartition() throws Exception;
 
-	/**
-	 * Gets the time that the latest alignment took, in nanoseconds.
-	 * If there is currently an alignment in progress, it will return the time spent in the
-	 * current alignment so far.
-	 *
-	 * @return The duration in nanoseconds
-	 */
-	long getAlignmentDurationNanos();
+	public abstract long getLatestCheckpointId();
+
+	public abstract long getAlignmentDurationNanos();
+
+	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
+
+	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws Exception {
+		if (toNotifyOnCheckpoint != null) {
+			CheckpointMetaData checkpointMetaData =
+				new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
+
+			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+				.setBytesBufferedInAlignment(bufferedBytes)
+				.setAlignmentDurationNanos(alignmentDurationNanos);
+
+			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+				checkpointMetaData,
+				checkpointBarrier.getCheckpointOptions(),
+				checkpointMetrics);
+		}
+	}
+
+	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
+		notifyAbort(checkpointId,
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
+	}
+
+	protected void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
+		if (toNotifyOnCheckpoint != null) {
+			toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
+		}
+	}
 }

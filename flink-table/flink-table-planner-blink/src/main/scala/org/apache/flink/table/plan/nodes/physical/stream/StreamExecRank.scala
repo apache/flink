@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.EqualiserCodeGenerator
@@ -29,12 +29,14 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.runtime.rank._
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.util.ImmutableBitSet
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -124,7 +126,7 @@ class StreamExecRank(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val tableConfig = tableEnv.getConfig
     rankType match {
       case RankType.ROW_NUMBER => // ignore
@@ -136,13 +138,14 @@ class StreamExecRank(
         throw new TableException(s"Streaming tables do not support $k rank function.")
     }
 
-    val inputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getInput.getRowType).toTypeInfo
+    val inputRowTypeInfo = BaseRowTypeInfo.of(
+      FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val fieldCollations = orderKey.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
     val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
     val sortKeyType = sortKeySelector.getProducedType
     val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
-      sortFields.indices.toArray, sortKeyType.getInternalTypes, sortDirections, nullsIsLast)
+      sortFields.indices.toArray, sortKeyType.getLogicalTypes, sortDirections, nullsIsLast)
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
@@ -179,7 +182,7 @@ class StreamExecRank(
 
       // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
       case RetractStrategy =>
-        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getInternalTypes)
+        val equaliserCodeGen = new EqualiserCodeGenerator(inputRowTypeInfo.getLogicalTypes)
         val generatedEqualiser = equaliserCodeGen.generateRecordEqualiser("RankValueEqualiser")
 
         new RetractableTopNFunction(
@@ -198,18 +201,18 @@ class StreamExecRank(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
-    val outputRowTypeInfo = FlinkTypeFactory.toInternalRowType(getRowType).toTypeInfo
+      .asInstanceOf[Transformation[BaseRow]]
+    val outputRowTypeInfo = BaseRowTypeInfo.of(
+      FlinkTypeFactory.toLogicalRowType(getRowType))
     val ret = new OneInputTransformation(
       inputTransform,
       rankOpName,
       operator,
       outputRowTypeInfo,
-      tableEnv.execEnv.getParallelism)
+      getResource.getParallelism)
 
-    if (partitionKey.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
     }
 
     // set KeyType and Selector for state

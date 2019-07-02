@@ -41,7 +41,8 @@ import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -236,9 +237,9 @@ public class RandomSortMergeInnerJoinTest {
 			MutableObjectIterator<Tuple2<Integer, String>> input1,
 			MutableObjectIterator<Tuple2<Integer, String>> input2,
 			boolean input1First) throws Exception {
-		BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(InternalTypes.INT, InternalTypes.STRING);
+		BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 		BaseRowTypeInfo joinedInfo = new BaseRowTypeInfo(
-				InternalTypes.INT, InternalTypes.STRING, InternalTypes.INT, InternalTypes.STRING);
+				new IntType(), new VarCharType(VarCharType.MAX_LENGTH), new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 		final TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
 				TwoInputStreamTask::new, 2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo,

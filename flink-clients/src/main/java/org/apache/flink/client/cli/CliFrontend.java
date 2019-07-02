@@ -80,7 +80,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -124,8 +123,7 @@ public class CliFrontend {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
 
-		//TODO provide plugin path.
-		FileSystem.initialize(this.configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		this.customCommandLineOptions = new Options();
 
@@ -185,8 +183,11 @@ public class CliFrontend {
 			return;
 		}
 
-		if (runOptions.getJarFilePath() == null) {
-			throw new CliArgsException("The program JAR file was not specified.");
+		if (!runOptions.isPython()) {
+			// Java program should be specified a JAR file
+			if (runOptions.getJarFilePath() == null) {
+				throw new CliArgsException("Java program should be specified a JAR file.");
+			}
 		}
 
 		final PackagedProgram program;
@@ -771,22 +772,26 @@ public class CliFrontend {
 		String jarFilePath = options.getJarFilePath();
 		List<URL> classpaths = options.getClasspaths();
 
-		if (jarFilePath == null) {
-			throw new IllegalArgumentException("The program JAR file was not specified.");
-		}
-
-		File jarFile = new File(jarFilePath);
-
-		// Check if JAR file exists
-		if (!jarFile.exists()) {
-			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
-		}
-		else if (!jarFile.isFile()) {
-			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
-		}
-
 		// Get assembler class
 		String entryPointClass = options.getEntryPointClassName();
+		File jarFile = null;
+		if (options.isPython()) {
+			// If the job is specified a jar file
+			if (jarFilePath != null) {
+				jarFile = getJarFile(jarFilePath);
+			}
+
+			// If the job is Python Shell job, the entry point class name is PythonGateWayServer.
+			// Otherwise, the entry point class of python job is PythonDriver
+			if (entryPointClass == null) {
+				entryPointClass = "org.apache.flink.client.python.PythonDriver";
+			}
+		} else {
+			if (jarFilePath == null) {
+				throw new IllegalArgumentException("Java program should be specified a JAR file.");
+			}
+			jarFile = getJarFile(jarFilePath);
+		}
 
 		PackagedProgram program = entryPointClass == null ?
 				new PackagedProgram(jarFile, classpaths, programArgs) :
@@ -795,6 +800,25 @@ public class CliFrontend {
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;
+	}
+
+	/**
+	 * Gets the JAR file from the path.
+	 *
+	 * @param jarFilePath The path of JAR file
+	 * @return The JAR file
+	 * @throws FileNotFoundException The JAR file does not exist.
+	 */
+	private File getJarFile(String jarFilePath) throws FileNotFoundException {
+		File jarFile = new File(jarFilePath);
+		// Check if JAR file exists
+		if (!jarFile.exists()) {
+			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
+		}
+		else if (!jarFile.isFile()) {
+			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
+		}
+		return jarFile;
 	}
 
 	// --------------------------------------------------------------------------------------------

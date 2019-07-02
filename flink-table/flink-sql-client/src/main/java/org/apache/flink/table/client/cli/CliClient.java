@@ -263,11 +263,23 @@ public class CliClient {
 			case HELP:
 				callHelp();
 				break;
+			case SHOW_CATALOGS:
+				callShowCatalogs();
+				break;
+			case SHOW_DATABASES:
+				callShowDatabases();
+				break;
 			case SHOW_TABLES:
 				callShowTables();
 				break;
 			case SHOW_FUNCTIONS:
 				callShowFunctions();
+				break;
+			case USE_CATALOG:
+				callUseCatalog(cmdCall);
+				break;
+			case USE_DATABASE:
+				callUseDatabase(cmdCall);
 				break;
 			case DESCRIBE:
 				callDescribe(cmdCall);
@@ -343,6 +355,38 @@ public class CliClient {
 		terminal.flush();
 	}
 
+	private void callShowCatalogs() {
+		final List<String> catalogs;
+		try {
+			catalogs = executor.listCatalogs(context);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (catalogs.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			catalogs.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowDatabases() {
+		final List<String> dbs;
+		try {
+			dbs = executor.listDatabases(context);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (dbs.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			dbs.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
 	private void callShowTables() {
 		final List<String> tables;
 		try {
@@ -371,6 +415,26 @@ public class CliClient {
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
 		} else {
 			functions.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callUseCatalog(SqlCommandCall cmdCall) {
+		try {
+			executor.useCatalog(context, cmdCall.operands[0]);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		terminal.flush();
+	}
+
+	private void callUseDatabase(SqlCommandCall cmdCall) {
+		try {
+			executor.useDatabase(context, cmdCall.operands[0]);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
 		}
 		terminal.flush();
 	}

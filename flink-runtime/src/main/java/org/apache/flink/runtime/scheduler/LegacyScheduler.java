@@ -50,6 +50,7 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -69,8 +70,10 @@ import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -141,7 +144,9 @@ public class LegacyScheduler implements SchedulerNG {
 			final RestartStrategyFactory restartStrategyFactory,
 			final BlobWriter blobWriter,
 			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			final Time slotRequestTimeout) throws Exception {
+			final Time slotRequestTimeout,
+			final ShuffleMaster<?> shuffleMaster,
+			final PartitionTracker partitionTracker) throws Exception {
 
 		this.log = checkNotNull(log);
 		this.jobGraph = checkNotNull(jobGraph);
@@ -168,12 +173,15 @@ public class LegacyScheduler implements SchedulerNG {
 		this.blobWriter = checkNotNull(blobWriter);
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
 
-		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup);
+		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
 	}
 
-	private ExecutionGraph createAndRestoreExecutionGraph(JobManagerJobMetricGroup currentJobManagerJobMetricGroup) throws Exception {
+	private ExecutionGraph createAndRestoreExecutionGraph(
+			JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+			ShuffleMaster<?> shuffleMaster,
+			PartitionTracker partitionTracker) throws Exception {
 
-		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup);
+		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup, shuffleMaster, partitionTracker);
 
 		final CheckpointCoordinator checkpointCoordinator = newExecutionGraph.getCheckpointCoordinator();
 
@@ -192,7 +200,10 @@ public class LegacyScheduler implements SchedulerNG {
 		return newExecutionGraph;
 	}
 
-	private ExecutionGraph createExecutionGraph(JobManagerJobMetricGroup currentJobManagerJobMetricGroup) throws JobExecutionException, JobException {
+	private ExecutionGraph createExecutionGraph(
+			JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+			ShuffleMaster<?> shuffleMaster,
+			final PartitionTracker partitionTracker) throws JobExecutionException, JobException {
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -207,7 +218,9 @@ public class LegacyScheduler implements SchedulerNG {
 			currentJobManagerJobMetricGroup,
 			blobWriter,
 			slotRequestTimeout,
-			log);
+			log,
+			shuffleMaster,
+			partitionTracker);
 	}
 
 	/**
@@ -527,10 +540,12 @@ public class LegacyScheduler implements SchedulerNG {
 			checkpointMetrics,
 			checkpointState);
 
+		final String taskManagerLocationInfo = retrieveTaskManagerLocation(executionAttemptID);
+
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
-					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage);
+					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocationInfo);
 				} catch (Throwable t) {
 					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
@@ -550,11 +565,12 @@ public class LegacyScheduler implements SchedulerNG {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		final String taskManagerLocationInfo = retrieveTaskManagerLocation(decline.getTaskExecutionId());
 
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
-					checkpointCoordinator.receiveDeclineMessage(decline);
+					checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocationInfo);
 				} catch (Exception e) {
 					log.error("Error in CheckpointCoordinator while processing {}", decline, e);
 				}
@@ -623,5 +639,14 @@ public class LegacyScheduler implements SchedulerNG {
 
 		return savepointFuture.thenCompose((path) ->
 			terminationFuture.thenApply((jobStatus -> path)));
+	}
+
+	private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
+		final Optional<Execution> currentExecution = Optional.ofNullable(executionGraph.getRegisteredExecutions().get(executionAttemptID));
+
+		return currentExecution
+			.map(Execution::getAssignedResourceLocation)
+			.map(TaskManagerLocation::toString)
+			.orElse("Unknown location");
 	}
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.MemoryMappedBuffers.BufferSlicer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nullable;
 
@@ -44,7 +44,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** The reader/decoder to the memory mapped region with the data we currently read from.
 	 * Null once the reader empty or disposed.*/
 	@Nullable
-	private BufferSlicer memory;
+	private BoundedData.Reader dataReader;
 
 	/** The remaining number of data buffers (not events) in the result. */
 	private int dataBufferBacklog;
@@ -57,16 +57,16 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	 */
 	BoundedBlockingSubpartitionReader(
 			BoundedBlockingSubpartition parent,
-			BufferSlicer memory,
-			int numDataBuffers) {
+			BoundedData.Reader dataReader,
+			int numDataBuffers) throws IOException {
 
 		checkArgument(numDataBuffers >= 0);
 
 		this.parent = checkNotNull(parent);
-		this.memory = checkNotNull(memory);
+		this.dataReader = checkNotNull(dataReader);
 		this.dataBufferBacklog = numDataBuffers;
 
-		this.nextBuffer = memory.sliceNextBuffer();
+		this.nextBuffer = dataReader.nextBuffer();
 	}
 
 	@Nullable
@@ -83,8 +83,8 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 			dataBufferBacklog--;
 		}
 
-		assert memory != null;
-		nextBuffer = memory.sliceNextBuffer();
+		assert dataReader != null;
+		nextBuffer = dataReader.nextBuffer();
 
 		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog);
 	}
@@ -104,9 +104,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		// it is not a problem if this method executes multiple times
 		isReleased = true;
 
-		// nulling these fields means thet read method and will fail fast
+		IOUtils.closeQuietly(dataReader);
+
+		// nulling these fields means the read method and will fail fast
 		nextBuffer = null;
-		memory = null;
+		dataReader = null;
 
 		// Notify the parent that this one is released. This allows the parent to
 		// eventually release all resources (when all readers are done and the

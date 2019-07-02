@@ -18,13 +18,18 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.tuple.Tuple1;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
@@ -48,7 +53,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new NonSerializableMapCreator();
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, true);
+		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
 		int result = map.map(3);
 		Assert.assertEquals(result, 4);
@@ -59,7 +64,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new SerializableMapCreator(1);
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, true);
+		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
 		int result = map.map(3);
 		Assert.assertEquals(result, 4);
@@ -70,7 +75,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new NestedSerializableMapCreator(1);
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, true);
+		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
 		ClosureCleaner.ensureSerializable(map);
 
@@ -83,17 +88,203 @@ public class ClosureCleanerTest {
 		MapCreator creator = new NestedNonSerializableMapCreator(1);
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, true);
+		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
 		ClosureCleaner.ensureSerializable(map);
 
 		int result = map.map(3);
 		Assert.assertEquals(result, 4);
 	}
+
+	@Test
+	public void testWrapperClass() throws Exception {
+		MapCreator creator = new NonSerializableMapCreator();
+		MapFunction<Integer, Integer> notCleanedMap = creator.getMap();
+
+		WrapperMapFunction wrapped = new WrapperMapFunction(notCleanedMap);
+
+		ClosureCleaner.clean(wrapped, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		ClosureCleaner.ensureSerializable(wrapped);
+
+		int result = wrapped.map(3);
+		Assert.assertEquals(result, 4);
+	}
+
+	@Test
+	public void testComplexTopLevelClassClean() throws Exception {
+		MapFunction<Integer, Integer> complexMap = new ComplexMap((MapFunction<Integer, Integer>) value -> value + 1);
+
+		ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		int result = complexMap.map(3);
+
+		Assert.assertEquals(result, 5);
+	}
+
+	@Test
+	public void testComplexInnerClassClean() throws Exception {
+		MapFunction<Integer, Integer> complexMap = new InnerComplexMap((MapFunction<Integer, Integer>) value -> value + 1);
+
+		ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		int result = complexMap.map(3);
+
+		Assert.assertEquals(result, 4);
+	}
+
+	class InnerCustomMap implements MapFunction<Integer, Integer> {
+
+		@Override
+		public Integer map(Integer value) throws Exception {
+			return value + 1;
+		}
+
+		private void writeObject(ObjectOutputStream o) throws IOException {
+		}
+
+		private void readObject(ObjectInputStream i) throws IOException {
+		}
+	}
+
+	// Inner class
+	class InnerComplexMap implements MapFunction<Integer, Integer> {
+
+		InnerCustomMap map1;
+		LocalMap map3;
+
+		class LocalMap implements MapFunction<Integer, Integer> {
+
+			MapFunction<Integer, Integer> map2;
+
+			public LocalMap(MapFunction<Integer, Integer> map2) {
+				this.map2 = map2;
+			}
+
+			@Override
+			public Integer map(Integer value) throws Exception {
+				return map2.map(value + 1);
+			}
+		}
+
+		public InnerComplexMap(MapFunction<Integer, Integer> map) {
+			this.map1 = new InnerCustomMap();
+			this.map3 = new LocalMap(map);
+		}
+
+		@Override
+		public Integer map(Integer value) throws Exception {
+			return map1.map(value);
+		}
+	}
+
+	@Test
+	public void testOuterStaticClassInnerStaticClassInnerAnonymousOrLocalClass() {
+		MapFunction<Integer, Integer> nestedMap = new OuterMapCreator().getMap();
+
+		MapFunction<Integer, Integer> wrappedMap = new WrapperMapFunction(nestedMap);
+
+		ClosureCleaner.clean(wrappedMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		ClosureCleaner.ensureSerializable(wrappedMap);
+	}
+
+	@Test
+	public void testRealOuterStaticClassInnerStaticClassInnerAnonymousOrLocalClass() {
+		MapFunction<Integer, Integer> nestedMap = new OuterMapCreator().getMap();
+
+		MapFunction<Integer, Integer> wrappedMap = new WrapperMapFunction(nestedMap);
+
+		Tuple1<MapFunction<Integer, Integer>> tuple = new Tuple1<>(wrappedMap);
+
+		ClosureCleaner.clean(tuple, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		ClosureCleaner.ensureSerializable(tuple);
+	}
+
+	@Test
+	public void testRecursiveClass() {
+		RecursiveClass recursiveClass = new RecursiveClass(new RecursiveClass());
+
+		ClosureCleaner.clean(recursiveClass, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		ClosureCleaner.ensureSerializable(recursiveClass);
+	}
+}
+
+class CustomMap implements MapFunction<Integer, Integer> {
+
+	@Override
+	public Integer map(Integer value) throws Exception {
+		return value + 1;
+	}
+
+	public void writeObject(ObjectOutputStream o) {
+
+	}
+}
+
+// top level class
+class ComplexMap implements MapFunction<Integer, Integer> {
+
+	static MapFunction<Integer, Integer> map1;
+	transient MapFunction<Integer, Integer> map2;
+	CustomMap map3;
+	LocalMap map4;
+
+	class LocalMap implements MapFunction<Integer, Integer> {
+
+		MapFunction<Integer, Integer> map4;
+
+		public LocalMap(MapFunction<Integer, Integer> map4) {
+			this.map4 = map4;
+		}
+
+		@Override
+		public Integer map(Integer value) throws Exception {
+			return map4.map(value + 1);
+		}
+	}
+
+	public ComplexMap(MapFunction<Integer, Integer> map2) {
+		map1 = map2;
+		this.map2 = map2;
+		this.map3 = new CustomMap();
+		this.map4 = new LocalMap(map2);
+	}
+
+	@Override
+	public Integer map(Integer value) throws Exception {
+		return map4.map(value);
+	}
+}
+
+class RecursiveClass implements Serializable {
+	RecursiveClass recurse;
+
+	public RecursiveClass() {
+	}
+
+	public RecursiveClass(RecursiveClass recurse) {
+		this.recurse = recurse;
+	}
 }
 
 interface MapCreator {
 	MapFunction<Integer, Integer> getMap();
+}
+
+class WrapperMapFunction implements MapFunction<Integer, Integer> {
+
+	MapFunction<Integer, Integer> innerMapFuc;
+	public WrapperMapFunction(MapFunction<Integer, Integer> mapFunction) {
+		innerMapFuc = mapFunction;
+	}
+
+	@Override
+	public Integer map(Integer value) throws Exception {
+		return innerMapFuc.map(value);
+	}
 }
 
 @SuppressWarnings("serial")
@@ -198,5 +389,35 @@ class NestedNonSerializableMapCreator implements MapCreator {
 
 	}
 
+}
+
+class OuterMapCreator implements MapCreator {
+
+	static class OuterStaticClass implements MapCreator {
+
+		static class InnerStaticClass implements MapCreator{
+
+			@Override
+			public MapFunction<Integer, Integer> getMap() {
+				return new MapFunction<Integer, Integer>() {
+					@Override
+					public Integer map(Integer value) throws Exception {
+						return value + 1;
+					}
+				};
+			}
+		}
+
+		@Override
+		public MapFunction<Integer, Integer> getMap() {
+			InnerStaticClass innerClass = new InnerStaticClass();
+			return innerClass.getMap();
+		}
+	}
+
+	@Override
+	public MapFunction<Integer, Integer> getMap() {
+		return new OuterStaticClass().getMap();
+	}
 }
 

@@ -22,10 +22,11 @@ import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.OperatorID
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStreamTaskTestHarness}
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, RowType}
 import org.apache.flink.table.codegen.agg.AggTestBase
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, GenericRow}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.types.logical.{DoubleType, LogicalType, RowType, VarCharType}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.BaseRowTestUtil
 
 import org.junit.Assert
@@ -40,12 +41,12 @@ import scala.collection.JavaConverters._
   */
 abstract class BatchAggTestBase extends AggTestBase {
 
-  val globalOutputType = new RowType(
-    Array[InternalType](
-      InternalTypes.STRING, InternalTypes.STRING,
-      InternalTypes.DOUBLE,
-      InternalTypes.DOUBLE,
-      InternalTypes.DOUBLE),
+  val globalOutputType = RowType.of(
+    Array[LogicalType](
+      new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
+      new DoubleType(),
+      new DoubleType(),
+      new DoubleType()),
     Array(
       "f0", "f4",
       "agg1Output",
@@ -67,7 +68,7 @@ abstract class BatchAggTestBase extends AggTestBase {
     val testHarness = new OneInputStreamTaskTestHarness[BaseRow, BaseRow](
       new function.Function[Environment, OneInputStreamTask[BaseRow, BaseRow]] {
         override def apply(t: Environment) = new OneInputStreamTask(t)
-      }, 1, 1, args._2.toTypeInfo, args._3.toTypeInfo)
+      }, 1, 1, BaseRowTypeInfo.of(args._2), BaseRowTypeInfo.of(args._3))
     testHarness.memorySize = 32 * 100 * 1024
 
     testHarness.setupOutputForSingletonOperatorChain()
@@ -91,7 +92,7 @@ abstract class BatchAggTestBase extends AggTestBase {
     val outQueue = testHarness.getOutput
     while (!outQueue.isEmpty) {
       outputs.add(BaseRowTestUtil.toGenericRowDeeply(
-        outQueue.poll().asInstanceOf[StreamRecord[BaseRow]].getValue, args._3.getFieldTypes))
+        outQueue.poll().asInstanceOf[StreamRecord[BaseRow]].getValue, args._3.getChildren))
     }
     Assert.assertArrayEquals(expectedOutput.toArray[AnyRef], outputs.asScala.toArray[AnyRef])
   }

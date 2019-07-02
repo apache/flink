@@ -88,8 +88,8 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testInvalidTumblingSizeType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Tumbling window expects size literal of type Interval of " +
-      "Milliseconds or Interval of Rows.")
+    expectedException.expectMessage(
+      "Tumbling window expects a size literal of a day-time interval or BIGINT type.")
 
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
@@ -104,7 +104,9 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid arguments")
+    expectedException.expectMessage("Given parameters do not match any signature. \n" +
+      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
+      "(long, int, int, java.lang.String)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -147,10 +149,10 @@ class GroupWindowValidationTest extends TableTestBase {
   }
 
   @Test
-  def testInvalidSlidingizeType(): Unit = {
+  def testInvalidSlidingSizeType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A sliding window expects size literal of type Interval of " +
-      "Milliseconds or Interval of Rows.")
+    expectedException.expectMessage(
+      "A sliding window expects a size literal of a day-time interval or BIGINT type.")
 
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
@@ -165,7 +167,9 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testSlideUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid arguments")
+    expectedException.expectMessage("Given parameters do not match any signature. \n" +
+      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
+      "(long, int, int, java.lang.String)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge
@@ -180,8 +184,8 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testInvalidSessionGap(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A session window expects gap literal of type " +
-      "Interval of Milliseconds.")
+    expectedException.expectMessage(
+      "A session window expects a gap literal of a day-time interval type.")
 
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
@@ -196,8 +200,8 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testInvalidSessionGapType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("A session window expects gap literal of type Interval of " +
-      "Milliseconds.")
+    expectedException.expectMessage(
+      "A session window expects a gap literal of a day-time interval type.")
 
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
@@ -243,7 +247,9 @@ class GroupWindowValidationTest extends TableTestBase {
   @Test
   def testSessionUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Invalid arguments")
+    expectedException.expectMessage("Given parameters do not match any signature. \n" +
+      "Actual: (java.lang.String, java.lang.Integer) \nExpected: (int, int), (long, int), " +
+      "(long, int, int, java.lang.String)")
 
     val util = streamTestUtil()
     val weightedAvg = new WeightedAvgWithMerge

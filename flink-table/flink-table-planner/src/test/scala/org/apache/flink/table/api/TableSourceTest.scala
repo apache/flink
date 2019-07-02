@@ -137,7 +137,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      s"BatchTableSourceScan(table=[[$tableName]], " +
+      s"BatchTableSourceScan(table=[[default_catalog, default_database, $tableName]], " +
         s"fields=[], " +
         s"source=[CsvTableSource(read fields: first)])",
       term("select", "1 AS _c0")
@@ -161,7 +161,8 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      "BatchTableSourceScan(table=[[filterableTable]], fields=[price, id, amount])",
+      "BatchTableSourceScan(table=[[default_catalog, default_database, filterableTable]], " +
+        "fields=[price, id, amount])",
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -486,13 +487,13 @@ class TableSourceTest extends TableTestBase {
   }
 
   def batchSourceTableNode(sourceName: String, fields: Array[String]): String = {
-    s"BatchTableSourceScan(table=[[$sourceName]], " +
+    s"BatchTableSourceScan(table=[[default_catalog, default_database, $sourceName]], " +
       s"fields=[${fields.mkString(", ")}], " +
       s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
   def streamSourceTableNode(sourceName: String, fields: Array[String] ): String = {
-    s"StreamTableSourceScan(table=[[$sourceName]], " +
+    s"StreamTableSourceScan(table=[[default_catalog, default_database, $sourceName]], " +
       s"fields=[${fields.mkString(", ")}], " +
       s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
@@ -500,17 +501,25 @@ class TableSourceTest extends TableTestBase {
   def batchFilterableSourceTableNode(
       sourceName: String,
       fields: Array[String],
-      exp: String): String = {
+      exp: String)
+    : String = {
     "BatchTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
+      s"table=[[default_catalog, default_database, $sourceName]], fields=[${
+        fields
+          .mkString(", ")
+      }], source=[filter=[$exp]])"
   }
 
   def streamFilterableSourceTableNode(
       sourceName: String,
       fields: Array[String],
-      exp: String): String = {
+      exp: String)
+    : String = {
     "StreamTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
+      s"table=[[default_catalog, default_database, $sourceName]], fields=[${
+        fields
+          .mkString(", ")
+      }], source=[filter=[$exp]])"
   }
 
 }

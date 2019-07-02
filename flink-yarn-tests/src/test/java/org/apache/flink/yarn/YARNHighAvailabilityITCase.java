@@ -153,51 +153,55 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testKillYarnSessionClusterEntrypoint() throws Exception {
-		assumeTrue(
-			"This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.",
-			OperatingSystem.isLinux() || OperatingSystem.isMac() || OperatingSystem.isFreeBSD() || OperatingSystem.isSolaris());
+		runTest(() -> {
+			assumeTrue(
+				"This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.",
+				OperatingSystem.isLinux() || OperatingSystem.isMac() || OperatingSystem.isFreeBSD() || OperatingSystem.isSolaris());
 
-		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-		yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
+			final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
+			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
 
-		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
+			final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 
-		try {
-			final JobID jobId = submitJob(restClusterClient);
-			final ApplicationId id = restClusterClient.getClusterId();
+			try {
+				final JobID jobId = submitJob(restClusterClient);
+				final ApplicationId id = restClusterClient.getClusterId();
 
-			waitUntilJobIsRunning(restClusterClient, jobId);
+				waitUntilJobIsRunning(restClusterClient, jobId);
 
-			killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
-			waitForApplicationAttempt(id, 2);
+				killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
+				waitForApplicationAttempt(id, 2);
 
-			waitForJobTermination(restClusterClient, jobId);
+				waitForJobTermination(restClusterClient, jobId);
 
-			killApplicationAndWait(id);
-		} finally {
-			restClusterClient.shutdown();
-		}
+				killApplicationAndWait(id);
+			} finally {
+				restClusterClient.shutdown();
+			}
+		});
 	}
 
 	@Test
 	public void testJobRecoversAfterKillingTaskManager() throws Exception {
-		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-		yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
+		runTest(() -> {
+			final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
+			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
 
-		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
-		try {
-			final JobID jobId = submitJob(restClusterClient);
-			waitUntilJobIsRunning(restClusterClient, jobId);
+			final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
+			try {
+				final JobID jobId = submitJob(restClusterClient);
+				waitUntilJobIsRunning(restClusterClient, jobId);
 
-			stopTaskManagerContainer();
-			waitUntilJobIsRestarted(restClusterClient, jobId, 1);
+				stopTaskManagerContainer();
+				waitUntilJobIsRestarted(restClusterClient, jobId, 1);
 
-			waitForJobTermination(restClusterClient, jobId);
+				waitForJobTermination(restClusterClient, jobId);
 
-			killApplicationAndWait(restClusterClient.getClusterId());
-		} finally {
-			restClusterClient.shutdown();
-		}
+				killApplicationAndWait(restClusterClient.getClusterId());
+			} finally {
+				restClusterClient.shutdown();
+			}
+		});
 	}
 
 	private void waitForApplicationAttempt(final ApplicationId applicationId, final int attemptId) throws Exception {

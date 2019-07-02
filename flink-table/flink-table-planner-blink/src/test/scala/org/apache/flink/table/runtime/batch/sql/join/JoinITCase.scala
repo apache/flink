@@ -19,18 +19,17 @@
 package org.apache.flink.table.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.{TableConfigOptions, Types}
+import org.apache.flink.table.expressions.utils.FuncWithOpen
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.sinks.CollectRowTableSink
-import org.apache.flink.types.Row
 
 import org.junit.{Assert, Before, Ignore, Test}
 
@@ -44,14 +43,14 @@ class JoinITCase() extends BatchTestBase {
 
   @Before
   def before(): Unit = {
-    registerCollection("SmallTable3", smallData3, type3, nullablesOfSmallData3, "a, b, c")
-    registerCollection("Table3", data3, type3, nullablesOfData3, "a, b, c")
-    registerCollection("Table5", data5, type5, nullablesOfData5, "d, e, f, g, h")
-    registerCollection("NullTable3", nullData3, type3, nullablesOfNullData3, "a, b, c")
-    registerCollection("NullTable5", nullData5, type5, nullablesOfNullData5, "d, e, f, g, h")
+    registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
+    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
+    registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
+    registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfNullData3)
+    registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
     registerCollection("l", data2_1, INT_DOUBLE, "a, b")
     registerCollection("r", data2_2, INT_DOUBLE, "c, d")
-    registerCollection("t", data2_3, INT_DOUBLE, nullablesOfData2_3, "c, d")
+    registerCollection("t", data2_3, INT_DOUBLE, "c, d", nullablesOfData2_3)
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
@@ -96,11 +95,11 @@ class JoinITCase() extends BatchTestBase {
       registerCollection("PojoSmallTable3", smallData3,
         new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO,
           new GenericTypeInfoWithoutComparator[String](classOf[String])),
-        nullablesOfSmallData3, "a, b, c")
+        "a, b, c", nullablesOfSmallData3)
       registerCollection("PojoTable5", data5,
         new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, INT_TYPE_INFO,
           new GenericTypeInfoWithoutComparator[String](classOf[String]), LONG_TYPE_INFO),
-        nullablesOfData5, "d, e, f, g, h")
+        "d, e, f, g, h", nullablesOfData5)
 
       checkResult(
         "SELECT c, g FROM (SELECT h, g, f, e, d FROM PojoSmallTable3, PojoTable5 WHERE b = e)," +
@@ -495,45 +494,6 @@ class JoinITCase() extends BatchTestBase {
 
   @Ignore
   @Test
-  def testCrossWithUnnest(): Unit = {
-    val data = List(
-      row(1, 1L, Array("Hi", "w")),
-      row(2, 2L, Array("Hello", "k")),
-      row(3, 2L, Array("Hello world", "x"))
-    )
-    registerCollection("T", data,
-      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_ARRAY_TYPE_INFO),
-      "a, b, c")
-
-    checkResult(
-      "SELECT a, s FROM T, UNNEST(T.c) as A (s)",
-      Seq())
-  }
-
-  @Ignore
-  @Test
-  def testJoinWithUnnestOfTuple(): Unit = {
-    val data = List(
-      row(1, Array(row(12, "45.6"), row(2, "45.612"))),
-      row(2, Array(row(13, "41.6"), row(1, "45.2136"))),
-      row(3, Array(row(18, "42.6"))))
-    registerCollection("T", data,
-      new RowTypeInfo(INT_TYPE_INFO,
-        ObjectArrayTypeInfo.getInfoFor(classOf[Array[Row]],
-          new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO))),
-      "a, b")
-
-    checkResult(
-      "SELECT a, b, x, y " +
-        "FROM " +
-        "  (SELECT a, b FROM T WHERE a < 3) as tf, " +
-        "  UNNEST(tf.b) as A (x, y) " +
-        "WHERE x > a",
-      Seq())
-  }
-
-  @Ignore
-  @Test
   def testJoinConditionNeedSimplify(): Unit = {
     checkResult(
       "SELECT A.d FROM Table5 A JOIN SmallTable3 B ON (A.d=B.a and B.a>2) or (A.d=B.a and B.b=1)",
@@ -667,7 +627,7 @@ class JoinITCase() extends BatchTestBase {
       ))
 
     registerCollection(
-      "NullT", Seq(row(null, null, "c")), type3, allNullablesOfNullData3, "a, b, c")
+      "NullT", Seq(row(null, null, "c")), type3, "a, b, c", allNullablesOfNullData3)
     checkResult(
       "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
         "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
@@ -824,6 +784,18 @@ class JoinITCase() extends BatchTestBase {
         row(2, 2L, 4L, 4L),
         row(2, 2L, 4L, 4L)
       )
+    )
+  }
+
+  @Test
+  def testJoinWithUDFFilter(): Unit = {
+    tEnv.registerFunction("funcWithOpen", new FuncWithOpen)
+    checkResult(
+      "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt"))
     )
   }
 }

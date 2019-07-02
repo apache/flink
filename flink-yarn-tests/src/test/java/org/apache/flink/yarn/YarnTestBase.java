@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.io.FileUtils;
@@ -33,13 +34,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
@@ -73,6 +76,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -162,8 +166,6 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected org.apache.flink.configuration.Configuration flinkConfiguration;
 
-	protected final boolean isNewMode = true;
-
 	static {
 		YARN_CONFIGURATION = new YarnConfiguration();
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 32);
@@ -198,7 +200,7 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	@Before
-	public void checkClusterEmpty() {
+	public void setupYarnClient() {
 		if (yarnClient == null) {
 			yarnClient = YarnClient.createYarnClient();
 			yarnClient.init(getYarnConfiguration());
@@ -212,29 +214,43 @@ public abstract class YarnTestBase extends TestLogger {
 	 * Sleep a bit between the tests (we are re-using the YARN cluster for the tests).
 	 */
 	@After
-	public void sleep() throws IOException, YarnException {
-		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(10));
+	public void shutdownYarnClient() {
+		yarnClient.stop();
+	}
 
-		boolean isAnyJobRunning = yarnClient.getApplications().stream()
-			.anyMatch(YarnTestBase::isApplicationRunning);
-
-		while (deadline.hasTimeLeft() && isAnyJobRunning) {
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				Assert.fail("Should not happen");
-			}
-			isAnyJobRunning = yarnClient.getApplications().stream()
-				.anyMatch(YarnTestBase::isApplicationRunning);
+	protected void runTest(RunnableWithException test) throws Exception {
+		// wrapping the cleanup logic in an AutoClosable automatically suppresses additional exceptions
+		try (final CleanupYarnApplication ignored = new CleanupYarnApplication()) {
+			test.run();
 		}
+	}
 
-		if (isAnyJobRunning) {
-			final List<String> runningApps = yarnClient.getApplications().stream()
-				.filter(YarnTestBase::isApplicationRunning)
-				.map(app -> "App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState() + '.')
-				.collect(Collectors.toList());
-			if (!runningApps.isEmpty()) {
-				Assert.fail("There is at least one application on the cluster that is not finished." + runningApps);
+	private class CleanupYarnApplication implements AutoCloseable {
+		@Override
+		public void close() throws Exception {
+			Deadline deadline = Deadline.now().plus(Duration.ofSeconds(10));
+
+			boolean isAnyJobRunning = yarnClient.getApplications().stream()
+				.anyMatch(YarnTestBase::isApplicationRunning);
+
+			while (deadline.hasTimeLeft() && isAnyJobRunning) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					Assert.fail("Should not happen");
+				}
+				isAnyJobRunning = yarnClient.getApplications().stream()
+					.anyMatch(YarnTestBase::isApplicationRunning);
+			}
+
+			if (isAnyJobRunning) {
+				final List<String> runningApps = yarnClient.getApplications().stream()
+					.filter(YarnTestBase::isApplicationRunning)
+					.map(app -> "App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState() + '.')
+					.collect(Collectors.toList());
+				if (!runningApps.isEmpty()) {
+					Assert.fail("There is at least one application on the cluster that is not finished." + runningApps);
+				}
 			}
 		}
 	}
@@ -464,9 +480,8 @@ public abstract class YarnTestBase extends TestLogger {
 				}
 				File f = new File(dir.getAbsolutePath() + "/" + name);
 				LOG.info("Searching in {}", f.getAbsolutePath());
-				try {
+				try (Scanner scanner = new Scanner(f)) {
 					Set<String> foundSet = new HashSet<>(mustHave.length);
-					Scanner scanner = new Scanner(f);
 					while (scanner.hasNextLine()) {
 						final String lineFromFile = scanner.nextLine();
 						for (String str : mustHave) {
@@ -490,6 +505,53 @@ public abstract class YarnTestBase extends TestLogger {
 			return true;
 		} else {
 			return false;
+		}
+	}
+
+	public static boolean verifyTokenKindInContainerCredentials(final Collection<String> tokens, final String containerId)
+		throws IOException {
+		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+		if (!cwd.exists() || !cwd.isDirectory()) {
+			return false;
+		}
+
+		File containerTokens = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				return name.equals(containerId + ".tokens");
+			}
+		});
+
+		if (containerTokens != null) {
+			LOG.info("Verifying tokens in {}", containerTokens.getAbsolutePath());
+
+			Credentials tmCredentials = Credentials.readTokenStorageFile(containerTokens, new Configuration());
+
+			Collection<Token<? extends TokenIdentifier>> userTokens = tmCredentials.getAllTokens();
+			Set<String> tokenKinds = new HashSet<>(4);
+			for (Token<? extends TokenIdentifier> token : userTokens) {
+				tokenKinds.add(token.getKind().toString());
+			}
+
+			return tokenKinds.containsAll(tokens);
+		} else {
+			LOG.warn("Unable to find credential file for container {}", containerId);
+			return false;
+		}
+	}
+
+	public static String getContainerIdByLogName(String logName) {
+		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
+		File containerLog = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				return name.equals(logName);
+			}
+		});
+		if (containerLog != null) {
+			return containerLog.getParentFile().getName();
+		} else {
+			throw new IllegalStateException("No container has log named " + logName);
 		}
 	}
 

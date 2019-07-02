@@ -18,65 +18,65 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AND;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CONCAT;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.DIVIDE;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.EQUALS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.GREATER_THAN;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IF;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.IS_NULL;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.LESS_THAN;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MINUS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.MOD;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.NOT;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.OR;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.PLUS;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
-import static org.apache.flink.table.expressions.InternalFunctionDefinitions.THROW_EXCEPTION;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONCAT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REINTERPRET_CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
+import static org.apache.flink.table.functions.InternalFunctionDefinitions.THROW_EXCEPTION;
 
 /**
  * Builder for {@link Expression}s.
  */
 public class ExpressionBuilder {
 
-	public static Expression nullOf(TypeInformation type) {
+	public static Expression nullOf(DataType type) {
 		return literal(null, type);
 	}
 
 	public static Expression literal(Object value) {
-		return new ValueLiteralExpression(value);
+		return ApiExpressionUtils.valueLiteral(value);
 	}
 
-	public static Expression literal(Object value, TypeInformation<?> type) {
-		return new ValueLiteralExpression(value, type);
+	public static Expression literal(Object value, DataType type) {
+		return ApiExpressionUtils.valueLiteral(value, type);
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, Expression... args) {
-		return new CallExpression(functionDefinition, Arrays.asList(args));
+		return ApiExpressionUtils.unresolvedCall(functionDefinition, args);
 	}
 
 	public static Expression call(FunctionDefinition functionDefinition, List<Expression> args) {
-		return new CallExpression(functionDefinition, args);
+		return ApiExpressionUtils.unresolvedCall(functionDefinition, args.toArray(new Expression[0]));
 	}
 
 	public static Expression and(Expression arg1, Expression arg2) {
-		return new CallExpression(AND, Arrays.asList(arg1, arg2));
+		return call(AND, arg1, arg2);
 	}
 
 	public static Expression or(Expression arg1, Expression arg2) {
-		return new CallExpression(OR, Arrays.asList(arg1, arg2));
+		return call(OR, arg1, arg2);
 	}
 
 	public static Expression not(Expression arg) {
-		return new CallExpression(NOT, Collections.singletonList(arg));
+		return call(NOT, arg);
 	}
 
 	public static Expression isNull(Expression input) {
@@ -129,15 +129,15 @@ public class ExpressionBuilder {
 		return call(REINTERPRET_CAST, child, type, literal(checkOverflow));
 	}
 
-	public static TypeLiteralExpression typeLiteral(TypeInformation<?> type) {
-		return new TypeLiteralExpression(type);
+	public static TypeLiteralExpression typeLiteral(DataType type) {
+		return ApiExpressionUtils.typeLiteral(type);
 	}
 
 	public static Expression concat(Expression input1, Expression input2) {
 		return call(CONCAT, input1, input2);
 	}
 
-	public static Expression throwException(String msg, TypeInformation<?> type) {
+	public static Expression throwException(String msg, DataType type) {
 		return call(THROW_EXCEPTION, typeLiteral(type));
 	}
 }

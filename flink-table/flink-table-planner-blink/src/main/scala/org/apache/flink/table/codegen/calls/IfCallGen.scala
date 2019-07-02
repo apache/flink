@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveTypeTermForType
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * Generates IF function call.
@@ -30,7 +30,7 @@ class IfCallGen() extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType)
+      returnType: LogicalType)
     : GeneratedExpression = {
 
     // Inferred return type is ARG1. Must be the same as ARG2.

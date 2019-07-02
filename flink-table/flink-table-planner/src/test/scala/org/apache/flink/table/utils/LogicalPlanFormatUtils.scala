@@ -19,12 +19,12 @@
 package org.apache.flink.table.utils
 
 object LogicalPlanFormatUtils {
-  private val tempPattern = """TMP_\d+""".r
+  private val tempPattern = """EXPR$\d+""".r
 
   def formatTempTableId(preStr: String): String = {
     val str = preStr.replaceAll("ArrayBuffer\\(", "List\\(")
     val minId = getMinTempTableId(str)
-    tempPattern.replaceAllIn(str, s => "TMP_" + (s.matched.substring(4).toInt - minId) )
+    tempPattern.replaceAllIn(str, s => "EXPR$" + (s.matched.substring(4).toInt - minId) )
   }
 
   private def getMinTempTableId(logicalStr: String): Long = {

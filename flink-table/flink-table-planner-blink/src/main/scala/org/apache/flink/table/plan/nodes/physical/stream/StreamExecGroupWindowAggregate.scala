@@ -18,34 +18,34 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
+import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.plan.util.AggregateUtil.{isProctimeIndicatorType, isRowIntervalType, isRowtimeIndicatorType, isTimeIntervalType, toDuration, toLong, transformToStreamAggregateInfoList}
+import org.apache.flink.table.plan.util.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, toDuration, toLong, transformToStreamAggregateInfoList}
 import org.apache.flink.table.plan.util.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
-import org.apache.flink.table.`type`.InternalType
-import org.apache.flink.table.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.window.{WindowOperator, WindowOperatorBuilder}
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.tools.RelBuilder
-
 import java.time.Duration
 import java.util
 import java.util.Calendar
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -78,11 +78,11 @@ class StreamExecGroupWindowAggregate(
 
   override def requireWatermark: Boolean = window match {
     case TumblingGroupWindow(_, timeField, size)
-      if isRowtimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) => true
+      if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) => true
     case SlidingGroupWindow(_, timeField, size, _)
-      if isRowtimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) => true
+      if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) => true
     case SessionGroupWindow(_, timeField, _)
-      if isRowtimeIndicatorType(timeField.getResultType) => true
+      if isRowtimeAttribute(timeField) => true
     case _ => false
   }
 
@@ -134,14 +134,14 @@ class StreamExecGroupWindowAggregate(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val config = tableEnv.getConfig
 
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
     val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType).toTypeInfo
+    val outRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(outputRowType))
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
 
@@ -154,8 +154,8 @@ class StreamExecGroupWindowAggregate(
     }
 
     val isCountWindow = window match {
-      case TumblingGroupWindow(_, _, size) if isRowIntervalType(size.getType) => true
-      case SlidingGroupWindow(_, _, size, _) if isRowIntervalType(size.getType) => true
+      case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) => true
+      case SlidingGroupWindow(_, _, size, _) if hasRowIntervalType(size) => true
       case _ => false
     }
 
@@ -176,7 +176,7 @@ class StreamExecGroupWindowAggregate(
       aggCalls,
       namedProperties)
 
-    val timeIdx = if (isRowtimeIndicatorType(window.timeAttribute.getResultType)) {
+    val timeIdx = if (isRowtimeAttribute(window.timeAttribute)) {
       if (inputTimeFieldIndex < 0) {
         throw new TableException(
           "Group window aggregate must defined on a time attribute, " +
@@ -201,16 +201,16 @@ class StreamExecGroupWindowAggregate(
       aggInfoList,
       config,
       tableEnv.getRelBuilder,
-      inputRowTypeInfo.getInternalTypes,
+      inputRowTypeInfo.getLogicalTypes,
       needRetraction)
 
-    val aggResultTypes = aggInfoList.getActualValueTypes.map(createInternalTypeFromTypeInfo)
+    val aggResultTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
     val windowPropertyTypes = namedProperties.map(_.property.resultType).toArray
     val generator = new EqualiserCodeGenerator(aggResultTypes ++ windowPropertyTypes)
     val equaliser = generator.generateRecordEqualiser("WindowValueEqualiser")
 
-    val aggValueTypes = aggInfoList.getActualValueTypes.map(createInternalTypeFromTypeInfo)
-    val accTypes = aggInfoList.getAccTypes.map(createInternalTypeFromTypeInfo)
+    val aggValueTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
+    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
     val operator = createWindowOperator(
       config,
       aggsHandler,
@@ -218,7 +218,7 @@ class StreamExecGroupWindowAggregate(
       accTypes,
       windowPropertyTypes,
       aggValueTypes,
-      inputRowTypeInfo.getInternalTypes,
+      inputRowTypeInfo.getLogicalTypes,
       timeIdx)
 
     val operatorName = if (grouping.nonEmpty) {
@@ -234,11 +234,10 @@ class StreamExecGroupWindowAggregate(
       operatorName,
       operator,
       outRowType,
-      inputTransform.getParallelism)
+      getResource.getParallelism)
 
-    if (grouping.isEmpty) {
-      transformation.setParallelism(1)
-      transformation.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      transformation.setMaxParallelism(getResource.getMaxParallelism)
     }
 
     val selector = KeySelectorUtil.getBaseRowSelector(grouping, inputRowTypeInfo)
@@ -253,18 +252,18 @@ class StreamExecGroupWindowAggregate(
       aggInfoList: AggregateInfoList,
       config: TableConfig,
       relBuilder: RelBuilder,
-      fieldTypeInfos: Seq[InternalType],
+      fieldTypeInfos: Seq[LogicalType],
       needRetraction: Boolean): GeneratedNamespaceAggsHandleFunction[_] = {
 
     val needMerge = window match {
-      case SlidingGroupWindow(_, _, size, _) if isTimeIntervalType(size.getType) => true
+      case SlidingGroupWindow(_, _, size, _) if hasTimeIntervalType(size) => true
       case SessionGroupWindow(_, _, _) => true
       case _ => false
     }
     val windowClass = window match {
-      case TumblingGroupWindow(_, _, size) if isRowIntervalType(size.getType) =>
+      case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) =>
         classOf[CountWindow]
-      case SlidingGroupWindow(_, _, size, _) if isRowIntervalType(size.getType) =>
+      case SlidingGroupWindow(_, _, size, _) if hasRowIntervalType(size) =>
         classOf[CountWindow]
       case _ => classOf[TimeWindow]
     }
@@ -294,10 +293,10 @@ class StreamExecGroupWindowAggregate(
       config: TableConfig,
       aggsHandler: GeneratedNamespaceAggsHandleFunction[_],
       recordEqualiser: GeneratedRecordEqualiser,
-      accTypes: Array[InternalType],
-      windowPropertyTypes: Array[InternalType],
-      aggValueTypes: Array[InternalType],
-      inputFields: Seq[InternalType],
+      accTypes: Array[LogicalType],
+      windowPropertyTypes: Array[LogicalType],
+      aggValueTypes: Array[LogicalType],
+      inputFields: Seq[LogicalType],
       timeIdx: Int): WindowOperator[_, _] = {
 
     val builder = WindowOperatorBuilder
@@ -307,15 +306,15 @@ class StreamExecGroupWindowAggregate(
 
     val newBuilder = window match {
       case TumblingGroupWindow(_, timeField, size)
-        if isProctimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) =>
+          if isProctimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.tumble(toDuration(size), timeZoneOffset).withProcessingTime()
 
       case TumblingGroupWindow(_, timeField, size)
-        if isRowtimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) =>
+          if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.tumble(toDuration(size), timeZoneOffset).withEventTime(timeIdx)
 
       case TumblingGroupWindow(_, timeField, size)
-        if isProctimeIndicatorType(timeField.getResultType) && isRowIntervalType(size.getType) =>
+          if isProctimeAttribute(timeField) && hasRowIntervalType(size) =>
         builder.countWindow(toLong(size))
 
       case TumblingGroupWindow(_, _, _) =>
@@ -326,17 +325,17 @@ class StreamExecGroupWindowAggregate(
           "Event-time grouping windows on row intervals are currently not supported.")
 
       case SlidingGroupWindow(_, timeField, size, slide)
-        if isProctimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) =>
+          if isProctimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.sliding(toDuration(size), toDuration(slide), timeZoneOffset)
           .withProcessingTime()
 
       case SlidingGroupWindow(_, timeField, size, slide)
-        if isRowtimeIndicatorType(timeField.getResultType) && isTimeIntervalType(size.getType) =>
+          if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
         builder.sliding(toDuration(size), toDuration(slide), timeZoneOffset)
           .withEventTime(timeIdx)
 
       case SlidingGroupWindow(_, timeField, size, slide)
-        if isProctimeIndicatorType(timeField.getResultType) && isRowIntervalType(size.getType) =>
+          if isProctimeAttribute(timeField) && hasRowIntervalType(size) =>
         builder.countWindow(toLong(size), toLong(slide))
 
       case SlidingGroupWindow(_, _, _, _) =>
@@ -347,11 +346,11 @@ class StreamExecGroupWindowAggregate(
           "Event-time grouping windows on row intervals are currently not supported.")
 
       case SessionGroupWindow(_, timeField, gap)
-        if isProctimeIndicatorType(timeField.getResultType) =>
+          if isProctimeAttribute(timeField) =>
         builder.session(toDuration(gap)).withProcessingTime()
 
       case SessionGroupWindow(_, timeField, gap)
-        if isRowtimeIndicatorType(timeField.getResultType) =>
+          if isRowtimeAttribute(timeField) =>
         builder.session(toDuration(gap)).withEventTime(timeIdx)
     }
 

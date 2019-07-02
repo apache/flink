@@ -20,8 +20,7 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.util.SegmentsUtil;
 
 import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
@@ -55,25 +54,23 @@ public final class BinaryArray extends BinaryFormat implements TypeGetterSetters
 	 * It store real value when type is primitive.
 	 * It store the length and offset of variable-length part when type is string, map, etc.
 	 */
-	public static int calculateFixLengthPartSize(InternalType type) {
-		if (type.equals(InternalTypes.BOOLEAN)) {
-			return 1;
-		} else if (type.equals(InternalTypes.BYTE)) {
-			return 1;
-		} else if (type.equals(InternalTypes.SHORT)) {
-			return 2;
-		} else if (type.equals(InternalTypes.INT)) {
-			return 4;
-		} else if (type.equals(InternalTypes.FLOAT)) {
-			return 4;
-		} else if (type.equals(InternalTypes.DATE)) {
-			return 4;
-		} else if (type.equals(InternalTypes.TIME)) {
-			return 4;
-		} else {
-			// long, double is 8 bytes.
-			// It store the length and offset of variable-length part when type is string, map, etc.
-			return 8;
+	public static int calculateFixLengthPartSize(LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+			case TINYINT:
+				return 1;
+			case SMALLINT:
+				return 2;
+			case INTEGER:
+			case FLOAT:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				return 4;
+			default:
+				// long, double is 8 bytes.
+				// It store the length and offset of variable-length part when type is string, map, etc.
+				return 8;
 		}
 	}
 

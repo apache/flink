@@ -174,6 +174,11 @@ public class JobManagerOptions {
 					text("'ng': new generation scheduler"))
 				.build());
 
+	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
+	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
+			key("jobmanager.scheduler.partition.force-release-on-consumption")
+			.defaultValue(true);
+
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {

@@ -19,20 +19,16 @@
 package org.apache.flink.table.calcite
 
 import java.lang.Iterable
-import java.util.{Collections, List => JList}
+import java.util.{List => JList}
 
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.volcano.VolcanoPlanner
-import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.calcite.rex.RexBuilder
+import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
-import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.{Alias, ExpressionBridge, PlannerExpression, WindowProperty}
-import org.apache.flink.table.operations.TableOperation
-import org.apache.flink.table.plan.TableOperationConverter
+import org.apache.flink.table.operations.QueryOperation
+import org.apache.flink.table.plan.QueryOperationConverter
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.{LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
@@ -52,7 +48,7 @@ class FlinkRelBuilder(
     relOptCluster,
     relOptSchema) {
 
-  private val toRelNodeConverter = new TableOperationConverter(this, expressionBridge)
+  private val toRelNodeConverter = new QueryOperationConverter(this, expressionBridge)
 
   def getRelOptSchema: RelOptSchema = relOptSchema
 
@@ -106,7 +102,7 @@ class FlinkRelBuilder(
     }
   }
 
-  def tableOperation(tableOperation: TableOperation): RelBuilder= {
+  def tableOperation(tableOperation: QueryOperation): RelBuilder= {
     val relNode = tableOperation.accept(toRelNodeConverter)
 
     push(relNode)
@@ -123,5 +119,15 @@ object FlinkRelBuilder {
     * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
     */
   case class NamedWindowProperty(name: String, property: WindowProperty)
+
+  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+    val clusterContext = cluster.getPlanner.getContext
+
+    new FlinkRelBuilder(
+      clusterContext,
+      cluster,
+      relTable.getRelOptSchema,
+      clusterContext.unwrap(classOf[ExpressionBridge[PlannerExpression]]))
+  }
 
 }

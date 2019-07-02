@@ -28,11 +28,11 @@ SELECT * FROM (SELECT * FROM MyTable1 WHERE a > 10) t
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($1, {
 LogicalProject(e=[$1])
-  LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 }))])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalFilter(condition=[>($0, 10)])
-         +- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -40,9 +40,9 @@ LogicalProject(e=[$1])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($0, 10)])
    +- LogicalJoin(condition=[OR(=($1, $3), IS NULL($1), IS NULL($3))], joinType=[anti])
-      :- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(e=[$1])
-         +- LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -58,11 +58,11 @@ SELECT * FROM (SELECT * FROM MyTable1 WHERE a > 10) t
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(e=[$1])
-  LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 })])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalFilter(condition=[>($0, 10)])
-         +- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -70,9 +70,9 @@ LogicalProject(e=[$1])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[>($0, 10)])
    +- LogicalJoin(condition=[=($1, $3)], joinType=[semi])
-      :- LogicalTableScan(table=[[MyTable1, source: [TestTableSource(a, b, c)]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
       +- LogicalProject(e=[$1])
-         +- LogicalTableScan(table=[[MyTable2, source: [TestTableSource(d, e, f)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
   </TestCase>

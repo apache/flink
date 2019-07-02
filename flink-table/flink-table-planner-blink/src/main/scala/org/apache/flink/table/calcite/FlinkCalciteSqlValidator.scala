@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.`type`.DecimalType
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.types.logical.DecimalType
 
 import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.prepare.CalciteCatalogReader

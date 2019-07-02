@@ -75,7 +75,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 			DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
 			File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
-			super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
+			super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
 			testTask.invoke();
 
@@ -136,7 +136,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
 		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
-		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
@@ -218,8 +218,8 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());;
-		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
 		try {
 			testTask.invoke();
@@ -287,10 +287,9 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
 		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
-		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString());
+		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		boolean stubFailed = false;
 
@@ -319,7 +318,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
@@ -330,7 +328,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
 		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
-		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString());
+		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		boolean stubFailed = false;
 
@@ -353,11 +351,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
 		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 
-		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		Thread taskRunner = new Thread() {
 			@Override
@@ -401,7 +398,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
@@ -412,7 +408,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
 		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
-		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		Thread taskRunner = new Thread() {
 			@Override

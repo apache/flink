@@ -21,10 +21,10 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.async.{AsyncFunction, RichAsyncFunction}
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.generated.{GeneratedFunction, GeneratedJoinCondition, JoinCondition}
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -58,10 +58,10 @@ object FunctionCodeGenerator {
     name: String,
     clazz: Class[F],
     bodyCode: String,
-    returnType: InternalType,
-    input1Type: InternalType,
+    returnType: LogicalType,
+    input1Type: LogicalType,
     input1Term: String = DEFAULT_INPUT1_TERM,
-    input2Type: Option[InternalType] = None,
+    input2Type: Option[LogicalType] = None,
     input2Term: Option[String] = Some(DEFAULT_INPUT2_TERM),
     collectorTerm: String = DEFAULT_COLLECTOR_TERM,
     contextTerm: String = DEFAULT_CONTEXT_TERM)
@@ -179,11 +179,10 @@ object FunctionCodeGenerator {
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM): GeneratedJoinCondition = {
     val funcName = newName(name)
 
-    val baseClass = classOf[JoinCondition]
-
     val funcCode =
       j"""
-      public class $funcName implements ${baseClass.getCanonicalName} {
+      public class $funcName extends ${className[AbstractRichFunction]}
+          implements ${className[JoinCondition]} {
 
         ${ctx.reuseMemberCode()}
 
@@ -194,11 +193,22 @@ object FunctionCodeGenerator {
         ${ctx.reuseConstructorCode(funcName)}
 
         @Override
+        public void open(${className[Configuration]} parameters) throws Exception {
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
         public boolean apply($BASE_ROW $input1Term, $BASE_ROW $input2Term) throws Exception {
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
           $bodyCode
+        }
+
+        @Override
+        public void close() throws Exception {
+          super.close();
+          ${ctx.reuseCloseCode()}
         }
       }
      """.stripMargin

@@ -1,5 +1,5 @@
 ---
-title: "Twitter Connector"
+title: "Twitter 连接器"
 nav-title: Twitter
 nav-parent_id: connectors
 nav-pos: 8
@@ -23,9 +23,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) provides access to the stream of tweets made available by Twitter.
-Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.
-To use this connector, add the following dependency to your project:
+[Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) 提供了访问 Twitter 的 tweets 流的能力。
+Flink Streaming 通过一个内置的 `TwitterSource` 类来创建到 tweets 流的连接。
+使用 Twitter 连接器，需要在工程中添加下面的依赖：
 
 {% highlight xml %}
 <dependency>
@@ -35,24 +35,21 @@ To use this connector, add the following dependency to your project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution.
-See linking with them for cluster execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
+注意：当前的二进制发行版还没有这些连接器。集群执行请参考[这里]({{site.baseurl}}/zh/dev/projectsetup/dependencies.html).
 
-#### Authentication
-In order to connect to the Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
+#### 认证
+使用 Twitter 流，用户需要先注册自己的程序，获取认证相关的必要信息。过程如下：
 
-#### Acquiring the authentication information
-First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup)
-or sign in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by
-clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions.
-After selecting the application, the API key and API secret (called `twitter-source.consumerKey` and `twitter-source.consumerSecret` in `TwitterSource` respectively) are located on the "API Keys" tab.
-The necessary OAuth Access Token data (`twitter-source.token` and `twitter-source.tokenSecret` in `TwitterSource`) can be generated and acquired on the "Keys and Access Tokens" tab.
-Remember to keep these pieces of information secret and do not push them to public repositories.
+#### 获取认证信息
+首先，需要一个 Twitter 账号。可以通过 [twitter.com/signup](https://twitter.com/signup) 免费注册，
+或者在 Twitter 的 [Application Management](https://apps.twitter.com/) 登录，然后点击 "Create New App"
+ 按钮来注册应用,填写应用程序相关表格并且接受条款。选择应用程序之后，可以在 "API Keys" 标签页看到 API key 和 
+ API secret（对应于`TwitterSource`中的`twitter-source.consumerKey` 和 `twitter-source.consumerSecret` ）。
+请保管好这些信息并且不要将其发布到public的仓库。
 
 
-
-#### Usage
-In contrast to other connectors, the `TwitterSource` depends on no additional services. For example the following code should run gracefully:
+#### 使用
+和其他的连接器不同的是，`TwitterSource` 没有任何其他依赖。下面的示例代码就可以优雅的运行：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -77,11 +74,10 @@ val streamSource = env.addSource(new TwitterSource(props))
 </div>
 </div>
 
-The `TwitterSource` emits strings containing a JSON object, representing a Tweet.
+`TwitterSource` 会发出包含了JSON object的字符串，这样的字符串表示一个Tweet.
 
-The `TwitterExample` class in the `flink-examples-streaming` package shows a full example how to use the `TwitterSource`.
+`flink-examples-streaming` 中的 `TwitterExample` 类是使用 `TwitterSource` 的完整示范。
 
-By default, the `TwitterSource` uses the `StatusesSampleEndpoint`. This endpoint returns a random sample of Tweets.
-There is a `TwitterSource.EndpointInitializer` interface allowing users to provide a custom endpoint.
+`TwitterSource` 默认使用 `StatusesSampleEndpoint`。`StatusesSampleEndpoint` 会返回一个 Tweets 的随机抽样。用户可以通过实现 `TwitterSource.EndpointInitializer` 接口来自定义 endpoint。
 
 {% top %}

@@ -19,27 +19,26 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.util.ScanUtil
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
-  * Flink RelNode which matches along with StreamTransformation.
+  * Flink RelNode which matches along with Transformation.
   * It ensures that types without deterministic field order (e.g. POJOs) are not part of
   * the plan translation.
   */
@@ -84,28 +83,34 @@ class BatchExecBoundedStreamScan(
   }
 
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val config = tableEnv.getConfig
     val batchTransform = boundedStreamTable.dataStream.getTransformation
+    batchTransform.setParallelism(getResource.getParallelism)
     if (needInternalConversion) {
-      ScanUtil.convertToInternalRow(
+      val conversionTransform = ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         batchTransform,
         boundedStreamTable.fieldIndexes,
-        boundedStreamTable.typeInfo,
+        boundedStreamTable.dataType,
         getRowType,
         getTable.getQualifiedName,
         config,
         None)
+      conversionTransform.setParallelism(getResource.getParallelism)
+      conversionTransform
     } else {
-      batchTransform.asInstanceOf[StreamTransformation[BaseRow]]
+      batchTransform.asInstanceOf[Transformation[BaseRow]]
     }
   }
+
+  def getSourceTransformation: Transformation[_] =
+    boundedStreamTable.dataStream.getTransformation
 
   def needInternalConversion: Boolean = {
     ScanUtil.hasTimeAttributeField(boundedStreamTable.fieldIndexes) ||
         ScanUtil.needsConversion(
-          boundedStreamTable.typeInfo,
+          boundedStreamTable.dataType,
           boundedStreamTable.dataStream.getType.getTypeClass)
   }
 

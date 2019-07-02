@@ -33,8 +33,8 @@ import java.util.Set;
  * evaluation of types.
  *
  * <p>The enumeration is very close to the SQL standard in terms of naming and completeness. However,
- * it reflects just a subset of the evolving standard and contains some extensions (such as {@code NULL}
- * or {@code ANY}).
+ * it reflects just a subset of the evolving standard and contains some extensions (such as {@code NULL},
+ * {@code SYMBOL}, or {@code ANY}).
  *
  * <p>See the type-implementing classes for a more detailed description of each type.
  */
@@ -101,7 +101,8 @@ public enum LogicalTypeRoot {
 
 	TIME_WITHOUT_TIME_ZONE(
 		LogicalTypeFamily.PREDEFINED,
-		LogicalTypeFamily.DATETIME),
+		LogicalTypeFamily.DATETIME,
+		LogicalTypeFamily.TIME),
 
 	TIMESTAMP_WITHOUT_TIME_ZONE(
 		LogicalTypeFamily.PREDEFINED,
@@ -152,6 +153,9 @@ public enum LogicalTypeRoot {
 		LogicalTypeFamily.EXTENSION),
 
 	ANY(
+		LogicalTypeFamily.EXTENSION),
+
+	SYMBOL(
 		LogicalTypeFamily.EXTENSION);
 
 	private final Set<LogicalTypeFamily> families;

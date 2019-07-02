@@ -26,7 +26,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan
 import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
-import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.sources.StreamTableSource
 
 /**
   * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchExecTableSourceScan]].
@@ -38,14 +38,14 @@ class BatchExecScanTableSourceRule
     FlinkConventions.BATCH_PHYSICAL,
     "BatchExecScanTableSourceRule") {
 
-  /** Rule must only match if TableScan targets a [[BatchTableSource]] */
+  /** Rule must only match if TableScan targets a bounded [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
     val dataSetTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     dataSetTable match {
       case tst: TableSourceTable[_] =>
         tst.tableSource match {
-          case _: BatchTableSource[_] => true
+          case sts: StreamTableSource[_] => sts.isBounded
           case _ => false
         }
       case _ => false

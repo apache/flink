@@ -20,47 +20,53 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.api.TableEnvImpl$;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
-import org.apache.flink.table.expressions.FunctionDefinition;
-import org.apache.flink.table.expressions.TableFunctionDefinition;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.typeutils.FieldInfoUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.expressions.ExpressionUtils.isFunctionOfType;
-import static org.apache.flink.table.expressions.FunctionDefinition.Type.TABLE_FUNCTION;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.functions.FunctionKind.TABLE;
 
 /**
- * Utility class for creating a valid {@link CalculatedTableOperation} operation.
+ * Utility class for creating a valid {@link CalculatedQueryOperation} operation.
  */
 @Internal
 public class CalculatedTableFactory {
 
-	private FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor();
-
 	/**
-	 * Creates a valid {@link CalculatedTableOperation} operation.
+	 * Creates a valid {@link CalculatedQueryOperation} operation.
 	 *
 	 * @param callExpr call to table function as expression
 	 * @return valid calculated table
 	 */
-	public TableOperation create(Expression callExpr) {
+	public QueryOperation create(ResolvedExpression callExpr, String[] leftTableFieldNames) {
+		FunctionTableCallVisitor calculatedTableCreator = new FunctionTableCallVisitor(leftTableFieldNames);
 		return callExpr.accept(calculatedTableCreator);
 	}
 
-	private class FunctionTableCallVisitor extends ApiExpressionDefaultVisitor<CalculatedTableOperation<?>> {
+	private class FunctionTableCallVisitor extends ResolvedExpressionDefaultVisitor<CalculatedQueryOperation<?>> {
+
+		private String[] leftTableFieldNames;
+
+		public FunctionTableCallVisitor(String[] leftTableFieldNames) {
+			this.leftTableFieldNames = leftTableFieldNames;
+		}
 
 		@Override
-		public CalculatedTableOperation<?> visitCall(CallExpression call) {
+		public CalculatedQueryOperation<?> visit(CallExpression call) {
 			FunctionDefinition definition = call.getFunctionDefinition();
 			if (definition.equals(AS)) {
 				return unwrapFromAlias(call);
@@ -68,34 +74,34 @@ public class CalculatedTableFactory {
 				return createFunctionCall(
 					(TableFunctionDefinition) definition,
 					Collections.emptyList(),
-					call.getChildren());
+					call.getResolvedChildren());
 			} else {
 				return defaultMethod(call);
 			}
 		}
 
-		private CalculatedTableOperation<?> unwrapFromAlias(CallExpression call) {
+		private CalculatedQueryOperation<?> unwrapFromAlias(CallExpression call) {
 			List<Expression> children = call.getChildren();
 			List<String> aliases = children.subList(1, children.size())
 				.stream()
-				.map(alias -> ExpressionUtils.extractValue(alias, Types.STRING)
+				.map(alias -> ExpressionUtils.extractValue(alias, String.class)
 					.orElseThrow(() -> new ValidationException("Unexpected alias: " + alias)))
 				.collect(toList());
 
-			if (!isFunctionOfType(children.get(0), TABLE_FUNCTION)) {
+			if (!isFunctionOfKind(children.get(0), TABLE)) {
 				throw fail();
 			}
 
 			CallExpression tableCall = (CallExpression) children.get(0);
 			TableFunctionDefinition tableFunctionDefinition =
 				(TableFunctionDefinition) tableCall.getFunctionDefinition();
-			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getChildren());
+			return createFunctionCall(tableFunctionDefinition, aliases, tableCall.getResolvedChildren());
 		}
 
-		private CalculatedTableOperation<?> createFunctionCall(
+		private CalculatedQueryOperation<?> createFunctionCall(
 				TableFunctionDefinition tableFunctionDefinition,
 				List<String> aliases,
-				List<Expression> parameters) {
+				List<ResolvedExpression> parameters) {
 			TypeInformation<?> resultType = tableFunctionDefinition.getResultType();
 
 			int callArity = resultType.getTotalFields();
@@ -103,22 +109,22 @@ public class CalculatedTableFactory {
 
 			String[] fieldNames;
 			if (aliasesSize == 0) {
-				fieldNames = TableEnvImpl$.MODULE$.getFieldNames(resultType);
+				fieldNames = FieldInfoUtils.getFieldNames(resultType, Arrays.asList(leftTableFieldNames));
 			} else if (aliasesSize != callArity) {
 				throw new ValidationException(String.format(
 					"List of column aliases must have same degree as table; " +
 						"the returned table of function '%s' has " +
 						"%d columns, whereas alias list has %d columns",
-					tableFunctionDefinition.getName(),
+					tableFunctionDefinition.toString(),
 					callArity,
 					aliasesSize));
 			} else {
 				fieldNames = aliases.toArray(new String[aliasesSize]);
 			}
 
-			TypeInformation<?>[] fieldTypes = TableEnvImpl$.MODULE$.getFieldTypes(resultType);
+			TypeInformation<?>[] fieldTypes = FieldInfoUtils.getFieldTypes(resultType);
 
-			return new CalculatedTableOperation(
+			return new CalculatedQueryOperation(
 				tableFunctionDefinition.getTableFunction(),
 				parameters,
 				tableFunctionDefinition.getResultType(),
@@ -126,7 +132,7 @@ public class CalculatedTableFactory {
 		}
 
 		@Override
-		protected CalculatedTableOperation<?> defaultMethod(Expression expression) {
+		protected CalculatedQueryOperation<?> defaultMethod(ResolvedExpression expression) {
 			throw fail();
 		}
 

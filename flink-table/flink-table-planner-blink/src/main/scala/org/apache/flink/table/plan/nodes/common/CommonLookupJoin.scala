@@ -17,7 +17,33 @@
  */
 package org.apache.flink.table.plan.nodes.common
 
-import com.google.common.primitives.Primitives
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TypeExtractor}
+import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.operators.ProcessOperator
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException, TableSchema}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.LookupJoinCodeGenerator._
+import org.apache.flink.table.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getParamClassesConsiderVarArgs, getUserDefinedMethod, signatureToString, signaturesToString}
+import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.nodes.FlinkRelNode
+import org.apache.flink.table.plan.util.LookupJoinUtil._
+import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
+import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
+import org.apache.flink.table.types.ClassLogicalTypeConverter
+import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformationAnyType}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.types.Row
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
@@ -28,33 +54,11 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.mapping.IntPair
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{RowTypeInfo, TypeExtractor}
-import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.functions.async.ResultFuture
-import org.apache.flink.streaming.api.operators.ProcessOperator
-import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.`type`._
-import org.apache.flink.table.api.{TableConfig, TableException, TableSchema}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.LookupJoinCodeGenerator._
-import org.apache.flink.table.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getParamClassesConsiderVarArgs, getUserDefinedMethod, signatureToString, signaturesToString}
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.nodes.FlinkRelNode
-import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
-import org.apache.flink.table.plan.util.LookupJoinUtil._
-import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, LookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinWithCalcRunner}
-import org.apache.flink.table.sources.TableIndex.IndexType
-import org.apache.flink.table.sources.{LookupConfig, LookupableTableSource, TableIndex, TableSource}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
-import org.apache.flink.types.Row
-
+import com.google.common.primitives.Primitives
 import java.util.Collections
+import java.util.concurrent.CompletableFuture
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -79,19 +83,12 @@ abstract class CommonLookupJoin(
   with FlinkRelNode {
 
   val joinKeyPairs: Array[IntPair] = getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
-  val indexKeys: Array[TableIndex] = getTableIndexes(tableSource)
   // all potential index keys, mapping from field index in table source to LookupKey
   val allLookupKeys: Map[Int, LookupKey] = analyzeLookupKeys(
     cluster.getRexBuilder,
     joinKeyPairs,
-    indexKeys,
     tableSource.getTableSchema,
     calcOnTemporalTable)
-  // the matched best lookup fields which is in defined order, maybe empty
-  val matchedLookupFields: Option[Array[Int]] = findMatchedIndex(
-    indexKeys,
-    tableSource.getTableSchema,
-    allLookupKeys)
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -124,7 +121,7 @@ abstract class CommonLookupJoin(
       case None => tableFieldNames
     }
     val resultFieldNames = getRowType.getFieldNames.asScala.toArray
-    val lookupConfig = getLookupConfig(tableSource.asInstanceOf[LookupableTableSource[_]])
+    val lookupableSource = tableSource.asInstanceOf[LookupableTableSource[_]]
     val whereString = calcOnTemporalTable match {
       case Some(calc) => RelExplainUtil.conditionToString(calc, getExpressionString)
       case None => "N/A"
@@ -133,7 +130,7 @@ abstract class CommonLookupJoin(
     super.explainTerms(pw)
       .item("table", tableSource.explainSource())
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
-      .item("async", lookupConfig.isAsyncEnabled)
+      .item("async", lookupableSource.isAsyncEnabled)
       .item("on", joinOnToString(inputFieldNames, rightFieldNames, joinInfo))
       .itemIf("where", whereString, calcOnTemporalTable.isDefined)
       .itemIf("joinCondition",
@@ -147,31 +144,31 @@ abstract class CommonLookupJoin(
   // ----------------------------------------------------------------------------------------
 
   def translateToPlanInternal(
-      inputTransformation: StreamTransformation[BaseRow],
+      inputTransformation: Transformation[BaseRow],
       env: StreamExecutionEnvironment,
       config: TableConfig,
-      relBuilder: RelBuilder): StreamTransformation[BaseRow] = {
+      relBuilder: RelBuilder): Transformation[BaseRow] = {
 
-    val inputRowType = FlinkTypeFactory.toInternalRowType(input.getRowType)
-    val tableSourceRowType = FlinkTypeFactory.toInternalRowType(tableRowType)
-    val resultRowType = FlinkTypeFactory.toInternalRowType(getRowType)
+    val inputRowType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
+    val tableSourceRowType = FlinkTypeFactory.toLogicalRowType(tableRowType)
+    val resultRowType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val tableSchema = tableSource.getTableSchema
+
+    val producedDataType = tableSource.getProducedDataType
+    val producedTypeInfo = fromDataTypeToLegacyInfo(producedDataType)
 
     // validate whether the node is valid and supported.
     validate(
       tableSource,
       inputRowType,
       tableSourceRowType,
-      indexKeys,
       allLookupKeys,
-      matchedLookupFields,
       joinType)
 
-    val lookupFieldsInOrder = matchedLookupFields.get
+    val lookupFieldsInOrder = allLookupKeys.keys.toList.sorted.toArray
     val lookupFieldNamesInOrder = lookupFieldsInOrder.map(tableSchema.getFieldNames()(_))
     val lookupFieldTypesInOrder = lookupFieldsInOrder
-      .map(tableSchema.getFieldTypes()(_))
-      .map(TypeConverters.createInternalTypeFromTypeInfo)
+      .map(tableSchema.getFieldDataTypes()(_)).map(fromDataTypeToLogicalType)
     val remainingCondition = getRemainingJoinCondition(
       cluster.getRexBuilder,
       relBuilder,
@@ -184,12 +181,13 @@ abstract class CommonLookupJoin(
       allLookupKeys)
 
     val lookupableTableSource = tableSource.asInstanceOf[LookupableTableSource[_]]
-    val lookupConfig = getLookupConfig(lookupableTableSource)
     val leftOuterJoin = joinType == JoinRelType.LEFT
 
-    val operator = if (lookupConfig.isAsyncEnabled) {
-      val asyncBufferCapacity= lookupConfig.getAsyncBufferCapacity
-      val asyncTimeout = lookupConfig.getAsyncTimeoutMs
+    val operator = if (lookupableTableSource.isAsyncEnabled) {
+      val asyncBufferCapacity= config.getConf
+        .getInteger(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
+      val asyncTimeout = config.getConf
+        .getLong(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT_MS)
 
       val asyncLookupFunction = lookupableTableSource
         .getAsyncLookupFunction(lookupFieldNamesInOrder)
@@ -202,10 +200,12 @@ abstract class CommonLookupJoin(
         0)
       checkUdtfReturnType(
         tableSource.explainSource(),
-        tableSource.getReturnType,
+        producedTypeInfo,
         udtfResultType,
         extractedResultTypeInfo)
-      val parameters = Array(new GenericType(classOf[ResultFuture[_]])) ++ lookupFieldTypesInOrder
+      val futureType = new TypeInformationAnyType(
+        new GenericTypeInfo(classOf[CompletableFuture[_]]))
+      val parameters = Array(futureType) ++ lookupFieldTypesInOrder
       checkEvalMethodSignature(
         asyncLookupFunction,
         parameters,
@@ -216,7 +216,7 @@ abstract class CommonLookupJoin(
         relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory],
         inputRowType,
         resultRowType,
-        tableSource.getReturnType,
+        producedTypeInfo,
         lookupFieldsInOrder,
         allLookupKeys,
         asyncLookupFunction)
@@ -224,7 +224,7 @@ abstract class CommonLookupJoin(
       val asyncFunc = if (calcOnTemporalTable.isDefined) {
         // a projection or filter after table source scan
         val rightRowType = FlinkTypeFactory
-          .toInternalRowType(calcOnTemporalTable.get.getOutputRowType)
+          .toLogicalRowType(calcOnTemporalTable.get.getOutputRowType)
         val generatedResultFuture = LookupJoinCodeGenerator.generateTableAsyncCollector(
           config,
           "TableFunctionResultFuture",
@@ -240,10 +240,10 @@ abstract class CommonLookupJoin(
           generatedFetcher,
           generatedCalc,
           generatedResultFuture,
-          tableSource.getReturnType,
-          rightRowType.toTypeInfo,
+          producedTypeInfo,
+          BaseRowTypeInfo.of(rightRowType),
           leftOuterJoin,
-          lookupConfig.getAsyncBufferCapacity)
+          asyncBufferCapacity)
       } else {
         // right type is the same as table source row type, because no calc after temporal table
         val rightRowType = tableSourceRowType
@@ -256,8 +256,8 @@ abstract class CommonLookupJoin(
         new AsyncLookupJoinRunner(
           generatedFetcher,
           generatedResultFuture,
-          tableSource.getReturnType,
-          rightRowType.toTypeInfo,
+          producedTypeInfo,
+          BaseRowTypeInfo.of(rightRowType),
           leftOuterJoin,
           asyncBufferCapacity)
       }
@@ -277,7 +277,7 @@ abstract class CommonLookupJoin(
         0)
       checkUdtfReturnType(
         tableSource.explainSource(),
-        tableSource.getReturnType,
+        producedTypeInfo,
         udtfResultType,
         extractedResultTypeInfo)
       checkEvalMethodSignature(
@@ -290,7 +290,7 @@ abstract class CommonLookupJoin(
         relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory],
         inputRowType,
         resultRowType,
-        tableSource.getReturnType,
+        producedTypeInfo,
         lookupFieldsInOrder,
         allLookupKeys,
         lookupFunction,
@@ -300,7 +300,7 @@ abstract class CommonLookupJoin(
       val processFunc = if (calcOnTemporalTable.isDefined) {
         // a projection or filter after table source scan
         val rightRowType = FlinkTypeFactory
-          .toInternalRowType(calcOnTemporalTable.get.getOutputRowType)
+          .toLogicalRowType(calcOnTemporalTable.get.getOutputRowType)
         val generatedCollector = generateCollector(
           ctx,
           inputRowType,
@@ -318,7 +318,7 @@ abstract class CommonLookupJoin(
           generatedCalc,
           generatedCollector,
           leftOuterJoin,
-          rightRowType.getArity)
+          rightRowType.getFieldCount)
       } else {
         // right type is the same as table source row type, because no calc after temporal table
         val rightRowType = tableSourceRowType
@@ -333,7 +333,7 @@ abstract class CommonLookupJoin(
           generatedFetcher,
           generatedCollector,
           leftOuterJoin,
-          rightRowType.getArity)
+          rightRowType.getFieldCount)
       }
       new ProcessOperator(processFunc)
     }
@@ -342,16 +342,8 @@ abstract class CommonLookupJoin(
       inputTransformation,
       "LookupJoin",
       operator,
-      resultRowType.toTypeInfo,
+      BaseRowTypeInfo.of(resultRowType),
       inputTransformation.getParallelism)
-  }
-
-  def getLookupConfig(tableSource: LookupableTableSource[_]): LookupConfig = {
-    if (tableSource.getLookupConfig != null) {
-      tableSource.getLookupConfig
-    } else {
-      LookupConfig.DEFAULT
-    }
   }
 
   private def rowTypeEquals(expected: TypeInformation[_], actual: TypeInformation[_]): Boolean = {
@@ -363,15 +355,16 @@ abstract class CommonLookupJoin(
 
   def checkEvalMethodSignature(
       func: UserDefinedFunction,
-      expectedTypes: Array[InternalType],
+      expectedTypes: Array[LogicalType],
       udtfReturnType: TypeInformation[_])
     : Array[Class[_]] = {
     val expectedTypeClasses = if (udtfReturnType.getTypeClass == classOf[Row]) {
-      expectedTypes.map(InternalTypeUtils.getExternalClassForType)
+      expectedTypes.map(ClassLogicalTypeConverter.getDefaultExternalClassForType)
     } else {
-      expectedTypes.map{
-        case gt: GenericType[_] => gt.getTypeInfo.getTypeClass  // special case for generic type
-        case t@_ => InternalTypeUtils.getInternalClassForType(t)
+      expectedTypes.map {
+        // special case for generic type
+        case gt: TypeInformationAnyType[_] => gt.getTypeInformation.getTypeClass
+        case t@_ => getInternalClassForType(t)
       }
     }
     val method = getUserDefinedMethod(
@@ -482,13 +475,8 @@ abstract class CommonLookupJoin(
   def analyzeLookupKeys(
       rexBuilder: RexBuilder,
       joinKeyPairs: Array[IntPair],
-      tableIndexes: Array[TableIndex],
       temporalTableSchema: TableSchema,
       calcOnTemporalTable: Option[RexProgram]): Map[Int, LookupKey] = {
-    val fieldNames = temporalTableSchema.getFieldNames
-    val allIndexFields = tableIndexes
-      .flatMap(_.getIndexedColumns.asScala.map(fieldNames.indexOf(_)))
-      .toSet
     // field_index_in_table_source => constant_lookup_key
     val constantLookupKeys = new mutable.HashMap[Int, ConstantLookupKey]
     // analyze constant lookup keys
@@ -498,40 +486,10 @@ abstract class CommonLookupJoin(
         cluster.getRexBuilder,
         program.expandLocalRef(program.getCondition))
       // presume 'A = 1 AND A = 2' will be reduced to ALWAYS_FALSE
-      extractConstantFieldsFromEquiCondition(condition, allIndexFields, constantLookupKeys)
+      extractConstantFieldsFromEquiCondition(condition, constantLookupKeys)
     }
     val fieldRefLookupKeys = joinKeyPairs.map(p => (p.target, FieldRefLookupKey(p.source)))
     (constantLookupKeys ++ fieldRefLookupKeys).toMap
-  }
-
-  private def findMatchedIndex(
-      tableIndexes: Array[TableIndex],
-      temporalTableSchema: TableSchema,
-      allLookupKeys: Map[Int, LookupKey]): Option[Array[Int]] = {
-
-    val fieldNames = temporalTableSchema.getFieldNames
-
-    // [(indexFields, isUniqueIndex)]
-    val indexes: Array[(Array[Int], Boolean)] = tableIndexes.map { tableIndex =>
-      val indexFields = tableIndex.getIndexedColumns.asScala.map(fieldNames.indexOf(_)).toArray
-      val isUniqueIndex = tableIndex.getIndexType.equals(IndexType.UNIQUE)
-      (indexFields, isUniqueIndex)
-    }
-
-    val matchedIndexes = indexes.filter(_._1.forall(allLookupKeys.contains))
-    if (matchedIndexes.length > 1) {
-      // find a best one, we prefer a unique index key here
-      val uniqueIndex = matchedIndexes.find(_._2).map(_._1)
-      if (uniqueIndex.isDefined) {
-        uniqueIndex
-      } else {
-        // all the matched index are normal index, select anyone from matched indexes
-        matchedIndexes.map(_._1).headOption
-      }
-    } else {
-      // select anyone from matched indexes
-      matchedIndexes.map(_._1).headOption
-    }
   }
 
   // ----------------------------------------------------------------------------------------
@@ -565,17 +523,15 @@ abstract class CommonLookupJoin(
 
   private def extractConstantFieldsFromEquiCondition(
       condition: RexNode,
-      allIndexFields: Set[Int],
       constantFieldMap: mutable.HashMap[Int, ConstantLookupKey]): Unit = condition match {
     case c: RexCall if c.getKind == SqlKind.AND =>
-      c.getOperands.asScala.foreach(r => extractConstantField(r, allIndexFields, constantFieldMap))
-    case rex: RexNode => extractConstantField(rex, allIndexFields, constantFieldMap)
+      c.getOperands.asScala.foreach(r => extractConstantField(r, constantFieldMap))
+    case rex: RexNode => extractConstantField(rex, constantFieldMap)
     case _ =>
   }
 
   private def extractConstantField(
       pred: RexNode,
-      allIndexFields: Set[Int],
       constantFieldMap: mutable.HashMap[Int, ConstantLookupKey]): Unit = pred match {
     case c: RexCall if c.getKind == SqlKind.EQUALS =>
       val left = c.getOperands.get(0)
@@ -584,10 +540,8 @@ abstract class CommonLookupJoin(
         case (literal: RexLiteral, ref: RexInputRef) => (ref, literal)
         case (ref: RexInputRef, literal: RexLiteral) => (ref, literal)
       }
-      if (allIndexFields.contains(inputRef.getIndex)) {
-        val dataType = FlinkTypeFactory.toInternalType(inputRef.getType)
-        constantFieldMap.put(inputRef.getIndex, ConstantLookupKey(dataType, literal))
-      }
+      val dataType = FlinkTypeFactory.toLogicalType(inputRef.getType)
+      constantFieldMap.put(inputRef.getIndex, ConstantLookupKey(dataType, literal))
     case _ => // ignore
   }
 
@@ -599,23 +553,14 @@ abstract class CommonLookupJoin(
       tableSource: TableSource[_],
       inputRowType: RowType,
       tableSourceRowType: RowType,
-      tableIndexes: Array[TableIndex],
       allLookupKeys: Map[Int, LookupKey],
-      matchedLookupFields: Option[Array[Int]],
       joinType: JoinRelType): Unit = {
 
-    // checked PRIMARY KEY or (UNIQUE) INDEX is defined.
-    if (tableIndexes.isEmpty) {
-      throw new TableException(
-        s"Temporal table join requires table [${tableSource.explainSource()}] defines " +
-          s"a PRIMARY KEY or (UNIQUE) INDEX.")
-    }
-
     // check join on all fields of PRIMARY KEY or (UNIQUE) INDEX
-    if (allLookupKeys.isEmpty || matchedLookupFields.isEmpty) {
+    if (allLookupKeys.isEmpty || allLookupKeys.isEmpty) {
       throw new TableException(
-        "Temporal table join requires an equality condition on ALL fields of " +
-          s"table [${tableSource.explainSource()}]'s PRIMARY KEY or (UNIQUE) INDEX(s).")
+        "Temporal table join requires an equality condition on fields of " +
+          s"table [${tableSource.explainSource()}].")
     }
 
     if (!tableSource.isInstanceOf[LookupableTableSource[_]]) {
@@ -623,23 +568,22 @@ abstract class CommonLookupJoin(
         s"implement LookupableTableSource interface if it is used in temporal table join.")
     }
 
-    val checkedLookupFields = matchedLookupFields.get
 
-    val lookupKeyPairs = joinKeyPairs.filter(p => checkedLookupFields.contains(p.target))
+    val lookupKeyPairs = joinKeyPairs.filter(p => allLookupKeys.contains(p.target))
     val leftKeys = lookupKeyPairs.map(_.source)
     val rightKeys = lookupKeyPairs.map(_.target)
-    val leftKeyTypes = leftKeys.map(inputRowType.getFieldTypes()(_))
+    val leftKeyTypes = leftKeys.map(inputRowType.getTypeAt)
     // use original keyPair to validate key types (rigthKeys may include constant keys)
-    val rightKeyTypes = rightKeys.map(tableSourceRowType.getFieldTypes()(_))
+    val rightKeyTypes = rightKeys.map(tableSourceRowType.getTypeAt)
 
     // check type
     val incompatibleConditions = new mutable.ArrayBuffer[String]()
     for (i <- lookupKeyPairs.indices) {
       val leftType = leftKeyTypes(i)
       val rightType = rightKeyTypes(i)
-      if (leftType != rightType) {
-        val leftName = inputRowType.getFieldNames()(i)
-        val rightName = tableSourceRowType.getFieldNames()(i)
+      if (!isInteroperable(leftType, rightType)) {
+        val leftName = inputRowType.getFieldNames.get(i)
+        val rightName = tableSourceRowType.getFieldNames.get(i)
         val condition = s"$leftName[$leftType]=$rightName[$rightType]"
         incompatibleConditions += condition
       }
@@ -655,7 +599,7 @@ abstract class CommonLookupJoin(
           "but was " + joinType.toString + " JOIN")
     }
 
-    val tableReturnType = tableSource.getReturnType
+    val tableReturnType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
     if (!tableReturnType.isInstanceOf[BaseRowTypeInfo] &&
       !tableReturnType.isInstanceOf[RowTypeInfo]) {
       throw new TableException(

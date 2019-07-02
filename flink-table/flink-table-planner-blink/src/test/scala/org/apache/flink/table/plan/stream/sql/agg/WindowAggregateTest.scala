@@ -229,7 +229,7 @@ class WindowAggregateTest extends TableTestBase {
         |        TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as ping_start
         |     FROM MyTable
         |         GROUP BY a, b, c, TUMBLE(rowtime, INTERVAL '15' MINUTE)) AS t1
-        |GROUP BY b, ping_start
+        |GROUP BY b
       """.stripMargin
     util.verifyPlan(sql)
   }

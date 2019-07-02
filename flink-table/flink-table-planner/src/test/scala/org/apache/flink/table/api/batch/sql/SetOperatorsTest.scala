@@ -36,8 +36,8 @@ class SetOperatorsTest extends TableTestBase {
 
     val expected = binaryNode(
       "DataSetMinus",
-      batchTableNode(0),
-      batchTableNode(0),
+      batchTableNode(t),
+      batchTableNode(t),
       term("minus", "a", "b", "c")
     )
 
@@ -49,21 +49,21 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testExists(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Long, Int, String)]("A", 'a_long, 'a_int, 'a_string)
-    util.addTable[(Long, Int, String)]("B", 'b_long, 'b_int, 'b_string)
+    val table = util.addTable[(Long, Int, String)]("A", 'a_long, 'a_int, 'a_string)
+    val table1 = util.addTable[(Long, Int, String)]("B", 'b_long, 'b_int, 'b_string)
 
     val expected = unaryNode(
       "DataSetCalc",
       binaryNode(
         "DataSetJoin",
-        batchTableNode(0),
+        batchTableNode(table),
         unaryNode(
           "DataSetCalc",
           unaryNode(
             "DataSetAggregate",
             unaryNode(
               "DataSetCalc",
-              batchTableNode(1),
+              batchTableNode(table1),
               term("select", "b_long AS b_long3", "true AS $f0"),
               term("where", "IS NOT NULL(b_long)")
             ),
@@ -88,7 +88,7 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testNotIn(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("A", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("A", 'a, 'b, 'c)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -98,12 +98,12 @@ class SetOperatorsTest extends TableTestBase {
           "DataSetCalc",
           binaryNode(
             "DataSetSingleRowJoin",
-            batchTableNode(0),
+            batchTableNode(table),
             unaryNode(
               "DataSetAggregate",
               unaryNode(
                 "DataSetCalc",
-                batchTableNode(0),
+                batchTableNode(table),
                 term("select", "b"),
                 term("where", "OR(=(b, 6), =(b, 1))")
               ),
@@ -119,7 +119,7 @@ class SetOperatorsTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(table),
             term("select", "b", "true AS $f1"),
             term("where", "OR(=(b, 6), =(b, 1))")
           ),
@@ -143,11 +143,11 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testInWithFields(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int, String, Long)]("A", 'a, 'b, 'c, 'd, 'e)
+    val table = util.addTable[(Int, Long, Int, String, Long)]("A", 'a, 'b, 'c, 'd, 'e)
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "a", "b", "c", "d", "e"),
       term("where", "OR(=(a, c), =(a, CAST(b)), =(a, 5))")
     )
@@ -176,18 +176,18 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testUnionNullableTypes(): Unit = {
     val util = batchTestUtil()
-    util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
+    val table = util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
 
     val expected = binaryNode(
       "DataSetUnion",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(table),
         term("select", "a")
       ),
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(table),
         term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
       ),
       term("all", "true"),
@@ -206,18 +206,18 @@ class SetOperatorsTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    util.addJavaTable(typeInfo, "A", "a, b")
+    val table = util.addJavaTable(typeInfo, "A", "a, b")
 
     val expected = binaryNode(
       "DataSetUnion",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(table),
         term("select", "a")
       ),
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
+        batchTableNode(table),
         term("select", "b")
       ),
       term("all", "true"),

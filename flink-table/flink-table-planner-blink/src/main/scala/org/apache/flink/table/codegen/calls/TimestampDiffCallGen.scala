@@ -18,20 +18,22 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.{IntType, LogicalType}
+
+import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.util.BuiltInMethod
 
 class TimestampDiffCallGen extends CallGenerator {
 
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType)
+      returnType: LogicalType)
   : GeneratedExpression = {
 
     val unit = getEnum(operands.head).asInstanceOf[TimeUnit]
@@ -39,9 +41,9 @@ class TimestampDiffCallGen extends CallGenerator {
       case TimeUnit.YEAR |
            TimeUnit.MONTH |
            TimeUnit.QUARTER =>
-        (operands(1).resultType, operands(2).resultType) match {
-          case (InternalTypes.TIMESTAMP, InternalTypes.DATE) =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+        (operands(1).resultType.getTypeRoot, operands(2).resultType.getTypeRoot) match {
+          case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
@@ -49,8 +51,8 @@ class TimestampDiffCallGen extends CallGenerator {
                    |""".stripMargin
             }
 
-          case (InternalTypes.DATE, InternalTypes.TIMESTAMP) =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+          case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(
@@ -59,7 +61,7 @@ class TimestampDiffCallGen extends CallGenerator {
             }
 
           case _ =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
@@ -73,17 +75,17 @@ class TimestampDiffCallGen extends CallGenerator {
            TimeUnit.HOUR |
            TimeUnit.MINUTE |
            TimeUnit.SECOND =>
-        (operands(1).resultType, operands(2).resultType) match {
-          case (InternalTypes.TIMESTAMP, InternalTypes.TIMESTAMP) =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+        (operands(1).resultType.getTypeRoot, operands(2).resultType.getTypeRoot) match {
+          case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |(int)((${terms(1)} - ${terms(2)}) / ${unit.multiplier.intValue()})
                    |""".stripMargin
             }
 
-          case (InternalTypes.TIMESTAMP, InternalTypes.DATE) =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+          case (TIMESTAMP_WITHOUT_TIME_ZONE, DATE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |(int)((${terms(1)} -
@@ -91,8 +93,8 @@ class TimestampDiffCallGen extends CallGenerator {
                    |""".stripMargin
             }
 
-          case (InternalTypes.DATE, InternalTypes.TIMESTAMP) =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+          case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -
@@ -100,8 +102,8 @@ class TimestampDiffCallGen extends CallGenerator {
                    |""".stripMargin
             }
 
-          case (InternalTypes.DATE, InternalTypes.DATE) =>
-            generateCallIfArgsNotNull(ctx, InternalTypes.INT, operands) {
+          case (DATE, DATE) =>
+            generateCallIfArgsNotNull(ctx, new IntType(), operands) {
               terms =>
                 s"""
                    |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -

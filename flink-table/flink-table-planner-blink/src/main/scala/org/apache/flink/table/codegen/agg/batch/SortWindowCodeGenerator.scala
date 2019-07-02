@@ -19,7 +19,6 @@
 package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.window.TimeWindow
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.codegen.CodeGenUtils.BINARY_ROW
@@ -31,6 +30,7 @@ import org.apache.flink.table.generated.GeneratedOperator
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.util.AggregateInfoList
 import org.apache.flink.table.runtime.TableStreamOperator
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.RelBuilder

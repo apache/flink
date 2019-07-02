@@ -77,7 +77,7 @@ public interface SchedulingResultPartition {
 	 */
 	enum ResultPartitionState {
 		/**
-		 * Producer is not yet running.
+		 * Producer is not yet running or in abnormal state.
 		 */
 		EMPTY,
 

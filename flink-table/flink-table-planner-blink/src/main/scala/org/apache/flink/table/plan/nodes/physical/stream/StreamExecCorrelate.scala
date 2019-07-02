@@ -17,23 +17,22 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.transformations.StreamTransformation
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.plan.util.{CorrelateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.RelExplainUtil
 import org.apache.flink.table.runtime.AbstractProcessStreamOperator
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
 import org.apache.calcite.sql.SemiJoinType
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -115,13 +114,13 @@ class StreamExecCorrelate(
   }
 
   override def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
     val operatorCtx = CodeGeneratorContext(tableEnv.getConfig)
       .setOperatorBaseClass(classOf[AbstractProcessStreamOperator[_]])
-    CorrelateCodeGenerator.generateCorrelateTransformation(
+    val transform = CorrelateCodeGenerator.generateCorrelateTransformation(
       tableEnv,
       operatorCtx,
       inputTransformation,
@@ -131,9 +130,13 @@ class StreamExecCorrelate(
       condition,
       outputRowType,
       joinType,
-      inputTransformation.getParallelism,
+      getResource.getParallelism,
       retainHeader = true,
       getExpressionString,
       "StreamExecCorrelate")
+    if (getResource.getMaxParallelism > 0) {
+      transform.setMaxParallelism(getResource.getMaxParallelism)
+    }
+    transform
   }
 }

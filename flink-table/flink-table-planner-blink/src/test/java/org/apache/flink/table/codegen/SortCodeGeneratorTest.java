@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.dataformat.BinaryArray;
@@ -45,14 +46,25 @@ import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.plan.util.SortUtil;
 import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
-import org.apache.flink.table.type.ArrayType;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.GenericType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.AbstractRowSerializer;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -68,6 +80,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
+
 /**
  * Random test for sort code generator.
  */
@@ -75,22 +89,22 @@ public class SortCodeGeneratorTest {
 
 	private static final int RECORD_NUM = 3000;
 
-	private final InternalType[] types = new InternalType[]{
-			InternalTypes.BOOLEAN,
-			InternalTypes.BYTE,
-			InternalTypes.SHORT,
-			InternalTypes.INT,
-			InternalTypes.LONG,
-			InternalTypes.FLOAT,
-			InternalTypes.DOUBLE,
-			InternalTypes.STRING,
+	private final LogicalType[] types = new LogicalType[]{
+			new BooleanType(),
+			new TinyIntType(),
+			new SmallIntType(),
+			new IntType(),
+			new BigIntType(),
+			new FloatType(),
+			new DoubleType(),
+			new VarCharType(VarCharType.MAX_LENGTH),
 			new DecimalType(18, 2),
 			new DecimalType(38, 18),
-			InternalTypes.BINARY,
-			new ArrayType(InternalTypes.BYTE),
-			new RowType(InternalTypes.INT),
-			new RowType(new RowType(InternalTypes.INT)),
-			new GenericType<>(Types.INT)
+			new VarBinaryType(VarBinaryType.MAX_LENGTH),
+			new ArrayType(new TinyIntType()),
+			RowType.of(new IntType()),
+			RowType.of(RowType.of(new IntType())),
+			new TypeInformationAnyType<>(Types.INT)
 	};
 
 	private int[] fields;
@@ -98,12 +112,14 @@ public class SortCodeGeneratorTest {
 	private boolean[] orders;
 	private boolean[] nullsIsLast;
 
+	private static final DataType INT_ROW_TYPE = DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.INT())).bridgedTo(Row.class);
 	private static final DataFormatConverters.DataFormatConverter INT_ROW_CONV =
-			DataFormatConverters.getConverterForTypeInfo(new RowTypeInfo(Types.INT));
+			DataFormatConverters.getConverterForDataType(INT_ROW_TYPE);
 	private static final TypeComparator INT_ROW_COMP = new RowTypeInfo(Types.INT).createComparator(
 			new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 	private static final DataFormatConverters.DataFormatConverter NEST_ROW_CONV =
-			DataFormatConverters.getConverterForTypeInfo(new RowTypeInfo(new RowTypeInfo(Types.INT)));
+			DataFormatConverters.getConverterForDataType(
+					DataTypes.ROW(DataTypes.FIELD("f0", INT_ROW_TYPE)).bridgedTo(Row.class));
 	private static final TypeComparator NEST_ROW_COMP = new RowTypeInfo(new RowTypeInfo(Types.INT)).createComparator(
 			new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 
@@ -185,7 +201,7 @@ public class SortCodeGeneratorTest {
 		return result;
 	}
 
-	private Object[] generateValues(InternalType type) {
+	private Object[] generateValues(LogicalType type) {
 
 		Random rnd = new Random();
 
@@ -196,44 +212,58 @@ public class SortCodeGeneratorTest {
 		seeds[2] = value2(type, rnd);
 		seeds[3] = value3(type, rnd);
 		for (int i = 4; i < seeds.length; i++) {
-			if (type.equals(InternalTypes.BOOLEAN)) {
-				seeds[i] = rnd.nextBoolean();
-			} else if (type.equals(InternalTypes.BYTE)) {
-				seeds[i] = (byte) rnd.nextLong();
-			} else if (type.equals(InternalTypes.SHORT)) {
-				seeds[i] = (short) rnd.nextLong();
-			} else if (type.equals(InternalTypes.INT)) {
-				seeds[i] = rnd.nextInt();
-			} else if (type.equals(InternalTypes.LONG)) {
-				seeds[i] = rnd.nextLong();
-			} else if (type.equals(InternalTypes.FLOAT)) {
-				seeds[i] = rnd.nextFloat() * rnd.nextLong();
-			} else if (type.equals(InternalTypes.DOUBLE)) {
-				seeds[i] = rnd.nextDouble() * rnd.nextLong();
-			} else if (type.equals(InternalTypes.STRING)) {
-				seeds[i] = BinaryString.fromString(RandomStringUtils.random(rnd.nextInt(20)));
-			} else if (type instanceof DecimalType) {
-				DecimalType decimalType = (DecimalType) type;
-				BigDecimal decimal = new BigDecimal(
-						rnd.nextInt()).divide(
-						new BigDecimal(ThreadLocalRandom.current().nextInt(1, 256)),
-						ThreadLocalRandom.current().nextInt(1, 30), BigDecimal.ROUND_HALF_EVEN);
-				seeds[i] = Decimal.fromBigDecimal(decimal, decimalType.precision(), decimalType.scale());
-			} else if (type instanceof ArrayType || type.equals(InternalTypes.BINARY)) {
-				byte[] bytes = new byte[rnd.nextInt(16) + 1];
-				rnd.nextBytes(bytes);
-				seeds[i] = type.equals(InternalTypes.BINARY) ? bytes : BinaryArray.fromPrimitiveArray(bytes);
-			} else if (type instanceof RowType) {
-				RowType rowType = (RowType) type;
-				if (rowType.getTypeAt(0).equals(InternalTypes.INT)) {
-					seeds[i] = GenericRow.of(rnd.nextInt());
-				} else {
-					seeds[i] = GenericRow.of(GenericRow.of(rnd.nextInt()));
-				}
-			} else if (type instanceof GenericType) {
-				seeds[i] = new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
-			} else {
-				throw new RuntimeException("Not support!");
+			switch (type.getTypeRoot()) {
+				case BOOLEAN:
+					seeds[i] = rnd.nextBoolean();
+					break;
+				case TINYINT:
+					seeds[i] = (byte) rnd.nextLong();
+					break;
+				case SMALLINT:
+					seeds[i] = (short) rnd.nextLong();
+					break;
+				case INTEGER:
+					seeds[i] = rnd.nextInt();
+					break;
+				case BIGINT:
+					seeds[i] = rnd.nextLong();
+					break;
+				case FLOAT:
+					seeds[i] = rnd.nextFloat() * rnd.nextLong();
+					break;
+				case DOUBLE:
+					seeds[i] = rnd.nextDouble() * rnd.nextLong();
+					break;
+				case VARCHAR:
+					seeds[i] = BinaryString.fromString(RandomStringUtils.random(rnd.nextInt(20)));
+					break;
+				case DECIMAL:
+					DecimalType decimalType = (DecimalType) type;
+					BigDecimal decimal = new BigDecimal(
+							rnd.nextInt()).divide(
+							new BigDecimal(ThreadLocalRandom.current().nextInt(1, 256)),
+							ThreadLocalRandom.current().nextInt(1, 30), BigDecimal.ROUND_HALF_EVEN);
+					seeds[i] = Decimal.fromBigDecimal(decimal, decimalType.getPrecision(), decimalType.getScale());
+					break;
+				case ARRAY:
+				case VARBINARY:
+					byte[] bytes = new byte[rnd.nextInt(16) + 1];
+					rnd.nextBytes(bytes);
+					seeds[i] = type instanceof VarBinaryType ? bytes : BinaryArray.fromPrimitiveArray(bytes);
+					break;
+				case ROW:
+					RowType rowType = (RowType) type;
+					if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
+						seeds[i] = GenericRow.of(rnd.nextInt());
+					} else {
+						seeds[i] = GenericRow.of(GenericRow.of(rnd.nextInt()));
+					}
+					break;
+				case ANY:
+					seeds[i] = new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+					break;
+				default:
+					throw new RuntimeException("Not support!");
 			}
 		}
 
@@ -245,136 +275,141 @@ public class SortCodeGeneratorTest {
 		return results;
 	}
 
-	private Object value1(InternalType type, Random rnd) {
-		if (type.equals(InternalTypes.BOOLEAN)) {
-			return false;
-		} else if (type.equals(InternalTypes.BYTE)) {
-			return Byte.MIN_VALUE;
-		} else if (type.equals(InternalTypes.SHORT)) {
-			return Short.MIN_VALUE;
-		} else if (type.equals(InternalTypes.INT)) {
-			return Integer.MIN_VALUE;
-		} else if (type.equals(InternalTypes.LONG)) {
-			return Long.MIN_VALUE;
-		} else if (type.equals(InternalTypes.FLOAT)) {
-			return Float.MIN_VALUE;
-		} else if (type.equals(InternalTypes.DOUBLE)) {
-			return Double.MIN_VALUE;
-		} else if (type.equals(InternalTypes.STRING)) {
-			return BinaryString.fromString("");
-		} else if (type instanceof DecimalType) {
-			DecimalType decimalType = (DecimalType) type;
-			return Decimal.fromBigDecimal(new BigDecimal(Integer.MIN_VALUE),
-					decimalType.precision(), decimalType.scale());
-		} else if (type instanceof ArrayType) {
-			byte[] bytes = new byte[rnd.nextInt(7) + 1];
-			rnd.nextBytes(bytes);
-			BinaryArray array = BinaryArray.fromPrimitiveArray(bytes);
-			for (int i = 0; i < bytes.length; i++) {
-				array.setNullByte(i);
-			}
-			return array;
-		} else if (type.equals(InternalTypes.BINARY)) {
-			byte[] bytes = new byte[rnd.nextInt(7) + 1];
-			rnd.nextBytes(bytes);
-			return bytes;
-		} else if (type instanceof RowType) {
-			return GenericRow.of(new Object[]{null});
-		} else if (type instanceof GenericType) {
-			return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
-		} else {
-			throw new RuntimeException("Not support!");
+	private Object value1(LogicalType type, Random rnd) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+				return false;
+			case TINYINT:
+				return Byte.MIN_VALUE;
+			case SMALLINT:
+				return Short.MIN_VALUE;
+			case INTEGER:
+				return Integer.MIN_VALUE;
+			case BIGINT:
+				return Long.MIN_VALUE;
+			case FLOAT:
+				return Float.MIN_VALUE;
+			case DOUBLE:
+				return Double.MIN_VALUE;
+			case VARCHAR:
+				return BinaryString.fromString("");
+			case DECIMAL:
+				DecimalType decimalType = (DecimalType) type;
+				return Decimal.fromBigDecimal(new BigDecimal(Integer.MIN_VALUE),
+						decimalType.getPrecision(), decimalType.getScale());
+			case ARRAY:
+				byte[] bytes = new byte[rnd.nextInt(7) + 1];
+				rnd.nextBytes(bytes);
+				BinaryArray array = BinaryArray.fromPrimitiveArray(bytes);
+				for (int i = 0; i < bytes.length; i++) {
+					array.setNullByte(i);
+				}
+				return array;
+			case VARBINARY:
+				byte[] bytes2 = new byte[rnd.nextInt(7) + 1];
+				rnd.nextBytes(bytes2);
+				return bytes2;
+			case ROW:
+				return GenericRow.of(new Object[]{null});
+			case ANY:
+				return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+			default:
+				throw new RuntimeException("Not support!");
 		}
 	}
 
-	private Object value2(InternalType type, Random rnd) {
-		if (type.equals(InternalTypes.BOOLEAN)) {
-			return false;
-		} else if (type.equals(InternalTypes.BYTE)) {
-			return (byte) 0;
-		} else if (type.equals(InternalTypes.SHORT)) {
-			return (short) 0;
-		} else if (type.equals(InternalTypes.INT)) {
-			return 0;
-		} else if (type.equals(InternalTypes.LONG)) {
-			return 0L;
-		} else if (type.equals(InternalTypes.FLOAT)) {
-			return 0f;
-		} else if (type.equals(InternalTypes.DOUBLE)) {
-			return 0d;
-		} else if (type.equals(InternalTypes.STRING)) {
-			return BinaryString.fromString("0");
-		} else if (type instanceof DecimalType) {
-			DecimalType decimalType = (DecimalType) type;
-			return Decimal.fromBigDecimal(new BigDecimal(0),
-					decimalType.precision(), decimalType.scale());
-		} else if (type instanceof ArrayType || type.equals(InternalTypes.BINARY)) {
-			byte[] bytes = new byte[rnd.nextInt(7) + 10];
-			rnd.nextBytes(bytes);
-			return type.equals(InternalTypes.BINARY) ? bytes : BinaryArray.fromPrimitiveArray(bytes);
-		} else if (type instanceof RowType) {
-			RowType rowType = (RowType) type;
-			if (rowType.getTypeAt(0).equals(InternalTypes.INT)) {
-				return GenericRow.of(rnd.nextInt());
-			} else {
-				return GenericRow.of(GenericRow.of(new Object[]{null}));
-			}
-		} else if (type instanceof GenericType) {
-			return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
-		} else {
-			throw new RuntimeException("Not support!");
+	private Object value2(LogicalType type, Random rnd) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+				return false;
+			case TINYINT:
+				return (byte) 0;
+			case SMALLINT:
+				return (short) 0;
+			case INTEGER:
+				return 0;
+			case BIGINT:
+				return 0L;
+			case FLOAT:
+				return 0f;
+			case DOUBLE:
+				return 0d;
+			case VARCHAR:
+				return BinaryString.fromString("0");
+			case DECIMAL:
+				DecimalType decimalType = (DecimalType) type;
+				return Decimal.fromBigDecimal(new BigDecimal(0),
+						decimalType.getPrecision(), decimalType.getScale());
+			case ARRAY:
+			case VARBINARY:
+				byte[] bytes = new byte[rnd.nextInt(7) + 10];
+				rnd.nextBytes(bytes);
+				return type instanceof VarBinaryType ? bytes : BinaryArray.fromPrimitiveArray(bytes);
+			case ROW:
+				RowType rowType = (RowType) type;
+				if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
+					return GenericRow.of(rnd.nextInt());
+				} else {
+					return GenericRow.of(GenericRow.of(new Object[]{null}));
+				}
+			case ANY:
+				return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+			default:
+				throw new RuntimeException("Not support!");
 		}
 	}
 
-	private Object value3(InternalType type, Random rnd) {
-		if (type.equals(InternalTypes.BOOLEAN)) {
-			return true;
-		} else if (type.equals(InternalTypes.BYTE)) {
-			return Byte.MAX_VALUE;
-		} else if (type.equals(InternalTypes.SHORT)) {
-			return Short.MAX_VALUE;
-		} else if (type.equals(InternalTypes.INT)) {
-			return Integer.MAX_VALUE;
-		} else if (type.equals(InternalTypes.LONG)) {
-			return Long.MAX_VALUE;
-		} else if (type.equals(InternalTypes.FLOAT)) {
-			return Float.MAX_VALUE;
-		} else if (type.equals(InternalTypes.DOUBLE)) {
-			return Double.MAX_VALUE;
-		} else if (type.equals(InternalTypes.STRING)) {
-			return BinaryString.fromString(RandomStringUtils.random(100));
-		} else if (type instanceof DecimalType) {
-			DecimalType decimalType = (DecimalType) type;
-			return Decimal.fromBigDecimal(new BigDecimal(Integer.MAX_VALUE),
-					decimalType.precision(), decimalType.scale());
-		} else if (type instanceof ArrayType || type.equals(InternalTypes.BINARY)) {
-			byte[] bytes = new byte[rnd.nextInt(100) + 100];
-			rnd.nextBytes(bytes);
-			return type.equals(InternalTypes.BINARY) ? bytes : BinaryArray.fromPrimitiveArray(bytes);
-		} else if (type instanceof RowType) {
-			RowType rowType = (RowType) type;
-			if (rowType.getTypeAt(0).equals(InternalTypes.INT)) {
-				return GenericRow.of(rnd.nextInt());
-			} else {
-				return GenericRow.of(GenericRow.of(rnd.nextInt()));
-			}
-		} else if (type instanceof GenericType) {
-			return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
-		} else {
-			throw new RuntimeException("Not support!");
+	private Object value3(LogicalType type, Random rnd) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+				return true;
+			case TINYINT:
+				return Byte.MAX_VALUE;
+			case SMALLINT:
+				return Short.MAX_VALUE;
+			case INTEGER:
+				return Integer.MAX_VALUE;
+			case BIGINT:
+				return Long.MAX_VALUE;
+			case FLOAT:
+				return Float.MAX_VALUE;
+			case DOUBLE:
+				return Double.MAX_VALUE;
+			case VARCHAR:
+				return BinaryString.fromString(RandomStringUtils.random(100));
+			case DECIMAL:
+				DecimalType decimalType = (DecimalType) type;
+				return Decimal.fromBigDecimal(new BigDecimal(Integer.MAX_VALUE),
+						decimalType.getPrecision(), decimalType.getScale());
+			case ARRAY:
+			case VARBINARY:
+				byte[] bytes = new byte[rnd.nextInt(100) + 100];
+				rnd.nextBytes(bytes);
+				return type instanceof VarBinaryType ? bytes : BinaryArray.fromPrimitiveArray(bytes);
+			case ROW:
+				RowType rowType = (RowType) type;
+				if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
+					return GenericRow.of(rnd.nextInt());
+				} else {
+					return GenericRow.of(GenericRow.of(rnd.nextInt()));
+				}
+			case ANY:
+				return new BinaryGeneric<>(rnd.nextInt(), IntSerializer.INSTANCE);
+			default:
+				throw new RuntimeException("Not support!");
 		}
 	}
 
-	private InternalType[] getFieldTypes() {
-		InternalType[] result = new InternalType[fields.length];
+	private LogicalType[] getFieldTypes() {
+		LogicalType[] result = new LogicalType[fields.length];
 		for (int i = 0; i < fields.length; i++) {
 			result[i] = types[fields[i]];
 		}
 		return result;
 	}
 
-	private InternalType[] getKeyTypes() {
-		InternalType[] result = new InternalType[keys.length];
+	private LogicalType[] getKeyTypes() {
+		LogicalType[] result = new LogicalType[keys.length];
 		for (int i = 0; i < keys.length; i++) {
 			result[i] = types[fields[keys[i]]];
 		}
@@ -387,8 +422,8 @@ public class SortCodeGeneratorTest {
 			segments.add(MemorySegmentFactory.wrap(new byte[32768]));
 		}
 
-		InternalType[] fieldTypes = getFieldTypes();
-		InternalType[] keyTypes = getKeyTypes();
+		LogicalType[] fieldTypes = getFieldTypes();
+		LogicalType[] keyTypes = getKeyTypes();
 
 		Tuple2<NormalizedKeyComputer, RecordComparator> tuple2 = getSortBaseWithNulls(
 				this.getClass().getSimpleName(), keyTypes, keys, orders, nullsIsLast);
@@ -422,7 +457,7 @@ public class SortCodeGeneratorTest {
 
 		data.sort((o1, o2) -> {
 			for (int i = 0; i < keys.length; i++) {
-				InternalType t = types[fields[keys[i]]];
+				LogicalType t = types[fields[keys[i]]];
 				boolean order = orders[i];
 				Object first = null;
 				Object second = null;
@@ -433,69 +468,72 @@ public class SortCodeGeneratorTest {
 					second = TypeGetterSetters.get(o2, keys[i], keyTypes[i]);
 				}
 
-				if (first == null && second == null) {
-				} else if (first == null) {
-					return order ? -1 : 1;
-				} else if (second == null) {
-					return order ? 1 : -1;
-				} else if (first instanceof Comparable) {
-					int ret = ((Comparable) first).compareTo(second);
-					if (ret != 0) {
-						return order ? ret : -ret;
-					}
-				} else if (t instanceof ArrayType) {
-					BinaryArray leftArray = (BinaryArray) first;
-					BinaryArray rightArray = (BinaryArray) second;
-					int minLength = Math.min(leftArray.numElements(), rightArray.numElements());
-					for (int j = 0; j < minLength; j++) {
-						boolean isNullLeft = leftArray.isNullAt(j);
-						boolean isNullRight = rightArray.isNullAt(j);
-						if (isNullLeft && isNullRight) {
-							// Do nothing.
-						} else if (isNullLeft) {
-							return order ? -1 : 1;
-						} else if (isNullRight) {
-							return order ? 1 : -1;
-						} else {
-							int comp = Byte.compare(leftArray.getByte(j), rightArray.getByte(j));
-							if (comp != 0) {
-								return order ? comp : -comp;
-							}
-						}
-					}
-					if (leftArray.numElements() < rightArray.numElements()) {
+				if (first != null || second != null) {
+					if (first == null) {
 						return order ? -1 : 1;
-					} else if (leftArray.numElements() > rightArray.numElements()) {
+					}
+					if (second == null) {
 						return order ? 1 : -1;
 					}
-				} else if (t.equals(InternalTypes.BINARY)) {
-					int comp = org.apache.flink.table.runtime.sort.SortUtil.compareBinary(
-							(byte[]) first, (byte[]) second);
-					if (comp != 0) {
-						return order ? comp : -comp;
-					}
-				} else if (t instanceof RowType) {
-					RowType rowType = (RowType) t;
-					int comp;
-					if (rowType.getTypeAt(0).equals(InternalTypes.INT)) {
-						comp = INT_ROW_COMP.compare(INT_ROW_CONV.toExternal(first),
-								INT_ROW_CONV.toExternal(second));
+					if (first instanceof Comparable) {
+						int ret = ((Comparable) first).compareTo(second);
+						if (ret != 0) {
+							return order ? ret : -ret;
+						}
+					} else if (t.getTypeRoot() == LogicalTypeRoot.ARRAY) {
+						BinaryArray leftArray = (BinaryArray) first;
+						BinaryArray rightArray = (BinaryArray) second;
+						int minLength = Math.min(leftArray.numElements(), rightArray.numElements());
+						for (int j = 0; j < minLength; j++) {
+							boolean isNullLeft = leftArray.isNullAt(j);
+							boolean isNullRight = rightArray.isNullAt(j);
+							if (isNullLeft && isNullRight) {
+								// Do nothing.
+							} else if (isNullLeft) {
+								return order ? -1 : 1;
+							} else if (isNullRight) {
+								return order ? 1 : -1;
+							} else {
+								int comp = Byte.compare(leftArray.getByte(j), rightArray.getByte(j));
+								if (comp != 0) {
+									return order ? comp : -comp;
+								}
+							}
+						}
+						if (leftArray.numElements() < rightArray.numElements()) {
+							return order ? -1 : 1;
+						} else if (leftArray.numElements() > rightArray.numElements()) {
+							return order ? 1 : -1;
+						}
+					} else if (t.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
+						int comp = org.apache.flink.table.runtime.sort.SortUtil.compareBinary(
+								(byte[]) first, (byte[]) second);
+						if (comp != 0) {
+							return order ? comp : -comp;
+						}
+					} else if (t.getTypeRoot() == LogicalTypeRoot.ROW) {
+						RowType rowType = (RowType) t;
+						int comp;
+						if (rowType.getFields().get(0).getType() instanceof IntType) {
+							comp = INT_ROW_COMP.compare(INT_ROW_CONV.toExternal(first),
+									INT_ROW_CONV.toExternal(second));
+						} else {
+							comp = NEST_ROW_COMP.compare(NEST_ROW_CONV.toExternal(first),
+									NEST_ROW_CONV.toExternal(second));
+						}
+						if (comp != 0) {
+							return order ? comp : -comp;
+						}
+					} else if (t.getTypeRoot() == LogicalTypeRoot.ANY) {
+						Integer i1 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) first, IntSerializer.INSTANCE);
+						Integer i2 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) second, IntSerializer.INSTANCE);
+						int comp = Integer.compare(i1, i2);
+						if (comp != 0) {
+							return order ? comp : -comp;
+						}
 					} else {
-						comp = NEST_ROW_COMP.compare(NEST_ROW_CONV.toExternal(first),
-								NEST_ROW_CONV.toExternal(second));
+						throw new RuntimeException();
 					}
-					if (comp != 0) {
-						return order ? comp : -comp;
-					}
-				} else if (t instanceof GenericType) {
-					Integer i1 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) first, IntSerializer.INSTANCE);
-					Integer i2 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) second, IntSerializer.INSTANCE);
-					int comp = Integer.compare(i1, i2);
-					if (comp != 0) {
-						return order ? comp : -comp;
-					}
-				} else {
-					throw new RuntimeException();
 				}
 			}
 			return 0;
@@ -520,7 +558,7 @@ public class SortCodeGeneratorTest {
 				if (!isNull1 || !isNull2) {
 					Object o1 = TypeGetterSetters.get(data.get(i), keys[j], keyTypes[j]);
 					Object o2 = TypeGetterSetters.get(result.get(i), keys[j], keyTypes[j]);
-					if (keyTypes[j].equals(InternalTypes.BINARY)) {
+					if (keyTypes[j] instanceof VarBinaryType) {
 						Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
 					} else {
 						Assert.assertEquals(msg, o1, o2);
@@ -531,9 +569,10 @@ public class SortCodeGeneratorTest {
 	}
 
 	public static Tuple2<NormalizedKeyComputer, RecordComparator> getSortBaseWithNulls(
-			String namePrefix, InternalType[] keyTypes, int[] keys, boolean[] orders, boolean[] nullsIsLast)
+			String namePrefix, LogicalType[] keyTypes, int[] keys, boolean[] orders, boolean[] nullsIsLast)
 			throws IllegalAccessException, InstantiationException {
-		SortCodeGenerator generator = new SortCodeGenerator(new TableConfig(), keys, keyTypes, orders, nullsIsLast);
+		SortCodeGenerator generator = new SortCodeGenerator(
+				new TableConfig(), keys, keyTypes, orders, nullsIsLast);
 		GeneratedNormalizedKeyComputer computer = generator.generateNormalizedKeyComputer(namePrefix + "Computer");
 		GeneratedRecordComparator comparator = generator.generateRecordComparator(namePrefix + "Comparator");
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();

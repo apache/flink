@@ -17,26 +17,27 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
-import org.apache.flink.table.codegen.agg.batch.{AggWithoutKeysCodeGenerator, HashAggCodeGenerator, SortAggCodeGenerator}
+import org.apache.flink.table.codegen.agg.batch.{AggWithoutKeysCodeGenerator, SortAggCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
-
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -99,15 +100,13 @@ abstract class BatchExecSortAggregateBase(
 
   def getOperatorName: String
 
-  def getParallelism(input: StreamTransformation[BaseRow], conf: TableConfig): Int
-
   override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
     val input = getInputNodes.get(0).translateToPlan(tableEnv)
-        .asInstanceOf[StreamTransformation[BaseRow]]
+        .asInstanceOf[Transformation[BaseRow]]
     val ctx = CodeGeneratorContext(tableEnv.getConfig)
-    val outputType = FlinkTypeFactory.toInternalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toInternalRowType(inputRowType)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)
@@ -124,7 +123,7 @@ abstract class BatchExecSortAggregateBase(
       input,
       getOperatorName,
       operator,
-      outputType.toTypeInfo,
-      getParallelism(input, tableEnv.config))
+      BaseRowTypeInfo.of(outputType),
+      getResource.getParallelism)
   }
 }

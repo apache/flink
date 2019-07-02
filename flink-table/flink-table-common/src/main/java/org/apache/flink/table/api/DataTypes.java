@@ -81,7 +81,7 @@ public final class DataTypes {
 
 	/**
 	 * Data type of a fixed-length character string {@code CHAR(n)} where {@code n} is the number
-	 * of code points. {@code n} must have a value between 1 and 255 (both inclusive).
+	 * of code points. {@code n} must have a value between 1 and {@link Integer#MAX_VALUE} (both inclusive).
 	 *
 	 * @see CharType
 	 */

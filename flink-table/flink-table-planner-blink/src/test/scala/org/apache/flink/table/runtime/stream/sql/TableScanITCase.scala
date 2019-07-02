@@ -53,7 +53,9 @@ class TableScanITCase extends StreamingTestBase {
           Row.of("Mary", new JLong(1L), new JInt(1)),
           Row.of("Bob", new JLong(2L), new JInt(3))
         )
-        execEnv.fromCollection(data).returns(getReturnType)
+        val dataStream = execEnv.fromCollection(data).returns(getReturnType)
+        dataStream.getTransformation.setMaxParallelism(1)
+        dataStream
       }
 
       override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
@@ -80,7 +82,7 @@ class TableScanITCase extends StreamingTestBase {
     val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.SQL_TIMESTAMP))
     val returnType = Types.STRING
 
-    val tableSource = new TestTableSourceWithTime(schema, returnType, data, null, "ptime")
+    val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
     tEnv.registerTableSource(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"

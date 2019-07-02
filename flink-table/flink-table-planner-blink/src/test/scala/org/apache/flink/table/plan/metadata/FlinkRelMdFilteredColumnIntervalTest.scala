@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.stats.ValueInterval
+import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
@@ -113,12 +113,12 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetColumnIntervalOnCalc(): Unit = {
-    val outputRowType = typeFactory.buildLogicalRowType(
+    val outputRowType = typeFactory.buildRelNodeRowType(
       Array("f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12"),
-      Array(InternalTypes.INT, InternalTypes.DOUBLE, InternalTypes.BOOLEAN, InternalTypes.BOOLEAN,
-        InternalTypes.BOOLEAN, InternalTypes.BOOLEAN, InternalTypes.BOOLEAN, InternalTypes.BOOLEAN,
-        InternalTypes.BOOLEAN, InternalTypes.BOOLEAN, InternalTypes.BOOLEAN, InternalTypes.BOOLEAN,
-        InternalTypes.BOOLEAN))
+      Array(new IntType(), new DoubleType(), new BooleanType(), new BooleanType(),
+        new BooleanType(), new BooleanType(), new BooleanType(), new BooleanType(),
+        new BooleanType(), new BooleanType(), new BooleanType(), new BooleanType(),
+        new BooleanType()))
     val calc = createLogicalCalc(ts, outputRowType, projects, List(expr1))
     assertEquals(ValueInterval(-5, 2), mq.getFilteredColumnInterval(calc, 0, -1))
     assertEquals(ValueInterval(0D, 6.1D), mq.getFilteredColumnInterval(calc, 1, -1))

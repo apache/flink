@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.{TableEnvironment, _}
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
@@ -225,9 +226,21 @@ object BatchTableEnvironment {
   def create(executionEnvironment: ExecutionEnvironment, tableConfig: TableConfig)
   : BatchTableEnvironment = {
     try {
-      val clazz = Class.forName("org.apache.flink.table.api.scala.BatchTableEnvImpl")
-      val const = clazz.getConstructor(classOf[ExecutionEnvironment], classOf[TableConfig])
-      const.newInstance(executionEnvironment, tableConfig).asInstanceOf[BatchTableEnvironment]
+      val clazz = Class
+        .forName("org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl")
+      val const = clazz
+        .getConstructor(
+          classOf[ExecutionEnvironment],
+          classOf[TableConfig],
+          classOf[CatalogManager])
+      val catalogManager = new CatalogManager(
+        tableConfig.getBuiltInCatalogName,
+        new GenericInMemoryCatalog(
+          tableConfig.getBuiltInCatalogName,
+          tableConfig.getBuiltInDatabaseName)
+      )
+      const.newInstance(executionEnvironment, tableConfig, catalogManager)
+        .asInstanceOf[BatchTableEnvironment]
     } catch {
       case t: Throwable => throw new TableException("Create BatchTableEnvironment failed.", t)
     }

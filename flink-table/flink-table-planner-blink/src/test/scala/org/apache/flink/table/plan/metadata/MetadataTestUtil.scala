@@ -20,66 +20,22 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.`type`.{InternalType, InternalTypes, TypeConverters}
-import org.apache.flink.table.api.{TableConfig, TableSchema}
-import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkContextImpl, FlinkTypeSystem}
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
-import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
-import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty, Lex}
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.rel.RelCollationTraitDef
-import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{FrameworkConfig, Frameworks}
 import org.mockito.Mockito.{mock, when}
-
-import java.util.{Collections, Properties}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 object MetadataTestUtil {
-
-  def createFrameworkConfig(defaultSchema: SchemaPlus, config: TableConfig): FrameworkConfig = {
-    val sqlParserConfig = SqlParser
-      .configBuilder()
-      .setLex(Lex.JAVA)
-      .build()
-    Frameworks.newConfigBuilder
-      .defaultSchema(defaultSchema)
-      .parserConfig(sqlParserConfig)
-      .costFactory(new FlinkCostFactory)
-      .typeSystem(new FlinkTypeSystem)
-      .operatorTable(new SqlStdOperatorTable)
-      .context(new FlinkContextImpl(config))
-      .traitDefs(Array(
-        ConventionTraitDef.INSTANCE,
-        FlinkRelDistributionTraitDef.INSTANCE,
-        RelCollationTraitDef.INSTANCE
-      ): _*)
-      .build
-  }
-
-  def createCatalogReader(
-      rootSchema: SchemaPlus,
-      typeFactory: RelDataTypeFactory): FlinkCalciteCatalogReader = {
-    val prop = new Properties()
-    prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName, "false")
-    val calciteConnConfig = new CalciteConnectionConfigImpl(prop)
-    new FlinkCalciteCatalogReader(
-      CalciteSchema.from(rootSchema),
-      Collections.emptyList(),
-      typeFactory,
-      calciteConnConfig)
-  }
 
   def initRootSchema(): SchemaPlus = {
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
@@ -217,12 +173,13 @@ object MetadataTestUtil {
 
   private def createTemporalTable1(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
-    val fieldTypes = Array[InternalType](
-      InternalTypes.LONG,
-      InternalTypes.STRING,
-      InternalTypes.INT,
-      InternalTypes.PROCTIME_INDICATOR,
-      InternalTypes.ROWTIME_INDICATOR)
+    val fieldTypes = Array[LogicalType](
+      new BigIntType(),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new IntType(),
+      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3))
+    val fieldNulls = fieldNames.map(_ => true)
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(30L, 0L, 4D, 4, 45, 5),
@@ -231,18 +188,19 @@ object MetadataTestUtil {
     )
 
     val tableStats = new TableStats(50L, colStatsMap)
-    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats),
+    getDataStreamTable(fieldNames, fieldTypes, fieldNulls, new FlinkStatistic(tableStats),
       producesUpdates = false, isAccRetract = false)
   }
 
   private def createTemporalTable2(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
-    val fieldTypes = Array[InternalType](
-      InternalTypes.LONG,
-      InternalTypes.STRING,
-      InternalTypes.INT,
-      InternalTypes.PROCTIME_INDICATOR,
-      InternalTypes.ROWTIME_INDICATOR)
+    val fieldTypes = Array[LogicalType](
+      new BigIntType(),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new IntType(),
+      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3))
+    val fieldNulls = fieldNames.map(_ => true)
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(50L, 0L, 8D, 8, 55, 5),
@@ -252,18 +210,19 @@ object MetadataTestUtil {
 
     val tableStats = new TableStats(50L, colStatsMap)
     val uniqueKeys = Set(Set("a").asJava).asJava
-    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats, uniqueKeys),
-      producesUpdates = false, isAccRetract = false)
+    getDataStreamTable(fieldNames, fieldTypes, fieldNulls,
+      new FlinkStatistic(tableStats, uniqueKeys), producesUpdates = false, isAccRetract = false)
   }
 
   private def createTemporalTable3(): DataStreamTable[BaseRow] = {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
-    val fieldTypes = Array[InternalType](
-      InternalTypes.INT,
-      InternalTypes.LONG,
-      InternalTypes.STRING,
-      InternalTypes.PROCTIME_INDICATOR,
-      InternalTypes.ROWTIME_INDICATOR)
+    val fieldTypes = Array[LogicalType](
+      new IntType(),
+      new BigIntType(),
+      new VarCharType(VarCharType.MAX_LENGTH),
+      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new TimestampType(true, TimestampKind.ROWTIME, 3))
+    val fieldNulls = fieldNames.map(_ => true)
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(3740000000L, 0L, 4D, 4, null, null),
@@ -272,7 +231,7 @@ object MetadataTestUtil {
     )
 
     val tableStats = new TableStats(4000000000L, colStatsMap)
-    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats),
+    getDataStreamTable(fieldNames, fieldTypes, fieldNulls, new FlinkStatistic(tableStats),
       producesUpdates = false, isAccRetract = false)
   }
 
@@ -281,13 +240,16 @@ object MetadataTestUtil {
       statistic: FlinkStatistic,
       producesUpdates: Boolean = false,
       isAccRetract: Boolean = false): DataStreamTable[BaseRow] = {
-    val types = tableSchema.getFieldTypes.map(TypeConverters.createInternalTypeFromTypeInfo)
-    getDataStreamTable(tableSchema.getFieldNames, types, statistic, producesUpdates, isAccRetract)
+    val names = tableSchema.getFieldNames
+    val types = tableSchema.getFieldTypes.map(fromTypeInfoToLogicalType)
+    val nulls = Array.fill(tableSchema.getFieldCount)(true)
+    getDataStreamTable(names, types, nulls, statistic, producesUpdates, isAccRetract)
   }
 
   private def getDataStreamTable(
       fieldNames: Array[String],
-      fieldTypes: Array[InternalType],
+      fieldTypes: Array[LogicalType],
+      fieldNullables: Array[Boolean],
       statistic: FlinkStatistic,
       producesUpdates: Boolean,
       isAccRetract: Boolean): DataStreamTable[BaseRow] = {
@@ -300,7 +262,8 @@ object MetadataTestUtil {
       isAccRetract,
       fieldTypes.indices.toArray,
       fieldNames,
-      statistic)
+      statistic,
+      Some(fieldNullables))
   }
 
 }

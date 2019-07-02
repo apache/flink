@@ -24,7 +24,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 /** Defines an external batch table and provides access to its data.
  *
  * @param <T> Type of the {@link DataSet} created by this {@link TableSource}.
+ *
+ * @deprecated use {@link InputFormatTableSource} instead.
  */
+@Deprecated
 public interface BatchTableSource<T> extends TableSource<T> {
 
 	/**

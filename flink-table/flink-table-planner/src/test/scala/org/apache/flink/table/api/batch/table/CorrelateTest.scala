@@ -45,7 +45,7 @@ class CorrelateTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetCorrelate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "s"),
@@ -66,7 +66,7 @@ class CorrelateTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetCorrelate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
         term("select", "a", "b", "c", "s"),
@@ -92,7 +92,7 @@ class CorrelateTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetCorrelate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "s"),
@@ -119,7 +119,7 @@ class CorrelateTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetCorrelate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "s"),
@@ -149,7 +149,7 @@ class CorrelateTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetCorrelate",
-        batchTableNode(0),
+        batchTableNode(sourceTable),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "d", "e"),
@@ -180,7 +180,7 @@ class CorrelateTest extends TableTestBase {
       .replaceLogicalOptRuleSet(RuleSets.ofList(logicalRuleSet.toList))
       .build()
 
-    util.tableEnv.getConfig.setPlannerConfig(cc)
+    util.tableEnv.getConfig.addPlannerConfig(cc)
 
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc0)
@@ -196,7 +196,7 @@ class CorrelateTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetCorrelate",
-        batchTableNode(0),
+        batchTableNode(sourceTable),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
         term("select", "a", "b", "c", "d", "e"),

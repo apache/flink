@@ -40,9 +40,9 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 	private final String comment;
 
 	public AbstractCatalogTable(
-		TableSchema tableSchema,
-		Map<String, String> properties,
-		String comment) {
+			TableSchema tableSchema,
+			Map<String, String> properties,
+			String comment) {
 		this(tableSchema, new ArrayList<>(), properties, comment);
 	}
 
@@ -81,5 +81,4 @@ public abstract class AbstractCatalogTable implements CatalogTable {
 	public String getComment() {
 		return comment;
 	}
-
 }

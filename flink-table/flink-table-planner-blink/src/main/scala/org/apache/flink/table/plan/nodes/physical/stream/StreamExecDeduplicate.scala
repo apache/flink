@@ -19,22 +19,22 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.KeySelectorUtil
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
-import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rel.`type`.RelDataType
-
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -99,7 +99,7 @@ class StreamExecDeduplicate(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
 
@@ -108,7 +108,7 @@ class StreamExecDeduplicate(
     }
 
     val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
@@ -144,12 +144,12 @@ class StreamExecDeduplicate(
       getOperatorName,
       operator,
       rowTypeInfo,
-      tableEnv.execEnv.getParallelism)
+      getResource.getParallelism)
 
-    if (uniqueKeys.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
     }
+
     val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)

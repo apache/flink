@@ -20,9 +20,10 @@ package org.apache.flink.table.util
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.`type`.DecimalType
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.calcite.FlinkTypeSystem
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 
 import java.lang.{Iterable => JIterable}
@@ -341,16 +342,16 @@ class DecimalAvgAggFunction(argType: DecimalType)
     val decimalType = getSumType
     new TupleTypeInfo(
       classOf[DecimalAvgAccumulator],
-      new BigDecimalTypeInfo(decimalType.precision(), decimalType.scale()),
+      new BigDecimalTypeInfo(decimalType.getPrecision, decimalType.getScale),
       Types.LONG)
   }
 
   def getSumType: DecimalType =
-    DecimalType.inferAggSumType(argType.scale)
+    FlinkTypeSystem.inferAggSumType(argType.getScale)
 
   override def getResultType: BigDecimalTypeInfo = {
-    val t = DecimalType.inferAggAvgType(argType.scale)
-    new BigDecimalTypeInfo(t.precision(), t.scale())
+    val t = FlinkTypeSystem.inferAggAvgType(argType.getScale)
+    new BigDecimalTypeInfo(t.getPrecision, t.getScale)
   }
 
 }

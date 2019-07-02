@@ -89,6 +89,31 @@ val stream: DataStream[Row] = result.toAppendStream[Row](qConfig)
 
 {% endhighlight %}
 </div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env)
+
+# obtain query configuration from TableEnvironment
+q_config = StreamQueryConfig()
+# set query parameters
+q_config.with_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
+
+# define query
+result = ...
+
+# create TableSink
+sink = ...
+
+# register TableSink
+table_env.register_table_sink("outputTable",  # table name
+                              sink)  # table sink
+
+# emit result Table via a TableSink
+result.insert_into("outputTable", q_config)
+
+{% endhighlight %}
+</div>
 </div>
 
 In the following we describe the parameters of the `QueryConfig` and how they affect the accuracy and resource consumption of a query.
@@ -134,6 +159,16 @@ val qConfig: StreamQueryConfig = ???
 
 // set idle state retention time: min = 12 hours, max = 24 hours
 qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
+
+{% endhighlight %}
+</div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+
+q_config = ...  # type: StreamQueryConfig
+
+# set idle state retention time: min = 12 hours, max = 24 hours
+q_config.with_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
 
 {% endhighlight %}
 </div>

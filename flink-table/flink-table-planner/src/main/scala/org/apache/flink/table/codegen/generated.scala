@@ -62,7 +62,7 @@ case class GeneratedFunction[F <: Function, T <: Any](
   code: String)
 
 /**
-  * Describes a generated aggregate or table aggregate helper function
+  * Describes a generated aggregate helper function
   *
   * @param name class name of the generated Function.
   * @param code code of the generated Function.
@@ -70,6 +70,18 @@ case class GeneratedFunction[F <: Function, T <: Any](
 case class GeneratedAggregationsFunction(
     name: String,
     code: String)
+
+/**
+  * Describes a generated table aggregate helper function
+  *
+  * @param name class name of the generated Function.
+  * @param code code of the generated Function.
+  * @param emitValuesIncrementally whether emit incremental values.
+  */
+class GeneratedTableAggregationsFunction(
+  name: String,
+  code: String,
+  val emitValuesIncrementally: Boolean) extends GeneratedAggregationsFunction(name, code)
 
 /**
   * Describes a generated [[InputFormat]].

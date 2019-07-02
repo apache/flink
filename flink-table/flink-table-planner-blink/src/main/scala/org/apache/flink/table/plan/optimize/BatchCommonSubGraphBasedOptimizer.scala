@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableImpl}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.plan.schema.IntermediateRelTable
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelNode
 
 /**
@@ -35,7 +35,7 @@ class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv)
+    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv.getConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks
@@ -54,18 +54,13 @@ class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
     optimizedTree match {
       case _: BatchExecSink[_] => // ignore
       case _ =>
-        val name = tEnv.createUniqueTableName()
-        registerIntermediateTable(name, optimizedTree)
-        val newTable = tEnv.scan(name)
-        block.setNewOutputNode(newTable.asInstanceOf[TableImpl].getRelNode)
+        val name = createUniqueIntermediateRelTableName
+        val intermediateRelTable =  new IntermediateRelTable(optimizedTree)
+        val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
+        block.setNewOutputNode(newTableScan)
         block.setOutputTableName(name)
     }
     block.setOptimizedPlan(optimizedTree)
-  }
-
-  private def registerIntermediateTable(name: String, relNode: RelNode): Unit = {
-    val table = new IntermediateRelTable(relNode)
-    tEnv.registerTableInternal(name, table)
   }
 
   /**
@@ -83,7 +78,7 @@ class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
     programs.optimize(relNode, new BatchOptimizeContext {
       override def getTableConfig: TableConfig = config
 
-      override def getVolcanoPlanner: VolcanoPlanner = tEnv.getPlanner.asInstanceOf[VolcanoPlanner]
+      override def getFunctionCatalog: FunctionCatalog = tEnv.functionCatalog
     })
   }
 

@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.codegen.over
 
-import org.apache.flink.table.`type`.{DateType, InternalType, InternalTypes, RowType, TimeType, TimestampType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
+import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
 import org.apache.flink.table.generated.{GeneratedRecordComparator, RecordComparator}
+import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeRoot, RowType}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex.{RexInputRef, RexWindowBound}
@@ -50,7 +50,7 @@ class RangeBoundComparatorCodeGenerator(
     inType: RowType,
     bound: Any,
     key: Int = -1,
-    keyType: InternalType = null,
+    keyType: LogicalType = null,
     keyOrder: Boolean = true,
     isLowerBound: Boolean = true) {
 
@@ -126,19 +126,19 @@ class RangeBoundComparatorCodeGenerator(
   }
 
   private def getComparatorCode(inputValue: String, currentValue: String): String = {
-    val (realBoundValue, realKeyType) = keyType match {
-      case _: DateType =>
+    val (realBoundValue, realKeyType) = keyType.getTypeRoot match {
+      case LogicalTypeRoot.DATE =>
         //The constant about time is expressed based millisecond unit in calcite, but
         //the field about date is expressed based day unit. So here should keep the same unit for
         // comparator.
-        (bound.asInstanceOf[Long] / DateTimeUtils.MILLIS_PER_DAY, InternalTypes.INT)
-      case _: TimeType => (bound, InternalTypes.INT)
-      case _: TimestampType => (bound, InternalTypes.LONG)
+        (bound.asInstanceOf[Long] / DateTimeUtils.MILLIS_PER_DAY, new IntType())
+      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => (bound, new IntType())
+      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE => (bound, new BigIntType())
       case _ => (bound, keyType)
     }
 
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val relKeyType = typeFactory.createTypeFromInternalType(realKeyType, isNullable = true)
+    val relKeyType = typeFactory.createFieldTypeFromLogicalType(realKeyType)
 
     //minus between inputValue and currentValue
     val ctx = CodeGeneratorContext(config)

@@ -22,9 +22,13 @@ OUT_TYPE="${1:-local}" # other type: s3
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_s3.sh
 
+# randomly set up openSSL with dynamically/statically linked libraries
+OPENSSL_LINKAGE=$(if (( RANDOM % 2 )) ; then echo "dynamic"; else echo "static"; fi)
+echo "Executing test with ${OPENSSL_LINKAGE} openSSL linkage (random selection between 'dynamic' and 'static')"
+
 s3_setup hadoop
-set_conf_ssl "mutual"
-set_conf "metrics.fetcher.update-interval" "2000"
+set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
+set_config_key "metrics.fetcher.update-interval" "2000"
 
 OUT=temp/test_streaming_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$OUT"
@@ -46,9 +50,10 @@ fi
 # make sure we delete the file at the end
 function out_cleanup {
   s3_delete_by_full_path_prefix $OUT
+  rollback_openssl_lib
 }
 if [ "${OUT_TYPE}" == "s3" ]; then
-  trap out_cleanup EXIT
+  on_exit out_cleanup
 fi
 
 TEST_PROGRAM_JAR="${END_TO_END_DIR}/flink-streaming-file-sink-test/target/StreamingFileSinkProgram.jar"

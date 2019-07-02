@@ -19,13 +19,16 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.InternalTypes.{INT, LONG}
 import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.types.logical.{BigIntType, IntType}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
 
 class SinkTest extends TableTestBase {
+
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
   private val util = batchTestUtil()
   util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c)

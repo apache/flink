@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
 import org.apache.flink.table.plan.rules.logical.WindowPropertiesRules
@@ -103,13 +103,13 @@ import scala.collection.mutable
   * }}}
   *
   * The optimizing order is from child block to parent. The optimized result (RelNode)
-  * will be registered into tables first, and then be converted to a new TableScan which is the
-  * new output node of current block and is also the input of its parent blocks.
+  * will be wrapped as an IntermediateRelTable first, and then be converted to a new TableScan
+  * which is the new output node of current block and is also the input of its parent blocks.
   *
   * @param outputNode A RelNode of the output in the block, which could be a [[Sink]] or
   * other RelNode which data outputs to multiple [[Sink]]s.
   */
-class RelNodeBlock(val outputNode: RelNode, tEnv: TableEnvironment) {
+class RelNodeBlock(val outputNode: RelNode) {
   // child (or input) blocks
   private val childBlocks = mutable.LinkedHashSet[RelNodeBlock]()
 
@@ -239,12 +239,12 @@ class RelNodeWrapper(relNode: RelNode) {
 /**
   * Builds [[RelNodeBlock]] plan
   */
-class RelNodeBlockPlanBuilder private(tEnv: TableEnvironment) {
+class RelNodeBlockPlanBuilder private(config: TableConfig) {
 
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointDisabled = tEnv.config.getConf.getBoolean(
+  private val isUnionAllAsBreakPointDisabled = config.getConf.getBoolean(
     PlannerConfigOptions.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
 
 
@@ -267,7 +267,7 @@ class RelNodeBlockPlanBuilder private(tEnv: TableEnvironment) {
   }
 
   private def buildBlockPlan(node: RelNode): RelNodeBlock = {
-    val currentBlock = new RelNodeBlock(node, tEnv)
+    val currentBlock = new RelNodeBlock(node)
     buildBlock(node, currentBlock, createNewBlockWhenMeetValidBreakPoint = false)
     currentBlock
   }
@@ -280,7 +280,7 @@ class RelNodeBlockPlanBuilder private(tEnv: TableEnvironment) {
     val validBreakPoint = isValidBreakPoint(node)
 
     if (validBreakPoint && (createNewBlockWhenMeetValidBreakPoint || hasDiffBlockOutputNodes)) {
-      val childBlock = node2Block.getOrElseUpdate(node, new RelNodeBlock(node, tEnv))
+      val childBlock = node2Block.getOrElseUpdate(node, new RelNodeBlock(node))
       currentBlock.addChild(childBlock)
       node.getInputs.foreach {
         child => buildBlock(child, childBlock, createNewBlockWhenMeetValidBreakPoint = false)
@@ -296,7 +296,7 @@ class RelNodeBlockPlanBuilder private(tEnv: TableEnvironment) {
 
   /**
     * TableFunctionScan/Snapshot/Window Aggregate cannot be optimized individually,
-    * so TableFunctionScan/Snapshot/Window Aggregate is not a break-point
+    * so TableFunctionScan/Snapshot/Window Aggregate is not a valid break-point
     * even though it has multiple parents.
     */
   private def isValidBreakPoint(node: RelNode): Boolean = node match {
@@ -377,15 +377,19 @@ object RelNodeBlockPlanBuilder {
     */
   def buildRelNodeBlockPlan(
       sinkNodes: Seq[RelNode],
-      tEnv: TableEnvironment): Seq[RelNodeBlock] = {
+      config: TableConfig): Seq[RelNodeBlock] = {
     require(sinkNodes.nonEmpty)
 
-    if (sinkNodes.size == 1) {
-      Seq(new RelNodeBlock(sinkNodes.head, tEnv))
+    // expand QueryOperationCatalogViewTable in TableScan
+    val shuttle = new ExpandTableScanShuttle
+    val convertedRelNodes = sinkNodes.map(_.accept(shuttle))
+
+    if (convertedRelNodes.size == 1) {
+      Seq(new RelNodeBlock(convertedRelNodes.head))
     } else {
       // merge multiple RelNode trees to RelNode dag
-      val relNodeDag = reuseRelNodes(sinkNodes, tEnv.getConfig)
-      val builder = new RelNodeBlockPlanBuilder(tEnv)
+      val relNodeDag = reuseRelNodes(convertedRelNodes, config)
+      val builder = new RelNodeBlockPlanBuilder(config)
       builder.buildRelNodeBlockPlan(relNodeDag)
     }
   }
@@ -397,20 +401,16 @@ object RelNodeBlockPlanBuilder {
     * @return RelNode dag which reuse common subPlan in each tree
     */
   private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
-    // expand RelTable in TableScan
-    val shuttle = new ExpandTableScanShuttle
-    val convertedRelNodes = relNodes.map(_.accept(shuttle))
-
     val findOpBlockWithDigest = tableConfig.getConf.getBoolean(
       PlannerConfigOptions.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
-      return convertedRelNodes
+      return relNodes
     }
 
     // reuse sub-plan with same digest in input RelNode trees.
-    val context = new SubplanReuseContext(true, convertedRelNodes: _*)
+    val context = new SubplanReuseContext(true, relNodes: _*)
     val reuseShuttle = new SubplanReuseShuttle(context)
-    convertedRelNodes.map(_.accept(reuseShuttle))
+    relNodes.map(_.accept(reuseShuttle))
   }
 
 }

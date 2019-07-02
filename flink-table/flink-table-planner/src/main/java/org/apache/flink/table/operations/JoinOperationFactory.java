@@ -22,15 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.operations.JoinTableOperation.JoinType;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -38,7 +38,7 @@ import java.util.Set;
 import static java.util.Arrays.asList;
 
 /**
- * Utility class for creating a valid {@link JoinTableOperation} operation.
+ * Utility class for creating a valid {@link JoinQueryOperation} operation.
  */
 @Internal
 public class JoinOperationFactory {
@@ -51,7 +51,7 @@ public class JoinOperationFactory {
 	}
 
 	/**
-	 * Creates a valid {@link JoinTableOperation} operation.
+	 * Creates a valid {@link JoinQueryOperation} operation.
 	 *
 	 * <p>It performs validations such as:
 	 * <ul>
@@ -68,27 +68,27 @@ public class JoinOperationFactory {
 	 * @param correlated if the join should be a correlated join
 	 * @return valid join operation
 	 */
-	public TableOperation create(
-			TableOperation left,
-			TableOperation right,
+	public QueryOperation create(
+			QueryOperation left,
+			QueryOperation right,
 			JoinType joinType,
-			Expression condition,
+			ResolvedExpression condition,
 			boolean correlated) {
 		verifyConditionType(condition);
 		validateNamesAmbiguity(left, right);
 		validateCondition(right, joinType, condition, correlated);
-		return new JoinTableOperation(left, right, joinType, condition, correlated);
+		return new JoinQueryOperation(left, right, joinType, condition, correlated);
 	}
 
-	private void validateCondition(TableOperation right, JoinType joinType, Expression condition, boolean correlated) {
-		boolean alwaysTrue = ExpressionUtils.extractValue(condition, Types.BOOLEAN).orElse(false);
+	private void validateCondition(QueryOperation right, JoinType joinType, ResolvedExpression condition, boolean correlated) {
+		boolean alwaysTrue = ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
 
 		if (alwaysTrue) {
 			return;
 		}
 
 		Boolean equiJoinExists = condition.accept(equiJoinExistsChecker);
-		if (correlated && right instanceof CalculatedTableOperation && joinType != JoinType.INNER) {
+		if (correlated && right instanceof CalculatedQueryOperation && joinType != JoinType.INNER) {
 			throw new ValidationException(
 				"Predicate for lateral left outer join with table function can only be empty or literal true.");
 		} else if (!equiJoinExists) {
@@ -98,7 +98,7 @@ public class JoinOperationFactory {
 		}
 	}
 
-	private void verifyConditionType(Expression condition) {
+	private void verifyConditionType(ResolvedExpression condition) {
 		PlannerExpression plannerExpression = expressionBridge.bridge(condition);
 		TypeInformation<?> conditionType = plannerExpression.resultType();
 		if (conditionType != Types.BOOLEAN) {
@@ -107,7 +107,7 @@ public class JoinOperationFactory {
 		}
 	}
 
-	private void validateNamesAmbiguity(TableOperation left, TableOperation right) {
+	private void validateNamesAmbiguity(QueryOperation left, QueryOperation right) {
 		Set<String> leftNames = new HashSet<>(asList(left.getTableSchema().getFieldNames()));
 		Set<String> rightNames = new HashSet<>(asList(right.getTableSchema().getFieldNames()));
 		leftNames.retainAll(rightNames);
@@ -116,12 +116,12 @@ public class JoinOperationFactory {
 		}
 	}
 
-	private class EquiJoinExistsChecker extends ApiExpressionDefaultVisitor<Boolean> {
+	private class EquiJoinExistsChecker extends ResolvedExpressionDefaultVisitor<Boolean> {
 
 		@Override
-		public Boolean visitCall(CallExpression call) {
+		public Boolean visit(CallExpression call) {
 			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.EQUALS) {
-				return isJoinCondition(call.getChildren().get(0), call.getChildren().get(1));
+				return isJoinCondition(call.getResolvedChildren().get(0), call.getResolvedChildren().get(1));
 			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OR) {
 				return false;
 			} else if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AND) {
@@ -132,12 +132,12 @@ public class JoinOperationFactory {
 		}
 
 		@Override
-		protected Boolean defaultMethod(Expression expression) {
+		protected Boolean defaultMethod(ResolvedExpression expression) {
 			return false;
 		}
 	}
 
-	private boolean isJoinCondition(Expression left, Expression right) {
+	private boolean isJoinCondition(ResolvedExpression left, ResolvedExpression right) {
 		if (left instanceof FieldReferenceExpression && right instanceof FieldReferenceExpression) {
 			return ((FieldReferenceExpression) left).getInputIndex() !=
 				((FieldReferenceExpression) right).getInputIndex();

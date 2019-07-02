@@ -19,16 +19,15 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.MemoryArchitecture;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -36,14 +35,18 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
 /**
- * Factory for {@link ResultPartition} to use in {@link org.apache.flink.runtime.io.network.NetworkEnvironment}.
+ * Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}.
  */
 public class ResultPartitionFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
+
+	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
+
+	private static final BoundedBlockingSubpartitionType BOUNDED_BLOCKING_TYPE = getBoundedBlockingType();
 
 	@Nonnull
 	private final ResultPartitionManager partitionManager;
@@ -74,57 +77,49 @@ public class ResultPartitionFactory {
 
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
-		@Nonnull TaskActions taskActions,
-		@Nonnull JobID jobId,
-		@Nonnull ExecutionAttemptID executionAttemptID,
-		@Nonnull ResultPartitionDeploymentDescriptor desc,
-		@Nonnull ResultPartitionConsumableNotifier partitionConsumableNotifier) {
+		@Nonnull ResultPartitionDeploymentDescriptor desc) {
 
 		return create(
 			taskNameWithSubtaskAndId,
-			taskActions,
-			jobId,
-			new ResultPartitionID(desc.getPartitionId(), executionAttemptID),
+			desc.getShuffleDescriptor().getResultPartitionID(),
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
-			partitionConsumableNotifier,
-			desc.sendScheduleOrUpdateConsumersMessage(),
+			desc.isReleasedOnConsumption(),
 			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
 	}
 
 	@VisibleForTesting
 	public ResultPartition create(
 		@Nonnull String taskNameWithSubtaskAndId,
-		@Nonnull TaskActions taskActions,
-		@Nonnull JobID jobId,
 		@Nonnull ResultPartitionID id,
 		@Nonnull ResultPartitionType type,
 		int numberOfSubpartitions,
 		int maxParallelism,
-		@Nonnull ResultPartitionConsumableNotifier partitionConsumableNotifier,
-		boolean sendScheduleOrUpdateConsumersMessage,
+		boolean releasePartitionOnConsumption,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
-		ResultPartition partition = new ResultPartition(
-			taskNameWithSubtaskAndId,
-			taskActions,
-			jobId,
-			id,
-			type,
-			subpartitions,
-			maxParallelism,
-			partitionManager,
-			partitionConsumableNotifier,
-			sendScheduleOrUpdateConsumersMessage,
-			bufferPoolFactory);
+		ResultPartition partition = releasePartitionOnConsumption
+			? new ReleaseOnConsumptionResultPartition(
+				taskNameWithSubtaskAndId,
+				id,
+				type,
+				subpartitions,
+				maxParallelism,
+				partitionManager,
+				bufferPoolFactory)
+			: new ResultPartition(
+				taskNameWithSubtaskAndId,
+				id,
+				type,
+				subpartitions,
+				maxParallelism,
+				partitionManager,
+				bufferPoolFactory);
 
-		createSubpartitions(partition, type, subpartitions);
-
-		// Initially, partitions should be consumed once before release.
-		partition.pin();
+		createSubpartitions(partition, type, subpartitions, this.bufferPoolFactory.getBufferSize());
 
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
@@ -132,12 +127,15 @@ public class ResultPartitionFactory {
 	}
 
 	private void createSubpartitions(
-		ResultPartition partition, ResultPartitionType type, ResultSubpartition[] subpartitions) {
+			ResultPartition partition,
+			ResultPartitionType type,
+			ResultSubpartition[] subpartitions,
+			int networkBufferSize) {
 
 		// Create the subpartitions.
 		switch (type) {
 			case BLOCKING:
-				initializeBoundedBlockingPartitions(subpartitions, partition, ioManager);
+				initializeBoundedBlockingPartitions(subpartitions, partition, ioManager, networkBufferSize);
 				break;
 
 			case PIPELINED:
@@ -156,13 +154,14 @@ public class ResultPartitionFactory {
 	private static void initializeBoundedBlockingPartitions(
 		ResultSubpartition[] subpartitions,
 		ResultPartition parent,
-		IOManager ioManager) {
+		IOManager ioManager,
+		int networkBufferSize) {
 
 		int i = 0;
 		try {
 			for (; i < subpartitions.length; i++) {
-				subpartitions[i] = new BoundedBlockingSubpartition(
-					i, parent, ioManager.createChannel().getPathFile().toPath());
+				final File spillFile = ioManager.createChannel().getPathFile();
+				subpartitions[i] = BOUNDED_BLOCKING_TYPE.create(i, parent, spillFile, networkBufferSize);
 			}
 		}
 		catch (IOException e) {
@@ -197,5 +196,17 @@ public class ResultPartitionFactory {
 				maxNumberOfMemorySegments,
 				type.hasBackPressure() ? Optional.empty() : Optional.of(p));
 		};
+	}
+
+	private static BoundedBlockingSubpartitionType getBoundedBlockingType() {
+		switch (MemoryArchitecture.get()) {
+			case _64_BIT:
+				return BoundedBlockingSubpartitionType.FILE_MMAP;
+			case _32_BIT:
+				return BoundedBlockingSubpartitionType.FILE;
+			default:
+				LOG.warn("Cannot determine memory architecture. Using pure file-based shuffle.");
+				return BoundedBlockingSubpartitionType.FILE;
+		}
 	}
 }

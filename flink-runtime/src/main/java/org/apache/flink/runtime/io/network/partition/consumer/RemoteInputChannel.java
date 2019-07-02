@@ -133,14 +133,14 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 * after this input channel is created.
 	 */
 	void assignExclusiveSegments() throws IOException {
-		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
+		checkState(initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
 			"already been set for this input channel.");
 
 		Collection<MemorySegment> segments = checkNotNull(memorySegmentProvider.requestMemorySegments());
 		checkArgument(!segments.isEmpty(), "The number of exclusive buffers per channel should be larger than 0.");
 
-		this.initialCredit = segments.size();
-		this.numRequiredBuffers = segments.size();
+		initialCredit = segments.size();
+		numRequiredBuffers = segments.size();
 
 		synchronized (bufferQueue) {
 			for (MemorySegment segment : segments) {
@@ -175,7 +175,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Retriggers a remote subpartition request.
 	 */
-	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException, InterruptedException {
+	void retriggerSubpartitionRequest(int subpartitionIndex) throws IOException {
 		checkState(partitionRequestClient != null, "Missing initial subpartition request.");
 
 		if (increaseBackoff()) {
@@ -201,7 +201,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			moreAvailable = !receivedBuffers.isEmpty();
 		}
 
-		numBytesIn.inc(next.getSizeUnsafe());
+		numBytesIn.inc(next.getSize());
 		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
 	}

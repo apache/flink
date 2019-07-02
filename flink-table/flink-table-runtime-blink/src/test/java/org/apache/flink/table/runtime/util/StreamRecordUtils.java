@@ -23,13 +23,8 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-
-import java.util.Date;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
@@ -116,11 +111,8 @@ public class StreamRecordUtils {
 				writer.writeLong(j, (Long) value);
 			} else if (value instanceof Boolean) {
 				writer.writeBoolean(j, (Boolean) value);
-			} else if (value instanceof Date) {
-				InternalType internalType = InternalTypes.DATE;
-				BinaryWriter.write(writer, j, value, internalType);
 			} else {
-				writer.setNullAt(j);
+				throw new RuntimeException("Not support yet!");
 			}
 		}
 

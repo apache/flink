@@ -37,7 +37,7 @@ import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.join.String2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.sort.StringNormalizedKeyComputer;
 import org.apache.flink.table.runtime.sort.StringRecordComparator;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.junit.Test;
@@ -59,9 +59,9 @@ public class String2SortMergeJoinOperatorTest {
 
 	private boolean leftIsSmall;
 	BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(
-			InternalTypes.STRING, InternalTypes.STRING);
+			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
 	private BaseRowTypeInfo joinedInfo = new BaseRowTypeInfo(
-			InternalTypes.STRING, InternalTypes.STRING, InternalTypes.STRING, InternalTypes.STRING);
+			new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH));
 
 	public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
 		this.leftIsSmall = leftIsSmall;
@@ -170,7 +170,7 @@ public class String2SortMergeJoinOperatorTest {
 				new GeneratedJoinCondition("", "", new Object[0]) {
 					@Override
 					public JoinCondition newInstance(ClassLoader classLoader) {
-						return (in1, in2) -> true;
+						return new Int2HashJoinOperatorTest.TrueCondition();
 					}
 				},
 				new GeneratedProjection("", "", new Object[0]) {

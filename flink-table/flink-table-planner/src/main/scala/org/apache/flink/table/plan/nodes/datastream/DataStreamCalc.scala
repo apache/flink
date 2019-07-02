@@ -26,11 +26,12 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl}
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.CRowProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
@@ -88,13 +89,13 @@ class DataStreamCalc(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val config = tableEnv.getConfig
+    val config = planner.getConfig
 
     val inputDataStream =
-      getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     // materialize time attributes in condition
     val condition = if (calcProgram.getCondition != null) {

@@ -18,25 +18,24 @@
 
 package org.apache.flink.table.runtime.batch.sql.agg
 
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.core.io.InputSplit
 
 import scala.collection.JavaConversions._
 import org.apache.flink.table.api.{TableSchema, _}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
-import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.table.util.DateTimeTestUtil.UTCTimestamp
 import org.apache.flink.table.util.{CountAggFunction, IntAvgAggFunction, IntSumAggFunction}
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Ignore, Test}
 
 class WindowAggregateITCase extends BatchTestBase {
@@ -398,17 +397,14 @@ class WindowAggregateITCase extends BatchTestBase {
     //      "a" -> new ColumnStats(10000000L, 1L, 8D, 8, 5, -5),
     //      "b" -> new ColumnStats(8000000L, 0L, 4D, 32, 6.1D, 0D),
     //      "c" -> new ColumnStats(9000000L, 0L, 1024D, 32, 6.1D, 0D))
-    val table = new BatchTableSource[Row] {
-      override def getReturnType: TypeInformation[Row] =
-        new RowTypeInfo(tableSchema.getFieldTypes, tableSchema.getFieldNames)
+    val table = new InputFormatTableSource[Row] {
+      override def getReturnType: TypeInformation[Row] = type3WithTimestamp
 
       //      override def getTableStats: TableStats = new TableStats(10000000L, colStats)
 
-      override def getBoundedStream(streamEnv: StreamExecutionEnvironment): DataStream[Row] = {
-        streamEnv.createInput(
-          new CollectionInputFormat[Row](data3WithTimestamp,
-            type3WithTimestamp.createSerializer(env.getConfig)),
-          type3WithTimestamp)
+      override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
+        new CollectionInputFormat[Row](data3WithTimestamp,
+          type3WithTimestamp.createSerializer(env.getConfig))
       }
 
       override def getTableSchema: TableSchema = tableSchema

@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.stream.sql.join
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, TableImpl}
 import org.apache.flink.table.plan.util.WindowJoinUtil
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.junit.Assert.assertEquals
@@ -133,6 +133,7 @@ class WindowJoinTest extends TableTestBase {
 
   @Test
   def testJoinWithEquiProcTime(): Unit = {
+    // TODO: this should be translated into window join
     val sqlQuery =
       """
         |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
@@ -144,6 +145,7 @@ class WindowJoinTest extends TableTestBase {
 
   @Test
   def testJoinWithEquiRowTime(): Unit = {
+    // TODO: this should be translated into window join
     val sqlQuery =
       """
         |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
@@ -409,7 +411,7 @@ class WindowJoinTest extends TableTestBase {
       """.stripMargin
 
     val table = util.tableEnv.sqlQuery(query)
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = TableTestUtil.toRelNode(table)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val rexNode = joinNode.getCondition
     val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
@@ -430,7 +432,7 @@ class WindowJoinTest extends TableTestBase {
       expectConditionStr: String): Unit = {
 
     val table = util.tableEnv.sqlQuery(sqlQuery)
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = TableTestUtil.toRelNode(table)
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val joinInfo = joinNode.analyzeCondition
     val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)

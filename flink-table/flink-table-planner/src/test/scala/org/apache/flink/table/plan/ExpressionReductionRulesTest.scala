@@ -31,7 +31,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceCalcExpressionForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -51,7 +51,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
@@ -76,7 +76,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceProjectExpressionForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -96,7 +96,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
@@ -120,7 +120,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceFilterExpressionForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "*" +
@@ -128,7 +128,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -155,7 +155,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
@@ -191,7 +191,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
@@ -218,7 +218,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -229,7 +229,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceCalcExpressionForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -249,7 +249,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
@@ -274,7 +274,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceProjectExpressionForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "(3+4)+a, " +
@@ -294,7 +294,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
@@ -318,7 +318,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testReduceFilterExpressionForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
       "*" +
@@ -326,7 +326,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -353,7 +353,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
@@ -389,7 +389,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
@@ -416,7 +416,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -428,7 +428,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   def testNestedTablesReductionStream(): Unit = {
     val util = streamTestUtil()
 
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val newTable = util.tableEnv.sqlQuery("SELECT 1 + 1 + a AS a FROM MyTable")
 
@@ -437,7 +437,10 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM NewTable"
 
     // 1+1 should be normalized to 2
-    val expected = unaryNode("DataStreamCalc", streamTableNode(0), term("select", "+(2, a) AS a"))
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(table),
+      term("select", "+(2, a) AS a"))
 
     util.verifySql(sqlQuery, expected)
   }
@@ -446,7 +449,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   def testNestedTablesReductionBatch(): Unit = {
     val util = batchTestUtil()
 
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val newTable = util.tableEnv.sqlQuery("SELECT 1 + 1 + a AS a FROM MyTable")
 
@@ -455,7 +458,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM NewTable"
 
     // 1+1 should be normalized to 2
-    val expected = unaryNode("DataSetCalc", batchTableNode(0), term("select", "+(2, a) AS a"))
+    val expected = unaryNode("DataSetCalc", batchTableNode(table), term("select", "+(2, a) AS a"))
 
     util.verifySql(sqlQuery, expected)
   }
@@ -472,7 +475,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
       .where("d.isNull")
       .select('a, 'b, 'c)
 
-    val expected: String = streamTableNode(0)
+    val expected: String = streamTableNode(table)
 
     util.verifyTable(result, expected)
   }
@@ -489,7 +492,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(table),
       term("select", "a", "b", "c"),
       term("where", s"IS NULL(NonDeterministicNullFunc$$())")
     )

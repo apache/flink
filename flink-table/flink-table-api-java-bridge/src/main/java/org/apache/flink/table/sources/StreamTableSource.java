@@ -28,6 +28,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 public interface StreamTableSource<T> extends TableSource<T> {
 
 	/**
+	 * Returns true if this is a bounded source, false if this is an unbounded source.
+	 * Default is unbounded for compatibility.
+	 */
+	default boolean isBounded() {
+		return false;
+	}
+
+	/**
 	 * Returns the data of the table as a {@link DataStream}.
 	 *
 	 *<p>NOTE: This method is for internal use only for defining a {@link TableSource}.

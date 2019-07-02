@@ -78,16 +78,10 @@ rm -r $EXTRACTED_JAR
 ELASTICSEARCH_INDEX='my_users'
 
 function sql_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_kafka_cluster
   shutdown_elasticsearch_cluster "$ELASTICSEARCH_INDEX"
 }
-trap sql_cleanup INT
-trap sql_cleanup EXIT
+on_exit sql_cleanup
 
 # prepare Kafka
 echo "Preparing Kafka..."

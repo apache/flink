@@ -18,8 +18,8 @@
 package org.apache.flink.table.runtime.harness
 
 import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
@@ -27,9 +27,10 @@ import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.table.JLong
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.runtime.utils.StreamingTestBase
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -83,7 +84,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
   }
 
   private def extractExpectedTransformation(
-      t: StreamTransformation[_],
+      t: Transformation[_],
       prefixOperatorName: String): OneInputTransformation[_, _] = {
     t match {
       case one: OneInputTransformation[_, _] =>
@@ -107,5 +108,13 @@ object HarnessTestBase {
   @Parameterized.Parameters(name = "StateBackend={0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
+  }
+
+  class TestingBaseRowKeySelector(
+    private val selectorField: Int) extends KeySelector[BaseRow, JLong] {
+
+    override def getKey(value: BaseRow): JLong = {
+      value.getLong(selectorField)
+    }
   }
 }

@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.calcite.FlinkTypeSystem;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.TypeConverters;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
@@ -34,12 +32,13 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 
 /**
  * built-in sum0 aggregate function.
  */
 public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression sum0 = new UnresolvedReferenceExpression("sum");
+	private UnresolvedReferenceExpression sum0 = unresolvedRef("sum");
 
 	@Override
 	public int operandCount() {
@@ -52,15 +51,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	}
 
 	@Override
-	public InternalType[] getAggBufferTypes() {
-		return new InternalType[] { TypeConverters.createInternalTypeFromTypeInfo(getResultType()) };
-	}
-
-	@Override
-	public Expression[] initialValuesExpressions() {
-		return new Expression[] {
-				/* sum0 = */ literal(0L, getResultType())
-		};
+	public DataType[] getAggBufferTypes() {
+		return new DataType[] { getResultType() };
 	}
 
 	@Override
@@ -95,8 +87,15 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	public static class IntSum0AggFunction extends Sum0AggFunction {
 
 		@Override
-		public TypeInformation getResultType() {
-			return Types.INT;
+		public DataType getResultType() {
+			return DataTypes.INT();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal(0, getResultType())
+			};
 		}
 	}
 
@@ -105,8 +104,15 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class ByteSum0AggFunction extends Sum0AggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.BYTE;
+		public DataType getResultType() {
+			return DataTypes.TINYINT();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal((byte) 0, getResultType())
+			};
 		}
 	}
 
@@ -115,8 +121,15 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class ShortSum0AggFunction extends Sum0AggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.SHORT;
+		public DataType getResultType() {
+			return DataTypes.SMALLINT();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal((short) 0, getResultType())
+			};
 		}
 	}
 
@@ -125,8 +138,15 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class LongSum0AggFunction extends Sum0AggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.LONG;
+		public DataType getResultType() {
+			return DataTypes.BIGINT();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {
+					/* sum0 = */ literal(0L, getResultType())
+			};
 		}
 	}
 
@@ -135,8 +155,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class FloatSum0AggFunction extends Sum0AggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.FLOAT;
+		public DataType getResultType() {
+			return DataTypes.FLOAT();
 		}
 
 		@Override
@@ -152,8 +172,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 */
 	public static class DoubleSum0AggFunction extends Sum0AggFunction {
 		@Override
-		public TypeInformation getResultType() {
-			return Types.DOUBLE;
+		public DataType getResultType() {
+			return DataTypes.DOUBLE();
 		}
 
 		@Override
@@ -168,16 +188,16 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 	 * Built-in Decimal Sum0 aggregate function.
 	 */
 	public static class DecimalSum0AggFunction extends Sum0AggFunction {
-		private DecimalTypeInfo decimalType;
+		private DecimalType decimalType;
 
-		public DecimalSum0AggFunction(DecimalTypeInfo decimalType) {
+		public DecimalSum0AggFunction(DecimalType decimalType) {
 			this.decimalType = decimalType;
 		}
 
 		@Override
-		public TypeInformation getResultType() {
-			DecimalType sumType = DecimalType.inferAggSumType(decimalType.scale());
-			return new DecimalTypeInfo(sumType.precision(), sumType.scale());
+		public DataType getResultType() {
+			DecimalType sumType = FlinkTypeSystem.inferAggSumType(decimalType.getScale());
+			return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
 		}
 
 		@Override

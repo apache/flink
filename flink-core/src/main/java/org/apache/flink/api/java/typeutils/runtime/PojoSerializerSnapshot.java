@@ -121,7 +121,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
 	@Override
 	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		checkArgument(readVersion == 2, "unrecognized read version %d", readVersion);
+		checkArgument(readVersion == 2, "unrecognized read version %s", readVersion);
 		snapshotData = PojoSerializerSnapshotData.createFrom(in, userCodeClassLoader);
 	}
 

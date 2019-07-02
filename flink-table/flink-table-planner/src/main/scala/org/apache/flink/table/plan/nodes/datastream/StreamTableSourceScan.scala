@@ -26,13 +26,15 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources._
-import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PunctuatedWatermarkAssigner, PreserveWatermarks}
+import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -83,7 +85,7 @@ class StreamTableSourceScan(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
@@ -91,15 +93,19 @@ class StreamTableSourceScan(
       isStreamTable = true,
       selectedFields)
 
-    val config = tableEnv.getConfig
-    val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
+    val config = planner.getConfig
+    val inputDataStream = tableSource.getDataStream(planner.getExecutionEnvironment)
+      .asInstanceOf[DataStream[Any]]
     val outputSchema = new RowSchema(this.getRowType)
 
+    val inputDataType = fromLegacyInfoToDataType(inputDataStream.getType)
+    val producedDataType = tableSource.getProducedDataType
+
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataStream.getType != tableSource.getReturnType) {
+    if (inputDataType != producedDataType) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of type ${inputDataStream.getType} that does not match with the " +
-        s"type ${tableSource.getReturnType} declared by the TableSource.getReturnType() method. " +
+        s"returned a DataStream of data type $inputDataType that does not match with the " +
+        s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
 
@@ -108,7 +114,7 @@ class StreamTableSourceScan(
       tableSource,
       selectedFields,
       cluster,
-      tableEnv.getRelBuilder,
+      planner.getRelBuilder,
       TimeIndicatorTypeInfo.ROWTIME_INDICATOR
     )
 

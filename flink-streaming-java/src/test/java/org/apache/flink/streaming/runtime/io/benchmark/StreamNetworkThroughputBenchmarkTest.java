@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.apache.flink.configuration.NetworkEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,7 +82,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
 
-		env.setUp(writers, channels, 100, false, writers * channels - 1, writers * channels * NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
+		env.setUp(writers, channels, 100, false, writers * channels - 1, writers * channels * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
 	}
 
 	@Test
@@ -94,7 +94,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
 
-		env.setUp(writers, channels, 100, false, writers * channels, writers * channels * NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1);
+		env.setUp(writers, channels, 100, false, writers * channels, writers * channels * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1);
 	}
 
 	@Test
@@ -104,7 +104,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		int channels = 2;
 
 		env.setUp(writers, channels, 100, false, writers * channels, writers * channels *
-			NetworkEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
+			NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
 		env.executeBenchmark(10_000);
 		env.tearDown();
 	}

@@ -88,6 +88,19 @@ class TableConfig {
   private var conf = GlobalConfiguration.loadConfiguration()
 
   /**
+    * Specifies the name of the initial catalog to be created when instantiating
+    * TableEnvironment.
+    */
+  private var builtInCatalogName = "default_catalog"
+
+  /**
+    * Specifies the name of the default database in the initial catalog to be created when
+    * instantiating
+    * TableEnvironment.
+    */
+  private var builtInDatabaseName = "default_database"
+
+  /**
    * Sets the timezone for date/time/timestamp conversions.
    */
   def setTimeZone(timeZone: TimeZone): Unit = {
@@ -265,6 +278,37 @@ class TableConfig {
   }
 
   def getLateFireInterval: Long = lateFireInterval
+
+  /**
+    * Gets the specified name of the initial catalog to be created when instantiating
+    * a [[TableEnvironment]].
+    */
+  def getBuiltInCatalogName: String = builtInCatalogName
+
+  /**
+    * Specifies the name of the initial catalog to be created when instantiating
+    * a [[TableEnvironment]]. This method has no effect if called on the
+    * [[TableEnvironment#getConfig()]].
+    */
+  def setBuiltInCatalogName(builtInCatalogName: String): Unit = {
+    this.builtInCatalogName = builtInCatalogName
+  }
+
+  /**
+    * Gets the specified name of the default database in the initial catalog to be created when
+    * instantiating a [[TableEnvironment]].
+    */
+  def getBuiltInDatabaseName: String = builtInDatabaseName
+
+  /**
+    * Specifies the name of the default database in the initial catalog to be created when
+    * instantiating a [[TableEnvironment]]. This method has no effect if called on the
+    * [[TableEnvironment#getConfig()]].
+    */
+  def setBuiltInDatabaseName(builtInDatabaseName: String): Unit = {
+    this.builtInDatabaseName = builtInDatabaseName
+  }
+
 }
 
 object TableConfig {

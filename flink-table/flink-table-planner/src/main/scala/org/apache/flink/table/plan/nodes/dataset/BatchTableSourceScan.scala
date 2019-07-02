@@ -23,12 +23,17 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.io.InputFormat
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl, TableException, Types}
+import org.apache.flink.core.io.InputSplit
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
+import org.apache.flink.table.api.{BatchQueryConfig, TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.sources._
+import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
@@ -36,7 +41,7 @@ class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    tableSource: BatchTableSource[_],
+    tableSource: TableSource[_],
     selectedFields: Option[Array[Int]])
   extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource, selectedFields)
   with BatchScan {
@@ -73,7 +78,7 @@ class BatchTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      newTableSource.asInstanceOf[BatchTableSource[_]],
+      tableSource,
       selectedFields
     )
   }
@@ -88,14 +93,31 @@ class BatchTableSourceScan(
       selectedFields)
 
     val config = tableEnv.getConfig
-    val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
+    val inputDataSet = tableSource match {
+      case batchSource: BatchTableSource[_] =>
+        batchSource.getDataSet(tableEnv.execEnv)
+      case boundedSource: InputFormatTableSource[_] =>
+        val resultType = fromDataTypeToLegacyInfo(boundedSource.getProducedDataType)
+            .asInstanceOf[TypeInformation[Any]]
+        val inputFormat = boundedSource.getInputFormat
+          .asInstanceOf[InputFormat[Any, _ <: InputSplit]]
+        tableEnv.execEnv
+          .createInput(inputFormat, resultType)
+          .name(boundedSource.explainSource)
+          .asInstanceOf[DataSet[_]]
+      case _ => throw new TableException("Only BatchTableSource and InputFormatTableSource are " +
+        "supported in BatchTableEnvironment.")
+    }
     val outputSchema = new RowSchema(this.getRowType)
 
+    val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType)
+    val producedDataType = tableSource.getProducedDataType
+
     // check that declared and actual type of table source DataSet are identical
-    if (inputDataSet.getType != tableSource.getReturnType) {
+    if (inputDataType != producedDataType) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataSet of type ${inputDataSet.getType} that does not match with the " +
-        s"type ${tableSource.getReturnType} declared by the TableSource.getReturnType() method. " +
+        s"returned a DataSet of data type $inputDataType that does not match with the " +
+        s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
 

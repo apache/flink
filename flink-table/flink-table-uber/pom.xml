@@ -45,6 +45,11 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -87,6 +92,7 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-table-common</include>
+									<include>org.apache.flink:flink-sql-parser</include>
 									<include>org.apache.flink:flink-table-api-java</include>
 									<include>org.apache.flink:flink-table-api-scala_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-table-api-java-bridge_${scala.binary.version}</include>

@@ -16,37 +16,19 @@
 # limitations under the License.
 ################################################################################
 
-import os
-
-from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_group_by(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT, DataTypes.STRING, DataTypes.STRING]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello"), (2, "Hello", "Hello")]
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
-        source = t_env.scan("Source")
-        field_names = ["a", "b"]
-        field_types = [DataTypes.INT, DataTypes.STRING]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
-
-        result = source.group_by("c").select("a.sum, c as b")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['5,Hello']
-        self.assert_equals(actual, expected)
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        result = t.group_by("c").select("a.sum, c as b")
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
+        self.assertEqual("[`default_catalog`.`default_database`.`as`("
+                         "`default_catalog`.`default_database`.`sum`(a), 'EXPR$0')]",
+                         query_operation.getAggregateExpressions().toString())
 
 
 if __name__ == '__main__':

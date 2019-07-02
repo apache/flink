@@ -18,10 +18,7 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.`type`.RowType
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
@@ -29,11 +26,14 @@ import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TimeIndicatorTypeInfo}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -48,43 +48,43 @@ object ScanUtil {
         indexes.contains(TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER)||
         indexes.contains(TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
 
-  private[flink] def needsConversion(dataType: TypeInformation[_], clz: Class[_]): Boolean =
-    createInternalTypeFromTypeInfo(dataType) match {
+  private[flink] def needsConversion(dataType: DataType, clz: Class[_]): Boolean =
+    fromDataTypeToLogicalType(dataType) match {
       case _: RowType => !CodeGenUtils.isInternalClass(clz, dataType)
       case _ => true
     }
 
   private[flink] def convertToInternalRow(
       ctx: CodeGeneratorContext,
-      input: StreamTransformation[Any],
+      input: Transformation[Any],
       fieldIndexes: Array[Int],
-      inputType: TypeInformation[_],
+      inputType: DataType,
       outRowType: RelDataType,
       qualifiedName: Seq[String],
       config: TableConfig,
       rowtimeExpr: Option[RexNode] = None,
       beforeConvert: String = "",
-      afterConvert: String = ""): StreamTransformation[BaseRow] = {
+      afterConvert: String = ""): Transformation[BaseRow] = {
 
-    val outputRowType = FlinkTypeFactory.toInternalRowType(outRowType)
+    val outputRowType = FlinkTypeFactory.toLogicalRowType(outRowType)
 
     // conversion
     val convertName = "SourceConversion"
     // type convert
     val inputTerm = DEFAULT_INPUT1_TERM
-    val internalInType = createInternalTypeFromTypeInfo(inputType)
+    val internalInType = fromDataTypeToLogicalType(inputType)
     val (inputTermConverter, inputRowType) = {
       val convertFunc = CodeGenUtils.genToInternal(ctx, inputType)
       internalInType match {
         case rt: RowType => (convertFunc, rt)
         case _ => ((record: String) => s"$GENERIC_ROW.of(${convertFunc(record)})",
-            new RowType(internalInType))
+            RowType.of(internalInType))
       }
     }
 
     val processCode =
-      if ((inputRowType.getFieldTypes sameElements outputRowType.getFieldTypes) &&
-          (inputRowType.getFieldNames sameElements outputRowType.getFieldNames) &&
+      if ((inputRowType.getChildren == outputRowType.getChildren) &&
+          (inputRowType.getFieldNames == outputRowType.getFieldNames) &&
           !hasTimeAttributeField(fieldIndexes)) {
         s"${generateCollect(inputTerm)}"
       } else {
@@ -118,7 +118,7 @@ object ScanUtil {
       input,
       getOperatorName(qualifiedName, outRowType),
       substituteStreamOperator,
-      outputRowType.toTypeInfo,
+      BaseRowTypeInfo.of(outputRowType),
       input.getParallelism)
   }
 

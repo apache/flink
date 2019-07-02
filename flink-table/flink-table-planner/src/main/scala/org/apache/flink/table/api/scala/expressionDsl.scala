@@ -20,14 +20,17 @@ package org.apache.flink.table.api.scala
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
+import java.time.{LocalDate, LocalDateTime}
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{Over, Table, ValidationException}
-import org.apache.flink.table.expressions.ApiExpressionUtils._
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions.{WITH_COLUMNS, RANGE_TO, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.{DataTypes, Over, Table, ValidationException}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{RANGE_TO, WITH_COLUMNS, E => FDE, UUID => FDUUID, _}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper, _}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import _root_.scala.language.implicitConversions
 
@@ -53,42 +56,42 @@ trait ImplicitExpressionOperations {
   /**
     * Boolean AND in three-valued logic.
     */
-  def && (other: Expression): Expression = call(AND, expr, other)
+  def && (other: Expression): Expression = unresolvedCall(AND, expr, other)
 
   /**
     * Boolean OR in three-valued logic.
     */
-  def || (other: Expression): Expression = call(OR, expr, other)
+  def || (other: Expression): Expression = unresolvedCall(OR, expr, other)
 
   /**
     * Greater than.
     */
-  def > (other: Expression): Expression = call(GREATER_THAN, expr, other)
+  def > (other: Expression): Expression = unresolvedCall(GREATER_THAN, expr, other)
 
   /**
     * Greater than or equal.
     */
-  def >= (other: Expression): Expression = call(GREATER_THAN_OR_EQUAL, expr, other)
+  def >= (other: Expression): Expression = unresolvedCall(GREATER_THAN_OR_EQUAL, expr, other)
 
   /**
     * Less than.
     */
-  def < (other: Expression): Expression = call(LESS_THAN, expr, other)
+  def < (other: Expression): Expression = unresolvedCall(LESS_THAN, expr, other)
 
   /**
     * Less than or equal.
     */
-  def <= (other: Expression): Expression = call(LESS_THAN_OR_EQUAL, expr, other)
+  def <= (other: Expression): Expression = unresolvedCall(LESS_THAN_OR_EQUAL, expr, other)
 
   /**
     * Equals.
     */
-  def === (other: Expression): Expression = call(EQUALS, expr, other)
+  def === (other: Expression): Expression = unresolvedCall(EQUALS, expr, other)
 
   /**
     * Not equal.
     */
-  def !== (other: Expression): Expression = call(NOT_EQUALS, expr, other)
+  def !== (other: Expression): Expression = unresolvedCall(NOT_EQUALS, expr, other)
 
   /**
     * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
@@ -99,7 +102,7 @@ trait ImplicitExpressionOperations {
     * @return boolean or null
     */
   def between(lowerBound: Expression, upperBound: Expression): Expression =
-    call(BETWEEN, expr, lowerBound, upperBound)
+    unresolvedCall(BETWEEN, expr, lowerBound, upperBound)
 
   /**
     * Returns true if the given expression is not between lowerBound and upperBound (both
@@ -111,17 +114,17 @@ trait ImplicitExpressionOperations {
     * @return boolean or null
     */
   def notBetween(lowerBound: Expression, upperBound: Expression): Expression =
-    call(NOT_BETWEEN, expr, lowerBound, upperBound)
+    unresolvedCall(NOT_BETWEEN, expr, lowerBound, upperBound)
 
   /**
     * Whether boolean expression is not true; returns null if boolean is null.
     */
-  def unary_! : Expression = call(NOT, expr)
+  def unary_! : Expression = unresolvedCall(NOT, expr)
 
   /**
     * Returns negative numeric.
     */
-  def unary_- : Expression = call(MINUS_PREFIX, expr)
+  def unary_- : Expression = unresolvedCall(MINUS_PREFIX, expr)
 
   /**
     * Returns numeric.
@@ -131,52 +134,52 @@ trait ImplicitExpressionOperations {
   /**
     * Returns true if the given expression is null.
     */
-  def isNull: Expression = call(IS_NULL, expr)
+  def isNull: Expression = unresolvedCall(IS_NULL, expr)
 
   /**
     * Returns true if the given expression is not null.
     */
-  def isNotNull: Expression = call(IS_NOT_NULL, expr)
+  def isNotNull: Expression = unresolvedCall(IS_NOT_NULL, expr)
 
   /**
     * Returns true if given boolean expression is true. False otherwise (for null and false).
     */
-  def isTrue: Expression = call(IS_TRUE, expr)
+  def isTrue: Expression = unresolvedCall(IS_TRUE, expr)
 
   /**
     * Returns true if given boolean expression is false. False otherwise (for null and true).
     */
-  def isFalse: Expression = call(IS_FALSE, expr)
+  def isFalse: Expression = unresolvedCall(IS_FALSE, expr)
 
   /**
     * Returns true if given boolean expression is not true (for null and false). False otherwise.
     */
-  def isNotTrue: Expression = call(IS_NOT_TRUE, expr)
+  def isNotTrue: Expression = unresolvedCall(IS_NOT_TRUE, expr)
 
   /**
     * Returns true if given boolean expression is not false (for null and true). False otherwise.
     */
-  def isNotFalse: Expression = call(IS_NOT_FALSE, expr)
+  def isNotFalse: Expression = unresolvedCall(IS_NOT_FALSE, expr)
 
   /**
     * Returns left plus right.
     */
-  def + (other: Expression): Expression = call(PLUS, expr, other)
+  def + (other: Expression): Expression = unresolvedCall(PLUS, expr, other)
 
   /**
     * Returns left minus right.
     */
-  def - (other: Expression): Expression = call(MINUS, expr, other)
+  def - (other: Expression): Expression = unresolvedCall(MINUS, expr, other)
 
   /**
     * Returns left divided by right.
     */
-  def / (other: Expression): Expression = call(DIVIDE, expr, other)
+  def / (other: Expression): Expression = unresolvedCall(DIVIDE, expr, other)
 
   /**
     * Returns left multiplied by right.
     */
-  def * (other: Expression): Expression = call(TIMES, expr, other)
+  def * (other: Expression): Expression = unresolvedCall(TIMES, expr, other)
 
   /**
     * Returns the remainder (modulus) of left divided by right.
@@ -188,7 +191,7 @@ trait ImplicitExpressionOperations {
     * Indicates the range from left to right, i.e. [left, right], which can be used in columns
     * selection, e.g.: withColumns(1 to 3).
     */
-  def to (other: Expression): Expression = call(RANGE_TO, expr, other)
+  def to (other: Expression): Expression = unresolvedCall(RANGE_TO, expr, other)
 
   /**
     * Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
@@ -202,74 +205,85 @@ trait ImplicitExpressionOperations {
     *   .select('a, 'b.sum.distinct as 'd)
     * }}}
     */
-  def distinct: Expression = call(DISTINCT, expr)
+  def distinct: Expression = unresolvedCall(DISTINCT, expr)
 
   /**
     * Returns the sum of the numeric field across all input values.
     * If all values are null, null is returned.
     */
-  def sum: Expression = call(SUM, expr)
+  def sum: Expression = unresolvedCall(SUM, expr)
 
   /**
     * Returns the sum of the numeric field across all input values.
     * If all values are null, 0 is returned.
     */
-  def sum0: Expression = call(SUM0, expr)
+  def sum0: Expression = unresolvedCall(SUM0, expr)
 
   /**
     * Returns the minimum value of field across all input values.
     */
-  def min: Expression = call(MIN, expr)
+  def min: Expression = unresolvedCall(MIN, expr)
 
   /**
     * Returns the maximum value of field across all input values.
     */
-  def max: Expression = call(MAX, expr)
+  def max: Expression = unresolvedCall(MAX, expr)
 
   /**
     * Returns the number of input rows for which the field is not null.
     */
-  def count: Expression = call(COUNT, expr)
+  def count: Expression = unresolvedCall(COUNT, expr)
 
   /**
     * Returns the average (arithmetic mean) of the numeric field across all input values.
     */
-  def avg: Expression = call(AVG, expr)
+  def avg: Expression = unresolvedCall(AVG, expr)
 
   /**
     * Returns the population standard deviation of an expression (the square root of varPop()).
     */
-  def stddevPop: Expression = call(STDDEV_POP, expr)
+  def stddevPop: Expression = unresolvedCall(STDDEV_POP, expr)
 
   /**
     * Returns the sample standard deviation of an expression (the square root of varSamp()).
     */
-  def stddevSamp: Expression = call(STDDEV_SAMP, expr)
+  def stddevSamp: Expression = unresolvedCall(STDDEV_SAMP, expr)
 
   /**
     * Returns the population standard variance of an expression.
     */
-  def varPop: Expression = call(VAR_POP, expr)
+  def varPop: Expression = unresolvedCall(VAR_POP, expr)
 
   /**
     *  Returns the sample variance of a given expression.
     */
-  def varSamp: Expression = call(VAR_SAMP, expr)
+  def varSamp: Expression = unresolvedCall(VAR_SAMP, expr)
 
   /**
     * Returns multiset aggregate of a given expression.
     */
-  def collect: Expression = call(COLLECT, expr)
+  def collect: Expression = unresolvedCall(COLLECT, expr)
 
   /**
-    * Converts a value to a given type.
+    * Converts a value to a given data type.
     *
-    * e.g. "42".cast(Types.INT) leads to 42.
+    * e.g. "42".cast(DataTypes.INT()) leads to 42.
     *
     * @return casted expression
     */
+  def cast(toType: DataType): Expression =
+    unresolvedCall(CAST, expr, typeLiteral(toType))
+
+  /**
+    * @deprecated This method will be removed in future versions as it uses the old type system. It
+    *             is recommended to use [[cast(DataType)]] instead which uses the new type system
+    *             based on [[DataTypes]]. Please make sure to use either the old or the new type
+    *             system consistently to avoid unintended behavior. See the website documentation
+    *             for more information.
+    */
+  @deprecated
   def cast(toType: TypeInformation[_]): Expression =
-    call(CAST, expr, typeLiteral(toType))
+    unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(toType)))
 
   /**
     * Specifies a name for an expression i.e. a field.
@@ -279,21 +293,23 @@ trait ImplicitExpressionOperations {
     * @return field with an alias
     */
   def as(name: Symbol, extraNames: Symbol*): Expression =
-    call(AS, expr +: valueLiteral(name.name) +: extraNames.map(name => valueLiteral(name.name)): _*)
+    unresolvedCall(
+      AS,
+      expr +: valueLiteral(name.name) +: extraNames.map(name => valueLiteral(name.name)): _*)
 
   /**
     * Specifies ascending order of an expression i.e. a field for orderBy call.
     *
     * @return ascend expression
     */
-  def asc: Expression = call(ORDER_ASC, expr)
+  def asc: Expression = unresolvedCall(ORDER_ASC, expr)
 
   /**
     * Specifies descending order of an expression i.e. a field for orderBy call.
     *
     * @return descend expression
     */
-  def desc: Expression = call(ORDER_DESC, expr)
+  def desc: Expression = unresolvedCall(ORDER_DESC, expr)
 
   /**
     * Returns true if an expression exists in a given list of expressions. This is a shorthand
@@ -304,7 +320,7 @@ trait ImplicitExpressionOperations {
     *
     * e.g. "42".in(1, 2, 3) leads to false.
     */
-  def in(elements: Expression*): Expression = call(IN, expr +: elements: _*)
+  def in(elements: Expression*): Expression = unresolvedCall(IN, expr +: elements: _*)
 
   /**
     * Returns true if an expression exists in a given table sub-query. The sub-query table
@@ -312,19 +328,19 @@ trait ImplicitExpressionOperations {
     *
     * Note: This operation is not supported in a streaming environment yet.
     */
-  def in(table: Table): Expression = call(IN, expr, tableRef(table.toString, table))
+  def in(table: Table): Expression = unresolvedCall(IN, expr, tableRef(table.toString, table))
 
   /**
     * Returns the start time (inclusive) of a window when applied on a window reference.
     */
-  def start: Expression = call(WINDOW_START, expr)
+  def start: Expression = unresolvedCall(WINDOW_START, expr)
 
   /**
     * Returns the end time (exclusive) of a window when applied on a window reference.
     *
     * e.g. if a window ends at 10:59:59.999 this property will return 11:00:00.000.
     */
-  def end: Expression = call(WINDOW_END, expr)
+  def end: Expression = unresolvedCall(WINDOW_END, expr)
 
   /**
     * Ternary conditional operator that decides which of two other expressions should be
@@ -335,145 +351,146 @@ trait ImplicitExpressionOperations {
     * @param ifTrue expression to be evaluated if condition holds
     * @param ifFalse expression to be evaluated if condition does not hold
     */
-  def ?(ifTrue: Expression, ifFalse: Expression): Expression = call(IF, expr, ifTrue, ifFalse)
+  def ?(ifTrue: Expression, ifFalse: Expression): Expression =
+    unresolvedCall(IF, expr, ifTrue, ifFalse)
 
   // scalar functions
 
   /**
     * Calculates the remainder of division the given number by another one.
     */
-  def mod(other: Expression): Expression = call(MOD, expr, other)
+  def mod(other: Expression): Expression = unresolvedCall(MOD, expr, other)
 
   /**
     * Calculates the Euler's number raised to the given power.
     */
-  def exp(): Expression = call(EXP, expr)
+  def exp(): Expression = unresolvedCall(EXP, expr)
 
   /**
     * Calculates the base 10 logarithm of the given value.
     */
-  def log10(): Expression = call(LOG10, expr)
+  def log10(): Expression = unresolvedCall(LOG10, expr)
 
   /**
     * Calculates the base 2 logarithm of the given value.
     */
-  def log2(): Expression = call(LOG2, expr)
+  def log2(): Expression = unresolvedCall(LOG2, expr)
 
   /**
     * Calculates the natural logarithm of the given value.
     */
-  def ln(): Expression = call(LN, expr)
+  def ln(): Expression = unresolvedCall(LN, expr)
 
   /**
     * Calculates the natural logarithm of the given value.
     */
-  def log(): Expression = call(LOG, expr)
+  def log(): Expression = unresolvedCall(LOG, expr)
 
   /**
     * Calculates the logarithm of the given value to the given base.
     */
-  def log(base: Expression): Expression = call(LOG, base, expr)
+  def log(base: Expression): Expression = unresolvedCall(LOG, base, expr)
 
   /**
     * Calculates the given number raised to the power of the other value.
     */
-  def power(other: Expression): Expression = call(POWER, expr, other)
+  def power(other: Expression): Expression = unresolvedCall(POWER, expr, other)
 
   /**
     * Calculates the hyperbolic cosine of a given value.
     */
-  def cosh(): Expression = call(COSH, expr)
+  def cosh(): Expression = unresolvedCall(COSH, expr)
 
   /**
     * Calculates the square root of a given value.
     */
-  def sqrt(): Expression = call(SQRT, expr)
+  def sqrt(): Expression = unresolvedCall(SQRT, expr)
 
   /**
     * Calculates the absolute value of given value.
     */
-  def abs(): Expression = call(ABS, expr)
+  def abs(): Expression = unresolvedCall(ABS, expr)
 
   /**
     * Calculates the largest integer less than or equal to a given number.
     */
-  def floor(): Expression = call(FLOOR, expr)
+  def floor(): Expression = unresolvedCall(FLOOR, expr)
 
   /**
     * Calculates the hyperbolic sine of a given value.
     */
-  def sinh(): Expression = call(SINH, expr)
+  def sinh(): Expression = unresolvedCall(SINH, expr)
 
   /**
     * Calculates the smallest integer greater than or equal to a given number.
     */
-  def ceil(): Expression = call(CEIL, expr)
+  def ceil(): Expression = unresolvedCall(CEIL, expr)
 
   /**
     * Calculates the sine of a given number.
     */
-  def sin(): Expression = call(SIN, expr)
+  def sin(): Expression = unresolvedCall(SIN, expr)
 
   /**
     * Calculates the cosine of a given number.
     */
-  def cos(): Expression = call(COS, expr)
+  def cos(): Expression = unresolvedCall(COS, expr)
 
   /**
     * Calculates the tangent of a given number.
     */
-  def tan(): Expression = call(TAN, expr)
+  def tan(): Expression = unresolvedCall(TAN, expr)
 
   /**
     * Calculates the cotangent of a given number.
     */
-  def cot(): Expression = call(COT, expr)
+  def cot(): Expression = unresolvedCall(COT, expr)
 
   /**
     * Calculates the arc sine of a given number.
     */
-  def asin(): Expression = call(ASIN, expr)
+  def asin(): Expression = unresolvedCall(ASIN, expr)
 
   /**
     * Calculates the arc cosine of a given number.
     */
-  def acos(): Expression = call(ACOS, expr)
+  def acos(): Expression = unresolvedCall(ACOS, expr)
 
   /**
     * Calculates the arc tangent of a given number.
     */
-  def atan(): Expression = call(ATAN, expr)
+  def atan(): Expression = unresolvedCall(ATAN, expr)
 
   /**
     * Calculates the hyperbolic tangent of a given number.
     */
-  def tanh(): Expression = call(TANH, expr)
+  def tanh(): Expression = unresolvedCall(TANH, expr)
 
   /**
     * Converts numeric from radians to degrees.
     */
-  def degrees(): Expression = call(DEGREES, expr)
+  def degrees(): Expression = unresolvedCall(DEGREES, expr)
 
   /**
     * Converts numeric from degrees to radians.
     */
-  def radians(): Expression = call(RADIANS, expr)
+  def radians(): Expression = unresolvedCall(RADIANS, expr)
 
   /**
     * Calculates the signum of a given number.
     */
-  def sign(): Expression = call(SIGN, expr)
+  def sign(): Expression = unresolvedCall(SIGN, expr)
 
   /**
     * Rounds the given number to integer places right to the decimal point.
     */
-  def round(places: Expression): Expression = call(ROUND, expr, places)
+  def round(places: Expression): Expression = unresolvedCall(ROUND, expr, places)
 
   /**
     * Returns a string representation of an integer numeric value in binary format. Returns null if
     * numeric is null. E.g. "4" leads to "100", "12" leads to "1100".
     */
-  def bin(): Expression = call(BIN, expr)
+  def bin(): Expression = unresolvedCall(BIN, expr)
 
   /**
     * Returns a string representation of an integer numeric value or a string in hex format. Returns
@@ -482,7 +499,7 @@ trait ImplicitExpressionOperations {
     * E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", and a string "hello,world" leads
     * to "68656c6c6f2c776f726c64".
     */
-  def hex(): Expression = call(HEX, expr)
+  def hex(): Expression = unresolvedCall(HEX, expr)
 
   /**
     * Returns a number of truncated to n decimal places.
@@ -490,13 +507,13 @@ trait ImplicitExpressionOperations {
     * n can be negative to cause n digits left of the decimal point of the value to become zero.
     * E.g. truncate(42.345, 2) to 42.34.
     */
-  def truncate(n: Expression): Expression = call(TRUNCATE, expr, n)
+  def truncate(n: Expression): Expression = unresolvedCall(TRUNCATE, expr, n)
 
   /**
     * Returns a number of truncated to 0 decimal places.
     * E.g. truncate(42.345) to 42.0.
     */
-  def truncate(): Expression = call(TRUNCATE, expr)
+  def truncate(): Expression = unresolvedCall(TRUNCATE, expr)
 
   // String operations
 
@@ -508,7 +525,7 @@ trait ImplicitExpressionOperations {
     * @return substring
     */
   def substring(beginIndex: Expression, length: Expression): Expression =
-    call(SUBSTRING, expr, beginIndex, length)
+    unresolvedCall(SUBSTRING, expr, beginIndex, length)
 
   /**
     * Creates a substring of the given string beginning at the given index to the end.
@@ -517,7 +534,7 @@ trait ImplicitExpressionOperations {
     * @return substring
     */
   def substring(beginIndex: Expression): Expression =
-    call(SUBSTRING, expr, beginIndex)
+    unresolvedCall(SUBSTRING, expr, beginIndex)
 
   /**
     * Removes leading and/or trailing characters from the given string.
@@ -532,7 +549,7 @@ trait ImplicitExpressionOperations {
       removeTrailing: Boolean = true,
       character: Expression = valueLiteral(" "))
     : Expression = {
-    call(TRIM, valueLiteral(removeLeading), valueLiteral(removeTrailing), character, expr)
+    unresolvedCall(TRIM, valueLiteral(removeLeading), valueLiteral(removeTrailing), character, expr)
   }
 
   /**
@@ -540,44 +557,44 @@ trait ImplicitExpressionOperations {
     * with the replacement string (non-overlapping).
     */
   def replace(search: Expression, replacement: Expression): Expression =
-    call(REPLACE, expr, search, replacement)
+    unresolvedCall(REPLACE, expr, search, replacement)
 
   /**
     * Returns the length of a string.
     */
-  def charLength(): Expression = call(CHAR_LENGTH, expr)
+  def charLength(): Expression = unresolvedCall(CHAR_LENGTH, expr)
 
   /**
     * Returns all of the characters in a string in upper case using the rules of
     * the default locale.
     */
-  def upperCase(): Expression = call(UPPER, expr)
+  def upperCase(): Expression = unresolvedCall(UPPER, expr)
 
   /**
     * Returns all of the characters in a string in lower case using the rules of
     * the default locale.
     */
-  def lowerCase(): Expression = call(LOWER, expr)
+  def lowerCase(): Expression = unresolvedCall(LOWER, expr)
 
   /**
     * Converts the initial letter of each word in a string to uppercase.
     * Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.
     */
-  def initCap(): Expression = call(INIT_CAP, expr)
+  def initCap(): Expression = unresolvedCall(INIT_CAP, expr)
 
   /**
     * Returns true, if a string matches the specified LIKE pattern.
     *
     * e.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n"
     */
-  def like(pattern: Expression): Expression = call(LIKE, expr, pattern)
+  def like(pattern: Expression): Expression = unresolvedCall(LIKE, expr, pattern)
 
   /**
     * Returns true, if a string matches the specified SQL regex pattern.
     *
     * e.g. "A+" matches all strings that consist of at least one A
     */
-  def similar(pattern: Expression): Expression = call(SIMILAR, expr, pattern)
+  def similar(pattern: Expression): Expression = unresolvedCall(SIMILAR, expr, pattern)
 
   /**
     * Returns the position of string in an other string starting at 1.
@@ -585,7 +602,7 @@ trait ImplicitExpressionOperations {
     *
     * e.g. "a".position("bbbbba") leads to 6
     */
-  def position(haystack: Expression): Expression = call(POSITION, expr, haystack)
+  def position(haystack: Expression): Expression = unresolvedCall(POSITION, expr, haystack)
 
   /**
     * Returns a string left-padded with the given pad string to a length of len characters. If
@@ -593,7 +610,7 @@ trait ImplicitExpressionOperations {
     *
     * e.g. "hi".lpad(4, '??') returns "??hi",  "hi".lpad(1, '??') returns "h"
     */
-  def lpad(len: Expression, pad: Expression): Expression = call(LPAD, expr, len, pad)
+  def lpad(len: Expression, pad: Expression): Expression = unresolvedCall(LPAD, expr, len, pad)
 
   /**
     * Returns a string right-padded with the given pad string to a length of len characters. If
@@ -601,7 +618,7 @@ trait ImplicitExpressionOperations {
     *
     * e.g. "hi".rpad(4, '??') returns "hi??",  "hi".rpad(1, '??') returns "h"
     */
-  def rpad(len: Expression, pad: Expression): Expression = call(RPAD, expr, len, pad)
+  def rpad(len: Expression, pad: Expression): Expression = unresolvedCall(RPAD, expr, len, pad)
 
   /**
     * Defines an aggregation to be used for a previously specified over window.
@@ -614,7 +631,7 @@ trait ImplicitExpressionOperations {
     *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
     * }}}
     */
-  def over(alias: Expression): Expression = call(OVER, expr, alias)
+  def over(alias: Expression): Expression = unresolvedCall(OVER, expr, alias)
 
   /**
     * Replaces a substring of string with a string starting at a position (starting at 1).
@@ -622,7 +639,7 @@ trait ImplicitExpressionOperations {
     * e.g. "xxxxxtest".overlay("xxxx", 6) leads to "xxxxxxxxx"
     */
   def overlay(newString: Expression, starting: Expression): Expression =
-    call(OVERLAY, expr, newString, starting)
+    unresolvedCall(OVERLAY, expr, newString, starting)
 
   /**
     * Replaces a substring of string with a string starting at a position (starting at 1).
@@ -631,70 +648,72 @@ trait ImplicitExpressionOperations {
     * e.g. "xxxxxtest".overlay("xxxx", 6, 2) leads to "xxxxxxxxxst"
     */
   def overlay(newString: Expression, starting: Expression, length: Expression): Expression =
-    call(OVERLAY, expr, newString, starting, length)
+    unresolvedCall(OVERLAY, expr, newString, starting, length)
 
   /**
     * Returns a string with all substrings that match the regular expression consecutively
     * being replaced.
     */
   def regexpReplace(regex: Expression, replacement: Expression): Expression =
-    call(REGEXP_REPLACE, expr, regex, replacement)
+    unresolvedCall(REGEXP_REPLACE, expr, regex, replacement)
 
   /**
     * Returns a string extracted with a specified regular expression and a regex match group
     * index.
     */
   def regexpExtract(regex: Expression, extractIndex: Expression): Expression =
-    call(REGEXP_EXTRACT, expr, regex, extractIndex)
+    unresolvedCall(REGEXP_EXTRACT, expr, regex, extractIndex)
 
   /**
     * Returns a string extracted with a specified regular expression.
     */
   def regexpExtract(regex: Expression): Expression =
-    call(REGEXP_EXTRACT, expr, regex)
+    unresolvedCall(REGEXP_EXTRACT, expr, regex)
 
   /**
     * Returns the base string decoded with base64.
     */
-  def fromBase64(): Expression = call(FROM_BASE64, expr)
+  def fromBase64(): Expression = unresolvedCall(FROM_BASE64, expr)
 
   /**
     * Returns the base64-encoded result of the input string.
     */
-  def toBase64(): Expression = call(TO_BASE64, expr)
+  def toBase64(): Expression = unresolvedCall(TO_BASE64, expr)
 
   /**
     * Returns a string that removes the left whitespaces from the given string.
     */
-  def ltrim(): Expression = call(LTRIM, expr)
+  def ltrim(): Expression = unresolvedCall(LTRIM, expr)
 
   /**
     * Returns a string that removes the right whitespaces from the given string.
     */
-  def rtrim(): Expression = call(RTRIM, expr)
+  def rtrim(): Expression = unresolvedCall(RTRIM, expr)
 
   /**
     * Returns a string that repeats the base string n times.
     */
-  def repeat(n: Expression): Expression = call(REPEAT, expr, n)
+  def repeat(n: Expression): Expression = unresolvedCall(REPEAT, expr, n)
 
   // Temporal operations
 
   /**
     * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
     */
-  def toDate: Expression = call(CAST, expr, typeLiteral(SqlTimeTypeInfo.DATE))
+  def toDate: Expression =
+    unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.DATE)))
 
   /**
     * Parses a time string in the form "HH:mm:ss" to a SQL Time.
     */
-  def toTime: Expression = call(CAST, expr, typeLiteral(SqlTimeTypeInfo.TIME))
+  def toTime: Expression =
+    unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIME)))
 
   /**
     * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
     */
   def toTimestamp: Expression =
-    call(CAST, expr, typeLiteral(SqlTimeTypeInfo.TIMESTAMP))
+    unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIMESTAMP)))
 
   /**
     * Extracts parts of a time point or time interval. Returns the part as a long value.
@@ -702,7 +721,7 @@ trait ImplicitExpressionOperations {
     * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
     */
   def extract(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(EXTRACT, symbol(timeIntervalUnit), expr)
+    unresolvedCall(EXTRACT, valueLiteral(timeIntervalUnit), expr)
 
   /**
     * Rounds down a time point to the given unit.
@@ -710,7 +729,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
     */
   def floor(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(FLOOR, symbol(timeIntervalUnit), expr)
+    unresolvedCall(FLOOR, valueLiteral(timeIntervalUnit), expr)
 
   /**
     * Rounds up a time point to the given unit.
@@ -718,7 +737,7 @@ trait ImplicitExpressionOperations {
     * e.g. "12:44:31".toDate.ceil(MINUTE) leads to 12:45:00
     */
   def ceil(timeIntervalUnit: TimeIntervalUnit): Expression =
-    call(CEIL, symbol(timeIntervalUnit), expr)
+    unresolvedCall(CEIL, valueLiteral(timeIntervalUnit), expr)
 
   // Interval types
 
@@ -866,7 +885,7 @@ trait ImplicitExpressionOperations {
     * @param name name of the field (similar to Flink's field expressions)
     * @return value of the field
     */
-  def get(name: String): Expression = call(GET, expr, name)
+  def get(name: String): Expression = unresolvedCall(GET, expr, name)
 
   /**
     * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by index and
@@ -875,13 +894,13 @@ trait ImplicitExpressionOperations {
     * @param index position of the field
     * @return value of the field
     */
-  def get(index: Int): Expression = call(GET, expr, index)
+  def get(index: Int): Expression = unresolvedCall(GET, expr, index)
 
   /**
     * Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
     * into a flat representation where every subtype is a separate field.
     */
-  def flatten(): Expression = call(FLATTEN, expr)
+  def flatten(): Expression = unresolvedCall(FLATTEN, expr)
 
   /**
     * Accesses the element of an array or map based on a key or an index (starting at 1).
@@ -889,14 +908,14 @@ trait ImplicitExpressionOperations {
     * @param index key or position of the element (array index starting at 1)
     * @return value of the element
     */
-  def at(index: Expression): Expression = call(AT, expr, index)
+  def at(index: Expression): Expression = unresolvedCall(AT, expr, index)
 
   /**
     * Returns the number of elements of an array or number of entries of a map.
     *
     * @return number of elements or entries
     */
-  def cardinality(): Expression = call(CARDINALITY, expr)
+  def cardinality(): Expression = unresolvedCall(CARDINALITY, expr)
 
   /**
     * Returns the sole element of an array with a single element. Returns null if the array is
@@ -904,7 +923,7 @@ trait ImplicitExpressionOperations {
     *
     * @return the first and only element of an array with a single element
     */
-  def element(): Expression = call(ARRAY_ELEMENT, expr)
+  def element(): Expression = unresolvedCall(ARRAY_ELEMENT, expr)
 
   // Time definition
 
@@ -912,13 +931,13 @@ trait ImplicitExpressionOperations {
     * Declares a field as the rowtime attribute for indicating, accessing, and working in
     * Flink's event time.
     */
-  def rowtime: Expression = call(ROWTIME, expr)
+  def rowtime: Expression = unresolvedCall(ROWTIME, expr)
 
   /**
     * Declares a field as the proctime attribute for indicating, accessing, and working in
     * Flink's processing time.
     */
-  def proctime: Expression = call(PROCTIME, expr)
+  def proctime: Expression = unresolvedCall(PROCTIME, expr)
 
   // Hash functions
 
@@ -927,42 +946,42 @@ trait ImplicitExpressionOperations {
     *
     * @return string of 32 hexadecimal digits or null
     */
-  def md5(): Expression = call(MD5, expr)
+  def md5(): Expression = unresolvedCall(MD5, expr)
 
   /**
     * Returns the SHA-1 hash of the string argument; null if string is null.
     *
     * @return string of 40 hexadecimal digits or null
     */
-  def sha1(): Expression = call(SHA1, expr)
+  def sha1(): Expression = unresolvedCall(SHA1, expr)
 
   /**
     * Returns the SHA-224 hash of the string argument; null if string is null.
     *
     * @return string of 56 hexadecimal digits or null
     */
-  def sha224(): Expression = call(SHA224, expr)
+  def sha224(): Expression = unresolvedCall(SHA224, expr)
 
   /**
     * Returns the SHA-256 hash of the string argument; null if string is null.
     *
     * @return string of 64 hexadecimal digits or null
     */
-  def sha256(): Expression = call(SHA256, expr)
+  def sha256(): Expression = unresolvedCall(SHA256, expr)
 
   /**
     * Returns the SHA-384 hash of the string argument; null if string is null.
     *
     * @return string of 96 hexadecimal digits or null
     */
-  def sha384(): Expression = call(SHA384, expr)
+  def sha384(): Expression = unresolvedCall(SHA384, expr)
 
   /**
     * Returns the SHA-512 hash of the string argument; null if string is null.
     *
     * @return string of 128 hexadecimal digits or null
     */
-  def sha512(): Expression = call(SHA512, expr)
+  def sha512(): Expression = unresolvedCall(SHA512, expr)
 
   /**
     * Returns the hash for the given string expression using the SHA-2 family of hash
@@ -971,7 +990,7 @@ trait ImplicitExpressionOperations {
     * @param hashLength bit length of the result (either 224, 256, 384, or 512)
     * @return string or null if one of the arguments is null.
     */
-  def sha2(hashLength: Expression): Expression = call(SHA2, expr, hashLength)
+  def sha2(hashLength: Expression): Expression = unresolvedCall(SHA2, expr, hashLength)
 }
 
 /**
@@ -984,27 +1003,28 @@ trait ImplicitExpressionConversions {
     * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
     * constant for a time interval. Unbounded over windows start with the first row of a partition.
     */
-  implicit val UNBOUNDED_ROW: Expression = call(BuiltInFunctionDefinitions.UNBOUNDED_ROW)
+  implicit val UNBOUNDED_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_ROW)
 
   /**
     * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
     * constant for a row-count interval. Unbounded over windows start with the first row of a
     * partition.
     */
-  implicit val UNBOUNDED_RANGE: Expression = call(BuiltInFunctionDefinitions.UNBOUNDED_RANGE)
+  implicit val UNBOUNDED_RANGE: Expression =
+    unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE)
 
   /**
     * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
     * the upper bound of the window to the current row.
     */
-  implicit val CURRENT_ROW: Expression = call(BuiltInFunctionDefinitions.CURRENT_ROW)
+  implicit val CURRENT_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW)
 
   /**
     * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
     * the upper bound of the window to the sort key of the current row, i.e., all rows with the same
     * sort key as the current row are included in the window.
     */
-  implicit val CURRENT_RANGE: Expression = call(BuiltInFunctionDefinitions.CURRENT_RANGE)
+  implicit val CURRENT_RANGE: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_RANGE)
 
   implicit class WithOperations(e: Expression) extends ImplicitExpressionOperations {
     def expr: Expression = e
@@ -1077,7 +1097,7 @@ trait ImplicitExpressionConversions {
       * Calls a scalar function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      call(new ScalarFunctionDefinition(s.getClass.getName, s), params:_*)
+      unresolvedCall(new ScalarFunctionDefinition(s.getClass.getName, s), params:_*)
     }
   }
 
@@ -1087,54 +1107,56 @@ trait ImplicitExpressionConversions {
       * Calls a table function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      val resultType = if (t.getResultType == null) {
-        implicitly[TypeInformation[T]]
-      } else {
-        t.getResultType
-      }
-      call(new TableFunctionDefinition(t.getClass.getName, t, resultType), params: _*)
+      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+        .getReturnTypeOfTableFunction(t, implicitly[TypeInformation[T]])
+      unresolvedCall(new TableFunctionDefinition(t.getClass.getName, t, resultTypeInfo), params: _*)
     }
   }
 
   implicit class UserDefinedAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
       (val a: UserDefinedAggregateFunction[T, ACC]) {
 
-    private def createFunctionDefinition(): AggregateFunctionDefinition = {
-      val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
-        a,
-        implicitly[TypeInformation[T]])
+    private def createFunctionDefinition(): FunctionDefinition = {
+      val resultTypeInfo: TypeInformation[T] = UserFunctionsTypeHelper
+        .getReturnTypeOfAggregateFunction(a, implicitly[TypeInformation[T]])
 
-      val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
-        a,
-        implicitly[TypeInformation[ACC]])
+      val accTypeInfo: TypeInformation[ACC] = UserFunctionsTypeHelper.
+        getAccumulatorTypeOfAggregateFunction(a, implicitly[TypeInformation[ACC]])
 
-      new AggregateFunctionDefinition(a.getClass.getName, a, resultTypeInfo, accTypeInfo)
+      a match {
+        case af: AggregateFunction[_, _] =>
+          new AggregateFunctionDefinition(
+            af.getClass.getName, af, resultTypeInfo, accTypeInfo)
+        case taf: TableAggregateFunction[_, _] =>
+          new TableAggregateFunctionDefinition(
+            taf.getClass.getName, taf, resultTypeInfo, accTypeInfo)
+      }
     }
 
     /**
       * Calls an aggregate function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      call(createFunctionDefinition(), params: _*)
+      unresolvedCall(createFunctionDefinition(), params: _*)
     }
 
     /**
       * Calculates the aggregate results only for distinct values.
       */
     def distinct(params: Expression*): Expression = {
-      call(DISTINCT, apply(params: _*))
+      unresolvedCall(DISTINCT, apply(params: _*))
     }
   }
 
   implicit def tableSymbolToExpression(sym: TableSymbol): Expression =
-    symbol(sym)
+    valueLiteral(sym)
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression =
     unresolvedRef(sym.name)
 
   implicit def scalaRange2RangeExpression(range: Range.Inclusive): Expression = {
-    val startExpression = new ValueLiteralExpression(range.start, BasicTypeInfo.INT_TYPE_INFO)
-    val endExpression = new ValueLiteralExpression(range.end, BasicTypeInfo.INT_TYPE_INFO)
+    val startExpression = valueLiteral(range.start)
+    val endExpression = valueLiteral(range.end)
     startExpression to endExpression
   }
 
@@ -1166,10 +1188,17 @@ trait ImplicitExpressionConversions {
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     valueLiteral(sqlTimestamp)
 
+  implicit def localDate2Literal(localDate: LocalDate): Expression = valueLiteral(localDate)
+
+  implicit def localTime2Literal(localTime: LocalTime): Expression = valueLiteral(localTime)
+
+  implicit def localDateTime2Literal(localDateTime: LocalDateTime): Expression =
+    valueLiteral(localDateTime)
+
   implicit def array2ArrayConstructor(array: Array[_]): Expression = {
 
     def createArray(elements: Array[_]): Expression = {
-      call(BuiltInFunctionDefinitions.ARRAY, elements.map(valueLiteral): _*)
+      unresolvedCall(BuiltInFunctionDefinitions.ARRAY, elements.map(valueLiteral): _*)
     }
 
     def convertArray(array: Array[_]): Expression = array match {
@@ -1197,12 +1226,15 @@ trait ImplicitExpressionConversions {
       case _: Array[Date] => createArray(array)
       case _: Array[Time] => createArray(array)
       case _: Array[Timestamp] => createArray(array)
+      case _: Array[LocalDate] => createArray(array)
+      case _: Array[LocalTime] => createArray(array)
+      case _: Array[LocalDateTime] => createArray(array)
       case bda: Array[BigDecimal] => createArray(bda.map(_.bigDecimal))
 
       case _ =>
         // nested
         if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
-          call(
+          unresolvedCall(
             BuiltInFunctionDefinitions.ARRAY,
             array.map { na => convertArray(na.asInstanceOf[Array[_]]) } :_*)
         } else {
@@ -1231,7 +1263,7 @@ object currentDate {
     * Returns the current SQL date in UTC time zone.
     */
   def apply(): Expression = {
-    call(CURRENT_DATE)
+    unresolvedCall(CURRENT_DATE)
   }
 }
 
@@ -1244,7 +1276,7 @@ object currentTime {
     * Returns the current SQL time in UTC time zone.
     */
   def apply(): Expression = {
-    call(CURRENT_TIME)
+    unresolvedCall(CURRENT_TIME)
   }
 }
 
@@ -1257,7 +1289,7 @@ object currentTimestamp {
     * Returns the current SQL timestamp in UTC time zone.
     */
   def apply(): Expression = {
-    call(CURRENT_TIMESTAMP)
+    unresolvedCall(CURRENT_TIMESTAMP)
   }
 }
 
@@ -1270,7 +1302,7 @@ object localTime {
     * Returns the current SQL time in local time zone.
     */
   def apply(): Expression = {
-    call(LOCAL_TIME)
+    unresolvedCall(LOCAL_TIME)
   }
 }
 
@@ -1283,7 +1315,7 @@ object localTimestamp {
     * Returns the current SQL timestamp in local time zone.
     */
   def apply(): Expression = {
-    call(LOCAL_TIMESTAMP)
+    unresolvedCall(LOCAL_TIMESTAMP)
   }
 }
 
@@ -1312,7 +1344,7 @@ object temporalOverlaps {
       rightTimePoint: Expression,
       rightTemporal: Expression)
     : Expression = {
-    call(TEMPORAL_OVERLAPS, leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
+    unresolvedCall(TEMPORAL_OVERLAPS, leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
   }
 }
 
@@ -1341,7 +1373,7 @@ object dateFormat {
       timestamp: Expression,
       format: Expression)
     : Expression = {
-    call(DATE_FORMAT, timestamp, format)
+    unresolvedCall(DATE_FORMAT, timestamp, format)
   }
 }
 
@@ -1369,7 +1401,7 @@ object timestampDiff {
       timePoint1: Expression,
       timePoint2: Expression)
     : Expression = {
-    call(TIMESTAMP_DIFF, timePointUnit, timePoint1, timePoint2)
+    unresolvedCall(TIMESTAMP_DIFF, timePointUnit, timePoint1, timePoint2)
   }
 }
 
@@ -1382,7 +1414,7 @@ object array {
     * Creates an array of literals. The array will be an array of objects (not primitives).
     */
   def apply(head: Expression, tail: Expression*): Expression = {
-    call(ARRAY, head +: tail: _*)
+    unresolvedCall(ARRAY, head +: tail: _*)
   }
 }
 
@@ -1395,7 +1427,7 @@ object row {
     * Creates a row of expressions.
     */
   def apply(head: Expression, tail: Expression*): Expression = {
-    call(ROW, head +: tail: _*)
+    unresolvedCall(ROW, head +: tail: _*)
   }
 }
 
@@ -1408,7 +1440,7 @@ object map {
     * Creates a map of expressions. The map will be a map between two objects (not primitives).
     */
   def apply(key: Expression, value: Expression, tail: Expression*): Expression = {
-    call(MAP, key +: value +: tail: _*)
+    unresolvedCall(MAP, key +: value +: tail: _*)
   }
 }
 
@@ -1421,7 +1453,7 @@ object pi {
     * Returns a value that is closer than any other value to pi.
     */
   def apply(): Expression = {
-    call(PI)
+    unresolvedCall(PI)
   }
 }
 
@@ -1434,7 +1466,7 @@ object e {
     * Returns a value that is closer than any other value to e.
     */
   def apply(): Expression = {
-    call(FDE)
+    unresolvedCall(FDE)
   }
 }
 
@@ -1447,7 +1479,7 @@ object rand {
     * Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive).
     */
   def apply(): Expression = {
-    call(RAND)
+    unresolvedCall(RAND)
   }
 
   /**
@@ -1456,7 +1488,7 @@ object rand {
     * have same initial seed.
     */
   def apply(seed: Expression): Expression = {
-    call(RAND, seed)
+    unresolvedCall(RAND, seed)
   }
 }
 
@@ -1471,7 +1503,7 @@ object randInteger {
     * value (exclusive).
     */
   def apply(bound: Expression): Expression = {
-    call(RAND_INTEGER, bound)
+    unresolvedCall(RAND_INTEGER, bound)
   }
 
   /**
@@ -1480,7 +1512,7 @@ object randInteger {
     * of numbers if they have same initial seed and same bound.
     */
   def apply(seed: Expression, bound: Expression): Expression = {
-    call(RAND_INTEGER, seed, bound)
+    unresolvedCall(RAND_INTEGER, seed, bound)
   }
 }
 
@@ -1495,7 +1527,7 @@ object concat {
     * Returns NULL if any argument is NULL.
     */
   def apply(string: Expression, strings: Expression*): Expression = {
-    call(CONCAT, string +: strings: _*)
+    unresolvedCall(CONCAT, string +: strings: _*)
   }
 }
 
@@ -1508,7 +1540,7 @@ object atan2 {
     * Calculates the arc tangent of a given coordinate.
     */
   def apply(y: Expression, x: Expression): Expression = {
-    call(ATAN2, y, x)
+    unresolvedCall(ATAN2, y, x)
   }
 }
 
@@ -1521,7 +1553,7 @@ object atan2 {
   **/
 object concat_ws {
   def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
-    call(CONCAT_WS, separator +: string +: strings: _*)
+    unresolvedCall(CONCAT_WS, separator +: string +: strings: _*)
   }
 }
 
@@ -1540,24 +1572,35 @@ object uuid {
     * generator.
     */
   def apply(): Expression = {
-    call(FDUUID)
+    unresolvedCall(FDUUID)
   }
 }
 
 /**
-  * Returns a null literal value of a given type.
+  * Returns a null literal value of a given data type.
   *
-  * e.g. nullOf(Types.INT)
+  * e.g. nullOf(DataTypes.INT())
   */
 object nullOf {
 
   /**
-    * Returns a null literal value of a given type.
+    * Returns a null literal value of a given data type.
     *
-    * e.g. nullOf(Types.INT)
+    * e.g. nullOf(DataTypes.INT())
+    */
+  def apply(dataType: DataType): Expression = {
+    valueLiteral(null, dataType)
+  }
+
+  /**
+    * @deprecated This method will be removed in future versions as it uses the old type system. It
+    *             is recommended to use [[apply(DataType)]] instead which uses the new type system
+    *             based on [[DataTypes]]. Please make sure to use either the old or the new type
+    *             system consistently to avoid unintended behavior. See the website documentation
+    *             for more information.
     */
   def apply(typeInfo: TypeInformation[_]): Expression = {
-    valueLiteral(null, typeInfo)
+    apply(TypeConversions.fromLegacyInfoToDataType(typeInfo))
   }
 }
 
@@ -1570,14 +1613,14 @@ object log {
     * Calculates the natural logarithm of the given value.
     */
   def apply(value: Expression): Expression = {
-    call(LOG, value)
+    unresolvedCall(LOG, value)
   }
 
   /**
     * Calculates the logarithm of the given value to the given base.
     */
   def apply(base: Expression, value: Expression): Expression = {
-    call(LOG, base, value)
+    unresolvedCall(LOG, base, value)
   }
 }
 
@@ -1600,7 +1643,7 @@ object ifThenElse {
     * @param ifFalse expression to be evaluated if condition does not hold
     */
   def apply(condition: Expression, ifTrue: Expression, ifFalse: Expression): Expression = {
-    call(IF, condition, ifTrue, ifFalse)
+    unresolvedCall(IF, condition, ifTrue, ifFalse)
   }
 }
 
@@ -1610,7 +1653,7 @@ object ifThenElse {
 object withColumns {
 
   def apply(head: Expression, tail: Expression*): Expression = {
-    call(WITH_COLUMNS, head +: tail: _*)
+    unresolvedCall(WITH_COLUMNS, head +: tail: _*)
   }
 }
 
@@ -1620,7 +1663,7 @@ object withColumns {
 object withoutColumns {
 
   def apply(head: Expression, tail: Expression*): Expression = {
-    call(WITHOUT_COLUMNS, head +: tail: _*)
+    unresolvedCall(WITHOUT_COLUMNS, head +: tail: _*)
   }
 }
 

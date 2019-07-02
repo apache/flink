@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -32,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.generated.GeneratedFunction;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -58,8 +58,8 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 	// Minimum interval by which state is cleaned up
 	private final long minCleanUpInterval;
 	protected final long allowedLateness;
-	private final TypeInformation<BaseRow> leftType;
-	private final TypeInformation<BaseRow> rightType;
+	private final BaseRowTypeInfo leftType;
+	private final BaseRowTypeInfo rightType;
 	private GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc;
 	private transient OuterJoinPaddingUtil paddingUtil;
 
@@ -91,8 +91,8 @@ abstract class TimeBoundedStreamJoin extends CoProcessFunction<BaseRow, BaseRow,
 			long leftLowerBound,
 			long leftUpperBound,
 			long allowedLateness,
-			TypeInformation<BaseRow> leftType,
-			TypeInformation<BaseRow> rightType,
+			BaseRowTypeInfo leftType,
+			BaseRowTypeInfo rightType,
 			GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc) {
 		this.joinType = joinType;
 		this.leftRelativeSize = -leftLowerBound;

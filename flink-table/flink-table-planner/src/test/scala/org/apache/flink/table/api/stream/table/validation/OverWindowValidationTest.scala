@@ -21,7 +21,7 @@ package org.apache.flink.table.api.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Over, Table, Tumble, ValidationException}
-import org.apache.flink.table.api._
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{OverAgg0, WeightedAvgWithRetract}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
@@ -35,8 +35,9 @@ class OverWindowValidationTest extends TableTestBase {
     * Perform optimization for the input Table.
     */
   def optimizeTable(table: Table, updatesAsRetraction: Boolean): Unit = {
-    streamUtil.tableEnv
-      .optimize(table.asInstanceOf[TableImpl].getRelNode, updatesAsRetraction = true)
+    val planner = streamUtil.tableEnv.getPlanner.asInstanceOf[StreamPlanner]
+    planner.optimizer
+      .optimize(streamUtil.toRelNode(table), updatesAsRetraction = true, planner.getRelBuilder)
   }
 
   /**

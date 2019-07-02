@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
 import org.apache.flink.table.plan.stats._
 import org.apache.flink.table.plan.util.ColumnIntervalUtil
+import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.table.{JBoolean, JDouble}
 
 import org.apache.calcite.rel.RelDistributions
@@ -83,6 +83,13 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     assertEquals(ValueInterval(-1D, 3.12D), mq.getColumnInterval(logicalValues, 5))
     assertEquals(ValueInterval.empty, mq.getColumnInterval(logicalValues, 6))
     assertEquals(ValueInterval("F", "xyz"), mq.getColumnInterval(logicalValues, 7))
+  }
+
+  @Test
+  def testGetColumnIntervalOnSnapshot(): Unit = {
+    (0 until flinkLogicalSnapshot.getRowType.getFieldCount).foreach { idx =>
+      assertNull(mq.getColumnInterval(flinkLogicalSnapshot, idx))
+    }
   }
 
   @Test
@@ -261,9 +268,9 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     val expr10 = relBuilder.call(CASE, expr2, expr9, expr4, expr8, relBuilder.literal(null))
     val expr11 = relBuilder.call(CASE, expr5, relBuilder.literal(1), relBuilder.field(3))
     // TODO add tests for IF
-    val rowType = typeFactory.buildLogicalRowType(
+    val rowType = typeFactory.buildRelNodeRowType(
       Array("f0", "f1", "f2", "f3"),
-      Array(InternalTypes.INT, InternalTypes.INT, InternalTypes.INT, InternalTypes.INT))
+      Array(new IntType(), new IntType(), new IntType(), new IntType()))
     val calc8 = createLogicalCalc(
       studentLogicalScan, rowType, List(expr8, expr9, expr10, expr11), List())
 
@@ -525,6 +532,22 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     assertEquals(ValueInterval(8L, 1000L), mq.getColumnInterval(join, 6))
     assertNull(mq.getColumnInterval(join, 7))
     assertNull(mq.getColumnInterval(join, 8))
+
+    assertEquals(ValueInterval(0, null, includeLower = true),
+      mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 0))
+    assertEquals(ValueInterval(1L, 800000000L),
+      mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 1))
+    assertNull(mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 2))
+    assertNull(mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 3))
+    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(logicalSemiJoinNotOnUniqueKeys, 4))
+
+    assertEquals(ValueInterval(0, null, includeLower = true),
+      mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 0))
+    assertEquals(ValueInterval(1L, 800000000L),
+      mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 1))
+    assertNull(mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 2))
+    assertNull(mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 3))
+    assertEquals(ValueInterval(1L, 100L), mq.getColumnInterval(logicalAntiJoinWithoutEquiCond, 4))
   }
 
   @Test

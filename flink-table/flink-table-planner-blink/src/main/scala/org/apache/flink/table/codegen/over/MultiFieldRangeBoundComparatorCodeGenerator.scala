@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.codegen.over
 
-import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, GenerateUtils}
 import org.apache.flink.table.generated.{GeneratedRecordComparator, RecordComparator}
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 /**
   * RANGE allow the compound ORDER BY and the random type when the bound is current row.
@@ -32,7 +32,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
     conf: TableConfig,
     inType: RowType,
     keys: Array[Int],
-    keyTypes: Array[InternalType],
+    keyTypes: Array[LogicalType],
     keyOrders: Array[Boolean],
     nullsIsLasts: Array[Boolean],
     isLowerBound: Boolean = true) {

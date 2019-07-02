@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.codegen.agg
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
-import org.apache.flink.table.`type`.{InternalType, RowType}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, _}
@@ -31,8 +28,12 @@ import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, 
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.expressions.{Expression, RexNodeConverter}
 import org.apache.flink.table.plan.util.DistinctInfo
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Preconditions
 import org.apache.flink.util.Preconditions.checkArgument
+
 import org.apache.calcite.tools.RelBuilder
 
 import java.lang.{Long => JLong}
@@ -78,11 +79,11 @@ class DistinctAggCodeGen(
   val ITERABLE: String = className[java.lang.Iterable[_]]
 
   val aggCount: Int = innerAggCodeGens.length
-  val externalAccType: TypeInformation[_] = distinctInfo.accType
-  val internalAccType: InternalType = createInternalTypeFromTypeInfo(externalAccType)
-  val keyType: TypeInformation[_] = distinctInfo.keyType
-  val internalKeyType: InternalType = createInternalTypeFromTypeInfo(keyType)
-  val keyTypeTerm: String = keyType.getTypeClass.getCanonicalName
+  val externalAccType: DataType = distinctInfo.accType
+  val internalAccType: LogicalType = fromDataTypeToLogicalType(externalAccType)
+  val keyType: DataType = distinctInfo.keyType
+  val internalKeyType: LogicalType = fromDataTypeToLogicalType(keyType)
+  val keyTypeTerm: String = keyType.getConversionClass.getCanonicalName
   val distinctAccTerm: String = s"distinct_view_$distinctIndex"
   val distinctBackupAccTerm: String = s"distinct_backup_view_$distinctIndex"
 
@@ -377,7 +378,7 @@ class DistinctAggCodeGen(
     // the key expression of MapView
     if (fieldExprs.length > 1) {
       val keyTerm = newName(DISTINCT_KEY_TERM)
-      val valueType = new RowType(
+      val valueType = RowType.of(
         fieldExprs.map(_.resultType): _*)
 
       // always create a new result row
@@ -409,7 +410,7 @@ class DistinctAggCodeGen(
     */
   private def generateAccumulatorAccess(
     ctx: CodeGeneratorContext,
-    inputType: InternalType,
+    inputType: LogicalType,
     inputTerm: String,
     index: Int,
     useStateDataView: Boolean,

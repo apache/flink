@@ -25,7 +25,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Helper for null aware join.
@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class NullAwareJoinHelper {
 
 	public static int[] getNullFilterKeys(boolean[] filterNulls) {
-		checkArgument(filterNulls.length > 0);
+		checkNotNull(filterNulls);
 		List<Integer> nullFilterKeyList = new ArrayList<>();
 		for (int i = 0; i < filterNulls.length; i++) {
 			if (filterNulls[i]) {

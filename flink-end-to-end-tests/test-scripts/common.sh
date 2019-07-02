@@ -47,6 +47,8 @@ cd $TEST_INFRA_DIR
 TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
+source "${TEST_INFRA_DIR}/common_utils.sh"
+
 NODENAME=${NODENAME:-`hostname -f`}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
@@ -76,39 +78,61 @@ function print_mem_use {
     fi
 }
 
-function backup_config() {
-    # back up the masters and flink-conf.yaml
-    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
-    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+function backup_flink_dir() {
+    mkdir -p "${TEST_DATA_DIR}/tmp/backup"
+    # Note: not copying all directory tree, as it may take some time on some file systems.
+    cp -r "${FLINK_DIR}/conf" "${TEST_DATA_DIR}/tmp/backup/"
+    cp -r "${FLINK_DIR}/lib" "${TEST_DATA_DIR}/tmp/backup/"
 }
 
-function revert_default_config() {
+function revert_flink_dir() {
 
-    # revert our modifications to the masters file
-    if [ -f $FLINK_DIR/conf/masters.bak ]; then
-        mv -f $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
+    if [ -d "${TEST_DATA_DIR}/tmp/backup/conf" ]; then
+        rm -rf "${FLINK_DIR}/conf"
+        mv "${TEST_DATA_DIR}/tmp/backup/conf" "${FLINK_DIR}/"
     fi
 
-    # revert our modifications to the Flink conf yaml
-    if [ -f $FLINK_DIR/conf/flink-conf.yaml.bak ]; then
-        mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
+    if [ -d "${TEST_DATA_DIR}/tmp/backup/lib" ]; then
+        rm -rf "${FLINK_DIR}/lib"
+        mv "${TEST_DATA_DIR}/tmp/backup/lib" "${FLINK_DIR}/"
     fi
+
+    rm -r "${TEST_DATA_DIR}/tmp/backup"
+
+    # By default, the plugins dir doesn't exist. Some tests may have created it.
+    rm -r "${FLINK_DIR}/plugins"
 
     REST_PROTOCOL="http"
     CURL_SSL_ARGS=""
 }
 
-function set_conf() {
-    CONF_NAME=$1
-    VAL=$2
-    echo "$CONF_NAME: $VAL" >> $FLINK_DIR/conf/flink-conf.yaml
+function add_optional_lib() {
+    local lib_name=$1
+    cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
 }
 
-function change_conf() {
-    CONF_NAME=$1
-    OLD_VAL=$2
-    NEW_VAL=$3
-    sed -i -e "s/${CONF_NAME}: ${OLD_VAL}/${CONF_NAME}: ${NEW_VAL}/" ${FLINK_DIR}/conf/flink-conf.yaml
+function add_optional_plugin() {
+    # This is similar to add_optional_lib, but the jar would be copied to
+    # Flink's plugins dir (the nested folder name does not matter).
+    # Note: this may not work with some jars, as not all of them implement plugin api.
+    # Please check the corresponding code of the jar.
+    local plugin="$1"
+    local plugin_dir="$FLINK_DIR/plugins/$plugin"
+
+    mkdir -p "$plugin_dir"
+    cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
+}
+
+function delete_config_key() {
+    local config_key=$1
+    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+}
+
+function set_config_key() {
+    local config_key=$1
+    local value=$2
+    delete_config_key ${config_key}
+    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
 }
 
 function create_ha_config() {
@@ -337,7 +361,7 @@ function check_logs_for_exceptions {
    | grep -v "java.io.InvalidClassException: org.apache.flink.formats.avro.typeutils.AvroSerializer" \
    | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
    | grep -v "java.lang.Exception: Artificial failure" \
-   | grep -v "org.apache.flink.runtime.checkpoint.decline" \
+   | grep -v "org.apache.flink.runtime.checkpoint.CheckpointException" \
    | grep -v "org.elasticsearch.ElasticsearchException" \
    | grep -v "Elasticsearch exception" \
    | grep -ic "exception" || true)
@@ -524,13 +548,9 @@ function kill_random_taskmanager {
 
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
-  cp $FLINK_DIR/opt/flink-metrics-slf4j-*.jar $FLINK_DIR/lib/
-  set_conf "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
-  set_conf "metrics.reporter.slf4j.interval" "${INTERVAL}"
-}
-
-function rollback_flink_slf4j_metric_reporter() {
-  rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
+  add_optional_lib "metrics-slf4j"
+  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
 function get_job_metric {

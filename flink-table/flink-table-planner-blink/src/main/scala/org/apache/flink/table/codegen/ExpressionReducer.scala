@@ -21,12 +21,12 @@ package org.apache.flink.table.codegen
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
-import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
@@ -49,7 +49,7 @@ class ExpressionReducer(
     allowChangeNullability: Boolean = false)
   extends RexExecutor {
 
-  private val EMPTY_ROW_TYPE = new RowType()
+  private val EMPTY_ROW_TYPE = RowType.of()
   private val EMPTY_ROW = new GenericRow(0)
 
   override def reduce(
@@ -69,8 +69,8 @@ class ExpressionReducer(
       case (_, e) => Some(e)
     }
 
-    val literalTypes = literals.map(e => FlinkTypeFactory.toInternalType(e.getType))
-    val resultType =  new RowType(literalTypes: _*)
+    val literalTypes = literals.map(e => FlinkTypeFactory.toLogicalType(e.getType))
+    val resultType = RowType.of(literalTypes: _*)
 
     // generate MapFunction
     val ctx = new ConstantCodeGeneratorContext(config)

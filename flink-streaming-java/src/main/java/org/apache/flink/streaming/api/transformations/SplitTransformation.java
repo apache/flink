@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -38,19 +38,20 @@ import java.util.List;
  * @param <T> The type of the elements that result from this {@code SplitTransformation}
  */
 @Internal
-public class SplitTransformation<T> extends StreamTransformation<T> {
+public class SplitTransformation<T> extends Transformation<T> {
 
-	private final StreamTransformation<T> input;
+	private final Transformation<T> input;
 
 	private final OutputSelector<T> outputSelector;
 
 	/**
 	 * Creates a new {@code SplitTransformation} from the given input and {@code OutputSelector}.
 	 *
-	 * @param input The input {@code StreamTransformation}
+	 * @param input The input {@code Transformation}
 	 * @param outputSelector The output selector
 	 */
-	public SplitTransformation(StreamTransformation<T> input,
+	public SplitTransformation(
+		Transformation<T> input,
 			OutputSelector<T> outputSelector) {
 		super("Split", input.getOutputType(), input.getParallelism());
 		this.input = input;
@@ -58,9 +59,9 @@ public class SplitTransformation<T> extends StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the input {@code StreamTransformation}.
+	 * Returns the input {@code Transformation}.
 	 */
-	public StreamTransformation<T> getInput() {
+	public Transformation<T> getInput() {
 		return input;
 	}
 
@@ -72,16 +73,10 @@ public class SplitTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
 	}
-
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on Split Transformation.");
-	}
 }
-

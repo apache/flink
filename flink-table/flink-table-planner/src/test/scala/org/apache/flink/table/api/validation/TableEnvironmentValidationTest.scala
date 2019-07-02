@@ -25,7 +25,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironmentTest.{CClass, PojoClass}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException
 import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
@@ -54,63 +55,63 @@ class TableEnvironmentValidationTest extends TableTestBase {
 
   val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testInvalidAliasInRefByPosMode(): Unit = {
     val util = batchTestUtil()
     // all references must happen position-based
     util.addTable('a, 'b, 'f2 as 'c)(tupleType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testInvalidAliasOnAtomicType(): Unit = {
     val util = batchTestUtil()
     // alias not allowed
     util.addTable('g as 'c)(atomicType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGetFieldInfoPojoNames1(): Unit = {
     val util = batchTestUtil()
     // duplicate name
     util.addTable('name1, 'name1, 'name3)(pojoType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGetFieldInfoAtomicName2(): Unit = {
     val util = batchTestUtil()
     // must be only one name
     util.addTable('name1, 'name2)(atomicType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGetFieldInfoTupleAlias3(): Unit = {
     val util = batchTestUtil()
     // fields do not exist
     util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(tupleType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGetFieldInfoCClassAlias3(): Unit = {
     val util = batchTestUtil()
     // fields do not exist
     util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(caseClassType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGetFieldInfoPojoAlias3(): Unit = {
     val util = batchTestUtil()
     // fields do not exist
     util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(pojoType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGetFieldInfoGenericRowAlias(): Unit = {
     val util = batchTestUtil()
     // unsupported generic row type
     util.addTable('first)(genericRowType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[TableAlreadyExistException])
   def testRegisterExistingDataSet(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -130,7 +131,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     tEnv.scan("someTable")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[TableAlreadyExistException])
   def testRegisterExistingTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -153,8 +154,8 @@ class TableEnvironmentValidationTest extends TableTestBase {
     tEnv2.registerTable("MyTable", t1)
   }
 
-  @Test(expected = classOf[TableException])
-  def testToTableWithToManyFields(): Unit = {
+  @Test(expected = classOf[ValidationException])
+  def testToTableWithTooManyFields(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
@@ -163,7 +164,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'd)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testToTableWithAmbiguousFields(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -173,7 +174,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
       .toTable(tEnv, 'a, 'b, 'b)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testToTableWithNonFieldReference1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -183,7 +184,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
       .toTable(tEnv, 'a + 1, 'b, 'c)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testToTableWithNonFieldReference2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -193,7 +194,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
       .toTable(tEnv, 'a as 'foo, 'b, 'c)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGenericRow() {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env)
@@ -207,7 +208,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     tableEnv.fromDataSet(dataSet)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGenericRowWithAlias() {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env)

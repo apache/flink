@@ -96,6 +96,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -131,11 +137,11 @@ under the License.
 
 				Dependencies that are not needed for how we use Calcite right now.
 
-				"mvn dependency:tree" as of Calcite 1.18:
+				"mvn dependency:tree" as of Calcite 1.19:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.18.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.19.0:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.13.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.18.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.19.0:compile
 				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile

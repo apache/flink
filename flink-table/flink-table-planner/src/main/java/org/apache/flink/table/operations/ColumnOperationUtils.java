@@ -20,11 +20,11 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -33,7 +33,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
 
 /**
@@ -57,7 +58,7 @@ public final class ColumnOperationUtils {
 	public static List<Expression> renameColumns(List<String> inputFields, List<Expression> newAliases) {
 		LinkedHashMap<String, Expression> finalFields = new LinkedHashMap<>();
 
-		inputFields.forEach(field -> finalFields.put(field, new UnresolvedReferenceExpression(field)));
+		inputFields.forEach(field -> finalFields.put(field, unresolvedRef(field)));
 		newAliases.forEach(expr -> {
 			String name = expr.accept(renameColumnExtractor);
 			finalFields.put(name, expr);
@@ -79,7 +80,7 @@ public final class ColumnOperationUtils {
 	public static List<Expression> addOrReplaceColumns(List<String> inputFields, List<Expression> newExpressions) {
 		LinkedHashMap<String, Expression> finalFields = new LinkedHashMap<>();
 
-		inputFields.forEach(field -> finalFields.put(field, new UnresolvedReferenceExpression(field)));
+		inputFields.forEach(field -> finalFields.put(field, unresolvedRef(field)));
 		newExpressions.forEach(expr -> {
 			String name = extractName(expr).orElse(expr.toString());
 			finalFields.put(name, expr);
@@ -110,15 +111,15 @@ public final class ColumnOperationUtils {
 
 		return inputFields.stream()
 			.filter(oldName -> !columnsToDrop.contains(oldName))
-			.map(UnresolvedReferenceExpression::new)
+			.map(ApiExpressionUtils::unresolvedRef)
 			.collect(Collectors.toList());
 	}
 
 	private static class DropColumnsExtractor extends ApiExpressionDefaultVisitor<String> {
 
 		@Override
-		public String visitFieldReference(FieldReferenceExpression fieldReference) {
-			return fieldReference.getName();
+		public String visit(UnresolvedReferenceExpression unresolvedReference) {
+			return unresolvedReference.getName();
 		}
 
 		@Override
@@ -128,22 +129,26 @@ public final class ColumnOperationUtils {
 	}
 
 	private static class RenameColumnExtractor extends ApiExpressionDefaultVisitor<String> {
+
 		@Override
-		public String visitCall(CallExpression call) {
-			if (call.getFunctionDefinition() == AS &&
-				call.getChildren().get(0) instanceof FieldReferenceExpression) {
-				FieldReferenceExpression resolvedFieldReference = (FieldReferenceExpression) call.getChildren()
-					.get(0);
+		public String visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == AS &&
+					unresolvedCall.getChildren().get(0) instanceof UnresolvedReferenceExpression) {
+				UnresolvedReferenceExpression resolvedFieldReference =
+					(UnresolvedReferenceExpression) unresolvedCall.getChildren().get(0);
 				return resolvedFieldReference.getName();
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 
 		@Override
 		protected String defaultMethod(Expression expression) {
-			throw new ValidationException(format("Unexpected field expression type [%s]. " +
-				"Renaming must add an alias to the original field, e.g., a as a1.", expression));
+			throw new ValidationException(
+				format(
+					"Invalid alias for a renaming column operation. Renaming must add an alias to an" +
+						"existing field. E.g.: 'a as a1'. But was: %s",
+				expression));
 		}
 	}
 

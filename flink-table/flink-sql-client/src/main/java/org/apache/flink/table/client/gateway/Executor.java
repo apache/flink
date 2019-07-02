@@ -41,7 +41,17 @@ public interface Executor {
 	Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException;
 
 	/**
-	 * Lists all tables known to the executor.
+	 * Lists all registered catalogs.
+	 */
+	List<String> listCatalogs(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Lists all databases in the current catalog.
+	 */
+	List<String> listDatabases(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Lists all tables in the current database of the current catalog.
 	 */
 	List<String> listTables(SessionContext session) throws SqlExecutionException;
 
@@ -49,6 +59,16 @@ public interface Executor {
 	 * Lists all user-defined functions known to the executor.
 	 */
 	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Sets a catalog with given name as the current catalog.
+	 */
+	void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException;
+
+	/**
+	 * Sets a database with given name as the current database of the current catalog.
+	 */
+	void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException;
 
 	/**
 	 * Returns the schema of a table. Throws an exception if the table could not be found. The

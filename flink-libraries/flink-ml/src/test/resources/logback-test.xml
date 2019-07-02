@@ -36,5 +36,4 @@
     <logger name="org.apache.flink.runtime.testingUtils" level="OFF"/>
     <logger name="org.apache.flink.runtime.executiongraph.ExecutionGraph" level="OFF"/>
     <logger name="org.apache.flink.runtime.jobmanager.EventCollector" level="OFF"/>
-    <logger name="org.apache.flink.runtime.instance.InstanceManager" level="OFF"/>
 </configuration>

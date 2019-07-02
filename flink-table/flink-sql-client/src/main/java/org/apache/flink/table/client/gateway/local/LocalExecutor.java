@@ -36,9 +36,9 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvImpl;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
@@ -69,7 +69,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Executor that performs the Flink communication locally. The calls are blocking depending on the
@@ -113,8 +112,7 @@ public class LocalExecutor implements Executor {
 			this.flinkConfig = GlobalConfiguration.loadConfiguration(flinkConfigDir);
 
 			// initialize default file system
-			//TODO provide plugin path.
-			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+			FileSystem.initialize(flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
 			// load command lines for deployment
 			this.commandLines = CliFrontend.loadCustomCommandLines(flinkConfig, flinkConfigDir);
@@ -191,6 +189,22 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return Arrays.asList(tableEnv.listCatalogs());
+	}
+
+	@Override
+	public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return Arrays.asList(tableEnv.listDatabases());
+	}
+
+	@Override
 	public List<String> listTables(SessionContext session) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
 		final TableEnvironment tableEnv = context
@@ -206,6 +220,32 @@ public class LocalExecutor implements Executor {
 			.createEnvironmentInstance()
 			.getTableEnvironment();
 		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listUserDefinedFunctions()));
+	}
+
+	@Override
+	public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		context.wrapClassLoader(() -> {
+			tableEnv.useCatalog(catalogName);
+			return null;
+		});
+	}
+
+	@Override
+	public void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+
+		context.wrapClassLoader(() -> {
+			tableEnv.useDatabase(databaseName);
+			return null;
+		});
 	}
 
 	@Override

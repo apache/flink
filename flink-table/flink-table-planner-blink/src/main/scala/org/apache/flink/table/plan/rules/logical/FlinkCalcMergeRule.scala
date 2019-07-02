@@ -29,7 +29,7 @@ import org.apache.calcite.tools.RelBuilderFactory
 import scala.collection.JavaConversions._
 
 /**
-  * This rules is copied from Calcite's [[org.apache.calcite.rel.rules.CalcMergeRule]].
+  * This rule is copied from Calcite's [[org.apache.calcite.rel.rules.CalcMergeRule]].
   *
   * Modification:
   * - Condition in the merged program will be simplified if it exists.

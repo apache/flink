@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.`type`.RowType
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex.RexNode
 

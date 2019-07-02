@@ -29,10 +29,53 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-python</artifactId>
+	<artifactId>flink-python_${scala.binary.version}</artifactId>
 	<name>flink-python</name>
 
-	<packaging>pom</packaging>
+	<packaging>jar</packaging>
+
+	<dependencies>
+
+		<!-- core dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-java</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Python API dependencies -->
+
+		<dependency>
+			<groupId>net.sf.py4j</groupId>
+			<artifactId>py4j</artifactId>
+			<version>${py4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.razorvine</groupId>
+			<artifactId>pyrolite</artifactId>
+			<version>4.13</version>
+			<exclusions>
+				<exclusion>
+					<groupId>net.razorvine</groupId>
+					<artifactId>serpent</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>
@@ -75,6 +118,37 @@ under the License.
 											 includes="pyflink/**/*"/>
 								</zip>
 							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>java-binding</shadedClassifierName>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>net.razorvine:*</include>
+									<include>net.sf.py4j:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>py4j</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>net.razorvine</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.net.razorvine</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

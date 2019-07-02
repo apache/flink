@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.functions.aggfunctions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
+
+import java.util.Arrays;
 
 import static org.apache.flink.table.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.expressions.ExpressionBuilder.literal;
@@ -32,7 +36,7 @@ import static org.apache.flink.table.expressions.ExpressionBuilder.plus;
  */
 public class DenseRankAggFunction extends RankLikeAggFunctionBase {
 
-	public DenseRankAggFunction(InternalType[] orderKeyTypes) {
+	public DenseRankAggFunction(LogicalType[] orderKeyTypes) {
 		super(orderKeyTypes);
 	}
 
@@ -45,10 +49,12 @@ public class DenseRankAggFunction extends RankLikeAggFunctionBase {
 	}
 
 	@Override
-	public InternalType[] getAggBufferTypes() {
-		InternalType[] aggBufferTypes = new InternalType[1 + orderKeyTypes.length];
-		aggBufferTypes[0] = InternalTypes.LONG;
-		System.arraycopy(orderKeyTypes, 0, aggBufferTypes, 1, orderKeyTypes.length);
+	public DataType[] getAggBufferTypes() {
+		DataType[] aggBufferTypes = new DataType[1 + orderKeyTypes.length];
+		aggBufferTypes[0] = DataTypes.BIGINT();
+		System.arraycopy(Arrays.stream(orderKeyTypes)
+				.map(LogicalTypeDataTypeConverter::toDataType).toArray(DataType[]::new),
+				0, aggBufferTypes, 1, orderKeyTypes.length);
 		return aggBufferTypes;
 	}
 

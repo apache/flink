@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -35,8 +35,9 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.functions.KeySelector
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -108,18 +109,18 @@ class StreamExecLocalGroupAggregate(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
-    val inRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
+      .asInstanceOf[Transformation[BaseRow]]
+    val inRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
     val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
 
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(tableEnv.getConfig),
       tableEnv.getRelBuilder,
-      inRowType.getFieldTypes,
+      inRowType.getChildren,
       // the local aggregate result will be buffered, so need copy
       copyInputField = true)
 
@@ -146,8 +147,12 @@ class StreamExecLocalGroupAggregate(
       inputTransformation,
       "LocalGroupAggregate",
       operator,
-      outRowType.toTypeInfo,
-      inputTransformation.getParallelism)
+      BaseRowTypeInfo.of(outRowType),
+      getResource.getParallelism)
+
+    if (getResource.getMaxParallelism > 0) {
+      transformation.setMaxParallelism(getResource.getMaxParallelism)
+    }
 
     transformation
   }

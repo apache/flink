@@ -29,7 +29,7 @@ import org.apache.flink.types.Row
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.Timestamp
 
-import scala.collection.Seq
+import scala.collection.{Seq, mutable}
 
 object TestData {
 
@@ -72,23 +72,31 @@ object TestData {
 
   val nullablesOfNullData5 = Array(true, false, false, false, false)
 
-  lazy val smallData3 = Seq(
-    row(1, 1L, "Hi"),
-    row(2, 2L, "Hello"),
-    row(3, 2L, "Hello world")
-  )
+  lazy val smallTupleData3: Seq[(Int, Long, String)] = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    data.+=((2, 2L, "Hello"))
+    data.+=((3, 2L, "Hello world"))
+    data
+  }
+
+  lazy val smallData3: Seq[Row] = smallTupleData3.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfSmallData3 = Array(false, false, false)
 
-  lazy val smallData5 = Seq(
-    row(1, 1L, 0, "Hallo", 1L),
-    row(2, 2L, 1, "Hallo Welt", 2L),
-    row(2, 3L, 2, "Hallo Welt wie", 1L)
-  )
+  lazy val smallTupleData5: Seq[(Int, Long, Int, String, Long)] = {
+    val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
+    data.+=((1, 1L, 0, "Hallo", 1L))
+    data.+=((2, 2L, 1, "Hallo Welt", 2L))
+    data.+=((2, 3L, 2, "Hallo Welt wie", 1L))
+    data
+  }
+
+  lazy val smallData5: Seq[Row] = smallTupleData5.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfSmallData5 = Array(false, false, false, false, false)
 
-  lazy val buildInData = Seq(
+  lazy val buildInData: Seq[Row] = Seq(
     row(false, 1.toByte, 2, 3L, 2.56, "abcd", "f%g", UTCDate("2017-12-12"),
       UTCTime("10:08:09"), UTCTimestamp("2017-11-11 20:32:19")),
 
@@ -99,33 +107,37 @@ object TestData {
       UTCTime("10:08:09"), UTCTimestamp("2015-05-20 10:00:00.887"))
   )
 
-  lazy val data3 = Seq(
-    row(1, 1L, "Hi"),
-    row(2, 2L, "Hello"),
-    row(3, 2L, "Hello world"),
-    row(4, 3L, "Hello world, how are you?"),
-    row(5, 3L, "I am fine."),
-    row(6, 3L, "Luke Skywalker"),
-    row(7, 4L, "Comment#1"),
-    row(8, 4L, "Comment#2"),
-    row(9, 4L, "Comment#3"),
-    row(10, 4L, "Comment#4"),
-    row(11, 5L, "Comment#5"),
-    row(12, 5L, "Comment#6"),
-    row(13, 5L, "Comment#7"),
-    row(14, 5L, "Comment#8"),
-    row(15, 5L, "Comment#9"),
-    row(16, 6L, "Comment#10"),
-    row(17, 6L, "Comment#11"),
-    row(18, 6L, "Comment#12"),
-    row(19, 6L, "Comment#13"),
-    row(20, 6L, "Comment#14"),
-    row(21, 6L, "Comment#15")
-  )
+  lazy val tupleData3: Seq[(Int, Long, String)] = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    data.+=((2, 2L, "Hello"))
+    data.+=((3, 2L, "Hello world"))
+    data.+=((4, 3L, "Hello world, how are you?"))
+    data.+=((5, 3L, "I am fine."))
+    data.+=((6, 3L, "Luke Skywalker"))
+    data.+=((7, 4L, "Comment#1"))
+    data.+=((8, 4L, "Comment#2"))
+    data.+=((9, 4L, "Comment#3"))
+    data.+=((10, 4L, "Comment#4"))
+    data.+=((11, 5L, "Comment#5"))
+    data.+=((12, 5L, "Comment#6"))
+    data.+=((13, 5L, "Comment#7"))
+    data.+=((14, 5L, "Comment#8"))
+    data.+=((15, 5L, "Comment#9"))
+    data.+=((16, 6L, "Comment#10"))
+    data.+=((17, 6L, "Comment#11"))
+    data.+=((18, 6L, "Comment#12"))
+    data.+=((19, 6L, "Comment#13"))
+    data.+=((20, 6L, "Comment#14"))
+    data.+=((21, 6L, "Comment#15"))
+    data
+  }
+
+  lazy val data3: Seq[Row] = tupleData3.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfData3 = Array(false, false, false)
 
-  lazy val genericData3 = Seq(
+  lazy val genericData3: Seq[Row] = Seq(
     row(new JTuple2("1", 1), new JTuple2(1, 1), 1),
     row(new JTuple2("2", 1), new JTuple2(1, 1), 2),
     row(new JTuple2("1", 1), new JTuple2(1, 1), 1),
@@ -134,7 +146,7 @@ object TestData {
 
   val nullablesOfData3WithTimestamp = Array(true, false, false, false)
 
-  lazy val data3WithTimestamp = Seq(
+  lazy val data3WithTimestamp: Seq[Row] = Seq(
     row(2, 2L, "Hello", new Timestamp(2000L)),
     row(1, 1L, "Hi", new Timestamp(1000L)),
     row(3, 2L, "Hello world", new Timestamp(3000L)),
@@ -158,27 +170,31 @@ object TestData {
     row(21, 6L, "Comment#15", new Timestamp(21000L))
   )
 
-  lazy val data5 = Seq(
-    row(1, 1L, 0, "Hallo", 1L),
-    row(2, 2L, 1, "Hallo Welt", 2L),
-    row(2, 3L, 2, "Hallo Welt wie", 1L),
-    row(3, 4L, 3, "Hallo Welt wie gehts?", 2L),
-    row(3, 5L, 4, "ABC", 2L),
-    row(3, 6L, 5, "BCD", 3L),
-    row(4, 7L, 6, "CDE", 2L),
-    row(4, 8L, 7, "DEF", 1L),
-    row(4, 9L, 8, "EFG", 1L),
-    row(4, 10L, 9, "FGH", 2L),
-    row(5, 11L, 10, "GHI", 1L),
-    row(5, 12L, 11, "HIJ", 3L),
-    row(5, 13L, 12, "IJK", 3L),
-    row(5, 14L, 13, "JKL", 2L),
-    row(5, 15L, 14, "KLM", 2L)
-  )
+  lazy val tupleData5: Seq[(Int, Long, Int, String, Long)] = {
+    val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
+    data.+=((1, 1L, 0, "Hallo", 1L))
+    data.+=((2, 2L, 1, "Hallo Welt", 2L))
+    data.+=((2, 3L, 2, "Hallo Welt wie", 1L))
+    data.+=((3, 4L, 3, "Hallo Welt wie gehts?", 2L))
+    data.+=((3, 5L, 4, "ABC", 2L))
+    data.+=((3, 6L, 5, "BCD", 3L))
+    data.+=((4, 7L, 6, "CDE", 2L))
+    data.+=((4, 8L, 7, "DEF", 1L))
+    data.+=((4, 9L, 8, "EFG", 1L))
+    data.+=((4, 10L, 9, "FGH", 2L))
+    data.+=((5, 11L, 10, "GHI", 1L))
+    data.+=((5, 12L, 11, "HIJ", 3L))
+    data.+=((5, 13L, 12, "IJK", 3L))
+    data.+=((5, 14L, 13, "JKL", 2L))
+    data.+=((5, 15L, 14, "KLM", 2L))
+    data
+  }
+
+  lazy val data5: Seq[Row] = tupleData5.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfData5 = Array(false, false, false, false, false)
 
-  lazy val data6 = Seq(
+  lazy val data6: Seq[Row] = Seq(
     row(1,   1.1, "a",    UTCDate("2017-04-08"), UTCTime("12:00:59"),
       UTCTimestamp("2015-05-20 10:00:00")),
     row(2,   2.5, "abc",  UTCDate("2017-04-09"), UTCTime("12:00:59"),
@@ -213,7 +229,7 @@ object TestData {
 
   val nullablesOfData6 = Array(false, false, false, false, false, false)
 
-  lazy val duplicateData5 = Seq(
+  lazy val duplicateData5: Seq[Row] = Seq(
     row(1, 1L, 10, "Hallo", 1L),
     row(2, 2L, 11, "Hallo Welt", 2L),
     row(2, 3L, 12, "Hallo Welt wie", 1L),
@@ -233,7 +249,7 @@ object TestData {
 
   val nullablesOfDuplicateData5 = Array(false, false, false, false, false)
 
-  lazy val numericData = Seq(
+  lazy val numericData: Seq[Row] = Seq(
     row(1, 1L, 1.0f, 1.0d, JBigDecimal.valueOf(1)),
     row(2, 2L, 2.0f, 2.0d, JBigDecimal.valueOf(2)),
     row(3, 3L, 3.0f, 3.0d, JBigDecimal.valueOf(3))
@@ -242,7 +258,7 @@ object TestData {
   val nullablesOfNumericData = Array(false, false, false, false, false)
 
   // person test data
-  lazy val personData = Seq(
+  lazy val personData: Seq[Row] = Seq(
     row(1, 23, "tom", 172, "m"),
     row(2, 21, "mary", 161, "f"),
     row(3, 18, "jack", 182, "m"),
@@ -265,7 +281,7 @@ object TestData {
   val INT_ONLY = new RowTypeInfo(INT_TYPE_INFO)
   val INT_INT = new RowTypeInfo(INT_TYPE_INFO, INT_TYPE_INFO)
 
-  lazy val data2_1 = Seq(
+  lazy val data2_1: Seq[Row] = Seq(
     row(1, 2.0),
     row(1, 2.0),
     row(2, 1.0),
@@ -276,7 +292,7 @@ object TestData {
     row(6, null)
   )
 
-  lazy val data2_2 = Seq(
+  lazy val data2_2: Seq[Row] = Seq(
     row(2, 3.0),
     row(2, 3.0),
     row(3, 2.0),
@@ -286,7 +302,7 @@ object TestData {
     row(6, null)
   )
 
-  lazy val data2_3 = Seq(
+  lazy val data2_3: Seq[Row] = Seq(
     row(2, 3.0),
     row(2, 3.0),
     row(3, 2.0),
@@ -323,7 +339,7 @@ object TestData {
 
   val nullablesOfIntIntData3 = Array(false, false)
 
-  lazy val upperCaseData = Seq(
+  lazy val upperCaseData: Seq[Row] = Seq(
     row(1, "A"),
     row(2, "B"),
     row(3, "C"),
@@ -333,7 +349,7 @@ object TestData {
 
   val nullablesOfUpperCaseData = Array(false, false)
 
-  lazy val lowerCaseData = Seq(
+  lazy val lowerCaseData: Seq[Row] = Seq(
     row(1, "a"),
     row(2, "b"),
     row(3, "c"),
@@ -341,7 +357,7 @@ object TestData {
 
   val nullablesOfLowerCaseData = Array(false, false)
 
-  lazy val allNulls = Seq(
+  lazy val allNulls: Seq[Row] = Seq(
     row(null),
     row(null),
     row(null),
@@ -349,7 +365,7 @@ object TestData {
 
   val nullablesOfAllNulls = Array(true)
 
-  lazy val projectionTestData = Seq(
+  lazy val projectionTestData: Seq[Row] = Seq(
     row(1, 10, 100, "1", "10", "100", 1000, "1000"),
     row(2, 20, 200, "2", "20", "200", 2000, "2000"),
     row(3, 30, 300, "3", "30", "300", 3000, "3000"))

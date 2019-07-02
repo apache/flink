@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -30,7 +31,7 @@ public final class KeyGroupRangeAssignment {
 	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
 
 	/** The (inclusive) upper bound for max parallelism */
-	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
+	public static final int UPPER_BOUND_MAX_PARALLELISM = Transformation.UPPER_BOUND_MAX_PARALLELISM;
 
 	private KeyGroupRangeAssignment() {
 		throw new AssertionError();

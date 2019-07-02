@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.`type`.TypeConverters
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
@@ -34,12 +34,12 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
   */
 class TypedFlinkTableFunction(
     val tableFunction: TableFunction[_],
-    val externalResultType: TypeInformation[_])
+    val externalResultType: DataType)
   extends FlinkTableFunction(tableFunction) {
 
   override def getExternalResultType(
       arguments: Array[AnyRef],
-      argTypes: Array[Class[_]]): TypeInformation[_] =
+      argTypes: Array[Class[_]]): DataType =
     externalResultType
 
   override def getRowType(
@@ -47,7 +47,7 @@ class TypedFlinkTableFunction(
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): RelDataType = {
     // we have determined the row type before, just convert it to RelDataType
-    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromInternalType(
-      TypeConverters.createInternalTypeFromTypeInfo(externalResultType), isNullable = true)
+    typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
+      fromDataTypeToLogicalType(externalResultType))
   }
 }

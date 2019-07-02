@@ -28,7 +28,6 @@ class LimitTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-  // TODO optimize `limit 0`
 
   @Test
   def testLimitWithoutOffset(): Unit = {

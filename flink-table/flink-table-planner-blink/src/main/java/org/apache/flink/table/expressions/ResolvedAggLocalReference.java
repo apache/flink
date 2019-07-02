@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,9 +34,9 @@ public class ResolvedAggLocalReference implements Expression {
 
 	private final String fieldTerm;
 	private final String nullTerm;
-	private final InternalType resultType;
+	private final LogicalType resultType;
 
-	public ResolvedAggLocalReference(String fieldTerm, String nullTerm, InternalType resultType) {
+	public ResolvedAggLocalReference(String fieldTerm, String nullTerm, LogicalType resultType) {
 		this.fieldTerm = fieldTerm;
 		this.nullTerm = nullTerm;
 		this.resultType = resultType;
@@ -50,8 +50,13 @@ public class ResolvedAggLocalReference implements Expression {
 		return nullTerm;
 	}
 
-	public InternalType getResultType() {
+	public LogicalType getResultType() {
 		return resultType;
+	}
+
+	@Override
+	public String asSummaryString() {
+		return fieldTerm;
 	}
 
 	@Override
@@ -88,6 +93,6 @@ public class ResolvedAggLocalReference implements Expression {
 
 	@Override
 	public String toString() {
-		return fieldTerm;
+		return asSummaryString();
 	}
 }

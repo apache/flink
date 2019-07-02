@@ -42,6 +42,7 @@ import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -207,6 +209,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
+			vertex.getCurrentExecutionAttempt().registerProducedPartitions(slot.getTaskManagerLocation()).get();
 			vertex.deployToSlot(slot);
 
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
@@ -239,7 +242,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
 			assertEquals(10, iteratorProducedPartitions.next().getNumberOfSubpartitions());
-			assertEquals(10, iteratorConsumedPartitions.next().getInputChannelDeploymentDescriptors().length);
+			assertEquals(10, iteratorConsumedPartitions.next().getShuffleDescriptors().length);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -802,7 +805,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					1,
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					false,
-					false),
+					false,
+					0),
 				null));
 
 		final Time timeout = Time.seconds(10L);
@@ -820,7 +824,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new UnregisteredMetricsGroup(),
 			blobWriter,
 			timeout,
-			LoggerFactory.getLogger(getClass()));
+			LoggerFactory.getLogger(getClass()),
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.INSTANCE);
 	}
 
 	private static final class ExecutionStageMatcher extends TypeSafeMatcher<List<ExecutionAttemptID>> {

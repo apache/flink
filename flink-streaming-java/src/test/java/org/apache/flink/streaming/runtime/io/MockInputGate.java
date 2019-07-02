@@ -43,18 +43,11 @@ public class MockInputGate extends InputGate {
 
 	private int closedChannels;
 
-	private final String owningTaskName;
-
 	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
-		this(pageSize, numberOfChannels, bufferOrEvents, "MockTask");
-	}
-
-	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents, String owningTaskName) {
 		this.pageSize = pageSize;
 		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
 		this.closed = new boolean[numberOfChannels];
-		this.owningTaskName = owningTaskName;
 
 		isAvailable = AVAILABLE;
 	}
@@ -74,17 +67,12 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
-	public String getOwningTaskName() {
-		return owningTaskName;
-	}
-
-	@Override
 	public boolean isFinished() {
 		return bufferOrEvents.isEmpty();
 	}
 
 	@Override
-	public Optional<BufferOrEvent> getNextBufferOrEvent() {
+	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
 		if (next == null) {
 			return Optional.empty();
@@ -103,8 +91,8 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
-	public Optional<BufferOrEvent> pollNextBufferOrEvent() {
-		return getNextBufferOrEvent();
+	public Optional<BufferOrEvent> pollNext() {
+		return getNext();
 	}
 
 	@Override

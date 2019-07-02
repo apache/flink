@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.join;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
@@ -40,7 +40,7 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 
 	private int keyIdx = 0;
 	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { keyIdx },
-			rowType.getInternalTypes());
+			rowType.getLogicalTypes());
 	private TypeInformation<BaseRow> keyType = new BaseRowTypeInfo();
 
 
@@ -169,7 +169,7 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 	private KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> createTestHarness(
 			ProcTimeBoundedStreamJoin windowJoinFunc)
 			throws Exception {
-		KeyedCoProcessOperator<BaseRow, BaseRow, BaseRow, BaseRow> operator = new KeyedCoProcessOperator<>(
+		LegacyKeyedCoProcessOperator<BaseRow, BaseRow, BaseRow, BaseRow> operator = new LegacyKeyedCoProcessOperator<>(
 				windowJoinFunc);
 		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(operator, keySelector, keySelector, keyType);

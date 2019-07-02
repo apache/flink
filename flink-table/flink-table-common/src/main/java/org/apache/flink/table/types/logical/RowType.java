@@ -35,6 +35,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
+
 /**
  * Logical type of a sequence of fields. A field consists of a field name, field type, and an optional
  * description. The most specific type of a row of a table is a row type. In this case, each column
@@ -163,6 +166,27 @@ public final class RowType extends LogicalType {
 		return fields;
 	}
 
+	public List<String> getFieldNames() {
+		return fields.stream().map(RowField::getName).collect(Collectors.toList());
+	}
+
+	public LogicalType getTypeAt(int i) {
+		return fields.get(i).getType();
+	}
+
+	public int getFieldCount() {
+		return fields.size();
+	}
+
+	public int getFieldIndex(String fieldName) {
+		for (int i = 0; i < fields.size(); i++) {
+			if (fields.get(i).getName().equals(fieldName)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new RowType(
@@ -252,5 +276,21 @@ public final class RowType extends LogicalType {
 			throw new ValidationException(
 				String.format("Field names must be unique. Found duplicates: %s", duplicates));
 		}
+	}
+
+	public static RowType of(LogicalType... types) {
+		List<RowField> fields = new ArrayList<>();
+		for (int i = 0; i < types.length; i++) {
+			fields.add(new RowField("f" + i, types[i]));
+		}
+		return new RowType(fields);
+	}
+
+	public static RowType of(LogicalType[] types, String[] names) {
+		List<RowField> fields = new ArrayList<>();
+		for (int i = 0; i < types.length; i++) {
+			fields.add(new RowField(names[i], types[i]));
+		}
+		return new RowType(fields);
 	}
 }

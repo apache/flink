@@ -89,6 +89,10 @@ public final class TimeType extends LogicalType {
 		this(DEFAULT_PRECISION);
 	}
 
+	public int getPrecision() {
+		return precision;
+	}
+
 	@Override
 	public LogicalType copy(boolean isNullable) {
 		return new TimeType(isNullable, precision);

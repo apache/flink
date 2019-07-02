@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.expressions.{FieldReferenceExpression, ValueLiteralExpression, WindowReference}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.expressions.{FieldReferenceExpression, WindowReference}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.INTERVAL_MILLIS
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -175,7 +175,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       }
 
     val timeField = getTimeFieldReference(windowExpr.getOperands.get(0), windowExprIdx, rowType)
-    val resultType = Some(createInternalTypeFromTypeInfo(timeField.getResultType))
+    val resultType = Some(fromDataTypeToLogicalType(timeField.getOutputDataType))
     val windowRef = WindowReference("w$", resultType)
     windowExpr.getOperator match {
       case FlinkSqlOperatorTable.TUMBLE =>
@@ -183,22 +183,22 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
         TumblingGroupWindow(
           windowRef,
           timeField,
-          new ValueLiteralExpression(interval, INTERVAL_MILLIS))
+          intervalOfMillis(interval))
 
       case FlinkSqlOperatorTable.HOP =>
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         SlidingGroupWindow(
           windowRef,
           timeField,
-          new ValueLiteralExpression(size, INTERVAL_MILLIS),
-          new ValueLiteralExpression(slide, INTERVAL_MILLIS))
+          intervalOfMillis(size),
+          intervalOfMillis(slide))
 
       case FlinkSqlOperatorTable.SESSION =>
         val gap = getOperandAsLong(windowExpr, 1)
         SessionGroupWindow(
           windowRef,
           timeField,
-          new ValueLiteralExpression(gap, INTERVAL_MILLIS))
+          intervalOfMillis(gap))
     }
   }
 

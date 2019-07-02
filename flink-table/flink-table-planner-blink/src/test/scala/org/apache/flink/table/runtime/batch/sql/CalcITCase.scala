@@ -45,9 +45,9 @@ class CalcITCase extends BatchTestBase {
 
   @Before
   def before(): Unit = {
-    registerCollection("Table3", data3, type3, nullablesOfData3, "a, b, c")
-    registerCollection("NullTable3", nullData3, type3, nullablesOfData3, "a, b, c")
-    registerCollection("SmallTable3", smallData3, type3, nullablesOfData3, "a, b, c")
+    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
+    registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfData3)
+    registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfData3)
     registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
   }
 
@@ -99,8 +99,9 @@ class CalcITCase extends BatchTestBase {
   def testManySelect(): Unit = {
     registerCollection(
       "ProjectionTestTable",
-      projectionTestData, projectionTestDataType, nullablesOfProjectionTestData,
-      "a, b, c, d, e, f, g, h")
+      projectionTestData, projectionTestDataType,
+      "a, b, c, d, e, f, g, h",
+      nullablesOfProjectionTestData)
     checkResult(
       """
         |SELECT
@@ -658,7 +659,7 @@ class CalcITCase extends BatchTestBase {
   def testValueConstructor(): Unit = {
     val data = Seq(row("foo", 12, UTCTimestamp("1984-07-12 14:34:24")))
     val tpe = new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, TIMESTAMP)
-    registerCollection("MyTable", data, tpe, Array(false, false, false), "a, b, c")
+    registerCollection("MyTable", data, tpe, "a, b, c" , Array(false, false, false))
 
     val table = parseQuery("SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
         "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")

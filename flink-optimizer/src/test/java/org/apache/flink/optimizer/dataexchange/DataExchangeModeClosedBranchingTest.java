@@ -159,6 +159,9 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.getConfig().setExecutionMode(execMode);
 
+			// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+			env.setParallelism(2);
+
 			DataSet<Tuple2<Long, Long>> data = env.fromElements(33L, 44L)
 					.map(new MapFunction<Long, Tuple2<Long, Long>>() {
 						@Override

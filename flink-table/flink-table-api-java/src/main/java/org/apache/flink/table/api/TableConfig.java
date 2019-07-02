@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.internal.CompositePlannerConfig;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -43,7 +44,7 @@ public class TableConfig {
 	/**
 	 * Defines the configuration of Planner for Table API and SQL queries.
 	 */
-	private PlannerConfig plannerConfig = PlannerConfig.EMPTY_CONFIG;
+	private CompositePlannerConfig plannerConfig = new CompositePlannerConfig();
 
 	/**
 	 * Defines the default context for decimal division calculation.
@@ -56,6 +57,18 @@ public class TableConfig {
 	 * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
 	 */
 	private Integer maxGeneratedCodeLength = 64000; // just an estimate
+
+	/**
+	 * Specifies the name of the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	private String builtInCatalogName = "default_catalog";
+
+	/**
+	 * Specifies the name of the default database in the initial catalog to be created when instantiating
+	 * TableEnvironment.
+	 */
+	private String builtInDatabaseName = "default_database";
 
 	/**
 	 * Returns the timezone for date/time/timestamp conversions.
@@ -96,8 +109,8 @@ public class TableConfig {
 	 * Sets the configuration of Planner for Table API and SQL queries.
 	 * Changing the configuration has no effect after the first query has been defined.
 	 */
-	public void setPlannerConfig(PlannerConfig plannerConfig) {
-		this.plannerConfig = Preconditions.checkNotNull(plannerConfig);
+	public void addPlannerConfig(PlannerConfig plannerConfig) {
+		this.plannerConfig.addConfig(Preconditions.checkNotNull(plannerConfig));
 	}
 
 	/**
@@ -132,6 +145,38 @@ public class TableConfig {
 	 */
 	public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
 		this.maxGeneratedCodeLength = Preconditions.checkNotNull(maxGeneratedCodeLength);
+	}
+
+	/**
+	 * Gets the specified name of the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}.
+	 */
+	public String getBuiltInCatalogName() {
+		return builtInCatalogName;
+	}
+
+	/**
+	 * Specifies the name of the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}. This method has no effect if called on the {@link TableEnvironment#getConfig()}.
+	 */
+	public void setBuiltInCatalogName(String builtInCatalogName) {
+		this.builtInCatalogName = builtInCatalogName;
+	}
+
+	/**
+	 * Gets the specified name of the default database in the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}.
+	 */
+	public String getBuiltInDatabaseName() {
+		return builtInDatabaseName;
+	}
+
+	/**
+	 * Specifies the name of the default database in the initial catalog to be created when instantiating
+	 * a {@link TableEnvironment}. This method has no effect if called on the {@link TableEnvironment#getConfig()}.
+	 */
+	public void setBuiltInDatabaseName(String builtInDatabaseName) {
+		this.builtInDatabaseName = builtInDatabaseName;
 	}
 
 	public static TableConfig getDefault() {

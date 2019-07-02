@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.join;
 
 import org.apache.flink.configuration.AlgorithmOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -27,11 +28,12 @@ import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.generated.GeneratedJoinCondition;
 import org.apache.flink.table.generated.GeneratedProjection;
+import org.apache.flink.table.generated.JoinCondition;
 import org.apache.flink.table.runtime.TableStreamOperator;
 import org.apache.flink.table.runtime.hashtable.BinaryHashTable;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.typeutils.AbstractRowSerializer;
 import org.apache.flink.util.Collector;
 
@@ -66,6 +68,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	private transient BaseRow probeSideNullRow;
 	private transient JoinedRow joinedRow;
 	private transient boolean buildEnd;
+	private transient JoinCondition condition;
 
 	HashJoinOperator(HashJoinParameter parameter) {
 		this.parameter = parameter;
@@ -89,6 +92,10 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 		int parallel = getRuntimeContext().getNumberOfParallelSubtasks();
 
+		this.condition = parameter.condFuncCode.newInstance(cl);
+		condition.setRuntimeContext(getRuntimeContext());
+		condition.open(new Configuration());
+
 		this.table = new BinaryHashTable(
 				getContainingTask().getJobConfiguration(),
 				getContainingTask(),
@@ -104,7 +111,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 				parameter.buildRowCount / parallel,
 				hashJoinUseBitMaps,
 				type,
-				parameter.condFuncCode.newInstance(cl),
+				condition,
 				reverseJoinFunction,
 				parameter.filterNullKeys,
 				parameter.tryDistinctBuildRow);
@@ -192,6 +199,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 			this.table.free();
 			this.table = null;
 		}
+		condition.close();
 	}
 
 	public static HashJoinOperator newHashJoinOperator(

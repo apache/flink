@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * Generator to generate a call expression. It is usually used when the generation
@@ -30,6 +30,6 @@ trait CallGenerator {
   def generate(
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression],
-    returnType: InternalType): GeneratedExpression
+    returnType: LogicalType): GeneratedExpression
 
 }

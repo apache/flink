@@ -18,8 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, StreamTransformation}
-import org.apache.flink.table.`type`.TypeConverters.createInternalTypeFromTypeInfo
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -32,13 +31,15 @@ import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRul
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil, RelExplainUtil, _}
 import org.apache.flink.table.runtime.aggregate.{GroupAggFunction, MiniBatchGroupAggFunction}
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
-
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
-
 import java.util
+
+import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
 
@@ -123,7 +124,7 @@ class StreamExecGroupAggregate(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): StreamTransformation[BaseRow] = {
+      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
 
     val tableConfig = tableEnv.getConfig
 
@@ -134,10 +135,10 @@ class StreamExecGroupAggregate(
     }
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
-      .asInstanceOf[StreamTransformation[BaseRow]]
+      .asInstanceOf[Transformation[BaseRow]]
 
-    val outRowType = FlinkTypeFactory.toInternalRowType(outputRowType)
-    val inputRowType = FlinkTypeFactory.toInternalRowType(getInput.getRowType)
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
+    val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
@@ -145,7 +146,7 @@ class StreamExecGroupAggregate(
     val generator = new AggsHandlerCodeGenerator(
       CodeGeneratorContext(tableConfig),
       tableEnv.getRelBuilder,
-      inputRowType.getFieldTypes,
+      inputRowType.getChildren,
       // TODO: heap state backend do not copy key currently, we have to copy input field
       // TODO: copy is not need when state backend is rocksdb, improve this in future
       // TODO: but other operators do not copy this input field.....
@@ -158,8 +159,8 @@ class StreamExecGroupAggregate(
     val aggsHandler = generator
       .needAccumulate()
       .generateAggsHandler("GroupAggsHandler", aggInfoList)
-    val accTypes = aggInfoList.getAccTypes.map(createInternalTypeFromTypeInfo)
-    val aggValueTypes = aggInfoList.getActualValueTypes.map(createInternalTypeFromTypeInfo)
+    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
+    val aggValueTypes = aggInfoList.getActualValueTypes.map(fromDataTypeToLogicalType)
     val recordEqualiser = new EqualiserCodeGenerator(aggValueTypes)
       .generateRecordEqualiser("GroupAggValueEqualiser")
     val inputCountIndex = aggInfoList.getIndexOfCountStar
@@ -193,19 +194,20 @@ class StreamExecGroupAggregate(
       operator
     }
 
-    val selector = KeySelectorUtil.getBaseRowSelector(grouping, inputRowType.toTypeInfo)
+    val selector = KeySelectorUtil.getBaseRowSelector(
+      grouping,
+      BaseRowTypeInfo.of(inputRowType))
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
       "GroupAggregate",
       operator,
-      outRowType.toTypeInfo,
-      tableEnv.execEnv.getParallelism)
+      BaseRowTypeInfo.of(outRowType),
+      getResource.getParallelism)
 
-    if (grouping.isEmpty) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
     }
 
     // set KeyType and Selector for state

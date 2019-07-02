@@ -20,6 +20,7 @@ package org.apache.flink.table.api.java
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 
 /**
   * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]] that works with
@@ -41,8 +42,9 @@ import org.apache.flink.table.api._
   */
 class StreamTableEnvironment @Deprecated() (
     execEnv: StreamExecutionEnvironment,
-    config: TableConfig)
-  extends org.apache.flink.table.api.StreamTableEnvironment(execEnv, config) {
+    config: TableConfig,
+    catalogManager: CatalogManager)
+  extends org.apache.flink.table.api.StreamTableEnvironment(execEnv, config, catalogManager) {
 
   /**
     * Converts the given [[DataStream]] into a [[Table]].
@@ -55,9 +57,7 @@ class StreamTableEnvironment @Deprecated() (
     * @return The converted [[Table]].
     */
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream)
-    scan(name)
+    new TableImpl(this, asQueryOperation(dataStream, None))
   }
 
   /**
@@ -78,10 +78,7 @@ class StreamTableEnvironment @Deprecated() (
   def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
     // TODO: use ExpressionParser instead after we introduce [Expression]
     val exprs = fields.split(",").map(_.trim)
-
-    val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, exprs)
-    scan(name)
+    new TableImpl(this, asQueryOperation(dataStream, Some(exprs)))
   }
 
   /**
@@ -97,9 +94,7 @@ class StreamTableEnvironment @Deprecated() (
     * @tparam T The type of the [[DataStream]] to register.
     */
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream)
+    registerTable(name, fromDataStream(dataStream))
   }
 
   /**
@@ -121,12 +116,8 @@ class StreamTableEnvironment @Deprecated() (
     */
   def registerDataStream[T](name: String, dataStream: DataStream[T], fields: String): Unit = {
     // TODO: use ExpressionParser instead after we introduce [Expression]
-    val exprs = fields.split(",").map(_.trim)
-
-    checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, exprs)
+    registerTable(name, fromDataStream(dataStream, fields))
   }
-
 }
 
 object StreamTableEnvironment {
@@ -147,7 +138,7 @@ object StreamTableEnvironment {
     * @param executionEnvironment The Java [[StreamExecutionEnvironment]] of the TableEnvironment.
     */
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
-    new StreamTableEnvironment(executionEnvironment, new TableConfig())
+    create(executionEnvironment, new TableConfig())
   }
 
   /**
@@ -169,7 +160,36 @@ object StreamTableEnvironment {
   def create(
     executionEnvironment: StreamExecutionEnvironment,
     tableConfig: TableConfig): StreamTableEnvironment = {
+    val catalogManager = new CatalogManager(
+      tableConfig.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(
+        tableConfig.getBuiltInCatalogName,
+        tableConfig.getBuiltInDatabaseName)
+    )
+    new StreamTableEnvironment(executionEnvironment, tableConfig, catalogManager)
+  }
 
-    new StreamTableEnvironment(executionEnvironment, tableConfig)
+  /**
+    * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]] that works with
+    * [[DataStream]]s.
+    *
+    * A TableEnvironment can be used to:
+    * - convert a [[DataStream]] to a [[Table]]
+    * - register a [[DataStream]] in the [[TableEnvironment]]'s catalog
+    * - register a [[Table]] in the [[TableEnvironment]]'s catalog
+    * - scan a registered table to obtain a [[Table]]
+    * - specify a SQL query on registered tables to obtain a [[Table]]
+    * - convert a [[Table]] into a [[DataStream]]
+    * - explain the AST and execution plan of a [[Table]]
+    *
+    * @param executionEnvironment The Java [[StreamExecutionEnvironment]] of the TableEnvironment.
+    * @param tableConfig The configuration of the TableEnvironment.
+    * @param catalogManager a catalog manager that encapsulates all available catalogs.
+    */
+  def create(
+      executionEnvironment: StreamExecutionEnvironment,
+      tableConfig: TableConfig,
+      catalogManager: CatalogManager): StreamTableEnvironment = {
+    new StreamTableEnvironment(executionEnvironment, tableConfig, catalogManager)
   }
 }

@@ -55,6 +55,8 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -478,11 +480,6 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferProvider getBufferProvider() {
-			return bufferProvider;
-		}
-
-		@Override
 		public ResultPartitionID getPartitionId() {
 			return partitionId;
 		}
@@ -498,8 +495,13 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
-			queues[targetChannel].add(buffer);
+		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking();
+		}
+
+		@Override
+		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
+			return queues[targetChannel].add(buffer);
 		}
 
 		@Override
@@ -508,6 +510,16 @@ public class RecordWriterTest {
 
 		@Override
 		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -543,11 +555,6 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public BufferProvider getBufferProvider() {
-			return bufferProvider;
-		}
-
-		@Override
 		public ResultPartitionID getPartitionId() {
 			return partitionId;
 		}
@@ -563,8 +570,14 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking();
+		}
+
+		@Override
+		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 			bufferConsumer.close();
+			return true;
 		}
 
 		@Override
@@ -573,6 +586,16 @@ public class RecordWriterTest {
 
 		@Override
 		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void fail(@Nullable Throwable throwable) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void finish() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

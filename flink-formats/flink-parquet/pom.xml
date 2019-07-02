@@ -60,8 +60,8 @@ under the License.
 		<!-- Hadoop is needed by Parquet -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${hadoop.version}-${project.version}</version>
+			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<scope>provided</scope>
 		</dependency>
 

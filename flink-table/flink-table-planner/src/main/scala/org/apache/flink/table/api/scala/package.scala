@@ -21,6 +21,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 

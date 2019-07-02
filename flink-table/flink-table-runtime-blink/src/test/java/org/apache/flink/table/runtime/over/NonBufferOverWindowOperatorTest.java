@@ -32,8 +32,9 @@ import org.apache.flink.table.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.generated.GeneratedRecordComparator;
 import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.runtime.sort.IntRecordComparator;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.util.OutputTag;
 
@@ -66,10 +67,8 @@ public class NonBufferOverWindowOperatorTest {
 			return new IntRecordComparator();
 		}
 	};
-	static RowType inputType = new RowType(InternalTypes.INT, InternalTypes.LONG, InternalTypes.LONG);
-	static BaseRowSerializer inputSer = new BaseRowSerializer(
-			new ExecutionConfig(),
-			inputType.getFieldTypes());
+	static RowType inputType = RowType.of(new IntType(), new BigIntType(), new BigIntType());
+	static BaseRowSerializer inputSer = new BaseRowSerializer(new ExecutionConfig(), inputType);
 
 	private static GeneratedAggsHandleFunction[] functions;
 

@@ -22,7 +22,7 @@ import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
@@ -36,7 +36,7 @@ import java.net.InetSocketAddress;
  * Builder for various {@link InputChannel} types.
  */
 public class InputChannelBuilder {
-	static final ConnectionID STUB_CONNECTION_ID =
+	public static final ConnectionID STUB_CONNECTION_ID =
 		new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
 
 	private int channelIndex = 0;
@@ -99,7 +99,7 @@ public class InputChannelBuilder {
 		return this;
 	}
 
-	InputChannelBuilder setupFromNetworkEnvironment(NetworkEnvironment network) {
+	InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
 		this.partitionManager = network.getResultPartitionManager();
 		this.connectionManager = network.getConnectionManager();
 		this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();

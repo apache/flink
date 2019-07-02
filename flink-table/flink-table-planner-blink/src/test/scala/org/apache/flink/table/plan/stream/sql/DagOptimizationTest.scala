@@ -18,9 +18,9 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.`type`.InternalTypes.{INT, LONG, STRING}
 import org.apache.flink.table.api.PlannerConfigOptions
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.{TableFunc1, TableTestBase}
 
 import org.junit.Test
@@ -29,6 +29,10 @@ class DagOptimizationTest extends TableTestBase {
   private val util = streamTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, String)]("MyTable1", 'd, 'e, 'f)
+
+  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
   @Test
   def testSingleSink1(): Unit = {

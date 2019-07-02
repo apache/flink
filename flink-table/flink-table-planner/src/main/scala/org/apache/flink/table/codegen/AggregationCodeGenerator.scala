@@ -28,16 +28,17 @@ import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescripto
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{TableConfig, ValidationException}
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.functions.{TableAggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.{AggSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
+import org.apache.flink.table.runtime.CRowWrappingCollector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GeneratedAggregations, GeneratedTableAggregations, SingleElementIterable}
 import org.apache.flink.table.utils.EncodingUtils
@@ -840,17 +841,32 @@ class AggregationCodeGenerator(
     */
   def generateTableAggregations(
     tableAggOutputRowType: RowTypeInfo,
-    tableAggOutputType: TypeInformation[_]): GeneratedAggregationsFunction = {
+    tableAggOutputType: TypeInformation[_],
+    supportEmitIncrementally: Boolean): GeneratedAggregationsFunction = {
 
     // constants
     val CONVERT_COLLECTOR_CLASS_TERM = "ConvertCollector"
-
     val CONVERT_COLLECTOR_VARIABLE_TERM = "convertCollector"
     val COLLECTOR_VARIABLE_TERM = "cRowWrappingcollector"
     val CONVERTER_ROW_RESULT_TERM = "rowTerm"
 
+    // emit methods
+    val emitValue = "emitValue"
+    val emitUpdateWithRetract = "emitUpdateWithRetract"
+
+    // collectors
     val COLLECTOR: String = classOf[Collector[_]].getCanonicalName
+    val CROW_WRAPPING_COLLECTOR: String = classOf[CRowWrappingCollector].getCanonicalName
+    val RETRACTABLE_COLLECTOR: String =
+      classOf[TableAggregateFunction.RetractableCollector[_]].getCanonicalName
+
     val ROW: String = classOf[Row].getCanonicalName
+
+    // Set emitValue as the default emit method here and set it to emitUpdateWithRetract on
+    // condition that: 1. emitUpdateWithRetract has been defined in the table aggregate
+    // function and 2. the operator supports emit incrementally, for example, window flatAggregate
+    // doesn't support emit incrementally now)
+    var finalEmitMethodName: String = emitValue
 
     def genEmit: String = {
 
@@ -865,13 +881,14 @@ class AggregationCodeGenerator(
           val emitAcc =
             j"""
                |      ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |      ${aggs(i)}.emitValue(acc$i
+               |      ${aggs(i)}.$finalEmitMethodName(acc$i
                |        ${if (!parametersCode(i).isEmpty) "," else ""}
                |        $CONVERT_COLLECTOR_VARIABLE_TERM);
              """.stripMargin
           j"""
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-             |    $CONVERT_COLLECTOR_VARIABLE_TERM.$COLLECTOR_VARIABLE_TERM = collector;
+             |    $CONVERT_COLLECTOR_VARIABLE_TERM.$COLLECTOR_VARIABLE_TERM =
+             |      ($CROW_WRAPPING_COLLECTOR) collector;
              |    $emitAcc
            """.stripMargin
         }
@@ -900,22 +917,63 @@ class AggregationCodeGenerator(
       functionGenerator.reuseInputUnboxingCode() + resultExprs.code
     }
 
+    def checkAndGetEmitValueMethod(function: UserDefinedFunction, index: Int): Unit = {
+      finalEmitMethodName = emitValue
+      getUserDefinedMethod(
+        function, emitValue, Array(accTypeClasses(index), classOf[Collector[_]]))
+        .getOrElse(throw new CodeGenException(
+          s"No matching $emitValue method found for " +
+            s"tableAggregate ${function.getClass.getCanonicalName}'."))
+    }
+
     /**
       * Call super init and check emit methods.
       */
     def innerInit(): Unit = {
       init()
-      // check and validate the emit methods
+      // check and validate the emit methods. Find incremental emit method first if the operator
+      // supports emit incrementally.
       aggregates.zipWithIndex.map {
         case (a, i) =>
-          val methodName = "emitValue"
-          getUserDefinedMethod(
-            a, methodName, Array(accTypeClasses(i), classOf[Collector[_]]))
-            .getOrElse(
-              throw new CodeGenException(
-                s"No matching $methodName method found for " +
-                  s"tableAggregate ${a.getClass.getCanonicalName}'.")
-            )
+          if (supportEmitIncrementally) {
+            try {
+              finalEmitMethodName = emitUpdateWithRetract
+              getUserDefinedMethod(
+                a,
+                emitUpdateWithRetract,
+                Array(accTypeClasses(i), classOf[TableAggregateFunction.RetractableCollector[_]]))
+                .getOrElse(checkAndGetEmitValueMethod(a, i))
+            } catch {
+              case _: ValidationException =>
+                // Use try catch here as exception will be thrown if there is no
+                // emitUpdateWithRetract method
+                checkAndGetEmitValueMethod(a, i)
+            }
+          } else {
+            checkAndGetEmitValueMethod(a, i)
+          }
+      }
+    }
+
+    /**
+      * Generates the retract method if it is a [[TableAggregateFunction.RetractableCollector]].
+      */
+    def getRetractMethodForConvertCollector(emitMethodName: String): String = {
+      if (emitMethodName == emitValue) {
+        // Users can't retract messages with emitValue method.
+        j"""
+           |
+          """.stripMargin
+      } else {
+        // only generates retract method for RetractableCollector
+        j"""
+           |      @Override
+           |      public void retract(Object record) throws Exception {
+           |          $COLLECTOR_VARIABLE_TERM.setChange(false);
+           |          $COLLECTOR_VARIABLE_TERM.collect(convertToRow(record));
+           |          $COLLECTOR_VARIABLE_TERM.setChange(true);
+           |      }
+          """.stripMargin
       }
     }
 
@@ -931,6 +989,10 @@ class AggregationCodeGenerator(
 
     val generatedAggregationsClass = classOf[GeneratedTableAggregations].getCanonicalName
     val aggOutputTypeName = tableAggOutputType.getTypeClass.getCanonicalName
+
+    val baseCollectorString =
+      if (finalEmitMethodName == emitValue) COLLECTOR else RETRACTABLE_COLLECTOR
+
     val funcCode =
       j"""
          |public final class $funcName extends $generatedAggregationsClass {
@@ -959,9 +1021,9 @@ class AggregationCodeGenerator(
          |    ${reuseCloseCode()}
          |  }
          |
-         |  private class $CONVERT_COLLECTOR_CLASS_TERM implements $COLLECTOR {
+         |  private class $CONVERT_COLLECTOR_CLASS_TERM implements $baseCollectorString {
          |
-         |      public $COLLECTOR<$ROW> $COLLECTOR_VARIABLE_TERM;
+         |      public $CROW_WRAPPING_COLLECTOR $COLLECTOR_VARIABLE_TERM;
          |      private final $ROW $CONVERTER_ROW_RESULT_TERM =
          |        new $ROW(${tableAggOutputType.getArity});
          |
@@ -976,6 +1038,8 @@ class AggregationCodeGenerator(
          |          $COLLECTOR_VARIABLE_TERM.collect(convertToRow(record));
          |      }
          |
+         |      ${getRetractMethodForConvertCollector(finalEmitMethodName)}
+         |
          |      @Override
          |      public void close() {
          |       $COLLECTOR_VARIABLE_TERM.close();
@@ -984,7 +1048,7 @@ class AggregationCodeGenerator(
          |}
          """.stripMargin
 
-    GeneratedAggregationsFunction(funcName, funcCode)
+    new GeneratedTableAggregationsFunction(funcName, funcCode, finalEmitMethodName != emitValue)
   }
 
   /**
@@ -994,12 +1058,15 @@ class AggregationCodeGenerator(
     * @param outputType      Output type of the (table)aggregate node.
     * @param groupSize       The size of the groupings.
     * @param namedAggregates The correspond named aggregates in the aggregate operator.
+    * @param supportEmitIncrementally Whether support emit values incrementally. Window operators
+    *                                 don't support it yet.
     * @return A GeneratedAggregationsFunction
     */
   def genAggregationsOrTableAggregations(
     outputType: RelDataType,
     groupSize: Int,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]])
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    supportEmitIncrementally: Boolean)
   : GeneratedAggregationsFunction = {
 
     if (isTableAggregate) {
@@ -1017,7 +1084,8 @@ class AggregationCodeGenerator(
 
       generateTableAggregations(
         tableAggOutputRowType,
-        namedAggregates.head.left.getAggregation.asInstanceOf[AggSqlFunction].returnType)
+        namedAggregates.head.left.getAggregation.asInstanceOf[AggSqlFunction].returnType,
+        supportEmitIncrementally)
     } else {
       generateAggregations
     }

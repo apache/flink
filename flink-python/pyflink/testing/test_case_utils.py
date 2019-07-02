@@ -25,14 +25,20 @@ import unittest
 from abc import abstractmethod
 
 from py4j.java_gateway import JavaObject
-from pyflink.table.table_source import CsvTableSource
+from pyflink.table.sources import CsvTableSource
+
+from pyflink.dataset import ExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment
 
 from pyflink.find_flink_home import _find_flink_home
-from pyflink.table import TableEnvironment, TableConfig
+from pyflink.table import BatchTableEnvironment, StreamTableEnvironment
 from pyflink.java_gateway import get_gateway
 
 if sys.version_info[0] >= 3:
     xrange = range
+else:
+    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+    unittest.TestCase.assertRegex = unittest.TestCase.assertRegexpMatches
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
@@ -101,8 +107,9 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
 
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
-        self.t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
-        self.t_env = TableEnvironment.create(self.t_config)
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(1)
+        self.t_env = StreamTableEnvironment.create(self.env)
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -112,8 +119,9 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
 
     def setUp(self):
         super(PyFlinkBatchTableTestCase, self).setUp()
-        self.t_config = TableConfig.Builder().as_batch_execution().set_parallelism(1).build()
-        self.t_env = TableEnvironment.create(self.t_config)
+        self.env = ExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(1)
+        self.t_env = BatchTableEnvironment.create(self.env)
 
     def collect(self, table):
         j_table = table._j_table
@@ -144,16 +152,19 @@ class PythonAPICompletenessTestCase(object):
     def get_java_class_methods(java_class):
         gateway = get_gateway()
         s = set()
-        method_arr = gateway.jvm.Class.forName(java_class).getDeclaredMethods()
+        method_arr = gateway.jvm.Class.forName(java_class).getMethods()
         for i in range(0, len(method_arr)):
             s.add(method_arr[i].getName())
         return s
 
     @classmethod
     def check_methods(cls):
+        java_primary_methods = {'getClass', 'notifyAll', 'equals', 'hashCode', 'toString',
+                                'notify', 'wait'}
         java_methods = PythonAPICompletenessTestCase.get_java_class_methods(cls.java_class())
         python_methods = cls.get_python_class_methods(cls.python_class())
-        missing_methods = java_methods - python_methods - cls.excluded_methods()
+        missing_methods = java_methods - python_methods - cls.excluded_methods() \
+            - java_primary_methods
         if len(missing_methods) > 0:
             raise Exception('Methods: %s in Java class %s have not been added in Python class %s.'
                             % (missing_methods, cls.java_class(), cls.python_class()))
@@ -193,7 +204,7 @@ class PythonAPICompletenessTestCase(object):
         to the lists you should give a good reason in a comment.
         :return:
         """
-        return {}
+        return {"equals", "hashCode", "toString"}
 
     def test_completeness(self):
         self.check_methods()

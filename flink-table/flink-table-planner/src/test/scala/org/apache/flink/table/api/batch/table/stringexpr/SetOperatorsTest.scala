@@ -40,12 +40,12 @@ class SetOperatorsTest extends TableTestBase {
       "DataSetCalc",
       binaryNode(
         "DataSetJoin",
-        batchTableNode(0),
+        batchTableNode(t),
         unaryNode(
           "DataSetDistinct",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(t),
             term("select", "a AS a1"),
             term("where", "=(b, 'two')")
           ),
@@ -70,7 +70,7 @@ class SetOperatorsTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchTableNode(0),
+      batchTableNode(t),
       term("select", "IN(b, CAST('1972-02-22 07:12:00.333')) AS b2")
     )
 

@@ -22,13 +22,11 @@ import org.apache.flink.table.api.{SqlParserException, TableException, Validatio
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
-import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
@@ -36,7 +34,9 @@ import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
+import java.lang.{Boolean => JBoolean}
 import java.util
+import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConversions._
 
@@ -48,7 +48,7 @@ import scala.collection.JavaConversions._
   */
 class FlinkPlannerImpl(
     config: FrameworkConfig,
-    planner: RelOptPlanner,
+    catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
     cluster: RelOptCluster) {
 
@@ -57,7 +57,6 @@ class FlinkPlannerImpl(
   val traitDefs: ImmutableList[RelTraitDef[_ <: RelTrait]] = config.getTraitDefs
   val parserConfig: SqlParser.Config = config.getParserConfig
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
-  val defaultSchema: SchemaPlus = config.getDefaultSchema
   val sqlToRelConverterConfig: SqlToRelConverter.Config = config.getSqlToRelConverterConfig
 
   var validator: FlinkCalciteSqlValidator = _
@@ -65,9 +64,9 @@ class FlinkPlannerImpl(
 
   private def ready() {
     if (this.traitDefs != null) {
-      planner.clearRelTraitDefs()
+      cluster.getPlanner.clearRelTraitDefs()
       for (traitDef <- this.traitDefs) {
-        planner.addRelTraitDef(traitDef)
+        cluster.getPlanner.addRelTraitDef(traitDef)
       }
     }
   }
@@ -75,7 +74,7 @@ class FlinkPlannerImpl(
   def getCompletionHints(sql: String, cursor: Int): Array[String] = {
     val advisorValidator = new SqlAdvisorValidator(
       operatorTable,
-      createCatalogReader(true), // ignore cases for lenient completion
+      catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
       config.getParserConfig.conformance())
     val advisor = new SqlAdvisor(advisorValidator)
@@ -98,7 +97,9 @@ class FlinkPlannerImpl(
   }
 
   def validate(sqlNode: SqlNode): SqlNode = {
-    validator = new FlinkCalciteSqlValidator(operatorTable, createCatalogReader(false), typeFactory)
+    validator = new FlinkCalciteSqlValidator(
+      operatorTable,
+      catalogReaderSupplier(false), typeFactory)
     validator.setIdentifierExpansion(true)
     validator.setDefaultNullCollation(FlinkPlannerImpl.defaultNullCollation)
 
@@ -117,7 +118,7 @@ class FlinkPlannerImpl(
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
         new ViewExpanderImpl,
         validator,
-        createCatalogReader(false),
+        catalogReaderSupplier.apply(false),
         cluster,
         convertletTable,
         sqlToRelConverterConfig)
@@ -155,7 +156,7 @@ class FlinkPlannerImpl(
         case e: CSqlParseException =>
           throw new SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
       }
-      val catalogReader: CalciteCatalogReader = createCatalogReader(false)
+      val catalogReader: CalciteCatalogReader = catalogReaderSupplier.apply(false)
         .withSchemaPath(schemaPath)
       val validator: SqlValidator =
         new FlinkCalciteSqlValidator(operatorTable, catalogReader, typeFactory)
@@ -175,38 +176,9 @@ class FlinkPlannerImpl(
     }
   }
 
-  private def createCatalogReader(lenientCaseSensitivity: Boolean): CalciteCatalogReader = {
-    val rootSchema: SchemaPlus = FlinkPlannerImpl.rootSchema(defaultSchema)
-
-    val caseSensitive = if (lenientCaseSensitivity) {
-      false
-    } else {
-      this.parserConfig.caseSensitive()
-    }
-
-    val parserConfig = SqlParser.configBuilder(this.parserConfig)
-      .setCaseSensitive(caseSensitive)
-      .build()
-
-    new FlinkCalciteCatalogReader(
-      CalciteSchema.from(rootSchema),
-      CalciteSchema.from(defaultSchema).path(null),
-      typeFactory,
-      CalciteConfig.connectionConfig(parserConfig)
-    )
-  }
-
 }
 
 object FlinkPlannerImpl {
-  private def rootSchema(schema: SchemaPlus): SchemaPlus = {
-    if (schema.getParentSchema == null) {
-      schema
-    }
-    else {
-      rootSchema(schema.getParentSchema)
-    }
-  }
 
   /**
     * the null default direction if not specified. Consistent with HIVE/SPARK/MYSQL/FLINK-RUNTIME.

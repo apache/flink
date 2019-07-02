@@ -20,23 +20,19 @@ package org.apache.flink.table.calcite
 
 import org.apache.flink.table.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
 import org.apache.flink.table.expressions.WindowProperty
+import org.apache.flink.table.operations.QueryOperation
+import org.apache.flink.table.plan.QueryOperationConverter
 import org.apache.flink.table.runtime.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
-import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
-import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
-import org.apache.calcite.rex.{RexBuilder, RexNode}
-import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelBuilderFactory}
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.util
-import java.util.{Collections, Properties}
-
-import scala.collection.JavaConversions._
 
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
@@ -52,6 +48,8 @@ class FlinkRelBuilder(
 
   require(context != null)
 
+  private val toRelNodeConverter = new QueryOperationConverter(this)
+
   private val expandFactory: ExpandFactory = {
     Util.first(context.unwrap(classOf[ExpandFactory]), FlinkRelFactories.DEFAULT_EXPAND_FACTORY)
   }
@@ -65,8 +63,6 @@ class FlinkRelBuilder(
   }
 
   def getRelOptSchema: RelOptSchema = relOptSchema
-
-  def getPlanner: RelOptPlanner = cluster.getPlanner
 
   def getCluster: RelOptCluster = relOptCluster
 
@@ -100,39 +96,15 @@ class FlinkRelBuilder(
       rankNumberType, outputRankNumber)
     push(rank)
   }
+
+  def queryOperation(queryOperation: QueryOperation): RelBuilder= {
+    val relNode = queryOperation.accept(toRelNodeConverter)
+    push(relNode)
+    this
+  }
 }
 
 object FlinkRelBuilder {
-
-  def create(config: FrameworkConfig): FlinkRelBuilder = {
-
-    // create Flink type factory
-    val typeSystem = config.getTypeSystem
-    val typeFactory = new FlinkTypeFactory(typeSystem)
-
-    // create context instances with Flink type factory
-    val context = config.getContext
-    val planner = new VolcanoPlanner(config.getCostFactory, context)
-    planner.setExecutor(config.getExecutor)
-    config.getTraitDefs.foreach(planner.addRelTraitDef)
-
-    val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
-    val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
-
-    val prop = new Properties()
-    prop.setProperty(
-      CalciteConnectionProperty.CASE_SENSITIVE.camelName,
-      String.valueOf(config.getParserConfig.caseSensitive))
-    val connectionConfig = new CalciteConnectionConfigImpl(prop)
-
-    val relOptSchema = new FlinkCalciteCatalogReader(
-      calciteSchema,
-      Collections.emptyList(),
-      typeFactory,
-      connectionConfig)
-
-    new FlinkRelBuilder(context, cluster, relOptSchema)
-  }
 
   /**
     * Information necessary to create a window aggregate.
@@ -144,5 +116,13 @@ object FlinkRelBuilder {
   def proto(context: Context): RelBuilderFactory = new RelBuilderFactory() {
     def create(cluster: RelOptCluster, schema: RelOptSchema): RelBuilder =
       new FlinkRelBuilder(context, cluster, schema)
+  }
+
+  def of(cluster: RelOptCluster, relTable: RelOptTable): FlinkRelBuilder = {
+    val clusterContext = cluster.getPlanner.getContext
+    new FlinkRelBuilder(
+      clusterContext,
+      cluster,
+      relTable.getRelOptSchema)
   }
 }

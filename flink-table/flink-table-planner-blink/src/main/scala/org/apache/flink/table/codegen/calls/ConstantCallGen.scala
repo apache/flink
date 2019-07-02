@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.codegen.GenerateUtils.generateNonNullLiteral
+import org.apache.flink.table.types.logical.LogicalType
 
 /**
   * Generates a function call which returns a constant.
@@ -30,7 +30,7 @@ class ConstantCallGen(constantCode: String, constantValue: Any) extends CallGene
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     generateNonNullLiteral(returnType, constantCode, constantValue)
   }
 

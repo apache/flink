@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.`type`.InternalTypes
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.nodes.calcite._
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
-
+import org.apache.flink.table.types.logical.TimestampType
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
@@ -32,6 +31,7 @@ import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.flink.table.plan.util.TemporalJoinUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -47,7 +47,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = isNullable)
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   val materializerUtils = new RexTimeIndicatorMaterializerUtils(rexBuilder)
 
@@ -168,28 +168,38 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val left = join.getLeft.accept(this)
     val right = join.getRight.accept(this)
 
-    // TODO supports temporal join
-    val newCondition = join.getCondition.accept(new RexShuttle {
-      private val leftFieldCount = left.getRowType.getFieldCount
-      private val leftFields = left.getRowType.getFieldList.toList
-      private val leftRightFields =
-        (left.getRowType.getFieldList ++ right.getRowType.getFieldList).toList
+    if (TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
+      // temporal table function join
+      val rewrittenTemporalJoin = join.copy(join.getTraitSet, List(left, right))
 
-      override def visitInputRef(inputRef: RexInputRef): RexNode = {
-        if (isTimeIndicatorType(inputRef.getType)) {
-          val fields = if (inputRef.getIndex < leftFieldCount) {
-            leftFields
+      // Materialize all of the time attributes from the right side of temporal join
+      val indicesToMaterialize = (left.getRowType.getFieldCount until
+        rewrittenTemporalJoin.getRowType.getFieldCount).toSet
+
+      materializerUtils.projectAndMaterializeFields(rewrittenTemporalJoin, indicesToMaterialize)
+    } else {
+      val newCondition = join.getCondition.accept(new RexShuttle {
+        private val leftFieldCount = left.getRowType.getFieldCount
+        private val leftFields = left.getRowType.getFieldList.toList
+        private val leftRightFields =
+          (left.getRowType.getFieldList ++ right.getRowType.getFieldList).toList
+
+        override def visitInputRef(inputRef: RexInputRef): RexNode = {
+          if (isTimeIndicatorType(inputRef.getType)) {
+            val fields = if (inputRef.getIndex < leftFieldCount) {
+              leftFields
+            } else {
+              leftRightFields
+            }
+            RexInputRef.of(inputRef.getIndex, fields)
           } else {
-            leftRightFields
+            super.visitInputRef(inputRef)
           }
-          RexInputRef.of(inputRef.getIndex, fields)
-        } else {
-          super.visitInputRef(inputRef)
         }
-      }
-    })
+      })
 
-    LogicalJoin.create(left, right, newCondition, join.getVariablesSet, join.getJoinType)
+      LogicalJoin.create(left, right, newCondition, join.getVariablesSet, join.getJoinType)
+    }
   }
 
   override def visit(correlate: LogicalCorrelate): RelNode = {
@@ -510,7 +520,7 @@ class RexTimeIndicatorMaterializer(
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = isNullable)
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     // reference is interesting
@@ -602,7 +612,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
   private def timestamp(isNullable: Boolean): RelDataType = rexBuilder
     .getTypeFactory
     .asInstanceOf[FlinkTypeFactory]
-    .createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = isNullable)
+    .createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
 
   def projectAndMaterializeFields(input: RelNode, indicesToMaterialize: Set[Int]): RelNode = {
     val projects = input.getRowType.getFieldList.map { field =>

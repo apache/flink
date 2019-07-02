@@ -19,11 +19,11 @@
 package org.apache.flink.table.codegen.calls
 
 import org.apache.calcite.runtime.SqlFunctions
-import org.apache.flink.table.`type`.{InternalType, InternalTypes}
 import org.apache.flink.table.codegen.CodeGenUtils.{className, newName}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.runtime.functions.{SqlLikeChainChecker, SqlLikeUtils}
+import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 
 import java.util.regex.Pattern
 
@@ -55,7 +55,7 @@ class LikeCallGen extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: InternalType): GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
     if ((operands.size == 2 && operands(1).literal) ||
         (operands.size == 3 && operands(1).literal && operands(2).literal)) {
       generateCallIfArgsNotNull(ctx, returnType, operands) {
@@ -155,7 +155,7 @@ class LikeCallGen extends CallGenerator {
   def generateDynamicLike(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, InternalTypes.BOOLEAN, operands) {
+    generateCallIfArgsNotNull(ctx, new BooleanType(), operands) {
       terms =>
         val str1 = s"${terms.head}.toString()"
         val str2 = s"${terms(1)}.toString()"

@@ -22,15 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.operations.SetTableOperation.SetTableOperationType;
+import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType;
 
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.operations.SetTableOperation.SetTableOperationType.UNION;
+import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
 
 /**
- * Utility class for creating a valid {@link SetTableOperation}.
+ * Utility class for creating a valid {@link SetQueryOperation}.
  */
 @Internal
 public class SetOperationFactory {
@@ -50,20 +50,20 @@ public class SetOperationFactory {
 	 * @param all flag defining how duplicates should be handled
 	 * @return creates a valid algebraic operation
 	 */
-	public TableOperation create(
-			SetTableOperationType type,
-			TableOperation left,
-			TableOperation right,
+	public QueryOperation create(
+			SetQueryOperationType type,
+			QueryOperation left,
+			QueryOperation right,
 			boolean all) {
 		failIfStreaming(type, all);
 		validateSetOperation(type, left, right);
-		return new SetTableOperation(left, right, type, all);
+		return new SetQueryOperation(left, right, type, all);
 	}
 
 	private void validateSetOperation(
-			SetTableOperationType operationType,
-			TableOperation left,
-			TableOperation right) {
+			SetQueryOperationType operationType,
+			QueryOperation left,
+			QueryOperation right) {
 		TableSchema leftSchema = left.getTableSchema();
 		int leftFieldCount = leftSchema.getFieldCount();
 		TableSchema rightSchema = right.getTableSchema();
@@ -93,7 +93,7 @@ public class SetOperationFactory {
 		}
 	}
 
-	private void failIfStreaming(SetTableOperationType type, boolean all) {
+	private void failIfStreaming(SetQueryOperationType type, boolean all) {
 		boolean shouldFailInCaseOfStreaming = !all || type != UNION;
 
 		if (isStreaming && shouldFailInCaseOfStreaming) {

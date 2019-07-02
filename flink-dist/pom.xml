@@ -93,13 +93,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-python_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -135,7 +128,7 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2</artifactId>
+					<artifactId>flink-shaded-hadoop-2</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -273,13 +266,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-python_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -329,6 +315,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-azure-fs-hadoop</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-hadoop</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -359,6 +352,20 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-queryable-state-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-python_${scala.binary.version}</artifactId>
+			<classifier>java-binding</classifier>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		<!-- end optional Flink libraries -->
@@ -404,15 +411,10 @@ under the License.
                     The Hadoop 2 Uber jar should not go into the Flink dist jar, but
                     sit next to it. Hence, we set it to 'provided' here.
                 -->
-
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2-uber</artifactId>
-					<version>${hadoop.version}-${project.version}</version>
-					<!--
-                        Exclusion of flink-shaded-hadoop2 not necessary, dependencies
-                        are shaded away properly by flink-shaded-hadoop2-uber.
-                    -->
+					<artifactId>flink-shaded-hadoop-2-uber</artifactId>
+					<version>${hadoop.version}-${flink.shaded.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
@@ -568,12 +570,6 @@ under the License.
 									<projectName>Apache Flink</projectName>
 								</transformer>
 							</transformers>
-							<relocations>
-								<relocation>
-									<pattern>py4j</pattern>
-									<shadedPattern>org.apache.flink.api.python.py4j</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 					<execution>

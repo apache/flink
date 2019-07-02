@@ -190,7 +190,7 @@ function install_py_env() {
             fi
         fi
         print_function "STEP" "installing python${py_env[i]}..."
-        ${CONDA_PATH} create --name ${py_env[i]} -y -q python=${py_env[i]} 2>&1 >/dev/null
+        $CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]} 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda install ${py_env[i]} failed.\
             You can retry to exec the script."
@@ -204,7 +204,7 @@ function install_py_env() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_tox() {
     if [ -f "$TOX_PATH" ]; then
-        ${CONDA_PATH} remove tox -y -q 2>&1 >/dev/null
+        $CONDA_PATH remove -p $CONDA_HOME tox -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove tox failed \
             please try to exec the script again.\
@@ -213,7 +213,7 @@ function install_tox() {
         fi
     fi
 
-    ${CONDA_PATH} install -c conda-forge tox -y -q 2>&1 >/dev/null
+    $CONDA_PATH install -p $CONDA_HOME -c conda-forge tox -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install tox failed \
         please try to exec the script again.\
@@ -226,7 +226,7 @@ function install_tox() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_flake8() {
     if [ -f "$FLAKE8_PATH" ]; then
-        ${CONDA_PATH} remove flake8 -y -q 2>&1 >/dev/null
+        $CONDA_PATH remove -p $CONDA_HOME flake8 -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove flake8 failed \
             please try to exec the script again.\
@@ -235,9 +235,31 @@ function install_flake8() {
         fi
     fi
 
-    ${CONDA_PATH} install -c anaconda flake8 -y -q 2>&1 >/dev/null
+    $CONDA_PATH install -p $CONDA_HOME -c anaconda flake8 -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install flake8 failed \
+        please try to exec the script again.\
+        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+        exit 1
+    fi
+}
+
+# Install sphinx.
+# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
+function install_sphinx() {
+    if [ -f "$SPHINX_PATH" ]; then
+        $CONDA_PATH remove -p $CONDA_HOME sphinx -y -q 2>&1 >/dev/null
+        if [ $? -ne 0 ]; then
+            echo "conda remove sphinx failed \
+            please try to exec the script again.\
+            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+            exit 1
+        fi
+    fi
+
+    $CONDA_PATH install -p $CONDA_HOME -c anaconda sphinx -y -q 2>&1 >/dev/null
+    if [ $? -ne 0 ]; then
+        echo "conda install sphinx failed \
         please try to exec the script again.\
         if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
         exit 1
@@ -304,6 +326,15 @@ function install_environment() {
     fi
     print_function "STEP" "install flake8... [SUCCESS]"
 
+    # step-6 install sphinx
+    print_function "STEP" "installing sphinx..."
+    if [ $STEP -lt 6 ]; then
+        install_sphinx
+        STEP=6
+        checkpoint_stage $STAGE $STEP
+    fi
+    print_function "STEP" "install sphinx... [SUCCESS]"
+
     print_function "STAGE"  "install environment... [SUCCESS]"
 }
 
@@ -321,13 +352,13 @@ function create_dir() {
 
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
-    if [ ! -d ${CURRENT_DIR}/.conda/envs ]; then
-        echo "For some unkown reasons,missing the directory ${CURRENT_DIR}/.conda/envs,\
+    if [ ! -d $CURRENT_DIR/.conda/envs ]; then
+        echo "For some unkown reasons,missing the directory $CURRENT_DIR/.conda/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
 
-    for py_dir in ${CURRENT_DIR}/.conda/envs/*
+    for py_dir in $CURRENT_DIR/.conda/envs/*
     do
         PATH=$py_dir/bin:$PATH
     done
@@ -467,6 +498,28 @@ function flake8_check() {
         print_function "STAGE" "flake8 checks... [SUCCESS]"
     fi
 }
+
+# Sphinx check
+function sphinx_check() {
+    export SPHINXBUILD=$SPHINX_PATH
+    # cd to $FLINK_PYTHON_DIR
+    pushd "$FLINK_PYTHON_DIR"/docs &> /dev/null
+    make clean
+
+    # the return value of a pipeline is the status of the last command to exit
+    # with a non-zero status or zero if no command exited with a non-zero status
+    set -o pipefail
+    (SPHINXOPTS="-a -W" make html) 2>&1 | tee -a $LOG_FILE
+
+    SPHINXBUILD_STATUS=$?
+    if [ $SPHINXBUILD_STATUS -ne 0 ]; then
+        print_function "STAGE" "sphinx checks... [FAILED]"
+        # Stop the running script.
+        exit 1;
+    else
+        print_function "STAGE" "sphinx checks... [SUCCESS]"
+    fi
+}
 ###############################################################All Checks Definitions###############################################################
 
 # CURRENT_DIR is "flink/flink-python/dev/"
@@ -476,14 +529,20 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 pushd "$FLINK_PYTHON_DIR" &> /dev/null
 
+# conda home path
+CONDA_HOME=$CURRENT_DIR/.conda
+
 # conda path
-CONDA_PATH=$CURRENT_DIR/.conda/bin/conda
+CONDA_PATH=$CONDA_HOME/bin/conda
 
 # tox path
-TOX_PATH=$CURRENT_DIR/.conda/bin/tox
+TOX_PATH=$CONDA_HOME/bin/tox
 
 # flake8 path
-FLAKE8_PATH=$CURRENT_DIR/.conda/bin/flake8
+FLAKE8_PATH=$CONDA_HOME/bin/flake8
+
+# sphinx path
+SPHINX_PATH=$CONDA_HOME/bin/sphinx-build
 
 _OLD_PATH="$PATH"
 
@@ -493,7 +552,7 @@ SUPPORT_OS=("Darwin" "Linux")
 STAGE_FILE=$CURRENT_DIR/.stage.txt
 
 # the dir includes all kinds of py env installed.
-VIRTUAL_ENV=$CURRENT_DIR/.conda/envs
+VIRTUAL_ENV=$CONDA_HOME/envs
 
 LOG_DIR=$CURRENT_DIR/log
 
@@ -515,7 +574,7 @@ echo >$LOG_FILE
 CONDA_INSTALL_SH=$CURRENT_DIR/download/miniconda.sh
 
 # stage "install" includes the num of steps.
-STAGE_INSTALL_STEPS=5
+STAGE_INSTALL_STEPS=6
 
 # whether force to restart the script.
 FORCE_START=0
@@ -550,7 +609,7 @@ while getopts "hfi:e:l" arg; do
             EXCLUDE_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
             ;;
         i)
-            SELECT_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
+            INCLUDE_CHECKS=($(echo $OPTARG | tr ',' ' ' ))
             ;;
         l)
             printf "current supported checks includes:\n"

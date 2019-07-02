@@ -23,15 +23,16 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
-import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
 import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
-import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository}
+import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository, TableTestUtil}
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
@@ -78,7 +79,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     * @return string presentation of of explaining
     */
   def explainLogical(table: Table): String = {
-    val ast = table.asInstanceOf[TableImpl].getRelNode
+    val ast = TableTestUtil.toRelNode(table)
     val logicalPlan = getPlan(ast)
 
     s"== Abstract Syntax Tree ==" +
@@ -132,7 +133,7 @@ class BatchTestBase extends BatchAbstractTestBase {
   def verifyPlan(sqlQuery: String): Unit = verifyPlan(parseQuery(sqlQuery))
 
   def verifyPlan(table: Table): Unit = {
-    val relNode = table.asInstanceOf[TableImpl].getRelNode
+    val relNode = TableTestUtil.toRelNode(table)
     val actual = SystemUtils.LINE_SEPARATOR + getPlan(relNode)
     assertEqualsOrExpand("planAfter", actual.toString, expand = false)
   }
@@ -388,18 +389,21 @@ class BatchTestBase extends BatchAbstractTestBase {
       tableName: String,
       data: Iterable[T],
       typeInfo: TypeInformation[T],
-      fieldNullables: Array[Boolean],
-      fields: String): Unit = {
-    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
-  }
-
-  def registerCollection(
-      tableName: String,
-      data: Iterable[Row],
-      typeInfo: TypeInformation[Row],
       fields: String,
       fieldNullables: Array[Boolean]): Unit = {
-    BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields, fieldNullables)
+    BatchTableEnvUtil.registerCollection(
+      tEnv, tableName, data, typeInfo, fields, fieldNullables, None)
+  }
+
+  def registerCollection[T](
+      tableName: String,
+      data: Iterable[T],
+      typeInfo: TypeInformation[T],
+      fields: String,
+      fieldNullables: Array[Boolean],
+      statistic: FlinkStatistic): Unit = {
+    BatchTableEnvUtil.registerCollection(
+      tEnv, tableName, data, typeInfo, fields, fieldNullables, Some(statistic))
   }
 
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
@@ -422,7 +426,7 @@ object BatchTestBase {
     row
   }
 
-  def binaryRow(types: Array[InternalType], fields: Any*): BinaryRow = {
+  def binaryRow(types: Array[LogicalType], fields: Any*): BinaryRow = {
     assertEquals(
       "Filed count inconsistent with type information",
       fields.length,

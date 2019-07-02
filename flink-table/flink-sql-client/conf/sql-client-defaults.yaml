@@ -93,6 +93,10 @@ execution:
     # strategy type
     # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
     type: fallback
+  # current catalog of SQL Client
+#  current-catalog: ...
+  # current database of the current catalog
+#  current-database: ...
 
 
 #==============================================================================
@@ -111,3 +115,14 @@ deployment:
   gateway-port: 0
 
 
+#==============================================================================
+# Catalogs
+#==============================================================================
+
+# Define catalogs here.
+
+catalogs: [] # empty list
+#  - name: myhive
+#    type: hive
+#    hive-site-path: /opt/hive_conf/hive-site.xml
+#    default-database: ...
