@@ -24,7 +24,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 public interface SuspendedMailboxDefaultAction {
 
 	/**
-	 * Resume execution of the default action. Can be called from any thread.
+	 * Resume execution of the default action. Must only be called from the mailbox thread!.
 	 */
 	void resume();
 }

@@ -38,7 +38,7 @@ public class MailboxProcessorTest {
 	public void testRejectIfNotOpen() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		try {
-			mailboxProcessor.getTaskMailboxExecutor().tryExecute(() -> {});
+			mailboxProcessor.getMailboxExecutor().tryExecute(() -> {});
 			Assert.fail("Should not be able to accept runnables if not opened.");
 		} catch (RejectedExecutionException expected) {
 		}
@@ -49,11 +49,11 @@ public class MailboxProcessorTest {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
 		mailboxProcessor.open();
-		mailboxProcessor.getTaskMailboxExecutor().tryExecute(testRunnableFuture);
+		mailboxProcessor.getMailboxExecutor().tryExecute(testRunnableFuture);
 		mailboxProcessor.prepareClose();
 
 		try {
-			mailboxProcessor.getTaskMailboxExecutor().tryExecute(() -> {});
+			mailboxProcessor.getMailboxExecutor().tryExecute(() -> {});
 			Assert.fail("Should not be able to accept runnables if not opened.");
 		} catch (RejectedExecutionException expected) {
 		}
@@ -79,7 +79,7 @@ public class MailboxProcessorTest {
 		};
 
 		MailboxProcessor mailboxProcessor = start(mailboxThread);
-		mailboxProcessor.getTaskMailboxExecutor().execute(() -> stop.set(true));
+		mailboxProcessor.getMailboxExecutor().execute(() -> stop.set(true));
 		stop(mailboxThread);
 	}
 
@@ -173,7 +173,7 @@ public class MailboxProcessorTest {
 					resume.resume();
 				} else {
 					try {
-						mailboxProcessor.getTaskMailboxExecutor().execute(() -> { });
+						mailboxProcessor.getMailboxExecutor().execute(() -> { });
 					} catch (RejectedExecutionException ignore) {
 					}
 				}

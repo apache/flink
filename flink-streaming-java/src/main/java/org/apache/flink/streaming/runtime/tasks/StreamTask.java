@@ -490,7 +490,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	public MailboxExecutor getTaskMailboxExecutor() {
-		return mailboxProcessor.getTaskMailboxExecutor();
+		return mailboxProcessor.getMailboxExecutor();
 	}
 
 	public final boolean isRunning() {

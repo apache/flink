@@ -61,7 +61,7 @@ public class MailboxProcessor {
 	private final Mailbox mailbox;
 
 	/** Executor-style facade for client code to submit actions to the mailbox. */
-	private final MailboxExecutorService taskMailboxExecutor;
+	private final MailboxExecutorService mailboxExecutor;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	private final MailboxDefaultAction mailboxDefaultAction;
@@ -82,7 +82,7 @@ public class MailboxProcessor {
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
 		this.mailbox = new MailboxImpl();
-		this.taskMailboxExecutor = new MailboxExecutorServiceImpl(mailbox);
+		this.mailboxExecutor = new MailboxExecutorServiceImpl(mailbox);
 		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
@@ -91,8 +91,8 @@ public class MailboxProcessor {
 	/**
 	 * Returns an executor service facade to submit actions to the mailbox.
 	 */
-	public MailboxExecutorService getTaskMailboxExecutor() {
-		return taskMailboxExecutor;
+	public MailboxExecutorService getMailboxExecutor() {
+		return mailboxExecutor;
 	}
 
 	/**
@@ -106,7 +106,7 @@ public class MailboxProcessor {
 	 * Lifecycle method to close the mailbox for action submission.
 	 */
 	public void prepareClose() {
-		taskMailboxExecutor.shutdown();
+		mailboxExecutor.shutdown();
 	}
 
 	/**
@@ -114,7 +114,7 @@ public class MailboxProcessor {
 	 * {@link java.util.concurrent.RunnableFuture} that are still contained in the mailbox.
 	 */
 	public void close() {
-		FutureUtils.cancelRunnableFutures(taskMailboxExecutor.shutdownNow());
+		FutureUtils.cancelRunnableFutures(mailboxExecutor.shutdownNow());
 	}
 
 	/**
@@ -123,7 +123,7 @@ public class MailboxProcessor {
 	public void runMailboxLoop() throws Exception {
 
 		Preconditions.checkState(
-			taskMailboxExecutor.isMailboxThread(),
+			mailboxExecutor.isMailboxThread(),
 			"Method must be executed by declared mailbox thread!");
 
 		final Mailbox localMailbox = mailbox;
@@ -160,7 +160,7 @@ public class MailboxProcessor {
 	 */
 	public void allActionsCompleted() {
 		try {
-			if (taskMailboxExecutor.isMailboxThread()) {
+			if (mailboxExecutor.isMailboxThread()) {
 				mailboxLoopRunning = false;
 				ensureControlFlowSignalCheck();
 			} else {
@@ -212,7 +212,7 @@ public class MailboxProcessor {
 	 */
 	private SuspendedMailboxDefaultAction suspendDefaultAction() {
 
-		assert taskMailboxExecutor.isMailboxThread();
+		Preconditions.checkState(mailboxExecutor.isMailboxThread(), "Suspending must only be called from the mailbox thread!");
 
 		if (suspendedDefaultAction == null) {
 			suspendedDefaultAction = new SuspendDefaultActionRunnable();
@@ -283,20 +283,10 @@ public class MailboxProcessor {
 
 		@Override
 		public void resume() {
-			if (taskMailboxExecutor.isMailboxThread()) {
-				resumeInternal();
-			} else {
-				try {
-					mailbox.putMail(this::resumeInternal);
-				} catch (InterruptedException ie) {
-					Thread.currentThread().interrupt();
-				} catch (MailboxStateException me) {
-					LOG.debug("Action context could not submit letter to resume default action.", me);
-				}
-			}
-		}
+			Preconditions.checkState(
+				mailboxExecutor.isMailboxThread(),
+				"SuspendedMailboxDefaultAction::resume resume must only be called from the mailbox-thread!");
 
-		private void resumeInternal() {
 			if (suspendedDefaultAction == this) {
 				suspendedDefaultAction = null;
 			}
