@@ -19,20 +19,15 @@
 package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -82,30 +77,11 @@ public class HiveCatalogFactory implements CatalogFactory {
 			descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE)
 				.orElse(HiveCatalog.DEFAULT_DB);
 
-		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
+		final Optional<String> hiveConfDir = descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
 
 		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(HiveShimLoader.getHiveVersion());
 
-		return new HiveCatalog(name, defaultDatabase, loadHiveConfDir(hiveSitePath.orElse(null)), version);
-	}
-
-	private static URL loadHiveConfDir(String hiveConfDir) {
-
-		URL url = null;
-
-		if (!StringUtils.isNullOrWhitespaceOnly(hiveConfDir)) {
-			try {
-				url = new File(hiveConfDir).toURI().toURL();
-
-				LOG.info("Successfully loaded '{}'", hiveConfDir);
-
-			} catch (MalformedURLException e) {
-				throw new CatalogException(
-					String.format("Failed to get hive conf dir from the given path '%s'", hiveConfDir), e);
-			}
-		}
-
-		return url;
+		return new HiveCatalog(name, defaultDatabase, hiveConfDir.orElse(null), version);
 	}
 
 	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {

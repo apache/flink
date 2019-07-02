@@ -966,14 +966,11 @@ class HiveCatalog(Catalog):
     A catalog implementation for Hive.
     """
 
-    def __init__(self, catalog_name=None, default_database="default", hive_site_path=None,
+    def __init__(self, catalog_name=None, default_database="default", hive_conf_dir=None,
                  j_hive_catalog=None):
         gateway = get_gateway()
 
         if j_hive_catalog is None:
-            hive_site_url = gateway.jvm.java.io.File(hive_site_path).toURI().toURL() \
-                if hive_site_path is not None else None
-
             j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
-                catalog_name, default_database, hive_site_url)
+                catalog_name, default_database, hive_conf_dir)
         super(HiveCatalog, self).__init__(j_hive_catalog)
