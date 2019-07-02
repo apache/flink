@@ -21,10 +21,10 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.expressions.utils.Func1
+import org.apache.flink.table.expressions.{EqualTo, Expression, ExpressionBridge, ExpressionParser, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
 import org.apache.flink.table.functions.AggregateFunctionDefinition
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DIVIDE, EQUALS, GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, MINUS, NOT, NOT_EQUALS, OR, PLUS, TIMES}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.util.InputTypeBuilder.inputOf
@@ -54,6 +54,11 @@ import scala.collection.JavaConverters._
 class RexNodeExtractorTest extends RexNodeTestBase {
 
   private val functionCatalog = new FunctionCatalog("default_catalog", "default_database")
+
+  private val expressionBridge: ExpressionBridge[PlannerExpression] =
+    new ExpressionBridge[PlannerExpression](
+      functionCatalog,
+      PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -215,13 +220,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val builder: RexBuilder = new RexBuilder(typeFactory)
     val expr = buildConditionExpr()
 
-    // id > 6
-    val firstExp = unresolvedCall(GREATER_THAN, unresolvedRef("id"), valueLiteral(6))
-
-    // amount * price < 100
-    val secondExp = unresolvedCall(LESS_THAN,
-      unresolvedCall(TIMES, unresolvedRef("amount"), unresolvedRef("price")),
-      valueLiteral(100))
+    val firstExp = ExpressionParser.parseExpression("id > 6")
+    val secondExp = ExpressionParser.parseExpression("amount * price < 100")
     val expected: Array[Expression] = Array(firstExp, secondExp)
 
     val (convertedExpressions, unconvertedRexNodes) =
@@ -232,7 +232,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         builder,
         functionCatalog)
 
-    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -255,10 +255,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         relBuilder,
         functionCatalog)
 
-    // amount >= id
-    val expr = unresolvedCall(GREATER_THAN_OR_EQUAL, unresolvedRef("amount"), unresolvedRef("id"))
-    val expected: Array[Expression] = Array(expr)
-    assertExpressionArrayEquals(expected, convertedExpressions)
+    val expected: Array[Expression] = Array(ExpressionParser.parseExpression("amount >= id"))
+    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -307,25 +305,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         functionCatalog)
 
     val expected: Array[Expression] = Array(
-      // amount < 100 || price == 100 || price == 200
-      unresolvedCall(OR,
-        unresolvedCall(OR,
-          unresolvedCall(LESS_THAN, unresolvedRef("amount"), valueLiteral(100)),
-          unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(100))),
-        unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(200))
-      ),
-      // id > 100 || price == 100 || price == 200
-      unresolvedCall(OR,
-        unresolvedCall(OR,
-          unresolvedCall(GREATER_THAN, unresolvedRef("id"), valueLiteral(100)),
-          unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(100))),
-        unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(200))
-      ),
-      // not(amount <= id)
-      unresolvedCall(NOT,
-        unresolvedCall(LESS_THAN_OR_EQUAL, unresolvedRef("amount"), unresolvedRef("id")))
-    )
-    assertExpressionArrayEquals(expected, convertedExpressions)
+      ExpressionParser.parseExpression("amount < 100 || price == 100 || price === 200"),
+      ExpressionParser.parseExpression("id > 100 || price == 100 || price === 200"),
+      ExpressionParser.parseExpression("!(amount <= id)"))
+    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -362,17 +345,13 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         functionCatalog)
 
     val expected: Array[Expression] = Array(
-      // amount < 100
-      unresolvedCall(LESS_THAN, unresolvedRef("amount"), valueLiteral(100)),
-      // amount <= id
-      unresolvedCall(LESS_THAN_OR_EQUAL, unresolvedRef("amount"), unresolvedRef("id")),
-      // id > 100
-      unresolvedCall(GREATER_THAN, unresolvedRef("id"), valueLiteral(100)),
-      // price === 100
-      unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(100))
+      ExpressionParser.parseExpression("amount < 100"),
+      ExpressionParser.parseExpression("amount <= id"),
+      ExpressionParser.parseExpression("id > 100"),
+      ExpressionParser.parseExpression("price === 100")
     )
 
-    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -421,7 +400,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       unresolvedCall(EQUALS, unresolvedRef("price"), valueLiteral(200.1))
     )
 
-    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -453,22 +432,41 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       relBuilder,
       functionCatalog)
 
-    val expected = Array[Expression](
-      // timestamp_col = '2017-09-10 14:23:01'
-      unresolvedCall(EQUALS, unresolvedRef("timestamp_col"), valueLiteral(
-        new Timestamp(DateTimeUtils.timestampStringToUnixDate("2017-09-10 14:23:01")))
-      ),
-      // date_col = '2017-09-12'
-      unresolvedCall(EQUALS, unresolvedRef("date_col"), valueLiteral(
-        new Date(DateTimeUtils.dateStringToUnixDate("2017-09-12") * DateTimeUtils.MILLIS_PER_DAY))
-      ),
-      // time_col = '14:23:01'
-      unresolvedCall(EQUALS, unresolvedRef("time_col"), valueLiteral(
-        new Time(DateTimeUtils.timeStringToUnixDate("14:23:01").longValue()))
-      )
-    )
+    val timestamp = new Timestamp(DateTimeUtils.timestampStringToUnixDate("2017-09-10 14:23:01"))
+    val date = new Date(
+      DateTimeUtils.dateStringToUnixDate("2017-09-12") * DateTimeUtils.MILLIS_PER_DAY)
+    val time = new Time(DateTimeUtils.timeStringToUnixDate("14:23:01").longValue())
 
-    assertExpressionArrayEquals(expected, converted)
+    {
+      val expected = Array[Expression](
+        // timestamp_col = '2017-09-10 14:23:01'
+        unresolvedCall(EQUALS, unresolvedRef("timestamp_col"), valueLiteral(timestamp)),
+        // date_col = '2017-09-12'
+        unresolvedCall(EQUALS, unresolvedRef("date_col"), valueLiteral(date)),
+        // time_col = '14:23:01'
+        unresolvedCall(EQUALS, unresolvedRef("time_col"), valueLiteral(time))
+      )
+
+      assertExpressionArrayEquals(expected, converted)
+    }
+
+    {
+      val expected = Array[Expression](
+        EqualTo(
+          UnresolvedFieldReference("timestamp_col"),
+          Literal(timestamp)
+        ),
+        EqualTo(
+          UnresolvedFieldReference("date_col"),
+          Literal(date)
+        ),
+        EqualTo(
+          UnresolvedFieldReference("time_col"),
+          Literal(time)
+        )
+      )
+      assertPlannerExpressionArrayEquals(expected, converted)
+    }
   }
 
   @Test
@@ -522,34 +520,18 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         functionCatalog)
 
     val expected: Array[Expression] = Array(
-      // amount < id
-      unresolvedCall(LESS_THAN, unresolvedRef("amount"), unresolvedRef("id")),
-      // amount <= id
-      unresolvedCall(LESS_THAN_OR_EQUAL, unresolvedRef("amount"), unresolvedRef("id")),
-      // amount <> id
-      unresolvedCall(NOT_EQUALS, unresolvedRef("amount"), unresolvedRef("id")),
-      // amount = id
-      unresolvedCall(EQUALS, unresolvedRef("amount"), unresolvedRef("id")),
-      // amount >= id
-      unresolvedCall(GREATER_THAN_OR_EQUAL, unresolvedRef("amount"), unresolvedRef("id")),
-      // amount > id
-      unresolvedCall(GREATER_THAN, unresolvedRef("amount"), unresolvedRef("id")),
-      // amount + id == 100
-      unresolvedCall(EQUALS,
-        unresolvedCall(PLUS, unresolvedRef("amount"), unresolvedRef("id")), valueLiteral(100)),
-      // amount - id == 100
-      unresolvedCall(EQUALS,
-        unresolvedCall(MINUS, unresolvedRef("amount"), unresolvedRef("id")), valueLiteral(100)),
-      // amount * id == 100
-      unresolvedCall(EQUALS,
-        unresolvedCall(TIMES, unresolvedRef("amount"), unresolvedRef("id")), valueLiteral(100)),
-      // amount / id == 100
-      unresolvedCall(EQUALS,
-        unresolvedCall(DIVIDE, unresolvedRef("amount"), unresolvedRef("id")), valueLiteral(100))
-      // -amount == 100
-      // ExpressionParser.parseExpression("-amount == 100")
+      ExpressionParser.parseExpression("amount < id"),
+      ExpressionParser.parseExpression("amount <= id"),
+      ExpressionParser.parseExpression("amount <> id"),
+      ExpressionParser.parseExpression("amount == id"),
+      ExpressionParser.parseExpression("amount >= id"),
+      ExpressionParser.parseExpression("amount > id"),
+      ExpressionParser.parseExpression("amount + id == 100"),
+      ExpressionParser.parseExpression("amount - id == 100"),
+      ExpressionParser.parseExpression("amount * id == 100"),
+      ExpressionParser.parseExpression("amount / id == 100")
     )
-    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertPlannerExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
@@ -591,17 +573,25 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       relBuilder,
       functionCatalog)
 
-    val expected: Array[Expression] = Array(
-      // sum(amount) > 100
-      unresolvedCall(GREATER_THAN,
-        unresolvedCall(
-          new AggregateFunctionDefinition("sum", new IntSumAggFunction, Types.INT, Types.INT),
-          unresolvedRef("amount")),
-        valueLiteral(100)
+    {
+      val expected: Array[Expression] = Array(
+        // sum(amount) > 100
+        unresolvedCall(GREATER_THAN,
+          unresolvedCall(
+            new AggregateFunctionDefinition("sum", new IntSumAggFunction, Types.INT, Types.INT),
+            unresolvedRef("amount")),
+          valueLiteral(100)
+        )
       )
-    )
-    assertExpressionArrayEquals(expected, convertedExpressions)
-    assertEquals(1, unconvertedRexNodes.length)
+      assertExpressionArrayEquals(expected, convertedExpressions)
+      assertEquals(1, unconvertedRexNodes.length)
+    }
+
+    {
+      val expected: Array[Expression] = Array(
+        GreaterThan(Sum(UnresolvedFieldReference("amount")), Literal(100)))
+      assertPlannerExpressionArrayEquals(expected, convertedExpressions)
+    }
   }
 
   @Test
@@ -649,6 +639,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     assertEquals("or(greaterThan(cast(amount, BIGINT), 100), lessThanOrEqual(amount, id))",
       convertedExpressions(2).toString)
     assertEquals(0, unconvertedRexNodes.length)
+
+    assertPlannerExpressionArrayEquals(
+      Array(ExpressionParser.parseExpression("amount <= id")),
+      Array(convertedExpressions(1)))
   }
 
   @Test
@@ -752,6 +746,19 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       actual: Array[Expression]): Unit = {
     val sortedExpected = expected.sortBy(e => e.toString)
     val sortedActual = actual.sortBy(e => e.toString)
+
+    assertEquals(sortedExpected.length, sortedActual.length)
+    sortedExpected.zip(sortedActual).foreach {
+      case (l, r) => assertEquals(l.toString, r.toString)
+    }
+  }
+
+  private def assertPlannerExpressionArrayEquals(
+      expected: Array[Expression],
+      actual: Array[Expression]): Unit = {
+    // TODO we assume only planner expression as a temporary solution to keep the old interfaces
+    val sortedExpected = expected.map(expressionBridge.bridge).sortBy(e => e.toString)
+    val sortedActual = actual.map(expressionBridge.bridge).sortBy(e => e.toString)
 
     assertEquals(sortedExpected.length, sortedActual.length)
     sortedExpected.zip(sortedActual).foreach {

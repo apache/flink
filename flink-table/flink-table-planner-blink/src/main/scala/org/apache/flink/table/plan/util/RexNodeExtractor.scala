@@ -24,9 +24,8 @@ import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 
@@ -206,7 +205,7 @@ class RexNodeToExpressionConverter(
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
     Some(new FieldReferenceExpression(
       inputNames(inputRef.getIndex),
-      TypeConversions.fromLogicalToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
+      fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
       0,
       inputRef.getIndex
     ))
@@ -283,7 +282,7 @@ class RexNodeToExpressionConverter(
     }
 
     Some(valueLiteral(literalValue,
-      LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(literalType)))
+      fromLogicalTypeToDataType(literalType)))
   }
 
   override def visitCall(rexCall: RexCall): Option[Expression] = {
@@ -302,7 +301,7 @@ class RexNodeToExpressionConverter(
           Option(operands.reduceLeft { (l, r) => unresolvedCall(AND, l, r) })
         case SqlStdOperatorTable.CAST =>
           Option(unresolvedCall(CAST, operands.head,
-            typeLiteral(LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+            typeLiteral(fromLogicalTypeToDataType(
               FlinkTypeFactory.toLogicalType(rexCall.getType)))))
         case function: SqlFunction =>
           lookupFunction(replace(function.getName), operands)

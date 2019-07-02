@@ -1098,6 +1098,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction RAND_INTEGER = SqlStdOperatorTable.RAND_INTEGER;
 	public static final SqlFunction TIMESTAMP_ADD = SqlStdOperatorTable.TIMESTAMP_ADD;
 	public static final SqlFunction TIMESTAMP_DIFF = SqlStdOperatorTable.TIMESTAMP_DIFF;
+	public static final SqlFunction TRUNCATE = SqlStdOperatorTable.TRUNCATE;
 
 	// MATCH_RECOGNIZE
 	public static final SqlFunction FIRST = SqlStdOperatorTable.FIRST;

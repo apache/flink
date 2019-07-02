@@ -128,6 +128,14 @@ object UserDefinedFunctionUtils {
     getParamClassesConsiderVarArgs(method.isVarArgs, method.getParameterTypes, expectedTypes.length)
   }
 
+  def getEvalMethodSignatureOption(
+      func: ScalarFunction,
+      expectedTypes: Array[LogicalType]): Option[Array[Class[_]]] = {
+    getEvalUserDefinedMethod(func, expectedTypes).map( method =>
+      getParamClassesConsiderVarArgs(
+        method.isVarArgs, method.getParameterTypes, expectedTypes.length))
+  }
+
   def getEvalMethodSignature(
       func: TableFunction[_],
       expectedTypes: Array[LogicalType]): Array[Class[_]] = {
