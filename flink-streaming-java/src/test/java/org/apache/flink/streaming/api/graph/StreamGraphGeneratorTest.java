@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -55,9 +57,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -535,6 +539,44 @@ public class StreamGraphGeneratorTest {
 		}
 	}
 
+	/**
+	 * Verify that isBounded() is properly detected, i.e. that we create a LAZY_FROM_SOURCES
+	 * StreamGraph if all Transformations are bounded.
+	 */
+	@Test
+	public void boundedPipelineEnablesLazyScheduling() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env
+				.addSource(testSource(), "test", BasicTypeInfo.STRING_TYPE_INFO, true)
+				.map((in) -> in);
+		env
+				.addSource(testSource(), "test2", BasicTypeInfo.STRING_TYPE_INFO, true)
+				.map((in) -> in);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		assertThat(streamGraph.getScheduleMode(), is(ScheduleMode.LAZY_FROM_SOURCES));
+	}
+
+	/**
+	 * Verify that isBounded() is properly detected, i.e. that we create an EAGER
+	 * StreamGraph if at least one transformation is not bounded.
+	 */
+	@Test
+	public void unboundedPipelineEnablesEagerScheduling() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env
+				.addSource(testSource(), "test", BasicTypeInfo.STRING_TYPE_INFO, true)
+				.map((in) -> in);
+		env
+				.addSource(testSource(), "test2", BasicTypeInfo.STRING_TYPE_INFO, false)
+				.map((in) -> in);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		assertThat(streamGraph.getScheduleMode(), is(ScheduleMode.EAGER));
+	}
+
 	private static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
@@ -621,6 +663,17 @@ public class StreamGraphGeneratorTest {
 		public Integer map2(Integer value) throws Exception {
 			return value;
 		}
+	}
 
+	private static SourceFunction<String> testSource() {
+		return new SourceFunction<String>() {
+			@Override
+			public void run(SourceContext<String> ctx) {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		};
 	}
 }

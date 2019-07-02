@@ -193,8 +193,18 @@ public class StreamGraphGenerator {
 
 		alreadyTransformed = new HashMap<>();
 
+		boolean allTransformsBounded = true;
 		for (Transformation<?> transformation: transformations) {
 			transform(transformation);
+			if (!transformation.isBounded()) {
+				allTransformsBounded = false;
+			}
+		}
+
+		if (allTransformsBounded) {
+			streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
+		} else {
+			streamGraph.setScheduleMode(ScheduleMode.EAGER);
 		}
 
 		final StreamGraph builtStreamGraph = streamGraph;
