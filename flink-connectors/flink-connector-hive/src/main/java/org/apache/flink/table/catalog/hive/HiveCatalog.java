@@ -85,7 +85,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -126,7 +128,7 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@VisibleForTesting
-	protected HiveCatalog(String catalogName, String defaultDatabase, HiveConf hiveConf, String hiveVersion) {
+	protected HiveCatalog(String catalogName, String defaultDatabase, @Nullable HiveConf hiveConf, String hiveVersion) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
@@ -136,10 +138,16 @@ public class HiveCatalog extends AbstractCatalog {
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	private static HiveConf createHiveConf(URL hiveConfDir) {
-		LOG.info("Setting hive-site location as {}", hiveConfDir);
+	private static HiveConf createHiveConf(@Nullable URL hiveConfDir) {
+		LOG.info("Setting hive conf dir as {}", hiveConfDir);
 
-		HiveConf.setHiveSiteLocation(hiveConfDir);
+		try {
+			HiveConf.setHiveSiteLocation(
+				hiveConfDir == null ?
+					null : Paths.get(hiveConfDir.getPath(), "hive-site.xml").toUri().toURL());
+		} catch (MalformedURLException e) {
+			throw new CatalogException(e);
+		}
 
 		return new HiveConf();
 	}
