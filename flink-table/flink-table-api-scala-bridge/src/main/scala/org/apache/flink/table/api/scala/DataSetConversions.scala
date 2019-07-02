@@ -34,11 +34,11 @@ class DataSetConversions[T](dataSet: DataSet[T], inputType: TypeInformation[T]) 
   /**
     * Converts the [[DataSet]] into a [[Table]].
     *
-    * The field name of the new [[Table]] can be specified like this:
+    * The field names of the new [[Table]] can be specified like this:
     *
     * {{{
     *   val env = ExecutionEnvironment.getExecutionEnvironment
-    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *   val tEnv = BatchTableEnvironment.create(env)
     *
     *   val set: DataSet[(String, Int)] = ...
     *   val table = set.toTable(tEnv, 'name, 'amount)

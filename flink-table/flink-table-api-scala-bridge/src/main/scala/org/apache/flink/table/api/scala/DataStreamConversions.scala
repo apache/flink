@@ -34,11 +34,11 @@ class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInforma
   /**
     * Converts the [[DataStream]] into a [[Table]].
     *
-    * The field name of the new [[Table]] can be specified like this:
+    * The field names of the new [[Table]] can be specified like this:
     *
     * {{{
     *   val env = StreamExecutionEnvironment.getExecutionEnvironment
-    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *   val tEnv = StreamTableEnvironment.create(env)
     *
     *   val stream: DataStream[(String, Int)] = ...
     *   val table = stream.toTable(tEnv, 'name, 'amount)
