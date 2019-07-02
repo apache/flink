@@ -32,7 +32,7 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 /**
- * A simple [[TableSink]] to emit data as CSV files.
+ * A simple {@link TableSink} to emit data as CSV files.
  */
 public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<Row> {
 	private String path;
@@ -44,7 +44,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	private TypeInformation<?>[] fieldTypes;
 
 	/**
-	 * A simple [[TableSink]] to emit data as CSV files.
+	 * A simple {@link TableSink} to emit data as CSV files.
 	 *
 	 * @param path       The output path to write the Table to.
 	 * @param fieldDelim The field delimiter
@@ -63,7 +63,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	/**
-	 * A simple [[TableSink]] to emit data as CSV files using comma as field delimiter, with default
+	 * A simple {@link TableSink} to emit data as CSV files using comma as field delimiter, with default
 	 * parallelism and write mode.
 	 *
 	 * @param path The output path to write the Table to.
@@ -73,7 +73,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	/**
-	 * A simple [[TableSink]] to emit data as CSV files, with default parallelism and write mode.
+	 * A simple {@link TableSink} to emit data as CSV files, with default parallelism and write mode.
 	 *
 	 * @param path       The output path to write the Table to.
 	 * @param fieldDelim The field delimiter
@@ -103,7 +103,6 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	@Override
-	@SuppressWarnings("")
 	public void emitDataStream(DataStream<Row> dataStream) {
 		SingleOutputStreamOperator<String> csvRows =
 			dataStream.map(new CsvFormatter(fieldDelim == null ? "," : fieldDelim));
@@ -147,7 +146,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	}
 
 	/**
-	 * Formats a [[Row]] into a [[String]] with fields separated by the field delimiter.
+	 * Formats a Row into a String with fields separated by the field delimiter.
 	 */
 	public static class CsvFormatter implements MapFunction<Row, String> {
 		private final String fieldDelim;
@@ -162,13 +161,16 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 		}
 
 		@Override
-		public String map(Row row) throws Exception {
+		public String map(Row row) {
 			StringBuilder builder = new StringBuilder();
+			Object o;
 			for (int i = 0; i < row.getArity(); i++) {
 				if (builder.length() != 0) {
 					builder.append(fieldDelim);
 				}
-				builder.append(row.getField(i));
+				if ((o = row.getField(i)) != null) {
+					builder.append(o);
+				}
 			}
 			return builder.toString();
 		}

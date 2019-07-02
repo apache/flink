@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.sources;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvInputFormat;
@@ -42,10 +40,11 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.IntStream;
 
 /**
- * A [[InputFormatTableSource]] and [[LookupableTableSource]] for simple CSV files with a
+ * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with a
  * (logically) unlimited number of fields.
  */
 public class CsvTableSource extends InputFormatTableSource<Row> implements
@@ -55,10 +54,10 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 
 
 	/**
-	 * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
-	 * (logically) unlimited number of fields.
+	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
+	 * a (logically) unlimited number of fields.
 	 *
-	 * @param path The path to the CSV file.
+	 * @param path       The path to the CSV file.
 	 * @param fieldNames The names of the table fields.
 	 * @param fieldTypes The types of the table fields.
 	 */
@@ -70,18 +69,19 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	/**
-	 * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
-	 * (logically) unlimited number of fields.
+	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
+	 * a (logically) unlimited number of fields.
 	 *
-	 * @param path The path to the CSV file.
-	 * @param fieldNames The names of the table fields.
-	 * @param fieldTypes The types of the table fields.
-	 * @param fieldDelim The field delimiter, "," by default.
-	 * @param lineDelim The row delimiter, "\n" by default.
-	 * @param quoteCharacter An optional quote character for String values, null by default.
+	 * @param path            The path to the CSV file.
+	 * @param fieldNames      The names of the table fields.
+	 * @param fieldTypes      The types of the table fields.
+	 * @param fieldDelim      The field delimiter, "," by default.
+	 * @param lineDelim       The row delimiter, "\n" by default.
+	 * @param quoteCharacter  An optional quote character for String values, null by default.
 	 * @param ignoreFirstLine Flag to ignore the first line, false by default.
-	 * @param ignoreComments An optional prefix to indicate comments, null by default.
-	 * @param lenient Flag to skip records with parse error instead to fail, false by default.
+	 * @param ignoreComments  An optional prefix to indicate comments, null by default.
+	 * @param lenient         Flag to skip records with parse error instead to fail, false by
+	 *                        default.
 	 */
 	public CsvTableSource(
 		String path,
@@ -101,20 +101,21 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	/**
-	 * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
-	 * (logically) unlimited number of fields.
+	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
+	 * a (logically) unlimited number of fields.
 	 *
-	 * @param path The path to the CSV file.
-	 * @param fieldNames The names of the table fields.
-	 * @param fieldTypes The types of the table fields.
-	 * @param selectedFields The fields which will be read and returned by the table source.
-	 *                       If None, all fields are returned.
-	 * @param fieldDelim The field delimiter, "," by default.
-	 * @param lineDelim The row delimiter, "\n" by default.
-	 * @param quoteCharacter An optional quote character for String values, null by default.
+	 * @param path            The path to the CSV file.
+	 * @param fieldNames      The names of the table fields.
+	 * @param fieldTypes      The types of the table fields.
+	 * @param selectedFields  The fields which will be read and returned by the table source. If
+	 *                        None, all fields are returned.
+	 * @param fieldDelim      The field delimiter, "," by default.
+	 * @param lineDelim       The row delimiter, "\n" by default.
+	 * @param quoteCharacter  An optional quote character for String values, null by default.
 	 * @param ignoreFirstLine Flag to ignore the first line, false by default.
-	 * @param ignoreComments An optional prefix to indicate comments, null by default.
-	 * @param lenient Flag to skip records with parse error instead to fail, false by default.
+	 * @param ignoreComments  An optional prefix to indicate comments, null by default.
+	 * @param lenient         Flag to skip records with parse error instead to fail, false by
+	 *                        default.
 	 */
 	public CsvTableSource(
 		String path,
@@ -136,7 +137,7 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	/**
-	 * Return a new builder that builds a [[CsvTableSource]].
+	 * Return a new builder that builds a CsvTableSource.
 	 * For example:
 	 * {{{
 	 *   val source: CsvTableSource = CsvTableSource
@@ -146,7 +147,7 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	 *     .field("myfield2", Types.INT)
 	 *     .build()
 	 * }}}
-	 * @return a new builder to build a [[CsvTableSource]]
+	 * @return a new builder to build a CsvTableSource
 	 */
 	public static Builder builder() {
 		return new Builder();
@@ -200,22 +201,28 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	@Override
 	public String explainSource() {
 		String[] fields = config.getSelectedFieldNames();
-		StringBuilder builder = new StringBuilder();
-		builder.append("CsvTableSource(read fields: ");
-		boolean first = true;
-		for (String f : fields) {
-			if (!first) {
-				builder.append(", ");
-			}
-			builder.append(f);
-			first = false;
+		return String.join(", ", fields);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
 		}
-		builder.append(")");
-		return builder.toString();
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		CsvTableSource that = (CsvTableSource) o;
+		return Objects.equals(config, that.config);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(config);
 	}
 
 	/**
-	 * A builder for creating [[CsvTableSource]] instances.
+	 * A builder for creating CsvTableSource instances.
 	 * For example:
 	 * {{{
 	 *   val source: CsvTableSource = new CsvTableSource.builder()
@@ -318,9 +325,9 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 		}
 
 		/**
-		 * Apply the current values and constructs a newly-created [[CsvTableSource]].
+		 * Apply the current values and constructs a newly-created CsvTableSource.
 		 *
-		 * @return a newly-created [[CsvTableSource]].
+		 * @return a newly-created CsvTableSource
 		 */
 		public CsvTableSource build() {
 			if (path == null) {
@@ -344,14 +351,16 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	/**
-	 * LookupFunction to support lookup in [[CsvTableSource]].
+	 * LookupFunction to support lookup in CsvTableSource.
 	 */
 	public static class CsvLookupFunction extends TableFunction<Row> {
+		private static final long serialVersionUID = 1L;
+
 		private final CsvInputFormatConfig config;
 
 		private final List<Integer> sourceKeys = new ArrayList<>();
 		private final List<Integer> targetKeys = new ArrayList<>();
-		private final Map<Object, List<Row>> one2manyDataMap = new HashMap<>();
+		private final Map<Object, List<Row>> dataMap = new HashMap<>();
 
 		CsvLookupFunction(CsvInputFormatConfig config, String[] lookupKeys) {
 			this.config = config;
@@ -374,7 +383,6 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 		public void open(FunctionContext context) throws Exception {
 			super.open(context);
 			TypeInformation<Row> rowType = getResultType();
-			TypeSerializer<Row> rowSerializer = rowType.createSerializer(new ExecutionConfig());
 
 			RowCsvInputFormat inputFormat = config.createInputFormat();
 			FileInputSplit[] inputSplits = inputFormat.createInputSplits(1);
@@ -387,13 +395,8 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 						break;
 					} else {
 						Object key = getTargetKey(r);
-						if (one2manyDataMap.containsKey(key)) {
-							one2manyDataMap.get(key).add(rowSerializer.copy(r));
-						} else {
-							List<Row> rows = new ArrayList<>();
-							rows.add(rowSerializer.copy(r));
-							one2manyDataMap.put(key, rows);
-						}
+						List<Row> rows = dataMap.computeIfAbsent(key, k -> new ArrayList<>());
+						rows.add(Row.copy(r));
 					}
 				}
 				inputFormat.close();
@@ -402,8 +405,8 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 
 		public void eval(Object... values) {
 			Object srcKey = getSourceKey(Row.of(values));
-			if (one2manyDataMap.containsKey(srcKey)) {
-				for (Row row1 : one2manyDataMap.get(srcKey)) {
+			if (dataMap.containsKey(srcKey)) {
+				for (Row row1 : dataMap.get(srcKey)) {
 					collect(row1);
 				}
 			}
@@ -428,14 +431,7 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 				Row key = new Row(keys.size());
 				for (int i = 0; i < keys.size(); i++) {
 					int keyIdx = keys.get(i);
-					Object field = null;
-					if (input.getField(keyIdx) != null) {
-						field = input.getField(keyIdx);
-					}
-					if (field == null) {
-						return null;
-					}
-					key.setField(i, field);
+					key.setField(i, input.getField(keyIdx));
 				}
 				return key;
 			}
@@ -448,6 +444,8 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 	}
 
 	private static class CsvInputFormatConfig implements Serializable {
+		private static final long serialVersionUID = 1L;
+
 		private final String path;
 		private final String[] fieldNames;
 		private final TypeInformation<?>[] fieldTypes;
@@ -519,6 +517,37 @@ public class CsvTableSource extends InputFormatTableSource<Row> implements
 		CsvInputFormatConfig select(int[] fields) {
 			return new CsvInputFormatConfig(path, fieldNames, fieldTypes, fields,
 				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine, ignoreComments, lenient);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			CsvInputFormatConfig that = (CsvInputFormatConfig) o;
+			return ignoreFirstLine == that.ignoreFirstLine &&
+				lenient == that.lenient &&
+				Objects.equals(path, that.path) &&
+				Arrays.equals(fieldNames, that.fieldNames) &&
+				Arrays.equals(fieldTypes, that.fieldTypes) &&
+				Arrays.equals(selectedFields, that.selectedFields) &&
+				Objects.equals(fieldDelim, that.fieldDelim) &&
+				Objects.equals(lineDelim, that.lineDelim) &&
+				Objects.equals(quoteCharacter, that.quoteCharacter) &&
+				Objects.equals(ignoreComments, that.ignoreComments);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = Objects.hash(path, fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
+				ignoreComments, lenient);
+			result = 31 * result + Arrays.hashCode(fieldNames);
+			result = 31 * result + Arrays.hashCode(fieldTypes);
+			result = 31 * result + Arrays.hashCode(selectedFields);
+			return result;
 		}
 	}
 }

@@ -29,7 +29,7 @@ import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 class TableSourceTest extends TableTestBase {
 
@@ -353,6 +353,34 @@ class TableSourceTest extends TableTestBase {
   }
 
   // csv builder
+
+  @Test
+  def testCsvTableSourceBuilder(): Unit = {
+    val source1 = CsvTableSource.builder()
+      .path("/path/to/csv")
+      .field("myfield", Types.STRING)
+      .field("myfield2", Types.INT)
+      .quoteCharacter(';')
+      .fieldDelimiter("#")
+      .lineDelimiter("\r\n")
+      .commentPrefix("%%")
+      .ignoreFirstLine()
+      .ignoreParseErrors()
+      .build()
+
+    val source2 = new CsvTableSource(
+      "/path/to/csv",
+      Array("myfield", "myfield2"),
+      Array(Types.STRING, Types.INT),
+      "#",
+      "\r\n",
+      ';',
+      true,
+      "%%",
+      true)
+
+    Assert.assertEquals(source1, source2)
+  }
 
 // TODO enable this test once we expose the feature through the table environment
 //  @Test
