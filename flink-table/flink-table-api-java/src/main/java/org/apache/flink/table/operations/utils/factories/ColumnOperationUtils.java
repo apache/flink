@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
+import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.extractName;
 
 /**
  * Utility class for creating projection expressions from column operation.

@@ -73,7 +73,7 @@ import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunc
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
-import static org.apache.flink.table.operations.OperationExpressionsUtils.extractName;
+import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.extractName;
 import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.SLIDE;
 import static org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow.WindowType.TUMBLE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;

@@ -31,7 +31,7 @@ import org.apache.flink.table.operations.JoinQueryOperation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.QueryOperationDefaultVisitor;
+import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;

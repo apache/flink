@@ -52,7 +52,7 @@ import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.QueryOperationDefaultVisitor;
+import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
