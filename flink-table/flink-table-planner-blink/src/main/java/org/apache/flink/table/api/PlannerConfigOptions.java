@@ -32,7 +32,7 @@ public class PlannerConfigOptions {
 	//  Optimizer Options
 	// ------------------------------------------------------------------------
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Integer> SQL_OPTIMIZER_CNF_NODES_LIMIT =
 			key("sql.optimizer.cnf.nodes.limit")
 					.defaultValue(-1)
@@ -41,7 +41,7 @@ public class PlannerConfigOptions {
 							"(only count RexCall node, including leaves and interior nodes). Negative number to" +
 							" use the default threshold: double of number of nodes.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<String> SQL_OPTIMIZER_AGG_PHASE_ENFORCER =
 			key("sql.optimizer.agg-phase.strategy")
 					.defaultValue("NONE")
@@ -52,7 +52,7 @@ public class PlannerConfigOptions {
 							"NOTE: If aggregate call does not support split into two phase, still use one stage aggregate.\n" +
 							"ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED =
 			key("sql.optimizer.shuffle.partial-key.enabled")
 					.defaultValue(false)
@@ -65,14 +65,14 @@ public class PlannerConfigOptions {
 							"It can reduce some shuffle cost someTimes.");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED =
 			key("sql.optimizer.sortmergejoin.remove-sort.enabled")
 					.defaultValue(false)
 					.withDescription("If it is true, the optimizer will try to remove redundant sort in SortMergeJoin. " +
 							"However that will  increase optimization time. Default value is false.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Long> SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD =
 			key("sql.optimizer.broadcast.join.threshold")
 					.defaultValue(1024 * 1024L)
@@ -80,7 +80,7 @@ public class PlannerConfigOptions {
 							"nodes when performing a join.  By setting this value to -1 broadcasting can be disabled. ");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Double> SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO =
 			key("sql.optimizer.semi-anti-join.build-distinct.ndv-ratio")
 					.defaultValue(0.8)
@@ -91,7 +91,7 @@ public class PlannerConfigOptions {
 							" add the distinct.");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Long> SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD =
 			key("sql.optimizer.join.null.filter.threshold")
 					.defaultValue(2000000L)
@@ -99,7 +99,7 @@ public class PlannerConfigOptions {
 							"We will add a null filter (possibly be pushed down) before the join to filter" +
 							" null values when the source of InnerJoin has nullCount more than this value.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.STREAMING)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED =
 			key("sql.optimizer.data-skew.distinct-agg.enabled")
 					.defaultValue(false)
@@ -109,7 +109,7 @@ public class PlannerConfigOptions {
 							"This will increase some overhead, e.g. network shuffle, " +
 							"but gives the ability to scale-up the job. Default is false.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.STREAMING)
 	public static final ConfigOption<Integer> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET =
 			key("sql.optimizer.data-skew.distinct-agg.bucket")
 					.defaultValue(1024)
@@ -118,7 +118,7 @@ public class PlannerConfigOptions {
 							"'hash_code(distinct_key) % BUCKET_NUM' which is used as a group by key after splitting.");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.STREAMING)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
 			key("sql.optimizer.incremental-agg.enabled")
 					.defaultValue(true)
@@ -129,14 +129,14 @@ public class PlannerConfigOptions {
 							"(we call it incremental agg because it receives incremental accumulators and output incremental results). " +
 							"In this way, we can reduce some state overhead and resources. Default is enabled.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED =
 			key("sql.optimizer.reuse.sub-plan.enabled")
 					.defaultValue(true)
 					.withDescription("When it is true, optimizer will try to find out duplicated " +
 							"sub-plan and reuse them.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED =
 			key("sql.optimizer.reuse.table-source.enabled")
 					.defaultValue(true)
@@ -144,7 +144,7 @@ public class PlannerConfigOptions {
 							"reuse them. This works only when " + SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key() + " is true.");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED =
 			key("sql.optimizer.reuse.optimize-block.with-digest.enabled")
 					.defaultValue(false)
@@ -152,20 +152,20 @@ public class PlannerConfigOptions {
 							"to build optimize block. Each optimize block will be optimized independently.");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED =
 			key("sql.optimizer.unionall-as-breakpoint.disabled")
 					.defaultValue(false)
 					.withDescription("Disable union-all node as breakpoint when constructing common sub-graph.");
 
 	@Documentation.ExcludeFromDocumentation
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BATCH)
 	public static final ConfigOption<Long> SQL_OPTIMIZER_ROWS_PER_LOCALAGG =
 			key("sql.optimizer.rows-per-local-agg")
 					.defaultValue(1000000L)
 					.withDescription("Sets estimated number of records that one local-agg processes. Optimizer will infer whether to use local/global aggregate according to it.");
 
-	@Documentation.TableOption(execMode = Documentation.ExecMode.BOTH)
+	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED =
 			key("sql.optimizer.predicate-pushdown.enabled")
 					.defaultValue(true)

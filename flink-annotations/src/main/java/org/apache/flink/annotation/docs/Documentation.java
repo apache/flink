@@ -60,18 +60,17 @@ public final class Documentation {
 	}
 
 	/**
-	 * Annotation used on config option fields to include them in the "Table Options" section.
+	 * Annotation used on table config to introduce additional table-related meta data.
 	 *
-	 * <p>The {@link TableOption#execMode()} argument indicate which exec mode the config works for,
+	 * <p>The {@link TableMeta#execMode()} argument indicates which exec mode the config works for,
 	 * for batch, streaming or both.
 	 *
 	 */
 	@Target(ElementType.FIELD)
 	@Retention(RetentionPolicy.RUNTIME)
 	@Internal
-	public @interface TableOption {
-
-		ExecMode execMode() default ExecMode.BOTH;
+	public @interface TableMeta {
+		ExecMode execMode();
 	}
 
 	/**

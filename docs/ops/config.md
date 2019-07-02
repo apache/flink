@@ -183,12 +183,6 @@ unless user define a `OptionsFactory` and set via `RocksDBStateBackend.setOption
 
 {% include generated/rocks_db_configurable_configuration.html %}
 
-### blink table planner
-{% include generated/planner_config_configuration.html %}
-
-### blink table runtime
-{% include generated/table_config_configuration.html %}
-
 ### Queryable State
 
 {% include generated/queryable_state_configuration.html %}
@@ -214,6 +208,13 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 - `jobmanager.archive.fs.dir`: Directory to upload information about terminated jobs to. You have to add this directory to the list of monitored directories of the history server via `historyserver.archive.fs.dir`.
 
 {% include generated/history_server_configuration.html %}
+
+
+### Blink Table Planner
+{% include generated/planner_config_configuration.html %}
+
+### Blink Table Runtime
+{% include generated/table_config_configuration.html %}
 
 ## Legacy
 

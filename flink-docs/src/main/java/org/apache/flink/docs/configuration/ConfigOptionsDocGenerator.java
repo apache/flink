@@ -262,19 +262,19 @@ public class ConfigOptionsDocGenerator {
 	private static String toHtmlString(final OptionWithMetaInfo optionWithMetaInfo) {
 		ConfigOption<?> option = optionWithMetaInfo.option;
 		String defaultValue = stringifyDefault(optionWithMetaInfo);
-		Documentation.TableOption tableOption = optionWithMetaInfo.field.getAnnotation(Documentation.TableOption.class);
+		Documentation.TableMeta tableMeta = optionWithMetaInfo.field.getAnnotation(Documentation.TableMeta.class);
 		StringBuilder sb = new StringBuilder();
-		if (tableOption != null) {
-			Documentation.ExecMode execMode = tableOption.execMode();
-			if (Documentation.ExecMode.BATCH.equals(execMode) || Documentation.ExecMode.STREAMING.equals(execMode)) {
-				sb.append("<br> <span class=\"label label-primary\">")
-						.append(execMode.toString())
-						.append("</span>");
-			} else if (Documentation.ExecMode.BOTH.equals(execMode)) {
+		if (tableMeta != null) {
+			Documentation.ExecMode execMode = tableMeta.execMode();
+			if (Documentation.ExecMode.BOTH.equals(execMode)) {
 				sb.append("<br> <span class=\"label label-primary\">")
 						.append("BATCH")
 						.append("</span> <span class=\"label label-primary\">")
 						.append("STREAMING")
+						.append("</span>");
+			} else {
+				sb.append("<br> <span class=\"label label-primary\">")
+						.append(execMode.toString())
 						.append("</span>");
 			}
 		}
