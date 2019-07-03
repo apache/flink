@@ -316,7 +316,8 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Ignore // TODO support lazy from source
+  @Test
   def testExcept(): Unit = {
     checkQuery2(
       Seq((1, "a"), (2, "b"), (3, "c"), (4, "d")),
@@ -374,7 +375,8 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Ignore // TODO support lazy from source
+  @Test
   def testIntersect(): Unit = {
     checkQuery(
       Seq((1, "a"), (2, "b"), (3, "c"), (4, "d")),

@@ -17,25 +17,33 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
+import org.apache.flink.table.codegen.{CodeGeneratorContext, LongHashJoinGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.exec.ExecNode
+import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
-import org.apache.flink.table.runtime.join.HashJoinType
-import org.apache.flink.table.typeutils.BinaryRowSerializer
+import org.apache.flink.table.runtime.join.{HashJoinOperator, HashJoinType}
+import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Util
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -64,8 +72,12 @@ class BatchExecHashJoin(
   def buildRel: RelNode = if (leftIsBuild) getLeft else getRight
   def probeRel: RelNode = if (leftIsBuild) getRight else getLeft
 
-  val hashJoinType: HashJoinType = HashJoinType.of(leftIsBuild, getJoinType.generatesNullsOnRight(),
-    getJoinType.generatesNullsOnLeft())
+  val hashJoinType: HashJoinType = HashJoinType.of(
+    leftIsBuild,
+    getJoinType.generatesNullsOnRight(),
+    getJoinType.generatesNullsOnLeft(),
+    getJoinType == JoinRelType.SEMI,
+    getJoinType == JoinRelType.ANTI)
 
   override def copy(
       traitSet: RelTraitSet,
@@ -176,6 +188,95 @@ class BatchExecHashJoin(
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-    throw new TableException("Implements this")
+    val config = tableEnv.getConfig
+
+    val lInput = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[Transformation[BaseRow]]
+    val rInput = getInputNodes.get(1).translateToPlan(tableEnv)
+        .asInstanceOf[Transformation[BaseRow]]
+
+    // get type
+    val lType = lInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+
+    val keyType = RowType.of(leftKeys.map(lType.getChildren().get(_)): _*)
+    val managedMemorySize = config.getConf.getInteger(
+      TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
+    val condFunc = JoinUtil.generateConditionFunction(
+      config, cluster.getRexBuilder, getJoinInfo, lType, rType)
+
+    // projection for equals
+    val lProj = generateProjection(
+      CodeGeneratorContext(config), "HashJoinLeftProjection", lType, keyType, leftKeys)
+    val rProj = generateProjection(
+      CodeGeneratorContext(config), "HashJoinRightProjection", rType, keyType, rightKeys)
+
+    val (build, probe, bProj, pProj, bType, pType, reverseJoin) =
+      if (leftIsBuild) {
+        (lInput, rInput, lProj, rProj, lType, rType, false)
+      } else {
+        (rInput, lInput, rProj, lProj, rType, lType, true)
+      }
+    val perRequestSize = config.getConf.getInteger(
+      TableConfigOptions.SQL_EXEC_PER_REQUEST_MEM) * NodeResourceConfig.SIZE_IN_MB
+    val mq = getCluster.getMetadataQuery
+
+    val buildRowSize = Util.first(mq.getAverageRowSize(buildRel), 24).toInt
+    val buildRowCount = Util.first(mq.getRowCount(buildRel), 200000).toLong
+    val probeRowCount = Util.first(mq.getRowCount(probeRel), 200000).toLong
+
+    // operator
+    val operator = if (LongHashJoinGenerator.support(hashJoinType, keyType, filterNulls)) {
+      LongHashJoinGenerator.gen(
+        config,
+        hashJoinType,
+        keyType,
+        bType,
+        pType,
+        buildKeys,
+        probeKeys,
+        managedMemorySize,
+        0,
+        perRequestSize,
+        buildRowSize,
+        buildRowCount,
+        reverseJoin,
+        condFunc)
+    } else {
+      SimpleOperatorFactory.of(HashJoinOperator.newHashJoinOperator(
+        managedMemorySize,
+        0,
+        perRequestSize,
+        hashJoinType,
+        condFunc,
+        reverseJoin,
+        filterNulls,
+        bProj,
+        pProj,
+        tryDistinctBuildRow,
+        buildRowSize,
+        buildRowCount,
+        probeRowCount,
+        keyType
+      ))
+    }
+
+    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+      build,
+      probe,
+      getOperatorName,
+      operator,
+      BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
+      getResource.getParallelism)
+  }
+
+  private def getOperatorName: String = {
+    val joinExpressionStr = if (getCondition != null) {
+      val inFields = inputRowType.getFieldNames.toList
+      s"where: ${getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)}, "
+    } else {
+      ""
+    }
+    s"HashJoin($joinExpressionStr${if (leftIsBuild) "buildLeft" else "buildRight"})"
   }
 }
