@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
-import org.apache.flink.table.expressions.AggregateVisitors;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -36,6 +35,7 @@ import org.apache.flink.table.expressions.PlannerWindowStart;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.RexNodeConverter;
 import org.apache.flink.table.expressions.RexNodeExpression;
+import org.apache.flink.table.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -82,6 +82,8 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
 
@@ -173,7 +175,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			Preconditions.checkArgument(expression instanceof CallExpression, "This should never happened");
 			CallExpression aliasExpr = (CallExpression) expression;
 			Preconditions.checkArgument(
-					BuiltInFunctionDefinitions.AS.equals(aliasExpr.getFunctionDefinition()),
+					BuiltInFunctionDefinitions.AS == aliasExpr.getFunctionDefinition(),
 					"This should never happened");
 			String name = ((ValueLiteralExpression) aliasExpr.getChildren().get(1)).getValueAs(String.class)
 					.orElseThrow(
@@ -182,13 +184,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			Preconditions.checkArgument(windowPropertyExpr instanceof CallExpression, "This should never happened");
 			CallExpression windowPropertyCallExpr = (CallExpression) windowPropertyExpr;
 			FunctionDefinition fd = windowPropertyCallExpr.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.WINDOW_START.equals(fd)) {
+			if (BuiltInFunctionDefinitions.WINDOW_START == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerWindowStart(windowReference));
-			} else if (BuiltInFunctionDefinitions.WINDOW_END.equals(fd)) {
+			} else if (BuiltInFunctionDefinitions.WINDOW_END == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerWindowEnd(windowReference));
-			} else if (BuiltInFunctionDefinitions.PROCTIME.equals(fd)) {
+			} else if (BuiltInFunctionDefinitions.PROCTIME == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerProctimeAttribute(windowReference));
-			} else if (BuiltInFunctionDefinitions.ROWTIME.equals(fd)) {
+			} else if (BuiltInFunctionDefinitions.ROWTIME == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerRowtimeAttribute(windowReference));
 			} else {
 				throw new TableException("Invalid literal.");
@@ -315,7 +317,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			FlinkStatistic statistic;
 			List<String> names;
 			if (tableSourceOperation instanceof RichTableSourceQueryOperation &&
-					((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName() != null) {
+				((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName() != null) {
 				statistic = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getStatistic();
 				names = ((RichTableSourceQueryOperation<U>) tableSourceOperation).getQualifiedName();
 			} else {
@@ -328,10 +330,10 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(tableSource, !isBatch, statistic);
 			FlinkRelOptTable table = FlinkRelOptTable.create(
-					relBuilder.getRelOptSchema(),
-					tableSourceTable.getRowType(relBuilder.getTypeFactory()),
-					names,
-					tableSourceTable);
+				relBuilder.getRelOptSchema(),
+				tableSourceTable.getRowType(relBuilder.getTypeFactory()),
+				names,
+				tableSourceTable);
 			return LogicalTableScan.create(relBuilder.getCluster(), table);
 		}
 
@@ -452,7 +454,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				Expression aggregate = unresolvedCall.getChildren().get(0);
 				if (isFunctionOfKind(aggregate, AGGREGATE)) {
 					return aggregate.accept(callResolver).accept(
-							new AggregateVisitors.AggCallVisitor(relBuilder, rexNodeConverter, aggregateName, false));
+							new AggCallVisitor(relBuilder, rexNodeConverter, aggregateName, false));
 				}
 			}
 			throw new TableException("Expected named aggregate. Got: " + unresolvedCall);
@@ -460,6 +462,49 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		protected AggCall defaultMethod(Expression expression) {
+			throw new TableException("Unexpected expression: " + expression);
+		}
+	}
+
+	private class AggCallVisitor extends ExpressionDefaultVisitor<RelBuilder.AggCall> {
+
+		private final RelBuilder relBuilder;
+		private final SqlAggFunctionVisitor sqlAggFunctionVisitor;
+		private final RexNodeConverter rexNodeConverter;
+		private final String name;
+		private final boolean isDistinct;
+
+		public AggCallVisitor(RelBuilder relBuilder, RexNodeConverter rexNodeConverter, String name,
+				boolean isDistinct) {
+			this.relBuilder = relBuilder;
+			this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+			this.rexNodeConverter = rexNodeConverter;
+			this.name = name;
+			this.isDistinct = isDistinct;
+		}
+
+		@Override
+		public RelBuilder.AggCall visit(CallExpression call) {
+			FunctionDefinition def = call.getFunctionDefinition();
+			if (BuiltInFunctionDefinitions.DISTINCT == def) {
+				Expression innerAgg = call.getChildren().get(0);
+				return innerAgg.accept(new AggCallVisitor(relBuilder, rexNodeConverter, name, true));
+			} else {
+				SqlAggFunction sqlAggFunction = call.accept(sqlAggFunctionVisitor);
+				return relBuilder.aggregateCall(
+						sqlAggFunction,
+						isDistinct,
+						false,
+						null,
+						name,
+						call.getChildren().stream().map(expr -> expr.accept(rexNodeConverter))
+								.collect(Collectors.toList()));
+			}
+
+		}
+
+		@Override
+		protected RelBuilder.AggCall defaultMethod(Expression expression) {
 			throw new TableException("Unexpected expression: " + expression);
 		}
 	}

@@ -86,8 +86,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -105,169 +105,193 @@ import static org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval;
 /**
  * Visit expression to generator {@link RexNode}.
  *
- * <p>TODO actually we should use {@link ResolvedExpressionVisitor} here as it is the output of the API
+ * <p>TODO actually we should use {@link ResolvedExpressionVisitor} here as it is the output of the API.
+ * we will update it after introduce Expression resolve in AggCodeGen.
  */
 public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	private final RelBuilder relBuilder;
 	private final FlinkTypeFactory typeFactory;
 
-	private static final int DECIMAL_PRECISION_NEEDED_FOR_LONG = 19;
-
-	/**
-	 * The mapping only keeps part of FunctionDefinitions, which could be converted to SqlOperator in a very simple
-	 * way.
-	 */
-	private static final Map<FunctionDefinition, SqlOperator> SIMPLE_DEF_SQL_OPERATOR_MAPPING = new HashMap<>();
-
-	static {
-		// logic functions
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.AND, FlinkSqlOperatorTable.AND);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.OR, FlinkSqlOperatorTable.OR);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.NOT, FlinkSqlOperatorTable.NOT);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.IF, FlinkSqlOperatorTable.CASE);
-
-		// comparison functions
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.EQUALS, FlinkSqlOperatorTable.EQUALS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.GREATER_THAN, FlinkSqlOperatorTable.GREATER_THAN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LESS_THAN, FlinkSqlOperatorTable.LESS_THAN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.NOT_EQUALS, FlinkSqlOperatorTable.NOT_EQUALS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.IS_NULL, FlinkSqlOperatorTable.IS_NULL);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.IS_NOT_NULL, FlinkSqlOperatorTable.IS_NOT_NULL);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.IS_TRUE, FlinkSqlOperatorTable.IS_TRUE);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.IS_FALSE, FlinkSqlOperatorTable.IS_FALSE);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.IS_NOT_TRUE, FlinkSqlOperatorTable.IS_NOT_TRUE);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.IS_NOT_FALSE, FlinkSqlOperatorTable.IS_NOT_FALSE);
-
-		// string functions
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.CHAR_LENGTH, FlinkSqlOperatorTable.CHAR_LENGTH);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.INIT_CAP, FlinkSqlOperatorTable.INITCAP);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LIKE, FlinkSqlOperatorTable.LIKE);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LOWER, FlinkSqlOperatorTable.LOWER);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SIMILAR, FlinkSqlOperatorTable.SIMILAR_TO);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SUBSTRING, FlinkSqlOperatorTable.SUBSTRING);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.UPPER, FlinkSqlOperatorTable.UPPER);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.POSITION, FlinkSqlOperatorTable.POSITION);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.OVERLAY, FlinkSqlOperatorTable.OVERLAY);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.CONCAT, FlinkSqlOperatorTable.CONCAT_FUNCTION);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.CONCAT_WS, FlinkSqlOperatorTable.CONCAT_WS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LPAD, FlinkSqlOperatorTable.LPAD);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.RPAD, FlinkSqlOperatorTable.RPAD);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.REGEXP_EXTRACT, FlinkSqlOperatorTable.REGEXP_EXTRACT);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.FROM_BASE64, FlinkSqlOperatorTable.FROM_BASE64);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TO_BASE64, FlinkSqlOperatorTable.TO_BASE64);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.UUID, FlinkSqlOperatorTable.UUID);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LTRIM, FlinkSqlOperatorTable.LTRIM);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.RTRIM, FlinkSqlOperatorTable.RTRIM);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.REPEAT, FlinkSqlOperatorTable.REPEAT);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.REGEXP_REPLACE, FlinkSqlOperatorTable.REGEXP_REPLACE);
-
-		// math functions
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.MINUS, FlinkSqlOperatorTable.MINUS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.DIVIDE, FlinkSqlOperatorTable.DIVIDE);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TIMES, FlinkSqlOperatorTable.MULTIPLY);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ABS, FlinkSqlOperatorTable.ABS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.EXP, FlinkSqlOperatorTable.EXP);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LOG10, FlinkSqlOperatorTable.LOG10);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LOG2, FlinkSqlOperatorTable.LOG2);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LN, FlinkSqlOperatorTable.LN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LOG, FlinkSqlOperatorTable.LOG);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.POWER, FlinkSqlOperatorTable.POWER);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.MOD, FlinkSqlOperatorTable.MOD);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SQRT, FlinkSqlOperatorTable.SQRT);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.MINUS_PREFIX, FlinkSqlOperatorTable.UNARY_MINUS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SIN, FlinkSqlOperatorTable.SIN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.COS, FlinkSqlOperatorTable.COS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SINH, FlinkSqlOperatorTable.SINH);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TAN, FlinkSqlOperatorTable.TAN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TANH, FlinkSqlOperatorTable.TANH);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.COT, FlinkSqlOperatorTable.COT);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ASIN, FlinkSqlOperatorTable.ASIN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ACOS, FlinkSqlOperatorTable.ACOS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ATAN, FlinkSqlOperatorTable.ATAN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ATAN2, FlinkSqlOperatorTable.ATAN2);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.COSH, FlinkSqlOperatorTable.COSH);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.DEGREES, FlinkSqlOperatorTable.DEGREES);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.RADIANS, FlinkSqlOperatorTable.RADIANS);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SIGN, FlinkSqlOperatorTable.SIGN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ROUND, FlinkSqlOperatorTable.ROUND);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.PI, FlinkSqlOperatorTable.PI);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.E, FlinkSqlOperatorTable.E);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.RAND, FlinkSqlOperatorTable.RAND);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.RAND_INTEGER, FlinkSqlOperatorTable.RAND_INTEGER);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.BIN, FlinkSqlOperatorTable.BIN);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.HEX, FlinkSqlOperatorTable.HEX);
-
-//		TODO
-//		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TRUNCATE, FlinkSqlOperatorTable.TRUNCATE);
-
-		// time functions
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.EXTRACT, FlinkSqlOperatorTable.EXTRACT);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.CURRENT_DATE, FlinkSqlOperatorTable.CURRENT_DATE);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.CURRENT_TIME, FlinkSqlOperatorTable.CURRENT_TIME);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.CURRENT_TIMESTAMP, FlinkSqlOperatorTable.CURRENT_TIMESTAMP);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.LOCAL_TIME, FlinkSqlOperatorTable.LOCALTIME);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING
-				.put(BuiltInFunctionDefinitions.LOCAL_TIMESTAMP, FlinkSqlOperatorTable.LOCALTIMESTAMP);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.DATE_FORMAT, FlinkSqlOperatorTable.DATE_FORMAT);
-
-		// collection
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.AT, FlinkSqlOperatorTable.ITEM);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.CARDINALITY, FlinkSqlOperatorTable.CARDINALITY);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.ORDER_DESC, FlinkSqlOperatorTable.DESC);
-
-		// crypto hash
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.MD5, FlinkSqlOperatorTable.MD5);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA2, FlinkSqlOperatorTable.SHA2);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA224, FlinkSqlOperatorTable.SHA224);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA256, FlinkSqlOperatorTable.SHA256);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA384, FlinkSqlOperatorTable.SHA384);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA512, FlinkSqlOperatorTable.SHA512);
-		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
-
-		// etc
-		// SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(InternalFunctionDefinitions.THROW_EXCEPTION, FlinkSqlOperatorTable.THROW_EXCEPTION);
-
-	}
+	// store mapping from BuiltInFunctionDefinition to it's RexNodeConversion.
+	private final Map<FunctionDefinition, RexNodeConversion> conversionsOfBuiltInFunc = new IdentityHashMap<>();
 
 	public RexNodeConverter(RelBuilder relBuilder) {
 		this.relBuilder = relBuilder;
 		this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
-	}
 
-	// TODO removed later after PlanExpression is merged
-	public RexNode visit(UnresolvedCallExpression call) {
-		FunctionDefinition func = call.getFunctionDefinition();
-		switch (func.getKind()) {
-			case SCALAR:
-				if (func instanceof ScalarFunctionDefinition) {
-					ScalarFunction scalaFunc = ((ScalarFunctionDefinition) func).getScalarFunction();
-					List<RexNode> child = convertCallChildren(call.getChildren());
-					SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
-							scalaFunc.functionIdentifier(),
-							scalaFunc.toString(),
-							scalaFunc,
-							typeFactory);
-					return relBuilder.call(sqlFunction, child);
-				} else {
-					return visitBuiltInFunc(call.getFunctionDefinition(), call.getChildren());
-				}
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.CAST, exprs -> convertCast(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.REINTERPRET_CAST, exprs -> convertReinterpretCast(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.IN, exprs -> convertIn(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.GET, exprs -> ConvertGet(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.TRIM, exprs -> convertTrim(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.AS, exprs -> convertAs(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.OVER, exprs -> convertOver(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.IS_NULL, exprs -> convertIsNull(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.BETWEEN, exprs -> convertBetween(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.NOT_BETWEEN, exprs -> convertNotBetween(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.REPLACE, exprs -> convertReplace(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.PLUS, exprs -> convertPlus(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.CEIL, exprs -> convertCeil(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.FLOOR, exprs -> convertFloor(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS, exprs -> convertTemporalOverlaps(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.TIMESTAMP_DIFF, exprs -> convertTimestampDiff(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ARRAY, exprs -> convertArray(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ARRAY_ELEMENT, exprs -> convertArrayElement(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.MAP, exprs -> convertMap(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ROW, exprs -> convertRow(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ORDER_ASC, exprs -> convertOrderAsc(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SHA1, exprs -> convert(FlinkSqlOperatorTable.SHA1, exprs));
+		// logic functions
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.AND, exprs -> convert(FlinkSqlOperatorTable.AND, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.OR, exprs -> convert(FlinkSqlOperatorTable.OR, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.NOT, exprs -> convert(FlinkSqlOperatorTable.NOT, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.IF, exprs -> convert(FlinkSqlOperatorTable.CASE, exprs));
 
-			default:
-				throw new UnsupportedOperationException();
-		}
+		// comparison functions
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.EQUALS, exprs -> convert(FlinkSqlOperatorTable.EQUALS, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.GREATER_THAN, exprs -> convert(FlinkSqlOperatorTable.GREATER_THAN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, exprs -> convert(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.LESS_THAN, exprs -> convert(FlinkSqlOperatorTable.LESS_THAN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, exprs -> convert(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.NOT_EQUALS, exprs -> convert(FlinkSqlOperatorTable.NOT_EQUALS, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.IS_NULL, exprs -> convert(FlinkSqlOperatorTable.IS_NULL, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.IS_NOT_NULL, exprs -> convert(FlinkSqlOperatorTable.IS_NOT_NULL, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.IS_TRUE, exprs -> convert(FlinkSqlOperatorTable.IS_TRUE, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.IS_FALSE, exprs -> convert(FlinkSqlOperatorTable.IS_FALSE, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.IS_NOT_TRUE, exprs -> convert(FlinkSqlOperatorTable.IS_NOT_TRUE, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.IS_NOT_FALSE, exprs -> convert(FlinkSqlOperatorTable.IS_NOT_FALSE, exprs));
+
+		// string functions
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.CHAR_LENGTH, exprs -> convert(FlinkSqlOperatorTable.CHAR_LENGTH, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.INIT_CAP, exprs -> convert(FlinkSqlOperatorTable.INITCAP, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LIKE, exprs -> convert(FlinkSqlOperatorTable.LIKE, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.LOWER, exprs -> convert(FlinkSqlOperatorTable.LOWER, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.SIMILAR, exprs -> convert(FlinkSqlOperatorTable.SIMILAR_TO, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.SUBSTRING, exprs -> convert(FlinkSqlOperatorTable.SUBSTRING, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.UPPER, exprs -> convert(FlinkSqlOperatorTable.UPPER, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.POSITION, exprs -> convert(FlinkSqlOperatorTable.POSITION, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.OVERLAY, exprs -> convert(FlinkSqlOperatorTable.OVERLAY, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.CONCAT, exprs -> convert(FlinkSqlOperatorTable.CONCAT_FUNCTION, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.CONCAT_WS, exprs -> convert(FlinkSqlOperatorTable.CONCAT_WS, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LPAD, exprs -> convert(FlinkSqlOperatorTable.LPAD, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.RPAD, exprs -> convert(FlinkSqlOperatorTable.RPAD, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.REGEXP_EXTRACT, exprs -> convert(FlinkSqlOperatorTable.REGEXP_EXTRACT, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.FROM_BASE64, exprs -> convert(FlinkSqlOperatorTable.FROM_BASE64, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.TO_BASE64, exprs -> convert(FlinkSqlOperatorTable.TO_BASE64, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.UUID, exprs -> convert(FlinkSqlOperatorTable.UUID, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.LTRIM, exprs -> convert(FlinkSqlOperatorTable.LTRIM, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.RTRIM, exprs -> convert(FlinkSqlOperatorTable.RTRIM, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.REPEAT, exprs -> convert(FlinkSqlOperatorTable.REPEAT, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.REGEXP_REPLACE, exprs -> convert(FlinkSqlOperatorTable.REGEXP_REPLACE, exprs));
+
+		// math functions
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.MINUS, exprs -> convert(FlinkSqlOperatorTable.MINUS, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.DIVIDE, exprs -> convert(FlinkSqlOperatorTable.DIVIDE, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.TIMES, exprs -> convert(FlinkSqlOperatorTable.MULTIPLY, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ABS, exprs -> convert(FlinkSqlOperatorTable.ABS, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.EXP, exprs -> convert(FlinkSqlOperatorTable.EXP, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.LOG10, exprs -> convert(FlinkSqlOperatorTable.LOG10, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LOG2, exprs -> convert(FlinkSqlOperatorTable.LOG2, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LN, exprs -> convert(FlinkSqlOperatorTable.LN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LOG, exprs -> convert(FlinkSqlOperatorTable.LOG, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.POWER, exprs -> convert(FlinkSqlOperatorTable.POWER, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.MOD, exprs -> convert(FlinkSqlOperatorTable.MOD, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SQRT, exprs -> convert(FlinkSqlOperatorTable.SQRT, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.MINUS_PREFIX, exprs -> convert(FlinkSqlOperatorTable.UNARY_MINUS, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SIN, exprs -> convert(FlinkSqlOperatorTable.SIN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.COS, exprs -> convert(FlinkSqlOperatorTable.COS, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SINH, exprs -> convert(FlinkSqlOperatorTable.SINH, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.TAN, exprs -> convert(FlinkSqlOperatorTable.TAN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.TANH, exprs -> convert(FlinkSqlOperatorTable.TANH, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.COT, exprs -> convert(FlinkSqlOperatorTable.COT, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ASIN, exprs -> convert(FlinkSqlOperatorTable.ASIN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ACOS, exprs -> convert(FlinkSqlOperatorTable.ACOS, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.ATAN, exprs -> convert(FlinkSqlOperatorTable.ATAN, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.ATAN2, exprs -> convert(FlinkSqlOperatorTable.ATAN2, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.COSH, exprs -> convert(FlinkSqlOperatorTable.COSH, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.DEGREES, exprs -> convert(FlinkSqlOperatorTable.DEGREES, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.RADIANS, exprs -> convert(FlinkSqlOperatorTable.RADIANS, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SIGN, exprs -> convert(FlinkSqlOperatorTable.SIGN, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.ROUND, exprs -> convert(FlinkSqlOperatorTable.ROUND, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.PI, exprs -> convert(FlinkSqlOperatorTable.PI, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.E, exprs -> convert(FlinkSqlOperatorTable.E, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.RAND, exprs -> convert(FlinkSqlOperatorTable.RAND, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.RAND_INTEGER, exprs -> convert(FlinkSqlOperatorTable.RAND_INTEGER, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.BIN, exprs -> convert(FlinkSqlOperatorTable.BIN, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.HEX, exprs -> convert(FlinkSqlOperatorTable.HEX, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.TRUNCATE, exprs -> convert(FlinkSqlOperatorTable.TRUNCATE, exprs));
+
+		// time functions
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.EXTRACT, exprs -> convert(FlinkSqlOperatorTable.EXTRACT, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.CURRENT_DATE, exprs -> convert(FlinkSqlOperatorTable.CURRENT_DATE, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.CURRENT_TIME, exprs -> convert(FlinkSqlOperatorTable.CURRENT_TIME, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.CURRENT_TIMESTAMP, exprs -> convert(FlinkSqlOperatorTable.CURRENT_TIMESTAMP, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.LOCAL_TIME, exprs -> convert(FlinkSqlOperatorTable.LOCALTIME, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.LOCAL_TIMESTAMP, exprs -> convert(FlinkSqlOperatorTable.LOCALTIMESTAMP, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.DATE_FORMAT, exprs -> convert(FlinkSqlOperatorTable.DATE_FORMAT, exprs));
+
+		// collection
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.AT, exprs -> convert(FlinkSqlOperatorTable.ITEM, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.CARDINALITY, exprs -> convert(FlinkSqlOperatorTable.CARDINALITY, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.ORDER_DESC, exprs -> convert(FlinkSqlOperatorTable.DESC, exprs));
+
+		// crypto hash
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.MD5, exprs -> convert(FlinkSqlOperatorTable.MD5, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SHA2, exprs -> convert(FlinkSqlOperatorTable.SHA2, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.SHA224, exprs -> convert(FlinkSqlOperatorTable.SHA224, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.SHA256, exprs -> convert(FlinkSqlOperatorTable.SHA256, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.SHA384, exprs -> convert(FlinkSqlOperatorTable.SHA384, exprs));
+		conversionsOfBuiltInFunc
+				.put(BuiltInFunctionDefinitions.SHA512, exprs -> convert(FlinkSqlOperatorTable.SHA512, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SHA1, exprs -> convert(FlinkSqlOperatorTable.SHA1, exprs));
 	}
 
 	@Override
@@ -283,7 +307,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 					typeFactory);
 			return relBuilder.call(sqlFunction, child);
 		} else if (func instanceof TableFunctionDefinition) {
-			throw new UnsupportedOperationException(func.toString());
+			throw new RuntimeException("There is no possible reach here!");
 		} else if (func instanceof AggregateFunctionDefinition) {
 			UserDefinedAggregateFunction aggFunc = ((AggregateFunctionDefinition) func).getAggregateFunction();
 			if (aggFunc instanceof AggregateFunction) {
@@ -301,7 +325,13 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			}
 
 		} else {
-			return visitBuiltInFunc(call.getFunctionDefinition(), call.getChildren());
+			FunctionDefinition def = call.getFunctionDefinition();
+			if (conversionsOfBuiltInFunc.containsKey(def)) {
+				RexNodeConversion conversion = conversionsOfBuiltInFunc.get(def);
+				return conversion.convert(call);
+			} else {
+				throw new UnsupportedOperationException(def.toString());
+			}
 		}
 	}
 
@@ -311,241 +341,293 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				.collect(Collectors.toList());
 	}
 
-	private RexNode visitBuiltInFunc(FunctionDefinition def, List<Expression> children) {
+	private RexNode convert(SqlOperator sqlOperator, List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return relBuilder.call(sqlOperator, childrenRexNode);
+	}
 
-		if (BuiltInFunctionDefinitions.CAST.equals(def)) {
-			RexNode child = children.get(0).accept(this);
-			TypeLiteralExpression type = (TypeLiteralExpression) children.get(1);
-			return relBuilder.getRexBuilder().makeAbstractCast(
-					typeFactory.createFieldTypeFromLogicalType(
-							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
-					child);
-		} else if (BuiltInFunctionDefinitions.REINTERPRET_CAST.equals(def)) {
-			RexNode child = children.get(0).accept(this);
-			TypeLiteralExpression type = (TypeLiteralExpression) children.get(1);
-			RexNode checkOverflow = children.get(2).accept(this);
-			return relBuilder.getRexBuilder().makeReinterpretCast(
-					typeFactory.createFieldTypeFromLogicalType(
-							type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
-					child,
-					checkOverflow);
-		} else if (BuiltInFunctionDefinitions.IN.equals(def)) {
-			Expression headExpr = children.get(1);
-			if (headExpr instanceof TableReferenceExpression) {
-				QueryOperation tableOperation = ((TableReferenceExpression) headExpr).getQueryOperation();
-				RexNode child = children.get(0).accept(this);
-				return RexSubQuery.in(
-						((FlinkRelBuilder) relBuilder).queryOperation(tableOperation).build(),
-						ImmutableList.of(child));
-			} else {
-				List<RexNode> child = convertCallChildren(children);
-				return relBuilder.call(FlinkSqlOperatorTable.IN, child);
-			}
-		} else if (BuiltInFunctionDefinitions.GET.equals(def)) {
-			RexNode child = children.get(0).accept(this);
-			ValueLiteralExpression keyLiteral = (ValueLiteralExpression) children.get(1);
-			int index;
-			Optional<Integer> indexOptional = ExpressionUtils.extractValue(keyLiteral, String.class).map(
-					child.getType().getFieldNames()::indexOf);
-			if (indexOptional.isPresent()) {
-				index = indexOptional.get();
-			} else {
-				index = extractValue(keyLiteral, Integer.class);
-			}
-			return relBuilder.getRexBuilder().makeFieldAccess(child, index);
-		} else if (BuiltInFunctionDefinitions.TRIM.equals(def)) {
-			ValueLiteralExpression removeLeadingExpr = (ValueLiteralExpression) children.get(0);
-			Boolean removeLeading = extractValue(removeLeadingExpr, Boolean.class);
-			ValueLiteralExpression removeTrailingExpr = (ValueLiteralExpression) children.get(1);
-			Boolean removeTrailing = extractValue(removeTrailingExpr, Boolean.class);
-			RexNode trimString = children.get(2).accept(this);
-			RexNode str = children.get(3).accept(this);
-			Enum trimMode;
-			if (removeLeading && removeTrailing) {
-				trimMode = SqlTrimFunction.Flag.BOTH;
-			} else if (removeLeading) {
-				trimMode = SqlTrimFunction.Flag.LEADING;
-			} else if (removeTrailing) {
-				trimMode = SqlTrimFunction.Flag.TRAILING;
-			} else {
-				throw new IllegalArgumentException("Unsupported trim mode.");
-			}
-			return relBuilder.call(
-					FlinkSqlOperatorTable.TRIM,
-					relBuilder.getRexBuilder().makeFlag(trimMode),
-					trimString,
-					str);
-		} else if (BuiltInFunctionDefinitions.AS.equals(def)) {
-			String name = extractValue((ValueLiteralExpression) children.get(1), String.class);
-			RexNode child = children.get(0).accept(this);
-			return relBuilder.alias(child, name);
-		} else if (BuiltInFunctionDefinitions.OVER.equals(def)) {
-			List<Expression> args = children;
-			Expression agg = args.get(0);
-			SqlAggFunction aggFunc = agg.accept(new AggregateVisitors.AggFunctionVisitor(typeFactory));
-			RelDataType aggResultType = typeFactory.createFieldTypeFromLogicalType(
-					fromDataTypeToLogicalType(((ResolvedExpression) agg).getOutputDataType()));
+	private RexNode convertArrayElement(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return relBuilder.call(FlinkSqlOperatorTable.ELEMENT, childrenRexNode);
+	}
 
-			// assemble exprs by agg children
-			List<RexNode> aggExprs = agg.getChildren().stream().map(expr -> expr.accept(this))
-					.collect(Collectors.toList());
+	private RexNode convertOrderAsc(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return childrenRexNode.get(0);
+	}
 
-			// assemble order by key
-			Expression orderKeyExpr = args.get(1);
-			Set<SqlKind> kinds = new HashSet<>();
-			RexNode collationRexNode = createCollation(orderKeyExpr.accept(this), RelFieldCollation.Direction.ASCENDING,
-					null, kinds);
-			ImmutableList<RexFieldCollation> orderKey = ImmutableList
-					.of(new RexFieldCollation(collationRexNode, kinds));
+	private RexNode convertTimestampDiff(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return relBuilder.call(FlinkSqlOperatorTable.TIMESTAMP_DIFF, childrenRexNode.get(0), childrenRexNode.get(2),
+				childrenRexNode.get(1));
+	}
 
-			// assemble partition by keys
-			List<RexNode> partitionKeys = args.subList(4, args.size()).stream().map(expr -> expr.accept(this))
-					.collect(Collectors.toList());
-			// assemble bounds
-			Expression preceding = args.get(2);
-			boolean isPhysical = ((ResolvedExpression) preceding).getOutputDataType().equals(DataTypes.BIGINT());
-			Expression following = args.get(3);
-			RexWindowBound lowerBound = createBound(preceding, SqlKind.PRECEDING);
-			RexWindowBound upperBound = createBound(following, SqlKind.FOLLOWING);
+	private RexNode convertIsNull(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return relBuilder.isNull(childrenRexNode.get(0));
+	}
 
-			// build RexOver
-			return relBuilder.getRexBuilder().makeOver(
-					aggResultType,
-					aggFunc,
-					aggExprs,
-					partitionKeys,
-					orderKey,
-					lowerBound,
-					upperBound,
-					isPhysical,
-					true,
-					false,
-					false);
-		}
+	private RexNode convertNotBetween(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return relBuilder.or(
+				relBuilder.call(FlinkSqlOperatorTable.LESS_THAN, childrenRexNode),
+				relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN, childrenRexNode));
+	}
 
-		List<RexNode> child = convertCallChildren(children);
-		if (BuiltInFunctionDefinitions.IF.equals(def)) {
-			return relBuilder.call(FlinkSqlOperatorTable.CASE, child);
-		} else if (BuiltInFunctionDefinitions.IS_NULL.equals(def)) {
-			return relBuilder.isNull(child.get(0));
-		} else if (SIMPLE_DEF_SQL_OPERATOR_MAPPING.containsKey(def)) {
-			return relBuilder.call(SIMPLE_DEF_SQL_OPERATOR_MAPPING.get(def), child);
-		}
-		if (BuiltInFunctionDefinitions.BETWEEN.equals(def)) {
-			return relBuilder.and(
-					relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, child),
-					relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, child));
-		} else if (BuiltInFunctionDefinitions.NOT_BETWEEN.equals(def)) {
-			return relBuilder.or(
-					relBuilder.call(FlinkSqlOperatorTable.LESS_THAN, child),
-					relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN, child));
-		} else if (BuiltInFunctionDefinitions.REPLACE.equals(def)) {
-			Preconditions.checkArgument(child.size() == 2 || child.size() == 3);
-			if (child.size() == 2) {
-				return relBuilder.call(
-						FlinkSqlOperatorTable.REPLACE,
-						child.get(0),
-						child.get(1),
-						relBuilder.call(FlinkSqlOperatorTable.CHAR_LENGTH, child.get(0)));
-			} else {
-				return relBuilder.call(FlinkSqlOperatorTable.REPLACE, child);
-			}
-		} else if (BuiltInFunctionDefinitions.PLUS.equals(def)) {
-			if (isCharacterString(toLogicalType(child.get(0).getType()))) {
-				return relBuilder.call(
-						FlinkSqlOperatorTable.CONCAT,
-						child.get(0),
-						relBuilder.cast(child.get(1), VARCHAR));
-			} else if (isCharacterString(toLogicalType(child.get(1).getType()))) {
-				return relBuilder.call(
-						FlinkSqlOperatorTable.CONCAT,
-						relBuilder.cast(child.get(0), VARCHAR),
-						child.get(1));
-			} else if (isTimeInterval(toLogicalType(child.get(0).getType())) &&
-					child.get(0).getType() == child.get(1).getType()) {
-				return relBuilder.call(FlinkSqlOperatorTable.PLUS, child);
-			} else if (isTimeInterval(toLogicalType(child.get(0).getType()))
-					&& isTemporal(toLogicalType(child.get(1).getType()))) {
-				// Calcite has a bug that can't apply INTERVAL + DATETIME (INTERVAL at left)
-				// we manually switch them here
-				return relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, child.get(1), child.get(0));
-			} else if (isTemporal(toLogicalType(child.get(0).getType())) &&
-					isTemporal(toLogicalType(child.get(1).getType()))) {
-				return relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, child);
-			} else {
-				return relBuilder.call(FlinkSqlOperatorTable.PLUS, child);
-			}
-		} else if (BuiltInFunctionDefinitions.CEIL.equals(def)) {
-			Preconditions.checkArgument(child.size() == 1 || child.size() == 2);
-			if (child.size() == 1) {
-				return relBuilder.call(FlinkSqlOperatorTable.CEIL, child);
-			} else {
-				return relBuilder.call(FlinkSqlOperatorTable.CEIL, child.get(1), child.get(0));
-			}
-		} else if (BuiltInFunctionDefinitions.FLOOR.equals(def)) {
-			Preconditions.checkArgument(child.size() == 1 || child.size() == 2);
-			if (child.size() == 1) {
-				return relBuilder.call(FlinkSqlOperatorTable.FLOOR, child);
-			} else {
-				return relBuilder.call(FlinkSqlOperatorTable.FLOOR, child.get(1), child.get(0));
-			}
-		} else if (BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS.equals(def)) {
-			// Standard conversion of the OVERLAPS operator.
-			// Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertOverlaps()]]
-			RexNode leftTimePoint = child.get(0);
-			RexNode leftTemporal = child.get(1);
-			RexNode rightTimePoint = child.get(2);
-			RexNode rightTemporal = child.get(3);
-			RexNode convLeftT;
-			if (isTimeInterval(toLogicalType(leftTemporal.getType()))) {
-				convLeftT = relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, leftTimePoint, leftTemporal);
-			} else {
-				convLeftT = leftTemporal;
-			}
-			// sort end points into start and end, such that (s0 <= e0) and (s1 <= e1).
-			RexNode leftLe = relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, leftTimePoint, convLeftT);
-			RexNode s0 = relBuilder.call(FlinkSqlOperatorTable.CASE, leftLe, leftTimePoint, convLeftT);
-			RexNode e0 = relBuilder.call(FlinkSqlOperatorTable.CASE, leftLe, convLeftT, leftTimePoint);
-			RexNode convRightT;
-			if (isTimeInterval(toLogicalType(rightTemporal.getType()))) {
-				convRightT = relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, rightTimePoint, rightTemporal);
-			} else {
-				convRightT = rightTemporal;
-			}
-			RexNode rightLe = relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, rightTimePoint, convRightT);
-			RexNode s1 = relBuilder.call(FlinkSqlOperatorTable.CASE, rightLe, rightTimePoint, convRightT);
-			RexNode e1 = relBuilder.call(FlinkSqlOperatorTable.CASE, rightLe, convRightT, rightTimePoint);
+	private RexNode convertBetween(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		return relBuilder.and(
+				relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, childrenRexNode),
+				relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, childrenRexNode));
+	}
 
-			// (e0 >= s1) AND (e1 >= s0)
-			RexNode leftPred = relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, e0, s1);
-			RexNode rightPred = relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, e1, s0);
-			return relBuilder.call(FlinkSqlOperatorTable.AND, leftPred, rightPred);
-		} else if (BuiltInFunctionDefinitions.TIMESTAMP_DIFF.equals(def)) {
-			return relBuilder.call(FlinkSqlOperatorTable.TIMESTAMP_DIFF, child.get(0), child.get(2), child.get(1));
-		} else if (BuiltInFunctionDefinitions.ARRAY.equals(def)) {
-			ArrayType arrayType = new ArrayType(toLogicalType(child.get(0).getType()));
-			RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(arrayType);
-			return relBuilder.getRexBuilder()
-					.makeCall(relDataType, FlinkSqlOperatorTable.ARRAY_VALUE_CONSTRUCTOR, child);
-		} else if (BuiltInFunctionDefinitions.ARRAY_ELEMENT.equals(def)) {
-			return relBuilder.call(FlinkSqlOperatorTable.ELEMENT, child);
-		} else if (BuiltInFunctionDefinitions.MAP.equals(def)) {
-			Preconditions.checkArgument(!child.isEmpty() && child.size() % 2 == 0);
-			RelDataType keyType = child.get(0).getType();
-			RelDataType valueType = child.get(child.size() - 1).getType();
-			RelDataType mapType = typeFactory.createMapType(keyType, valueType);
-			return relBuilder.getRexBuilder().makeCall(mapType, FlinkSqlOperatorTable.MAP_VALUE_CONSTRUCTOR, child);
-		} else if (BuiltInFunctionDefinitions.ROW.equals(def)) {
-			LogicalType[] childTypes = child.stream().map(rexNode -> toLogicalType(rexNode.getType()))
-					.toArray(LogicalType[]::new);
-			RowType rowType = RowType.of(childTypes);
-			RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(rowType);
-			return relBuilder.getRexBuilder().makeCall(relDataType, FlinkSqlOperatorTable.ROW, child);
-		} else if (BuiltInFunctionDefinitions.ORDER_ASC.equals(def)) {
-			return child.get(0);
+	private RexNode convertCeil(List<Expression> children) {
+		Preconditions.checkArgument(children.size() == 1 || children.size() == 2);
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		if (children.size() == 1) {
+			return relBuilder.call(FlinkSqlOperatorTable.CEIL, childrenRexNode);
 		} else {
-			throw new UnsupportedOperationException(def.toString());
+			return relBuilder.call(FlinkSqlOperatorTable.CEIL, childrenRexNode.get(1), childrenRexNode.get(0));
 		}
+	}
+
+	private RexNode convertFloor(List<Expression> children) {
+		Preconditions.checkArgument(children.size() == 1 || children.size() == 2);
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		if (children.size() == 1) {
+			return relBuilder.call(FlinkSqlOperatorTable.FLOOR, childrenRexNode);
+		} else {
+			return relBuilder.call(FlinkSqlOperatorTable.FLOOR, childrenRexNode.get(1), childrenRexNode.get(0));
+		}
+	}
+
+	private RexNode convertArray(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		ArrayType arrayType = new ArrayType(toLogicalType(childrenRexNode.get(0).getType()));
+		// TODO get type from CallExpression directly
+		RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(arrayType);
+		return relBuilder.getRexBuilder().makeCall(relDataType, FlinkSqlOperatorTable.ARRAY_VALUE_CONSTRUCTOR, childrenRexNode);
+	}
+
+	private RexNode convertMap(List<Expression> children) {
+		Preconditions.checkArgument(!children.isEmpty() && children.size() % 2 == 0);
+		// TODO get type from CallExpression directly
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		RelDataType keyType = childrenRexNode.get(0).getType();
+		RelDataType valueType = childrenRexNode.get(childrenRexNode.size() - 1).getType();
+		RelDataType mapType = typeFactory.createMapType(keyType, valueType);
+		return relBuilder.getRexBuilder().makeCall(mapType, FlinkSqlOperatorTable.MAP_VALUE_CONSTRUCTOR, childrenRexNode);
+	}
+
+	private RexNode convertRow(List<Expression> children) {
+		// TODO get type from CallExpression directly
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		LogicalType[] childTypes = childrenRexNode.stream().map(rexNode -> toLogicalType(rexNode.getType()))
+				.toArray(LogicalType[]::new);
+		RowType rowType = RowType.of(childTypes);
+		RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(rowType);
+		return relBuilder.getRexBuilder().makeCall(relDataType, FlinkSqlOperatorTable.ROW, childrenRexNode);
+	}
+
+	private RexNode convertTemporalOverlaps(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		// Standard conversion of the OVERLAPS operator.
+		// Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertOverlaps()]]
+		RexNode leftTimePoint = childrenRexNode.get(0);
+		RexNode leftTemporal = childrenRexNode.get(1);
+		RexNode rightTimePoint = childrenRexNode.get(2);
+		RexNode rightTemporal = childrenRexNode.get(3);
+		RexNode convLeftT;
+		if (isTimeInterval(toLogicalType(leftTemporal.getType()))) {
+			convLeftT = relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, leftTimePoint, leftTemporal);
+		} else {
+			convLeftT = leftTemporal;
+		}
+		// sort end points into start and end, such that (s0 <= e0) and (s1 <= e1).
+		RexNode leftLe = relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, leftTimePoint, convLeftT);
+		RexNode s0 = relBuilder.call(FlinkSqlOperatorTable.CASE, leftLe, leftTimePoint, convLeftT);
+		RexNode e0 = relBuilder.call(FlinkSqlOperatorTable.CASE, leftLe, convLeftT, leftTimePoint);
+		RexNode convRightT;
+		if (isTimeInterval(toLogicalType(rightTemporal.getType()))) {
+			convRightT = relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, rightTimePoint, rightTemporal);
+		} else {
+			convRightT = rightTemporal;
+		}
+		RexNode rightLe = relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, rightTimePoint, convRightT);
+		RexNode s1 = relBuilder.call(FlinkSqlOperatorTable.CASE, rightLe, rightTimePoint, convRightT);
+		RexNode e1 = relBuilder.call(FlinkSqlOperatorTable.CASE, rightLe, convRightT, rightTimePoint);
+
+		// (e0 >= s1) AND (e1 >= s0)
+		RexNode leftPred = relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, e0, s1);
+		RexNode rightPred = relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, e1, s0);
+		return relBuilder.call(FlinkSqlOperatorTable.AND, leftPred, rightPred);
+	}
+
+	private RexNode convertPlus(List<Expression> children) {
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		if (isCharacterString(toLogicalType(childrenRexNode.get(0).getType()))) {
+			return relBuilder.call(
+					FlinkSqlOperatorTable.CONCAT,
+					childrenRexNode.get(0),
+					relBuilder.cast(childrenRexNode.get(1), VARCHAR));
+		} else if (isCharacterString(toLogicalType(childrenRexNode.get(1).getType()))) {
+			return relBuilder.call(
+					FlinkSqlOperatorTable.CONCAT,
+					relBuilder.cast(childrenRexNode.get(0), VARCHAR),
+					childrenRexNode.get(1));
+		} else if (isTimeInterval(toLogicalType(childrenRexNode.get(0).getType())) &&
+				childrenRexNode.get(0).getType() == childrenRexNode.get(1).getType()) {
+			return relBuilder.call(FlinkSqlOperatorTable.PLUS, childrenRexNode);
+		} else if (isTimeInterval(toLogicalType(childrenRexNode.get(0).getType()))
+				&& isTemporal(toLogicalType(childrenRexNode.get(1).getType()))) {
+			// Calcite has a bug that can't apply INTERVAL + DATETIME (INTERVAL at left)
+			// we manually switch them here
+			return relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, childrenRexNode.get(1), childrenRexNode.get(0));
+		} else if (isTemporal(toLogicalType(childrenRexNode.get(0).getType())) &&
+				isTemporal(toLogicalType(childrenRexNode.get(1).getType()))) {
+			return relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, childrenRexNode);
+		} else {
+			return relBuilder.call(FlinkSqlOperatorTable.PLUS, childrenRexNode);
+		}
+	}
+
+	private RexNode convertReplace(List<Expression> children) {
+		Preconditions.checkArgument(children.size() == 2 || children.size() == 3);
+		List<RexNode> childrenRexNode = convertCallChildren(children);
+		if (children.size() == 2) {
+			return relBuilder.call(
+					FlinkSqlOperatorTable.REPLACE,
+					childrenRexNode.get(0),
+					childrenRexNode.get(1),
+					relBuilder.call(FlinkSqlOperatorTable.CHAR_LENGTH, childrenRexNode.get(0)));
+		} else {
+			return relBuilder.call(FlinkSqlOperatorTable.REPLACE, childrenRexNode);
+		}
+	}
+
+	private RexNode convertOver(List<Expression> children) {
+		List<Expression> args = children;
+		Expression agg = args.get(0);
+		SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(typeFactory));
+		RelDataType aggResultType = typeFactory.createFieldTypeFromLogicalType(
+				fromDataTypeToLogicalType(((ResolvedExpression) agg).getOutputDataType()));
+
+		// assemble exprs by agg children
+		List<RexNode> aggExprs = agg.getChildren().stream().map(expr -> expr.accept(this))
+				.collect(Collectors.toList());
+
+		// assemble order by key
+		Expression orderKeyExpr = args.get(1);
+		Set<SqlKind> kinds = new HashSet<>();
+		RexNode collationRexNode = createCollation(orderKeyExpr.accept(this), RelFieldCollation.Direction.ASCENDING,
+				null, kinds);
+		ImmutableList<RexFieldCollation> orderKey = ImmutableList
+				.of(new RexFieldCollation(collationRexNode, kinds));
+
+		// assemble partition by keys
+		List<RexNode> partitionKeys = args.subList(4, args.size()).stream().map(expr -> expr.accept(this))
+				.collect(Collectors.toList());
+		// assemble bounds
+		Expression preceding = args.get(2);
+		boolean isPhysical = ((ResolvedExpression) preceding).getOutputDataType().equals(DataTypes.BIGINT());
+		Expression following = args.get(3);
+		RexWindowBound lowerBound = createBound(preceding, SqlKind.PRECEDING);
+		RexWindowBound upperBound = createBound(following, SqlKind.FOLLOWING);
+
+		// build RexOver
+		return relBuilder.getRexBuilder().makeOver(
+				aggResultType,
+				aggFunc,
+				aggExprs,
+				partitionKeys,
+				orderKey,
+				lowerBound,
+				upperBound,
+				isPhysical,
+				true,
+				false,
+				false);
+	}
+
+	private RexNode convertAs(List<Expression> children) {
+		String name = extractValue((ValueLiteralExpression) children.get(1), String.class);
+		RexNode child = children.get(0).accept(this);
+		return relBuilder.alias(child, name);
+	}
+
+	private RexNode convertTrim(List<Expression> children) {
+		ValueLiteralExpression removeLeadingExpr = (ValueLiteralExpression) children.get(0);
+		Boolean removeLeading = extractValue(removeLeadingExpr, Boolean.class);
+		ValueLiteralExpression removeTrailingExpr = (ValueLiteralExpression) children.get(1);
+		Boolean removeTrailing = extractValue(removeTrailingExpr, Boolean.class);
+		RexNode trimString = children.get(2).accept(this);
+		RexNode str = children.get(3).accept(this);
+		Enum trimMode;
+		if (removeLeading && removeTrailing) {
+			trimMode = SqlTrimFunction.Flag.BOTH;
+		} else if (removeLeading) {
+			trimMode = SqlTrimFunction.Flag.LEADING;
+		} else if (removeTrailing) {
+			trimMode = SqlTrimFunction.Flag.TRAILING;
+		} else {
+			throw new IllegalArgumentException("Unsupported trim mode.");
+		}
+		return relBuilder.call(
+				FlinkSqlOperatorTable.TRIM,
+				relBuilder.getRexBuilder().makeFlag(trimMode),
+				trimString,
+				str);
+	}
+
+	private RexNode ConvertGet(List<Expression> children) {
+		RexNode child = children.get(0).accept(this);
+		ValueLiteralExpression keyLiteral = (ValueLiteralExpression) children.get(1);
+		Optional<Integer> indexOptional = ExpressionUtils.extractValue(keyLiteral, String.class).map(
+				child.getType().getFieldNames()::indexOf);
+		// Note: never replace the following code with :
+		// int index = indexOptional.orElseGet(() -> extractValue(keyLiteral, Integer.class));
+		// Because the logical in `orElseGet` always executed no matter whether indexOptional is present or not.
+		int index;
+		if (indexOptional.isPresent()) {
+			index = indexOptional.get();
+		} else {
+			index = extractValue(keyLiteral, Integer.class);
+		}
+		return relBuilder.getRexBuilder().makeFieldAccess(child, index);
+	}
+
+	private RexNode convertIn(List<Expression> children) {
+		Expression headExpr = children.get(1);
+		if (headExpr instanceof TableReferenceExpression) {
+			QueryOperation tableOperation = ((TableReferenceExpression) headExpr).getQueryOperation();
+			RexNode child = children.get(0).accept(this);
+			return RexSubQuery.in(
+					((FlinkRelBuilder) relBuilder).queryOperation(tableOperation).build(),
+					ImmutableList.of(child));
+		} else {
+			List<RexNode> child = convertCallChildren(children);
+			return relBuilder.call(FlinkSqlOperatorTable.IN, child);
+		}
+	}
+
+	private RexNode convertReinterpretCast(List<Expression> children) {
+		RexNode child = children.get(0).accept(this);
+		TypeLiteralExpression type = (TypeLiteralExpression) children.get(1);
+		RexNode checkOverflow = children.get(2).accept(this);
+		return relBuilder.getRexBuilder().makeReinterpretCast(
+				typeFactory.createFieldTypeFromLogicalType(
+						type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+				child,
+				checkOverflow);
+	}
+
+	private RexNode convertCast(List<Expression> children) {
+		RexNode child = children.get(0).accept(this);
+		TypeLiteralExpression type = (TypeLiteralExpression) children.get(1);
+		return relBuilder.getRexBuilder().makeAbstractCast(
+				typeFactory.createFieldTypeFromLogicalType(
+						type.getOutputDataType().getLogicalType().copy(child.getType().isNullable())),
+				child);
 	}
 
 	@Override
@@ -794,6 +876,34 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				type);
 	}
 
+	private RexNode visit(UnresolvedCallExpression call) {
+		FunctionDefinition func = call.getFunctionDefinition();
+		switch (func.getKind()) {
+			case SCALAR:
+				if (func instanceof ScalarFunctionDefinition) {
+					ScalarFunction scalaFunc = ((ScalarFunctionDefinition) func).getScalarFunction();
+					List<RexNode> child = convertCallChildren(call.getChildren());
+					SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
+							scalaFunc.functionIdentifier(),
+							scalaFunc.toString(),
+							scalaFunc,
+							typeFactory);
+					return relBuilder.call(sqlFunction, child);
+				} else {
+					FunctionDefinition def = call.getFunctionDefinition();
+					if (conversionsOfBuiltInFunc.containsKey(def)) {
+						RexNodeConversion conversion = conversionsOfBuiltInFunc.get(def);
+						return conversion.convert(call);
+					} else {
+						throw new UnsupportedOperationException(def.toString());
+					}
+				}
+
+			default:
+				throw new UnsupportedOperationException();
+		}
+	}
+
 	private RexNode createCollation(RexNode node, RelFieldCollation.Direction direction,
 			RelFieldCollation.NullDirection nullDirection, Set<SqlKind> kinds) {
 		switch (node.getKind()) {
@@ -842,6 +952,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				throw new IllegalArgumentException("Unexpected expression: " + bound);
 			}
 		} else if (bound instanceof ValueLiteralExpression) {
+			int DECIMAL_PRECISION_NEEDED_FOR_LONG = 19;
 			RelDataType returnType = typeFactory
 					.createFieldTypeFromLogicalType(new DecimalType(true, DECIMAL_PRECISION_NEEDED_FOR_LONG, 0));
 			SqlOperator sqlOperator = new SqlPostfixOperator(
@@ -865,6 +976,23 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return RexWindowBound.create(node, rexNode);
 		} else {
 			throw new TableException("Unexpected expression: " + bound);
+		}
+	}
+
+	/**
+	 * RexNodeConversion to define how to convert a {@link CallExpression} or a {@link UnresolvedCallExpression} which
+	 * has built-in FunctionDefinition to RexNode.
+	 */
+	private interface RexNodeConversion {
+
+		RexNode convert(List<Expression> children);
+
+		default RexNode convert(CallExpression expression) {
+			return convert(expression.getChildren());
+		}
+
+		default RexNode convert(UnresolvedCallExpression unresolvedCallExpression) {
+			return convert(unresolvedCallExpression.getChildren());
 		}
 	}
 

@@ -17,10 +17,7 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.validate._
 
 abstract class BinaryPredicate extends BinaryExpression {
@@ -41,10 +38,6 @@ case class Not(child: PlannerExpression) extends UnaryExpression {
 
   override def toString = s"!($child)"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.not(child.toRexNode)
-  }
-
   override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
   override private[flink] def validateInput(): ValidationResult = {
@@ -60,19 +53,11 @@ case class Not(child: PlannerExpression) extends UnaryExpression {
 case class And(left: PlannerExpression, right: PlannerExpression) extends BinaryPredicate {
 
   override def toString = s"$left && $right"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.and(left.toRexNode, right.toRexNode)
-  }
 }
 
 case class Or(left: PlannerExpression, right: PlannerExpression) extends BinaryPredicate {
 
   override def toString = s"$left || $right"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.or(left.toRexNode, right.toRexNode)
-  }
 }
 
 @deprecated(
@@ -88,13 +73,6 @@ case class If(
   override private[flink] def resultType = ifTrue.resultType
 
   override def toString = s"($condition)? $ifTrue : $ifFalse"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val c = condition.toRexNode
-    val t = ifTrue.toRexNode
-    val f = ifFalse.toRexNode
-    relBuilder.call(FlinkSqlOperatorTable.CASE, c, t, f)
-  }
 
   override private[flink] def validateInput(): ValidationResult = {
     if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&

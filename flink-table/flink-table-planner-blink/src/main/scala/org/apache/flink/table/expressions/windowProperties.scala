@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.calcite.FlinkRelBuilder
-import FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 trait WindowProperty {
@@ -38,9 +35,6 @@ abstract class AbstractWindowProperty(child: PlannerExpression)
   with WindowProperty {
 
   override def toString = s"WindowProperty($child)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
-    throw new UnsupportedOperationException("WindowProperty cannot be transformed to RexNode.")
 
   override private[flink] def validateInput() =
     if (child.isInstanceOf[WindowReference]) {

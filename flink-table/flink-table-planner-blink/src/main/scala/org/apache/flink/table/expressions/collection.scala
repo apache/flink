@@ -18,33 +18,15 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.typeutils.TypeInfoCheckUtils.{isArray, isMap}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
-
-import scala.collection.JavaConverters._
 
 case class RowConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = elements
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val relDataType = relBuilder
-      .asInstanceOf[FlinkRelBuilder]
-      .getTypeFactory
-      .createFieldTypeFromLogicalType(fromTypeInfoToLogicalType(resultType).copy(false))
-    val values = elements.map(_.toRexNode).toList.asJava
-    relBuilder
-      .getRexBuilder
-      .makeCall(relDataType, FlinkSqlOperatorTable.ROW, values)
-  }
 
   override def toString = s"row(${elements.mkString(", ")})"
 
@@ -63,17 +45,6 @@ case class RowConstructor(elements: Seq[PlannerExpression]) extends PlannerExpre
 case class ArrayConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = elements
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val relDataType = relBuilder
-      .asInstanceOf[FlinkRelBuilder]
-      .getTypeFactory
-      .createFieldTypeFromLogicalType(fromTypeInfoToLogicalType(resultType).copy(false))
-    val values = elements.map(_.toRexNode).toList.asJava
-    relBuilder
-      .getRexBuilder
-      .makeCall(relDataType, FlinkSqlOperatorTable.ARRAY_VALUE_CONSTRUCTOR, values)
-  }
 
   override def toString = s"array(${elements.mkString(", ")})"
 
@@ -94,20 +65,6 @@ case class ArrayConstructor(elements: Seq[PlannerExpression]) extends PlannerExp
 
 case class MapConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
   override private[flink] def children: Seq[PlannerExpression] = elements
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val typeFactory = relBuilder.asInstanceOf[FlinkRelBuilder].getTypeFactory
-    val relDataType = typeFactory.createMapType(
-      typeFactory.createFieldTypeFromLogicalType(
-        fromTypeInfoToLogicalType(elements.head.resultType)),
-      typeFactory.createFieldTypeFromLogicalType(
-        fromTypeInfoToLogicalType(elements.last.resultType))
-    )
-    val values = elements.map(_.toRexNode).toList.asJava
-    relBuilder
-      .getRexBuilder
-      .makeCall(relDataType, FlinkSqlOperatorTable.MAP_VALUE_CONSTRUCTOR, values)
-  }
 
   override def toString = s"map(${elements
     .grouped(2)
@@ -139,12 +96,6 @@ case class ArrayElement(array: PlannerExpression) extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = Seq(array)
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(FlinkSqlOperatorTable.ELEMENT, array.toRexNode)
-  }
-
   override def toString = s"($array).element()"
 
   override private[flink] def resultType = array.resultType match {
@@ -165,12 +116,6 @@ case class Cardinality(container: PlannerExpression) extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = Seq(container)
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(FlinkSqlOperatorTable.CARDINALITY, container.toRexNode)
-  }
-
   override def toString = s"($container).cardinality()"
 
   override private[flink] def resultType = BasicTypeInfo.INT_TYPE_INFO
@@ -187,12 +132,6 @@ case class Cardinality(container: PlannerExpression) extends PlannerExpression {
 case class ItemAt(container: PlannerExpression, key: PlannerExpression) extends PlannerExpression {
 
   override private[flink] def children: Seq[PlannerExpression] = Seq(container, key)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(FlinkSqlOperatorTable.ITEM, container.toRexNode, key.toRexNode)
-  }
 
   override def toString = s"($container).at($key)"
 

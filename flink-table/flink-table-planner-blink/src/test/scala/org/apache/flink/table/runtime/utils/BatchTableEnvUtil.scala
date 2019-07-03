@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableEnvironment}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.CollectTableSink
@@ -55,7 +56,11 @@ object BatchTableEnvUtil {
   }
 
   def parseFieldNames(fields: String): Array[String] = {
-    fields.replace(" ", "").split(",")
+    if (fields != null) {
+      fields.replace(" ", "").split(",")
+    } else {
+      null
+    }
   }
 
   /**
@@ -148,7 +153,8 @@ object BatchTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val queryOperation = tEnv.asQueryOperation(boundedStream, fieldNames, fieldNullables, statistic)
-    tEnv.registerTable(name, tEnv.createTable(queryOperation))
+    tEnv.registerTable(name,
+      TableImpl.createTable(tEnv, queryOperation, tEnv.operationTreeBuilder, tEnv.functionCatalog))
   }
 
   /**

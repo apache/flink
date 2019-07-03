@@ -99,7 +99,7 @@ abstract class TableEnvironment(
       getTraitDefs.toList
     )
 
-  private val operationTreeBuilder = OperationTreeBuilder.create(
+  private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
     functionCatalog, new TableReferenceLookup(){
     override def lookupTable(path: String): util.Optional[TableReferenceExpression] = {
       val catalogTableOperation = scanInternal(Array(path))

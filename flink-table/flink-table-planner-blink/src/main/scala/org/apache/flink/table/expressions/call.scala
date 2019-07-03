@@ -17,15 +17,16 @@
  */
 package org.apache.flink.table.expressions
 
-import java.util
-import com.google.common.collect.ImmutableList
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+
 import org.apache.calcite.rex.RexWindowBound._
-import org.apache.calcite.rex.{RexFieldCollation, RexNode, RexWindowBound}
+import org.apache.calcite.rex.{RexNode, RexWindowBound}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.OrdinalReturnTypeInference
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+
+import java.util
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions._
@@ -37,8 +38,6 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
-
-import _root_.scala.collection.JavaConverters._
 
 /**
   * Over call with unresolved alias for over window.
@@ -78,47 +77,6 @@ case class OverCall(
     s"ORDER BY $orderBy " +
     s"PRECEDING $preceding " +
     s"FOLLOWING $following)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-
-    val rexBuilder = relBuilder.getRexBuilder
-
-    // assemble aggregation
-    val operator: SqlAggFunction = agg.asInstanceOf[Aggregation].getSqlAggFunction()
-    val aggResultType = relBuilder
-      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .createFieldTypeFromLogicalType(fromTypeInfoToLogicalType(agg.resultType))
-
-    // assemble exprs by agg children
-    val aggExprs = agg.asInstanceOf[Aggregation].children.map(_.toRexNode(relBuilder)).asJava
-
-    // assemble order by key
-    val orderKey = new RexFieldCollation(orderBy.toRexNode, Set[SqlKind]().asJava)
-    val orderKeys = ImmutableList.of(orderKey)
-
-    // assemble partition by keys
-    val partitionKeys = partitionBy.map(_.toRexNode).asJava
-
-    // assemble bounds
-    val isPhysical: Boolean = preceding.resultType == BasicTypeInfo.LONG_TYPE_INFO
-
-    val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
-    val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
-
-    // build RexOver
-    rexBuilder.makeOver(
-      aggResultType,
-      operator,
-      aggExprs,
-      partitionKeys,
-      orderKeys,
-      lowerBound,
-      upperBound,
-      isPhysical,
-      true,
-      false,
-      false)
-  }
 
   private def createBound(
     relBuilder: RelBuilder,
@@ -249,17 +207,6 @@ case class PlannerScalarFunctionCall(
   private var signature: Array[LogicalType] = _
 
   override private[flink] def children: Seq[PlannerExpression] = parameters
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    relBuilder.call(
-      createScalarSqlFunction(
-        scalarFunction.functionIdentifier,
-        scalarFunction.toString,
-        scalarFunction,
-        typeFactory),
-      parameters.map(_.toRexNode): _*)
-  }
 
   override def toString =
     s"${scalarFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"

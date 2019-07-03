@@ -17,18 +17,17 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory._
-import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+
+import org.apache.calcite.rex.RexNode
 
 trait NamedExpression extends PlannerExpression {
   private[flink] def name: String
@@ -47,10 +46,6 @@ abstract class Attribute extends LeafExpression with NamedExpression {
 case class RexPlannerExpression(
     private[flink] val rexNode: RexNode)
   extends LeafExpression {
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    rexNode
-  }
 
   override private[flink] def resultType: TypeInformation[_] =
     fromLogicalTypeToTypeInfo(FlinkTypeFactory.toLogicalType(rexNode.getType))
@@ -76,10 +71,6 @@ case class PlannerResolvedFieldReference(
 
   override def toString = s"'$name"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.field(name)
-  }
-
   override private[flink] def withName(newName: String): Attribute = {
     if (newName == name) {
       this
@@ -93,10 +84,6 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
     extends UnaryExpression with NamedExpression {
 
   override def toString = s"$child as '$name"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.alias(child.toRexNode, name)
-  }
 
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 
@@ -138,9 +125,6 @@ case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression wit
 
 case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None) extends Attribute {
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
-    throw new UnsupportedOperationException("A window reference can not be used solely.")
-
   override private[flink] def resultType: TypeInformation[_] =
     tpe.getOrElse(throw UnresolvedException("Could not resolve type of referenced window."))
 
@@ -158,9 +142,6 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
 case class TableReference(name: String, tableOperation: QueryOperation)
   extends LeafExpression
   with NamedExpression {
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
-    throw new UnsupportedOperationException(s"Table reference '$name' can not be used solely.")
 
   override private[flink] def resultType: TypeInformation[_] =
     throw UnresolvedException(s"Table reference '$name' has no result type.")
@@ -246,8 +227,4 @@ case class ProctimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr
 case class StreamRecordTimestamp() extends LeafExpression {
 
   override private[flink] def resultType = Types.LONG
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.getRexBuilder.makeCall(new StreamRecordTimestampSqlFunction)
-  }
 }

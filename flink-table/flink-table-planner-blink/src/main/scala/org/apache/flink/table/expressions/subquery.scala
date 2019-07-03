@@ -18,13 +18,8 @@
 
 package org.apache.flink.table.expressions
 
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.rex.{RexNode, RexSubQuery}
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -35,20 +30,6 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
   override def toString = s"$expression.in(${elements.mkString(", ")})"
 
   override private[flink] def children: Seq[PlannerExpression] = expression +: elements.distinct
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    // check if this is a sub-query expression or an element list
-    elements.head match {
-
-      case TableReference(_, tableOperation: QueryOperation) =>
-        RexSubQuery.in(
-          relBuilder.asInstanceOf[FlinkRelBuilder].queryOperation(tableOperation).build(),
-          ImmutableList.of(expression.toRexNode))
-
-      case _ =>
-        relBuilder.call(FlinkSqlOperatorTable.IN, children.map(_.toRexNode): _*)
-    }
-  }
 
   override private[flink] def validateInput(): ValidationResult = {
     // check if this is a sub-query expression or an element list

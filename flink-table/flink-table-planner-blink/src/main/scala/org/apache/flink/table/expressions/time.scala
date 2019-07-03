@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex._
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
@@ -29,7 +27,7 @@ import org.apache.flink.table.typeutils.TypeInfoCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeInfoCheckUtils}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-import scala.collection.JavaConversions._
+import org.apache.calcite.rex._
 
 case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpression)
   extends PlannerExpression {
@@ -71,14 +69,6 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
   }
 
   override def toString: String = s"($temporal).extract($timeIntervalUnit)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(
-        FlinkSqlOperatorTable.EXTRACT,
-        Seq(timeIntervalUnit.toRexNode, temporal.toRexNode))
-  }
 }
 
 abstract class TemporalCeilFloor(
@@ -128,10 +118,6 @@ case class TemporalFloor(
     temporal) {
 
   override def toString: String = s"($temporal).floor($timeIntervalUnit)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.FLOOR, temporal.toRexNode, timeIntervalUnit.toRexNode)
-  }
 }
 
 case class TemporalCeil(
@@ -142,10 +128,6 @@ case class TemporalCeil(
     temporal) {
 
   override def toString: String = s"($temporal).ceil($timeIntervalUnit)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.CEIL, temporal.toRexNode, timeIntervalUnit.toRexNode)
-  }
 }
 
 abstract class CurrentTimePoint(
@@ -171,17 +153,6 @@ abstract class CurrentTimePoint(
     s"local$targetType()"
   } else {
     s"current$targetType()"
-  }
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val operator = targetType match {
-      case SqlTimeTypeInfo.TIME if local => FlinkSqlOperatorTable.LOCALTIME
-      case SqlTimeTypeInfo.TIMESTAMP if local => FlinkSqlOperatorTable.LOCALTIMESTAMP
-      case SqlTimeTypeInfo.DATE => FlinkSqlOperatorTable.CURRENT_DATE
-      case SqlTimeTypeInfo.TIME => FlinkSqlOperatorTable.CURRENT_TIME
-      case SqlTimeTypeInfo.TIMESTAMP => FlinkSqlOperatorTable.CURRENT_TIMESTAMP
-    }
-    relBuilder.call(operator)
   }
 }
 
@@ -250,15 +221,6 @@ case class TemporalOverlaps(
 
   override def toString: String = s"temporalOverlaps(${children.mkString(", ")})"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    convertOverlaps(
-      leftTimePoint.toRexNode,
-      leftTemporal.toRexNode,
-      rightTimePoint.toRexNode,
-      rightTemporal.toRexNode,
-      relBuilder.asInstanceOf[FlinkRelBuilder])
-  }
-
   /**
     * Standard conversion of the OVERLAPS operator.
     * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertOverlaps()]]
@@ -306,9 +268,6 @@ case class DateFormat(timestamp: PlannerExpression, format: PlannerExpression)
   extends PlannerExpression {
   override private[flink] def children = timestamp :: format :: Nil
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) =
-    relBuilder.call(FlinkSqlOperatorTable.DATE_FORMAT, timestamp.toRexNode, format.toRexNode)
-
   override def toString: String = s"$timestamp.dateFormat($format)"
 
   override private[flink] def resultType = STRING_TYPE_INFO
@@ -355,12 +314,6 @@ case class TimestampDiff(
         ValidationFailure(s"$this operator does not support unit '$timePointUnit'" +
             s" for input of type ('${timePoint1.resultType}', '${timePoint2.resultType}').")
     }
-  }
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-    .getRexBuilder
-    .makeCall(FlinkSqlOperatorTable.TIMESTAMP_DIFF,
-       Seq(timePointUnit.toRexNode, timePoint2.toRexNode, timePoint1.toRexNode))
   }
 
   override def toString: String = s"timestampDiff(${children.mkString(", ")})"

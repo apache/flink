@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.validate._
 
@@ -36,19 +33,11 @@ abstract class Ordering extends UnaryExpression {
 case class Asc(child: PlannerExpression) extends Ordering {
   override def toString: String = s"($child).asc"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    child.toRexNode
-  }
-
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 }
 
 case class Desc(child: PlannerExpression) extends Ordering {
   override def toString: String = s"($child).desc"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.desc(child.toRexNode)
-  }
 
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 }

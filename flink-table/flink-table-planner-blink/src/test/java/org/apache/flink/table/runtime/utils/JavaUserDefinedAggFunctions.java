@@ -16,109 +16,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.util;
+package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Test aggregator functions.
  */
 public class JavaUserDefinedAggFunctions {
+	/**
+	 * Accumulator for test requiresOver.
+ 	 */
+	public static class Accumulator0 extends Tuple2<Long, Integer>{}
 
 	/**
-	 * Accumulator of VarSumAggFunction.
+	 * Test for requiresOver.
 	 */
-	public static class VarSumAcc {
-		public long sum;
-	}
-
-	/**
-	 * Only used for test.
-	 */
-	public static class VarSumAggFunction extends AggregateFunction<Long, VarSumAcc> {
-
+	public static class OverAgg0 extends AggregateFunction<Long, Accumulator0> {
 		@Override
-		public VarSumAcc createAccumulator() {
-			return new VarSumAcc();
-		}
-
-		public void accumulate(VarSumAcc acc, Integer ...args) {
-			for (Integer x : args) {
-				if (x != null) {
-					acc.sum += x.longValue();
-				}
-			}
+		public Accumulator0 createAccumulator() {
+			return new Accumulator0();
 		}
 
 		@Override
-		public Long getValue(VarSumAcc accumulator) {
-			return accumulator.sum;
-		}
-	}
-
-	/**
-	 * Only used for test.
-	 * The difference between the class and VarSumAggFunction is accumulator type.
-	 */
-	public static class VarSum1AggFunction extends AggregateFunction<Long, VarSumAcc> {
-
-		@Override
-		public VarSumAcc createAccumulator() {
-			return new VarSumAcc();
+		public Long getValue(Accumulator0 accumulator) {
+			return 1L;
 		}
 
-		public void accumulate(VarSumAcc acc, Integer... args) {
-			for (Integer x : args) {
-				if (x != null) {
-					acc.sum += x.longValue();
-				}
-			}
+		//Overloaded accumulate method
+		public void accumulate(Accumulator0 accumulator, long iValue, int iWeight) {
 		}
 
 		@Override
-		public Long getValue(VarSumAcc accumulator) {
-			return accumulator.sum;
-		}
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
-		}
-	}
-
-	/**
-	 * Only used for test.
-	 * The difference between the class and VarSumAggFunction is accumulator type.
-	 */
-	public static class VarSum2AggFunction extends AggregateFunction<Long, Long> {
-
-		@Override
-		public Long createAccumulator() {
-			return 0L;
-		}
-
-		public void accumulate(Long acc, Integer... args) {
-			for (Integer x : args) {
-				if (x != null) {
-					acc += x.longValue();
-				}
-			}
-		}
-
-		@Override
-		public Long getValue(Long accumulator) {
-			return accumulator;
-		}
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
+		public boolean requiresOver() {
+			return true;
 		}
 	}
 
@@ -191,8 +129,6 @@ public class JavaUserDefinedAggFunctions {
 	 * A WeightedAvg class with merge and reset method.
 	 */
 	public static class WeightedAvgWithMergeAndReset extends WeightedAvgWithMerge {
-		private static final long serialVersionUID = -2721882038448388054L;
-
 		public void resetAccumulator(WeightedAvgAccum acc) {
 			acc.count = 0;
 			acc.sum = 0L;
@@ -217,74 +153,6 @@ public class JavaUserDefinedAggFunctions {
 	}
 
 	/**
-	 * Accumulator of ConcatDistinctAgg.
-	 */
-	public static class ConcatAcc {
-		public MapView<String, Boolean> map = new MapView<>(Types.STRING, Types.BOOLEAN);
-		public ListView<String> list = new ListView<>(Types.STRING);
-	}
-
-	/**
-	 * Concat distinct aggregate.
-	 */
-	public static class ConcatDistinctAggFunction extends AggregateFunction<String, ConcatAcc> {
-
-		private static final long serialVersionUID = -2678065132752935739L;
-		private static final String DELIMITER = "|";
-
-		public void accumulate(ConcatAcc acc, String value) throws Exception {
-			if (value != null) {
-				if (!acc.map.contains(value)) {
-					acc.map.put(value, true);
-					acc.list.add(value);
-				}
-			}
-		}
-
-		public void merge(ConcatAcc acc, Iterable<ConcatAcc> its) throws Exception {
-			for (ConcatAcc otherAcc : its) {
-				Iterable<String> accList = otherAcc.list.get();
-				if (accList != null) {
-					for (String value : accList) {
-						if (!acc.map.contains(value)) {
-							acc.map.put(value, true);
-							acc.list.add(value);
-						}
-					}
-				}
-			}
-		}
-
-		@Override
-		public ConcatAcc createAccumulator() {
-			return new ConcatAcc();
-		}
-
-		@Override
-		public String getValue(ConcatAcc acc) {
-			try {
-				Iterable<String> accList = acc.list.get();
-				if (accList == null || !accList.iterator().hasNext()) {
-					return null;
-				} else {
-					StringBuilder builder = new StringBuilder();
-					boolean isFirst = true;
-					for (String value : accList) {
-						if (!isFirst) {
-							builder.append(DELIMITER);
-						}
-						builder.append(value);
-						isFirst = false;
-					}
-					return builder.toString();
-				}
-			} catch (Exception e) {
-				throw new RuntimeException(e.getMessage(), e);
-			}
-		}
-	}
-
-	/**
 	 * CountDistinct accumulator.
 	 */
 	public static class CountDistinctAccum {
@@ -297,14 +165,10 @@ public class JavaUserDefinedAggFunctions {
 	 */
 	public static class CountDistinct extends AggregateFunction<Long, CountDistinctAccum> {
 
-		private static final long serialVersionUID = -8369074832279506466L;
-
 		@Override
 		public CountDistinctAccum createAccumulator() {
 			CountDistinctAccum accum = new CountDistinctAccum();
-			accum.map = new MapView<>(
-					org.apache.flink.table.api.Types.STRING(),
-					org.apache.flink.table.api.Types.INT());
+			accum.map = new MapView<>(Types.STRING, Types.INT);
 			accum.count = 0L;
 			return accum;
 		}
@@ -352,22 +216,24 @@ public class JavaUserDefinedAggFunctions {
 	 */
 	public static class CountDistinctWithMerge extends CountDistinct {
 
-		private static final long serialVersionUID = -9028804545597563968L;
-
 		//Overloaded merge method
 		public void merge(CountDistinctAccum acc, Iterable<CountDistinctAccum> it) {
-			for (CountDistinctAccum mergeAcc : it) {
+			Iterator<CountDistinctAccum> iter = it.iterator();
+			while (iter.hasNext()) {
+				CountDistinctAccum mergeAcc = iter.next();
+				acc.count += mergeAcc.count;
+
 				try {
-					Iterable<String> keys = mergeAcc.map.keys();
-					if (keys != null) {
-						for (String key : keys) {
-							Integer cnt = mergeAcc.map.get(key);
-							if (acc.map.contains(key)) {
-								acc.map.put(key, acc.map.get(key) + cnt);
-							} else {
-								acc.map.put(key, cnt);
-								acc.count += 1;
-							}
+					Iterator itrMap = mergeAcc.map.iterator();
+					while (itrMap.hasNext()) {
+						Map.Entry<String, Integer> entry =
+								(Map.Entry<String, Integer>) itrMap.next();
+						String key = entry.getKey();
+						Integer cnt = entry.getValue();
+						if (acc.map.contains(key)) {
+							acc.map.put(key, acc.map.get(key) + cnt);
+						} else {
+							acc.map.put(key, cnt);
 						}
 					}
 				} catch (Exception e) {
@@ -416,6 +282,147 @@ public class JavaUserDefinedAggFunctions {
 		public void resetAccumulator(CountDistinctAccum acc) {
 			acc.map.clear();
 			acc.count = 0;
+		}
+	}
+
+	/**
+	 * Accumulator for test DataView.
+	 */
+	public static class DataViewTestAccum {
+		public MapView<String, Integer> map;
+		public MapView<String, Integer> map2; // for test not initialized
+		public long count;
+		private ListView<Long> list = new ListView<>(Types.LONG);
+
+		public ListView<Long> getList() {
+			return list;
+		}
+
+		public void setList(ListView<Long> list) {
+			this.list = list;
+		}
+	}
+
+	public static boolean isCloseCalled = false;
+
+	/**
+	 * Aggregate for test DataView.
+	 */
+	public static class DataViewTestAgg extends AggregateFunction<Long, DataViewTestAccum> {
+		@Override
+		public DataViewTestAccum createAccumulator() {
+			DataViewTestAccum accum = new DataViewTestAccum();
+			accum.map = new MapView<>(Types.STRING, Types.INT);
+			accum.count = 0L;
+			return accum;
+		}
+
+		// Overloaded accumulate method
+		public void accumulate(DataViewTestAccum accumulator, String a, long b) {
+			try {
+				if (!accumulator.map.contains(a)) {
+					accumulator.map.put(a, 1);
+					accumulator.count++;
+				}
+
+				accumulator.list.add(b);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		@Override
+		public Long getValue(DataViewTestAccum accumulator) {
+			long sum = accumulator.count;
+			try {
+				for (Long value : accumulator.list.get()) {
+					sum += value;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return sum;
+		}
+
+		@Override
+		public void close() {
+			isCloseCalled = true;
+		}
+	}
+
+	/**
+	 * Count accumulator.
+	 */
+	public static class MultiArgCountAcc {
+		public long count;
+	}
+
+	/**
+	 * Count aggregate function with multiple arguments.
+	 */
+	public static class MultiArgCount extends AggregateFunction<Long, MultiArgCountAcc> {
+
+		@Override
+		public MultiArgCountAcc createAccumulator() {
+			MultiArgCountAcc acc = new MultiArgCountAcc();
+			acc.count = 0L;
+			return acc;
+		}
+
+		public void accumulate(MultiArgCountAcc acc, Object in1, Object in2) {
+			if (in1 != null && in2 != null) {
+				acc.count += 1;
+			}
+		}
+
+		public void retract(MultiArgCountAcc acc, Object in1, Object in2) {
+			if (in1 != null && in2 != null) {
+				acc.count -= 1;
+			}
+		}
+
+		public void merge(MultiArgCountAcc accumulator, Iterable<MultiArgCountAcc> iterable) {
+			for (MultiArgCountAcc otherAcc : iterable) {
+				accumulator.count += otherAcc.count;
+			}
+		}
+
+		@Override
+		public Long getValue(MultiArgCountAcc acc) {
+			return acc.count;
+		}
+	}
+
+	/**
+	 * Sum accumulator.
+	 */
+	public static class MultiArgSumAcc {
+		public long count;
+	}
+
+	/**
+	 * Sum aggregate function with multiple arguments.
+	 */
+	public static class MultiArgSum extends AggregateFunction<Long, MultiArgSumAcc> {
+
+		@Override
+		public MultiArgSumAcc createAccumulator() {
+			MultiArgSumAcc acc = new MultiArgSumAcc();
+			acc.count = 0L;
+			return acc;
+		}
+
+		public void accumulate(MultiArgSumAcc acc, long in1, long in2) {
+			acc.count += in1 + in2;
+		}
+
+		public void retract(MultiArgSumAcc acc, long in1, long in2) {
+			acc.count -= in1 + in2;
+		}
+
+		@Override
+		public Long getValue(MultiArgSumAcc acc) {
+			return acc.count;
 		}
 	}
 }

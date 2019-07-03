@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.UnresolvedException
@@ -77,12 +75,6 @@ case class GetCompositeField(child: PlannerExpression, key: Any) extends UnaryEx
 
   override private[flink] def resultType: TypeInformation[_] =
     child.resultType.asInstanceOf[CompositeType[_]].getTypeAt(fieldIndex.get)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeFieldAccess(child.toRexNode, fieldIndex.get)
-  }
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: PlannerExpression = anyRefs.head.asInstanceOf[PlannerExpression]
