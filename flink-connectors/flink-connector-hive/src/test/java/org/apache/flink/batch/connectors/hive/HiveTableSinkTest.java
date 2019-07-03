@@ -203,6 +203,38 @@ public class HiveTableSinkTest {
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
+	@Test
+	public void testInsertIntoStaticPartition() throws Exception {
+		String dbName = "default";
+		String tblName = "dest";
+		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+
+		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		List<Row> toWrite = generateRecords(1);
+		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+
+		Map<String, String> partSpec = new HashMap<>();
+		partSpec.put("s", "a");
+
+		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
+		HiveTableSink hiveTableSink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
+		hiveTableSink.setStaticPartition(partSpec);
+		tableEnv.registerTableSink("destSink", hiveTableSink);
+		tableEnv.sqlQuery("select * from src").insertInto("destSink");
+		execEnv.execute();
+
+		// make sure new partition is created
+		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
+		CatalogPartition catalogPartition = hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(partSpec));
+
+		String partitionLocation = catalogPartition.getProperties().get(HiveCatalogConfig.PARTITION_LOCATION);
+		verifyWrittenData(new Path(partitionLocation, "0"), toWrite, 1);
+
+		hiveCatalog.dropTable(tablePath, false);
+	}
+
 	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
 		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);

@@ -22,13 +22,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogPartition;
-import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
 
@@ -51,7 +48,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
@@ -105,35 +101,6 @@ public class HiveTableOutputFormatTest {
 		outputFormat.close();
 		outputFormat.finalizeGlobal(1);
 		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), toWrite, 0);
-
-		hiveCatalog.dropTable(tablePath, false);
-	}
-
-	@Test
-	public void testInsertIntoStaticPartition() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		createDestTable(dbName, tblName, 1);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-		CatalogBaseTable table = hiveCatalog.getTable(tablePath);
-
-		Map<String, Object> partSpec = new HashMap<>();
-		partSpec.put("s", "a");
-		HiveTableOutputFormat outputFormat = createHiveTableOutputFormat(tablePath, (CatalogTableImpl) table, hiveTable, partSpec, false);
-		outputFormat.open(0, 1);
-		List<Row> toWrite = generateRecords(1);
-		writeRecords(toWrite, outputFormat);
-		outputFormat.close();
-		outputFormat.finalizeGlobal(1);
-
-		// make sure new partition is created
-		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
-		CatalogPartition catalogPartition = hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(
-				partSpec.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()))));
-
-		String partitionLocation = catalogPartition.getProperties().get(HiveCatalogConfig.PARTITION_LOCATION);
-		verifyWrittenData(new Path(partitionLocation, "0"), toWrite, 1);
 
 		hiveCatalog.dropTable(tablePath, false);
 	}

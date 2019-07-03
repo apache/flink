@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
+import org.apache.flink.table.sinks.PartitionableTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -49,19 +50,24 @@ import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Table sink to write to Hive tables.
  */
-public class HiveTableSink extends OutputFormatTableSink<Row> {
+public class HiveTableSink extends OutputFormatTableSink<Row> implements PartitionableTableSink {
 
 	private final JobConf jobConf;
 	private final CatalogTable catalogTable;
 	private final ObjectPath tablePath;
 	private final RowTypeInfo rowTypeInfo;
 	private final String hiveVersion;
+
+	private Map<String, String> staticPartitionSpec = Collections.emptyMap();
 
 	// TODO: need OverwritableTableSink to configure this
 	private boolean overwrite = false;
@@ -77,10 +83,9 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 
 	@Override
 	public OutputFormat<Row> getOutputFormat() {
-		List<String> partitionColumns = catalogTable.getPartitionKeys();
+		List<String> partitionColumns = getPartitionFieldNames();
 		boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
-		// TODO: need PartitionableTableSink to decide whether it's dynamic partitioning
-		boolean isDynamicPartition = isPartitioned;
+		boolean isDynamicPartition = isPartitioned && partitionColumns.size() > staticPartitionSpec.size();
 		String dbName = tablePath.getDatabaseName();
 		String tableName = tablePath.getObjectName();
 		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
@@ -90,25 +95,23 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 			String sdLocation = sd.getLocation();
 			HiveTablePartition hiveTablePartition;
 			if (isPartitioned) {
-				// TODO: validate partition spec
-				// TODO: strip quotes in partition values
-				LinkedHashMap<String, String> strippedPartSpec = new LinkedHashMap<>();
+				validatePartitionSpec();
 				if (isDynamicPartition) {
 					List<String> path = new ArrayList<>(2);
 					path.add(sd.getLocation());
-					if (!strippedPartSpec.isEmpty()) {
-						path.add(Warehouse.makePartName(strippedPartSpec, false));
+					if (!staticPartitionSpec.isEmpty()) {
+						path.add(Warehouse.makePartName(staticPartitionSpec, false));
 					}
 					sdLocation = String.join(Path.SEPARATOR, path);
 				} else {
 					List<Partition> partitions = client.listPartitions(dbName, tableName,
-							new ArrayList<>(strippedPartSpec.values()), (short) 1);
+							new ArrayList<>(staticPartitionSpec.values()), (short) 1);
 					sdLocation = !partitions.isEmpty() ? partitions.get(0).getSd().getLocation() :
-							sd.getLocation() + Path.SEPARATOR + Warehouse.makePartName(strippedPartSpec, true);
+							sd.getLocation() + Path.SEPARATOR + Warehouse.makePartName(staticPartitionSpec, true);
 				}
 
 				sd.setLocation(toStagingDir(sdLocation, jobConf));
-				hiveTablePartition = new HiveTablePartition(sd, new LinkedHashMap<>(strippedPartSpec));
+				hiveTablePartition = new HiveTablePartition(sd, new LinkedHashMap<>(staticPartitionSpec));
 			} else {
 				sd.setLocation(toStagingDir(sdLocation, jobConf));
 				hiveTablePartition = new HiveTablePartition(sd, null);
@@ -160,5 +163,42 @@ public class HiveTableSink extends OutputFormatTableSink<Row> {
 		Preconditions.checkState(fs.exists(path) || fs.mkdirs(path), "Failed to create staging dir " + path);
 		fs.deleteOnExit(path);
 		return res;
+	}
+
+	@Override
+	public List<String> getPartitionFieldNames() {
+		return catalogTable.getPartitionKeys();
+	}
+
+	@Override
+	public void setStaticPartition(Map<String, String> partitionSpec) {
+		// make it a LinkedHashMap to maintain partition column order
+		staticPartitionSpec = new LinkedHashMap<>();
+		for (String partitionCol : getPartitionFieldNames()) {
+			if (partitionSpec.containsKey(partitionCol)) {
+				staticPartitionSpec.put(partitionCol, partitionSpec.get(partitionCol));
+			}
+		}
+	}
+
+	private void validatePartitionSpec() {
+		List<String> partitionCols = getPartitionFieldNames();
+		List<String> unknownPartCols = staticPartitionSpec.keySet().stream().filter(k -> !partitionCols.contains(k)).collect(Collectors.toList());
+		Preconditions.checkArgument(
+				unknownPartCols.isEmpty(),
+				"Static partition spec contains unknown partition column: " + unknownPartCols.toString());
+		int numStaticPart = staticPartitionSpec.size();
+		if (numStaticPart < partitionCols.size()) {
+			for (String partitionCol : partitionCols) {
+				if (!staticPartitionSpec.containsKey(partitionCol)) {
+					// this is a dynamic partition, make sure we have seen all static ones
+					Preconditions.checkArgument(numStaticPart == 0,
+							"Dynamic partition cannot appear before static partition");
+					return;
+				} else {
+					numStaticPart--;
+				}
+			}
+		}
 	}
 }
