@@ -92,6 +92,7 @@ public class HiveShimV2 implements HiveShim {
 
 	@Override
 	public void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table) throws InvalidOperationException, MetaException, TException {
+		// For Hive-2.3.4, we don't need to tell HMS not to update stats.
 		client.alter_table(databaseName, tableName, table);
 	}
 }

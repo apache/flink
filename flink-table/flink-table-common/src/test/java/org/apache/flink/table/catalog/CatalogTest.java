@@ -34,7 +34,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.functions.ScalarFunction;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -1095,7 +1094,7 @@ public abstract class CatalogTest {
 	@Test
 	public void testAlterTableStats_partitionedTable() throws Exception {
 		// alterTableStats() should do nothing for partitioned tables
-		// getTableStats() should return empty column stats for partitioned tables
+		// getTableStats() should return unknown column stats for partitioned tables
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable catalogTable = createPartitionedTable();
 		catalog.createTable(path1, catalogTable, false);
