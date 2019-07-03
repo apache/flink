@@ -170,7 +170,7 @@ function get_compile_modules_for_stage() {
             echo "-pl $MODULES_TESTS -am"
         ;;
         (${STAGE_CONNECTOR_HIVE_1})
-            echo "-pl $MODULES_CONNECTOR_HIVE -am -Phive-1.2.1 clean"
+            echo "-pl $MODULES_CONNECTOR_HIVE -am -Phive-1.2.1"
         ;;
         (${STAGE_MISC})
             # compile everything; using the -am switch does not work with negated module lists!
@@ -221,7 +221,7 @@ function get_test_modules_for_stage() {
             echo "-pl $modules_tests"
         ;;
         (${STAGE_CONNECTOR_HIVE_1})
-            echo "-pl $MODULES_CONNECTOR_HIVE -Phive-1.2.1"
+            echo "-pl $MODULES_CONNECTOR_HIVE -Phive-1.2.1 clean"
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"
