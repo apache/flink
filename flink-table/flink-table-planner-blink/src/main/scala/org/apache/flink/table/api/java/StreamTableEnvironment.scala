@@ -57,7 +57,7 @@ class StreamTableEnvironment @Deprecated() (
     * @return The converted [[Table]].
     */
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    new TableImpl(this, asQueryOperation(dataStream, None))
+    createTable(asQueryOperation(dataStream, None))
   }
 
   /**
@@ -78,7 +78,7 @@ class StreamTableEnvironment @Deprecated() (
   def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
     // TODO: use ExpressionParser instead after we introduce [Expression]
     val exprs = fields.split(",").map(_.trim)
-    new TableImpl(this, asQueryOperation(dataStream, Some(exprs)))
+    createTable(asQueryOperation(dataStream, Some(exprs)))
   }
 
   /**
