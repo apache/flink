@@ -736,6 +736,15 @@ class CatalogPartition(object):
         else:
             return None
 
+    def get_comment(self):
+        """
+        Get comment of the partition.
+
+        :return: Comment of the partition.
+        :rtype: str
+        """
+        return self._j_catalog_partition.getComment()
+
 
 class CatalogFunction(object):
     """
