@@ -31,7 +31,7 @@ The following document describes how to contribute to FlinkML.
 
 ## Getting Started
 
-In order to get started first read Flink's [contribution guide](http://flink.apache.org/how-to-contribute.html).
+In order to get started first read Flink's [contribution guide](http://flink.apache.org/contributing/how-to-contribute.html).
 Everything from this guide also applies to FlinkML.
 
 ## Pick a Topic
@@ -103,6 +103,6 @@ See `docs/_include/latex_commands.html` for the complete list of predefined late
 ## Contributing
 
 Once you have implemented the algorithm with adequate test coverage and added documentation, you are ready to open a pull request.
-Details of how to open a pull request can be found [here](http://flink.apache.org/how-to-contribute.html#contributing-code--documentation).
+Details of how to open a pull request can be found [here](http://flink.apache.org/contributing/how-to-contribute.html).
 
 {% top %}
