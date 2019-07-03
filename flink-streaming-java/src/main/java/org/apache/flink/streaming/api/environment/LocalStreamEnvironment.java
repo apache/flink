@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -33,6 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
+import java.util.Arrays;
+import java.util.Comparator;
+
+import static java.util.stream.Collectors.groupingBy;
 
 /**
  * The LocalStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
@@ -102,7 +108,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
-		int numSlotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
+		int numSlotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS,  Arrays.stream(jobGraph.getVerticesAsArray()).collect(groupingBy(JobVertex::getSlotSharingGroup)).values().stream().map(x -> x.stream().max(Comparator.comparingInt(JobVertex::getParallelism)).get()).mapToInt(x -> x.getParallelism()).sum());
 
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
