@@ -148,7 +148,7 @@ public class PlannerConfigOptions {
 					.withDescription("When it is true, optimizer will try to find out duplicated table-source and " +
 							"reuse them. This works only when " + SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key() + " is true.");
 
-	@Documentation.ExcludeFromDocumentation(value = "The optimizer algorithm is unstable, and will be improved later. " +
+	@Documentation.ExcludeFromDocumentation(value = "Experimental control parameters, and will be improved later. " +
 			"This config option is just for corner case")
 	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED =
@@ -157,7 +157,7 @@ public class PlannerConfigOptions {
 					.withDescription("When true, the optimizer will try to find out duplicated sub-plan by digest " +
 							"to build optimize block(a.k.a. common sub-graph). Each optimize block will be optimized independently.");
 
-	@Documentation.ExcludeFromDocumentation(value = "Experimental control parameters.")
+	@Documentation.ExcludeFromDocumentation(value = "Experimental control parameters, and will be improved later.")
 	@Documentation.TableMeta(execMode = Documentation.ExecMode.BOTH)
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED =
 			key("sql.optimizer.unionall-as-breakpoint.disabled")
