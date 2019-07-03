@@ -26,10 +26,12 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
-import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -117,6 +119,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		// vertices { ev11, ev21 } should be affected
 		ev11.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		manualMainThreadExecutor.triggerAll();
+		manualMainThreadExecutor.triggerScheduledTasks();
 
 		// verify vertex states and complete cancellation
 		assertVertexInState(ExecutionState.FAILED, ev11);
@@ -125,6 +128,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		assertVertexInState(ExecutionState.DEPLOYING, ev22);
 		ev21.getCurrentExecutionAttempt().completeCancelling();
 		manualMainThreadExecutor.triggerAll();
+		manualMainThreadExecutor.triggerScheduledTasks();
 
 		// verify vertex states
 		// in eager mode, all affected vertices should be scheduled in failover
@@ -168,6 +172,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		// regions {ev11}, {ev21}, {ev22} should be affected
 		ev11.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		manualMainThreadExecutor.triggerAll();
+		manualMainThreadExecutor.triggerScheduledTasks();
 
 		// verify vertex states
 		// only vertices with consumable inputs can be scheduled
@@ -249,6 +254,45 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		assertEquals(JobStatus.FAILED, eg.getState());
 	}
 
+	/**
+	 * Tests that the execution of the restart logic of the failover strategy is dependent on the restart strategy
+	 * calling {@link RestartCallback#triggerFullRecovery()}.
+	 */
+	@Test
+	public void testFailoverExecutionDependentOnRestartStrategyRecoveryTrigger() throws Exception {
+		final JobGraph jobGraph = createBatchJobGraph();
+		final CompletableFuture<Void> restartCallFuture = new CompletableFuture<>();
+		final RestartStrategy restartStrategy = new RestartStrategy() {
+			@Override
+			public boolean canRestart() {
+				return true;
+			}
+
+			@Override
+			public void restart(RestartCallback restarter, ScheduledExecutor executor) {
+				restartCallFuture.complete(null);
+			}
+		};
+		final ExecutionGraph eg = createExecutionGraph(jobGraph, restartStrategy);
+
+		final ExecutionVertex ev = eg.getAllExecutionVertices().iterator().next();
+
+		ev.fail(new Exception("Test Exception"));
+
+		manualMainThreadExecutor.triggerAll();
+
+		// the entire failover-procedure is being halted by the restart strategy not doing anything
+		// the only thing the failover strategy should do is cancel tasks that require it
+
+		// sanity check to ensure we actually called into the restart strategy
+		assertEquals(restartCallFuture.isDone(),true);
+		// 3 out of 4 tasks will be canceled, and removed from the set of registered executions
+		assertEquals(eg.getRegisteredExecutions().size(), 1);
+		// no job state change should occur; in case of a failover we never switch to RESTARTING/CANCELED
+		// the important thing is that we don't switch to failed which would imply that we started a global failover
+		assertEquals(JobStatus.RUNNING, eg.getState());
+	}
+
 	@Test
 	public void testFailGlobalIfErrorOnRestartingTasks() throws Exception {
 		final JobGraph jobGraph = createStreamingJobGraph();
@@ -267,6 +311,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		completeCancelling(ev11, ev12, ev21, ev22);
 
 		manualMainThreadExecutor.triggerAll();
+		manualMainThreadExecutor.triggerScheduledTasks();
 
 		final long globalModVersionAfterFailure = eg.getGlobalModVersion();
 
@@ -340,7 +385,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 	}
 
 	private ExecutionGraph createExecutionGraph(final JobGraph jobGraph) throws Exception {
-		return createExecutionGraph(jobGraph, new InfiniteDelayRestartStrategy(10));
+		return createExecutionGraph(jobGraph, new FixedDelayRestartStrategy(10, 0));
 	}
 
 	private ExecutionGraph createExecutionGraph(

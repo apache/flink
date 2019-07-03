@@ -107,11 +107,16 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
 		FutureUtils.assertNoException(
 			cancelTasks(verticesToRestart)
-				.thenRunAsync(resetAndRescheduleTasks(globalModVersion, vertexVersions), executionGraph.getJobMasterMainThreadExecutor())
+				.thenApply(ignored -> createResetAndRescheduleTasksRunnable(globalModVersion, vertexVersions))
+				.thenAccept(restartAction -> executionGraph.getRestartStrategy()
+					.restart(
+						restartAction::run,
+						executionGraph.getJobMasterMainThreadExecutor()
+				))
 				.handle(failGlobalOnError()));
 	}
 
-	private Runnable resetAndRescheduleTasks(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
+	private Runnable createResetAndRescheduleTasksRunnable(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
 		return () -> {
 			if (!isLocalFailoverValid(globalModVersion)) {
 				LOG.info("Skip current region failover as a global failover is ongoing.");
