@@ -30,6 +30,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
  */
 @Internal
 public class BoundedStreamConfig extends StreamConfig {
+
+	private static final long serialVersionUID = 1L;
+
 	public BoundedStreamConfig() {
 		super(new Configuration());
 

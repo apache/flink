@@ -38,6 +38,9 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
+
+	private static final long serialVersionUID = 1L;
+
 	private final StreamConfig streamConfig;
 
 	private final int maxParallelism;

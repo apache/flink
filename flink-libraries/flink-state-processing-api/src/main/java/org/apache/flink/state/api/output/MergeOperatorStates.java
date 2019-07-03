@@ -36,6 +36,9 @@ import java.util.stream.StreamSupport;
  */
 @Internal
 public class MergeOperatorStates implements GroupReduceFunction<OperatorState, Savepoint> {
+
+	private static final long serialVersionUID = 1L;
+
 	private final Collection<MasterState> masterStates;
 
 	public MergeOperatorStates(Collection<MasterState> masterStates) {

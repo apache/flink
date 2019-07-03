@@ -39,6 +39,8 @@ import java.util.stream.StreamSupport;
 public class OperatorSubtaskStateReducer
 	extends RichGroupReduceFunction<TaggedOperatorSubtaskState, OperatorState> {
 
+	private static final long serialVersionUID = 1L;
+
 	private final OperatorID operatorID;
 
 	private final int maxParallelism;
