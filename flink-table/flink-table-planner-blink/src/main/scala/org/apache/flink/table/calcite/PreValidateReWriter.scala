@@ -41,8 +41,8 @@ import scala.collection.JavaConversions._
 /** Implements [[org.apache.calcite.sql.util.SqlVisitor]]
   * interface to do some rewrite work before sql node validation. */
 class PreValidateReWriter(
-  val catalogReader: CalciteCatalogReader,
-  val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
+    val catalogReader: CalciteCatalogReader,
+    val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
   override def visit(call: SqlCall): Unit = {
     call match {
       case r: RichSqlInsert if r.getStaticPartitions.nonEmpty
@@ -80,10 +80,10 @@ object PreValidateReWriter {
     * @param partitions           Static partition statements
     */
   def appendPartitionProjects(sqlInsert: RichSqlInsert,
-    calciteCatalogReader: CalciteCatalogReader,
-    typeFactory: RelDataTypeFactory,
-    select: SqlSelect,
-    partitions: SqlNodeList): Unit = {
+      calciteCatalogReader: CalciteCatalogReader,
+      typeFactory: RelDataTypeFactory,
+      select: SqlSelect,
+      partitions: SqlNodeList): Unit = {
     val names = sqlInsert.getTargetTable.asInstanceOf[SqlIdentifier].names
     val table = calciteCatalogReader.getTable(names)
     if (table == null) {
@@ -104,7 +104,7 @@ object PreValidateReWriter {
       val id = sqlProperty.getKey
       val targetField = SqlValidatorUtil.getTargetField(targetRowType,
         typeFactory, id, calciteCatalogReader, relOptTable)
-      validateField(assignedFields.containsValue, id, targetField)
+      validateField(idx => !assignedFields.contains(idx), id, targetField)
       val value = sqlProperty.getValue.asInstanceOf[SqlLiteral]
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))
@@ -142,10 +142,10 @@ object PreValidateReWriter {
     * @return Rowtype
     */
   private def createTargetRowType(
-    typeFactory: RelDataTypeFactory,
-    catalogReader: CalciteCatalogReader,
-    table: SqlValidatorTable,
-    targetColumnList: SqlNodeList): RelDataType = {
+      typeFactory: RelDataTypeFactory,
+      catalogReader: CalciteCatalogReader,
+      table: SqlValidatorTable,
+      targetColumnList: SqlNodeList): RelDataType = {
     val baseRowType = table.getRowType
     if (targetColumnList == null) return baseRowType
     val fields = new util.ArrayList[util.Map.Entry[String, RelDataType]]
@@ -166,8 +166,8 @@ object PreValidateReWriter {
 
   /** Check whether the field is valid. **/
   private def validateField(tester: Function[Integer, Boolean],
-    id: SqlIdentifier,
-    targetField: RelDataTypeField): Unit = {
+      id: SqlIdentifier,
+      targetField: RelDataTypeField): Unit = {
     if (targetField == null) {
       throw newValidationError(id, RESOURCE.unknownTargetColumn(id.toString))
     }

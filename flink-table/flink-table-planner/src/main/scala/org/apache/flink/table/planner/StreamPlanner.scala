@@ -21,10 +21,11 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, PreValidateReWriter}
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.executor.StreamExecutor
@@ -41,16 +42,19 @@ import org.apache.flink.table.sinks._
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlKind}
+import org.apache.calcite.sql.SqlKind
+
 import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util
 import _root_.java.util.{Objects, List => JList}
 
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConversions._
 
 /**
   * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
@@ -101,18 +105,12 @@ class StreamPlanner(
     val parsed = planner.parse(stmt)
 
     parsed match {
-      case insert: SqlInsert =>
+      case insert: RichSqlInsert =>
         val targetColumnList = insert.getTargetColumnList
         if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
           throw new ValidationException("Partial inserts are not supported")
         }
-        // get name of sink table
-        val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
-
-        List(new CatalogSinkModifyOperation(targetTablePath,
-          SqlToOperationConverter.convert(planner,
-            insert.getSource).asInstanceOf[PlannerQueryOperation])
-          .asInstanceOf[Operation]).asJava
+        List(SqlToOperationConverter.convert(planner, insert))
       case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
         List(SqlToOperationConverter.convert(planner, parsed)).asJava
       case _ =>
@@ -155,7 +153,19 @@ class StreamPlanner(
       case catalogSink: CatalogSinkModifyOperation =>
         getTableSink(catalogSink.getTablePath)
           .map(sink => {
-            TableSinkUtils.validateSink(catalogSink.getChild, catalogSink.getTablePath, sink)
+            TableSinkUtils.validateSink(
+              catalogSink.getStaticPartitions,
+              catalogSink.getChild,
+              catalogSink.getTablePath,
+              sink)
+            // set static partitions if it is a partitioned sink
+            sink match {
+              case partitionableSink: PartitionableTableSink
+                if partitionableSink.getPartitionFieldNames != null
+                  && partitionableSink.getPartitionFieldNames.nonEmpty =>
+                partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
+              case _ =>
+            }
             writeToSink(catalogSink.getChild, sink, unwrapQueryConfig)
           }) match {
           case Some(t) => t
@@ -252,9 +262,23 @@ class StreamPlanner(
 
     val resultSink = sink match {
       case retractSink: RetractStreamTableSink[T] =>
+        retractSink match {
+          case partitionableSink: PartitionableTableSink
+            if partitionableSink.getPartitionFieldNames.nonEmpty =>
+            throw new TableException("Partitionable sink in retract stream mode " +
+              "is not supported yet!")
+          case _ =>
+        }
         writeToRetractSink(retractSink, tableOperation, queryConfig)
 
       case upsertSink: UpsertStreamTableSink[T] =>
+        upsertSink match {
+          case partitionableSink: PartitionableTableSink
+            if partitionableSink.getPartitionFieldNames.nonEmpty =>
+            throw new TableException("Partitionable sink in upsert stream mode " +
+              "is not supported yet!")
+          case _ =>
+        }
         writeToUpsertSink(upsertSink, tableOperation, queryConfig)
 
       case appendSink: AppendStreamTableSink[T] =>
@@ -317,7 +341,7 @@ class StreamPlanner(
         streamQueryConfig,
         withChangeFlag = false)
     // Give the DataStream to the TableSink to emit it.
-    sink.consumeDataStream(result)
+    sink.consumeDataStream(shuffleByPartitionFieldsIfNeeded(sink, result))
   }
 
   private def writeToUpsertSink[T](
@@ -353,6 +377,26 @@ class StreamPlanner(
         withChangeFlag = true)
     // Give the DataStream to the TableSink to emit it.
     sink.consumeDataStream(result)
+  }
+
+  /**
+    * Key by the partition fields if the sink is a [[PartitionableTableSink]].
+    * @param sink       the table sink
+    * @param dataStream the data stream
+    * @tparam R         the data stream record type
+    * @return a data stream that maybe keyed by.
+    */
+  private def shuffleByPartitionFieldsIfNeeded[R](
+      sink: TableSink[_],
+      dataStream: DataStream[R]): DataStream[R] = {
+    sink match {
+      case partitionableSink: PartitionableTableSink
+        if partitionableSink.getPartitionFieldNames.nonEmpty =>
+        val fieldNames = sink.getTableSchema.getFieldNames
+        val indices = partitionableSink.getPartitionFieldNames.map(fieldNames.indexOf(_))
+        dataStream.keyBy(indices:_*)
+      case _ => dataStream
+    }
   }
 
   private def translateToType[A](

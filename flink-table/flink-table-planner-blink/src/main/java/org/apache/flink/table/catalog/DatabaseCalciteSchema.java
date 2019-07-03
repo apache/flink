@@ -28,6 +28,7 @@ import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.RichTableSourceQueryOperation;
+import org.apache.flink.table.plan.schema.TableSinkTable;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.LookupableTableSource;
@@ -108,22 +109,36 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	}
 
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
-		return table.getTableSource()
-				.map(tableSource -> {
-					if (!(tableSource instanceof StreamTableSource ||
-							tableSource instanceof LookupableTableSource)) {
-						throw new TableException(
-								"Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
-					}
-					if (!isStreamingMode && tableSource instanceof StreamTableSource &&
-							!((StreamTableSource<?>) tableSource).isBounded()) {
-						throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
-					}
-					return new TableSourceTable<>(
-							tableSource,
-							isStreamingMode,
-							FlinkStatistic.UNKNOWN());
-				}).orElseThrow(() -> new TableException("Cannot query a sink only table."));
+		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
+			.map(tableSource -> {
+				if (!(tableSource instanceof StreamTableSource ||
+					tableSource instanceof LookupableTableSource)) {
+					throw new TableException(
+						"Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
+				}
+				if (!isStreamingMode && tableSource instanceof StreamTableSource &&
+					!((StreamTableSource<?>) tableSource).isBounded()) {
+					throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
+				}
+				return new TableSourceTable<>(
+					tableSource,
+					isStreamingMode,
+					FlinkStatistic.UNKNOWN());
+			});
+		if (tableSourceTable.isPresent()) {
+			return tableSourceTable.get();
+		} else {
+			Optional<TableSinkTable> tableSinkTable = table.getTableSink()
+				.map(tableSink -> new TableSinkTable<>(
+					tableSink,
+					FlinkStatistic.UNKNOWN()));
+			if (tableSinkTable.isPresent()) {
+				return tableSinkTable.get();
+			} else {
+				throw new TableException("Cannot convert a connector table " +
+					"without either source or sink.");
+			}
+		}
 	}
 
 	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {

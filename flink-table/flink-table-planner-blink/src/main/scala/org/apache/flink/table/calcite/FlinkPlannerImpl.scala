@@ -107,8 +107,9 @@ class FlinkPlannerImpl(
         node.validate()
       case _ =>
     }
-    // no need to validate row type for DDL nodes.
-    if (sqlNode.getKind.belongsTo(SqlKind.DDL)) {
+    // no need to validate row type for DDL and insert nodes.
+    if (sqlNode.getKind.belongsTo(SqlKind.DDL)
+      || sqlNode.getKind == SqlKind.INSERT) {
       return sqlNode
     }
     validator = new FlinkCalciteSqlValidator(

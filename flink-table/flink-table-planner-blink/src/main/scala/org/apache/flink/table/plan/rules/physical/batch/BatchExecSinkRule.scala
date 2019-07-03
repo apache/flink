@@ -18,13 +18,19 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.sinks.PartitionableTableSink
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelCollations, RelNode}
+
+import collection.JavaConversions._
 
 class BatchExecSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
@@ -35,8 +41,34 @@ class BatchExecSinkRule extends ConverterRule(
   def convert(rel: RelNode): RelNode = {
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    // TODO Take PartitionableSink into consideration after FLINK-11993 is done
-    val newInput = RelOptRule.convert(sinkNode.getInput, FlinkConventions.BATCH_PHYSICAL)
+    var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    sinkNode.sink match {
+      case partitionSink: PartitionableTableSink
+        if partitionSink.getPartitionFieldNames != null &&
+          partitionSink.getPartitionFieldNames.nonEmpty =>
+        val partitionFields = partitionSink.getPartitionFieldNames
+        val partitionIndices = partitionFields
+          .map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
+        // validate
+        partitionIndices.foreach { idx =>
+          if (idx < 0) {
+            throw new TableException(s"Partitionable sink ${sinkNode.sinkName} field " +
+              s"${partitionFields.get(idx)} must be in the schema.")
+          }
+        }
+
+        requiredTraitSet = requiredTraitSet.plus(
+          FlinkRelDistribution.hash(partitionIndices
+            .map(Integer.valueOf), requireStrict = false))
+
+        if (partitionSink.configurePartitionGrouping(true)) {
+          // default to asc.
+          val fieldCollations = partitionIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
+          requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
+        }
+      case _ =>
+    }
+    val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
     new BatchExecSink(
       rel.getCluster,

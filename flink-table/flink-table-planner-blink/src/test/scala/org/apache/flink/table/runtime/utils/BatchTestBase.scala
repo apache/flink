@@ -54,7 +54,8 @@ import scala.util.Sorting
 class BatchTestBase extends BatchAbstractTestBase {
 
   private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment.create(settings)
+  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
+    .create(settings, catalogManager = None, getTableConfig)
   val tEnv: TableEnvironment = testingTableEnv
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val env: StreamExecutionEnvironment = planner.getExecEnv
@@ -64,6 +65,14 @@ class BatchTestBase extends BatchAbstractTestBase {
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
     + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
+
+  // TODO: [FLINK-13338] will expose dialect option to TableConfig to
+  //  avoid override CalciteConfig by users
+  /**
+    * Subclass should overwrite this method if we want to overwrite configuration during
+    * sql parse to sql to rel conversion phrase.
+    */
+  protected def getTableConfig: TableConfig = new TableConfig
 
   @Before
   def before(): Unit = {
