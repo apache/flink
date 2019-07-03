@@ -32,7 +32,7 @@ LogicalIntersect(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalJoin(condition=[OR(=($0, $1), AND(IS NULL($0), IS NULL($1)))], joinType=[semi])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[semi])
    :- LogicalProject(c=[$2])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(f=[$2])
@@ -57,7 +57,7 @@ LogicalIntersect(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalJoin(condition=[OR(=($0, $1), AND(IS NULL($0), IS NULL($1)))], joinType=[semi])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[semi])
    :- LogicalProject(c=[$2])
    :  +- LogicalFilter(condition=[=(1, 0)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
@@ -83,7 +83,7 @@ LogicalIntersect(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalJoin(condition=[OR(=($0, $1), AND(IS NULL($0), IS NULL($1)))], joinType=[semi])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[semi])
    :- LogicalProject(c=[$2])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(f=[$2])

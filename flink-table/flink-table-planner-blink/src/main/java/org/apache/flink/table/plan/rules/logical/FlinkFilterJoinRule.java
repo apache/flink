@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.plan.rules.logical;
 
-import org.apache.flink.table.plan.util.FlinkRelOptUtil;
-
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -42,12 +40,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.calcite.plan.RelOptUtil.conjunctions;
-
 /**
  * This rules is copied from Calcite's {@link org.apache.calcite.rel.rules.FilterJoinRule}.
+ * NOTES: This file should be deleted when CALCITE-3170 is fixed.
  * Modification:
- * - Use `FlinkRelOptUtil.classifyFilters` to support SEMI/ANTI join
  * - Handles the ON condition of anti-join can not be pushed down
  */
 
@@ -140,7 +136,7 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 
 		final List<RexNode> aboveFilters =
 				filter != null
-						? conjunctions(filter.getCondition())
+						? RelOptUtil.conjunctions(filter.getCondition())
 						: new ArrayList<>();
 		final com.google.common.collect.ImmutableList<RexNode> origAboveFilters =
 				com.google.common.collect.ImmutableList.copyOf(aboveFilters);
@@ -150,7 +146,7 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 		if (smart
 				&& !origAboveFilters.isEmpty()
 				&& join.getJoinType() != JoinRelType.INNER) {
-			joinType = FlinkRelOptUtil.simplifyJoin(join, origAboveFilters, joinType);
+			joinType = RelOptUtil.simplifyJoin(join, origAboveFilters, joinType);
 		}
 
 		final List<RexNode> leftFilters = new ArrayList<>();
@@ -166,7 +162,7 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 		// filters. They can be pushed down if they are not on the NULL
 		// generating side.
 		boolean filterPushed = false;
-		if (FlinkRelOptUtil.classifyFilters(
+		if (RelOptUtil.classifyFilters(
 				join,
 				aboveFilters,
 				joinType,
@@ -198,7 +194,7 @@ public abstract class FlinkFilterJoinRule extends RelOptRule {
 		// pushed down if it does not affect the non-matching set, i.e. it is
 		// not on the side which is preserved.
 		// A ON clause filter of anti-join can not be pushed down.
-		if (!isAntiJoin && FlinkRelOptUtil.classifyFilters(
+		if (!isAntiJoin && RelOptUtil.classifyFilters(
 				join,
 				joinFilters,
 				joinType,

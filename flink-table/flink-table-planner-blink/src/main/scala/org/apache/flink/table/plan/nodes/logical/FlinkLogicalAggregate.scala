@@ -43,13 +43,12 @@ class FlinkLogicalAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     /* flag indicating whether to skip SplitAggregateRule */
     var partialFinalType: PartialFinalType = PartialFinalType.NONE)
-  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls)
+  extends Aggregate(cluster, traitSet, child, groupSet, groupSets, aggCalls)
   with FlinkLogicalRel {
 
   def setPartialFinalType(partialFinalType: PartialFinalType): Unit = {
@@ -59,12 +58,11 @@ class FlinkLogicalAggregate(
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
-      indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): Aggregate = {
     new FlinkLogicalAggregate(
-      cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls, partialFinalType)
+      cluster, traitSet, input, groupSet, groupSets, aggCalls, partialFinalType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -113,7 +111,6 @@ private class FlinkLogicalAggregateBatchConverter
     val newInput = RelOptRule.convert(agg.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalAggregate.create(
       newInput,
-      agg.indicator,
       agg.getGroupSet,
       agg.getGroupSets,
       agg.getAggCallList)
@@ -143,7 +140,6 @@ private class FlinkLogicalAggregateStreamConverter
     val newInput = RelOptRule.convert(agg.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalAggregate.create(
       newInput,
-      agg.indicator,
       agg.getGroupSet,
       agg.getGroupSets,
       agg.getAggCallList)
@@ -156,12 +152,11 @@ object FlinkLogicalAggregate {
 
   def create(
       input: RelNode,
-      indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): FlinkLogicalAggregate = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalAggregate(cluster,traitSet, input, indicator, groupSet, groupSets, aggCalls)
+    new FlinkLogicalAggregate(cluster,traitSet, input, groupSet, groupSets, aggCalls)
   }
 }

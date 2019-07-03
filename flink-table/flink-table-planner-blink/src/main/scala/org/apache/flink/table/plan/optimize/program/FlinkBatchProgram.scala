@@ -74,7 +74,6 @@ object FlinkBatchProgram {
     )
 
     // rewrite special temporal join plan
-    // TODO remove this program after upgraded to CALCITE-1.20.0 (CALCITE-2004 is fixed)
     chainedProgram.addLast(
       TEMPORAL_JOIN_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]

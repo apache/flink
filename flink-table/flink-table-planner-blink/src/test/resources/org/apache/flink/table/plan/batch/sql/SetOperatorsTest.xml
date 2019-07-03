@@ -32,7 +32,7 @@ LogicalIntersect(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[c], select=[c])
-+- HashJoin(joinType=[LeftSemiJoin], where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], select=[c], build=[left])
++- HashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], build=[left])
    :- Exchange(distribution=[hash[c]])
    :  +- Calc(select=[c])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -127,7 +127,7 @@ LogicalMinus(all=[false])
     <Resource name="planAfter">
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[c], select=[c])
-+- HashJoin(joinType=[LeftAntiJoin], where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], select=[c], build=[left])
++- HashJoin(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], build=[left])
    :- Exchange(distribution=[hash[c]])
    :  +- Calc(select=[c])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

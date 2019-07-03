@@ -48,7 +48,6 @@ abstract class WindowAggregate(
     cluster,
     traitSet,
     child,
-    false,
     groupSet,
     ImmutableList.of(groupSet),
     aggCalls) {

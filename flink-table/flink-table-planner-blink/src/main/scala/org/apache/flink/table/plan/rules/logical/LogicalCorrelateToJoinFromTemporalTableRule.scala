@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRule.{any, operand, some}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalCorrelate, LogicalFilter, LogicalSnapshot}
+import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexInputRef, RexNode, RexShuttle}
 
 /**
   * The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into a Join
@@ -28,29 +29,51 @@ import org.apache.calcite.rel.logical.{LogicalCorrelate, LogicalFilter, LogicalS
   * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecLookupJoin]] in physical and
   * might be translated into
   * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecTemporalJoin]] in the future.
+  *
+  * TODO supports `true` join condition
   */
 class LogicalCorrelateToJoinFromTemporalTableRule
   extends RelOptRule(
-    operand(classOf[LogicalFilter],
-      operand(classOf[LogicalCorrelate], some(
-        operand(classOf[RelNode], any()),
-        operand(classOf[LogicalSnapshot], any())))),
+    operand(classOf[LogicalCorrelate],
+      operand(classOf[RelNode], any()),
+      operand(classOf[LogicalFilter],
+        operand(classOf[LogicalSnapshot], any()))),
     "LogicalCorrelateToJoinFromTemporalTableRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val filterOnCorrelate: LogicalFilter = call.rel(0)
-    val correlate: LogicalCorrelate = call.rel(1)
-    val leftNode: RelNode = call.rel(2)
+    val correlate: LogicalCorrelate = call.rel(0)
+    val leftInput: RelNode = call.rel(1)
+    val filter: LogicalFilter = call.rel(2)
     val snapshot: LogicalSnapshot = call.rel[LogicalSnapshot](3)
 
-    val builder = call.builder()
-    builder.push(leftNode)
-    builder.push(snapshot)
-    builder.join(
-      correlate.getJoinType.toJoinType,
-      filterOnCorrelate.getCondition)
+    val leftRowType = leftInput.getRowType
+    val condition = filter.getCondition
+    val joinCondition = condition.accept(new RexShuttle() {
+      // change correlate variable expression to normal RexInputRef (which is from left side)
+      override def visitFieldAccess(fieldAccess: RexFieldAccess): RexNode = {
+        fieldAccess.getReferenceExpr match {
+          case corVar: RexCorrelVariable =>
+            require(correlate.getCorrelationId.equals(corVar.id))
+            val index = leftRowType.getFieldList.indexOf(fieldAccess.getField)
+            RexInputRef.of(index, leftRowType)
+          case _ => super.visitFieldAccess(fieldAccess)
+        }
+      }
 
-    call.transformTo(builder.build())
+      // update the field index from right side
+      override def visitInputRef(inputRef: RexInputRef): RexNode = {
+        val rightIndex = leftRowType.getFieldCount + inputRef.getIndex
+        new RexInputRef(rightIndex, inputRef.getType)
+      }
+    })
+
+    val builder = call.builder()
+    builder.push(leftInput)
+    builder.push(snapshot)
+    builder.join(correlate.getJoinType, joinCondition)
+
+    val rel = builder.build()
+    call.transformTo(rel)
   }
 
 }

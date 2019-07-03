@@ -40,7 +40,6 @@ import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SemiJoinType._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
@@ -583,8 +582,9 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
     rel.getJoinType match {
-      case ANTI | SEMI => mq.areColumnsUnique(rel.getLeft, columns, ignoreNulls)
-      case LEFT | INNER =>
+      case JoinRelType.ANTI | JoinRelType.SEMI =>
+        mq.areColumnsUnique(rel.getLeft, columns, ignoreNulls)
+      case JoinRelType.LEFT | JoinRelType.INNER =>
         val left = rel.getLeft
         val right = rel.getRight
         val leftFieldCount = left.getRowType.getFieldCount
