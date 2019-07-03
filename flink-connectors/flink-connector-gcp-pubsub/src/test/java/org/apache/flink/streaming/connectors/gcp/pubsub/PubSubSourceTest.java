@@ -34,7 +34,6 @@ import com.google.pubsub.v1.ReceivedMessage;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
@@ -44,15 +43,12 @@ import java.util.List;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.core.Is.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
@@ -113,7 +109,7 @@ public class PubSubSourceTest {
 		pubSubSource.open(null);
 
 		verify(pubSubSubscriberFactory, times(1)).getSubscriber(eq(credentials));
-		verify(acknowledgeOnCheckpointFactory, times(1)).create(pubSubSource);
+		verify(acknowledgeOnCheckpointFactory, times(1)).create(pubsubSubscriber);
 	}
 
 	@Test
@@ -138,32 +134,6 @@ public class PubSubSourceTest {
 		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(SECOND_MESSAGE));
 		verify(sourceContext, times(1)).collect(SECOND_MESSAGE);
 		verify(acknowledgeOnCheckpoint, times(1)).addAcknowledgeId("secondAckId");
-	}
-
-	@Test
-	public void testMessagesAcknowledged() throws Exception {
-		List<String> input = asList("firstAckId", "secondAckId");
-
-		pubSubSource.open(null);
-		pubSubSource.acknowledge(input);
-
-		ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-		verify(pubsubSubscriber, times(1)).acknowledge(captor.capture());
-
-		List<String> actual = captor.getValue();
-		assertThat(actual, hasSize(2));
-		assertThat(actual, containsInAnyOrder("firstAckId", "secondAckId"));
-	}
-
-	@Test
-	public void testNoMessagesAreAcknowledgedAfterSourceStopOrCancel() throws Exception {
-		List<String> input = asList("firstAckId", "secondAckId");
-
-		pubSubSource.open(null);
-		pubSubSource.cancel();
-
-		pubSubSource.acknowledge(input);
-		verifyZeroInteractions(pubsubSubscriber);
 	}
 
 	@Test

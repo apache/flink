@@ -27,10 +27,8 @@ import java.util.List;
 /**
  * Used by {@link PubSubSource} to pull and acknowledge messages.
  */
-public interface PubSubSubscriber {
+public interface PubSubSubscriber extends Acknowledger<String> {
 	List<ReceivedMessage> pull();
-
-	void acknowledge(List<String> acknowledgeIds);
 
 	/**
 	 * After returning all resources should have been cleaned up.

@@ -56,7 +56,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  * This ensures every message will get acknowledged at least once.
  */
 public class PubSubSource<OUT> extends RichSourceFunction<OUT>
-	implements Acknowledger<String>, ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, CheckpointListener, ListCheckpointed<AcknowledgeIdsForCheckpoint<String>> {
+	implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, CheckpointListener, ListCheckpointed<AcknowledgeIdsForCheckpoint<String>> {
 	public static final int NO_MAX_MESSAGES_TO_ACKNOWLEDGE_LIMIT = -1;
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
 	protected final PubSubDeserializationSchema<OUT> deserializationSchema;
@@ -92,22 +92,12 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesProcessedNotAcked", this::getOutstandingMessagesToAck);
 
-		createAndSetAcknowledgeOnCheckpoint();
-		this.subscriber = pubSubSubscriberFactory.getSubscriber(credentials);
+		createAndSetPubSubSubscriber();
 		this.isRunning = true;
 	}
 
 	private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
 		return !(runtimeContext instanceof StreamingRuntimeContext && ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled());
-	}
-
-	@Override
-	public void acknowledge(List<String> acknowledgementIds) {
-		if (!isRunning) {
-			return;
-		}
-
-		subscriber.acknowledge(acknowledgementIds);
 	}
 
 	@Override
@@ -195,13 +185,16 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 
 	@Override
 	public void restoreState(List<AcknowledgeIdsForCheckpoint<String>> state) throws Exception {
-		createAndSetAcknowledgeOnCheckpoint();
+		createAndSetPubSubSubscriber();
 		acknowledgeOnCheckpoint.restoreState(state);
 	}
 
-	private void createAndSetAcknowledgeOnCheckpoint() {
+	private void createAndSetPubSubSubscriber() throws Exception {
+		if (subscriber == null) {
+			this.subscriber = pubSubSubscriberFactory.getSubscriber(credentials);
+		}
 		if (acknowledgeOnCheckpoint == null) {
-			acknowledgeOnCheckpoint = acknowledgeOnCheckpointFactory.create(this);
+			this.acknowledgeOnCheckpoint = acknowledgeOnCheckpointFactory.create(subscriber);
 		}
 	}
 
