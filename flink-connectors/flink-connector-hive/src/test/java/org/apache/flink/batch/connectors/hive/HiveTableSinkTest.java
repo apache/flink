@@ -113,7 +113,6 @@ public class HiveTableSinkTest {
 		List<Row> toWrite = generateRecords(5);
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
-		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
 		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
 		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
@@ -198,6 +197,38 @@ public class HiveTableSinkTest {
 		execEnv.execute();
 
 		verifyWrittenData(new Path(hiveTable.getSd().getLocation(), "0"), Collections.singletonList("1 a 2 b 3 c"));
+		hiveCatalog.dropTable(tablePath, false);
+	}
+
+	@Test
+	public void testInsertIntoStaticPartition() throws Exception {
+		String dbName = "default";
+		String tblName = "dest";
+		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+
+		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+		List<Row> toWrite = generateRecords(1);
+		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+
+		Map<String, String> partSpec = new HashMap<>();
+		partSpec.put("s", "a");
+
+		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
+		HiveTableSink hiveTableSink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
+		hiveTableSink.setStaticPartition(partSpec);
+		tableEnv.registerTableSink("destSink", hiveTableSink);
+		tableEnv.sqlQuery("select * from src").insertInto("destSink");
+		execEnv.execute();
+
+		// make sure new partition is created
+		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
+		CatalogPartition catalogPartition = hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(partSpec));
+
+		String partitionLocation = catalogPartition.getProperties().get(HivePartitionConfig.PARTITION_LOCATION);
+		verifyWrittenData(new Path(partitionLocation, "0"), toWrite, 1);
+
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
