@@ -247,6 +247,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
 	}
 
+	// TODO removed later after PlanExpression is merged
 	public RexNode visit(UnresolvedCallExpression call) {
 		FunctionDefinition func = call.getFunctionDefinition();
 		switch (func.getKind()) {
@@ -758,6 +759,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return visitResolvedDistinctKeyReference((ResolvedDistinctKeyReference) other);
 		} else if (other instanceof UnresolvedCallExpression) {
 			return visit((UnresolvedCallExpression) other);
+		} else if (other instanceof RexNodeExpression) {
+			return ((RexNodeExpression) other).getRexNode();
 		} else {
 			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
 		}
