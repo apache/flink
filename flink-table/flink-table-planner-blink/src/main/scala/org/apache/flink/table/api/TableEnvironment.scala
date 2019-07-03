@@ -22,17 +22,22 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, CatalogManagerCalciteSchema, ConnectorCatalogTable, FunctionCatalog, GenericInMemoryCatalog, ObjectPath, QueryOperationCatalogView}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.expressions.TableReferenceExpression
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, extractResultTypeFromTableFunction, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, QueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
@@ -60,11 +65,6 @@ import org.apache.calcite.tools._
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util
 import _root_.java.util.concurrent.atomic.AtomicInteger
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.internal.TableImpl
-import org.apache.flink.table.expressions.TableReferenceExpression
-import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
-import org.apache.flink.table.operations.utils.OperationTreeBuilder
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
@@ -744,8 +744,9 @@ abstract class TableEnvironment(
     (fieldNames, fieldIndexes)
   }
 
-  def createTable(tableOperation: QueryOperation): TableImpl =
+  private[flink] def createTable(tableOperation: QueryOperation): TableImpl = {
     TableImpl.createTable(this, tableOperation, operationTreeBuilder, functionCatalog)
+  }
 }
 
 /**
