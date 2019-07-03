@@ -20,14 +20,14 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
 /**
  * A new savepoint.
  */
 @PublicEvolving
 public class NewSavepoint extends WritableSavepoint<NewSavepoint> {
-	NewSavepoint(ModifiableSavepointMetadata metadata, StateBackend stateBackend) {
+	NewSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {
 		super(metadata, stateBackend);
 	}
 }

@@ -25,7 +25,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
 import org.apache.flink.state.api.runtime.BootstrapTransformationWithID;
-import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -38,11 +38,11 @@ import java.util.List;
 @SuppressWarnings("WeakerAccess")
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
-	protected final ModifiableSavepointMetadata metadata;
+	protected final SavepointMetadata metadata;
 
 	protected final StateBackend stateBackend;
 
-	WritableSavepoint(ModifiableSavepointMetadata metadata, StateBackend stateBackend) {
+	WritableSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {
 		Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
 		Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 		this.metadata = metadata;
@@ -114,7 +114,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			.stream()
 			.map(newOperatorState -> newOperatorState
 				.getBootstrapTransformation()
-				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata.maxParallelism(), savepointWritePath))
+				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata.getMaxParallelism(), savepointWritePath))
 			.reduce(DataSet::union)
 			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
 	}

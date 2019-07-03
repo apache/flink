@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
-import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
 import org.junit.Test;
 
@@ -52,7 +52,7 @@ public class SavepointTest {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(1, Collections.emptyList(), Collections.emptyList());
+		SavepointMetadata metadata = new SavepointMetadata(1, Collections.emptyList(), Collections.emptyList());
 
 		new NewSavepoint(metadata, new MemoryStateBackend())
 			.withOperator(UID, transformation)
@@ -73,7 +73,7 @@ public class SavepointTest {
 		Collection<OperatorState> operatorStates = Collections.singletonList(new OperatorState(
 			OperatorIDGenerator.fromUid(UID), 1, 4));
 
-		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(4, Collections.emptyList(), operatorStates);
+		SavepointMetadata metadata = new SavepointMetadata(4, Collections.emptyList(), operatorStates);
 
 		new ExistingSavepoint(env, metadata, new MemoryStateBackend())
 			.withOperator(UID, transformation)
@@ -94,7 +94,7 @@ public class SavepointTest {
 		Collection<OperatorState> operatorStates = Collections.singletonList(new OperatorState(
 			OperatorIDGenerator.fromUid(UID), 1, 4));
 
-		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(4, Collections.emptyList(), operatorStates);
+		SavepointMetadata metadata = new SavepointMetadata(4, Collections.emptyList(), operatorStates);
 
 		new ExistingSavepoint(env, metadata, new MemoryStateBackend())
 			.withOperator(UID, transformation)

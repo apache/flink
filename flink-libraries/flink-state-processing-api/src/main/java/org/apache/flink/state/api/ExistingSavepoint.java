@@ -37,7 +37,7 @@ import org.apache.flink.state.api.input.BroadcastStateInputFormat;
 import org.apache.flink.state.api.input.KeyedStateInputFormat;
 import org.apache.flink.state.api.input.ListStateInputFormat;
 import org.apache.flink.state.api.input.UnionStateInputFormat;
-import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -50,11 +50,11 @@ import java.io.IOException;
 public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 	private final ExecutionEnvironment env;
 
-	private final ModifiableSavepointMetadata metadata;
+	private final SavepointMetadata metadata;
 
 	private final StateBackend stateBackend;
 
-	ExistingSavepoint(ExecutionEnvironment env, ModifiableSavepointMetadata metadata, StateBackend stateBackend) throws IOException {
+	ExistingSavepoint(ExecutionEnvironment env, SavepointMetadata metadata, StateBackend stateBackend) throws IOException {
 		super(metadata, stateBackend);
 		Preconditions.checkNotNull(env, "The execution environment must not be null");
 		Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");

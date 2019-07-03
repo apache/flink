@@ -23,7 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.runtime.SavepointLoader;
-import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -59,7 +59,7 @@ public final class Savepoint {
 			.max(Comparator.naturalOrder())
 			.orElseThrow(() -> new RuntimeException("Savepoint's must contain at least one operator"));
 
-		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(maxParallelism, savepoint.getMasterStates(), savepoint.getOperatorStates());
+		SavepointMetadata metadata = new SavepointMetadata(maxParallelism, savepoint.getMasterStates(), savepoint.getOperatorStates());
 		return new ExistingSavepoint(env, metadata, stateBackend);
 	}
 
@@ -76,7 +76,7 @@ public final class Savepoint {
 			"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
 				+ ". Found: " + maxParallelism);
 
-		ModifiableSavepointMetadata metadata = new ModifiableSavepointMetadata(maxParallelism, Collections.emptyList(), Collections.emptyList());
+		SavepointMetadata metadata = new SavepointMetadata(maxParallelism, Collections.emptyList(), Collections.emptyList());
 		return new NewSavepoint(metadata, stateBackend);
 	}
 }
