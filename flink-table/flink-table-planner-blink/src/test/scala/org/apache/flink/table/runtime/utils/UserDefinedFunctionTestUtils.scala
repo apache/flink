@@ -33,7 +33,9 @@ import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
 import org.apache.flink.types.Row
 
 import java.io.File
+import java.sql.Timestamp
 import java.util
+import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.annotation.varargs
@@ -310,6 +312,12 @@ object UserDefinedFunctionTestUtils {
   object TestExceptionThrown extends ScalarFunction {
     def eval(src: String): Int = {
       throw new NumberFormatException("Cannot parse this input.")
+    }
+  }
+
+  class ToMillis extends ScalarFunction {
+    def eval(t: Timestamp): Long = {
+      t.toInstant.toEpochMilli + TimeZone.getDefault.getOffset(t.toInstant.toEpochMilli)
     }
   }
 

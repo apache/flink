@@ -300,6 +300,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
+    FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER
   )
 
@@ -369,6 +370,8 @@ object FlinkStreamRuleSets {
     StreamExecTemporalJoinRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    // CEP
+    StreamExecMatchRule.INSTANCE,
     // correlate
     StreamExecCorrelateRule.INSTANCE,
     // sink

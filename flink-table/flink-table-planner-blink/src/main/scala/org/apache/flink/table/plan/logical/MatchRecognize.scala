@@ -16,33 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.sql;
+package org.apache.flink.table.plan.logical
 
-import org.apache.flink.table.calcite.FlinkTypeFactory;
+import java.util
 
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.ReturnTypes;
+import com.google.common.collect.ImmutableMap
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rex.RexNode
 
 /**
- * Function used to access a proctime attribute.
- */
-public class ProctimeSqlFunction extends SqlFunction {
-	public ProctimeSqlFunction() {
-		super(
-				"PROCTIME",
-				SqlKind.OTHER_FUNCTION,
-				ReturnTypes.explicit(factory ->
-						((FlinkTypeFactory) factory).createProctimeIndicatorType(false)),
-				null,
-				OperandTypes.NILADIC,
-				SqlFunctionCategory.TIMEDATE);
-	}
-
-	@Override
-	public boolean isDeterministic() {
-		return false;
-	}
-}
+  * Describes MATCH RECOGNIZE clause.
+  */
+case class MatchRecognize(
+  input: RelNode,
+  rowType: RelDataType,
+  pattern: RexNode,
+  patternDefinitions: ImmutableMap[String, RexNode],
+  measures: ImmutableMap[String, RexNode],
+  after: RexNode,
+  subsets: ImmutableMap[String, util.SortedSet[String]],
+  allRows: Boolean,
+  partitionKeys: util.List[RexNode],
+  orderKeys: RelCollation,
+  interval: RexNode)

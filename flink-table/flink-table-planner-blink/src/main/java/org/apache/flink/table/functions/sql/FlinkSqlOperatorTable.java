@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions.sql;
 
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.type.FlinkReturnTypes;
 import org.apache.flink.table.calcite.type.NumericExceptFirstOperandChecker;
 import org.apache.flink.table.calcite.type.RepeatFamilyOperandTypeChecker;
@@ -35,6 +36,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
@@ -72,6 +74,19 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			instance.init();
 		}
 		return instance;
+	}
+
+	private static final SqlReturnTypeInference ROWTIME_TYPE_INFERENCE = createTimeIndicatorReturnType(true);
+	private static final SqlReturnTypeInference PROCTIME_TYPE_INFERENCE = createTimeIndicatorReturnType(false);
+
+	private static SqlReturnTypeInference createTimeIndicatorReturnType(boolean isRowTime) {
+		return ReturnTypes.explicit(factory -> {
+			if (isRowTime) {
+				return ((FlinkTypeFactory) factory).createRowtimeIndicatorType(false);
+			} else {
+				return ((FlinkTypeFactory) factory).createProctimeIndicatorType(false);
+			}
+		});
 	}
 
 	// -----------------------------------------------------------------------------
@@ -121,7 +136,44 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	/**
 	 * Function used to access a processing time attribute.
 	 */
-	public static final SqlFunction PROCTIME = new ProctimeSqlFunction();
+	public static final SqlFunction PROCTIME =
+		new CalciteSqlFunction(
+			"PROCTIME",
+			SqlKind.OTHER_FUNCTION,
+			PROCTIME_TYPE_INFERENCE,
+			null,
+			OperandTypes.NILADIC,
+			SqlFunctionCategory.TIMEDATE,
+			false
+		);
+
+	/**
+	 * Function used to access a event time attribute from MATCH_RECOGNIZE.
+	 */
+	public static final SqlFunction MATCH_ROWTIME =
+		new CalciteSqlFunction(
+			"MATCH_ROWTIME",
+			SqlKind.OTHER_FUNCTION,
+			ROWTIME_TYPE_INFERENCE,
+			null,
+			OperandTypes.NILADIC,
+			SqlFunctionCategory.MATCH_RECOGNIZE,
+			true
+		);
+
+	/**
+	 * Function used to access a processing time attribute from MATCH_RECOGNIZE.
+	 */
+	public static final SqlFunction MATCH_PROCTIME =
+		new CalciteSqlFunction(
+			"MATCH_PROCTIME",
+			SqlKind.OTHER_FUNCTION,
+			PROCTIME_TYPE_INFERENCE,
+			null,
+			OperandTypes.NILADIC,
+			SqlFunctionCategory.MATCH_RECOGNIZE,
+			false
+		);
 
 	/**
 	 * Function used to materialize a processing time attribute.
