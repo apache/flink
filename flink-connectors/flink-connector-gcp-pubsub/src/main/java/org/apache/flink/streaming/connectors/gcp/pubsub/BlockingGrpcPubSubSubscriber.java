@@ -47,7 +47,12 @@ public class BlockingGrpcPubSubSubscriber implements PubSubSubscriber {
 	private final Duration timeout;
 	private final PullRequest pullRequest;
 
-	public BlockingGrpcPubSubSubscriber(String projectSubscriptionName, ManagedChannel channel, SubscriberGrpc.SubscriberBlockingStub stub, PullRequest pullRequest, int retries, Duration timeout) {
+	public BlockingGrpcPubSubSubscriber(String projectSubscriptionName,
+										ManagedChannel channel,
+										SubscriberGrpc.SubscriberBlockingStub stub,
+										PullRequest pullRequest,
+										int retries,
+										Duration timeout) {
 		this.projectSubscriptionName = projectSubscriptionName;
 		this.channel = channel;
 		this.stub = stub;
