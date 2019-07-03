@@ -24,15 +24,23 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.RowCsvInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
@@ -41,7 +49,8 @@ import java.util.stream.IntStream;
  * (logically) unlimited number of fields.
  */
 public class CsvTableSource
-	implements StreamTableSource<Row>, BatchTableSource<Row>, ProjectableTableSource<Row> {
+	implements StreamTableSource<Row>, BatchTableSource<Row>, LookupableTableSource<Row>,
+	ProjectableTableSource<Row> {
 
 	private final CsvInputFormatConfig config;
 
@@ -175,6 +184,21 @@ public class CsvTableSource
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
 		return execEnv.createInput(config.createInputFormat(), getReturnType()).name(explainSource());
+	}
+
+	@Override
+	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+		return new CsvLookupFunction(config, lookupKeys);
+	}
+
+	@Override
+	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
+		throw new UnsupportedOperationException("CSV do not support async lookup");
+	}
+
+	@Override
+	public boolean isAsyncEnabled() {
+		return false;
 	}
 
 	@Override
@@ -319,6 +343,103 @@ public class CsvTableSource
 				lenient);
 		}
 
+	}
+
+	// ------------------------------------------------------------------------------------
+	// private utilities
+	// ------------------------------------------------------------------------------------
+
+	/**
+	 * LookupFunction to support lookup in CsvTableSource.
+	 */
+	public static class CsvLookupFunction extends TableFunction<Row> {
+		private static final long serialVersionUID = 1L;
+
+		private final CsvInputFormatConfig config;
+
+		private final List<Integer> sourceKeys = new ArrayList<>();
+		private final List<Integer> targetKeys = new ArrayList<>();
+		private final Map<Object, List<Row>> dataMap = new HashMap<>();
+
+		CsvLookupFunction(CsvInputFormatConfig config, String[] lookupKeys) {
+			this.config = config;
+
+			List<String> fields = Arrays.asList(config.getSelectedFieldNames());
+			for (int i = 0; i < lookupKeys.length; i++) {
+				sourceKeys.add(i);
+				int targetIdx = fields.indexOf(lookupKeys[i]);
+				assert targetIdx != -1;
+				targetKeys.add(targetIdx);
+			}
+		}
+
+		@Override
+		public TypeInformation<Row> getResultType() {
+			return new RowTypeInfo(config.getSelectedFieldTypes(), config.getSelectedFieldNames());
+		}
+
+		@Override
+		public void open(FunctionContext context) throws Exception {
+			super.open(context);
+			TypeInformation<Row> rowType = getResultType();
+
+			RowCsvInputFormat inputFormat = config.createInputFormat();
+			FileInputSplit[] inputSplits = inputFormat.createInputSplits(1);
+			for (FileInputSplit split : inputSplits) {
+				inputFormat.open(split);
+				Row row = new Row(rowType.getArity());
+				while (true) {
+					Row r = inputFormat.nextRecord(row);
+					if (r == null) {
+						break;
+					} else {
+						Object key = getTargetKey(r);
+						List<Row> rows = dataMap.computeIfAbsent(key, k -> new ArrayList<>());
+						rows.add(Row.copy(r));
+					}
+				}
+				inputFormat.close();
+			}
+		}
+
+		public void eval(Object... values) {
+			Object srcKey = getSourceKey(Row.of(values));
+			if (dataMap.containsKey(srcKey)) {
+				for (Row row1 : dataMap.get(srcKey)) {
+					collect(row1);
+				}
+			}
+		}
+
+		private Object getSourceKey(Row source) {
+			return getKey(source, sourceKeys);
+		}
+
+		private Object getTargetKey(Row target) {
+			return getKey(target, targetKeys);
+		}
+
+		private Object getKey(Row input, List<Integer> keys) {
+			if (keys.size() == 1) {
+				int keyIdx = keys.get(0);
+				if (input.getField(keyIdx) != null) {
+					return input.getField(keyIdx);
+				}
+				return null;
+			} else {
+				Row key = new Row(keys.size());
+				for (int i = 0; i < keys.size(); i++) {
+					int keyIdx = keys.get(i);
+					key.setField(i, input.getField(keyIdx));
+				}
+				return key;
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+		}
 	}
 
 	private static class CsvInputFormatConfig implements Serializable {

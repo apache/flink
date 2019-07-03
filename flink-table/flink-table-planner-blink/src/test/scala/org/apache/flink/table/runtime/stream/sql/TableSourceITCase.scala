@@ -336,4 +336,34 @@ class TableSourceITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testLookupJoinCsvTemporalTable(): Unit = {
+    val orders = TestTableSources.getOrdersCsvTableSource
+    val rates = TestTableSources.getRatesCsvTableSource
+    tEnv.registerTableSource("orders", orders)
+    tEnv.registerTableSource("rates", rates)
+
+    val sql =
+      """
+        |SELECT o.amount, o.currency, r.rate
+        |FROM (SELECT *, PROCTIME() as proc FROM orders) AS o
+        |JOIN rates FOR SYSTEM_TIME AS OF o.proc AS r
+        |ON o.currency = r.currency
+      """.stripMargin
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "2,Euro,119",
+      "1,US Dollar,102",
+      "50,Yen,1",
+      "3,Euro,119",
+      "5,US Dollar,102"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
 }

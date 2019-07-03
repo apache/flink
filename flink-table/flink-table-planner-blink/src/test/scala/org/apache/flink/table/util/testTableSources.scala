@@ -57,7 +57,10 @@ object TestTableSources {
       "Kelly#8#2.34#Williams"
     )
 
-    val tempFilePath = writeToTempFile(csvRecords.mkString("$"), "csv-test", "tmp")
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-test",
+      "tmp")
     CsvTableSource.builder()
       .path(tempFilePath)
       .field("first", Types.STRING)
@@ -68,6 +71,48 @@ object TestTableSources {
       .lineDelimiter("$")
       .ignoreFirstLine()
       .commentPrefix("%")
+      .build()
+  }
+
+  def getOrdersCsvTableSource: CsvTableSource = {
+    val csvRecords = Seq(
+      "2,Euro,2",
+      "1,US Dollar,3",
+      "50,Yen,4",
+      "3,Euro,5",
+      "5,US Dollar,6"
+    )
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-order-test",
+      "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("amount", Types.LONG)
+      .field("currency", Types.STRING)
+      .field("ts",Types.LONG)
+      .fieldDelimiter(",")
+      .lineDelimiter("$")
+      .build()
+  }
+
+  def getRatesCsvTableSource: CsvTableSource = {
+    val csvRecords = Seq(
+      "US Dollar,102",
+      "Yen,1",
+      "Euro,119",
+      "RMB,702"
+    )
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-rate-test",
+      "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("currency", Types.STRING)
+      .field("rate", Types.LONG)
+      .fieldDelimiter(",")
+      .lineDelimiter("$")
       .build()
   }
 

@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.types.Row
-import org.junit.{Before, Test}
+import org.junit.{Before, Ignore, Test}
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
@@ -165,6 +165,35 @@ class TableSourceITCase extends BatchTestBase {
         row(6, "Sally", "Miller", 6.78),
         row(7, "Alice", "Smith", 90.1),
         row(8, "Kelly", "Williams", 2.34)
+      )
+    )
+  }
+
+  @Ignore("[FLINK-13075] Project pushdown rule shouldn't require" +
+    " the TableSource return a modified schema in blink planner")
+  @Test
+  def testLookupJoinCsvTemporalTable(): Unit = {
+    val orders = TestTableSources.getOrdersCsvTableSource
+    val rates = TestTableSources.getRatesCsvTableSource
+    tEnv.registerTableSource("orders", orders)
+    tEnv.registerTableSource("rates", rates)
+
+    val sql =
+      """
+        |SELECT o.amount, o.currency, r.rate
+        |FROM (SELECT *, PROCTIME() as proc FROM orders) AS o
+        |JOIN rates FOR SYSTEM_TIME AS OF o.proc AS r
+        |ON o.currency = r.currency
+      """.stripMargin
+
+    checkResult(
+      sql,
+      Seq(
+        row(2, "Euro", 119),
+        row(1, "US Dollar", 102),
+        row(50, "Yen", 1),
+        row(3, "Euro", 119),
+        row(5, "US Dollar", 102)
       )
     )
   }
