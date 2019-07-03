@@ -38,7 +38,7 @@ public class MailboxProcessorTest {
 	public void testRejectIfNotOpen() {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		try {
-			mailboxProcessor.getMailboxExecutor().tryExecute(() -> {});
+			mailboxProcessor.getMailboxExecutor().execute(() -> {});
 			Assert.fail("Should not be able to accept runnables if not opened.");
 		} catch (RejectedExecutionException expected) {
 		}
@@ -49,11 +49,11 @@ public class MailboxProcessorTest {
 		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
 		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
 		mailboxProcessor.open();
-		mailboxProcessor.getMailboxExecutor().tryExecute(testRunnableFuture);
+		mailboxProcessor.getMailboxExecutor().execute(testRunnableFuture);
 		mailboxProcessor.prepareClose();
 
 		try {
-			mailboxProcessor.getMailboxExecutor().tryExecute(() -> {});
+			mailboxProcessor.getMailboxExecutor().execute(() -> {});
 			Assert.fail("Should not be able to accept runnables if not opened.");
 		} catch (RejectedExecutionException expected) {
 		}
@@ -123,11 +123,12 @@ public class MailboxProcessorTest {
 			}
 		};
 
-		start(mailboxThread);
+		MailboxProcessor mailboxProcessor = start(mailboxThread);
 		actionSuspendedLatch.await();
 		Assert.assertEquals(blockAfterInvocations, counter.get());
 
-		suspendedActionRef.get().resume();
+		SuspendedMailboxDefaultAction suspendedMailboxDefaultAction = suspendedActionRef.get();
+		mailboxProcessor.getMailboxExecutor().execute(suspendedMailboxDefaultAction::resume);
 		stop(mailboxThread);
 		Assert.assertEquals(totalInvocations, counter.get());
 	}
@@ -170,7 +171,7 @@ public class MailboxProcessorTest {
 				final SuspendedMailboxDefaultAction resume =
 					suspendedActionRef.getAndSet(null);
 				if (resume != null) {
-					resume.resume();
+					mailboxProcessor.getMailboxExecutor().execute(resume::resume);
 				} else {
 					try {
 						mailboxProcessor.getMailboxExecutor().execute(() -> { });

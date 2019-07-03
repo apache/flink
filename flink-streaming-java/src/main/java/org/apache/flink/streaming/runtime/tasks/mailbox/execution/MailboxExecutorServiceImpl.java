@@ -53,23 +53,10 @@ public class MailboxExecutorServiceImpl extends AbstractExecutorService implemen
 
 	@Override
 	public void execute(@Nonnull Runnable command) {
-		checkIsNotMailboxThread();
 		try {
 			mailbox.putMail(command);
-		} catch (InterruptedException irex) {
-			Thread.currentThread().interrupt();
-			throw new RejectedExecutionException("Sender thread was interrupted while blocking on mailbox.", irex);
 		} catch (MailboxStateException mbex) {
 			throw new RejectedExecutionException(mbex);
-		}
-	}
-
-	@Override
-	public boolean tryExecute(Runnable command) {
-		try {
-			return mailbox.tryPutMail(command);
-		} catch (MailboxStateException e) {
-			throw new RejectedExecutionException(e);
 		}
 	}
 
@@ -145,13 +132,6 @@ public class MailboxExecutorServiceImpl extends AbstractExecutorService implemen
 		if (!isMailboxThread()) {
 			throw new IllegalStateException(
 				"Illegal thread detected. This method must be called from inside the mailbox thread!");
-		}
-	}
-
-	private void checkIsNotMailboxThread() {
-		if (isMailboxThread()) {
-			throw new IllegalStateException(
-				"Illegal thread detected. This method must NOT be called from inside the mailbox thread!");
 		}
 	}
 }

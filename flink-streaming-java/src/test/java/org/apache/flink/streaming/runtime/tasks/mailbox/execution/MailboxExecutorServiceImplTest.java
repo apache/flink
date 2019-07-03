@@ -75,13 +75,13 @@ public class MailboxExecutorServiceImplTest {
 		Assert.assertFalse(mailboxExecutorService.isShutdown());
 		Assert.assertFalse(mailboxExecutorService.isTerminated());
 		final TestRunnable testRunnable = new TestRunnable();
-		Assert.assertTrue(mailboxExecutorService.tryExecute(testRunnable));
+		mailboxExecutorService.execute(testRunnable);
 		Assert.assertEquals(testRunnable, mailbox.tryTakeMail().get());
 		CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecutor).get();
 		Assert.assertEquals(testRunnable, mailbox.takeMail());
 		final TestRunnable yieldRun = new TestRunnable();
 		final TestRunnable leftoverRun = new TestRunnable();
-		Assert.assertTrue(mailboxExecutorService.tryExecute(yieldRun));
+		mailboxExecutorService.execute(yieldRun);
 		Future<?> leftoverFuture = CompletableFuture.supplyAsync(
 			() -> mailboxExecutorService.submit(leftoverRun), otherThreadExecutor).get();
 		mailboxExecutorService.shutdown();
@@ -96,7 +96,7 @@ public class MailboxExecutorServiceImplTest {
 		}
 
 		try {
-			CompletableFuture.runAsync(() -> mailboxExecutorService.tryExecute(testRunnable), otherThreadExecutor).get();
+			CompletableFuture.runAsync(() -> mailboxExecutorService.execute(testRunnable), otherThreadExecutor).get();
 			Assert.fail("execution should not work after shutdown().");
 		} catch (ExecutionException expected) {
 			Assert.assertTrue(expected.getCause() instanceof RejectedExecutionException);
