@@ -114,7 +114,11 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
 		while (isRunning) {
 			try {
-				blockIfMaxMessagesToAcknowledgeLimitReached();
+				if (maxMessagesToAcknowledgeLimitReached()) {
+					LOG.debug("Sleeping because there are {} messages waiting to be ack'ed but limit is {}", getOutstandingMessagesToAck(), maxMessagesToAcknowledge);
+					Thread.sleep(100);
+					continue;
+				}
 
 				processMessage(sourceContext, subscriber.pull());
 			} catch (InterruptedException | CancellationException e) {
@@ -143,11 +147,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		}
 	}
 
-	private void blockIfMaxMessagesToAcknowledgeLimitReached() throws Exception {
-		while (maxMessagesToAcknowledge != NO_MAX_MESSAGES_TO_ACKNOWLEDGE_LIMIT && getOutstandingMessagesToAck() > maxMessagesToAcknowledge) {
-			LOG.debug("Sleeping because there are {} messages waiting to be ack'ed but limit is {}", getOutstandingMessagesToAck(), maxMessagesToAcknowledge);
-			Thread.sleep(100);
-		}
+	private boolean maxMessagesToAcknowledgeLimitReached() throws Exception {
+		return maxMessagesToAcknowledge != NO_MAX_MESSAGES_TO_ACKNOWLEDGE_LIMIT && getOutstandingMessagesToAck() > maxMessagesToAcknowledge;
 	}
 
 	private Integer getOutstandingMessagesToAck() {
