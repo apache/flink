@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -41,11 +42,13 @@ import org.apache.flink.table.sinks._
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlKind}
+import org.apache.calcite.sql.{SqlIdentifier, SqlKind}
+
 import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util
 import _root_.java.util.{Objects, List => JList}
@@ -101,17 +104,19 @@ class StreamPlanner(
     val parsed = planner.parse(stmt)
 
     parsed match {
-      case insert: SqlInsert =>
+      case insert: RichSqlInsert =>
         val targetColumnList = insert.getTargetColumnList
         if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
           throw new ValidationException("Partial inserts are not supported")
         }
         // get name of sink table
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
+        val staticPartitions = insert.getStaticPartitionKVs
 
         List(new CatalogSinkModifyOperation(targetTablePath,
           SqlToOperationConverter.convert(planner,
-            insert.getSource).asInstanceOf[PlannerQueryOperation])
+            insert.getSource).asInstanceOf[PlannerQueryOperation],
+          staticPartitions)
           .asInstanceOf[Operation]).asJava
       case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
         List(SqlToOperationConverter.convert(planner, parsed)).asJava
@@ -156,6 +161,11 @@ class StreamPlanner(
         getTableSink(catalogSink.getTablePath)
           .map(sink => {
             TableSinkUtils.validateSink(catalogSink.getChild, catalogSink.getTablePath, sink)
+            sink match {
+              case partitionableSink: PartitionableTableSink =>
+                partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
+              case _ =>
+            }
             writeToSink(catalogSink.getChild, sink, unwrapQueryConfig)
           }) match {
           case Some(t) => t

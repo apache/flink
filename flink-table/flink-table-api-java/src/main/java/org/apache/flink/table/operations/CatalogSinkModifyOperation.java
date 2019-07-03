@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,16 +33,28 @@ import java.util.Map;
 @Internal
 public class CatalogSinkModifyOperation implements ModifyOperation {
 
+	private final Map<String, String> staticPartitions;
 	private final List<String> tablePath;
 	private final QueryOperation child;
 
 	public CatalogSinkModifyOperation(List<String> tablePath, QueryOperation child) {
+		this(tablePath, child, new HashMap<>());
+	}
+
+	public CatalogSinkModifyOperation(List<String> tablePath,
+			QueryOperation child,
+			Map<String, String> staticPartitions) {
 		this.tablePath = tablePath;
 		this.child = child;
+		this.staticPartitions = staticPartitions;
 	}
 
 	public List<String> getTablePath() {
 		return tablePath;
+	}
+
+	public Map<String, String> getStaticPartitions() {
+		return staticPartitions;
 	}
 
 	@Override
@@ -58,6 +71,7 @@ public class CatalogSinkModifyOperation implements ModifyOperation {
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("tablePath", tablePath);
+		params.put("staticPartitions", staticPartitions);
 
 		return OperationUtils.formatWithChildren(
 			"CatalogSink",
