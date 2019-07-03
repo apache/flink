@@ -87,7 +87,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 		DataSet<OperatorState> finalOperatorStates = unionOperatorStates(newOperatorStates, existingOperators);
 
 		finalOperatorStates
-			.reduceGroup(new MergeOperatorStates(metadata))
+			.reduceGroup(new MergeOperatorStates(metadata.getMasterStates()))
 			.name("reduce(OperatorState)")
 			.output(new SavepointOutputFormat(savepointPath))
 			.name(path);
@@ -114,7 +114,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			.stream()
 			.map(newOperatorState -> newOperatorState
 				.getBootstrapTransformation()
-				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata, savepointWritePath))
+				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata.maxParallelism(), savepointWritePath))
 			.reduce(DataSet::union)
 			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
 	}

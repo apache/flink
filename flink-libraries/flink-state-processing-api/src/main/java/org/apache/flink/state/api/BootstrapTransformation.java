@@ -37,7 +37,6 @@ import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperat
 import org.apache.flink.state.api.output.partitioner.HashSelector;
 import org.apache.flink.state.api.output.partitioner.KeyGroupRangePartitioner;
 import org.apache.flink.state.api.runtime.BoundedStreamConfig;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
@@ -92,23 +91,23 @@ public class BootstrapTransformation<T> {
 	/**
 	 * @return The max parallelism for this operator.
 	 */
-	int getMaxParallelism(SavepointMetadata metadata) {
-		return operatorMaxParallelism.orElse(metadata.maxParallelism());
+	int getMaxParallelism(int globalMaxParallelism) {
+		return operatorMaxParallelism.orElse(globalMaxParallelism);
 	}
 
 	/**
 	 * @param operatorID The operator id for the stream operator.
 	 * @param stateBackend The state backend for the job.
-	 * @param metadata Metadata about the resulting savepoint.
+	 * @param globalMaxParallelism Global max parallelism set for the savepoint.
 	 * @param savepointPath The path where the savepoint will be written.
 	 * @return The operator subtask states for this bootstrap transformation.
 	 */
 	DataSet<OperatorState> writeOperatorState(
 		OperatorID operatorID,
 		StateBackend stateBackend,
-		SavepointMetadata metadata,
+		int globalMaxParallelism,
 		Path savepointPath) {
-		int localMaxParallelism = getMaxParallelism(metadata);
+		int localMaxParallelism = getMaxParallelism(globalMaxParallelism);
 
 		return writeOperatorSubtaskStates(operatorID, stateBackend, savepointPath, localMaxParallelism)
 			.reduceGroup(new OperatorSubtaskStateReducer(operatorID, localMaxParallelism))

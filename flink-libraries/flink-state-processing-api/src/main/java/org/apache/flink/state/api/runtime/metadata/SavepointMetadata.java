@@ -21,16 +21,13 @@ package org.apache.flink.state.api.runtime.metadata;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.MasterState;
 
-import java.io.Serializable;
 import java.util.Collection;
 
 /**
  * Returns metadata about a savepoint.
  */
 @Internal
-public class SavepointMetadata implements Serializable {
-
-	private static final long serialVersionUID = 1L;
+public class SavepointMetadata {
 
 	private final int maxParallelism;
 

@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Internal
 public class ModifiableSavepointMetadata extends SavepointMetadata {
 
-	private transient Map<OperatorID, OperatorStateSpec> operatorStateIndex;
+	private final Map<OperatorID, OperatorStateSpec> operatorStateIndex;
 
 	public ModifiableSavepointMetadata(int maxParallelism, Collection<MasterState> masterStates, Collection<OperatorState> initialStates) {
 		super(maxParallelism, masterStates);

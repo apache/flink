@@ -31,13 +31,10 @@ import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Collections;
 
 /**
  * Tests for bootstrap transformations.
@@ -55,7 +52,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.bootstrapWith(input)
 			.transform(new ExampleBroadcastStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(4, Collections.emptyList()));
+		int maxParallelism = transformation.getMaxParallelism(4);
 		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
 			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
@@ -79,7 +76,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(10, Collections.emptyList()));
+		int maxParallelism = transformation.getMaxParallelism(10);
 		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
 			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
@@ -104,7 +101,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.bootstrapWith(input)
 			.transform(new ExampleStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(4, Collections.emptyList()));
+		int maxParallelism = transformation.getMaxParallelism(4);
 		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
 			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
@@ -130,7 +127,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
 			.setMaxParallelism(1)
 			.transform(new ExampleStateBootstrapFunction());
 
-		int maxParallelism = transformation.getMaxParallelism(new SavepointMetadata(4, Collections.emptyList()));
+		int maxParallelism = transformation.getMaxParallelism(4);
 		DataSet<TaggedOperatorSubtaskState> result = transformation.writeOperatorSubtaskStates(
 			OperatorIDGenerator.fromUid("uid"),
 			new MemoryStateBackend(),
