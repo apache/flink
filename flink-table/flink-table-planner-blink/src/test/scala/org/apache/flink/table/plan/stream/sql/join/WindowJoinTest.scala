@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, TableImpl}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.util.WindowJoinUtil
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 

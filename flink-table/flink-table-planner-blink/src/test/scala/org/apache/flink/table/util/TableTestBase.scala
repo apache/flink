@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
 import org.apache.flink.table.calcite.CalciteConfig
@@ -48,7 +49,6 @@ import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
-
 import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
@@ -176,7 +176,7 @@ abstract class TableTestUtil(test: TableTestBase) {
     //  instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
     val operation = new RichTableSourceQueryOperation(tableSource, tableEnv.isBatch, statistic)
-    val table = new TableImpl(tableEnv, operation)
+    val table = tableEnv.createTable(operation)
     tableEnv.registerTable(name, table)
     tableEnv.scan(name)
   }
@@ -719,7 +719,7 @@ object TableTestUtil {
     * Converts operation tree in the given table to a RelNode tree.
     */
   def toRelNode(table: Table): RelNode = {
-    table.asInstanceOf[TableImpl].tableEnv
+    table.asInstanceOf[TableImpl].getTableEnvironment
       .getRelBuilder.queryOperation(table.getQueryOperation).build()
   }
 }

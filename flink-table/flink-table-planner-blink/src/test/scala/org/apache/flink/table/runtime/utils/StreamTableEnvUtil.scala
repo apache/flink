@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, TableImpl}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 
 object StreamTableEnvUtil {
@@ -41,7 +41,7 @@ object StreamTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val queryOperation = tEnv.asQueryOperation(dataStream, fieldNames, fieldNullables, statistic)
-    tEnv.registerTable(name, new TableImpl(tEnv, queryOperation))
+    tEnv.registerTable(name, tEnv.createTable(queryOperation))
   }
 
 }
