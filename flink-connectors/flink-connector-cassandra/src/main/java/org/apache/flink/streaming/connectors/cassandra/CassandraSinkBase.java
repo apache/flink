@@ -164,8 +164,17 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		}
 	}
 
-	private void flush() {
-		semaphore.acquireUninterruptibly(config.getMaxConcurrentRequests());
+	private void flush() throws InterruptedException, TimeoutException {
+		if (!semaphore.tryAcquire(config.getMaxConcurrentRequests(), config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+			throw new TimeoutException(
+				String.format(
+					"Failed to acquire all permits (%s) for flush in %s, only %s available",
+					config.getMaxConcurrentRequests(),
+					config.getMaxConcurrentRequestsTimeout(),
+					semaphore.availablePermits()
+				)
+			);
+		}
 		semaphore.release(config.getMaxConcurrentRequests());
 	}
 

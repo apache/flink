@@ -181,7 +181,7 @@ public class CassandraSinkBaseTest {
 				}
 			};
 			t.start();
-			while (t.getState() != Thread.State.WAITING) {
+			while (t.getState() != Thread.State.TIMED_WAITING) {
 				Thread.sleep(5);
 			}
 
@@ -213,7 +213,7 @@ public class CassandraSinkBaseTest {
 				}
 			};
 			t.start();
-			while (t.getState() != Thread.State.WAITING) {
+			while (t.getState() != Thread.State.TIMED_WAITING) {
 				Thread.sleep(5);
 			}
 
