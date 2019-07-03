@@ -1,7 +1,7 @@
 ---
 title: "Running Flink on Windows"
 layout: redirect
-redirect: /tutorials/flink_on_windows.html
+redirect: /getting-started/tutorials/flink_on_windows.html
 permalink: /start/flink_on_windows.html
 ---
 <!--
