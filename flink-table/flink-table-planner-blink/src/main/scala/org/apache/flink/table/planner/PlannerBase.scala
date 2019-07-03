@@ -21,6 +21,7 @@ package org.apache.flink.table.planner
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
@@ -30,22 +31,24 @@ import org.apache.flink.table.executor.ExecutorBase
 import org.apache.flink.table.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, OutputConversionModifyOperation, PlannerQueryOperation, UnregisteredSinkModifyOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, OutputConversionModifyOperation, UnregisteredSinkModifyOperation}
 import org.apache.flink.table.plan.nodes.calcite.LogicalSink
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.reuse.SubplanReuser
 import org.apache.flink.table.plan.util.SameRelObjectShuttle
-import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink, TableSinkUtils}
+import org.apache.flink.table.sinks.{DataStreamTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlKind}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.FrameworkConfig
+
 import _root_.java.util.{List => JList}
 import java.util
 
@@ -121,21 +124,10 @@ abstract class PlannerBase(
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {
-      case insert: SqlInsert =>
-        // get name of sink table
-        val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
-
-        List(new CatalogSinkModifyOperation(
-          targetTablePath,
-          SqlToOperationConverter.convert(planner,
-            insert.getSource).asInstanceOf[PlannerQueryOperation]).asInstanceOf[Operation])
+      case insert: RichSqlInsert =>
+        List(SqlToOperationConverter.convert(planner, insert))
       case query if query.getKind.belongsTo(SqlKind.QUERY) =>
-        // validate the sql query
-        val validated = planner.validate(query)
-        // transform to a relational tree
-        val relational = planner.rel(validated)
-        // can not use SqlToOperationConverter because of the project()
-        List(new PlannerQueryOperation(relational.project()))
+        List(SqlToOperationConverter.convert(planner, query))
       case ddl if ddl.getKind.belongsTo(SqlKind.DDL) =>
         List(SqlToOperationConverter.convert(planner, ddl))
       case _ =>
@@ -173,7 +165,14 @@ abstract class PlannerBase(
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
         getTableSink(catalogSink.getTablePath).map(sink => {
-          TableSinkUtils.validateSink(catalogSink.getChild, catalogSink.getTablePath, sink)
+          TableSinkUtils.validateSink(catalogSink, catalogSink.getTablePath, sink)
+          sink match {
+            case partitionableSink: PartitionableTableSink
+              if partitionableSink.getPartitionFieldNames != null
+                && partitionableSink.getPartitionFieldNames.nonEmpty =>
+              partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
+            case _ =>
+          }
           LogicalSink.create(input, sink, catalogSink.getTablePath.mkString("."))
         }) match {
           case Some(sinkRel) => sinkRel

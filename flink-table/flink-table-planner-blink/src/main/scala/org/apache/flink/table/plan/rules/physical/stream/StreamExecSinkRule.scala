@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.plan.rules.physical.stream
 
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSink
+import org.apache.flink.table.sinks.{DataStreamTableSink, PartitionableTableSink}
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.RelNode
+
+import collection.JavaConversions._
 
 class StreamExecSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
@@ -35,8 +40,34 @@ class StreamExecSinkRule extends ConverterRule(
   def convert(rel: RelNode): RelNode = {
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    // TODO Take PartitionableSink into consideration after FLINK-11993 is done
-    val newInput = RelOptRule.convert(sinkNode.getInput, FlinkConventions.STREAM_PHYSICAL)
+    var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    sinkNode.sink match {
+      case partitionSink: PartitionableTableSink
+        if partitionSink.getPartitionFieldNames != null &&
+          partitionSink.getPartitionFieldNames.nonEmpty =>
+        val partitionFields = partitionSink.getPartitionFieldNames
+        val partitionIndices = partitionFields
+          .map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
+        // validate
+        partitionIndices.foreach { idx =>
+          if (idx < 0) {
+            throw new TableException(s"Partitionable sink ${sinkNode.sinkName} field " +
+              s"${partitionFields.get(idx)} must be in the schema.")
+          }
+        }
+
+        if (partitionSink.configurePartitionGrouping(false)) {
+          throw new TableException("Partition grouping in stream mode is not supported yet!")
+        }
+
+        if (!partitionSink.isInstanceOf[DataStreamTableSink[_]]) {
+          requiredTraitSet = requiredTraitSet.plus(
+            FlinkRelDistribution.hash(partitionIndices
+              .map(Integer.valueOf), requireStrict = false))
+        }
+      case _ =>
+    }
+    val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
     new StreamExecSink(
       rel.getCluster,
