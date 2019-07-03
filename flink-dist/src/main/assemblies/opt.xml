@@ -75,14 +75,6 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- ML -->
-		<file>
-			<source>../flink-libraries/flink-ml-uber/target/flink-ml-uber_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- Metrics -->
 		<file>
 			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}.jar</source>
