@@ -293,6 +293,8 @@ public class BinaryRowTest {
 		for (int i = 0; i < numFields; i++) {
 			BinaryRow row = new BinaryRow(numFields);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
+			row.setHeader((byte)8);
+			row.setHeader((byte)34);
 			assertFalse(row.anyNull());
 			writer.setNullAt(i);
 			assertTrue(row.anyNull());
