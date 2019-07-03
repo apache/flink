@@ -31,10 +31,7 @@ import java.util.concurrent.RejectedExecutionException;
 public interface MailboxExecutor extends Executor {
 
 	/**
-	 * Executes the given command at some time in the future in the mailbox thread. This call can block when the
-	 * mailbox is currently full. Therefore, this method must not be called from the mailbox thread itself as this
-	 * can cause a deadlock. Instead, if the caller is already in the mailbox thread, the command should just be
-	 * executed directly or use the non-blocking {@link #tryExecute(Runnable)}.
+	 * Executes the given command at some time in the future in the mailbox thread.
 	 *
 	 * @param command the runnable task to add to the mailbox for execution.
 	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
@@ -42,18 +39,6 @@ public interface MailboxExecutor extends Executor {
 	 */
 	@Override
 	void execute(@Nonnull Runnable command) throws RejectedExecutionException;
-
-	/**
-	 * Attempts to enqueue the given command in the mailbox for execution. On success, the method returns true. If
-	 * the mailbox is full, this method returns immediately without adding the command and returns false.
-	 *
-	 * @param command the runnable task to add to the mailbox for execution.
-	 * @return true if the command was added to the mailbox. False if the command could not be added because the mailbox
-	 * was full.
-	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
-	 *                                    quiesced or closed.
-	 */
-	boolean tryExecute(Runnable command) throws RejectedExecutionException;
 
 	/**
 	 * This methods starts running the command at the head of the mailbox and is intended to be used by the mailbox

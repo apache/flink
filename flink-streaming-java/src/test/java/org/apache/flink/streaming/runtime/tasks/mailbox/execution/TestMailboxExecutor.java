@@ -46,12 +46,6 @@ public class TestMailboxExecutor implements MailboxExecutor {
 	}
 
 	@Override
-	public boolean tryExecute(Runnable command) {
-		execute(command);
-		return true;
-	}
-
-	@Override
 	public void yield() throws InterruptedException {
 		synchronized (lock) {
 			lock.wait(1);

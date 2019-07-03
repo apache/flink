@@ -23,7 +23,7 @@ import javax.annotation.Nonnull;
 import java.util.List;
 
 /**
- * A mailbox is basically a blocking queue for inter-thread message exchange in form of {@link Runnable} objects between
+ * A mailbox is basically a queue for inter-thread message exchange in form of {@link Runnable} objects between
  * multiple producer threads and a single consumer. This has a lifecycle of closed -> open -> (quiesced) -> closed.
  */
 public interface Mailbox extends MailboxReceiver, MailboxSender {
@@ -56,36 +56,12 @@ public interface Mailbox extends MailboxReceiver, MailboxSender {
 	List<Runnable> close();
 
 	/**
-	 * The effect of this is that all pending letters in the mailbox are dropped and the given priorityLetter
-	 * is enqueued to the head of the mailbox. Dropped letters are returned. This method should only be invoked
-	 * by code that has ownership of the mailbox object and only rarely used, e.g. to submit special events like
-	 * shutting down the mailbox loop.
-	 *
-	 * @param priorityLetter action to enqueue atomically after the mailbox was cleared.
-	 * @throws MailboxStateException if the mailbox is quiesced or closed.
-	 */
-	@Nonnull
-	List<Runnable> clearAndPut(@Nonnull Runnable priorityLetter) throws MailboxStateException;
-
-	/**
-	 * Adds the given action to the head of the mailbox. This method will block if the mailbox is full and
-	 * should therefore only be called from outside the mailbox main-thread to avoid deadlocks.
+	 * Adds the given action to the head of the mailbox.
 	 *
 	 * @param priorityLetter action to enqueue to the head of the mailbox.
-	 * @throws InterruptedException on interruption.
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void putFirst(@Nonnull Runnable priorityLetter) throws InterruptedException, MailboxStateException;
-
-	/**
-	 * Adds the given action to the head of the mailbox if the mailbox is not full. Returns true if the letter
-	 * was successfully added to the mailbox.
-	 *
-	 * @param priorityLetter action to enqueue to the head of the mailbox.
-	 * @return true if the letter was successfully added.
-	 * @throws MailboxStateException if the mailbox is quiesced or closed.
-	 */
-	boolean tryPutFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
+	void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
 
 	/**
 	 * Returns the current state of the mailbox as defined by the lifecycle enum {@link State}.
@@ -94,11 +70,4 @@ public interface Mailbox extends MailboxReceiver, MailboxSender {
 	 */
 	@Nonnull
 	State getState();
-
-	/**
-	 * Returns the total capacity of the mailbox.
-	 *
-	 * @return the total capacity of the mailbox.
-	 */
-	int capacity();
 }

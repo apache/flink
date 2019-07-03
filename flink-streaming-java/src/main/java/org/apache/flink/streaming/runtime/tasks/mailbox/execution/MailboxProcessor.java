@@ -28,7 +28,6 @@ import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -138,19 +137,11 @@ public class MailboxProcessor {
 	}
 
 	/**
-	 * Cancels the mailbox loop execution. All pending mailbox actions will not be executed anymore, if they are
-	 * instance of {@link java.util.concurrent.RunnableFuture}, they will be cancelled.
-	 */
-	public void cancelMailboxExecution() {
-		clearMailboxAndRunPriorityAction(mailboxPoisonLetter);
-	}
-
-	/**
 	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending letters.
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
 	public void reportThrowable(Throwable throwable) {
-		clearMailboxAndRunPriorityAction(() -> {
+		sendPriorityLetter(() -> {
 			throw new WrappingRuntimeException(throwable);
 		});
 	}
@@ -159,17 +150,14 @@ public class MailboxProcessor {
 	 * This method must be called to end the stream task when all actions for the tasks have been performed.
 	 */
 	public void allActionsCompleted() {
+		sendPriorityLetter(mailboxPoisonLetter);
+	}
+
+	private void sendPriorityLetter(Runnable priorityLetter) {
 		try {
-			if (mailboxExecutor.isMailboxThread()) {
-				mailboxLoopRunning = false;
-				ensureControlFlowSignalCheck();
-			} else {
-				mailbox.putFirst(mailboxPoisonLetter);
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
+			mailbox.putFirst(priorityLetter);
 		} catch (MailboxStateException me) {
-			LOG.debug("Action context could not submit poison letter to mailbox.", me);
+			LOG.debug("Action context could not submit priority letter to mailbox.", me);
 		}
 	}
 
@@ -236,20 +224,7 @@ public class MailboxProcessor {
 	private void ensureControlFlowSignalCheck() {
 		// Make sure that mailbox#hasMail is true via a dummy letter so that the flag change is noticed.
 		if (!mailbox.hasMail()) {
-			try {
-				mailbox.tryPutMail(() -> {});
-			} catch (MailboxStateException me) {
-				LOG.debug("Mailbox closed when trying to submit letter for control flow signal.", me);
-			}
-		}
-	}
-
-	private void clearMailboxAndRunPriorityAction(Runnable priorityLetter) {
-		try {
-			List<Runnable> droppedRunnables = mailbox.clearAndPut(priorityLetter);
-			FutureUtils.cancelRunnableFutures(droppedRunnables);
-		} catch (MailboxStateException msex) {
-			LOG.debug("Mailbox already closed in cancel().", msex);
+			sendPriorityLetter(() -> {});
 		}
 	}
 
@@ -283,10 +258,14 @@ public class MailboxProcessor {
 
 		@Override
 		public void resume() {
-			Preconditions.checkState(
-				mailboxExecutor.isMailboxThread(),
-				"SuspendedMailboxDefaultAction::resume resume must only be called from the mailbox-thread!");
+			if (mailboxExecutor.isMailboxThread()) {
+				resumeInternal();
+			} else {
+				sendPriorityLetter(this::resumeInternal);
+			}
+		}
 
+		private void resumeInternal() {
 			if (suspendedDefaultAction == this) {
 				suspendedDefaultAction = null;
 			}

@@ -484,7 +484,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			cancelTask();
 		}
 		finally {
-			mailboxProcessor.cancelMailboxExecution();
+			mailboxProcessor.allActionsCompleted();
 			cancelables.close();
 		}
 	}
