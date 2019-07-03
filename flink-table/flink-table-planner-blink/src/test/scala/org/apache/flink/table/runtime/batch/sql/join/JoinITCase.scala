@@ -31,15 +31,17 @@ import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.sinks.CollectRowTableSink
 
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Ignore, Test}
+
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
-// @RunWith(classOf[Parameterized]) TODO
-class JoinITCase() extends BatchTestBase {
-
-  val expectedJoinType: JoinType = SortMergeJoin
+@RunWith(classOf[Parameterized])
+class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Before
   def before(): Unit = {
@@ -65,6 +67,7 @@ class JoinITCase() extends BatchTestBase {
       ))
   }
 
+  @Ignore // TODO support lazy from source
   @Test
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
@@ -600,39 +603,43 @@ class JoinITCase() extends BatchTestBase {
 
   @Test
   def testJoinWithNull(): Unit = {
-    checkResult(
-      "SELECT c, g FROM NullTable3, NullTable5 " +
-        "WHERE (a = d OR (a IS NULL AND d IS NULL)) AND b = h",
-      Seq(
-        row("Hi", "Hallo"),
-        row("Hello", "Hallo Welt"),
-        row("Hello world", "Hallo Welt wie gehts?"),
-        row("Hello world", "ABC"),
-        row("I am fine.", "HIJ"),
-        row("I am fine.", "IJK"),
-        row("NullTuple", "NullTuple"),
-        row("NullTuple", "NullTuple"),
-        row("NullTuple", "NullTuple"),
-        row("NullTuple", "NullTuple")
-      ))
+    // TODO enable all
+    // TODO not support same source until set lazy_from_source
+    if (expectedJoinType == SortMergeJoin) {
+      checkResult(
+        "SELECT c, g FROM NullTable3, NullTable5 " +
+            "WHERE (a = d OR (a IS NULL AND d IS NULL)) AND b = h",
+        Seq(
+          row("Hi", "Hallo"),
+          row("Hello", "Hallo Welt"),
+          row("Hello world", "Hallo Welt wie gehts?"),
+          row("Hello world", "ABC"),
+          row("I am fine.", "HIJ"),
+          row("I am fine.", "IJK"),
+          row("NullTuple", "NullTuple"),
+          row("NullTuple", "NullTuple"),
+          row("NullTuple", "NullTuple"),
+          row("NullTuple", "NullTuple")
+        ))
 
-    checkResult(
-      "SELECT c, g FROM NullTable3, NullTable5 " +
-        "WHERE (a = d OR (a IS NULL AND d IS NULL)) and c = 'NullTuple'",
-      Seq(
-        row("NullTuple", "NullTuple"),
-        row("NullTuple", "NullTuple"),
-        row("NullTuple", "NullTuple"),
-        row("NullTuple", "NullTuple")
-      ))
+      checkResult(
+        "SELECT c, g FROM NullTable3, NullTable5 " +
+            "WHERE (a = d OR (a IS NULL AND d IS NULL)) and c = 'NullTuple'",
+        Seq(
+          row("NullTuple", "NullTuple"),
+          row("NullTuple", "NullTuple"),
+          row("NullTuple", "NullTuple"),
+          row("NullTuple", "NullTuple")
+        ))
 
-    registerCollection(
-      "NullT", Seq(row(null, null, "c")), type3, "a, b, c", allNullablesOfNullData3)
-    checkResult(
-      "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
-        "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
-        "AND (T1.b = T2.b OR (T1.b IS NULL AND T2.b IS NULL)) AND T1.c = T2.c",
-      Seq(row("null", "null", "c")))
+      registerCollection(
+        "NullT", Seq(row(null, null, "c")), type3, "a, b, c", allNullablesOfNullData3)
+      checkResult(
+        "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
+            "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
+            "AND (T1.b = T2.b OR (T1.b IS NULL AND T2.b IS NULL)) AND T1.c = T2.c",
+        Seq(row("null", "null", "c")))
+    }
   }
 
   @Test
@@ -797,6 +804,16 @@ class JoinITCase() extends BatchTestBase {
         row("Hello", "Hallo Welt"),
         row("Hello world", "Hallo Welt"))
     )
+  }
+}
+
+object JoinITCase {
+  @Parameterized.Parameters(name = "{0}")
+  def parameters(): util.Collection[Any] = {
+    util.Arrays.asList(
+      Array(BroadcastHashJoin),
+      Array(HashJoin),
+      Array(SortMergeJoin))
   }
 }
 

@@ -235,8 +235,7 @@ class GroupingSetsITCase extends BatchTestBase {
     )
   }
 
-  // TODO remove expected exception after BatchExecHashJoin extends ExecNode
-  @Test(expected = classOf[TableException])
+  @Test
   def testCubeAndJoin(): Unit = {
     checkResult(
       "select e.deptno, e.gender, min(e.ename) as min_name " +

@@ -151,6 +151,11 @@ public class TableConfigOptions {
 					.defaultValue(32)
 					.withDescription("Sets the table reserved memory size of hashAgg operator. It defines the lower limit.");
 
+	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_JOIN_TABLE_MEM =
+			key("sql.resource.hash-join.table.memory.mb")
+					.defaultValue(32)
+					.withDescription("Sets the HashTable reserved memory for hashJoin operator. It defines the lower limit.");
+
 	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
 			key("sql.resource.sort.buffer.memory.mb")
 					.defaultValue(32)
