@@ -35,6 +35,11 @@ class MetricMapper {
 		Point.Builder builder = builder(info, timestamp);
 		Object value = gauge.getValue();
 		if (value instanceof Number) {
+			if (value instanceof Double && Double.isInfinite((Double) value)) {
+				throw new RuntimeException("get infinite type double value");
+			} else if (value instanceof Float && Float.isInfinite((Float) value)) {
+				throw new RuntimeException("get infinite type float value");
+			}
 			builder.addField("value", (Number) value);
 		} else {
 			builder.addField("value", String.valueOf(value));
