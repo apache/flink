@@ -77,8 +77,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
-      "Unsupported join type for semi-join RIGHT",
-      classOf[IllegalArgumentException]
+      "Correlate has invalid join type RIGHT",
+      classOf[AssertionError]
     )
 
     // only support join on raw key of right table

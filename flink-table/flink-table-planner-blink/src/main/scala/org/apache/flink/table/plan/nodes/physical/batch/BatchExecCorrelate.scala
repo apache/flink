@@ -30,10 +30,10 @@ import org.apache.flink.table.planner.BatchPlanner
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Correlate
+import org.apache.calcite.rel.core.{Correlate, JoinRelType}
 import org.apache.calcite.rel.{RelCollationTraitDef, RelDistribution, RelFieldCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
-import org.apache.calcite.sql.{SemiJoinType, SqlKind}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 
 import java.util
@@ -51,12 +51,12 @@ class BatchExecCorrelate(
     condition: Option[RexNode],
     projectProgram: Option[RexProgram],
     outputRowType: RelDataType,
-    joinType: SemiJoinType)
+    joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
   with BatchPhysicalRel
   with BatchExecNode[BaseRow] {
 
-  require(joinType == SemiJoinType.INNER || joinType == SemiJoinType.LEFT)
+  require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
 
   override def deriveRowType(): RelDataType = outputRowType
 

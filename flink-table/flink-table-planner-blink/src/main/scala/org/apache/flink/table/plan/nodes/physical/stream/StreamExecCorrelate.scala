@@ -29,9 +29,9 @@ import org.apache.flink.table.runtime.AbstractProcessStreamOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
-import org.apache.calcite.sql.SemiJoinType
 
 import java.util
 
@@ -48,12 +48,12 @@ class StreamExecCorrelate(
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     outputRowType: RelDataType,
-    joinType: SemiJoinType)
+    joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  require(joinType == SemiJoinType.INNER || joinType == SemiJoinType.LEFT)
+  require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
 
   override def producesUpdates: Boolean = false
 

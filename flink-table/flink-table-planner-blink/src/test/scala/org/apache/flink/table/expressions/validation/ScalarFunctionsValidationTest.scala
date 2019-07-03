@@ -55,14 +55,14 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   @Test
   def testTimestampAddWithWrongTimestampInterval(): Unit = {
     thrown.expect(classOf[SqlParserException])
-    testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
+    testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24')", "2016-06-16")
   }
 
   @Test
   def testTimestampAddWithWrongTimestampFormat(): Unit = {
     thrown.expect(classOf[SqlParserException])
-    thrown.expectMessage("Illegal TIMESTAMP literal '2016-02-24'")
-    testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
+    thrown.expectMessage("Illegal TIMESTAMP literal '2016/02/24'")
+    testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016/02/24')", "2016-06-16")
   }
 
   @Test

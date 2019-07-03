@@ -36,8 +36,8 @@ class StreamExecCorrelateRule
     "StreamExecCorrelateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val join: FlinkLogicalCorrelate = call.rel(0).asInstanceOf[FlinkLogicalCorrelate]
-    val right = join.getRight.asInstanceOf[RelSubset].getOriginal
+    val correlate: FlinkLogicalCorrelate = call.rel(0)
+    val right = correlate.getRight.asInstanceOf[RelSubset].getOriginal
 
     // find only calc and table function
     def findTableFunction(calc: FlinkLogicalCalc): Boolean = {
@@ -59,10 +59,11 @@ class StreamExecCorrelateRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val join: FlinkLogicalCorrelate = rel.asInstanceOf[FlinkLogicalCorrelate]
+    val correlate = rel.asInstanceOf[FlinkLogicalCorrelate]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val convInput: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.STREAM_PHYSICAL)
-    val right: RelNode = join.getInput(1)
+    val convInput: RelNode = RelOptRule.convert(
+      correlate.getInput(0), FlinkConventions.STREAM_PHYSICAL)
+    val right: RelNode = correlate.getInput(1)
 
 
     def getTableScan(calc: FlinkLogicalCalc): RelNode = {
@@ -115,7 +116,7 @@ class StreamExecCorrelateRule
             scan,
             condition,
             rel.getRowType,
-            join.getJoinType)
+            correlate.getJoinType)
       }
     }
     convertToCorrelate(right, None)

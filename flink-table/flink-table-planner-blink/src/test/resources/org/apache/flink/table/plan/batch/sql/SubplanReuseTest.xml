@@ -1090,11 +1090,11 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random], build=[right])
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])
 :- SortAggregate(isMerge=[false], groupBy=[random], select=[random])
 :  +- Sort(orderBy=[random ASC])
 :     +- Exchange(distribution=[hash[random]])
-:        +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random], build=[right])
+:        +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])
 :           :- Exchange(distribution=[any], exchange_mode=[BATCH])
 :           :  +- Calc(select=[random], reuse_id=[1])
 :           :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[true])

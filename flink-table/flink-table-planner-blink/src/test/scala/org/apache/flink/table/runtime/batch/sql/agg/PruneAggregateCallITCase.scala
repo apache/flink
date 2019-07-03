@@ -46,7 +46,7 @@ class PruneAggregateCallITCase extends BatchTestBase {
     checkResult(
       """
         |SELECT c, a FROM
-        | (SELECT a, c, COUNT(b) as c, SUM(b) as s FROM MyTable GROUP BY a, c) t
+        | (SELECT a, c, COUNT(b) as cnt, SUM(b) as s FROM MyTable GROUP BY a, c) t
         |WHERE s > 1
       """.stripMargin,
       Seq(row("Hello world", 3), row("Hello", 2))

@@ -58,8 +58,7 @@ class SubplanReuseTest extends TableTestBase {
     util.verifyPlanNotExpected(sqlQuery, "Reused")
   }
 
-  @Test(expected = classOf[AssertionError])
-  // TODO after CALCITE-3020 fixed, remove expected exception
+  @Test
   def testSubplanReuseWithDifferentRowType(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)

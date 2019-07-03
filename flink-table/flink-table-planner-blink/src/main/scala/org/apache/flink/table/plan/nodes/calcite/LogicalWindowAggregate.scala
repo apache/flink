@@ -42,7 +42,6 @@ final class LogicalWindowAggregate(
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
-      indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall]): Aggregate = {
@@ -74,7 +73,7 @@ object LogicalWindowAggregate {
       window: LogicalWindow,
       namedProperties: Seq[PlannerNamedWindowProperty],
       agg: Aggregate): LogicalWindowAggregate = {
-    require(!agg.indicator && (agg.getGroupType == Group.SIMPLE))
+    require(agg.getGroupType == Group.SIMPLE)
     val cluster: RelOptCluster = agg.getCluster
     val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)
 

@@ -29,7 +29,6 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
-import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Project;
@@ -563,10 +562,6 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 		 * @param rel Aggregate to rewrite
 		 */
 		public Frame decorrelateRel(LogicalAggregate rel) {
-			if (rel.getGroupType() != Aggregate.Group.SIMPLE) {
-				throw new AssertionError(Bug.CALCITE_461_FIXED);
-			}
-
 			// Aggregate itself should not reference corVars.
 			assert !cm.mapRefRelToCorRef.containsKey(rel);
 

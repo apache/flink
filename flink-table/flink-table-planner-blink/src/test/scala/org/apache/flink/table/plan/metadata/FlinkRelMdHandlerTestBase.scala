@@ -74,7 +74,7 @@ class FlinkRelMdHandlerTestBase {
 
   val tableConfig = new TableConfig()
   val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
-  // TODO batch RelNode and stream RelNode should have different PlanningConfigurationBuilder
+  // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
   val plannerContext: PlannerContext =
     new PlannerContext(
@@ -728,7 +728,6 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       flinkLogicalTraits,
       studentFlinkLogicalScan,
-      logicalAgg.indicator,
       logicalAgg.getGroupSet,
       logicalAgg.getGroupSets,
       logicalAgg.getAggCallList
@@ -878,7 +877,6 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       flinkLogicalTraits,
       studentFlinkLogicalScan,
-      logicalAggWithAuxGroup.indicator,
       logicalAggWithAuxGroup.getGroupSet,
       logicalAggWithAuxGroup.getGroupSets,
       logicalAggWithAuxGroup.getAggCallList

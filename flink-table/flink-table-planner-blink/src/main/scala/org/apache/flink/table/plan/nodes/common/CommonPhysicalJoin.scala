@@ -64,11 +64,10 @@ abstract class CommonPhysicalJoin(
   lazy val inputRowType: RelDataType = joinType match {
     case JoinRelType.SEMI | JoinRelType.ANTI =>
       // Combines inputs' RowType, the result is different from SEMI/ANTI Join's RowType.
-      SqlValidatorUtil.deriveJoinRowType(
+      SqlValidatorUtil.createJoinType(
+        getCluster.getTypeFactory,
         getLeft.getRowType,
         getRight.getRowType,
-        getJoinType,
-        getCluster.getTypeFactory,
         null,
         Collections.emptyList[RelDataTypeField]
       )
