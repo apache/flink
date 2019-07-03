@@ -70,7 +70,7 @@ streamExecEnv.addSource(source);
 </div>
 </div>
 
-Currently the source functions pulls messages from PubSub, [push endpoints](https://cloud.google.com/pubsub/docs/push) are not supported.
+Currently the source functions [pulls](https://cloud.google.com/pubsub/docs/pull) messages from PubSub, [push endpoints](https://cloud.google.com/pubsub/docs/push) are not supported.
 
 ### PubSub Sink
 
