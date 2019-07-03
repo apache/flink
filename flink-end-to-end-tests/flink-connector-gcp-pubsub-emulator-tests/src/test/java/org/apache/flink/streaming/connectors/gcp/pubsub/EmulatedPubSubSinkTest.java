@@ -99,4 +99,21 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 		}
 	}
 
+	@Test(expected = Exception.class)
+	public void testFlinkSinkThrowsExceptionOnFailure() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// Create test stream
+		env.fromCollection(Arrays.asList("some-message")).name("Test input")
+			.map((MapFunction<String, String>) StringUtils::reverse)
+			.addSink(PubSubSink.newBuilder(new SimpleStringSchema(), PROJECT_NAME, TOPIC_NAME)
+							// Specific for emulator
+							.withHostAndPortForEmulator("unknown-host-to-force-sink-crash:1234")
+							.withCredentials(NoCredentials.getInstance())
+							.build()).name("PubSub sink");
+
+		// Run
+		env.execute();
+	}
+
 }

@@ -25,8 +25,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
-import com.google.api.core.ApiFutureCallback;
-import com.google.api.core.ApiFutures;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
@@ -43,11 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
-import static org.apache.flink.runtime.concurrent.Executors.directExecutor;
 
 /**
  * A sink function that outputs to PubSub.
@@ -57,7 +53,6 @@ import static org.apache.flink.runtime.concurrent.Executors.directExecutor;
 public class PubSubSink<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
-	private final ApiFutureCallback<String> failureHandler;
 	private final Credentials credentials;
 	private final SerializationSchema<IN> serializationSchema;
 	private final String projectName;
@@ -72,7 +67,6 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		String projectName,
 		String topicName,
 		String hostAndPortForEmulator) {
-		this.failureHandler = new FailureHandler();
 		this.credentials = credentials;
 		this.serializationSchema = serializationSchema;
 		this.projectName = projectName;
@@ -144,12 +138,13 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	}
 
 	@Override
-	public void invoke(IN message, SinkFunction.Context context) {
+	public void invoke(IN message, SinkFunction.Context context) throws Exception {
 		PubsubMessage pubsubMessage = PubsubMessage
 			.newBuilder()
 			.setData(ByteString.copyFrom(serializationSchema.serialize(message)))
 			.build();
-		ApiFutures.addCallback(publisher.publish(pubsubMessage), failureHandler, directExecutor());
+
+		publisher.publish(pubsubMessage).get();
 	}
 
 	/**
@@ -255,19 +250,6 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 				credentials = defaultCredentialsProviderBuilder().build().getCredentials();
 			}
 			return new PubSubSink<>(credentials, serializationSchema, projectName, topicName, hostAndPort);
-		}
-	}
-
-	private class FailureHandler implements ApiFutureCallback<String>, Serializable {
-		@Override
-		public void onFailure(Throwable t) {
-			throw new RuntimeException("Failed trying to publish message", t);
-		}
-
-		@Override
-		public void onSuccess(String result) {
-			//do nothing on success
-			LOG.debug("Successfully published message with id: {}", result);
 		}
 	}
 }
