@@ -44,22 +44,22 @@ import static java.util.stream.Collectors.toList;
  * that it has been successfully processed throughout the topology and the updates to any state caused by
  * that message are persistent.
  *
- * @param <AcknowledgeId> Type of Ids to acknowledge
+ * @param <ACKID> Type of Ids to acknowledge
  */
-public class AcknowledgeOnCheckpoint<AcknowledgeId extends Serializable> implements CheckpointListener, ListCheckpointed<AcknowledgeIdsForCheckpoint<AcknowledgeId>> {
-	private final Acknowledger<AcknowledgeId> acknowledger;
-	private List<AcknowledgeIdsForCheckpoint<AcknowledgeId>> acknowledgeIdsPerCheckpoint;
-	private List<AcknowledgeId> acknowledgeIdsForPendingCheckpoint;
+public class AcknowledgeOnCheckpoint<ACKID extends Serializable> implements CheckpointListener, ListCheckpointed<AcknowledgeIdsForCheckpoint<ACKID>> {
+	private final Acknowledger<ACKID> acknowledger;
+	private List<AcknowledgeIdsForCheckpoint<ACKID>> acknowledgeIdsPerCheckpoint;
+	private List<ACKID> acknowledgeIdsForPendingCheckpoint;
 	private AtomicInteger outstandingAcknowledgements;
 
-	public AcknowledgeOnCheckpoint(Acknowledger<AcknowledgeId> acknowledger) {
+	public AcknowledgeOnCheckpoint(Acknowledger<ACKID> acknowledger) {
 		this.acknowledger = acknowledger;
 		this.acknowledgeIdsPerCheckpoint = new ArrayList<>();
 		this.acknowledgeIdsForPendingCheckpoint = new ArrayList<>();
 		this.outstandingAcknowledgements = new AtomicInteger(0);
 	}
 
-	public void addAcknowledgeId(AcknowledgeId id) {
+	public void addAcknowledgeId(ACKID id) {
 		acknowledgeIdsForPendingCheckpoint.add(id);
 		outstandingAcknowledgements.incrementAndGet();
 	}
@@ -67,7 +67,7 @@ public class AcknowledgeOnCheckpoint<AcknowledgeId extends Serializable> impleme
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		//get all acknowledgeIds of this and earlier checkpoints
-		List<AcknowledgeId> idsToAcknowledge = acknowledgeIdsPerCheckpoint
+		List<ACKID> idsToAcknowledge = acknowledgeIdsPerCheckpoint
 			.stream()
 			.filter(acknowledgeIdsForCheckpoint -> acknowledgeIdsForCheckpoint.getCheckpointId() <= checkpointId)
 			.flatMap(acknowledgeIdsForCheckpoint -> acknowledgeIdsForCheckpoint.getAcknowledgeIds().stream())
@@ -83,7 +83,7 @@ public class AcknowledgeOnCheckpoint<AcknowledgeId extends Serializable> impleme
 	}
 
 	@Override
-	public List<AcknowledgeIdsForCheckpoint<AcknowledgeId>> snapshotState(long checkpointId, long timestamp) throws Exception {
+	public List<AcknowledgeIdsForCheckpoint<ACKID>> snapshotState(long checkpointId, long timestamp) throws Exception {
 		acknowledgeIdsPerCheckpoint.add(new AcknowledgeIdsForCheckpoint<>(checkpointId, acknowledgeIdsForPendingCheckpoint));
 		acknowledgeIdsForPendingCheckpoint = new ArrayList<>();
 
@@ -91,12 +91,12 @@ public class AcknowledgeOnCheckpoint<AcknowledgeId extends Serializable> impleme
 	}
 
 	@Override
-	public void restoreState(List<AcknowledgeIdsForCheckpoint<AcknowledgeId>> state) throws Exception {
+	public void restoreState(List<AcknowledgeIdsForCheckpoint<ACKID>> state) throws Exception {
 		outstandingAcknowledgements = new AtomicInteger(numberOfAcknowledgementIds(state));
 		acknowledgeIdsPerCheckpoint = state;
 	}
 
-	private int numberOfAcknowledgementIds(List<AcknowledgeIdsForCheckpoint<AcknowledgeId>> acknowledgeIdsForCheckpoints) {
+	private int numberOfAcknowledgementIds(List<AcknowledgeIdsForCheckpoint<ACKID>> acknowledgeIdsForCheckpoints) {
 		return acknowledgeIdsForCheckpoints
 			.stream()
 			.map(AcknowledgeIdsForCheckpoint::getAcknowledgeIds)
