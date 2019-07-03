@@ -104,6 +104,10 @@ class BatchTestBase extends BatchAbstractTestBase {
     check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
   }
 
+  def checkTableResult(table: Table, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
+    checkTable(table, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
+  }
+
   def checkSize(sqlQuery: String, expectedSize: Int): Unit = {
     check(sqlQuery, (result: Seq[Row]) => {
       if (result.size != expectedSize) {
@@ -170,6 +174,21 @@ class BatchTestBase extends BatchAbstractTestBase {
         s"""
            |Results do not match for query:
            |  $sqlQuery
+           |$results
+           |Plan:
+           |  $plan
+       """.stripMargin)
+    }
+  }
+
+  def checkTable(table: Table, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+    val result = executeQuery(table)
+
+    checkFunc(result).foreach { results =>
+      val plan = explainLogical(table)
+      Assert.fail(
+        s"""
+           |Results do not match:
            |$results
            |Plan:
            |  $plan

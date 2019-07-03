@@ -33,11 +33,18 @@ import scala.collection.{Seq, mutable}
 
 object TestData {
 
+  val type1 = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO)
+  val type2 = new RowTypeInfo(
+    INT_TYPE_INFO, LONG_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO, LONG_TYPE_INFO)
   val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO)
+  val type4 = new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
   val type5 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO,
     LONG_TYPE_INFO)
   val type6 = new RowTypeInfo(INT_TYPE_INFO, DOUBLE_TYPE_INFO, STRING_TYPE_INFO, DATE, TIME,
     TIMESTAMP)
+
+  val simpleType2 = new RowTypeInfo(INT_TYPE_INFO, DOUBLE_TYPE_INFO)
+
   val buildInType = new RowTypeInfo(BOOLEAN_TYPE_INFO, BYTE_TYPE_INFO, INT_TYPE_INFO,
     LONG_TYPE_INFO, DOUBLE_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO, DATE, TIME, TIMESTAMP)
   val numericType = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, FLOAT_TYPE_INFO,
@@ -50,6 +57,64 @@ object TestData {
     LONG_TYPE_INFO)
   val type3WithTimestamp = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO,
     TIMESTAMP)
+
+  val nullablesOfData1 = Array(false, false, false)
+
+  val nullableOfSimpleData2 = Array(false, false)
+
+  val nullablesOfData2 = Array(false, false, false, false, false)
+
+  val nullablesOfNullData2 = Array(true, false, false, false, false)
+
+  lazy val data1: Seq[Row] = Seq(
+    row(2, "a", 6),
+    row(4, "b", 8),
+    row(6, "c", 10),
+    row(1, "a", 5),
+    row(3, "b", 7),
+    row(5, "c", 9)
+  )
+
+  lazy val data2 = Seq(
+    row(2, 3L, 2, "Hallo Welt wie", 1L),
+    row(3, 4L, 3, "Hallo Welt wie gehts?", 2L),
+    row(2, 2L, 1, "Hallo Welt", 2L),
+    row(1, 1L, 0, "Hallo", 1L),
+    row(5, 11L, 10, "GHI", 1L),
+    row(3, 5L, 4, "ABC", 2L),
+    row(4, 10L, 9, "FGH", 2L),
+    row(4, 7L, 6, "CDE", 2L),
+    row(5, 14L, 13, "JKL", 2L),
+    row(4, 9L, 8, "EFG", 1L),
+    row(5, 15L, 14, "KLM", 2L),
+    row(5, 12L, 11, "HIJ", 3L),
+    row(4, 8L, 7, "DEF", 1L),
+    row(5, 13L, 12, "IJK", 3L),
+    row(3, 6L, 5, "BCD", 3L)
+  )
+
+  lazy val data4 = Seq(
+    row("book", 1, 12),
+    row("book", 2, 19),
+    row("book", 4, 11),
+    row("fruit", 4, 33),
+    row("fruit", 3, 44),
+    row("fruit", 5, 22)
+  )
+
+  lazy val nullData4: Seq[Row] = Seq(
+    row("book", 1, 12),
+    row("book", 2, null),
+    row("book", 4, 11),
+    row("fruit", 4, null),
+    row("fruit", 3, 44),
+    row("fruit", 5, null)
+  )
+
+  lazy val nullData2: Seq[Row] = data2 ++ Seq(
+    row(null, 3L, 3, "NullTuple", 3L),
+    row(null, 3L, 3, "NullTuple", 3L)
+  )
 
   lazy val nullData3: Seq[Row] = data3 ++ Seq(
     row(null, 999L, "NullTuple"),
@@ -107,6 +172,24 @@ object TestData {
       UTCTime("10:08:09"), UTCTimestamp("2015-05-20 10:00:00.887"))
   )
 
+  lazy val simpleData2 = Seq(
+    row(1, 0.1),
+    row(2, 0.2),
+    row(2, 0.2),
+    row(3, 0.3),
+    row(3, 0.3),
+    row(3, 0.4),
+    row(4, 0.5),
+    row(4, 0.5),
+    row(4, 0.6),
+    row(4, 0.6),
+    row(5, 0.7),
+    row(5, 0.7),
+    row(5, 0.8),
+    row(5, 0.8),
+    row(5, 0.9)
+  )
+
   lazy val tupleData3: Seq[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
@@ -136,6 +219,10 @@ object TestData {
   lazy val data3: Seq[Row] = tupleData3.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfData3 = Array(false, false, false)
+
+  val nullablesOfData4 = Array(false, false, false)
+
+  val nullablesOfNullData4 = Array(false, false, true)
 
   lazy val genericData3: Seq[Row] = Seq(
     row(new JTuple2("1", 1), new JTuple2(1, 1), 1),
@@ -169,6 +256,14 @@ object TestData {
     row(20, 6L, "Comment#14", new Timestamp(20000L)),
     row(21, 6L, "Comment#15", new Timestamp(21000L))
   )
+
+  lazy val smallNestedTupleData: Seq[((Int, Int), String)] = {
+      val data = new mutable.MutableList[((Int, Int), String)]
+      data.+=(((1, 1), "one"))
+      data.+=(((2, 2), "two"))
+      data.+=(((3, 3), "three"))
+    data
+  }
 
   lazy val tupleData5: Seq[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
