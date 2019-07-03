@@ -19,13 +19,12 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
+import org.apache.flink.state.api.runtime.BootstrapTransformationWithID;
 import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
@@ -80,7 +79,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	public final void write(String path) {
 		final Path savepointPath = new Path(path);
 
-		List<Tuple2<OperatorID, BootstrapTransformation<?>>> newOperatorTransformations = metadata.getNewOperatorTransformations();
+		List<BootstrapTransformationWithID<?>> newOperatorTransformations = metadata.getNewOperators();
 		DataSet<OperatorState> newOperatorStates = writeOperatorStates(newOperatorTransformations, savepointPath);
 
 		List<OperatorState> existingOperators = metadata.getExistingOperators();
@@ -109,11 +108,13 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	}
 
 	private DataSet<OperatorState> writeOperatorStates(
-			List<Tuple2<OperatorID, BootstrapTransformation<?>>> newOperatorTransformations,
+			List<BootstrapTransformationWithID<?>> newOperatorStates,
 			Path savepointWritePath) {
-		return newOperatorTransformations
+		return newOperatorStates
 			.stream()
-			.map(transformation -> transformation.f1.writeOperatorState(transformation.f0, stateBackend, metadata, savepointWritePath))
+			.map(newOperatorState -> newOperatorState
+				.getBootstrapTransformation()
+				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata, savepointWritePath))
 			.reduce(DataSet::union)
 			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
 	}
