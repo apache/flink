@@ -19,8 +19,10 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
@@ -28,7 +30,6 @@ import org.apache.flink.state.api.runtime.metadata.ModifiableSavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Any savepoint that can be written to from a batch context.
@@ -79,9 +80,10 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 	public final void write(String path) {
 		final Path savepointPath = new Path(path);
 
-		DataSet<OperatorState> newOperatorStates = getOperatorStates(savepointPath);
+		List<Tuple2<OperatorID, BootstrapTransformation<?>>> newOperatorTransformations = metadata.getNewOperatorTransformations();
+		DataSet<OperatorState> newOperatorStates = writeOperatorStates(newOperatorTransformations, savepointPath);
 
-		List<OperatorState> existingOperators = getExistingOperatorStates();
+		List<OperatorState> existingOperators = metadata.getExistingOperators();
 
 		DataSet<OperatorState> finalOperatorStates = unionOperatorStates(newOperatorStates, existingOperators);
 
@@ -90,27 +92,6 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			.name("reduce(OperatorState)")
 			.output(new SavepointOutputFormat(savepointPath))
 			.name(path);
-	}
-
-	private List<OperatorState> getExistingOperatorStates() {
-		return metadata
-			.getOperatorStates()
-			.entrySet()
-			.stream()
-			.filter(entry -> entry.getValue().isLeft())
-			.map(entry -> entry.getValue().left())
-			.collect(Collectors.toList());
-	}
-
-	private DataSet<OperatorState> getOperatorStates(Path savepointPath) {
-		return metadata
-			.getOperatorStates()
-			.entrySet()
-			.stream()
-			.filter(entry -> entry.getValue().isRight())
-			.map(entry -> entry.getValue().right().writeOperatorState(entry.getKey(), stateBackend, metadata, savepointPath))
-			.reduce(DataSet::union)
-			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
 	}
 
 	private DataSet<OperatorState> unionOperatorStates(DataSet<OperatorState> newOperatorStates, List<OperatorState> existingOperators) {
@@ -125,5 +106,15 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			finalOperatorStates = newOperatorStates.union(wrappedCollection);
 		}
 		return finalOperatorStates;
+	}
+
+	private DataSet<OperatorState> writeOperatorStates(
+			List<Tuple2<OperatorID, BootstrapTransformation<?>>> newOperatorTransformations,
+			Path savepointWritePath) {
+		return newOperatorTransformations
+			.stream()
+			.map(transformation -> transformation.f1.writeOperatorState(transformation.f0, stateBackend, metadata, savepointWritePath))
+			.reduce(DataSet::union)
+			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
 	}
 }

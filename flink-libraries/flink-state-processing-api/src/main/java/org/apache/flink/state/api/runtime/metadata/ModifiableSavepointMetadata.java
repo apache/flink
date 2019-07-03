@@ -1,6 +1,7 @@
 package org.apache.flink.state.api.runtime.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -11,7 +12,10 @@ import org.apache.flink.types.Either;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Savepoint metadata that can be modified.
@@ -61,7 +65,28 @@ public class ModifiableSavepointMetadata extends SavepointMetadata {
 		operatorStateIndex.put(id, Either.Right(transformation));
 	}
 
-	public Map<OperatorID, Either<OperatorState, BootstrapTransformation<?>>> getOperatorStates() {
-		return operatorStateIndex;
+	/**
+	 * @return List of {@link OperatorState} that already exists within the savepoint.
+	 */
+	public List<OperatorState> getExistingOperators() {
+		return operatorStateIndex
+			.values()
+			.stream()
+			.filter(Either::isLeft)
+			.map(Either::left)
+			.collect(Collectors.toList());
+	}
+
+	/**
+	 * @return List of new operator states for the savepoint, represented by their target {@link OperatorID} and {@link BootstrapTransformation}.
+	 */
+	public List<Tuple2<OperatorID, BootstrapTransformation<?>>> getNewOperatorTransformations() {
+		Stream<Tuple2<OperatorID, BootstrapTransformation<?>>> transformations = operatorStateIndex
+			.entrySet()
+			.stream()
+			.filter(entry -> entry.getValue().isRight())
+			.map(entry -> Tuple2.of(entry.getKey(), entry.getValue().right()));
+
+		return transformations.collect(Collectors.toList());
 	}
 }
