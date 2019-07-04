@@ -26,6 +26,9 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Preconditions;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutureCallback;
+import com.google.api.core.ApiFutures;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
@@ -38,14 +41,17 @@ import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
+import static org.apache.flink.runtime.concurrent.Executors.directExecutor;
 
 /**
  * A sink function that outputs to PubSub.
@@ -55,6 +61,9 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
 public class PubSubSink<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
+	private final AtomicReference<Exception> exceptionAtomicReference;
+	private final ApiFutureCallback<String> failureHandler;
+	private final ConcurrentLinkedQueue<ApiFuture<String>> outstandingFutures;
 	private final Credentials credentials;
 	private final SerializationSchema<IN> serializationSchema;
 	private final String projectName;
@@ -62,6 +71,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	private final String hostAndPortForEmulator;
 
 	private transient Publisher publisher;
+	private volatile boolean isRunning;
 
 	private PubSubSink(
 		Credentials credentials,
@@ -69,6 +79,9 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		String projectName,
 		String topicName,
 		String hostAndPortForEmulator) {
+		this.exceptionAtomicReference = new AtomicReference<>();
+		this.failureHandler = new FailureHandler();
+		this.outstandingFutures = new ConcurrentLinkedQueue<>();
 		this.credentials = credentials;
 		this.serializationSchema = serializationSchema;
 		this.projectName = projectName;
@@ -96,6 +109,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		}
 
 		publisher = builder.build();
+		isRunning = true;
 	}
 
 	@Override
@@ -104,6 +118,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		shutdownPublisher();
 		shutdownTransportChannel();
 		shutdownManagedChannel();
+		isRunning = false;
 	}
 
 	private void shutdownPublisher() {
@@ -146,7 +161,9 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 			.setData(ByteString.copyFrom(serializationSchema.serialize(message)))
 			.build();
 
-		publisher.publish(pubsubMessage).get();
+		ApiFuture<String> future = publisher.publish(pubsubMessage);
+		outstandingFutures.add(future);
+		ApiFutures.addCallback(future, failureHandler, directExecutor());
 	}
 
 	/**
@@ -163,6 +180,17 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		//before checkpoints make sure all the batched / buffered pubsub messages have actually been sent
 		publisher.publishAllOutstanding();
+
+		waitForFuturesToComplete();
+		if (exceptionAtomicReference.get() != null) {
+			throw exceptionAtomicReference.get();
+		}
+	}
+
+	private void waitForFuturesToComplete() {
+		while (isRunning && !outstandingFutures.isEmpty()) {
+			outstandingFutures.removeIf(ApiFuture::isDone);
+		}
 	}
 
 	@Override
@@ -272,5 +300,18 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		 * Set the subscription name of the subscription to pull messages from.
 		 */
 		PubSubSinkBuilder<IN> withTopicName(String topicName);
+	}
+
+	private class FailureHandler implements ApiFutureCallback<String>, Serializable {
+		@Override
+		public void onFailure(Throwable t) {
+			exceptionAtomicReference.set(new RuntimeException("Failed trying to publish message", t));
+		}
+
+		@Override
+		public void onSuccess(String result) {
+			//do nothing on success
+			LOG.debug("Successfully published message with id: {}", result);
+		}
 	}
 }

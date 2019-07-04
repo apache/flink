@@ -18,9 +18,11 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
 
@@ -103,11 +105,16 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 	}
 
 	@Test(expected = Exception.class)
-	public void testFlinkSinkThrowsExceptionOnFailure() throws Exception {
+	public void testPubSubSinkThrowsExceptionOnFailure() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(100);
+		env.setParallelism(1);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 
 		// Create test stream
-		env.fromCollection(Arrays.asList("some-message")).name("Test input")
+		//use source function to prevent the job from shutting down before a checkpoint has been made
+		env.addSource(new SingleInputSourceFunction())
+
 			.map((MapFunction<String, String>) StringUtils::reverse)
 			.addSink(PubSubSink.newBuilder(String.class)
 								.withSerializationSchema(new SimpleStringSchema())
@@ -120,6 +127,20 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 
 		// Run
 		env.execute();
+	}
+
+	private class SingleInputSourceFunction implements SourceFunction<String> {
+
+		@Override
+		public void run(SourceContext<String> ctx) throws Exception {
+			ctx.collect("input");
+			Thread.sleep(1000 * 60);
+		}
+
+		@Override
+		public void cancel() {
+
+		}
 	}
 
 }
