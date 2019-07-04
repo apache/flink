@@ -180,7 +180,7 @@ class CorrelateTest extends TableTestBase {
       .replaceLogicalOptRuleSet(RuleSets.ofList(logicalRuleSet.toList))
       .build()
 
-    util.tableEnv.getConfig.addPlannerConfig(cc)
+    util.tableEnv.getConfig.setPlannerConfig(cc)
 
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc0)
