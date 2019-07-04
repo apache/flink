@@ -31,7 +31,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.sql.SqlAggFunction;
 
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
@@ -43,7 +43,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  */
 public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFunction> {
 
-	private static final Map<FunctionDefinition, SqlAggFunction> AGG_DEF_SQL_OPERATOR_MAPPING = new HashMap<>();
+	private static final Map<FunctionDefinition, SqlAggFunction> AGG_DEF_SQL_OPERATOR_MAPPING = new IdentityHashMap<>();
 
 	static {
 		AGG_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.AVG, FlinkSqlOperatorTable.AVG);
@@ -72,7 +72,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 		if (AGG_DEF_SQL_OPERATOR_MAPPING.containsKey(def)) {
 			return AGG_DEF_SQL_OPERATOR_MAPPING.get(def);
 		}
-		if (BuiltInFunctionDefinitions.DISTINCT.equals(def)) {
+		if (BuiltInFunctionDefinitions.DISTINCT == def) {
 			Expression innerAgg = call.getChildren().get(0);
 			return innerAgg.accept(this);
 		}

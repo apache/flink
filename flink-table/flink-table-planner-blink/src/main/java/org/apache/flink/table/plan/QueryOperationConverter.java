@@ -175,7 +175,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			Preconditions.checkArgument(expression instanceof CallExpression, "This should never happened");
 			CallExpression aliasExpr = (CallExpression) expression;
 			Preconditions.checkArgument(
-					BuiltInFunctionDefinitions.AS.equals(aliasExpr.getFunctionDefinition()),
+					BuiltInFunctionDefinitions.AS == aliasExpr.getFunctionDefinition(),
 					"This should never happened");
 			String name = ((ValueLiteralExpression) aliasExpr.getChildren().get(1)).getValueAs(String.class)
 					.orElseThrow(
@@ -184,13 +184,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			Preconditions.checkArgument(windowPropertyExpr instanceof CallExpression, "This should never happened");
 			CallExpression windowPropertyCallExpr = (CallExpression) windowPropertyExpr;
 			FunctionDefinition fd = windowPropertyCallExpr.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.WINDOW_START.equals(fd)) {
+			if (BuiltInFunctionDefinitions.WINDOW_START == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerWindowStart(windowReference));
-			} else if (BuiltInFunctionDefinitions.WINDOW_END.equals(fd)) {
+			} else if (BuiltInFunctionDefinitions.WINDOW_END == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerWindowEnd(windowReference));
-			} else if (BuiltInFunctionDefinitions.PROCTIME.equals(fd)) {
+			} else if (BuiltInFunctionDefinitions.PROCTIME == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerProctimeAttribute(windowReference));
-			} else if (BuiltInFunctionDefinitions.ROWTIME.equals(fd)) {
+			} else if (BuiltInFunctionDefinitions.ROWTIME == fd) {
 				return new FlinkRelBuilder.PlannerNamedWindowProperty(name, new PlannerRowtimeAttribute(windowReference));
 			} else {
 				throw new TableException("Invalid literal.");
@@ -486,7 +486,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		@Override
 		public RelBuilder.AggCall visit(CallExpression call) {
 			FunctionDefinition def = call.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.DISTINCT.equals(def)) {
+			if (BuiltInFunctionDefinitions.DISTINCT == def) {
 				Expression innerAgg = call.getChildren().get(0);
 				return innerAgg.accept(new AggCallVisitor(relBuilder, rexNodeConverter, name, true));
 			} else {
