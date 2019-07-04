@@ -21,7 +21,10 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -42,6 +45,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -53,6 +57,7 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
@@ -261,6 +266,10 @@ public class YarnResourceManagerTest extends TestLogger {
 		 * Create mock RM dependencies.
 		 */
 		Context() throws Exception {
+			this(flinkConfig);
+		}
+
+		Context(Configuration configuration) throws  Exception {
 			rpcService = new TestingRpcService();
 			rmServices = new MockResourceManagerRuntimeServices();
 
@@ -271,7 +280,7 @@ public class YarnResourceManagerTest extends TestLogger {
 							rpcService,
 							RM_ADDRESS,
 							rmResourceID,
-							flinkConfig,
+							configuration,
 							env,
 							rmServices.highAvailabilityServices,
 							rmServices.heartbeatServices,
@@ -419,7 +428,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				final SlotReport slotReport = new SlotReport(
 					new SlotStatus(
 						new SlotID(taskManagerResourceId, 1),
-						new ResourceProfile(10, 1, 1, 1, 0, Collections.emptyMap())));
+						new ResourceProfile(10, 1, 1, 1, 0, 0, Collections.emptyMap())));
 
 				CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
 					.registerTaskExecutor(
@@ -519,6 +528,52 @@ public class YarnResourceManagerTest extends TestLogger {
 				// slot is already fulfilled by pending containers, no need to request new container.
 				resourceManager.onContainersCompleted(ImmutableList.of(testingContainerStatus));
 				verify(mockResourceManagerClient, times(2)).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+			});
+		}};
+	}
+
+	/**
+	 * Tests that RM and TM calculate same slot resource profile.
+	 * @throws Exception
+	 */
+	@Test
+	public void testCreateSlotsPerWorker() throws Exception {
+		testCreateSlotsPerWorker(flinkConfig, Resource.newInstance(500, 100));
+
+		Configuration config1 = new Configuration();
+		config1.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 5);
+		testCreateSlotsPerWorker(config1, Resource.newInstance(1000, 10));
+
+		Configuration config2 = new Configuration();
+		config2.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "789m");
+		testCreateSlotsPerWorker(config2,  Resource.newInstance(800, 50));
+
+		Configuration config3 = new Configuration();
+		config3.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "300m");
+		config3.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, true);
+		testCreateSlotsPerWorker(config3,  Resource.newInstance(2000, 60));
+
+		Configuration config4 = new Configuration();
+		config4.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, "10m");
+		config4.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN, "10m");
+		config4.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, true);
+		testCreateSlotsPerWorker(config4,  Resource.newInstance(1000, 1));
+	}
+
+	private void testCreateSlotsPerWorker(Configuration config, Resource resource) throws  Exception {
+		new Context(config) {{
+			runTest(() -> {
+
+				ResourceProfile rmCalculatedResourceProfile =
+					ResourceManager.createSlotsPerWorker(config, resource.getMemory(), config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS))
+						.iterator().next();
+
+				ResourceProfile tmCalculatedResourceProfile =
+					TaskManagerServices.computeSlotResourceProfile(
+						config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
+						MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getMebiBytes());
+
+				assertTrue(rmCalculatedResourceProfile.equals(tmCalculatedResourceProfile));
 			});
 		}};
 	}
