@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -89,6 +90,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final boolean isStoppable;
 	private final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
 
+	private final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor;
+
 	@Nullable
 	private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
@@ -106,6 +109,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			String jsonPlan,
 			StringifiedAccumulatorResult[] archivedUserAccumulators,
 			Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
+			PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor,
 			ArchivedExecutionConfig executionConfig,
 			boolean isStoppable,
 			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
@@ -121,6 +125,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
 		this.archivedUserAccumulators = Preconditions.checkNotNull(archivedUserAccumulators);
 		this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
+		this.persistentIntermediateResultDescriptor = Preconditions.checkNotNull(persistentIntermediateResultDescriptor);
 		this.archivedExecutionConfig = Preconditions.checkNotNull(executionConfig);
 		this.isStoppable = isStoppable;
 		this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
@@ -250,6 +255,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		return serializedUserAccumulators;
 	}
 
+	@Override
+	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
+		return persistentIntermediateResultDescriptor;
+	}
+
 	class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
 
 		private final Iterator<ArchivedExecutionJobVertex> jobVertices;
@@ -334,6 +344,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			executionGraph.getJsonPlan(),
 			executionGraph.getAccumulatorResultsStringified(),
 			serializedUserAccumulators,
+			executionGraph.getPersistentIntermediateResultDescriptor(),
 			executionGraph.getArchivedExecutionConfig(),
 			executionGraph.isStoppable(),
 			executionGraph.getCheckpointCoordinatorConfiguration(),

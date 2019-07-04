@@ -141,6 +141,7 @@ public class ResultPartitionFactory {
 		// Create the subpartitions.
 		switch (type) {
 			case BLOCKING:
+			case BLOCKING_PERSISTENT:
 				initializeBoundedBlockingPartitions(subpartitions, partition, blockingSubpartitionType, networkBufferSize, channelManager);
 				break;
 

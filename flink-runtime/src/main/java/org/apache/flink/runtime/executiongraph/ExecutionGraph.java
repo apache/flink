@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -53,9 +54,11 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.P
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
 import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -76,7 +79,9 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.util.PersistentIntermediateResultUtils;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -846,6 +851,33 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			.collect(Collectors.toMap(
 				Map.Entry::getKey,
 				entry -> serializeAccumulator(entry.getKey(), entry.getValue())));
+	}
+
+	@Override
+	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
+		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> resultPartitionDescriptors = new HashMap<>();
+
+		// keep record of all failed IntermediateDataSetID
+		Set<AbstractID> failedIntermediateDataSetIds = new HashSet<>();
+
+		for (ExecutionVertex executionVertex : getAllExecutionVertices()) {
+			for (IntermediateResultPartition intermediateResultPartition : executionVertex.getProducedPartitions().values()) {
+				if (intermediateResultPartition.getResultType() == ResultPartitionType.BLOCKING_PERSISTENT) {
+					try {
+						PersistentIntermediateResultUtils.collectShuffleDescriptor(
+							executionVertex.getExecutionGraph().getShuffleMaster(),
+							resultPartitionDescriptors,
+							intermediateResultPartition);
+					} catch (Throwable throwable) {
+						LOG.error("Failed to collect ShuffleDescriptor of a ResultPartition: " + intermediateResultPartition.getPartitionId(), throwable);
+						failedIntermediateDataSetIds.add(
+							new AbstractID(intermediateResultPartition.getIntermediateResult().getId()));
+					}
+				}
+			}
+		}
+
+		return new DefaultPersistentIntermediateResultDescriptor(resultPartitionDescriptors, failedIntermediateDataSetIds);
 	}
 
 	private static SerializedValue<OptionalFailure<Object>> serializeAccumulator(String name, OptionalFailure<Accumulator<?, ?>> accumulator) {

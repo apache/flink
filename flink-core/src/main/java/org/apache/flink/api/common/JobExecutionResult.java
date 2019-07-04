@@ -20,6 +20,8 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
 import org.apache.flink.util.OptionalFailure;
 
 import java.util.Collections;
@@ -38,14 +40,22 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
+	private final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor;
+
+	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+		this(jobID, netRuntime, accumulators, null);
+	}
+
 	/**
 	 * Creates a new JobExecutionResult.
 	 *
 	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulators produced by the job.
+	 * @param persistentIntermediateResultDescriptor BLOCKING_PERSISTENT ResultPartition locations of this Job Execution.
 	 */
-	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
+	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators,
+							  PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor) {
 		super(jobID);
 		this.netRuntime = netRuntime;
 
@@ -54,6 +64,10 @@ public class JobExecutionResult extends JobSubmissionResult {
 		} else {
 			this.accumulatorResults = Collections.emptyMap();
 		}
+
+		this.persistentIntermediateResultDescriptor =
+			persistentIntermediateResultDescriptor == null ?
+				new DefaultPersistentIntermediateResultDescriptor() : persistentIntermediateResultDescriptor;
 	}
 
 	/**
@@ -122,6 +136,10 @@ public class JobExecutionResult extends JobSubmissionResult {
 							+ "' should be Integer but has type " + result.getClass());
 		}
 		return (Integer) result;
+	}
+
+	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
+		return persistentIntermediateResultDescriptor;
 	}
 
 	/**
