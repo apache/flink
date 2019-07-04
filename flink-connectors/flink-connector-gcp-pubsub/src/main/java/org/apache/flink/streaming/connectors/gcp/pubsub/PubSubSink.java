@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
@@ -63,7 +63,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 
 	private final AtomicReference<Exception> exceptionAtomicReference;
 	private final ApiFutureCallback<String> failureHandler;
-	private final ConcurrentLinkedQueue<ApiFuture<String>> outstandingFutures;
+	private final AtomicInteger numPendingFutures;
 	private final Credentials credentials;
 	private final SerializationSchema<IN> serializationSchema;
 	private final String projectName;
@@ -81,7 +81,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		String hostAndPortForEmulator) {
 		this.exceptionAtomicReference = new AtomicReference<>();
 		this.failureHandler = new FailureHandler();
-		this.outstandingFutures = new ConcurrentLinkedQueue<>();
+		this.numPendingFutures = new AtomicInteger(0);
 		this.credentials = credentials;
 		this.serializationSchema = serializationSchema;
 		this.projectName = projectName;
@@ -162,18 +162,17 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 			.build();
 
 		ApiFuture<String> future = publisher.publish(pubsubMessage);
-		outstandingFutures.add(future);
+		numPendingFutures.incrementAndGet();
 		ApiFutures.addCallback(future, failureHandler, directExecutor());
 	}
 
 	/**
 	 * Create a builder for a new PubSubSink.
 	 *
-	 * @param <IN> The generic of the type that is to be written into the sink.
 	 * @return a new PubSubSinkBuilder instance
 	 */
-	public static <IN> SerializationSchemaBuilder<IN> newBuilder(Class<IN> clazz) {
-		return new PubSubSinkBuilder<>();
+	public static SerializationSchemaBuilder newBuilder() {
+		return new SerializationSchemaBuilder();
 	}
 
 	@Override
@@ -181,6 +180,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		//before checkpoints make sure all the batched / buffered pubsub messages have actually been sent
 		publisher.publishAllOutstanding();
 
+		// At this point, no new messages will be published because this thread has successfully acquired
+		// the checkpoint lock. So we just wait for all the pending futures to complete.
 		waitForFuturesToComplete();
 		if (exceptionAtomicReference.get() != null) {
 			throw exceptionAtomicReference.get();
@@ -188,8 +189,17 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	}
 
 	private void waitForFuturesToComplete() {
-		while (isRunning && !outstandingFutures.isEmpty()) {
-			outstandingFutures.removeIf(ApiFuture::isDone);
+		// We have to synchronize on numPendingFutures here to ensure the notification won't be missed.
+		synchronized (numPendingFutures) {
+			while (isRunning && numPendingFutures.get() > 0) {
+				try {
+					numPendingFutures.wait();
+				} catch (InterruptedException e) {
+					// Simply cache the interrupted exception. Supposedly the thread will exit the loop
+					// gracefully when it checks the isRunning flag.
+					LOG.info("Interrupted when waiting for futures to complete");
+				}
+			}
 		}
 	}
 
@@ -202,7 +212,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	 *
 	 * @param <IN> Type of PubSubSink to create.
 	 */
-	public static class PubSubSinkBuilder<IN> implements SerializationSchemaBuilder<IN>, ProjectNameBuilder<IN>, TopicNameBuilder<IN> {
+	public static class PubSubSinkBuilder<IN> implements ProjectNameBuilder<IN>, TopicNameBuilder<IN> {
 		private SerializationSchema<IN> serializationSchema;
 		private String projectName;
 		private String topicName;
@@ -210,7 +220,9 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		private Credentials credentials;
 		private String hostAndPort;
 
-		private PubSubSinkBuilder() { }
+		private PubSubSinkBuilder(SerializationSchema<IN> serializationSchema) {
+			this.serializationSchema = serializationSchema;
+		}
 
 		/**
 		 * Set the credentials.
@@ -221,13 +233,6 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		 */
 		public PubSubSinkBuilder<IN> withCredentials(Credentials credentials) {
 			this.credentials = credentials;
-			return this;
-		}
-
-		@Override
-		public ProjectNameBuilder<IN> withSerializationSchema(SerializationSchema<IN> serializationSchema) {
-			Preconditions.checkNotNull(serializationSchema);
-			this.serializationSchema = serializationSchema;
 			return this;
 		}
 
@@ -275,11 +280,13 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	/**
 	 * Part of {@link PubSubSinkBuilder} to set required fields.
 	 */
-	public interface SerializationSchemaBuilder<IN> {
+	public static class SerializationSchemaBuilder {
 		/**
 		 * Set the SerializationSchema used to Serialize objects to be added as payloads of PubSubMessages.
 		 */
-		ProjectNameBuilder<IN> withSerializationSchema(SerializationSchema<IN> deserializationSchema);
+		public <IN> ProjectNameBuilder<IN> withSerializationSchema(SerializationSchema<IN> deserializationSchema) {
+			return new PubSubSinkBuilder<>(deserializationSchema);
+		}
 	}
 
 	/**
@@ -305,13 +312,24 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	private class FailureHandler implements ApiFutureCallback<String>, Serializable {
 		@Override
 		public void onFailure(Throwable t) {
+			ackAndMaybeNotifyNoPendingFutures();
 			exceptionAtomicReference.set(new RuntimeException("Failed trying to publish message", t));
 		}
 
 		@Override
 		public void onSuccess(String result) {
-			//do nothing on success
+			ackAndMaybeNotifyNoPendingFutures();
 			LOG.debug("Successfully published message with id: {}", result);
+		}
+
+		private void ackAndMaybeNotifyNoPendingFutures() {
+			// When there are no pending futures anymore, notify the thread that is waiting for
+			// all the pending futures to be completed.
+			if (numPendingFutures.decrementAndGet() == 0) {
+				synchronized (numPendingFutures) {
+					numPendingFutures.notify();
+				}
+			}
 		}
 	}
 }

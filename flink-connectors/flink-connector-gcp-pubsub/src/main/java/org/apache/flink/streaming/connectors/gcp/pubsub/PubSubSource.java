@@ -155,8 +155,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		return deserializationSchema.getProducedType();
 	}
 
-	public static <OUT> DeserializationSchemaBuilder<OUT> newBuilder(Class<OUT> clazz) {
-		return new PubSubSourceBuilder<>();
+	public static DeserializationSchemaBuilder newBuilder() {
+		return new DeserializationSchemaBuilder();
 	}
 
 	@Override
@@ -189,7 +189,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	 *
 	 * @param <OUT> The type of objects which will be read
 	 */
-	public static class PubSubSourceBuilder<OUT> implements DeserializationSchemaBuilder<OUT>, ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
+	public static class PubSubSourceBuilder<OUT> implements ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
 		private PubSubDeserializationSchema<OUT> deserializationSchema;
 		private String projectName;
 		private String subscriptionName;
@@ -198,25 +198,18 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		private Credentials credentials;
 		private int maxMessageToAcknowledge = 10000;
 
-		protected PubSubSourceBuilder() {
-		}
-
-		@Override
-		public ProjectNameBuilder withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
+		private PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema) {
 			Preconditions.checkNotNull(deserializationSchema);
 			this.deserializationSchema = new DeserializationSchemaWrapper<>(deserializationSchema);
-			return this;
 		}
 
-		@Override
-		public ProjectNameBuilder withDeserializationSchema(PubSubDeserializationSchema deserializationSchema) {
+		private PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema) {
 			Preconditions.checkNotNull(deserializationSchema);
 			this.deserializationSchema = deserializationSchema;
-			return this;
 		}
 
 		@Override
-		public SubscriptionNameBuilder withProjectName(String projectName) {
+		public SubscriptionNameBuilder<OUT> withProjectName(String projectName) {
 			Preconditions.checkNotNull(projectName);
 			this.projectName = projectName;
 			return this;
@@ -306,17 +299,21 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	/**
 	 * Part of {@link PubSubSourceBuilder} to set required fields.
 	 */
-	public interface DeserializationSchemaBuilder<OUT> {
+	public static class DeserializationSchemaBuilder {
 		/**
 		 * Set the DeserializationSchema used to deserialize incoming PubSubMessages.
 		 * If you want access to meta data of a PubSubMessage use the overloaded withDeserializationSchema({@link PubSubDeserializationSchema}) method instead.
 		 */
-		ProjectNameBuilder<OUT> withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema);
+		public <OUT> ProjectNameBuilder<OUT> withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
+			return new PubSubSourceBuilder<>(deserializationSchema);
+		}
 
 		/**
 		 * Set the DeserializationSchema used to deserialize incoming PubSubMessages.
 		 */
-		ProjectNameBuilder<OUT> withDeserializationSchema(PubSubDeserializationSchema<OUT> deserializationSchema);
+		public <OUT> ProjectNameBuilder<OUT> withDeserializationSchema(PubSubDeserializationSchema<OUT> deserializationSchema) {
+			return new PubSubSourceBuilder<>(deserializationSchema);
+		}
 	}
 
 	/**
