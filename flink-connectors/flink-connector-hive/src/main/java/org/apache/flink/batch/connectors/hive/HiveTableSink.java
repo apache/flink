@@ -51,10 +51,10 @@ import org.apache.thrift.TException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Table sink to write to Hive tables.
@@ -171,26 +171,30 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 	}
 
 	@Override
-	public void setStaticPartition(Map<String, String> partitions) {
+	public void setStaticPartition(Map<String, String> partitionSpec) {
 		// make it a LinkedHashMap to maintain partition column order
 		staticPartitionSpec = new LinkedHashMap<>();
 		for (String partitionCol : getPartitionFieldNames()) {
-			if (partitions.containsKey(partitionCol)) {
-				staticPartitionSpec.put(partitionCol, partitions.get(partitionCol));
+			if (partitionSpec.containsKey(partitionCol)) {
+				staticPartitionSpec.put(partitionCol, partitionSpec.get(partitionCol));
 			}
 		}
 	}
 
 	private void validatePartitionSpec() {
 		List<String> partitionCols = getPartitionFieldNames();
-		Preconditions.checkArgument(new HashSet<>(partitionCols).containsAll(
-				staticPartitionSpec.keySet()), "Static partition spec contains unknown partition column: " + staticPartitionSpec.toString());
+		List<String> unknownPartCols = staticPartitionSpec.keySet().stream().filter(k -> !partitionCols.contains(k)).collect(Collectors.toList());
+		Preconditions.checkArgument(
+				unknownPartCols.isEmpty(),
+				"Static partition spec contains unknown partition column: " + unknownPartCols.toString());
 		int numStaticPart = staticPartitionSpec.size();
 		if (numStaticPart < partitionCols.size()) {
 			for (String partitionCol : partitionCols) {
 				if (!staticPartitionSpec.containsKey(partitionCol)) {
+					// this is a dynamic partition, make sure we have seen all static ones
 					Preconditions.checkArgument(numStaticPart == 0,
 							"Dynamic partition cannot appear before static partition");
+					return;
 				} else {
 					numStaticPart--;
 				}
