@@ -225,7 +225,7 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public int unsafeGetSizeOfQueuedBuffer() {
+		public int unsynchronizedGetNumberOfQueuedBuffers() {
 			return 0;
 		}
 

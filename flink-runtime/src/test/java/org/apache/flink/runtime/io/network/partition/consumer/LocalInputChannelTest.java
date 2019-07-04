@@ -53,13 +53,16 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -429,6 +432,97 @@ public class LocalInputChannelTest {
 		assertFalse(channel.getNextBuffer().isPresent());
 	}
 
+	@Test
+	public void testQueuedNumberBuffers() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+		// Config
+		final int parallelism = 1;
+		final int producerBufferPoolSize = parallelism + 1;
+		final int numberOfBuffersPerChannel = 2;
+
+		checkArgument(parallelism >= 1);
+		checkArgument(producerBufferPoolSize >= parallelism);
+		checkArgument(numberOfBuffersPerChannel >= 1);
+
+		// Setup
+		// One thread per produced partition and one per consumer
+		final ExecutorService executor = Executors.newFixedThreadPool(2 * parallelism);
+
+		final NetworkBufferPool networkBuffers = new NetworkBufferPool(
+			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
+			TestBufferFactory.BUFFER_SIZE, 1);
+
+		final ResultPartitionManager partitionManager = new ResultPartitionManager();
+
+		final ResultPartitionID[] partitionIds = new ResultPartitionID[parallelism];
+		final TestPartitionProducer[] partitionProducers = new TestPartitionProducer[parallelism];
+
+		// Create all partitions
+		for (int i = 0; i < parallelism; i++) {
+			partitionIds[i] = new ResultPartitionID();
+
+			final ResultPartition partition = new ResultPartitionBuilder()
+				.setResultPartitionId(partitionIds[i])
+				.setNumberOfSubpartitions(parallelism)
+				.setNumTargetKeyGroups(parallelism)
+				.setResultPartitionManager(partitionManager)
+				.setSendScheduleOrUpdateConsumersMessage(true)
+				.setBufferPoolFactory(p ->
+					networkBuffers.createBufferPool(producerBufferPoolSize, producerBufferPoolSize))
+				.build();
+
+			// Create a buffer pool for this partition
+			partition.setup();
+
+			// Create the producer
+			partitionProducers[i] = new TestPartitionProducer(
+				partition,
+				false,
+				new TestPartitionProducerBufferSource(
+					parallelism,
+					partition.getBufferProvider(),
+					numberOfBuffersPerChannel)
+			);
+		}
+
+		// Test
+		try {
+			// Submit producer tasks
+			List<CompletableFuture<?>> results = Lists.newArrayListWithCapacity(
+				parallelism + 1);
+
+			for (int i = 0; i < parallelism; i++) {
+				results.add(CompletableFuture.supplyAsync(
+					CheckedSupplier.unchecked(partitionProducers[i]::call), executor));
+			}
+
+			// wait for produce complete
+			FutureUtils.waitForAll(results)
+				.get(60_000L, TimeUnit.MILLISECONDS);
+
+			// Create consumer & requestPartition
+			for (int i = 0; i < parallelism; i++) {
+				final TestLocalInputChannelConsumer consumer = new TestLocalInputChannelConsumer(
+					i,
+					parallelism,
+					numberOfBuffersPerChannel,
+					networkBuffers.createBufferPool(parallelism, parallelism),
+					partitionManager,
+					new TaskEventDispatcher(),
+					partitionIds);
+
+				consumer.getInputGate().requestPartitions();
+
+				// one is for EndOfPartitionEvent buffer
+				assertEquals(consumer.getInputGate().getNumberOfQueuedBuffers(), numberOfBuffersPerChannel + 1);
+			}
+		}
+		finally {
+			networkBuffers.destroyAllBufferPools();
+			networkBuffers.destroy();
+			executor.shutdown();
+		}
+	}
+
 	// ---------------------------------------------------------------------------------------------
 
 	/**
@@ -557,6 +651,10 @@ public class LocalInputChannelTest {
 			}
 
 			return null;
+		}
+
+		public SingleInputGate getInputGate() {
+			return inputGate;
 		}
 	}
 }

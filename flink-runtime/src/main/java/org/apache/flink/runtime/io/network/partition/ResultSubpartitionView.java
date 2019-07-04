@@ -61,5 +61,5 @@ public interface ResultSubpartitionView {
 
 	boolean isAvailable();
 
-	int unsafeGetSizeOfQueuedBuffer();
+	int unsynchronizedGetNumberOfQueuedBuffers();
 }

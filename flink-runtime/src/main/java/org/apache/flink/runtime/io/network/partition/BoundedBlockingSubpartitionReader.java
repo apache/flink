@@ -167,7 +167,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public int unsafeGetSizeOfQueuedBuffer() {
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
 		return parent.unsynchronizedGetNumberOfQueuedBuffers();
 	}
 
