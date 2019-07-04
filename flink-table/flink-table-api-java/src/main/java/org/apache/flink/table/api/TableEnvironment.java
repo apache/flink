@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
@@ -52,6 +53,26 @@ import java.util.Optional;
  */
 @PublicEvolving
 public interface TableEnvironment {
+
+	/**
+	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * API programs.
+	 *
+	 * <p>It is unified for bounded and unbounded data processing.
+	 *
+	 * <p>A stream table environment is responsible for:
+	 * <ul>
+	 *     <li>Connecting to external systems.</li>
+	 *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+	 *     <li>Executing SQL statements.</li>
+	 *     <li>Offering further configuration options.</li>
+	 * </ul>
+	 *
+	 * @param settings The environment settings used to instantiate the {@link TableEnvironment}.
+	 */
+	static TableEnvironment create(EnvironmentSettings settings) {
+		return TableEnvironmentImpl.create(settings);
+	}
 
 	/**
 	 * Creates a table from a table source.
