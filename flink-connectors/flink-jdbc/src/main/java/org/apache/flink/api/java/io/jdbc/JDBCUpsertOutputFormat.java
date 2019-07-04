@@ -66,13 +66,13 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 	private transient volatile Exception flushException;
 
 	public JDBCUpsertOutputFormat(
-		JDBCOptions options,
-		String[] fieldNames,
-		String[] keyFields,
-		int[] fieldTypes,
-		int flushMaxSize,
-		long flushIntervalMills,
-		int maxRetryTimes) {
+			JDBCOptions options,
+			String[] fieldNames,
+			String[] keyFields,
+			int[] fieldTypes,
+			int flushMaxSize,
+			long flushIntervalMills,
+			int maxRetryTimes) {
 		super(options.getUsername(), options.getPassword(), options.getDriverName(), options.getDbURL());
 		this.tableName = options.getTableName();
 		this.dialect = options.getDialect();
@@ -153,6 +153,8 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		for (int i = 1; i <= maxRetryTimes; i++) {
 			try {
 				jdbcWriter.executeBatch();
+				batchCount = 0;
+				break;
 			} catch (SQLException e) {
 				LOG.error("JDBC executeBatch error, retry times = {}", i, e);
 				if (i >= maxRetryTimes) {

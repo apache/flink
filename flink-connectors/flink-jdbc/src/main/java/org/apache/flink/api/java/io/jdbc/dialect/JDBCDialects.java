@@ -109,7 +109,7 @@ public final class JDBCDialects {
 
 		@Override
 		public boolean canHandle(String url) {
-			return url.startsWith("jdbc:postgresql");
+			return url.startsWith("jdbc:postgresql:");
 		}
 
 		@Override

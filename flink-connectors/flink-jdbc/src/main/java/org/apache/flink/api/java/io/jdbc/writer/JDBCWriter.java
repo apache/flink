@@ -30,8 +30,14 @@ import java.sql.SQLException;
  */
 public interface JDBCWriter extends Serializable {
 
+	/**
+	 * Open the writer by JDBC Connection. It can create Statement from Connection.
+	 */
 	void open(Connection connection) throws SQLException;
 
+	/**
+	 * Add record to writer, the writer may cache the data.
+	 */
 	void addRecord(Tuple2<Boolean, Row> record) throws SQLException;
 
 	/**
@@ -39,5 +45,8 @@ public interface JDBCWriter extends Serializable {
 	 */
 	void executeBatch() throws SQLException;
 
+	/**
+	 * Close JDBC related statements and other classes.
+	 */
 	void close() throws SQLException;
 }
