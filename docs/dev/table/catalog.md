@@ -83,7 +83,7 @@ Its config entry value in SQL CLI yaml file is "hive".
 
 Previously, Flink meta-objects are only stored in memory and are per session based. That means users have to recreate all the meta-objects every time they start a new session.
 
-To solve this user pain point, we use `HiveCatalog` to persist all of users' Flink streaming and batch meta-objects by using Hive Metastore as a pure storage. Because Hive Metastore is only used for storage in this case, Hive itself may not understand Flink's meta-objects stored in the metastore.
+To solve this user pain point, users can choose the option to use `HiveCatalog` to persist all of users' Flink streaming and batch meta-objects by using Hive Metastore as a pure storage. Because Hive Metastore is only used for storage in this case, Hive itself may not understand Flink's meta-objects stored in the metastore.
 
 ### Integrate Flink with Hive metadata
 
@@ -122,7 +122,7 @@ Take Hive 2.3.4 for example:
 
 // Hadoop dependencies
 - flink-shaded-hadoop-2-uber-2.7.5-1.8.0.jar
-- flink-hadoop-compatibility-xxx.jar
+- flink-hadoop-compatibility-{{site.version}}.jar
 
 ```
 
@@ -193,17 +193,17 @@ To use custom catalog in SQL CLI, users should develop both a catalog implementa
 
 {% top %}
 
-Catalog Module
---------------
+Catalog Modules
+---------------
 
-`GenericInMemoryCatalog` is built in `flink-table` module.
+`GenericInMemoryCatalog` is built in Flink's Table API.
 
-In order to use Hive-metastore-backed catalogs in Flink, users need to include `flink-connector-hive` jar in their projects.
+In order to use `HiveCatalog` in Flink Table API and SQL, users need to include `flink-connector-hive` jar in their projects.
 
 {% highlight xml %}
 <dependency>
-	<groupId>com.alibaba.blink</groupId>
-	<artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
+	<groupId>org.apache.flink</groupId>
+	<artifactId>flink-connector-hive_{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
@@ -310,6 +310,7 @@ To run a few example SQL commands to access a Hive table.
 Flink SQL> show catalogs;
 myHive1
 myHive2
+default_catalog
 
 # ------ Set default catalog and database ------
 
