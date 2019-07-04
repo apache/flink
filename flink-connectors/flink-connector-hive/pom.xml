@@ -149,10 +149,10 @@ under the License.
 					<groupId>joda-time</groupId>
 					<artifactId>joda-time</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-1.2-api</artifactId>
-				</exclusion>
+<!--				<exclusion>-->
+<!--					<groupId>org.apache.logging.log4j</groupId>-->
+<!--					<artifactId>log4j-1.2-api</artifactId>-->
+<!--				</exclusion>-->
 				<exclusion>
 					<groupId>org.apache.logging.log4j</groupId>
 					<artifactId>log4j-slf4j-impl</artifactId>
@@ -403,6 +403,18 @@ under the License.
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-contrib</artifactId>
                 </exclusion>
+				<exclusion>
+					<groupId>org.apache.tez</groupId>
+					<artifactId>tez-dag</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.tez</groupId>
+					<artifactId>tez-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.tez</groupId>
+					<artifactId>tez-mapreduce</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -412,7 +424,47 @@ under the License.
 			<artifactId>reflections</artifactId>
 			<version>0.9.8</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
+
+		<dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-service</artifactId>
+            <version>${hive.version}</version>
+            <scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-exec</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-metastore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+        </dependency>
+
+		<dependency>
+            <groupId>org.apache.hive.hcatalog</groupId>
+            <artifactId>hive-hcatalog-core</artifactId>
+            <version>${hive.version}</version>
+            <scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+        </dependency>
 
 	</dependencies>
 
