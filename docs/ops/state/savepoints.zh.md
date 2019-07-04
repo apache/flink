@@ -78,7 +78,7 @@ mapper-id   | State of StatefulMapper
 
 ### 触发 Savepoint
 
-当触发 Savepoint 时，将创建一个新的 Savepoint 目录，其中存储数据和元数据。可以通过[配置默认目标目录](#configuration)或使用触发器命令指定自定义目标目录(参见[`:targetDirectory `参数](#trigger-a-savepoint)来控制该目录的位置。
+当触发 Savepoint 时，将创建一个新的 Savepoint 目录，其中存储数据和元数据。可以通过[配置默认目标目录](#configuration)或使用触发器命令指定自定义目标目录(参见[`:targetDirectory`参数](#trigger-a-savepoint)来控制该目录的位置。
 
 <div class="alert alert-warning">
 <strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统上的位置。
@@ -198,7 +198,7 @@ state.savepoints.dir: hdfs:///flink/savepoints
 默认情况下，从 Savepoint 恢复时将尝试将所有状态分配给新作业。如果有状态算子被删除，则无法从 Savepoint 恢复。
 
 
-你可以通过使用 run 命令设置 `——allowNonRestoredState` (简称：`-n` )来允许删除有状态算子:
+你可以通过使用 run 命令设置 `--allowNonRestoredState` (简称：`-n` )来允许删除有状态算子:
 
 {% highlight shell %}
 $ bin/flink run -s :savepointPath -n [:runArgs]
