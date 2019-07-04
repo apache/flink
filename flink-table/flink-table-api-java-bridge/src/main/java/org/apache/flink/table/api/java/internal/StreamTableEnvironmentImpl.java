@@ -96,17 +96,21 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			StreamExecutionEnvironment executionEnvironment,
 			EnvironmentSettings settings,
 			TableConfig tableConfig) {
+
 		FunctionCatalog functionCatalog = new FunctionCatalog(
 			settings.getBuiltInCatalogName(),
 			settings.getBuiltInDatabaseName());
 		CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
-		Map<String, String> plannerProperties = settings.toPlannerProperties();
+
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = lookupExecutor(executorProperties, executionEnvironment);
+
+		Map<String, String> plannerProperties = settings.toPlannerProperties();
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
 			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
+
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
 			functionCatalog,

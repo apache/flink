@@ -269,15 +269,18 @@ object StreamTableEnvironmentImpl {
       settings: EnvironmentSettings,
       tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
-    val executorProperties = settings.toExecutorProperties
-    val plannerProperties = settings.toPlannerProperties
-    val executor = lookupExecutor(executorProperties, executionEnvironment)
+
     val functionCatalog = new FunctionCatalog(
       settings.getBuiltInCatalogName,
       settings.getBuiltInDatabaseName)
     val catalogManager = new CatalogManager(
       settings.getBuiltInCatalogName,
       new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+
+    val executorProperties = settings.toExecutorProperties
+    val executor = lookupExecutor(executorProperties, executionEnvironment)
+
+    val plannerProperties = settings.toPlannerProperties
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
       .create(
         plannerProperties,
@@ -285,6 +288,7 @@ object StreamTableEnvironmentImpl {
         tableConfig,
         functionCatalog,
         catalogManager)
+
     new StreamTableEnvironmentImpl(
       catalogManager,
       functionCatalog,
