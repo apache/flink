@@ -32,7 +32,7 @@ public class StringWriterTest {
 
 	@Test
 	public void testDuplicate() {
-		StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name(), "\n");
+		StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name());
 		writer.setSyncOnFlush(true);
 		StringWriter<String> other = writer.duplicate();
 
@@ -41,5 +41,7 @@ public class StringWriterTest {
 		writer.setSyncOnFlush(false);
 		assertFalse(StreamWriterBaseComparator.equals(writer, other));
 		assertFalse(StreamWriterBaseComparator.equals(writer, new StringWriter<>()));
+		assertFalse(StreamWriterBaseComparator.equals(new StringWriter<>(StandardCharsets.UTF_16.name(), "\n"), new StringWriter<>(StandardCharsets.UTF_16.name(), "\r\n")));
+
 	}
 }
