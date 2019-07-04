@@ -22,8 +22,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -64,6 +68,7 @@ import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -81,6 +86,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -1191,8 +1197,30 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	//  Helper methods
 	// ------------------------------------------------------------------------
 
-	protected static Collection<ResourceProfile> createSlotsPerWorker(int numSlots) {
-		return Collections.nCopies(numSlots, ResourceProfile.ANY);
+	@VisibleForTesting
+	public static Collection<ResourceProfile> createSlotsPerWorker(Configuration config, long totalMemoryMB, int numSlots) {
+		final long cutoffMB = ContaineredTaskManagerParameters.calculateCutoffMB(config, totalMemoryMB);
+
+		final long networkMB = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
+			(totalMemoryMB - cutoffMB) << 20, // megabytes to bytes
+			config) >> 20; // bytes to megabytes
+
+		final long managedMB;
+		if (config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			managedMB = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
+		} else {
+			managedMB = (long) ((totalMemoryMB - cutoffMB - networkMB) * config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION));
+		}
+
+		ResourceProfile resourceProfile = new ResourceProfile(
+			Double.MAX_VALUE,
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			(int) (managedMB / numSlots),
+			Collections.emptyMap());
+		return Collections.nCopies(numSlots, resourceProfile);
 	}
 }
 

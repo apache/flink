@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -258,13 +259,15 @@ public class TaskManagerServices {
 
 		// this call has to happen strictly after the network stack has been initialized
 		final MemoryManager memoryManager = createMemoryManager(taskManagerServicesConfiguration);
+		final long managedMemorySize = memoryManager.getMemorySize();
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
+		final int numOfSlots = taskManagerServicesConfiguration.getNumberOfSlots();
+		final List<ResourceProfile> resourceProfiles = new ArrayList<>(numOfSlots);
 
 		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(ResourceProfile.ANY);
+			resourceProfiles.add(computeSlotResourceProfile(numOfSlots, managedMemorySize));
 		}
 
 		final TimerService<AllocationID> timerService = new TimerService<>(
@@ -509,5 +512,18 @@ public class TaskManagerServices {
 				throw new IllegalArgumentException("Temporary file directory #$id is null.");
 			}
 		}
+	}
+
+	@VisibleForTesting
+	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
+		int managedMemoryPerSlot = (int) (managedMemorySize / numOfSlots);
+		return new ResourceProfile(
+			Double.MAX_VALUE,
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			Integer.MAX_VALUE,
+			managedMemoryPerSlot,
+			Collections.emptyMap());
 	}
 }

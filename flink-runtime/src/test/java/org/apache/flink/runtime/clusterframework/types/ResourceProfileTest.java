@@ -31,10 +31,10 @@ public class ResourceProfileTest {
 
 	@Test
 	public void testMatchRequirement() throws Exception {
-		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 0, Collections.emptyMap());
-		ResourceProfile rp2 = new ResourceProfile(1.0, 200, 200, 200, 0, Collections.emptyMap());
-		ResourceProfile rp3 = new ResourceProfile(2.0, 100, 100, 100, 0, Collections.emptyMap());
-		ResourceProfile rp4 = new ResourceProfile(2.0, 200, 200, 200, 0, Collections.emptyMap());
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 0, 0, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(1.0, 200, 200, 200, 0, 0, Collections.emptyMap());
+		ResourceProfile rp3 = new ResourceProfile(2.0, 100, 100, 100, 0, 0, Collections.emptyMap());
+		ResourceProfile rp4 = new ResourceProfile(2.0, 200, 200, 200, 0, 0, Collections.emptyMap());
 
 		assertFalse(rp1.isMatching(rp2));
 		assertTrue(rp2.isMatching(rp1));
@@ -50,7 +50,7 @@ public class ResourceProfileTest {
 		assertTrue(rp4.isMatching(rp3));
 		assertTrue(rp4.isMatching(rp4));
 
-		ResourceProfile rp5 = new ResourceProfile(2.0, 100, 100, 100, 100, null);
+		ResourceProfile rp5 = new ResourceProfile(2.0, 100, 100, 100, 100, 100, null);
 		assertFalse(rp4.isMatching(rp5));
 
 		ResourceSpec rs1 = ResourceSpec.newBuilder().
@@ -99,20 +99,22 @@ public class ResourceProfileTest {
 				build();
 		assertTrue(ResourceProfile.fromResourceSpec(rs3, 100).equals(ResourceProfile.fromResourceSpec(rs5, 100)));
 
-		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, Collections.emptyMap());
-		ResourceProfile rp2 = new ResourceProfile(1.1, 100, 100, 100, 100, Collections.emptyMap());
-		ResourceProfile rp3 = new ResourceProfile(1.0, 110, 100, 100, 100, Collections.emptyMap());
-		ResourceProfile rp4 = new ResourceProfile(1.0, 100, 110, 100, 100, Collections.emptyMap());
-		ResourceProfile rp5 = new ResourceProfile(1.0, 100, 100, 110, 100, Collections.emptyMap());
-		ResourceProfile rp6 = new ResourceProfile(1.0, 100, 100, 100, 110, Collections.emptyMap());
-		ResourceProfile rp7 = new ResourceProfile(1.0, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(1.1, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp3 = new ResourceProfile(1.0, 110, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp4 = new ResourceProfile(1.0, 100, 110, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp5 = new ResourceProfile(1.0, 100, 100, 110, 100, 100, Collections.emptyMap());
+		ResourceProfile rp6 = new ResourceProfile(1.0, 100, 100, 100, 110, 100, Collections.emptyMap());
+		ResourceProfile rp7 = new ResourceProfile(1.0, 100, 100, 100, 100, 110, Collections.emptyMap());
+		ResourceProfile rp8 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
 
 		assertFalse(rp1.equals(rp2));
 		assertFalse(rp1.equals(rp3));
 		assertFalse(rp1.equals(rp4));
 		assertFalse(rp1.equals(rp5));
 		assertFalse(rp1.equals(rp6));
-		assertTrue(rp1.equals(rp7));
+		assertFalse(rp1.equals(rp7));
+		assertTrue(rp1.equals(rp8));
 	}
 
 	@Test
