@@ -470,7 +470,7 @@ public class StreamGraph extends StreamingPlan {
 			}
 
 			if (shuffleMode == null) {
-				shuffleMode = ShuffleMode.PIPELINED;
+				shuffleMode = ShuffleMode.UNDEFINED;
 			}
 
 			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, shuffleMode);

@@ -509,6 +509,7 @@ public class StreamingJobGraphGenerator {
 		ResultPartitionType resultPartitionType;
 		switch (edge.getShuffleMode()) {
 			case PIPELINED:
+			case UNDEFINED:
 				resultPartitionType = ResultPartitionType.PIPELINED_BOUNDED;
 				break;
 			case BATCH:
