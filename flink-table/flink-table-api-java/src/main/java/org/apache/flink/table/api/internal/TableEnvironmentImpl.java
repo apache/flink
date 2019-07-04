@@ -68,6 +68,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces.
@@ -269,7 +270,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public String explain(Table table) {
-		return planner.explain(Collections.singletonList(table.getQueryOperation()), false);
+		return explain(table, false);
+	}
+
+	@Override
+	public String explain(Table table, boolean extended) {
+		return planner.explain(Collections.singletonList(table.getQueryOperation()), extended);
+	}
+
+	@Override
+	public String explain(boolean extended) {
+		List<Operation> operations = bufferedModifyOperations.stream()
+			.map(o -> (Operation) o).collect(Collectors.toList());
+		return planner.explain(operations, extended);
 	}
 
 	@Override

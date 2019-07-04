@@ -290,6 +290,25 @@ public interface TableEnvironment {
 	String explain(Table table);
 
 	/**
+	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+	 * the result of the given {@link Table}.
+	 *
+	 * @param table The table for which the AST and execution plan will be returned.
+	 * @param extended if the plan should contain additional properties such as
+	 * e.g. estimated cost, traits
+	 */
+	String explain(Table table, boolean extended);
+
+	/**
+	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+	 * the result of multiple-sinks plan.
+	 *
+	 * @param extended if the plan should contain additional properties such as
+	 * e.g. estimated cost, traits
+	 */
+	String explain(boolean extended);
+
+	/**
 	 * Returns completion hints for the given statement at the given cursor position.
 	 * The completion happens case insensitively.
 	 *

@@ -200,7 +200,9 @@ abstract class BatchTableEnvImpl(
 
   def explain(table: Table): String = explain(table: Table, extended = false)
 
-  override def execute(jobName: String): JobExecutionResult = execEnv.execute(jobName)
+  override def explain(extended: Boolean): String = {
+    throw new TableException("This method is unsupported in old planner.")
+  }
 
   protected def asQueryOperation[T](dataSet: DataSet[T], fields: Option[Array[Expression]])
     : DataSetQueryOperation[T] = {

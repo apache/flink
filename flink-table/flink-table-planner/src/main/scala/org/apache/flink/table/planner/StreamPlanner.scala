@@ -124,12 +124,13 @@ class StreamPlanner(
     tableOperations.asScala.map(translate).filter(Objects.nonNull).asJava
   }
 
-  override def explain(
-      tableOperations: util.List[QueryOperation],
-      extended: Boolean)
-    : String = {
-    tableOperations.asScala.map(explain(_, unwrapQueryConfig))
-      .mkString(s"${System.lineSeparator}${System.lineSeparator}")
+  override def explain(operations: util.List[Operation], extended: Boolean): String = {
+    operations.asScala.map {
+      case queryOperation: QueryOperation =>
+        explain(queryOperation, unwrapQueryConfig)
+      case operation =>
+        throw new TableException(s"${operation.getClass.getCanonicalName} is not supported")
+    }.mkString(s"${System.lineSeparator}${System.lineSeparator}")
   }
 
   override def getCompletionHints(

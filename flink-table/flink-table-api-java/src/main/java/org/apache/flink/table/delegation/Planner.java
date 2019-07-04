@@ -84,12 +84,12 @@ public interface Planner {
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan
 	 * to compute the result of the given collection of {@link QueryOperation}s.
 	 *
-	 * @param queryOperations The collection of relational queries for which the AST
+	 * @param operations The collection of relational queries for which the AST
 	 * and execution plan will be returned.
 	 * @param extended if the plan should contain additional properties such as
 	 * e.g. estimated cost, traits
 	 */
-	String explain(List<QueryOperation> queryOperations, boolean extended);
+	String explain(List<Operation> operations, boolean extended);
 
 	/**
 	 * Returns completion hints for the given statement at the given cursor position.
