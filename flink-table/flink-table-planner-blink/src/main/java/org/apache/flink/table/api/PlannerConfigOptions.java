@@ -65,7 +65,7 @@ public class PlannerConfigOptions {
 	@Documentation.ExcludeFromDocumentation(value = "Temporary solution to enable optimization that removes redundant sort for SortMergeJoin, " +
 			"and this config option will be removed later.")
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED =
-			key("sql.optimizer.sortmergejoin.remove-sort.enabled")
+			key("sql.optimizer.sort-merge-join.remove-sort.enabled")
 					.defaultValue(false)
 					.withDescription("When true, the optimizer will try to remove redundant sort for SortMergeJoin. " +
 							"However that will increase optimization time. Default value is false.");

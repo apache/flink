@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory
 import org.apache.flink.streaming.api.transformations.{SinkTransformation, SourceTransformation}
 import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableSchema, Types}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.StreamTableSource
@@ -108,10 +107,11 @@ class ExecNodeResourceTest(isBatch: Boolean,
   @Test
   def testUnionQuery(): Unit = {
     val statsOfTable4 = new TableStats(100L)
-    testUtil.addTableSource("table4",
-      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING),
-      Array("a", "b", "c"),
-      FlinkStatistic.builder().tableStats(statsOfTable4).build())
+    val table4Source = new MockTableSource(isBatch,
+      new TableSchema(Array("a", "b", "c"),
+        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)))
+    testUtil.addTableSource(
+      "table4", table4Source, FlinkStatistic.builder().tableStats(statsOfTable4).build())
 
     val sqlQuery = "SELECT sum(a) as sum_a, g FROM " +
         "(SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 " +
