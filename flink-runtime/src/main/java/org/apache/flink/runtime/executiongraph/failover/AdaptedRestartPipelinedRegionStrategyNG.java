@@ -31,6 +31,8 @@ import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.executiongraph.SchedulingUtils;
 import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -107,16 +109,19 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
 		FutureUtils.assertNoException(
 			cancelTasks(verticesToRestart)
-				.thenApply(ignored -> createResetAndRescheduleTasksRunnable(globalModVersion, vertexVersions))
-				.thenAccept(restartAction -> executionGraph.getRestartStrategy()
-					.restart(
-						restartAction::run,
-						executionGraph.getJobMasterMainThreadExecutor()
-				))
+				.thenRun(scheduleRestart(globalModVersion, vertexVersions))
 				.handle(failGlobalOnError()));
 	}
 
-	private Runnable createResetAndRescheduleTasksRunnable(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
+	private Runnable scheduleRestart(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
+		final RestartStrategy restartStrategy = executionGraph.getRestartStrategy();
+		return () -> restartStrategy.restart(
+			resetAndRescheduleTasks(globalModVersion, vertexVersions),
+			executionGraph.getJobMasterMainThreadExecutor()
+		);
+	}
+
+	private RestartCallback resetAndRescheduleTasks(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
 		return () -> {
 			if (!isLocalFailoverValid(globalModVersion)) {
 				LOG.info("Skip current region failover as a global failover is ongoing.");

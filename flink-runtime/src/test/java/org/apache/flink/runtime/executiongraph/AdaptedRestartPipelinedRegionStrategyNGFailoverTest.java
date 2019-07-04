@@ -26,7 +26,6 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -261,18 +260,8 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 	@Test
 	public void testFailoverExecutionDependentOnRestartStrategyRecoveryTrigger() throws Exception {
 		final JobGraph jobGraph = createBatchJobGraph();
-		final CompletableFuture<Void> restartCallFuture = new CompletableFuture<>();
-		final RestartStrategy restartStrategy = new RestartStrategy() {
-			@Override
-			public boolean canRestart() {
-				return true;
-			}
+		final TestRestartStrategy restartStrategy = new TestRestartStrategy();
 
-			@Override
-			public void restart(RestartCallback restarter, ScheduledExecutor executor) {
-				restartCallFuture.complete(null);
-			}
-		};
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, restartStrategy);
 
 		final ExecutionVertex ev = eg.getAllExecutionVertices().iterator().next();
@@ -285,7 +274,7 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		// the only thing the failover strategy should do is cancel tasks that require it
 
 		// sanity check to ensure we actually called into the restart strategy
-		assertEquals(restartCallFuture.isDone(),true);
+		assertEquals(restartStrategy.getNumberOfQueuedActions(), 1);
 		// 3 out of 4 tasks will be canceled, and removed from the set of registered executions
 		assertEquals(eg.getRegisteredExecutions().size(), 1);
 		// no job state change should occur; in case of a failover we never switch to RESTARTING/CANCELED
