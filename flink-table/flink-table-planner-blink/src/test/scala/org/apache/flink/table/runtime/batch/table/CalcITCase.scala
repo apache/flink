@@ -42,7 +42,7 @@ import scala.collection.{Seq, mutable}
 class CalcITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
   }
 

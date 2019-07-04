@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
@@ -33,8 +33,8 @@ import scala.collection.Seq
 class CorrelateITCase2 extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")
     registerCollection("inputTWithNull", TableFunctionITCase.testDataWithNull, type3, "a, b, c")
     registerCollection("SmallTable3", smallData3, type3, "a, b, c")

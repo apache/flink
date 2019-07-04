@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.{TestingRetractTableSink, TestingUpsertTableSink, _}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -703,8 +702,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |  ))
         |WHERE rank_num <= 4
       """.stripMargin
-
-    tEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE, 1)
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema

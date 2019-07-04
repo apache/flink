@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{StreamTableEnvironment, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
@@ -37,7 +37,6 @@ import java.util
 import java.util.Calendar
 
 import scala.collection.JavaConversions._
-
 
 /**
   * Stream physical RelNode for [[WatermarkAssigner]].
@@ -82,10 +81,10 @@ class StreamExecWatermarkAssigner(
       "None"
     } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
       val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-      val miniBatchLatency = tableConfig.getConf.getLong(
-        TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+      val miniBatchLatency = tableConfig.getMillisecondFromConfigDuration(
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
       Preconditions.checkArgument(miniBatchLatency > 0,
-        "MiniBatch latency must be greater that 0.", null)
+        "MiniBatch latency must be greater that 0 ms.", null)
       s"Proctime, ${miniBatchLatency}ms"
     } else if (miniBatchInterval.mode == MiniBatchMode.RowTime) {
       s"Rowtime, ${miniBatchInterval.interval}ms"
@@ -114,8 +113,8 @@ class StreamExecWatermarkAssigner(
 
     val inferredInterval = getTraitSet.getTrait(
       MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
-    val idleTimeout = tableEnv.getConfig.getConf.getLong(
-      TableConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
+    val idleTimeout = tableEnv.getConfig.getMillisecondFromConfigDuration(
+      ExecutionConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
 
     val (operator, opName) = if (inferredInterval.mode == MiniBatchMode.None ||
       inferredInterval.interval == 0) {

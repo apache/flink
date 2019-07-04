@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
+import org.apache.flink.table.api.AggPhaseEnforcer
+import org.apache.flink.table.plan.rules.physical.stream.IncrementalAggregateRule
 
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -38,9 +39,8 @@ class IncrementalAggregateTest(
     super.before()
     // enable incremental agg
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, true)
+      IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, true)
   }
-
 }
 
 object IncrementalAggregateTest {

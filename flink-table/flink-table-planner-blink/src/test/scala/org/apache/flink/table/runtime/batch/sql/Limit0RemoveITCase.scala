@@ -31,7 +31,7 @@ import scala.collection.Seq
 class Limit0RemoveITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     lazy val numericData = Seq(
       row(null, 1L, 1.0f, 1.0d, JBigDecimal.valueOf(1)),
       row(2, null, 2.0f, 2.0d, JBigDecimal.valueOf(2)),

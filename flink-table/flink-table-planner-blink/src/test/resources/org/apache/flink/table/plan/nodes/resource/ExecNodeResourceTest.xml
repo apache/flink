@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testConfigSourceParallelism[isBatch=false, NONE]">
+  <TestCase name="testConfigSourceParallelism[isBatch=false]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -32,23 +32,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConfigSourceParallelism[isBatch=false, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1, maxParallelism=1}])
-   +- Exchange(distribution=[single], resource=[{parallelism=-1}])
-      +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
-         +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
-            +- Calc(select=[c, a], resource=[{parallelism=100}])
-               +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=100}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testConfigSourceParallelism[isBatch=true, NONE]">
+  <TestCase name="testConfigSourceParallelism[isBatch=true]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -66,77 +50,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConfigSourceParallelism[isBatch=true, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1, maxParallelism=1}])
-   +- Exchange(distribution=[single], resource=[{parallelism=-1}])
-      +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[false], resource=[{parallelism=18}])
-         +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])
-            +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
-               +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0], resource=[{parallelism=5}])
-                  +- Calc(select=[c, a], resource=[{parallelism=5}])
-                     +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRangePartition[isBatch=false, NONE]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM table5 where d < 100 order by e]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
-+- Exchange(distribution=[single], resource=[{parallelism=-1}])
-   +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
-      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRangePartition[isBatch=false, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM table5 where d < 100 order by e]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sort(orderBy=[e ASC], resource=[{parallelism=1, maxParallelism=1}])
-+- Exchange(distribution=[single], resource=[{parallelism=-1}])
-   +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
-      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRangePartition[isBatch=true, NONE]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM table5 where d < 100 order by e]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sort(orderBy=[e ASC], resource=[{parallelism=18}])
-+- Exchange(distribution=[range[e ASC]], resource=[{parallelism=18}])
-   +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=18}])
-      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRangePartition[isBatch=true, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM table5 where d < 100 order by e]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sort(orderBy=[e ASC], resource=[{parallelism=8}])
-+- Exchange(distribution=[range[e ASC]], resource=[{parallelism=8}])
-   +- Calc(select=[d, e, f, g, h], where=[<(d, 100)], resource=[{parallelism=8}])
-      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=8}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSortLimit[isBatch=false, NONE]">
+  <TestCase name="testSortLimit[isBatch=false]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -152,23 +66,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortLimit[isBatch=false, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], resource=[{parallelism=1, maxParallelism=1}])
-   +- Exchange(distribution=[single], resource=[{parallelism=-1}])
-      +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], resource=[{parallelism=18}])
-         +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
-            +- Calc(select=[c, a], resource=[{parallelism=18}])
-               +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSourcePartitionMaxNum[isBatch=true, NONE]">
+  <TestCase name="testSourcePartitionMaxNum[isBatch=true]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM table3]]>
     </Resource>
@@ -178,7 +76,7 @@ TableSourceScan(table=[[default_catalog, default_database, table3, source: [Mock
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortLimit[isBatch=true, NONE]">
+  <TestCase name="testSortLimit[isBatch=true]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -196,45 +94,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortLimit[isBatch=true, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[sum_a, c], resource=[{parallelism=1}])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[true], resource=[{parallelism=1, maxParallelism=1}])
-   +- Exchange(distribution=[single], resource=[{parallelism=-1}])
-      +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], global=[false], resource=[{parallelism=18}])
-         +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])
-            +- Exchange(distribution=[hash[c]], resource=[{parallelism=-1}])
-               +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0], resource=[{parallelism=5}])
-                  +- Calc(select=[c, a], resource=[{parallelism=5}])
-                     +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSourcePartitionMaxNum[isBatch=false, NONE]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM table3]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSourcePartitionMaxNum[isBatch=false, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM table3]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUnionQuery[isBatch=true, NONE]">
+  <TestCase name="testUnionQuery[isBatch=true]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 WHERE b = e group by g]]>
     </Resource>
@@ -251,24 +111,24 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
                :     :- Calc(select=[a, b], resource=[{parallelism=18}])
                :     :  +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
                :     +- Calc(select=[a, b], resource=[{parallelism=18}])
-               :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+               :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
                +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
                   +- Calc(select=[e, g], resource=[{parallelism=18}])
                      +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSourcePartitionMaxNum[isBatch=true, ONLY_SOURCE]">
+  <TestCase name="testSourcePartitionMaxNum[isBatch=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM table3]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=2}])
+TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnionQuery[isBatch=false, ONLY_SOURCE]">
+  <TestCase name="testUnionQuery[isBatch=false]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 WHERE b = e group by g]]>
     </Resource>
@@ -283,53 +143,7 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
             :  +- Calc(select=[a, b], resource=[{parallelism=18}])
             :     +- Union(all=[true], union=[a, b, c], resource=[{parallelism=-1}])
             :        :- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-            :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-            +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
-               +- Calc(select=[e, g], resource=[{parallelism=18}])
-                  +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUnionQuery[isBatch=true, ONLY_SOURCE]">
-    <Resource name="sql">
-      <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 WHERE b = e group by g]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[sum_a, g], resource=[{parallelism=18}])
-+- HashAggregate(isMerge=[true], groupBy=[g], select=[g, Final_SUM(sum$0) AS sum_a], resource=[{parallelism=18}])
-   +- Exchange(distribution=[hash[g]], resource=[{parallelism=-1}])
-      +- LocalHashAggregate(groupBy=[g], select=[g, Partial_SUM(a) AS sum$0], resource=[{parallelism=18}])
-         +- Calc(select=[g, a], resource=[{parallelism=18}])
-            +- HashJoin(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, e, g], build=[left], resource=[{parallelism=18}])
-               :- Exchange(distribution=[hash[b]], resource=[{parallelism=-1}])
-               :  +- Union(all=[true], union=[a, b], resource=[{parallelism=-1}])
-               :     :- Calc(select=[a, b], resource=[{parallelism=5}])
-               :     :  +- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
-               :     +- Calc(select=[a, b], resource=[{parallelism=5}])
-               :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=5}])
-               +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
-                  +- Calc(select=[e, g], resource=[{parallelism=8}])
-                     +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=8}])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUnionQuery[isBatch=false, NONE]">
-    <Resource name="sql">
-      <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 WHERE b = e group by g]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[sum_a, g], resource=[{parallelism=18}])
-+- GroupAggregate(groupBy=[g], select=[g, SUM(a) AS sum_a], resource=[{parallelism=18}])
-   +- Exchange(distribution=[hash[g]], resource=[{parallelism=-1}])
-      +- Calc(select=[g, a], resource=[{parallelism=18}])
-         +- Join(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, e, g], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], resource=[{parallelism=18}])
-            :- Exchange(distribution=[hash[b]], resource=[{parallelism=-1}])
-            :  +- Calc(select=[a, b], resource=[{parallelism=18}])
-            :     +- Union(all=[true], union=[a, b, c], resource=[{parallelism=-1}])
-            :        :- TableSourceScan(table=[[default_catalog, default_database, table3, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
-            :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
+            :        +- TableSourceScan(table=[[default_catalog, default_database, table4, source: [MockTableSource(a, b, c)]]], fields=[a, b, c], resource=[{parallelism=18}])
             +- Exchange(distribution=[hash[e]], resource=[{parallelism=-1}])
                +- Calc(select=[e, g], resource=[{parallelism=18}])
                   +- TableSourceScan(table=[[default_catalog, default_database, table5, source: [MockTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h], resource=[{parallelism=18}])

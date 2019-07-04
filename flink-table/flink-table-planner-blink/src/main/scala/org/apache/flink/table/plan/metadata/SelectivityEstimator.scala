@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.plan.metadata.SelectivityEstimator._
 import org.apache.flink.table.plan.stats._
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, FlinkRexUtil}
@@ -34,6 +36,8 @@ import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.util.{ImmutableBitSet, TimeString}
+
+import java.lang.{Integer => JInteger}
 
 import scala.collection.JavaConversions._
 
@@ -59,7 +63,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   private val rexBuilder = rel.getCluster.getRexBuilder
   private val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
   private val maxCnfNodeCount = tableConfig.getConf.getInteger(
-    PlannerConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+    SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
 
   // these default values is referred to RelMdUtil#guessSelectivity
   private[flink] val defaultComparisonSelectivity = Some(0.5d)
@@ -981,6 +985,18 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 }
 
 object SelectivityEstimator {
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[JInteger] =
+    key("sql.optimizer.cnf.nodes.limit")
+        .defaultValue(JInteger.valueOf(-1))
+        .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
+            " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +
+            "this threshold; (e.g. predicate in TPC-DS q41.sql will be converted to hundreds of " +
+            "thousands of CNF nodes.) the threshold is expressed in terms of number of nodes " +
+            "(only count RexCall node, including leaves and interior nodes). " +
+            "Negative number to use the default threshold: double of number of nodes.")
 
   /**
     * Convert ValueInterval,

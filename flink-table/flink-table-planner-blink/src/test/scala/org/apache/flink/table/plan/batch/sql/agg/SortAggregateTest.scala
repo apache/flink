@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, OperatorType, PlannerConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OperatorType, OptimizerConfigOptions, ExecutionConfigOptions}
 
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -35,9 +35,9 @@ class SortAggregateTest(aggStrategy: AggPhaseEnforcer) extends AggregateTestBase
   def before(): Unit = {
     // disable hash agg
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.HashAgg.toString)
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.HashAgg.toString)
     util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggStrategy.toString)
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 }
 
@@ -46,7 +46,7 @@ object SortAggregateTest {
   @Parameterized.Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggPhaseEnforcer] = {
     Seq[AggPhaseEnforcer](
-      AggPhaseEnforcer.NONE,
+      AggPhaseEnforcer.AUTO,
       AggPhaseEnforcer.ONE_PHASE,
       AggPhaseEnforcer.TWO_PHASE
     )

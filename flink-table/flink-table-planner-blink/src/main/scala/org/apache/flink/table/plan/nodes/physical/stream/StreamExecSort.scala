@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
@@ -28,13 +28,16 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.sort.StreamSortOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
-import java.util
 
+import java.lang.{Boolean => JBoolean}
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 
 import scala.collection.JavaConversions._
 
@@ -96,7 +99,7 @@ class StreamExecSort(
     *
     * @return Array of this node's inputs
     */
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
+  override def getInputNodes: java.util.List[ExecNode[StreamTableEnvironment, _]] = {
     List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
   }
 
@@ -114,7 +117,7 @@ class StreamExecSort(
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
     val conf = tableEnv.getConfig
-    if (!conf.getConf.getBoolean(TableConfigOptions.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
+    if (!conf.getConf.getBoolean(StreamExecSort.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
       throw new TableException("Sort on a non-time-attribute field is not supported.")
     }
 
@@ -141,5 +144,14 @@ class StreamExecSort(
     }
     ret
   }
+}
+object StreamExecSort {
 
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_EXEC_SORT_NON_TEMPORAL_ENABLED: ConfigOption[JBoolean] =
+  key("sql.exec.sort.non-temporal.enabled")
+      .defaultValue(JBoolean.valueOf(false))
+      .withDescription("Set whether to enable universal sort for stream. When it is false, " +
+          "universal sort can't use for stream, default false. Just for testing.")
 }

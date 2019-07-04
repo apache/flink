@@ -37,7 +37,8 @@ class JoinITCase extends BatchTestBase {
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 

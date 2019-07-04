@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.sql.join
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, TableEnvironment}
+import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, TableEnvironment}
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 
 /**
@@ -28,7 +28,7 @@ object JoinITCaseHelper {
 
   def disableBroadcastHashJoin(tEnv: TableEnvironment): Unit = {
     tEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, -1)
+      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
   }
 
   def disableOtherJoinOpForJoin(tEnv: TableEnvironment, expected: JoinType): Unit = {
@@ -41,7 +41,7 @@ object JoinITCaseHelper {
       case NestedLoopJoin => "HashJoin, SortMergeJoin"
     }
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, disabledOperators)
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, disabledOperators)
   }
 
 }

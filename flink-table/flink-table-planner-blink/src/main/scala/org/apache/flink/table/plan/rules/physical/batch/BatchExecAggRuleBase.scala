@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.table.JArrayList
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableConfig, TableException}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizerConfigOptions, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
@@ -115,7 +115,7 @@ trait BatchExecAggRuleBase {
     getAggEnforceStrategy(tableConfig) match {
       case AggPhaseEnforcer.ONE_PHASE => true
       case AggPhaseEnforcer.TWO_PHASE => !doAllSupportMerge(aggFunctions)
-      case AggPhaseEnforcer.NONE =>
+      case AggPhaseEnforcer.AUTO =>
         if (!doAllSupportMerge(aggFunctions)) {
           true
         } else {
@@ -147,7 +147,7 @@ trait BatchExecAggRuleBase {
 
   protected def getAggEnforceStrategy(tableConfig: TableConfig): AggPhaseEnforcer.Value = {
     val aggPrefConfig = tableConfig.getConf.getString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY)
     AggPhaseEnforcer.values.find(_.toString.equalsIgnoreCase(aggPrefConfig))
       .getOrElse(throw new IllegalArgumentException(
         "Agg phase enforcer can only set to be: NONE, ONE_PHASE, TWO_PHASE!"))

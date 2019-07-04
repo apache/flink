@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, OperatorType, PlannerConfigOptions, TableConfigOptions, TableException, ValidationException}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OperatorType, OptimizerConfigOptions, ExecutionConfigOptions, TableException, ValidationException}
 
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -35,9 +35,9 @@ class HashAggregateTest(aggStrategy: AggPhaseEnforcer) extends AggregateTestBase
   def before(): Unit = {
     // disable sort agg
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
     util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggStrategy.toString)
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 
   override def testMinWithVariableLengthType(): Unit = {
@@ -64,7 +64,7 @@ object HashAggregateTest {
   @Parameterized.Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggPhaseEnforcer] = {
     Seq[AggPhaseEnforcer](
-      AggPhaseEnforcer.NONE,
+      AggPhaseEnforcer.AUTO,
       AggPhaseEnforcer.ONE_PHASE,
       AggPhaseEnforcer.TWO_PHASE
     )

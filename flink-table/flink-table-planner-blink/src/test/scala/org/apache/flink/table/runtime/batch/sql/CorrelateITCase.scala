@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BinaryString
 import org.apache.flink.table.expressions.utils.{Func1, Func18, RichFunc2}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
@@ -37,6 +37,7 @@ import org.apache.flink.table.typeutils.BinaryStringTypeInfo
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.table.util._
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Ignore, Test}
 
 import scala.collection.Seq
@@ -45,8 +46,8 @@ import scala.collection.JavaConversions._
 class CorrelateITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")
     registerCollection("inputTWithNull", TableFunctionITCase.testDataWithNull, type3, "a, b, c")
     registerCollection("SmallTable3", smallData3, type3, "a, b, c")

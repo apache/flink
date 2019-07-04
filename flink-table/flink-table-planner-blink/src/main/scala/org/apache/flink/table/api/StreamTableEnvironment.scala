@@ -179,7 +179,6 @@ abstract class StreamTableEnvironment(
         case None => true
         case _ => false
       }
-      parameters.setBoolean(TableConfigOptions.SQL_EXEC_STATE_BACKEND_ON_HEAP, isHeapState)
       execEnv.getConfig.setGlobalJobParameters(parameters)
       isConfigMerged = true
     }
