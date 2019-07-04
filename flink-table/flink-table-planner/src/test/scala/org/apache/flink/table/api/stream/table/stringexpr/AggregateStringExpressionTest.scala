@@ -235,6 +235,31 @@ class AggregateStringExpressionTest extends TableTestBase {
 
     verifyTableEquals(resScala, resJava)
   }
+
+  @Test
+  def testAggregateWithWindow(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[TestPojo]('int, 'long.rowtime as 'rowtime, 'string)
+
+    val testAgg = new CountMinMax
+    util.tableEnv.registerFunction("testAgg", testAgg)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 50.milli on 'rowtime as 'w1)
+      .groupBy('w1, 'string)
+      .aggregate(testAgg('int) as ('x, 'y, 'z))
+      .select('string, 'x, 'y, 'w1.start, 'w1.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Tumble.over("50.milli").on("rowtime").as("w1"))
+      .groupBy("w1, string")
+      .aggregate("testAgg(int) as (x, y, z)")
+      .select("string, x, y, w1.start, w1.end")
+
+    verifyTableEquals(resJava, resScala)
+  }
 }
 
 class TestPojo() {

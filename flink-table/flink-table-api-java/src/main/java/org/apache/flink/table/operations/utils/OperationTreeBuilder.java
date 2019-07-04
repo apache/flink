@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.utils.factories.SortOperationFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -253,6 +254,73 @@ public final class OperationTreeBuilder {
 			child);
 	}
 
+	public QueryOperation windowAggregate(
+		List<Expression> groupingExpressions,
+		GroupWindow window,
+		List<Expression> windowProperties,
+		Expression aggregateFunction,
+		QueryOperation child) {
+
+		ExpressionResolver resolver = getResolver(child);
+		Expression resolvedAggregate = aggregateFunction.accept(lookupResolver);
+		AggregateWithAlias aggregateWithAlias = resolvedAggregate.accept(new ExtractAliasAndAggregate(true, resolver));
+
+		List<Expression> groupsAndAggregate = new ArrayList<>(groupingExpressions);
+		groupsAndAggregate.add(aggregateWithAlias.aggregate);
+		List<Expression> namedGroupsAndAggregate = addAliasToTheCallInAggregate(
+			Arrays.asList(child.getTableSchema().getFieldNames()),
+			groupsAndAggregate);
+
+		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
+		// table aggregate function in Step6.
+		List<Expression> newGroupingExpressions = namedGroupsAndAggregate.subList(0, groupingExpressions.size());
+
+		// Step2: turn agg to a named agg, because it will be verified later.
+		Expression aggregateRenamed = namedGroupsAndAggregate.get(groupingExpressions.size());
+
+		// Step3: resolve expressions, including grouping, aggregates and window properties.
+		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
+		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
+			tableReferenceLookup,
+			functionCatalog,
+			child)
+			.withLocalReferences(
+				new LocalReferenceExpression(
+					resolvedWindow.getAlias(),
+					resolvedWindow.getTimeAttribute().getOutputDataType()))
+			.build();
+
+		List<ResolvedExpression> convertedGroupings = resolverWithWindowReferences.resolve(newGroupingExpressions);
+		List<ResolvedExpression> convertedAggregates = resolverWithWindowReferences.resolve(Collections.singletonList(
+			aggregateRenamed));
+		List<ResolvedExpression> convertedProperties = resolverWithWindowReferences.resolve(windowProperties);
+
+		// Step4: create window agg operation
+		QueryOperation aggregateOperation = aggregateOperationFactory.createWindowAggregate(
+			convertedGroupings,
+			Collections.singletonList(convertedAggregates.get(0)),
+			convertedProperties,
+			resolvedWindow,
+			child);
+
+		// Step5: flatten the aggregate function
+		String[] aggNames = aggregateOperation.getTableSchema().getFieldNames();
+		List<Expression> flattenedExpressions = Arrays.stream(aggNames)
+			.map(ApiExpressionUtils::unresolvedRef)
+			.collect(Collectors.toCollection(ArrayList::new));
+		flattenedExpressions.set(
+			groupingExpressions.size(),
+			unresolvedCall(
+				BuiltInFunctionDefinitions.FLATTEN,
+				unresolvedRef(aggNames[groupingExpressions.size()])));
+		QueryOperation flattenedProjection = this.project(flattenedExpressions, aggregateOperation);
+
+		// Step6: add a top project to alias the output fields of the aggregate. Also, project the
+		// window attribute.
+		return aliasBackwardFields(flattenedProjection, aggregateWithAlias.aliases, groupingExpressions.size());
+	}
+
 	public QueryOperation join(
 			QueryOperation left,
 			QueryOperation right,
@@ -405,21 +473,30 @@ public final class OperationTreeBuilder {
 
 	public QueryOperation aggregate(List<Expression> groupingExpressions, Expression aggregate, QueryOperation child) {
 		Expression resolvedAggregate = aggregate.accept(lookupResolver);
-		AggregateWithAlias aggregateWithAlias = resolvedAggregate.accept(new ExtractAliasAndAggregate());
+		AggregateWithAlias aggregateWithAlias =
+			resolvedAggregate.accept(new ExtractAliasAndAggregate(true, getResolver(child)));
 
-		// turn agg to a named agg, because it will be verified later.
-		String[] childNames = child.getTableSchema().getFieldNames();
-		Expression aggregateRenamed = addAliasToTheCallInGroupings(
-			Arrays.asList(childNames),
-			Collections.singletonList(aggregateWithAlias.aggregate)).get(0);
+		List<Expression> groupsAndAggregate = new ArrayList<>(groupingExpressions);
+		groupsAndAggregate.add(aggregateWithAlias.aggregate);
+		List<Expression> namedGroupsAndAggregate = addAliasToTheCallInAggregate(
+			Arrays.asList(child.getTableSchema().getFieldNames()),
+			groupsAndAggregate);
 
-		// get agg table
+		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
+		// aggregate function in Step5.
+		List<Expression> newGroupingExpressions = namedGroupsAndAggregate.subList(0, groupingExpressions.size());
+
+		// Step2: turn agg to a named agg, because it will be verified later.
+		Expression aggregateRenamed = namedGroupsAndAggregate.get(groupingExpressions.size());
+
+		// Step3: get agg table
 		QueryOperation aggregateOperation = this.aggregate(
-			groupingExpressions,
+			newGroupingExpressions,
 			Collections.singletonList(aggregateRenamed),
 			child);
 
-		// flatten the aggregate function
+		// Step4: flatten the aggregate function
 		String[] aggNames = aggregateOperation.getTableSchema().getFieldNames();
 		List<Expression> flattenedExpressions = Arrays.asList(aggNames)
 			.subList(0, groupingExpressions.size())
@@ -433,7 +510,7 @@ public final class OperationTreeBuilder {
 
 		QueryOperation flattenedProjection = this.project(flattenedExpressions, aggregateOperation);
 
-		// add alias
+		// Step5: add alias
 		return aliasBackwardFields(flattenedProjection, aggregateWithAlias.aliases, groupingExpressions.size());
 	}
 
@@ -448,6 +525,16 @@ public final class OperationTreeBuilder {
 	}
 
 	private static class ExtractAliasAndAggregate extends ApiExpressionDefaultVisitor<AggregateWithAlias> {
+
+		// need this flag to validate alias, i.e., the length of alias and function result type should be same.
+		private boolean isRowbasedAggregate = false;
+		private ExpressionResolver resolver = null;
+
+		public ExtractAliasAndAggregate(boolean isRowbasedAggregate, ExpressionResolver resolver) {
+			this.isRowbasedAggregate = isRowbasedAggregate;
+			this.resolver = resolver;
+		}
+
 		@Override
 		public AggregateWithAlias visit(UnresolvedCallExpression unresolvedCall) {
 			if (ApiExpressionUtils.isFunction(unresolvedCall, BuiltInFunctionDefinitions.AS)) {
@@ -489,6 +576,9 @@ public final class OperationTreeBuilder {
 						fieldNames = Collections.emptyList();
 					}
 				} else {
+					ResolvedExpression resolvedExpression =
+						resolver.resolve(Collections.singletonList(unresolvedCall)).get(0);
+					validateAlias(aliases, resolvedExpression, isRowbasedAggregate);
 					fieldNames = aliases;
 				}
 				return Optional.of(new AggregateWithAlias(unresolvedCall, fieldNames));
@@ -501,6 +591,27 @@ public final class OperationTreeBuilder {
 		protected AggregateWithAlias defaultMethod(Expression expression) {
 			throw new ValidationException("Aggregate function expected. Got: " + expression);
 		}
+
+		private void validateAlias(
+			List<String> aliases,
+			ResolvedExpression resolvedExpression,
+			Boolean isRowbasedAggregate) {
+
+			int length = TypeConversions
+				.fromDataTypeToLegacyInfo(resolvedExpression.getOutputDataType()).getArity();
+			int callArity = isRowbasedAggregate ? length : 1;
+			int aliasesSize = aliases.size();
+
+			if ((0 < aliasesSize) && (aliasesSize != callArity)) {
+				throw new ValidationException(String.format(
+					"List of column aliases must have same degree as table; " +
+						"the returned table of function '%s' has " +
+						"%d columns, whereas alias list has %d columns",
+					resolvedExpression,
+					callArity,
+					aliasesSize));
+			}
+		}
 	}
 
 	public QueryOperation tableAggregate(
@@ -511,7 +622,7 @@ public final class OperationTreeBuilder {
 		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
 		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
 		// table aggregate function in Step4.
-		List<Expression> newGroupingExpressions = addAliasToTheCallInGroupings(
+		List<Expression> newGroupingExpressions = addAliasToTheCallInAggregate(
 			Arrays.asList(child.getTableSchema().getFieldNames()),
 			groupingExpressions);
 
@@ -540,7 +651,7 @@ public final class OperationTreeBuilder {
 		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
 		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
 		// table aggregate function in Step4.
-		List<Expression> newGroupingExpressions = addAliasToTheCallInGroupings(
+		List<Expression> newGroupingExpressions = addAliasToTheCallInAggregate(
 			Arrays.asList(child.getTableSchema().getFieldNames()),
 			groupingExpressions);
 
@@ -605,17 +716,17 @@ public final class OperationTreeBuilder {
 
 	/**
 	 * Add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
-	 * groupBy(a % 5 as TMP_0).
+	 * groupBy(a % 5 as TMP_0) or make aggregate a named aggregate.
 	 */
-	private List<Expression> addAliasToTheCallInGroupings(
+	private List<Expression> addAliasToTheCallInAggregate(
 		List<String> inputFieldNames,
-		List<Expression> groupingExpressions) {
+		List<Expression> expressions) {
 
 		int attrNameCntr = 0;
 		Set<String> usedFieldNames = new HashSet<>(inputFieldNames);
 
 		List<Expression> result = new ArrayList<>();
-		for (Expression groupingExpression : groupingExpressions) {
+		for (Expression groupingExpression : expressions) {
 			if (groupingExpression instanceof UnresolvedCallExpression &&
 				!ApiExpressionUtils.isFunction(groupingExpression, BuiltInFunctionDefinitions.AS)) {
 				String tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames);
