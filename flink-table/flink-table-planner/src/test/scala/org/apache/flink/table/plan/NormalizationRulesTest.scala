@@ -40,7 +40,7 @@ class NormalizationRulesTest extends TableTestBase {
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
-    util.tableEnv.getConfig.addPlannerConfig(cc)
+    util.tableEnv.getConfig.setPlannerConfig(cc)
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
@@ -76,7 +76,7 @@ class NormalizationRulesTest extends TableTestBase {
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
-    util.tableEnv.getConfig.addPlannerConfig(cc)
+    util.tableEnv.getConfig.setPlannerConfig(cc)
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
