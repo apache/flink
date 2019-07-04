@@ -24,14 +24,21 @@ import org.apache.flink.metrics.Meter;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 
+import okhttp3.Protocol;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.api.support.membermodification.MemberMatcher;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.slf4j.Logger;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -45,13 +52,22 @@ import static org.junit.Assert.assertTrue;
  * Tests for the DatadogHttpClient.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({DMetric.class, DatadogHttpClient.class})
+@PrepareForTest({DMetric.class, DatadogHttpClient.class, DatadogHttpClient.EmptyCallback.class, Request.class})
 @PowerMockIgnore("javax.net.ssl.*")
 public class DatadogHttpClientTest {
 
 	private static List<String> tags = Arrays.asList("tag1", "tag2");
 
 	private static final long MOCKED_SYSTEM_MILLIS = 123L;
+
+	@Mock
+	private Logger mockLogger;
+
+	@Mock
+	private Request mockRequest;
+
+	@Mock
+	private ResponseBody mockResponseBody;
 
 	@Before
 	public void mockSystemMillis() {
@@ -94,7 +110,6 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeGauge() throws JsonProcessingException {
-
 		DGauge g = new DGauge(new Gauge<Number>() {
 			@Override
 			public Number getValue() {
@@ -109,7 +124,6 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeGaugeWithoutHost() throws JsonProcessingException {
-
 		DGauge g = new DGauge(new Gauge<Number>() {
 			@Override
 			public Number getValue() {
@@ -120,6 +134,52 @@ public class DatadogHttpClientTest {
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
 			DatadogHttpClient.serialize(g));
+	}
+
+	@Test
+	public void testRequestNotSuccessful() throws Exception {
+		Protocol protocol = Protocol.get("http/1.1");
+
+		int httpClientError = 400;
+		Response response =	new Response.Builder().
+			code(httpClientError).
+			request(mockRequest).
+			protocol(protocol).
+			body(mockResponseBody).
+			build();
+
+		DatadogHttpClient.EmptyCallback emptyCallBack = (DatadogHttpClient.EmptyCallback) DatadogHttpClient.EmptyCallback.getEmptyCallback();
+
+		DatadogHttpClient.EmptyCallback emptyCallbackPartialMock = PowerMockito.spy(emptyCallBack);
+		PowerMockito.when(emptyCallbackPartialMock.getLogger()).thenReturn(mockLogger);
+
+		emptyCallbackPartialMock.onResponse(null, response);
+
+		Mockito.verify(mockLogger).warn(DatadogHttpClient.EmptyCallback.FAILED_SENDING_REQUEST_TO_DATADOG, httpClientError);
+		Mockito.verify(mockResponseBody).close();
+	}
+
+	@Test
+	public void testRequestSuccessful() throws Exception {
+		Protocol protocol = Protocol.get("http/1.1");
+
+		int httpSuccess = 200;
+		Response response =	new Response.Builder().
+			code(httpSuccess).
+			request(mockRequest).
+			protocol(protocol).
+			body(mockResponseBody).
+			build();
+
+		DatadogHttpClient.EmptyCallback emptyCallBack = (DatadogHttpClient.EmptyCallback) DatadogHttpClient.EmptyCallback.getEmptyCallback();
+		DatadogHttpClient.EmptyCallback emptyCallbackPartialMock = PowerMockito.spy(emptyCallBack);
+
+		PowerMockito.when(emptyCallbackPartialMock.getLogger()).thenReturn(mockLogger);
+
+		emptyCallbackPartialMock.onResponse(null, response);
+
+		PowerMockito.verifyZeroInteractions(mockLogger);
+		Mockito.verify(mockResponseBody).close();
 	}
 
 	@Test
