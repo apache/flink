@@ -19,19 +19,21 @@
 package org.apache.flink.table.runtime.batch.sql.join
 
 import org.apache.flink.table.api.TableConfigOptions
-import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, JoinType, NestedLoopJoin}
+import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import java.util
 
 import scala.collection.Seq
 
-//@RunWith(classOf[Parameterized]) TODO
-class OuterJoinITCase extends BatchTestBase {
-
-  val expectedJoinType: JoinType = JoinType.SortMergeJoin
+@RunWith(classOf[Parameterized])
+class OuterJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   private lazy val leftT = Seq(
     row(1, 2.0),
@@ -381,5 +383,13 @@ class OuterJoinITCase extends BatchTestBase {
         row(
           null, 10) :: Nil)
     }
+  }
+}
+
+object OuterJoinITCase {
+  @Parameterized.Parameters(name = "{0}")
+  def parameters(): util.Collection[Array[_]] = {
+    util.Arrays.asList(
+      Array(BroadcastHashJoin), Array(HashJoin), Array(SortMergeJoin), Array(NestedLoopJoin))
   }
 }
