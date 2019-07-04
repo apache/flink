@@ -24,6 +24,8 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 
 import javax.annotation.Nonnull;
 
+import java.util.List;
+
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing.
  * This class is also responsible for writing the state in the process of checkpointing.
@@ -33,8 +35,7 @@ import javax.annotation.Nonnull;
  * @param <S> type of state
  */
 @Internal
-public class CopyOnWriteStateTableSnapshot<K, N, S>
-		extends AbstractStateTableSnapshot<K, N, S, CopyOnWriteStateTable<K, N, S>> {
+public class CopyOnWriteStateTableSnapshot<K, N, S> extends AbstractStateTableSnapshot<K, N, S> {
 
 	/**
 	 * The offset to the contiguous key groups.
@@ -45,7 +46,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 * Snapshots of state partitioned by key-group.
 	 */
 	@Nonnull
-	private final CopyOnWriteStateMapSnapshot<K, N, S>[] snapshotStateMap;
+	private final List<CopyOnWriteStateMapSnapshot<K, N, S>> stateMapSnapshots;
 
 	/**
 	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
@@ -65,15 +66,15 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			stateSnapshotTransformer);
 
 		this.keyGroupOffset = owningStateTable.getKeyGroupOffset();
-		this.snapshotStateMap = owningStateTable.getStateMapSnapshotArray();
+		this.stateMapSnapshots = owningStateTable.getStateMapSnapshotList();
 	}
 
 	@Override
 	protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(int keyGroup) {
 		int indexOffset = keyGroup - keyGroupOffset;
 		CopyOnWriteStateMapSnapshot<K, N, S> stateMapSnapshot = null;
-		if (indexOffset >= 0 && indexOffset < snapshotStateMap.length) {
-			stateMapSnapshot = snapshotStateMap[indexOffset];
+		if (indexOffset >= 0 && indexOffset < stateMapSnapshots.size()) {
+			stateMapSnapshot = stateMapSnapshots.get(indexOffset);
 		}
 
 		return stateMapSnapshot;

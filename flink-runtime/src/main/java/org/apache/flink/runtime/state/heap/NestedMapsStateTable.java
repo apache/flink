@@ -50,7 +50,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	@Override
 	protected NestedStateMap<K, N, S> createStateMap() {
-		return new NestedStateMap<>(getStateSerializer());
+		return new NestedStateMap<>();
 	}
 
 	// Snapshotting ----------------------------------------------------------------------------------------------------
@@ -58,10 +58,11 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Nonnull
 	@Override
 	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(this,
-			getKeySerializer().duplicate(),
-			getNamespaceSerializer().duplicate(),
-			getStateSerializer().duplicate(),
+		return new NestedMapsStateTableSnapshot<>(
+			this,
+			getKeySerializer(),
+			getNamespaceSerializer(),
+			getStateSerializer(),
 			getMetaInfo().getStateSnapshotTransformFactory().createForDeserializedState().orElse(null));
 	}
 
@@ -73,7 +74,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 * @param <S> type of state.
 	 */
 	static class NestedMapsStateTableSnapshot<K, N, S>
-			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>> {
+			extends AbstractStateTableSnapshot<K, N, S> {
 
 		NestedMapsStateTableSnapshot(
 			NestedMapsStateTable<K, N, S> owningTable,
@@ -92,7 +93,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(int keyGroup) {
 			NestedStateMap<K, N, S> stateMap = (NestedStateMap<K, N, S>) owningStateTable.getMapForKeyGroup(keyGroup);
 
-			return stateMap == null ? null : stateMap.stateSnapshot();
+			return stateMap.stateSnapshot();
 		}
 	}
 }

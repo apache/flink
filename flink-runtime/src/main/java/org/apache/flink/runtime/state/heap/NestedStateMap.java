@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -51,12 +50,8 @@ public class NestedStateMap<K, N, S> extends StateMap<K, N, S> {
 
 	/**
 	 * Constructs a new {@code NestedStateMap}.
-	 *
-	 * @param stateSerializer the serializer of the key.
 	 */
-	public NestedStateMap(TypeSerializer<S> stateSerializer) {
-		super(stateSerializer);
-
+	public NestedStateMap() {
 		this.namespaceMap = new HashMap<>();
 	}
 

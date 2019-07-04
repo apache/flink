@@ -46,7 +46,6 @@ public class NestedStateMapSnapshot<K, N, S>
 	 */
 	public NestedStateMapSnapshot(NestedStateMap<K, N, S> owningStateMap) {
 		super(owningStateMap);
-
 	}
 
 	@Override
@@ -56,8 +55,7 @@ public class NestedStateMapSnapshot<K, N, S>
 		TypeSerializer<S> stateSerializer,
 		@Nonnull DataOutputView dov,
 		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException {
-		NestedStateMap<K, N, S> stateMap = owningStateMap;
-		Map<N, Map<K, S>> mappings = filterMappingsIfNeeded(stateMap.getNamespaceMap(), stateSnapshotTransformer);
+		Map<N, Map<K, S>> mappings = filterMappingsIfNeeded(owningStateMap.getNamespaceMap(), stateSnapshotTransformer);
 		int numberOfEntries = countMappingsInKeyGroup(mappings);
 
 		dov.writeInt(numberOfEntries);

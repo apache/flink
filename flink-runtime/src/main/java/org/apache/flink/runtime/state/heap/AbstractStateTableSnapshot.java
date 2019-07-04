@@ -36,13 +36,13 @@ import java.io.IOException;
  * All snapshots should be released after usage.
  */
 @Internal
-abstract class AbstractStateTableSnapshot<K, N, S, T extends StateTable<K, N, S>>
+abstract class AbstractStateTableSnapshot<K, N, S>
 	implements StateSnapshot, StateSnapshot.StateKeyGroupWriter {
 
 	/**
 	 * The {@link StateTable} from which this snapshot was created.
 	 */
-	protected final T owningStateTable;
+	protected final StateTable<K, N, S> owningStateTable;
 
 	/**
 	 * A local duplicate of the table's key serializer.
@@ -71,11 +71,11 @@ abstract class AbstractStateTableSnapshot<K, N, S, T extends StateTable<K, N, S>
 	 * @param owningStateTable the {@link StateTable} for which this object represents a snapshot.
 	 */
 	AbstractStateTableSnapshot(
-		T owningStateTable,
+		StateTable<K, N, S> owningStateTable,
 		TypeSerializer<K> localKeySerializer,
 		TypeSerializer<N> localNamespaceSerializer,
 		TypeSerializer<S> localStateSerializer,
-		StateSnapshotTransformer<S> stateSnapshotTransformer) {
+		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) {
 		this.owningStateTable = Preconditions.checkNotNull(owningStateTable);
 		this.localKeySerializer = Preconditions.checkNotNull(localKeySerializer);
 		this.localNamespaceSerializer = Preconditions.checkNotNull(localNamespaceSerializer);

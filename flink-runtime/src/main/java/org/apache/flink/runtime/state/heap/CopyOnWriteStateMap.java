@@ -128,6 +128,11 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 	private static final int MIN_TRANSFERRED_PER_INCREMENTAL_REHASH = 4;
 
 	/**
+	 * The serializer of the state.
+	 */
+	protected final TypeSerializer<S> stateSerializer;
+
+	/**
 	 * An empty map shared by all zero-capacity maps (typically from default
 	 * constructor). It is never written to, and replaced on first put. Its size
 	 * is set to half the minimum, so that the first resize will create a
@@ -222,7 +227,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 	@SuppressWarnings("unchecked")
 	private CopyOnWriteStateMap(
 		int capacity, TypeSerializer<S> stateSerializer) {
-		super(stateSerializer);
+		this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
 
 		// initialized maps to EMPTY_TABLE.
 		this.primaryTable = (StateMapEntry<K, N, S>[]) EMPTY_TABLE;
@@ -777,6 +782,12 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 			"Cannot release snapshot which is owned by a different state map.");
 
 		releaseSnapshot(copyOnWriteStateMapSnapshot.getSnapshotVersion());
+	}
+
+	// Meta data setter / getter and toString -----------------------------------------------------
+
+	public TypeSerializer<S> getStateSerializer() {
+		return stateSerializer;
 	}
 
 	// StateMapEntry -------------------------------------------------------------------------------------------------

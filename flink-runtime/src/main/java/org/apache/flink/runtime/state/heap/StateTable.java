@@ -72,8 +72,9 @@ public abstract class StateTable<K, N, S>
 
 	/**
 	 * Map for holding the actual state objects. The outer array represents the key-groups.
+	 * All array positions will be initialized with an empty state map.
 	 */
-	protected final StateMap<K, N, S>[] state;
+	protected final StateMap<K, N, S>[] keyGroupedStateMaps;
 
 	/**
 	 * @param keyContext    the key context provides the key scope for all put/get/delete operations.
@@ -92,9 +93,9 @@ public abstract class StateTable<K, N, S>
 
 		@SuppressWarnings("unchecked")
 		StateMap<K, N, S>[] state = (StateMap<K, N, S>[]) new StateMap[keyContext.getKeyGroupRange().getNumberOfKeyGroups()];
-		this.state = state;
-		for (int i = 0; i < this.state.length; i++) {
-			this.state[i] = createStateMap();
+		this.keyGroupedStateMaps = state;
+		for (int i = 0; i < this.keyGroupedStateMaps.length; i++) {
+			this.keyGroupedStateMaps[i] = createStateMap();
 		}
 	}
 
@@ -120,10 +121,8 @@ public abstract class StateTable<K, N, S>
 	 */
 	public int size() {
 		int count = 0;
-		for (StateMap<K, N, S> stateMap : state) {
-			if (stateMap != null) {
-				count += stateMap.size();
-			}
+		for (StateMap<K, N, S> stateMap : keyGroupedStateMaps) {
+			count += stateMap.size();
 		}
 		return count;
 	}
@@ -151,27 +150,13 @@ public abstract class StateTable<K, N, S>
 	}
 
 	/**
-	 * Maps the composite of active key and given namespace to the specified state. This method should be preferred
-	 * over {@link #putAndGetOld(N, S)} (Namespace, State)} when the caller is not interested in the old state.
+	 * Maps the composite of active key and given namespace to the specified state.
 	 *
 	 * @param namespace the namespace. Not null.
 	 * @param state     the state. Can be null.
 	 */
 	public void put(N namespace, S state) {
 		put(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace, state);
-	}
-
-	/**
-	 * Maps the composite of active key and given namespace to the specified state. Returns the previous state that
-	 * was registered under the composite key.
-	 *
-	 * @param namespace the namespace. Not null.
-	 * @param state     the state. Can be null.
-	 * @return the state of any previous mapping with the specified key or
-	 * {@code null} if there was no such mapping.
-	 */
-	public S putAndGetOld(N namespace, S state) {
-		return putAndGetOld(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace, state);
 	}
 
 	/**
@@ -235,7 +220,7 @@ public abstract class StateTable<K, N, S>
 	}
 
 	public Stream<K> getKeys(N namespace) {
-		return Arrays.stream(state)
+		return Arrays.stream(keyGroupedStateMaps)
 			.flatMap(stateMap -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0), false))
 			.filter(entry -> entry.getNamespace().equals(namespace))
 			.map(StateEntry::getKey);
@@ -272,13 +257,6 @@ public abstract class StateTable<K, N, S>
 		Preconditions.checkNotNull(namespace, "Provided namespace is null.");
 	}
 
-	private S putAndGetOld(K key, int keyGroupIndex, N namespace, S state) {
-		checkKeyNamespacePreconditions(key, namespace);
-
-		StateMap<K, N, S> stateMap = getMapForKeyGroup(keyGroupIndex);
-		return stateMap.putAndGetOld(key, namespace, state);
-	}
-
 	private void remove(K key, int keyGroupIndex, N namespace) {
 		checkKeyNamespacePreconditions(key, namespace);
 
@@ -303,7 +281,7 @@ public abstract class StateTable<K, N, S>
 	 */
 	@VisibleForTesting
 	public StateMap<K, N, S>[] getState() {
-		return state;
+		return keyGroupedStateMaps;
 	}
 
 	public int getKeyGroupOffset() {
@@ -313,8 +291,8 @@ public abstract class StateTable<K, N, S>
 	@VisibleForTesting
 	protected StateMap<K, N, S> getMapForKeyGroup(int keyGroupIndex) {
 		final int pos = indexToOffset(keyGroupIndex);
-		if (pos >= 0 && pos < state.length) {
-			return state[pos];
+		if (pos >= 0 && pos < keyGroupedStateMaps.length) {
+			return keyGroupedStateMaps[pos];
 		} else {
 			return null;
 		}
@@ -360,7 +338,7 @@ public abstract class StateTable<K, N, S>
 
 	@Override
 	public Iterator<StateEntry<K, N, S>> iterator() {
-		return Arrays.stream(state)
+		return Arrays.stream(keyGroupedStateMaps)
 			.filter(Objects::nonNull)
 			.flatMap(stateMap -> StreamSupport.stream(Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0), false))
 			.iterator();
@@ -371,7 +349,7 @@ public abstract class StateTable<K, N, S>
 	@VisibleForTesting
 	public int sizeOfNamespace(Object namespace) {
 		int count = 0;
-		for (StateMap<K, N, S> stateMap : state) {
+		for (StateMap<K, N, S> stateMap : keyGroupedStateMaps) {
 			count += stateMap.sizeOfNamespace(namespace);
 		}
 
@@ -401,8 +379,8 @@ public abstract class StateTable<K, N, S>
 		}
 
 		private void next() {
-			while (keyGroupIndex < state.length) {
-				StateMap<K, N, S> stateMap = state[keyGroupIndex++];
+			while (keyGroupIndex < keyGroupedStateMaps.length) {
+				StateMap<K, N, S> stateMap = keyGroupedStateMaps[keyGroupIndex++];
 				StateIncrementalVisitor<K, N, S> visitor =
 					stateMap.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
 				if (visitor.hasNext()) {
@@ -415,11 +393,11 @@ public abstract class StateTable<K, N, S>
 		@Override
 		public boolean hasNext() {
 			while (stateIncrementalVisitor == null || !stateIncrementalVisitor.hasNext()) {
-				if (keyGroupIndex == state.length) {
+				if (keyGroupIndex == keyGroupedStateMaps.length) {
 					return false;
 				}
 				StateIncrementalVisitor<K, N, S> visitor =
-					state[keyGroupIndex++].getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+					keyGroupedStateMaps[keyGroupIndex++].getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
 				if (visitor.hasNext()) {
 					stateIncrementalVisitor = visitor;
 					break;
@@ -439,12 +417,12 @@ public abstract class StateTable<K, N, S>
 
 		@Override
 		public void remove(StateEntry<K, N, S> stateEntry) {
-			state[keyGroupIndex - 1].remove(stateEntry.getKey(), stateEntry.getNamespace());
+			keyGroupedStateMaps[keyGroupIndex - 1].remove(stateEntry.getKey(), stateEntry.getNamespace());
 		}
 
 		@Override
 		public void update(StateEntry<K, N, S> stateEntry, S newValue) {
-			state[keyGroupIndex - 1].put(stateEntry.getKey(), stateEntry.getNamespace(), newValue);
+			keyGroupedStateMaps[keyGroupIndex - 1].put(stateEntry.getKey(), stateEntry.getNamespace(), newValue);
 		}
 	}
 }

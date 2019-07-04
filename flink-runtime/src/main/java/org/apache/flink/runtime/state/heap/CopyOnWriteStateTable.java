@@ -23,6 +23,9 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This implementation of {@link StateTable} uses {@link CopyOnWriteStateMap}. This implementation supports asynchronous snapshots.
  *
@@ -70,15 +73,12 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	@SuppressWarnings("unchecked")
-	CopyOnWriteStateMapSnapshot<K, N, S>[] getStateMapSnapshotArray() {
-		CopyOnWriteStateMapSnapshot<K, N, S>[] snapshotArray =
-			new CopyOnWriteStateMapSnapshot[state.length];
-		for (int i = 0; i < state.length; i++) {
-			CopyOnWriteStateMap<K, N, S> stateMap = (CopyOnWriteStateMap<K, N, S>) state[i];
-			if (state[i] != null) {
-				snapshotArray[i] = stateMap.stateSnapshot();
-			}
+	List<CopyOnWriteStateMapSnapshot<K, N, S>> getStateMapSnapshotList() {
+		List<CopyOnWriteStateMapSnapshot<K, N, S>> snapshotList = new ArrayList<>(keyGroupedStateMaps.length);
+		for (int i = 0; i < keyGroupedStateMaps.length; i++) {
+			CopyOnWriteStateMap<K, N, S> stateMap = (CopyOnWriteStateMap<K, N, S>) keyGroupedStateMaps[i];
+			snapshotList.add(stateMap.stateSnapshot());
 		}
-		return snapshotArray;
+		return snapshotList;
 	}
 }

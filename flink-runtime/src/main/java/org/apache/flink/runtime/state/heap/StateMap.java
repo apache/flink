@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -37,18 +35,6 @@ import java.util.stream.Stream;
  * @param <S> type of state
  */
 public abstract class StateMap<K, N, S> implements Iterable<StateEntry<K, N, S>> {
-
-	/**
-	 * The serializer of the state.
-	 */
-	protected final TypeSerializer<S> stateSerializer;
-
-	/**
-	 * @param stateSerializer the serializer of the state.
-	 */
-	public StateMap(TypeSerializer<S> stateSerializer) {
-		this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
-	}
 
 	// Main interface methods of StateMap -------------------------------------------------------
 
@@ -154,12 +140,6 @@ public abstract class StateMap<K, N, S> implements Iterable<StateEntry<K, N, S>>
 	public abstract Stream<K> getKeys(N namespace);
 
 	public abstract InternalKvState.StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords);
-
-	// Meta data setter / getter and toString -----------------------------------------------------
-
-	public TypeSerializer<S> getStateSerializer() {
-		return stateSerializer;
-	}
 
 	/**
 	 * Creates a snapshot of this {@link StateMap}, to be written in checkpointing. Users should call
