@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.util.Preconditions;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
@@ -37,6 +38,7 @@ import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,8 +155,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	 * @param <IN> The generic of the type that is to be written into the sink.
 	 * @return a new PubSubSinkBuilder instance
 	 */
-	public static <IN> PubSubSinkBuilder<IN> newBuilder(SerializationSchema<IN> serializationSchema, String projectName, String topicName) {
-		return new PubSubSinkBuilder<>(serializationSchema, projectName, topicName);
+	public static <IN> SerializationSchemaBuilder<IN> newBuilder(Class<IN> clazz) {
+		return new PubSubSinkBuilder<>();
 	}
 
 	@Override
@@ -172,8 +174,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 	 *
 	 * @param <IN> Type of PubSubSink to create.
 	 */
-	@SuppressWarnings("unchecked")
-	public static class PubSubSinkBuilder<IN> {
+	public static class PubSubSinkBuilder<IN> implements SerializationSchemaBuilder<IN>, ProjectNameBuilder<IN>, TopicNameBuilder<IN> {
 		private SerializationSchema<IN> serializationSchema;
 		private String projectName;
 		private String topicName;
@@ -181,11 +182,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		private Credentials credentials;
 		private String hostAndPort;
 
-		private PubSubSinkBuilder(SerializationSchema<IN> serializationSchema, String projectName, String topicName) {
-			this.serializationSchema = serializationSchema;
-			this.projectName = projectName;
-			this.topicName = topicName;
-		}
+		private PubSubSinkBuilder() { }
 
 		/**
 		 * Set the credentials.
@@ -199,29 +196,23 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 			return this;
 		}
 
-		/**
-		 * @param serializationSchema Instance of a SerializationSchema that converts the IN into a byte[]
-		 * @return The current PubSubSinkBuilder instance
-		 */
-		public PubSubSinkBuilder<IN> withSerializationSchema(SerializationSchema<IN> serializationSchema) {
+		@Override
+		public ProjectNameBuilder<IN> withSerializationSchema(SerializationSchema<IN> serializationSchema) {
+			Preconditions.checkNotNull(serializationSchema);
 			this.serializationSchema = serializationSchema;
 			return this;
 		}
 
-		/**
-		 * @param projectName The name of the project in PubSub
-		 * @return The current PubSubSinkBuilder instance
-		 */
-		public PubSubSinkBuilder<IN> withProjectName(String projectName) {
+		@Override
+		public TopicNameBuilder<IN> withProjectName(String projectName) {
+			Preconditions.checkNotNull(projectName);
 			this.projectName = projectName;
 			return this;
 		}
 
-		/**
-		 * @param topicName The name of the topic in PubSub
-		 * @return The current PubSubSinkBuilder instance
-		 */
+		@Override
 		public PubSubSinkBuilder<IN> withTopicName(String topicName) {
+			Preconditions.checkNotNull(topicName);
 			this.topicName = topicName;
 			return this;
 		}
@@ -251,5 +242,35 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 			}
 			return new PubSubSink<>(credentials, serializationSchema, projectName, topicName, hostAndPort);
 		}
+	}
+
+	/**
+	 * Part of {@link PubSubSinkBuilder} to set required fields.
+	 */
+	public interface SerializationSchemaBuilder<IN> {
+		/**
+		 * Set the SerializationSchema used to Serialize objects to be added as payloads of PubSubMessages.
+		 */
+		ProjectNameBuilder<IN> withSerializationSchema(SerializationSchema<IN> deserializationSchema);
+	}
+
+	/**
+	 * Part of {@link PubSubSinkBuilder} to set required fields.
+	 */
+	public interface ProjectNameBuilder<IN> {
+		/**
+		 * Set the project name of the subscription to pull messages from.
+		 */
+		TopicNameBuilder<IN> withProjectName(String projectName);
+	}
+
+	/**
+	 * Part of {@link PubSubSinkBuilder} to set required fields.
+	 */
+	public interface TopicNameBuilder<IN> {
+		/**
+		 * Set the subscription name of the subscription to pull messages from.
+		 */
+		PubSubSinkBuilder<IN> withTopicName(String topicName);
 	}
 }

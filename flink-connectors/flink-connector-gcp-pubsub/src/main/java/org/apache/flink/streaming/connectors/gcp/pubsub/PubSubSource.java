@@ -155,22 +155,8 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		return deserializationSchema.getProducedType();
 	}
 
-	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema,
-															String projectName,
-															String subscriptionName) {
-		Preconditions.checkNotNull(deserializationSchema);
-		Preconditions.checkNotNull(projectName);
-		Preconditions.checkNotNull(subscriptionName);
-		return new PubSubSourceBuilder<>(new DeserializationSchemaWrapper<>(deserializationSchema), projectName, subscriptionName);
-	}
-
-	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(PubSubDeserializationSchema<OUT> deserializationSchema,
-															String projectName,
-															String subscriptionName) {
-		Preconditions.checkNotNull(deserializationSchema);
-		Preconditions.checkNotNull(projectName);
-		Preconditions.checkNotNull(subscriptionName);
-		return new PubSubSourceBuilder<>(deserializationSchema, projectName, subscriptionName);
+	public static <OUT> DeserializationSchemaBuilder<OUT> newBuilder(Class<OUT> clazz) {
+		return new PubSubSourceBuilder<>();
 	}
 
 	@Override
@@ -203,17 +189,44 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	 *
 	 * @param <OUT> The type of objects which will be read
 	 */
-	public static class PubSubSourceBuilder<OUT> {
-		private final PubSubDeserializationSchema<OUT> deserializationSchema;
-		private final String projectSubscriptionName;
+	public static class PubSubSourceBuilder<OUT> implements DeserializationSchemaBuilder<OUT>, ProjectNameBuilder<OUT>, SubscriptionNameBuilder<OUT> {
+		private PubSubDeserializationSchema<OUT> deserializationSchema;
+		private String projectName;
+		private String subscriptionName;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
 		private Credentials credentials;
 		private int maxMessageToAcknowledge = 10000;
 
-		protected PubSubSourceBuilder(PubSubDeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+		protected PubSubSourceBuilder() {
+		}
+
+		@Override
+		public ProjectNameBuilder withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
+			Preconditions.checkNotNull(deserializationSchema);
+			this.deserializationSchema = new DeserializationSchemaWrapper<>(deserializationSchema);
+			return this;
+		}
+
+		@Override
+		public ProjectNameBuilder withDeserializationSchema(PubSubDeserializationSchema deserializationSchema) {
+			Preconditions.checkNotNull(deserializationSchema);
 			this.deserializationSchema = deserializationSchema;
-			this.projectSubscriptionName = ProjectSubscriptionName.format(projectName, subscriptionName);
+			return this;
+		}
+
+		@Override
+		public SubscriptionNameBuilder withProjectName(String projectName) {
+			Preconditions.checkNotNull(projectName);
+			this.projectName = projectName;
+			return this;
+		}
+
+		@Override
+		public PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName) {
+			Preconditions.checkNotNull(subscriptionName);
+			this.subscriptionName = subscriptionName;
+			return this;
 		}
 
 		/**
@@ -250,7 +263,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		 * @return The current PubSubSourceBuilder instance
 		 */
 		public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(int maxMessagesPerPull, Duration perRequestTimeout, int retries) {
-			this.pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(projectSubscriptionName, retries, perRequestTimeout, maxMessagesPerPull);
+			this.pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(ProjectSubscriptionName.format(projectName, subscriptionName),
+																			retries,
+																			perRequestTimeout,
+																			maxMessagesPerPull);
 			return this;
 		}
 
@@ -277,11 +293,50 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 			}
 
 			if (pubSubSubscriberFactory == null) {
-				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(projectSubscriptionName, 3, Duration.ofSeconds(15), 100);
+				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(ProjectSubscriptionName.format(projectName, subscriptionName),
+																			3,
+																			Duration.ofSeconds(15),
+																			100);
 			}
 
 			return new PubSubSource<>(deserializationSchema, pubSubSubscriberFactory, credentials, maxMessageToAcknowledge, new AcknowledgeOnCheckpointFactory());
 		}
+	}
+
+	/**
+	 * Part of {@link PubSubSourceBuilder} to set required fields.
+	 */
+	public interface DeserializationSchemaBuilder<OUT> {
+		/**
+		 * Set the DeserializationSchema used to deserialize incoming PubSubMessages.
+		 * If you want access to meta data of a PubSubMessage use the overloaded withDeserializationSchema({@link PubSubDeserializationSchema}) method instead.
+		 */
+		ProjectNameBuilder<OUT> withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema);
+
+		/**
+		 * Set the DeserializationSchema used to deserialize incoming PubSubMessages.
+		 */
+		ProjectNameBuilder<OUT> withDeserializationSchema(PubSubDeserializationSchema<OUT> deserializationSchema);
+	}
+
+	/**
+	 * Part of {@link PubSubSourceBuilder} to set required fields.
+	 */
+	public interface ProjectNameBuilder<OUT> {
+		/**
+		 * Set the project name of the subscription to pull messages from.
+		 */
+		SubscriptionNameBuilder<OUT> withProjectName(String projectName);
+	}
+
+	/**
+	 * Part of {@link PubSubSourceBuilder} to set required fields.
+	 */
+	public interface SubscriptionNameBuilder<OUT> {
+		/**
+		 * Set the subscription name of the subscription to pull messages from.
+		 */
+		PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName);
 	}
 
 	static class AcknowledgeOnCheckpointFactory implements Serializable {

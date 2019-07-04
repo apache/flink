@@ -62,7 +62,10 @@ Example:
 StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
 DeserializationSchema<SomeObject> deserializer = (...);
-SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(deserializer, "project", "subscription")
+SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(SomeObject.class)
+                                                      .withDeserializationSchema(deserializer)
+                                                      .withProjectName("project")
+                                                      .withSubscriptionName("subscription")
                                                       .build();
 
 streamExecEnv.addSource(source);
@@ -86,7 +89,10 @@ Example:
 DataStream<SomeObject> dataStream = (...);
 
 SerializationSchema<SomeObject> serializationSchema = (...);
-SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(deserializationSchema, "google-project", "topic")
+SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(SomeObject.class)
+                                                .withDeserializationSchema(deserializer)
+                                                .withProjectName("project")
+                                                .withSubscriptionName("subscription")
                                                 .build()
 
 dataStream.addSink(pubsubSink);
@@ -96,7 +102,7 @@ dataStream.addSink(pubsubSink);
 
 ### Google Credentials
 
-Google uses [Credentials](https://cloud.google.com/docs/authentication/production) to authenticate and authorize applications so that they can use Google Cloud Platform resources (such as PubSub). 
+Google uses [Credentials](https://cloud.google.com/docs/authentication/production) to authenticate and authorize applications so that they can use Google Cloud Platform resources (such as PubSub).
 
 Both builders allow you to provide these credentials but by default the connectors will look for an environment variable: [GOOGLE_APPLICATION_CREDENTIALS](https://cloud.google.com/docs/authentication/production#obtaining_and_providing_service_account_credentials_manually) which should point to a file containing the credentials.
 
@@ -110,11 +116,17 @@ The following example shows how you would create a source to read messages from 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-SerializationSchema<SomeObject> serializationSchema = (...);
-SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(deserializationSchema, "google-project", "subscription")
-                                                      .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator("localhost:1234"))
+DeserializationSchema<SomeObject> deserializationSchema = (...);
+SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(SomeObject.class)
+                                                      .withDeserializationSchema(deserializationSchema)
+                                                      .withProjectName("my-fake-project")
+                                                      .withSubscriptionName("subscription")
+                                                      .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator("localhost:1234", "my-fake-project", "subscription", 10, Duration.ofSeconds(15), 100))
                                                       .build();
-SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(deserializationSchema, "my-fake-project", "topic")
+SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(SomeObject.class)
+                                                .withDeserializationSchema(deserializationSchema)
+                                                .withProjectName("my-fake-project")
+                                                .withSubscriptionName("subscription")
                                                 .withHostAndPortForEmulator(getPubSubHostPort())
                                                 .build()
 

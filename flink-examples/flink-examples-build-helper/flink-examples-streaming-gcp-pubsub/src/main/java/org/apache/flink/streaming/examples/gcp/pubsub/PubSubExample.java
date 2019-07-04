@@ -63,9 +63,16 @@ public class PubSubExample {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(1000L);
 
-		env.addSource(PubSubSource.newBuilder(new IntegerSerializer(), projectName, subscriptionName).build())
+		env.addSource(PubSubSource.newBuilder(Integer.class)
+								.withDeserializationSchema(new IntegerSerializer())
+								.withProjectName(projectName)
+								.withSubscriptionName(subscriptionName)
+								.build())
 			.map(PubSubExample::printAndReturn).disableChaining()
-			.addSink(PubSubSink.newBuilder(new IntegerSerializer(), projectName, outputTopicName).build());
+			.addSink(PubSubSink.newBuilder(Integer.class)
+								.withSerializationSchema(new IntegerSerializer())
+								.withProjectName(projectName)
+								.withTopicName(outputTopicName).build());
 
 		env.execute("Flink Streaming PubSubReader");
 	}
