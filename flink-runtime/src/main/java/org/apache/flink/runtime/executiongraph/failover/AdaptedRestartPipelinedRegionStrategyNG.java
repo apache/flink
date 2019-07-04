@@ -109,7 +109,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
 		FutureUtils.assertNoException(
 			cancelTasks(verticesToRestart)
-				.thenRun(scheduleRestart(globalModVersion, vertexVersions))
+				.thenRunAsync(scheduleRestart(globalModVersion, vertexVersions), executionGraph.getJobMasterMainThreadExecutor())
 				.handle(failGlobalOnError()));
 	}
 
