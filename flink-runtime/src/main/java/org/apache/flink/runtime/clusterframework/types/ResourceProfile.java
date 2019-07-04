@@ -325,7 +325,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			'}';
 	}
 
-	static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
+	public static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
 		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
 
 		return new ResourceProfile(
