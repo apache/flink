@@ -512,6 +512,7 @@ class MiscITCase extends BatchTestBase {
   }
 
   @Ignore // TODO support lazy from source
+  @Test
   def testCompareFunctionWithSubquery(): Unit = {
     checkResult("SELECT " +
         "b IN (3, 4, 5)," +
