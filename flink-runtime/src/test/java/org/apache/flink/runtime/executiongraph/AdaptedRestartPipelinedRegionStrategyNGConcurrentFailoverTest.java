@@ -125,9 +125,9 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		// complete region failover blocker to trigger region failover recovery
 		failoverStrategy.getBlockerFuture().complete(null);
+		manualMainThreadExecutor.triggerAll();
 		manuallyTriggeredRestartStrategy.triggerAll();
 		manualMainThreadExecutor.triggerAll();
-		manualMainThreadExecutor.triggerScheduledTasks();
 
 		// verify that all tasks are recovered and no task is restarted more than once
 		assertEquals(ExecutionState.DEPLOYING, ev11.getExecutionState());
