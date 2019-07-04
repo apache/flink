@@ -109,7 +109,6 @@ object ScanUtil {
       processCode,
       "",
       outputRowType,
-      config,
       converter = inputTermConverter)
 
     val substituteStreamOperator = new CodeGenOperatorFactory[BaseRow](generatedOperator)

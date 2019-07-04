@@ -49,7 +49,6 @@ object OperatorCodeGenerator extends Logging {
       processCode: String,
       endInputCode: String,
       inputType: LogicalType,
-      config: TableConfig,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       lazyInputUnboxingCode: Boolean = false,
       converter: String => String = a => a): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
