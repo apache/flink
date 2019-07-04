@@ -17,15 +17,10 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.PlannerTrimMode.PlannerTrimMode
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.validate._
-
-import scala.collection.JavaConversions._
 
 /**
   * Returns the length of this `str`.
@@ -43,10 +38,6 @@ case class CharLength(child: PlannerExpression) extends UnaryExpression {
   }
 
   override def toString: String = s"($child).charLength()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.CHAR_LENGTH, child.toRexNode)
-  }
 }
 
 /**
@@ -66,10 +57,6 @@ case class InitCap(child: PlannerExpression) extends UnaryExpression {
   }
 
   override def toString: String = s"($child).initCap()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.INITCAP, child.toRexNode)
-  }
 }
 
 /**
@@ -91,10 +78,6 @@ case class Like(str: PlannerExpression, pattern: PlannerExpression) extends Bina
   }
 
   override def toString: String = s"($str).like($pattern)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.LIKE, children.map(_.toRexNode))
-  }
 }
 
 /**
@@ -113,10 +96,6 @@ case class Lower(child: PlannerExpression) extends UnaryExpression {
   }
 
   override def toString: String = s"($child).lowerCase()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.LOWER, child.toRexNode)
-  }
 }
 
 /**
@@ -138,10 +117,6 @@ case class Similar(str: PlannerExpression, pattern: PlannerExpression) extends B
   }
 
   override def toString: String = s"($str).similarTo($pattern)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SIMILAR_TO, children.map(_.toRexNode))
-  }
 }
 
 /**
@@ -162,10 +137,6 @@ case class Substring(
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
   override def toString: String = s"($str).substring($begin, $length)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SUBSTRING, children.map(_.toRexNode))
-  }
 }
 
 /**
@@ -196,10 +167,6 @@ case class Trim(
   }
 
   override def toString: String = s"($str).trim($trimMode, $trimString)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.TRIM, children.map(_.toRexNode))
-  }
 }
 
 /**
@@ -220,10 +187,6 @@ case class Upper(child: PlannerExpression) extends UnaryExpression with InputTyp
     Seq(STRING_TYPE_INFO)
 
   override def toString: String = s"($child).upperCase()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.UPPER, child.toRexNode)
-  }
 }
 
 /**
@@ -240,10 +203,6 @@ case class Position(needle: PlannerExpression, haystack: PlannerExpression)
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO)
 
   override def toString: String = s"($needle).position($haystack)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.POSITION, needle.toRexNode, haystack.toRexNode)
-  }
 }
 
 /**
@@ -269,15 +228,6 @@ case class Overlay(
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
   override def toString: String = s"($str).overlay($replacement, $starting, $position)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(
-      FlinkSqlOperatorTable.OVERLAY,
-      str.toRexNode,
-      replacement.toRexNode,
-      starting.toRexNode,
-      position.toRexNode)
-  }
 }
 
 /**
@@ -295,9 +245,6 @@ case class Concat(strings: Seq[PlannerExpression]) extends PlannerExpression wit
 
   override def toString: String = s"concat($strings)"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.CONCAT, children.map(_.toRexNode))
-  }
 }
 
 /**
@@ -318,10 +265,6 @@ case class ConcatWs(separator: PlannerExpression, strings: Seq[PlannerExpression
     children.map(_ => STRING_TYPE_INFO)
 
   override def toString: String = s"concat_ws($separator, $strings)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.CONCAT_WS, children.map(_.toRexNode))
-  }
 }
 
 case class Lpad(text: PlannerExpression, len: PlannerExpression, pad: PlannerExpression)
@@ -335,10 +278,6 @@ case class Lpad(text: PlannerExpression, len: PlannerExpression, pad: PlannerExp
     Seq(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
 
   override def toString: String = s"($text).lpad($len, $pad)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.LPAD, children.map(_.toRexNode))
-  }
 }
 
 case class Rpad(text: PlannerExpression, len: PlannerExpression, pad: PlannerExpression)
@@ -353,9 +292,6 @@ case class Rpad(text: PlannerExpression, len: PlannerExpression, pad: PlannerExp
 
   override def toString: String = s"($text).rpad($len, $pad)"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.RPAD, children.map(_.toRexNode))
-  }
 }
 
 /**
@@ -377,10 +313,6 @@ case class RegexpReplace(
       BasicTypeInfo.STRING_TYPE_INFO)
 
   override private[flink] def children: Seq[PlannerExpression] = Seq(str, regex, replacement)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.REGEXP_REPLACE, children.map(_.toRexNode))
-  }
 
   override def toString: String = s"($str).regexp_replace($regex, $replacement)"
 }
@@ -416,10 +348,6 @@ case class RegexpExtract(
     }
   }
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.REGEXP_EXTRACT, children.map(_.toRexNode))
-  }
-
   override def toString: String = s"($str).regexp_extract($regex, $extractIndex)"
 }
 
@@ -447,10 +375,6 @@ case class FromBase64(child: PlannerExpression) extends UnaryExpression with Inp
     }
   }
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.FROM_BASE64, child.toRexNode)
-  }
-
   override def toString: String = s"($child).fromBase64"
 
 }
@@ -471,10 +395,6 @@ case class ToBase64(child: PlannerExpression) extends UnaryExpression with Input
       ValidationFailure(s"ToBase64 operator requires a String input, " +
         s"but $child is of type ${child.resultType}")
     }
-  }
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.TO_BASE64, child.toRexNode)
   }
 
   override def toString: String = s"($child).toBase64"
@@ -498,10 +418,6 @@ case class LTrim(child: PlannerExpression) extends UnaryExpression with InputTyp
     }
   }
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.LTRIM, child.toRexNode)
-  }
-
   override def toString = s"($child).ltrim"
 }
 
@@ -523,10 +439,6 @@ case class RTrim(child: PlannerExpression) extends UnaryExpression with InputTyp
     }
   }
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.RTRIM, child.toRexNode)
-  }
-
   override def toString = s"($child).rtrim"
 }
 
@@ -542,10 +454,6 @@ case class Repeat(str: PlannerExpression, n: PlannerExpression)
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO)
 
   override private[flink] def children: Seq[PlannerExpression] = Seq(str, n)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.REPEAT, str.toRexNode, n.toRexNode)
-  }
 
   override private[flink] def validateInput(): ValidationResult = {
     if (str.resultType == STRING_TYPE_INFO && n.resultType == INT_TYPE_INFO) {
@@ -579,7 +487,4 @@ case class Replace(
 
   override def toString: String = s"($str).replace($search, $replacement)"
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.REPLACE, children.map(_.toRexNode))
-  }
 }

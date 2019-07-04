@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 
 case class Md5(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
@@ -31,10 +28,6 @@ case class Md5(child: PlannerExpression) extends UnaryExpression with InputTypeS
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).md5()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.MD5, child.toRexNode)
-  }
 }
 
 case class Sha1(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
@@ -44,10 +37,6 @@ case class Sha1(child: PlannerExpression) extends UnaryExpression with InputType
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).sha1()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SHA1, child.toRexNode)
-  }
 }
 
 case class Sha224(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
@@ -57,10 +46,6 @@ case class Sha224(child: PlannerExpression) extends UnaryExpression with InputTy
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).sha224()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SHA224, child.toRexNode)
-  }
 }
 
 case class Sha256(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
@@ -70,10 +55,6 @@ case class Sha256(child: PlannerExpression) extends UnaryExpression with InputTy
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).sha256()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SHA256, child.toRexNode)
-  }
 }
 
 case class Sha384(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
@@ -83,10 +64,6 @@ case class Sha384(child: PlannerExpression) extends UnaryExpression with InputTy
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).sha384()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SHA384, child.toRexNode)
-  }
 }
 
 case class Sha512(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
@@ -96,10 +73,6 @@ case class Sha512(child: PlannerExpression) extends UnaryExpression with InputTy
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).sha512()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SHA512, child.toRexNode)
-  }
 }
 
 case class Sha2(child: PlannerExpression, hashLength: PlannerExpression)
@@ -114,10 +87,6 @@ case class Sha2(child: PlannerExpression, hashLength: PlannerExpression)
     STRING_TYPE_INFO :: INT_TYPE_INFO :: Nil
 
   override def toString: String = s"($child).sha2($hashLength)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.SHA2, left.toRexNode, right.toRexNode)
-  }
 
 }
 

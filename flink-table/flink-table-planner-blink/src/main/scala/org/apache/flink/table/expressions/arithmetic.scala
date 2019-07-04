@@ -17,24 +17,17 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.SqlOperator
-import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
 import org.apache.flink.table.typeutils.TypeCoercion
+import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
 import org.apache.flink.table.validate._
 
-import scala.collection.JavaConversions._
+import org.apache.calcite.sql.SqlOperator
 
 abstract class BinaryArithmetic extends BinaryExpression {
   private[flink] def sqlOperator: SqlOperator
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(sqlOperator, children.map(_.toRexNode))
-  }
 
   override private[flink] def resultType: TypeInformation[_] =
     TypeCoercion.widerTypeOf(
@@ -60,28 +53,6 @@ case class Plus(left: PlannerExpression, right: PlannerExpression) extends Binar
 
   private[flink] val sqlOperator = FlinkSqlOperatorTable.PLUS
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    if(isString(left.resultType)) {
-      val castedRight = Cast(right, BasicTypeInfo.STRING_TYPE_INFO)
-      relBuilder.call(FlinkSqlOperatorTable.CONCAT, left.toRexNode, castedRight.toRexNode)
-    } else if(isString(right.resultType)) {
-      val castedLeft = Cast(left, BasicTypeInfo.STRING_TYPE_INFO)
-      relBuilder.call(FlinkSqlOperatorTable.CONCAT, castedLeft.toRexNode, right.toRexNode)
-    } else if (isTimeInterval(left.resultType) && left.resultType == right.resultType) {
-      relBuilder.call(FlinkSqlOperatorTable.PLUS, left.toRexNode, right.toRexNode)
-    } else if (isTimeInterval(left.resultType) && isTemporal(right.resultType)) {
-      // Calcite has a bug that can't apply INTERVAL + DATETIME (INTERVAL at left)
-      // we manually switch them here
-      relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, right.toRexNode, left.toRexNode)
-    } else if (isTemporal(left.resultType) && isTemporal(right.resultType)) {
-      relBuilder.call(FlinkSqlOperatorTable.DATETIME_PLUS, left.toRexNode, right.toRexNode)
-    } else {
-      val castedLeft = Cast(left, resultType)
-      val castedRight = Cast(right, resultType)
-      relBuilder.call(FlinkSqlOperatorTable.PLUS, castedLeft.toRexNode, castedRight.toRexNode)
-    }
-  }
-
   override private[flink] def validateInput(): ValidationResult = {
     if (isString(left.resultType) || isString(right.resultType)) {
       ValidationSuccess
@@ -104,10 +75,6 @@ case class Plus(left: PlannerExpression, right: PlannerExpression) extends Binar
 
 case class UnaryMinus(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"-($child)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(FlinkSqlOperatorTable.UNARY_MINUS, child.toRexNode)
-  }
 
   override private[flink] def resultType = child.resultType
 
