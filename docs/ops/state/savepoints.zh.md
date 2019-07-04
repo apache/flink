@@ -88,22 +88,22 @@ mapper-id   | State of StatefulMapper
 
 {% highlight shell %}
 # Savepoint 目标目录
-/Savepoint/
+/savepoint/
 
 # Savepoint 目录
-/Savepoint/savepoint-:shortjobid-:savepointid/
+/savepoint/savepoint-:shortjobid-:savepointid/
 
 # Savepoint 文件包含 Checkpoint元数据
-/Savepoint/savepoint-:shortjobid-:savepointid/_metadata
+/savepoint/savepoint-:shortjobid-:savepointid/_metadata
 
 # Savepoint 状态
-/Savepoint/savepoint-:shortjobid-:savepointid/...
+/savepoint/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
 <div class="alert alert-info">
   <strong>注意:</strong>
-虽然看起来好像可以移动 Savepoint ，但由于 <code>_metadata </ code> 中保存的是绝对路径，因此暂时不支持。
-请按照<a href="https://issues.apache.org/jira/browse/FLINK-5778"> FLINK-5778 </a>了解取消此限制的进度。
+虽然看起来好像可以移动 Savepoint ，但由于 <code>_metadata</code> 中保存的是绝对路径，因此暂时不支持。
+请按照<a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a>了解取消此限制的进度。
 </div>
 请注意，如果使用 `MemoryStateBackend`，则元数据*和*  Savepoint 状态将存储在 `_metadata` 文件中。 由于它是自包含的，你可以移动文件并从任何位置恢复。
 
