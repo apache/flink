@@ -217,8 +217,6 @@ class BatchExecHashJoin(
       } else {
         (rInput, lInput, rProj, lProj, rType, lType, true)
       }
-    val perRequestSize = config.getConf.getInteger(
-      TableConfigOptions.SQL_EXEC_PER_REQUEST_MEM) * NodeResourceConfig.SIZE_IN_MB
     val mq = getCluster.getMetadataQuery
 
     val buildRowSize = Util.first(mq.getAverageRowSize(buildRel), 24).toInt
@@ -237,7 +235,7 @@ class BatchExecHashJoin(
         probeKeys,
         managedMemorySize,
         0,
-        perRequestSize,
+        0,
         buildRowSize,
         buildRowCount,
         reverseJoin,
@@ -246,7 +244,7 @@ class BatchExecHashJoin(
       SimpleOperatorFactory.of(HashJoinOperator.newHashJoinOperator(
         managedMemorySize,
         0,
-        perRequestSize,
+        0,
         hashJoinType,
         condFunc,
         reverseJoin,

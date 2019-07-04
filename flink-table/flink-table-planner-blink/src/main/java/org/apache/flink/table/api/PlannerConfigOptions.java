@@ -97,20 +97,21 @@ public class PlannerConfigOptions {
 							" null values when the source of InnerJoin has nullCount more than this value.");
 
 	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED =
-			key("sql.optimizer.data-skew.distinct-agg.enabled")
+			key("sql.optimizer.distinct-agg.split.enabled")
 					.defaultValue(false)
-					.withDescription("Tell the optimizer whether there is data skew in distinct aggregation. " +
-							"For example: COUNT(DISTINCT col), SUM(DISTINCT col). " +
-							"If true, this will enable the optimizer to split distinct aggregation into two level. " +
-							"This will increase some overhead, e.g. network shuffle, " +
-							"but gives the ability to scale-up the job. Default is false.");
+					.withDescription("Tells the optimizer whether to split distinct aggregation " +
+							"(e.g. COUNT(DISTINCT col), SUM(DISTINCT col)) into two level. " +
+							"The first aggregation is shuffled by an additional key which is calculated using " +
+							"the hashcode of distinct_key and number of buckets. This optimization is very useful " +
+							"when there is data skew in distinct aggregation and gives the ability to scale-up the job. " +
+							"Default is false.");
 
 	public static final ConfigOption<Integer> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET =
-			key("sql.optimizer.data-skew.distinct-agg.bucket")
+			key("sql.optimizer.distinct-agg.split.bucket-num")
 					.defaultValue(1024)
 					.withDescription("Configure the number of buckets when splitting distinct aggregation. " +
 							"The number is used in the first level aggregation to calculate a bucket key " +
-							"'hash_code(distinct_key) % BUCKET_NUM' which is used as a group by key after splitting.");
+							"'hash_code(distinct_key) % BUCKET_NUM' which is used as an additional group key after splitting.");
 
 	@Documentation.ExcludeFromDocumentation(value = "We do not find a bad case yet that need to change this configuration value. " +
 			"So we don't want to expose this configuration to users currently.")
