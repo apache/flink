@@ -64,6 +64,10 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def explain(table: Table): String = ???
 
+  override def explain(table: Table, extended: Boolean): String = ???
+
+  override def explain(extended: Boolean): String = ???
+
   override def getCompletionHints(statement: String, position: Int): Array[String] = ???
 
   override def sqlQuery(query: String): Table = ???
