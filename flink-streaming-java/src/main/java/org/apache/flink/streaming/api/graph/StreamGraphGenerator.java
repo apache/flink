@@ -123,6 +123,12 @@ public class StreamGraphGenerator {
 
 	private String jobName = DEFAULT_JOB_NAME;
 
+	/**
+	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
+	 * specified, translate these edges into {@code BLOCKING} result partition type.
+	 */
+	private boolean blockingConnectionsBetweenChains = false;
+
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
 	public static int getNewIterationNodeId() {
@@ -182,6 +188,11 @@ public class StreamGraphGenerator {
 		return this;
 	}
 
+	public StreamGraphGenerator setBlockingConnectionsBetweenChains(boolean blockingConnectionsBetweenChains) {
+		this.blockingConnectionsBetweenChains = blockingConnectionsBetweenChains;
+		return this;
+	}
+
 	public StreamGraph generate() {
 		streamGraph = new StreamGraph(executionConfig, checkpointConfig);
 		streamGraph.setStateBackend(stateBackend);
@@ -190,6 +201,7 @@ public class StreamGraphGenerator {
 		streamGraph.setUserArtifacts(userArtifacts);
 		streamGraph.setTimeCharacteristic(timeCharacteristic);
 		streamGraph.setJobName(jobName);
+		streamGraph.setBlockingConnectionsBetweenChains(blockingConnectionsBetweenChains);
 
 		alreadyTransformed = new HashMap<>();
 
