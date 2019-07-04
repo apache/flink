@@ -71,7 +71,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -719,7 +718,7 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceID resourceID = ResourceID.generate();
 
-		final AtomicBoolean canBeReleased = new AtomicBoolean(false);
+		final AtomicReference<CompletableFuture<Boolean>> canBeReleased = new AtomicReference<>();
 		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
 			.setCanBeReleasedSupplier(canBeReleased::get)
 			.createTestingTaskExecutorGateway();
@@ -742,14 +741,31 @@ public class SlotManagerTest extends TestLogger {
 			mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
 
 			// now it can not be released yet
-			canBeReleased.set(false);
-			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts);
+			canBeReleased.set(new CompletableFuture<>());
+			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts); // trigger TM.canBeReleased request
 			mainThreadExecutor.triggerAll();
-			assertFalse(releaseFuture.isDone());
+			canBeReleased.get().complete(false);
+			mainThreadExecutor.triggerAll();
+			assertThat(releaseFuture.isDone(), is(false));
+
+			// Allocate and free slot between triggering TM.canBeReleased request and receiving response.
+			// There can be potentially newly unreleased partitions, therefore TM can not be released yet.
+			canBeReleased.set(new CompletableFuture<>());
+			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts); // trigger TM.canBeReleased request
+			mainThreadExecutor.triggerAll();
+			AllocationID allocationID = new AllocationID();
+			slotManager.registerSlotRequest(new SlotRequest(new JobID(), allocationID, resourceProfile, "foobar"));
+			mainThreadExecutor.triggerAll();
+			slotManager.freeSlot(slotId, allocationID);
+			canBeReleased.get().complete(true);
+			mainThreadExecutor.triggerAll();
+			assertThat(releaseFuture.isDone(), is(false));
 
 			// now it can and should be released
-			canBeReleased.set(true);
-			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts);
+			canBeReleased.set(new CompletableFuture<>());
+			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts); // trigger TM.canBeReleased request
+			mainThreadExecutor.triggerAll();
+			canBeReleased.get().complete(true);
 			mainThreadExecutor.triggerAll();
 			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
 		}
