@@ -31,15 +31,21 @@ import org.apache.flink.util.Preconditions;
 import java.util.List;
 
 /**
- * Any savepoint that can be written to from a batch context.
+ * A {@code WritableSavepoint} is any savepoint that can be written to from a batch context.
+ * Internally, a {@link SavepointMetadata} object is maintained that keeps track of the set
+ * of existing operator states in the savepoint, as well as newly added operator states defined by their
+ * {@link BootstrapTransformation}.
+ *
  * @param <F> The implementation type.
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
+	/** The savepoint metadata, which maintains the current set of existing / newly added operator states. */
 	protected final SavepointMetadata metadata;
 
+	/** The state backend to use when writing this savepoint. */
 	protected final StateBackend stateBackend;
 
 	WritableSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {

@@ -23,7 +23,10 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
 /**
- * A new savepoint.
+ * A new savepoint. Operator states can be removed from and added to the savepoint, and eventually, written to
+ * distributed storage as a new savepoint.
+ *
+ * @see WritableSavepoint
  */
 @PublicEvolving
 public class NewSavepoint extends WritableSavepoint<NewSavepoint> {

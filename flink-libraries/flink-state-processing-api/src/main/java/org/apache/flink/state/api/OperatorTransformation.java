@@ -22,7 +22,33 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * An OperatorTransformation represents a single operator within a {@link Savepoint}.
+ * This class provides the entry point for building {@link BootstrapTransformation}s,
+ * which represents procedures to bootstrap new operator states with a given {@code DataSet}.
+ *
+ * <h2>Example usage</h2>
+ *
+ * <pre>{@code
+ *   DataSet<StateData> stateData = ...;
+ *
+ *   // to bootstrap non-keyed state:
+ *   BootstrapTransformation<StateData> nonKeyedStateBootstrap = OperatorTransformation
+ *       .bootstrapWith(stateData)
+ *       .transform(new StateBootstrapFunction<StateData>() {...})
+ *
+ *   // to bootstrap keyed state:
+ *   BootstrapTransformation<StateData> keyedStateBootstrap = OperatorTransformation
+ *       .bootstrapWith(stateData)
+ *       .keyBy(new KeySelector<StateData, KeyType>() {...})
+ *       .transform(new KeyedStateBootstrapFunction<KeyType, StateData>() {...})
+ * }</pre>
+ *
+ * <p>The code example above demonstrates how to create {@code BootstrapTransformation}s for non-keyed and keyed
+ * state. The built bootstrap transformations can then be registered with your {@link ExistingSavepoint} or {@link Savepoint}
+ * prior to writing it.
+ *
+ * @see OneInputOperatorTransformation
+ * @see KeyedOperatorTransformation
+ * @see BootstrapTransformation
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")

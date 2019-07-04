@@ -46,22 +46,35 @@ import javax.annotation.Nullable;
 import java.util.OptionalInt;
 
 /**
- * Bootstrapped data that can be written into a {@code Savepoint}.
+ * A {@code BootstrapTransformation} represents a procedure of writing new operator state into a {@code Savepoint}.
+ * It is defined by a {@code DataSet} containing the data to bootstrap with, a factory for a stream operator
+ * that consumes the elements of the {@code DataSet} and generates state to be snapshotted, as well as an optional
+ * key selector if the new operator state is partitioned.
+ *
+ * @see OperatorTransformation
+ * @see OneInputOperatorTransformation
+ *
  * @param <T> The input type of the transformation.
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
 public class BootstrapTransformation<T> {
+
+	/** The data set containing the data to bootstrap the operator state with. */
 	private final DataSet<T> dataSet;
 
+	/** Factory for the {@link StreamOperator} to consume and snapshot the bootstrapping data set. */
 	private final SavepointWriterOperatorFactory factory;
 
+	/** Partitioner for the bootstrapping data set. Only relevant if this bootstraps partitioned state. */
 	@Nullable
 	private final HashSelector<T> keySelector;
 
+	/** Type information for the key of the bootstrapped state. Only relevant if this bootstraps partitioned state. */
 	@Nullable
 	private final TypeInformation<?> keyType;
 
+	/** Local max parallelism for the bootstrapped operator. */
 	private final OptionalInt operatorMaxParallelism;
 
 	BootstrapTransformation(
@@ -134,7 +147,7 @@ public class BootstrapTransformation<T> {
 			config = new BoundedStreamConfig(keySerializer, keySelector);
 		}
 
-		StreamOperator<TaggedOperatorSubtaskState> operator = factory.getOperator(
+		StreamOperator<TaggedOperatorSubtaskState> operator = factory.createOperator(
 			System.currentTimeMillis(),
 			savepointPath);
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -25,7 +26,17 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 /**
  * Creates a savepoint writing operator from a savepoint path.
  */
+@PublicEvolving
 @FunctionalInterface
 public interface SavepointWriterOperatorFactory {
-	StreamOperator<TaggedOperatorSubtaskState> getOperator(long timestamp, Path savepointPath);
+
+	/**
+	 * Creates a {@link StreamOperator} to be used for generating and snapshotting state.
+	 *
+	 * @param savepointTimestamp the timestamp to associate with the generated savepoint.
+	 * @param savepointPath the path to write the savepoint to.
+	 *
+	 * @return a stream operator for writing the savepoint.
+	 */
+	StreamOperator<TaggedOperatorSubtaskState> createOperator(long savepointTimestamp, Path savepointPath);
 }

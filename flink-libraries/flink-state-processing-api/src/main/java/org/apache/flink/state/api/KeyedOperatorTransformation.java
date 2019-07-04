@@ -37,12 +37,17 @@ import java.util.OptionalInt;
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
 public class KeyedOperatorTransformation<K, T> {
+
+	/** The data set containing the data to bootstrap the operator state with. */
 	private final DataSet<T> dataSet;
 
+	/** Local max parallelism for the bootstrapped operator. */
 	private final OptionalInt operatorMaxParallelism;
 
+	/** Partitioner for the bootstrapping data set. */
 	private final KeySelector<T, K> keySelector;
 
+	/** Type information for the key of the bootstrapped operator. */
 	private final TypeInformation<K> keyType;
 
 	KeyedOperatorTransformation(

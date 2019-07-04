@@ -33,8 +33,10 @@ import java.util.Comparator;
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 /**
- * A {@link Savepoint} is a collection of operator states that can be used to supply initial state
- * when starting a {@link org.apache.flink.streaming.api.datastream.DataStream} job.
+ * This class provides entry points for loading an existing savepoint, or a new empty savepoint.
+ *
+ * @see ExistingSavepoint
+ * @see NewSavepoint
  */
 @PublicEvolving
 public final class Savepoint {

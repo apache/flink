@@ -44,14 +44,16 @@ import java.util.OptionalInt;
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
 public class OneInputOperatorTransformation<T> {
+
+	/** The data set containing the data to bootstrap the operator state with. */
 	private final DataSet<T> dataSet;
 
+	/** Local max parallelism for the bootstrapped operator. */
 	private OptionalInt operatorMaxParallelism = OptionalInt.empty();
 
 	OneInputOperatorTransformation(DataSet<T> dataSet) {
 		this.dataSet = dataSet;
 	}
-
 
 	/**
 	 * Sets the maximum parallelism of this operator.

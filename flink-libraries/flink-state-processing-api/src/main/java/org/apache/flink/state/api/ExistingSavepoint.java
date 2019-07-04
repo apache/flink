@@ -43,15 +43,32 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * An existing savepoint.
+ * An existing savepoint. This class provides the entry points for reading previous
+ * existing operator states in savepoints. Operator states can be removed
+ * from and added to the set of existing operator states, and eventually, written to
+ * distributed storage as a new savepoint.
+ *
+ * <p>New savepoints written using this class are based on the previous existing savepoint.
+ * This means that for existing operators that remain untouched, the new savepoint only contains
+ * a shallow copy of pointers to state data that resides in the previous existing savepoint paths.
+ * This means that both savepoints share state and one cannot be deleted without corrupting the other!
+ *
+ * @see WritableSavepoint
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
 public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
+
+	/** The batch execution environment. Used for creating inputs for reading state. */
 	private final ExecutionEnvironment env;
 
+	/** The savepoint metadata, which maintains the current set of existing / newly added operator states. */
 	private final SavepointMetadata metadata;
 
+	/**
+	 * The state backend that was previously used to write existing operator states in this savepoint.
+	 * This is also the state backend that will be used when writing again this existing savepoint.
+	 */
 	private final StateBackend stateBackend;
 
 	ExistingSavepoint(ExecutionEnvironment env, SavepointMetadata metadata, StateBackend stateBackend) throws IOException {
