@@ -48,7 +48,9 @@ public class ComponentMainThreadExecutorServiceAdapter implements ComponentMainT
 	public ComponentMainThreadExecutorServiceAdapter(
 			final ScheduledExecutor scheduledExecutorService,
 			final Thread mainThread) {
-		this(scheduledExecutorService, () -> MainThreadValidatorUtil.isRunningInExpectedThread(mainThread));
+		this(scheduledExecutorService, () -> {
+			assert MainThreadValidatorUtil.isRunningInExpectedThread(mainThread);
+		});
 	}
 
 	private ComponentMainThreadExecutorServiceAdapter(
