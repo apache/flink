@@ -27,6 +27,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.OperatorInformation;
@@ -117,6 +119,9 @@ public abstract class ExecutionEnvironment {
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
 	private final ExecutionConfig config = new ExecutionConfig();
+
+	private final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor =
+		new DefaultPersistentIntermediateResultDescriptor();
 
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
@@ -805,7 +810,8 @@ public abstract class ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Triggers the program execution. The environment will execute all parts of the program that have
+	 * Triggers the program execution and keep record of all persistent ResultPartition ShuffleDescriptors.
+	 * The environment will execute all parts of the program that have
 	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
 	 * writing results (e.g. {@link DataSet#writeAsText(String)},
 	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
@@ -817,7 +823,11 @@ public abstract class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute() throws Exception {
-		return execute(getDefaultName());
+		JobExecutionResult result =  execute(getDefaultName());
+		persistentIntermediateResultDescriptor.mergeDescriptor(
+			result.getPersistentIntermediateResultDescriptor()
+		);
+		return result;
 	}
 
 	/**
@@ -1280,5 +1290,9 @@ public abstract class ExecutionEnvironment {
 	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
 		return contextEnvironmentFactory == null && threadLocalContextEnvironmentFactory.get() == null;
+	}
+
+	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
+		return persistentIntermediateResultDescriptor;
 	}
 }
