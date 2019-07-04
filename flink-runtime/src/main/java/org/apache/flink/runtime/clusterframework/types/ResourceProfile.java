@@ -284,6 +284,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			return this.cpuCores == that.cpuCores &&
 					this.heapMemoryInMB == that.heapMemoryInMB &&
 					this.directMemoryInMB == that.directMemoryInMB &&
+					this.nativeMemoryInMB == that.nativeMemoryInMB &&
 					this.networkMemoryInMB == that.networkMemoryInMB &&
 					Objects.equals(extendedResources, that.extendedResources);
 		}
