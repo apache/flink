@@ -345,14 +345,14 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testSelectStar(): Unit = {
+  def testSelectStarAndGroupByCall(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)](
       "MyTable", 'a, 'b, 'c)
 
     val testAgg = new CountMinMax
     val resultTable = table
-      .groupBy('b)
+      .groupBy('b % 5)
       .aggregate(testAgg('a))
       .select('*)
 
@@ -364,12 +364,12 @@ class AggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(table),
-            term("select", "a", "b")
+            term("select", "a", "MOD(b, 5) AS TMP_0")
           ),
-          term("groupBy", "b"),
-          term("select", "b", "CountMinMax(a) AS TMP_0")
+          term("groupBy", "TMP_0"),
+          term("select", "TMP_0", "CountMinMax(a) AS TMP_1")
         ),
-        term("select", "b", "TMP_0.f0 AS f0", "TMP_0.f1 AS f1", "TMP_0.f2 AS f2")
+        term("select", "TMP_0", "TMP_1.f0 AS f0", "TMP_1.f1 AS f1", "TMP_1.f2 AS f2")
       )
     util.verifyTable(resultTable, expected)
   }

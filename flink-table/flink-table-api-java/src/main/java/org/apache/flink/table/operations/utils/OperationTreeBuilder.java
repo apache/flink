@@ -407,19 +407,27 @@ public final class OperationTreeBuilder {
 		Expression resolvedAggregate = aggregate.accept(lookupResolver);
 		AggregateWithAlias aggregateWithAlias = resolvedAggregate.accept(new ExtractAliasAndAggregate());
 
-		// turn agg to a named agg, because it will be verified later.
-		String[] childNames = child.getTableSchema().getFieldNames();
-		Expression aggregateRenamed = addAliasToTheCallInGroupings(
-			Arrays.asList(childNames),
-			Collections.singletonList(aggregateWithAlias.aggregate)).get(0);
+		List<Expression> groupsAndAggregate = new ArrayList<>(groupingExpressions);
+		groupsAndAggregate.add(aggregateWithAlias.aggregate);
+		List<Expression> namedGroupsAndAggregate = addAliasToTheCallInAggregate(
+			Arrays.asList(child.getTableSchema().getFieldNames()),
+			groupsAndAggregate);
 
-		// get agg table
+		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
+		// aggregate function in Step5.
+		List<Expression> newGroupingExpressions = namedGroupsAndAggregate.subList(0, groupingExpressions.size());
+
+		// Step2: turn agg to a named agg, because it will be verified later.
+		Expression aggregateRenamed = namedGroupsAndAggregate.get(groupingExpressions.size());
+
+		// Step3: get agg table
 		QueryOperation aggregateOperation = this.aggregate(
-			groupingExpressions,
+			newGroupingExpressions,
 			Collections.singletonList(aggregateRenamed),
 			child);
 
-		// flatten the aggregate function
+		// Step4: flatten the aggregate function
 		String[] aggNames = aggregateOperation.getTableSchema().getFieldNames();
 		List<Expression> flattenedExpressions = Arrays.asList(aggNames)
 			.subList(0, groupingExpressions.size())
@@ -433,7 +441,7 @@ public final class OperationTreeBuilder {
 
 		QueryOperation flattenedProjection = this.project(flattenedExpressions, aggregateOperation);
 
-		// add alias
+		// Step5: add alias
 		return aliasBackwardFields(flattenedProjection, aggregateWithAlias.aliases, groupingExpressions.size());
 	}
 
@@ -511,7 +519,7 @@ public final class OperationTreeBuilder {
 		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
 		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
 		// table aggregate function in Step4.
-		List<Expression> newGroupingExpressions = addAliasToTheCallInGroupings(
+		List<Expression> newGroupingExpressions = addAliasToTheCallInAggregate(
 			Arrays.asList(child.getTableSchema().getFieldNames()),
 			groupingExpressions);
 
@@ -540,7 +548,7 @@ public final class OperationTreeBuilder {
 		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
 		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
 		// table aggregate function in Step4.
-		List<Expression> newGroupingExpressions = addAliasToTheCallInGroupings(
+		List<Expression> newGroupingExpressions = addAliasToTheCallInAggregate(
 			Arrays.asList(child.getTableSchema().getFieldNames()),
 			groupingExpressions);
 
@@ -605,18 +613,18 @@ public final class OperationTreeBuilder {
 
 	/**
 	 * Add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
-	 * groupBy(a % 5 as TMP_0).
+	 * groupBy(a % 5 as TMP_0) or make aggregate a named aggregate.
 	 */
-	private List<Expression> addAliasToTheCallInGroupings(
+	private List<Expression> addAliasToTheCallInAggregate(
 		List<String> inputFieldNames,
-		List<Expression> groupingExpressions) {
+		List<Expression> expressions) {
 
 		int attrNameCntr = 0;
 		Set<String> usedFieldNames = new HashSet<>(inputFieldNames);
 
 		List<Expression> result = new ArrayList<>();
-		for (Expression groupingExpression : groupingExpressions) {
-			if (groupingExpression instanceof UnresolvedCallExpression &&
+		for (Expression groupingExpression : expressions) {
+			if ((groupingExpression instanceof UnresolvedCallExpression) &&
 				!ApiExpressionUtils.isFunction(groupingExpression, BuiltInFunctionDefinitions.AS)) {
 				String tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames);
 				attrNameCntr += 1;
