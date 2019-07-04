@@ -84,7 +84,7 @@ public class KeyedOperatorTransformation<K, T> {
 	 * @param factory A factory returning transformation logic type of the return stream
 	 * @return An {@link BootstrapTransformation} that can be added to a {@link Savepoint}.
 	 */
-	private BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
+	public BootstrapTransformation<T> transform(SavepointWriterOperatorFactory factory) {
 		return new BootstrapTransformation<>(dataSet, operatorMaxParallelism, factory, keySelector, keyType);
 	}
 }
