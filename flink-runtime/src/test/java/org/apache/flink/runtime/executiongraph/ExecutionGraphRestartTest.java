@@ -751,7 +751,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final List<SlotOffer> slotOffers = new ArrayList<>(NUM_TASKS);
 		for (int i = 0; i < numSlots; i++) {
 			final AllocationID allocationId = new AllocationID();
-			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
 			slotOffers.add(slotOffer);
 		}
 
