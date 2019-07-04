@@ -98,6 +98,21 @@ public class ResourceProfileTest {
 				setGPUResource(2.2).
 				build();
 		assertTrue(ResourceProfile.fromResourceSpec(rs3, 100).equals(ResourceProfile.fromResourceSpec(rs5, 100)));
+
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(1.1, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp3 = new ResourceProfile(1.0, 110, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp4 = new ResourceProfile(1.0, 100, 110, 100, 100, Collections.emptyMap());
+		ResourceProfile rp5 = new ResourceProfile(1.0, 100, 100, 110, 100, Collections.emptyMap());
+		ResourceProfile rp6 = new ResourceProfile(1.0, 100, 100, 100, 110, Collections.emptyMap());
+		ResourceProfile rp7 = new ResourceProfile(1.0, 100, 100, 100, 100, Collections.emptyMap());
+
+		assertFalse(rp1.equals(rp2));
+		assertFalse(rp1.equals(rp3));
+		assertFalse(rp1.equals(rp4));
+		assertFalse(rp1.equals(rp5));
+		assertFalse(rp1.equals(rp6));
+		assertTrue(rp1.equals(rp7));
 	}
 
 	@Test
