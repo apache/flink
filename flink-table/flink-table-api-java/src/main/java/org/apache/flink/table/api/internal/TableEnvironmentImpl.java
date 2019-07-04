@@ -332,6 +332,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		translate(bufferedModifyOperations);
+		bufferedModifyOperations.clear();
 		return execEnv.execute(jobName);
 	}
 
