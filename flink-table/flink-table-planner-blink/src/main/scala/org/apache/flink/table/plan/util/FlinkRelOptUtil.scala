@@ -731,6 +731,7 @@ object FlinkRelOptUtil {
     * Possible values:
     * - (R, I = 0): operators that require watermark (window excluded).
     * - (R, I > 0): window / operators that require watermark with minibatch enabled.
+    * - (R, I = -1): existing window aggregate
     * - (P, I > 0): unbounded agg with minibatch enabled.
     * - (N, I = 0): no operator requires watermark, minibatch disabled
     * ------------------------------------------------
@@ -744,6 +745,10 @@ object FlinkRelOptUtil {
     * ------------------------------------------------
     * | R, I_1 > 0  | P, I_2      |  R, I_1
     * ------------------------------------------------
+    * | R, I_1 = -1 | R, I_2      |  R, I_1
+    * ------------------------------------------------
+    * | R, I_1 = -1 | P, I_2      |  R, I_1
+    * ------------------------------------------------
     * | P, I_1      | R, I_2 == 0 |  R, I_1
     * ------------------------------------------------
     * | P, I_1      | R, I_2 > 0  |  R, I_2
@@ -754,6 +759,10 @@ object FlinkRelOptUtil {
   def mergeMiniBatchInterval(
       interval1: MiniBatchInterval,
       interval2: MiniBatchInterval): MiniBatchInterval = {
+    if (interval1 == MiniBatchInterval.NO_MINIBATCH ||
+      interval2 == MiniBatchInterval.NO_MINIBATCH) {
+      return MiniBatchInterval.NO_MINIBATCH
+    }
     interval1.mode match {
       case MiniBatchMode.None => interval2
       case MiniBatchMode.RowTime =>
@@ -781,6 +790,5 @@ object FlinkRelOptUtil {
         }
     }
   }
-
 
 }

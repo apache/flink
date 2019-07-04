@@ -70,13 +70,14 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     val updatedTrait = rel match {
       case _: StreamExecGroupWindowAggregate =>
         // TODO introduce mini-batch window aggregate later
-        MiniBatchIntervalTrait.NONE
+        MiniBatchIntervalTrait.NO_MINIBATCH
 
       case _: StreamExecWatermarkAssigner => MiniBatchIntervalTrait.NONE
 
       case _ => if (rel.requireWatermark && miniBatchEnabled) {
-        new MiniBatchIntervalTrait(MiniBatchInterval(
-          miniBatchIntervalTrait.getMiniBatchInterval.interval, MiniBatchMode.RowTime))
+        val mergedInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
+          miniBatchIntervalTrait.getMiniBatchInterval, MiniBatchInterval(0, MiniBatchMode.RowTime))
+        new MiniBatchIntervalTrait(mergedInterval)
       } else {
         miniBatchIntervalTrait
       }

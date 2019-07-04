@@ -21,12 +21,17 @@ package org.apache.flink.table.plan.stream.sql
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}
 
 class MiniBatchIntervalInferTest extends TableTestBase {
   private val util = streamTestUtil()
+
+  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
   @Before
   def setup(): Unit = {
@@ -137,7 +142,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test(expected = classOf[NullPointerException])
   // TODO remove the exception after TableImpl implements createTemporalTableFunction
   def testTemporalTableFunctionJoinWithMiniBatch(): Unit = {
     util.addTableWithWatermark("Orders", util.tableEnv.scan("MyTable1"), "rowtime", 0)
@@ -254,5 +259,73 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |  ON t1.a = t2.a
       """.stripMargin
     util.verifyPlan(sql)
+  }
+
+  /**
+    * Test watermarkInterval trait infer among optimize block
+    */
+  @Test
+  def testMultipleWindowAggregates(): Unit = {
+    util.addDataStream[(Int, Long, String)]("T1", 'id1, 'rowtime, 'text)
+    util.addDataStream[(Int, Long, Int, String, String)]("T2", 'id2, 'rowtime, 'cnt, 'name, 'goods)
+    util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
+    util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
+
+    util.tableEnv.getConfig.getConf.setLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 500L)
+    util.tableEnv.getConfig.getConf.setLong(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 300L)
+
+    val table1 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1, T3.rowtime AS ts, text
+        |  FROM T3, T4
+        |WHERE id1 = id2
+        |      AND T3.rowtime > T4.rowtime - INTERVAL '5' MINUTE
+        |      AND T3.rowtime < T4.rowtime + INTERVAL '3' MINUTE
+      """.stripMargin)
+    util.tableEnv.registerTable("TempTable1", table1)
+
+    val table2 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1,
+        |    CONCAT_AGG('#', text) as text,
+        |    TUMBLE_ROWTIME(ts, INTERVAL '6' SECOND) as ts
+        |FROM TempTable1
+        |GROUP BY TUMBLE(ts, INTERVAL '6' SECOND), id1
+      """.stripMargin)
+    util.tableEnv.registerTable("TempTable2", table2)
+
+  val table3 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1,
+        |    CONCAT_AGG('*', text)
+        |FROM TempTable2
+        |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
+      """.stripMargin)
+    val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
+    util.tableEnv.writeToSink(table3, appendSink1)
+
+    val table4 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1,
+        |    CONCAT_AGG('-', text)
+        |FROM TempTable1
+        |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
+      """.stripMargin)
+    val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
+    util.tableEnv.writeToSink(table4, appendSink2)
+
+    val table5 = util.tableEnv.sqlQuery(
+      """
+        |SELECT id1,
+        |    COUNT(text)
+        |FROM TempTable2
+        |GROUP BY id1
+      """.stripMargin)
+    val appendSink3 = util.createRetractTableSink(Array("a", "b"), Array(INT, LONG))
+    util.tableEnv.writeToSink(table5, appendSink3)
+
+    util.verifyExplain()
   }
 }

@@ -558,7 +558,7 @@ case class StreamTableTestUtil(
       Option(offset)
     )
     val queryOperation = new PlannerQueryOperation(watermarkAssigner)
-    tableEnv.registerTable(tableName, new TableImpl(tableEnv, queryOperation))
+    tableEnv.registerTable(tableName, tableEnv.createTable(queryOperation))
   }
 
   def verifyPlanWithTrait(): Unit = {

@@ -41,7 +41,7 @@ public class MiniBatchedWatermarkAssignerOperator
 
 	private final long watermarkDelay;
 
-	// timezone watermarkDelay.
+	// timezone offset.
 	private final long tzOffset;
 
 	private final long idleTimeout;

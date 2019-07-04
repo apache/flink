@@ -115,4 +115,27 @@ class FlinkRelOptUtilTest {
     assertEquals(MiniBatchInterval(1000L, MiniBatchMode.RowTime), mergedResult)
   }
 
+  @Test
+  def testMergeWithNoneMiniBatch(): Unit = {
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(
+        MiniBatchInterval.NO_MINIBATCH, MiniBatchInterval.NONE))
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(
+        MiniBatchInterval.NONE, MiniBatchInterval.NO_MINIBATCH))
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(
+        MiniBatchInterval.NO_MINIBATCH, MiniBatchInterval.NO_MINIBATCH))
+    val rowtime = MiniBatchInterval(3000L, MiniBatchMode.RowTime)
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(MiniBatchInterval.NO_MINIBATCH, rowtime))
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(rowtime, MiniBatchInterval.NO_MINIBATCH))
+    val proctime = MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(MiniBatchInterval.NO_MINIBATCH, proctime))
+    assertEquals(MiniBatchInterval.NO_MINIBATCH,
+      FlinkRelOptUtil.mergeMiniBatchInterval(proctime, MiniBatchInterval.NO_MINIBATCH))
+  }
+
 }

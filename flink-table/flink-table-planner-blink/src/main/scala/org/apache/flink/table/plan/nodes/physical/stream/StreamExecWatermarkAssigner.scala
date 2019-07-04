@@ -74,22 +74,23 @@ class StreamExecWatermarkAssigner(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val miniBatchInterval = traits.getTrait(MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
 
-    val value = miniBatchInterval.mode match {
-      case MiniBatchMode.None =>
-        // 1. operator requiring watermark, but mini-batch is not enabled
-        // 2. redundant watermark definition in DDL
-        // 3. existing window, and window mini-batch is disabled.
-        "None"
-      case MiniBatchMode.ProcTime =>
-        val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-        val miniBatchLatency = tableConfig.getConf.getLong(
-          TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
-        Preconditions.checkArgument(miniBatchLatency > 0,
-          "MiniBatch latency must be greater that 0.", null)
-        s"Proctime, ${miniBatchLatency}ms"
-      case MiniBatchMode.RowTime =>
-        s"Rowtime, ${miniBatchInterval.interval}ms"
-      case o => throw new TableException(s"Unsupported mode: $o")
+    val value = if (miniBatchInterval.mode == MiniBatchMode.None ||
+      miniBatchInterval.interval == 0) {
+      // 1. redundant watermark definition in DDL
+      // 2. existing window aggregate
+      // 3. operator requiring watermark, but minibatch is not enabled
+      "None"
+    } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
+      val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+      val miniBatchLatency = tableConfig.getConf.getLong(
+        TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+      Preconditions.checkArgument(miniBatchLatency > 0,
+        "MiniBatch latency must be greater that 0.", null)
+      s"Proctime, ${miniBatchLatency}ms"
+    } else if (miniBatchInterval.mode == MiniBatchMode.RowTime) {
+      s"Rowtime, ${miniBatchInterval.interval}ms"
+    } else {
+      throw new TableException(s"Unsupported mode: $miniBatchInterval")
     }
     super.explainTerms(pw).item("miniBatchInterval", value)
   }
@@ -120,9 +121,9 @@ class StreamExecWatermarkAssigner(
       inferredInterval.interval == 0) {
       require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
       require(watermarkDelay.isDefined, "watermarkDelay should not be None")
-      // 1. operator requiring watermark, but mini-batch is not enabled
-      // 2. redundant watermark definition in DDL
-      // 3. existing window, and window mini-batch is disabled.
+      // 1. redundant watermark definition in DDL
+      // 2. existing window aggregate
+      // 3. operator requiring watermark, but minibatch is not enabled
       val op = new WatermarkAssignerOperator(rowtimeFieldIndex.get, watermarkDelay.get, idleTimeout)
       val opName =
         s"WatermarkAssigner(rowtime: ${rowtimeFieldIndex.get}, offset: ${watermarkDelay.get})"

@@ -89,10 +89,10 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
     }
 
     // infer updateAsRetraction property and miniBatchInterval property for all input blocks
-    sinkBlocks.foreach(b => inferUpdateAsRetraction(
+    sinkBlocks.foreach(b => inferTraits(
       b, b.isUpdateAsRetraction, b.getMiniBatchInterval, isSinkBlock = true))
     // propagate updateAsRetraction property and miniBatchInterval property to all input blocks
-    sinkBlocks.foreach(propagateTraits)
+    sinkBlocks.foreach(propagateTraits(_, isSinkBlock = true))
     // clear the intermediate result
     sinkBlocks.foreach(resetIntermediateResult)
     // optimize recursively RelNodeBlock
@@ -181,7 +181,7 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
     * @param miniBatchInterval  mini-batch interval of the block.
     * @param isSinkBlock        True if the given block is sink block.
     */
-  private def inferUpdateAsRetraction(
+  private def inferTraits(
       block: RelNodeBlock,
       retractionFromRoot: Boolean,
       miniBatchInterval: MiniBatchInterval,
@@ -190,7 +190,7 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
     block.children.foreach {
       child =>
         if (child.getNewOutputNode.isEmpty) {
-          inferUpdateAsRetraction(
+          inferTraits(
             child,
             retractionFromRoot = false,
             miniBatchInterval = MiniBatchInterval.NONE,
@@ -222,8 +222,9 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
     * Propagate updateAsRetraction property and miniBatchInterval property to all input blocks.
     *
     * @param block The [[RelNodeBlock]] instance.
+    * @param isSinkBlock True if the given block is sink block.
     */
-  private def propagateTraits(block: RelNodeBlock): Unit = {
+  private def propagateTraits(block: RelNodeBlock, isSinkBlock: Boolean): Unit = {
 
     // process current block
     def shipTraits(
@@ -239,8 +240,14 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
           val inputBlocks = block.children.filter(b => tableName.equals(b.getOutputTableName))
           Preconditions.checkArgument(inputBlocks.size <= 1)
           if (inputBlocks.size == 1) {
-            val mergedInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
-              miniBatchIntervalTrait.getMiniBatchInterval, miniBatchInterval)
+            val mergedInterval = if (isSinkBlock) {
+              // traits of sinkBlock have already been
+              // initialized before first round of optimization.
+              miniBatchIntervalTrait.getMiniBatchInterval
+            } else {
+              FlinkRelOptUtil.mergeMiniBatchInterval(
+                miniBatchIntervalTrait.getMiniBatchInterval, miniBatchInterval)
+            }
             val newInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
               inputBlocks.head.getMiniBatchInterval,mergedInterval)
             inputBlocks.head.setMiniBatchInterval(newInterval)
@@ -260,7 +267,7 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
     }
 
     shipTraits(block.getOptimizedPlan, block.isUpdateAsRetraction, block.getMiniBatchInterval)
-    block.children.foreach(propagateTraits)
+    block.children.foreach(propagateTraits(_, isSinkBlock = false))
   }
 
   /**
