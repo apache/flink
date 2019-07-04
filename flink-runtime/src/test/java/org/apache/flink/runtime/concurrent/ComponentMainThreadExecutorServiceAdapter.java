@@ -19,13 +19,15 @@
 package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+
+import javax.annotation.Nonnull;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Adapter class for a {@link ScheduledExecutorService} or {@link ScheduledExecutor} which shall be used as a
@@ -41,23 +43,38 @@ public class ComponentMainThreadExecutorServiceAdapter implements ComponentMainT
 
 	public ComponentMainThreadExecutorServiceAdapter(
 			final ScheduledExecutorService scheduledExecutorService,
-			final Runnable mainThreadCheck) {
-		this(new ScheduledExecutorServiceAdapter(scheduledExecutorService), mainThreadCheck);
+			final Thread mainThread) {
+		this(new ScheduledExecutorServiceAdapter(scheduledExecutorService), mainThread);
 	}
 
 	public ComponentMainThreadExecutorServiceAdapter(
-			final ScheduledExecutor scheduledExecutorService,
+			final ScheduledExecutor scheduledExecutor,
 			final Thread mainThread) {
-		this(scheduledExecutorService, () -> {
+		this.scheduledExecutor = scheduledExecutor;
+		this.mainThreadCheck = () -> {
 			assert MainThreadValidatorUtil.isRunningInExpectedThread(mainThread);
-		});
+		};
 	}
 
-	private ComponentMainThreadExecutorServiceAdapter(
-			final ScheduledExecutor scheduledExecutor,
-			final Runnable mainThreadCheck) {
-		this.scheduledExecutor = checkNotNull(scheduledExecutor);
-		this.mainThreadCheck = checkNotNull(mainThreadCheck);
+	public static ComponentMainThreadExecutor forMainThread() {
+		final Thread main = Thread.currentThread();
+		return new ComponentMainThreadExecutorServiceAdapter(new DirectScheduledExecutorService() {
+			@Override
+			public void execute(Runnable command) {
+				assert MainThreadValidatorUtil.isRunningInExpectedThread(main);
+				super.execute(command);
+			}
+		}, main);
+	}
+
+	/**
+	 * Creates a test executor that delegates to the given {@link ScheduledExecutorService}. The given executor must
+	 * execute all submissions with the same thread.
+	 */
+	public static ComponentMainThreadExecutor forSingleThreadExecutor(
+			@Nonnull ScheduledExecutorService singleThreadExecutor) {
+		final Thread thread = CompletableFuture.supplyAsync(Thread::currentThread, singleThreadExecutor).join();
+		return new ComponentMainThreadExecutorServiceAdapter(singleThreadExecutor, thread);
 	}
 
 	@Override

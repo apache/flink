@@ -31,6 +31,7 @@ import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -448,7 +449,7 @@ public class ExecutionGraphTestUtils {
 			.setFutureExecutor(executor)
 			.build();
 
-		graph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}
