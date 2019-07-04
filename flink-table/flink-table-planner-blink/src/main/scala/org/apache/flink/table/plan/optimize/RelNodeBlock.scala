@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.optimize
 
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.plan.`trait`.MiniBatchInterval
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
 import org.apache.flink.table.plan.rules.logical.WindowPropertiesRules
@@ -123,6 +124,8 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   private var updateAsRetract: Boolean = false
 
+  private var miniBatchInterval: MiniBatchInterval = MiniBatchInterval.NONE
+
   def addChild(block: RelNodeBlock): Unit = childBlocks += block
 
   def children: Seq[RelNodeBlock] = childBlocks.toSeq
@@ -147,6 +150,12 @@ class RelNodeBlock(val outputNode: RelNode) {
   }
 
   def isUpdateAsRetraction: Boolean = updateAsRetract
+
+  def setMiniBatchInterval(miniBatchInterval: MiniBatchInterval): Unit = {
+    this.miniBatchInterval = miniBatchInterval
+  }
+
+  def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
   def getChildBlock(node: RelNode): Option[RelNodeBlock] = {
     val find = children.filter(_.outputNode.equals(node))
