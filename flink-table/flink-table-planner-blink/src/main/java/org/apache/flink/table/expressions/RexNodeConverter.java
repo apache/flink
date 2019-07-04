@@ -105,7 +105,8 @@ import static org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval;
 /**
  * Visit expression to generator {@link RexNode}.
  *
- * <p>TODO actually we should use {@link ResolvedExpressionVisitor} here as it is the output of the API
+ * <p>TODO actually we should use {@link ResolvedExpressionVisitor} here as it is the output of the API.
+ * we will update it after introduce Expression resolve in AggCodeGen.
  */
 public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
@@ -206,9 +207,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				.put(BuiltInFunctionDefinitions.RAND_INTEGER, FlinkSqlOperatorTable.RAND_INTEGER);
 		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.BIN, FlinkSqlOperatorTable.BIN);
 		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.HEX, FlinkSqlOperatorTable.HEX);
-
-//		TODO
-//		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TRUNCATE, FlinkSqlOperatorTable.TRUNCATE);
+		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.TRUNCATE, FlinkSqlOperatorTable.TRUNCATE);
 
 		// time functions
 		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.EXTRACT, FlinkSqlOperatorTable.EXTRACT);
@@ -236,10 +235,6 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA384, FlinkSqlOperatorTable.SHA384);
 		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA512, FlinkSqlOperatorTable.SHA512);
 		SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(BuiltInFunctionDefinitions.SHA1, FlinkSqlOperatorTable.SHA1);
-
-		// etc
-		// SIMPLE_DEF_SQL_OPERATOR_MAPPING.put(InternalFunctionDefinitions.THROW_EXCEPTION, FlinkSqlOperatorTable.THROW_EXCEPTION);
-
 	}
 
 	public RexNodeConverter(RelBuilder relBuilder) {
@@ -247,7 +242,6 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
 	}
 
-	// TODO removed later after PlanExpression is merged
 	public RexNode visit(UnresolvedCallExpression call) {
 		FunctionDefinition func = call.getFunctionDefinition();
 		switch (func.getKind()) {
@@ -283,7 +277,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 					typeFactory);
 			return relBuilder.call(sqlFunction, child);
 		} else if (func instanceof TableFunctionDefinition) {
-			throw new UnsupportedOperationException(func.toString());
+			throw new RuntimeException("There is no possible reach here!");
 		} else if (func instanceof AggregateFunctionDefinition) {
 			UserDefinedAggregateFunction aggFunc = ((AggregateFunctionDefinition) func).getAggregateFunction();
 			if (aggFunc instanceof AggregateFunction) {
@@ -382,7 +376,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		} else if (BuiltInFunctionDefinitions.OVER.equals(def)) {
 			List<Expression> args = children;
 			Expression agg = args.get(0);
-			SqlAggFunction aggFunc = agg.accept(new AggregateVisitors.AggFunctionVisitor(typeFactory));
+			SqlAggFunction aggFunc = agg.accept(new SqlAggFunctionVisitor(typeFactory));
 			RelDataType aggResultType = typeFactory.createFieldTypeFromLogicalType(
 					fromDataTypeToLogicalType(((ResolvedExpression) agg).getOutputDataType()));
 
@@ -720,7 +714,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		}
 
 		return literal.getValueAs(clazz)
-				.orElseThrow(() -> new TableException("Unsupported literal class: " + clazz));
+			.orElseThrow(() -> new TableException("Unsupported literal class: " + clazz));
 	}
 
 	/**

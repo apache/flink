@@ -365,19 +365,6 @@ class AggregationITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  //TODO
-//  @Test
-//  def testStddevAndVariance(): Unit = {
-//    val t = BatchScalaTableEnvUtil.fromElements(
-//      tEnv, (1.0, 1), (1.0, 2), (2.0, 1), (2.0, 2), (3.0, 1), (3.0, 2))
-//      .select('_1.stddevPop, '_1.stddevSamp, '_1.stddev, '_1.varPop, '_1.varSamp, '_1.variance)
-//
-//    val expected = s"${math.sqrt(4.0 / 6.0)},${math.sqrt(4.0 / 5.0)},${math.sqrt(4.0 / 5.0)}," +
-//      s"${2D / 3D},0.8,0.8"
-//    val results = executeQuery(t)
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
-//  }
-
   @Test
   def testCollect(): Unit = {
     val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
