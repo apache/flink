@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.batch.sql.join
 
 import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
+import org.apache.flink.table.runtime.batch.sql.join.SemiJoinITCase.leftT
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -38,7 +39,7 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Before
   def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
-    registerCollection("leftT", SemiJoinITCase.leftT, INT_DOUBLE, "a, b")
+    registerCollection("leftT", leftT, INT_DOUBLE, "a, b")
     registerCollection("rightT", SemiJoinITCase.rightT, INT_DOUBLE, "c, d")
     registerCollection("rightUniqueKeyT", SemiJoinITCase.rightUniqueKeyT, INT_DOUBLE, "c, d")
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
@@ -366,6 +367,90 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         Seq(row(1, 2.0), row(1, 2.0), row(3, 3.0), row(null, 5.0))
       )
     }
+  }
+
+  @Test
+  def testRewriteScalarQueryWithoutCorrelation1(): Unit = {
+    Seq(
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT) > 0",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT) > 0.9",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT) >= 1",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT) >= 0.1",
+      "SELECT * FROM leftT WHERE 0 < (SELECT COUNT(*) FROM rightT)",
+      "SELECT * FROM leftT WHERE 0.99 < (SELECT COUNT(*) FROM rightT)",
+      "SELECT * FROM leftT WHERE 1 <= (SELECT COUNT(*) FROM rightT)",
+      "SELECT * FROM leftT WHERE 0.01 <= (SELECT COUNT(*) FROM rightT)"
+    ).foreach(checkResult(_, leftT))
+  }
+
+  @Test
+  def testRewriteScalarQueryWithoutCorrelation2(): Unit = {
+    Seq(
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 5) > 0",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 5) > 0.9",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 5) >= 1",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 5) >= 0.1",
+      "SELECT * FROM leftT WHERE 0 < (SELECT COUNT(*) FROM rightT WHERE c > 5)",
+      "SELECT * FROM leftT WHERE 0.99 < (SELECT COUNT(*) FROM rightT WHERE c > 5)",
+      "SELECT * FROM leftT WHERE 1 <= (SELECT COUNT(*) FROM rightT WHERE c > 5)",
+      "SELECT * FROM leftT WHERE 0.01 <= (SELECT COUNT(*) FROM rightT WHERE c > 5)"
+    ).foreach(checkResult(_, leftT))
+  }
+
+  @Test
+  def testRewriteScalarQueryWithoutCorrelation3(): Unit = {
+    Seq(
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 15) > 0",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 15) > 0.9",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 15) >= 1",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE c > 15) >= 0.1",
+      "SELECT * FROM leftT WHERE 0 < (SELECT COUNT(*) FROM rightT WHERE c > 15)",
+      "SELECT * FROM leftT WHERE 0.99 < (SELECT COUNT(*) FROM rightT WHERE c > 15)",
+      "SELECT * FROM leftT WHERE 1 <= (SELECT COUNT(*) FROM rightT WHERE c > 15)",
+      "SELECT * FROM leftT WHERE 0.01 <= (SELECT COUNT(*) FROM rightT WHERE c > 15)"
+    ).foreach(checkResult(_, Seq.empty))
+  }
+
+  @Test
+  def testRewriteScalarQueryWithCorrelation1(): Unit = {
+    Seq(
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c) > 0",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c) > 0.9",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c) >= 1",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c) >= 0.1",
+      "SELECT * FROM leftT WHERE 0 < (SELECT COUNT(*) FROM rightT WHERE a = c)",
+      "SELECT * FROM leftT WHERE 0.99 < (SELECT COUNT(*) FROM rightT WHERE a = c)",
+      "SELECT * FROM leftT WHERE 1 <= (SELECT COUNT(*) FROM rightT WHERE a = c)",
+      "SELECT * FROM leftT WHERE 0.01 <= (SELECT COUNT(*) FROM rightT WHERE a = c)"
+    ).foreach(checkResult(_, Seq(row(2, 1.0), row(2, 1.0), row(3, 3.0), row(6, null))))
+  }
+
+  @Test
+  def testRewriteScalarQueryWithCorrelation2(): Unit = {
+    Seq(
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5) > 0",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5) > 0.9",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5) >= 1",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5) >= 0.1",
+      "SELECT * FROM leftT WHERE 0 < (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5)",
+      "SELECT * FROM leftT WHERE 0.99 < (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5)",
+      "SELECT * FROM leftT WHERE 1 <= (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5)",
+      "SELECT * FROM leftT WHERE 0.01 <= (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 5)"
+    ).foreach(checkResult(_, Seq(row(6, null))))
+  }
+
+  @Test
+  def testRewriteScalarQueryWithCorrelation3(): Unit = {
+    Seq(
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15) > 0",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15) > 0.9",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15) >= 1",
+      "SELECT * FROM leftT WHERE (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15) >= 0.1",
+      "SELECT * FROM leftT WHERE 0 < (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15)",
+      "SELECT * FROM leftT WHERE 0.99 < (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15)",
+      "SELECT * FROM leftT WHERE 1 <= (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15)",
+      "SELECT * FROM leftT WHERE 0.01 <= (SELECT COUNT(*) FROM rightT WHERE a = c AND c > 15)"
+    ).foreach(checkResult(_, Seq.empty))
   }
 }
 
