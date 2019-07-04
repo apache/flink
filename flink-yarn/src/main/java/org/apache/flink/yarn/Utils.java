@@ -333,7 +333,7 @@ public final class Utils {
 	 * Method to extract environment variables from the flinkConfiguration based on the given prefix String.
 	 *
 	 * @param envPrefix Prefix for the environment variables key
-	 * @param flinkConfiguration The Flink config to get the environment variable defintion from
+	 * @param flinkConfiguration The Flink config to get the environment variable definition from
 	 */
 	public static Map<String, String> getEnvironmentVariables(String envPrefix, org.apache.flink.configuration.Configuration flinkConfiguration) {
 		Map<String, String> result  = new HashMap<>();
