@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -225,6 +226,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public int getMaxParallelism() {
 		return this.jobVertex.getMaxParallelism();
+	}
+
+	public ResourceProfile getResourceProfile() {
+		return this.jobVertex.getResourceProfile();
 	}
 
 	@Override

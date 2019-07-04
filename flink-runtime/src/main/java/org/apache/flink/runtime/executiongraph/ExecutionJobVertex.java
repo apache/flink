@@ -35,6 +35,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -127,6 +128,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private int maxParallelism;
 
+	private final ResourceProfile resourceProfile;
+
 	/**
 	 * Either store a serialized task information, which is for all sub tasks the same,
 	 * or the permanent blob key of the offloaded task information BLOB containing
@@ -193,6 +196,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		this.parallelism = numTaskVertices;
+		this.resourceProfile = ResourceProfile.fromResourceSpec(jobVertex.getMinResources(), 0);
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
@@ -332,6 +336,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	@Override
 	public int getMaxParallelism() {
 		return maxParallelism;
+	}
+
+	@Override
+	public ResourceProfile getResourceProfile() {
+		return resourceProfile;
 	}
 
 	public boolean isMaxParallelismConfigured() {
