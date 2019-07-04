@@ -24,16 +24,23 @@ import org.apache.flink.runtime.io.network.partition.TestingPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.util.PersistentIntermediateResultUtils;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link ExecutionVertex}.
@@ -83,4 +90,37 @@ public class ExecutionVertexTest extends TestLogger {
 
 		assertThat(releasePartitionsFuture.get(), contains(resultPartitionID));
 	}
+
+	@Test
+	public void testCreateShuffleDescriptorFromExecutionVertex() throws Exception {
+		final JobVertex producerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+		final JobVertex consumerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+
+		consumerJobVertex.connectNewDataSetAsInput(producerJobVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING_PERSISTENT);
+
+		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(producerJobVertex, consumerJobVertex)
+			.build();
+
+		executionGraph.scheduleForExecution();
+
+		final ExecutionJobVertex producerExecutionJobVertex = executionGraph.getJobVertex(producerJobVertex.getID());
+
+		IntermediateResultPartition intermediateResultPartition =
+			producerExecutionJobVertex.getProducedDataSets()[0].getPartitions()[0];
+
+		ShuffleDescriptor shuffleDescriptor = PersistentIntermediateResultUtils.createShuffleDescriptor(
+				producerExecutionJobVertex.getGraph().getShuffleMaster(),
+				intermediateResultPartition
+		);
+
+		assertThat(shuffleDescriptor, notNullValue());
+		assertThat(
+			shuffleDescriptor.getResultPartitionID().getPartitionId(),
+			comparesEqualTo(intermediateResultPartition.getPartitionId())
+		);
+		assertTrue(
+			shuffleDescriptor.getSupportedReleaseTypes().contains(ShuffleDescriptor.ReleaseType.MANUAL)
+		);
+	}
+
 }
