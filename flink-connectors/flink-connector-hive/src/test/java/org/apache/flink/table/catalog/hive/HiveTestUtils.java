@@ -27,6 +27,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.net.BindException;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Test utils for Hive connector.
@@ -35,6 +39,10 @@ public class HiveTestUtils {
 	private static final String HIVE_SITE_XML = "hive-site.xml";
 	private static final String HIVE_WAREHOUSE_URI_FORMAT = "jdbc:derby:;databaseName=%s;create=true";
 	private static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+	// range of ephemeral ports
+	private static final int MIN_EPH_PORT = 49152;
+	private static final int MAX_EPH_PORT = 61000;
 
 	/**
 	 * Create a HiveCatalog with an embedded Hive Metastore.
@@ -69,5 +77,22 @@ public class HiveTestUtils {
 			throw new CatalogException(
 				"Failed to create test HiveConf to HiveCatalog.", e);
 		}
+	}
+
+	// Gets a free port of localhost. Note that this method suffers the "time of check to time of use" race condition.
+	// Use it as best efforts to avoid port conflicts.
+	public static int getFreePort() throws IOException {
+		final int numPorts = MAX_EPH_PORT - MIN_EPH_PORT + 1;
+		int numAttempt = 0;
+		while (numAttempt++ < numPorts) {
+			int p = ThreadLocalRandom.current().nextInt(numPorts) + MIN_EPH_PORT;
+			try (ServerSocket socket = new ServerSocket()) {
+				socket.bind(new InetSocketAddress("localhost", p));
+				return socket.getLocalPort();
+			} catch (BindException e) {
+				// this port is in use, try another one
+			}
+		}
+		throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
 	}
 }
