@@ -809,6 +809,12 @@ public class TableImpl implements Table {
 					"after the flatAggregate.");
 			}
 
+			if (extracted.getProjections().stream()
+				.anyMatch(p -> (p instanceof UnresolvedReferenceExpression)
+					&& "*".equals(((UnresolvedReferenceExpression) p).getName()))) {
+				throw new ValidationException("Can not use * for window aggregate!");
+			}
+
 			return table.createTable(
 				table.operationTreeBuilder.project(
 					extracted.getProjections(),
