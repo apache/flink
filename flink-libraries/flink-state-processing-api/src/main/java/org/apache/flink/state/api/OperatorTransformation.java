@@ -52,7 +52,9 @@ import org.apache.flink.api.java.DataSet;
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
-public abstract class OperatorTransformation {
+public final class OperatorTransformation {
+
+	private OperatorTransformation() {}
 
 	/**
 	 * Create a new {@link OperatorTransformation} from a {@link DataSet}.
