@@ -42,6 +42,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -60,6 +61,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests {@link HiveTableSink}.
  */
+@RunWith(FlinkStandaloneHiveRunner.class)
 public class HiveTableSinkTest {
 
 	private static HiveCatalog hiveCatalog;
