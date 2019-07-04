@@ -64,7 +64,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
-	private final Supplier<Boolean> canBeReleasedSupplier;
+	private final Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier;
 
 	private final Consumer<Exception> disconnectResourceManagerConsumer;
 
@@ -78,7 +78,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer,
 			Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction,
 			BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
-			Supplier<Boolean> canBeReleasedSupplier,
+			Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
 			Consumer<Exception> disconnectResourceManagerConsumer, Consumer<ResourceID> heartbeatResourceManagerConsumer) {
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
@@ -180,7 +180,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
-		return CompletableFuture.completedFuture(canBeReleasedSupplier.get());
+		return canBeReleasedSupplier.get();
 	}
 
 	@Override

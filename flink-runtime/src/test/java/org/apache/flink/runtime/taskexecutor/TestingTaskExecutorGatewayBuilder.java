@@ -54,7 +54,7 @@ public class TestingTaskExecutorGatewayBuilder {
 	private BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer = NOOP_SUBMIT_TASK_CONSUMER;
 	private Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
 	private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction = NOOP_FREE_SLOT_FUNCTION;
-	private Supplier<Boolean> canBeReleasedSupplier = () -> true;
+	private Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier = () -> CompletableFuture.completedFuture(true);
 	private Consumer<Exception> disconnectResourceManagerConsumer = ignored -> {};
 	private Consumer<ResourceID> heartbeatResourceManagerConsumer = ignored -> {};
 
@@ -103,7 +103,7 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
-	public TestingTaskExecutorGatewayBuilder setCanBeReleasedSupplier(Supplier<Boolean> canBeReleasedSupplier) {
+	public TestingTaskExecutorGatewayBuilder setCanBeReleasedSupplier(Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier) {
 		this.canBeReleasedSupplier = canBeReleasedSupplier;
 		return this;
 	}

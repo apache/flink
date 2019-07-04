@@ -1031,20 +1031,30 @@ public class SlotManager implements AutoCloseable {
 
 			// second we trigger the release resource callback which can decide upon the resource release
 			for (TaskManagerRegistration taskManagerRegistration : timedOutTaskManagers) {
-				InstanceID timedOutTaskManagerId = taskManagerRegistration.getInstanceId();
 				if (waitResultConsumedBeforeRelease) {
-					// checking whether TaskManagers can be safely removed
-					taskManagerRegistration.getTaskManagerConnection().getTaskExecutorGateway().canBeReleased()
-						.thenAcceptAsync(canBeReleased -> {
-							if (canBeReleased) {
-								releaseTaskExecutor(timedOutTaskManagerId);
-							}},
-							mainThreadExecutor);
+					releaseTaskExecutorIfPossible(taskManagerRegistration);
 				} else {
-					releaseTaskExecutor(timedOutTaskManagerId);
+					releaseTaskExecutor(taskManagerRegistration.getInstanceId());
 				}
 			}
 		}
+	}
+
+	private void releaseTaskExecutorIfPossible(TaskManagerRegistration taskManagerRegistration) {
+		long idleSince = taskManagerRegistration.getIdleSince();
+		taskManagerRegistration
+			.getTaskManagerConnection()
+			.getTaskExecutorGateway()
+			.canBeReleased()
+			.thenAcceptAsync(
+				canBeReleased -> {
+					InstanceID timedOutTaskManagerId = taskManagerRegistration.getInstanceId();
+					boolean stillIdle = idleSince == taskManagerRegistration.getIdleSince();
+					if (stillIdle && canBeReleased) {
+						releaseTaskExecutor(timedOutTaskManagerId);
+					}
+				},
+				mainThreadExecutor);
 	}
 
 	private void releaseTaskExecutor(InstanceID timedOutTaskManagerId) {
