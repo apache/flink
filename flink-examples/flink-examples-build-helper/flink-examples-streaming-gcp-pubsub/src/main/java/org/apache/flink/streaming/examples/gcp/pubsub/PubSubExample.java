@@ -63,13 +63,13 @@ public class PubSubExample {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(1000L);
 
-		env.addSource(PubSubSource.newBuilder(Integer.class)
+		env.addSource(PubSubSource.newBuilder()
 								.withDeserializationSchema(new IntegerSerializer())
 								.withProjectName(projectName)
 								.withSubscriptionName(subscriptionName)
 								.build())
 			.map(PubSubExample::printAndReturn).disableChaining()
-			.addSink(PubSubSink.newBuilder(Integer.class)
+			.addSink(PubSubSink.newBuilder()
 								.withSerializationSchema(new IntegerSerializer())
 								.withProjectName(projectName)
 								.withTopicName(outputTopicName).build());

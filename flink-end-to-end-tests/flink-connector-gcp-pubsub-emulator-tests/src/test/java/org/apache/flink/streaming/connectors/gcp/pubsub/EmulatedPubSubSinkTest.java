@@ -77,7 +77,7 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 
 		// Sink into pubsub
 		theData
-			.addSink(PubSubSink.newBuilder(String.class)
+			.addSink(PubSubSink.newBuilder()
 								.withSerializationSchema(new SimpleStringSchema())
 								.withProjectName(PROJECT_NAME)
 								.withTopicName(TOPIC_NAME)
@@ -116,7 +116,7 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 		env.addSource(new SingleInputSourceFunction())
 
 			.map((MapFunction<String, String>) StringUtils::reverse)
-			.addSink(PubSubSink.newBuilder(String.class)
+			.addSink(PubSubSink.newBuilder()
 								.withSerializationSchema(new SimpleStringSchema())
 								.withProjectName(PROJECT_NAME)
 								.withTopicName(TOPIC_NAME)

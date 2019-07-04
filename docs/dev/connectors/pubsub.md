@@ -62,7 +62,7 @@ Example:
 StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
 DeserializationSchema<SomeObject> deserializer = (...);
-SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(SomeObject.class)
+SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
                                                       .withDeserializationSchema(deserializer)
                                                       .withProjectName("project")
                                                       .withSubscriptionName("subscription")
@@ -89,7 +89,7 @@ Example:
 DataStream<SomeObject> dataStream = (...);
 
 SerializationSchema<SomeObject> serializationSchema = (...);
-SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(SomeObject.class)
+SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withDeserializationSchema(deserializer)
                                                 .withProjectName("project")
                                                 .withSubscriptionName("subscription")
@@ -117,13 +117,13 @@ The following example shows how you would create a source to read messages from 
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DeserializationSchema<SomeObject> deserializationSchema = (...);
-SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(SomeObject.class)
+SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
                                                       .withDeserializationSchema(deserializationSchema)
                                                       .withProjectName("my-fake-project")
                                                       .withSubscriptionName("subscription")
                                                       .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator("localhost:1234", "my-fake-project", "subscription", 10, Duration.ofSeconds(15), 100))
                                                       .build();
-SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(SomeObject.class)
+SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withDeserializationSchema(deserializationSchema)
                                                 .withProjectName("my-fake-project")
                                                 .withSubscriptionName("subscription")
