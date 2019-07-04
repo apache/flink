@@ -2643,6 +2643,26 @@ Table table = input
     
     <tr>
       <td>
+        <strong>Group Window Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "aggregate" with a select statement. And the select statement does not support "*" or aggregate functions.</p>
+{% highlight java %}
+AggregateFunction myAggFunc = new MyMinMax();
+tableEnv.registerFunction("myAggFunc", myAggFunc);
+
+Table table = input
+    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
+    .groupBy("key, w") // group by key and window
+    .aggregate("myAggFunc(a) as (x, y)")
+    .select("key, x, y, w.start, w.end"); // access window properties and aggregate results
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
         <strong>FlatAggregate</strong><br>
         <span class="label label-primary">Streaming</span><br>
         <span class="label label-info">Result Updating</span>
@@ -2837,7 +2857,7 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
   }
 }
 
-val myAggFunc: AggregateFunction = new MyMinMax
+val myAggFunc = new MyMinMax
 val table = input
   .groupBy('key)
   .aggregate(myAggFunc('a) as ('x, 'y))
@@ -2846,6 +2866,25 @@ val table = input
       </td>
     </tr>
     
+    <tr>
+      <td>
+        <strong>Group Window Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "aggregate" with a select statement. And the select statement does not support "*" or aggregate functions.</p>
+{% highlight scala %}
+val myAggFunc = new MyMinMax
+val table = input
+    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
+    .groupBy('key, 'w) // group by key and window
+    .aggregate(myAggFunc('a) as ('x, 'y))
+    .select('key, 'x, 'y, 'w.start, 'w.end) // access window properties and aggregate results
+
+{% endhighlight %}
+      </td>
+    </tr>
+
     <tr>
       <td>
         <strong>FlatAggregate</strong><br>

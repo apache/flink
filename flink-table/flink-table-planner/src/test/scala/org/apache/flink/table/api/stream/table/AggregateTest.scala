@@ -428,4 +428,37 @@ class AggregateTest extends TableTestBase {
       )
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testAggregateOnWindowedTable(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val testAgg = new CountMinMax
+
+    val result = table
+      .window(Tumble over 15.minute on 'rowtime as 'w)
+      .groupBy('w, 'b % 3)
+      .aggregate(testAgg('a) as ('x, 'y, 'z))
+      .select('w.start, 'x, 'y)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(table),
+            term("select", "a", "rowtime", "MOD(b, 3) AS TMP_0")
+          ),
+          term("groupBy", "TMP_0"),
+          term("window", "TumblingGroupWindow('w, 'rowtime, 900000.millis)"),
+          term("select", "TMP_0", "CountMinMax(a) AS TMP_1", "start('w) AS EXPR$0")
+        ),
+        term("select", "EXPR$0", "TMP_1.f0 AS x", "TMP_1.f1 AS y")
+      )
+
+    util.verifyTable(result, expected)
+  }
 }

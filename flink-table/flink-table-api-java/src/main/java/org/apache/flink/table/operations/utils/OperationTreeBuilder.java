@@ -254,6 +254,73 @@ public final class OperationTreeBuilder {
 			child);
 	}
 
+	public QueryOperation windowAggregate(
+		List<Expression> groupingExpressions,
+		GroupWindow window,
+		List<Expression> windowProperties,
+		Expression aggregateFunction,
+		QueryOperation child) {
+
+		ExpressionResolver resolver = getResolver(child);
+		Expression resolvedAggregate = aggregateFunction.accept(lookupResolver);
+		AggregateWithAlias aggregateWithAlias = resolvedAggregate.accept(new ExtractAliasAndAggregate(true, resolver));
+
+		List<Expression> groupsAndAggregate = new ArrayList<>(groupingExpressions);
+		groupsAndAggregate.add(aggregateWithAlias.aggregate);
+		List<Expression> namedGroupsAndAggregate = addAliasToTheCallInAggregate(
+			Arrays.asList(child.getTableSchema().getFieldNames()),
+			groupsAndAggregate);
+
+		// Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5) to
+		// groupBy(a % 5 as TMP_0). We need a name for every column so that to perform alias for the
+		// table aggregate function in Step6.
+		List<Expression> newGroupingExpressions = namedGroupsAndAggregate.subList(0, groupingExpressions.size());
+
+		// Step2: turn agg to a named agg, because it will be verified later.
+		Expression aggregateRenamed = namedGroupsAndAggregate.get(groupingExpressions.size());
+
+		// Step3: resolve expressions, including grouping, aggregates and window properties.
+		ResolvedGroupWindow resolvedWindow = aggregateOperationFactory.createResolvedWindow(window, resolver);
+		ExpressionResolver resolverWithWindowReferences = ExpressionResolver.resolverFor(
+			tableReferenceLookup,
+			functionCatalog,
+			child)
+			.withLocalReferences(
+				new LocalReferenceExpression(
+					resolvedWindow.getAlias(),
+					resolvedWindow.getTimeAttribute().getOutputDataType()))
+			.build();
+
+		List<ResolvedExpression> convertedGroupings = resolverWithWindowReferences.resolve(newGroupingExpressions);
+		List<ResolvedExpression> convertedAggregates = resolverWithWindowReferences.resolve(Collections.singletonList(
+			aggregateRenamed));
+		List<ResolvedExpression> convertedProperties = resolverWithWindowReferences.resolve(windowProperties);
+
+		// Step4: create window agg operation
+		QueryOperation aggregateOperation = aggregateOperationFactory.createWindowAggregate(
+			convertedGroupings,
+			Collections.singletonList(convertedAggregates.get(0)),
+			convertedProperties,
+			resolvedWindow,
+			child);
+
+		// Step5: flatten the aggregate function
+		String[] aggNames = aggregateOperation.getTableSchema().getFieldNames();
+		List<Expression> flattenedExpressions = Arrays.stream(aggNames)
+			.map(ApiExpressionUtils::unresolvedRef)
+			.collect(Collectors.toCollection(ArrayList::new));
+		flattenedExpressions.set(
+			groupingExpressions.size(),
+			unresolvedCall(
+				BuiltInFunctionDefinitions.FLATTEN,
+				unresolvedRef(aggNames[groupingExpressions.size()])));
+		QueryOperation flattenedProjection = this.project(flattenedExpressions, aggregateOperation);
+
+		// Step6: add a top project to alias the output fields of the aggregate. Also, project the
+		// window attribute.
+		return aliasBackwardFields(flattenedProjection, aggregateWithAlias.aliases, groupingExpressions.size());
+	}
+
 	public QueryOperation join(
 			QueryOperation left,
 			QueryOperation right,
