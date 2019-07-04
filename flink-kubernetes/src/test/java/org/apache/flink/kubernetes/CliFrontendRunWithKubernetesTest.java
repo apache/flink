@@ -71,7 +71,7 @@ public class CliFrontendRunWithKubernetesTest extends CliFrontendTestBase {
 		KubernetesCustomCli cli = new TestingKubernetesCustomCli(configuration);
 
 		{
-			String[] parameters = {"-k8s", "-p", "2", "-d", testJarPath};
+			String[] parameters = {"-m", "kubernetes-cluster", "-p", "2", "-d", testJarPath};
 			verifyCliFrontend(cli, parameters, 2, true, true);
 		}
 	}
@@ -79,14 +79,14 @@ public class CliFrontendRunWithKubernetesTest extends CliFrontendTestBase {
 	private static class TestingKubernetesCustomCli extends KubernetesCustomCli {
 
 		public TestingKubernetesCustomCli(Configuration configuration) {
-			super(configuration);
+			super(configuration, "");
 		}
 
 		@Override
 		public ClusterDescriptor<String> createClusterDescriptor(CommandLine commandLine) throws
 			FlinkException {
 			try {
-				FlinkKubernetesOptions flinkOptions = FlinkKubernetesOptions.fromCommandLine(commandLine);
+				FlinkKubernetesOptions flinkOptions = this.fromCommandLine(commandLine);
 				Configuration tmpConfig = flinkOptions.getConfiguration();
 				flinkOptions.getConfiguration().addAll(this.configuration);
 				flinkOptions.getConfiguration().addAll(tmpConfig);

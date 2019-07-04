@@ -140,11 +140,11 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration combine.children="append">
-							<artifactSet>
+							<!--<artifactSet>
 								<includes combine.children="append">
 									<include>com.fasterxml.jackson.core:*</include>
 								</includes>
-							</artifactSet>
+							</artifactSet>-->
 							<relocations>
 								<relocation>
 									<pattern>com.fasterxml.jackson.core</pattern>

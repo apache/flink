@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -37,6 +38,7 @@ import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
  * Kubernetes customized commandline.
@@ -58,52 +63,68 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesCustomCli.class);
 
 	// actions for commandline
-	private static final String CLUSTER_ID = "Kubernetes-cluster";
+	private static final String ID = "kubernetes-cluster";
 	private static final String ACTION_START = "start";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_STOP = "stop";
 
 	private Properties dynamicProperties;
 
+	private final Option dynamic;
+	private final Option help;
+	private final Option jar;
+	private final Option id;
+
+	public KubernetesCustomCli(Configuration configuration, String prefix) {
+		super(configuration);
+
+		dynamic = Option.builder(prefix + "D").argName("property=value").numberOfArgs(2)
+			.valueSeparator('=').desc("use value for given property").build();
+
+		help = Option.builder(prefix + "h").longOpt("help").hasArg(false)
+			.desc("Help for Kubernetes session CLI.").build();
+
+		jar = Option.builder(prefix + "j").longOpt("jar").hasArg(true)
+			.desc("Path to Flink jar file").build();
+
+		id = Option.builder(prefix + "id").longOpt("clusterId").hasArg(true)
+			.desc("the cluster id that will be used for current session.").build();
+	}
+
 	public Properties getDynamicProperties() {
 		return dynamicProperties;
 	}
 
-	public KubernetesCustomCli(Configuration configuration) {
-		super(configuration);
-	}
-
 	/**
-	 * active if commandline contains option --kubeConfig, -k8s, --image-name.
+	 * active if commandline contains option -m kubernetes-cluster | -kid .
 	 */
 	@Override
 	public boolean isActive(CommandLine commandLine) {
-		return commandLine.hasOption(FlinkKubernetesOptions.KUBERNETES_MODE_OPTION.getOpt())
-			|| commandLine.hasOption(FlinkKubernetesOptions.KUBERNETES_CONFIG_FILE_OPTION.getOpt())
-			|| commandLine.hasOption(FlinkKubernetesOptions.IMAGE_OPTION.getOpt());
+		String jobManagerOption = commandLine.getOptionValue(addressOption.getOpt(), null);
+		boolean k8sJobManager = ID.equals(jobManagerOption);
+		boolean k8sClusterId = commandLine.hasOption(id.getOpt());
+		return k8sJobManager || k8sClusterId;
 	}
 
 	@Override
 	public void addRunOptions(Options baseOptions) {
-		baseOptions.addOption(FlinkKubernetesOptions.KUBERNETES_CONFIG_FILE_OPTION)
-			.addOption(FlinkKubernetesOptions.KUBERNETES_MODE_OPTION)
-			.addOption(FlinkKubernetesOptions.IMAGE_OPTION)
-			.addOption(DYNAMIC_PROPERTY_OPTION)
-			.addOption(FlinkKubernetesOptions.CLUSTERID_OPTION)
-			.addOption(FlinkKubernetesOptions.HELP_OPTION)
-			.addOption(FlinkKubernetesOptions.JAR_OPTION)
-			.addOption(FlinkKubernetesOptions.DETACHED_OPTION);
+		baseOptions.addOption(FlinkKubernetesOptions.IMAGE_OPTION)
+			.addOption(DETACHED_OPTION)
+			.addOption(dynamic)
+			.addOption(help)
+			.addOption(jar)
+			.addOption(id);
 	}
 
 	@Override
 	public String getId() {
-		return CLUSTER_ID;
+		return ID;
 	}
 
 	@Override
 	public ClusterDescriptor<String> createClusterDescriptor(CommandLine commandLine) throws FlinkException {
 		try {
-			FlinkKubernetesOptions options = FlinkKubernetesOptions.fromCommandLine(commandLine);
+			FlinkKubernetesOptions options = fromCommandLine(commandLine);
 			addBackConfigurations(options, this.configuration);
 
 			dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
@@ -118,7 +139,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 	@Override
 	public String getClusterId(CommandLine commandLine) {
 		try {
-			FlinkKubernetesOptions options = FlinkKubernetesOptions.fromCommandLine(commandLine);
+			FlinkKubernetesOptions options = fromCommandLine(commandLine);
 
 			//
 			addBackConfigurations(options, this.configuration);
@@ -153,7 +174,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		//
 		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		if (cmd.hasOption(FlinkKubernetesOptions.HELP_OPTION.getOpt())) {
+		if (cmd.hasOption(help.getOpt())) {
 			printUsage();
 			return 0;
 		}
@@ -192,7 +213,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		if (cmd.hasOption(FlinkKubernetesOptions.HELP_OPTION.getOpt())) {
+		if (cmd.hasOption(help.getOpt())) {
 			printUsage();
 			return 0;
 		}
@@ -218,7 +239,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		//
 		final CommandLine cmd = parseCommandLineOptions(args, true);
 
-		if (cmd.hasOption(FlinkKubernetesOptions.HELP_OPTION.getOpt())) {
+		if (cmd.hasOption(help.getOpt())) {
 			printUsage();
 			return 0;
 		}
@@ -304,7 +325,7 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 		int retCode;
 
 		try {
-			final KubernetesCustomCli cli = new KubernetesCustomCli(configuration);
+			final KubernetesCustomCli cli = new KubernetesCustomCli(configuration, "");
 			retCode = cli.parseParameters(args);
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
@@ -345,5 +366,37 @@ public class KubernetesCustomCli extends AbstractCustomCommandLine<String> {
 
 		t.printStackTrace();
 		return 1;
+	}
+
+	/**
+	 * build FlinkKubernetesOption from commandline.
+	 * */
+	protected FlinkKubernetesOptions fromCommandLine(CommandLine commandLine){
+		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
+		int restPort = Integer.parseInt(restPortString);
+		String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
+		final String imageName = commandLine.getOptionValue(FlinkKubernetesOptions.IMAGE_OPTION.getOpt());
+		final String clusterId = commandLine.getOptionValue(id.getOpt());
+
+		//hostname = hostname == null ? clusterId : hostname;
+		Configuration configuration = GlobalConfiguration
+			.loadConfiguration(ConfigurationUtils.createConfiguration(dynamicProperties));
+
+		if (hostname != null) {
+			System.out.print("rest.address is: " + hostname);
+			configuration.setString(RestOptions.ADDRESS, hostname);
+		}
+
+		if (restPort == -1) {
+			restPort = RestOptions.PORT.defaultValue();
+			configuration.setInteger(RestOptions.PORT, restPort);
+		}
+
+		FlinkKubernetesOptions options = new FlinkKubernetesOptions(configuration);
+		options.setClusterId(clusterId);
+		options.setImageName(imageName);
+
+		return options;
 	}
 }

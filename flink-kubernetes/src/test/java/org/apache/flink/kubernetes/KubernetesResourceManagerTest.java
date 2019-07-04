@@ -28,7 +28,6 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -93,7 +92,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 			highAvailabilityServices = new TestingHighAvailabilityServices();
 			rmLeaderElectionService = new TestingLeaderElectionService();
 			highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-			heartbeatServices = new TestingHeartbeatServices(5L, 5L, scheduledExecutor);
+			heartbeatServices = new HeartbeatServices(5L, 5L);
 			metricRegistry = NoOpMetricRegistry.INSTANCE;
 			slotManager = new SlotManager(
 				new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()),

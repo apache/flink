@@ -53,10 +53,10 @@ public class KubeClientFactory {
 
 		Config config = null;
 
-		if (options.getKubeConfigFilePath() != null) {
-			LOG.info("Load kubernetes config from file: {}.", options.getKubeConfigFilePath());
+		if (options.getKubeConfigFile() != null) {
+			LOG.info("Load kubernetes config from file: {}.", options.getKubeConfigFile());
 			try {
-				config = Config.fromKubeconfig(options.getKubeConfigFilePath());
+				config = Config.fromKubeconfig(options.getKubeConfigFile());
 			} catch (IOException e) {
 				LOG.error("Load kubernetes config failed.", e);
 			}

@@ -19,15 +19,10 @@
 package org.apache.flink.kubernetes.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.kubernetes.entrypoint.KubernetesEntryPointUtil;
 import org.apache.flink.kubernetes.resourcemanager.KubernetesResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
-import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
-import org.apache.flink.runtime.entrypoint.FlinkParseException;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.util.Preconditions;
 
@@ -41,21 +36,7 @@ public class KubernetesTaskManagerRunner extends TaskManagerRunner {
 
 	public static void main(String[] args) throws Exception {
 
-		final CommandLineParser<ClusterConfiguration>
-			commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
-
-		final ClusterConfiguration clusterConfiguration;
-
-		try {
-			clusterConfiguration = commandLineParser.parse(args);
-		} catch (FlinkParseException e) {
-			commandLineParser.printHelp(TaskManagerRunner.class.getSimpleName());
-			throw e;
-		}
-
-		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
-		Configuration configuration = GlobalConfiguration
-			.loadConfiguration(clusterConfiguration.getConfigDir(), dynamicProperties);
+		Configuration configuration = KubernetesEntryPointUtil.loadConfiguration(args);
 
 		FileSystem.initialize(configuration, null);
 

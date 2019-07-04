@@ -18,6 +18,9 @@
 
 package org.apache.flink.kubernetes.entrypoint;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.kubernetes.FlinkKubernetesOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -34,11 +37,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.Properties;
+
 import static org.apache.flink.kubernetes.FlinkKubernetesOptions.CLUSTERID_OPTION;
 import static org.apache.flink.kubernetes.FlinkKubernetesOptions.IMAGE_OPTION;
+import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.CONFIG_DIR_OPTION;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
  * Base class for the run {@link ClusterEntrypoint}.
@@ -51,8 +55,7 @@ public abstract class ClusterEntrypointRunner implements ParserResultFactory<Fli
 	@Override
 	public Options getOptions() {
 		final Options options = new Options();
-		options.addOption(REST_PORT_OPTION);
-		options.addOption(HOST_OPTION);
+		options.addOption(CONFIG_DIR_OPTION);
 		options.addOption(DYNAMIC_PROPERTY_OPTION);
 		options.addOption(IMAGE_OPTION);
 		options.addOption(CLUSTERID_OPTION);
@@ -61,7 +64,21 @@ public abstract class ClusterEntrypointRunner implements ParserResultFactory<Fli
 
 	@Override
 	public FlinkKubernetesOptions createResult(@Nonnull CommandLine commandLine) {
-		return FlinkKubernetesOptions.fromCommandLine(commandLine);
+		final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
+		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+
+		Configuration configuration = GlobalConfiguration
+			.loadConfiguration(configDir, ConfigurationUtils.createConfiguration(dynamicProperties));
+
+		FlinkKubernetesOptions flinkKubernetesOptions = new FlinkKubernetesOptions(configuration);
+
+		final String imageName = commandLine.getOptionValue(FlinkKubernetesOptions.IMAGE_OPTION.getOpt());
+		final String clusterId = commandLine.getOptionValue(FlinkKubernetesOptions.CLUSTERID_OPTION.getOpt());
+
+		flinkKubernetesOptions.setClusterId(clusterId);
+		flinkKubernetesOptions.setImageName(imageName);
+
+		return flinkKubernetesOptions;
 	}
 
 	public void run(String[] args) {
@@ -73,12 +90,10 @@ public abstract class ClusterEntrypointRunner implements ParserResultFactory<Fli
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		FlinkKubernetesOptions options;
-
 		final CommandLineParser<FlinkKubernetesOptions> commandLineParser = new CommandLineParser<>(this);
 
 		try {
-			options = commandLineParser.parse(args);
+			FlinkKubernetesOptions options = commandLineParser.parse(args);
 			ClusterEntrypoint entrypoint = this.createClusterEntrypoint(options);
 			ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 

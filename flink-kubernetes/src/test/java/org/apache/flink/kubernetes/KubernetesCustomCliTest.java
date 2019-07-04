@@ -43,7 +43,7 @@ public class KubernetesCustomCliTest {
 	@Test
 	public void testDynamicProperties() throws Exception {
 
-		KubernetesCustomCli cli = new KubernetesCustomCli(new Configuration());
+		KubernetesCustomCli cli = new KubernetesCustomCli(new Configuration(), "");
 
 		Options options = new Options();
 		cli.addRunOptions(options);
@@ -66,7 +66,7 @@ public class KubernetesCustomCliTest {
 	public void testCorrectSettingOfDetachedMode() throws Exception {
 		String[] params = new String[] {"-d"};
 
-		KubernetesCustomCli cli = new KubernetesCustomCli(new Configuration());
+		KubernetesCustomCli cli = new KubernetesCustomCli(new Configuration(), "");
 
 		final CommandLine commandLine = cli.parseCommandLineOptions(params, true);
 
