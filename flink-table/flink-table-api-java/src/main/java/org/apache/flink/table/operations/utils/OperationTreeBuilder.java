@@ -58,6 +58,7 @@ import org.apache.flink.table.operations.utils.factories.SortOperationFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -405,7 +406,8 @@ public final class OperationTreeBuilder {
 
 	public QueryOperation aggregate(List<Expression> groupingExpressions, Expression aggregate, QueryOperation child) {
 		Expression resolvedAggregate = aggregate.accept(lookupResolver);
-		AggregateWithAlias aggregateWithAlias = resolvedAggregate.accept(new ExtractAliasAndAggregate());
+		AggregateWithAlias aggregateWithAlias =
+			resolvedAggregate.accept(new ExtractAliasAndAggregate(true, getResolver(child)));
 
 		List<Expression> groupsAndAggregate = new ArrayList<>(groupingExpressions);
 		groupsAndAggregate.add(aggregateWithAlias.aggregate);
@@ -456,6 +458,16 @@ public final class OperationTreeBuilder {
 	}
 
 	private static class ExtractAliasAndAggregate extends ApiExpressionDefaultVisitor<AggregateWithAlias> {
+
+		// need this flag to validate alias, i.e., the length of alias and function result type should be same.
+		private boolean isRowbasedAggregate = false;
+		private ExpressionResolver resolver = null;
+
+		public ExtractAliasAndAggregate(boolean isRowbasedAggregate, ExpressionResolver resolver) {
+			this.isRowbasedAggregate = isRowbasedAggregate;
+			this.resolver = resolver;
+		}
+
 		@Override
 		public AggregateWithAlias visit(UnresolvedCallExpression unresolvedCall) {
 			if (ApiExpressionUtils.isFunction(unresolvedCall, BuiltInFunctionDefinitions.AS)) {
@@ -497,6 +509,9 @@ public final class OperationTreeBuilder {
 						fieldNames = Collections.emptyList();
 					}
 				} else {
+					ResolvedExpression resolvedExpression =
+						resolver.resolve(Collections.singletonList(unresolvedCall)).get(0);
+					validateAlias(aliases, resolvedExpression, isRowbasedAggregate);
 					fieldNames = aliases;
 				}
 				return Optional.of(new AggregateWithAlias(unresolvedCall, fieldNames));
@@ -508,6 +523,27 @@ public final class OperationTreeBuilder {
 		@Override
 		protected AggregateWithAlias defaultMethod(Expression expression) {
 			throw new ValidationException("Aggregate function expected. Got: " + expression);
+		}
+
+		private void validateAlias(
+			List<String> aliases,
+			ResolvedExpression resolvedExpression,
+			Boolean isRowbasedAggregate) {
+
+			int length = TypeConversions
+				.fromDataTypeToLegacyInfo(resolvedExpression.getOutputDataType()).getArity();
+			int callArity = isRowbasedAggregate ? length : 1;
+			int aliasesSize = aliases.size();
+
+			if ((0 < aliasesSize) && (aliasesSize != callArity)) {
+				throw new ValidationException(String.format(
+					"List of column aliases must have same degree as table; " +
+						"the returned table of function '%s' has " +
+						"%d columns, whereas alias list has %d columns",
+					resolvedExpression,
+					callArity,
+					aliasesSize));
+			}
 		}
 	}
 
@@ -624,7 +660,7 @@ public final class OperationTreeBuilder {
 
 		List<Expression> result = new ArrayList<>();
 		for (Expression groupingExpression : expressions) {
-			if ((groupingExpression instanceof UnresolvedCallExpression) &&
+			if (groupingExpression instanceof UnresolvedCallExpression &&
 				!ApiExpressionUtils.isFunction(groupingExpression, BuiltInFunctionDefinitions.AS)) {
 				String tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames);
 				attrNameCntr += 1;
