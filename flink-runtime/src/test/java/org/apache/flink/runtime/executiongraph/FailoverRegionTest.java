@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -201,7 +202,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		enableCheckpointing(eg);
 
-		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
@@ -321,7 +322,7 @@ public class FailoverRegionTest extends TestLogger {
 			e.printStackTrace();
 			fail("Job failed with exception: " + e.getMessage());
 		}
-		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
 
@@ -482,7 +483,7 @@ public class FailoverRegionTest extends TestLogger {
 			slotProvider);
 
 		eg.attachJobGraph(ordered);
-		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
 
@@ -582,7 +583,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		enableCheckpointing(eg);
 
-		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 
 		attachPendingCheckpoints(eg);

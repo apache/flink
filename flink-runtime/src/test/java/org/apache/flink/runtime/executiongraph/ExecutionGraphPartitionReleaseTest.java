@@ -23,6 +23,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -60,7 +61,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 	private static final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 	private static final TestingComponentMainThreadExecutor mainThreadExecutor =
 		new TestingComponentMainThreadExecutor(
-			TestingComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(scheduledExecutorService));
+			ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(scheduledExecutorService));
 
 	@Test
 	public void testStrategyNotifiedOfFinishedVerticesAndResultsRespected() throws Exception {
