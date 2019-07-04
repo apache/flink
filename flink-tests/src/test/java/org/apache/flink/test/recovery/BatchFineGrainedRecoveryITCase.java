@@ -58,6 +58,11 @@ import static org.junit.Assert.assertThat;
  * The test job is a sequence of non-parallel mappers. Each mapper writes to a blocking partition which means
  * the next mapper starts when the previous is done. The mappers are not chained into one task which makes them
  * separate fail-over regions.
+ *
+ * <p>The test verifies that fine-grained recovery works by randomly incuding failures in any of the mappers.
+ * Since all mappers are connected via blocking partitions, which should be re-used on failure, and the consumer
+ * of the mapper wasn't deployed yet, as the consumed partition was not fully produced yet, only the failed mapper
+ * should actually restart.
  */
 public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final int EMITTED_RECORD_NUMBER = 1000;
@@ -232,11 +237,10 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private enum StaticFailureCounter {
 		;
 
-		private static final int maxFailureNumber = MAX_FAILURE_NUMBER;
 		private static final AtomicInteger failureNumber = new AtomicInteger(0);
 
 		private static boolean failOrNot() {
-			return failureNumber.incrementAndGet() < maxFailureNumber;
+			return failureNumber.incrementAndGet() < MAX_FAILURE_NUMBER;
 		}
 
 		private static void reset() {
