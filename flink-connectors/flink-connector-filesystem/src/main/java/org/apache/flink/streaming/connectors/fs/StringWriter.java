@@ -42,8 +42,9 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 	private String rowDelimiter;
 
-	private byte[] rowDelimiterBytes;
+	private static final String DEFAULT_ROW_DELIMITER = "\n";
 
+	private byte[] rowDelimiterBytes;
 
 	/**
 	 * Creates a new {@code StringWriter} that uses {@code "UTF-8"} charset to convert
@@ -58,6 +59,18 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	 * strings to bytes.
 	 *
 	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
+	 */
+	public StringWriter(String charsetName) {
+		this.charsetName = charsetName;
+		this.rowDelimiter = DEFAULT_ROW_DELIMITER;
+	}
+
+	/**
+	 * Creates a new {@code StringWriter} that uses the given charset and row delimiter to convert
+	 * strings to bytes.
+	 *
+	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
+	 * @param rowDelimiter Parameter that specifies which character to use for delimiting rows
 	 */
 	public StringWriter(String charsetName, String rowDelimiter) {
 		this.charsetName = charsetName;
@@ -76,6 +89,7 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 
 		try {
 			this.charset = Charset.forName(charsetName);
+			this.rowDelimiterBytes = rowDelimiter.getBytes(charset);
 		}
 		catch (IllegalCharsetNameException e) {
 			throw new IOException("The charset " + charsetName + " is not valid.", e);
@@ -89,9 +103,6 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	public void write(T element) throws IOException {
 		FSDataOutputStream outputStream = getStream();
 		outputStream.write(element.toString().getBytes(charset));
-		if (rowDelimiterBytes == null) {
-			rowDelimiterBytes = rowDelimiter.getBytes(charset);
-		}
 		outputStream.write(rowDelimiterBytes);
 	}
 
