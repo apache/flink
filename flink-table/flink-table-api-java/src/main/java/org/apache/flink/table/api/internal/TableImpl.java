@@ -804,24 +804,24 @@ public class TableImpl implements Table {
 				expressionsWithResolvedCalls
 			);
 
-		if (!extracted.getAggregations().isEmpty()) {
-			throw new ValidationException("Aggregate functions cannot be used in the select right " +
-				"after the flatAggregate.");
-		}
+			if (!extracted.getAggregations().isEmpty()) {
+				throw new ValidationException("Aggregate functions cannot be used in the select right " +
+					"after the flatAggregate.");
+			}
 
-		return table.createTable(
-			table.operationTreeBuilder.project(
-				extracted.getProjections(),
-				table.operationTreeBuilder.windowTableAggregate(
-					groupKeys,
-					window,
-					extracted.getWindowProperties(),
-					tableAggFunction,
-					table.operationTree
-				),
-				// required for proper resolution of the time attribute in multi-windows
-				true
-			));
+			return table.createTable(
+				table.operationTreeBuilder.project(
+					extracted.getProjections(),
+					table.operationTreeBuilder.windowTableAggregate(
+						groupKeys,
+						window,
+						extracted.getWindowProperties(),
+						tableAggFunction,
+						table.operationTree
+					),
+					// required for proper resolution of the time attribute in multi-windows
+					true
+				));
 		}
 	}
 
