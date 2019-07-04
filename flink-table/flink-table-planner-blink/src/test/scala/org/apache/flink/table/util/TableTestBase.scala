@@ -605,8 +605,8 @@ case class StreamTableTestUtil(
   }
 
   def enableMiniBatch(): Unit = {
-    tableEnv.getConfig.getConf.setLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
+    tableEnv.getConfig.getConf.setString(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     tableEnv.getConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
   }
 

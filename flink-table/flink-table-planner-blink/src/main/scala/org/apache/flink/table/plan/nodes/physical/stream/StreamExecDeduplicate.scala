@@ -24,16 +24,17 @@ import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, T
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.plan.util.KeySelectorUtil
+import org.apache.flink.table.plan.util.{AggregateUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import java.util
 
+import java.util
 import org.apache.flink.api.dag.Transformation
 
 import scala.collection.JavaConversions._
@@ -113,7 +114,7 @@ class StreamExecDeduplicate(
     val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val tableConfig = tableEnv.getConfig
-    val isMiniBatchEnabled = tableConfig.getConf.getLong(
+    val isMiniBatchEnabled = tableConfig.getMillisecondFromConfigDuration(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = tableEnv.execEnv.getConfig
@@ -123,8 +124,7 @@ class StreamExecDeduplicate(
       } else {
         new MiniBatchDeduplicateKeepFirstRowFunction(rowSerializer)
       }
-      val trigger = new CountBundleTrigger[BaseRow](
-        tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+      val trigger = AggregateUtil.createMiniBatchTrigger(tableConfig)
       new KeyedMapBundleOperator(
         processFunction,
         trigger)

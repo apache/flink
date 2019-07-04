@@ -174,7 +174,7 @@ class BatchExecHashJoinRule
       return (false, false)
     }
     val threshold = tableConfig.getConf.getLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD)
+      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
     joinType match {
       case JoinRelType.LEFT => (rightSize <= threshold, false)
       case JoinRelType.RIGHT => (leftSize <= threshold, true)

@@ -73,7 +73,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       needRetraction,
       isStateBackendDataViews = true)
 
-    val isMiniBatchEnabled = tableConfig.getConf.getLong(
+    val isMiniBatchEnabled = tableConfig.getMillisecondFromConfigDuration(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
     val isTwoPhaseEnabled = !tableConfig.getConf
       .getString(PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.codegen.ValuesCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -74,25 +74,18 @@ class StreamExecValues(
 
   override protected def translateToPlanInternal(
       tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-    if (tableEnv.getConfig.getConf.getBoolean(
-      TableConfigOptions.SQL_EXEC_SOURCE_VALUES_INPUT_ENABLED)) {
-      val inputFormat = ValuesCodeGenerator.generatorInputFormat(
-        tableEnv,
-        getRowType,
-        tuples,
-        getRelTypeName)
-      val transformation = tableEnv.execEnv.createInput(inputFormat,
-        inputFormat.getProducedType).getTransformation
-      transformation.setParallelism(getResource.getParallelism)
-      if (getResource.getMaxParallelism > 0) {
-        transformation.setMaxParallelism(getResource.getMaxParallelism)
-      }
-      transformation
-    } else {
-      // enable this feature when runtime support do checkpoint when source finished
-      throw new TableException("Values source input is not supported currently. Probably " +
-        "there is a where condition which always returns false in your query.")
+    val inputFormat = ValuesCodeGenerator.generatorInputFormat(
+      tableEnv,
+      getRowType,
+      tuples,
+      getRelTypeName)
+    val transformation = tableEnv.execEnv.createInput(inputFormat,
+      inputFormat.getProducedType).getTransformation
+    transformation.setParallelism(getResource.getParallelism)
+    if (getResource.getMaxParallelism > 0) {
+      transformation.setMaxParallelism(getResource.getMaxParallelism)
     }
+    transformation
   }
 
 }

@@ -38,7 +38,6 @@ import java.util.Calendar
 
 import scala.collection.JavaConversions._
 
-
 /**
   * Stream physical RelNode for [[WatermarkAssigner]].
   */
@@ -82,7 +81,7 @@ class StreamExecWatermarkAssigner(
       "None"
     } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
       val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-      val miniBatchLatency = tableConfig.getConf.getLong(
+      val miniBatchLatency = tableConfig.getMillisecondFromConfigDuration(
         TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
       Preconditions.checkArgument(miniBatchLatency > 0,
         "MiniBatch latency must be greater that 0.", null)
@@ -114,7 +113,7 @@ class StreamExecWatermarkAssigner(
 
     val inferredInterval = getTraitSet.getTrait(
       MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
-    val idleTimeout = tableEnv.getConfig.getConf.getLong(
+    val idleTimeout = tableEnv.getConfig.getMillisecondFromConfigDuration(
       TableConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
 
     val (operator, opName) = if (inferredInterval.mode == MiniBatchMode.None ||

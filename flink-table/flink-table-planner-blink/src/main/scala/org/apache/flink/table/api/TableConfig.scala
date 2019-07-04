@@ -18,13 +18,15 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration.{Configuration, GlobalConfiguration}
+import org.apache.flink.configuration.{ConfigOption, Configuration, GlobalConfiguration}
 import org.apache.flink.table.api.OperatorType.OperatorType
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.util.Preconditions
 
 import _root_.java.math.MathContext
 import _root_.java.util.TimeZone
+
+import _root_.scala.concurrent.duration.Duration
 
 /**
  * A config to define the runtime behavior of the Table API.
@@ -200,9 +202,20 @@ class TableConfig {
     }
   }
 
+  def getMillisecondFromConfigDuration(config: ConfigOption[String]): Long = {
+    val duration = Duration.create(this.conf.getString(config))
+    if (duration.isFinite()) {
+      duration.toMillis
+    } else {
+      throw new IllegalArgumentException(config.key() + " must be finite.")
+    }
+  }
+
   /**
-    * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
+    * Specifies a minimum time interval for how long idle state, i.e., state which
     * was not updated, will be retained.
+    * The maximum time will be 2 * minimum time if it > 0 or 1/2 * minimum time.
+    *
     * State will never be cleared until it was idle for less than the minimum time and will never
     * be kept if it was idle for more than the maximum time.
     *
@@ -213,36 +226,29 @@ class TableConfig {
     *
     * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
     *                never clean-up the state.
-    * @param maxTime The maximum time interval for which idle state is retained. May not be smaller
-    *                than than minTime. Set to 0 (zero) to never clean-up the state.
     */
-  def withIdleStateRetentionTime(minTime: Time, maxTime: Time): TableConfig = {
-    if (maxTime.toMilliseconds < minTime.toMilliseconds) {
-      throw new IllegalArgumentException("maxTime may not be smaller than minTime.")
-    }
-    this.conf.setLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MS, minTime.toMilliseconds)
-    this.conf.setLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS, maxTime.toMilliseconds)
+  def withIdleStateRetentionTime(minTime: Time): TableConfig = {
+    this.conf.setString(TableConfigOptions.SQL_EXEC_STATE_TTL,
+      String.valueOf(minTime.toMilliseconds) + " ms")
     this
   }
 
   /**
     * Returns the minimum time until state which was not updated will be retained.
     */
-  def getMinIdleStateRetentionTime: Long = {
-    this.conf.getLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MS)
-  }
+  def getMinIdleStateRetentionTime: Long =
+    getMillisecondFromConfigDuration(TableConfigOptions.SQL_EXEC_STATE_TTL)
 
   /**
     * Returns the maximum time until state which was not updated will be retained.
     */
   def getMaxIdleStateRetentionTime: Long = {
-    // only min idle ttl provided.
-    if (this.conf.contains(TableConfigOptions.SQL_EXEC_STATE_TTL_MS)
-      && !this.conf.contains(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS)) {
-      this.conf.setLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS,
-        getMinIdleStateRetentionTime * 2)
+    val ttlTime = getMinIdleStateRetentionTime
+    if (ttlTime >= 0) {
+      getMinIdleStateRetentionTime * 2
+    } else {
+      getMinIdleStateRetentionTime / 2
     }
-    this.conf.getLong(TableConfigOptions.SQL_EXEC_STATE_TTL_MAX_MS)
   }
 
   /**

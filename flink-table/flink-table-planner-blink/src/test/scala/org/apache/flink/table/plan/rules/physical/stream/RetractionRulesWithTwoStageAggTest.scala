@@ -33,7 +33,7 @@ class RetractionRulesWithTwoStageAggTest extends TableTestBase {
   @Before
   def before(): Unit = {
     util.enableMiniBatch()
-    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     util.tableEnv.getConfig.getConf.setString(
       PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, AggPhaseEnforcer.TWO_PHASE.toString)
   }

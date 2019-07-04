@@ -41,7 +41,7 @@ class DistinctAggregateTest(
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     util.enableMiniBatch()
     util.tableEnv.getConfig.getConf.setString(
       PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggPhaseEnforcer.toString)
