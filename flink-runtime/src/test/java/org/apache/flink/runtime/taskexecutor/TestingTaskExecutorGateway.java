@@ -70,7 +70,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction;
 
-	private final Supplier<Boolean> canBeReleasedSupplier;
+	private final Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier;
 
 	TestingTaskExecutorGateway(
 			String address,
@@ -83,7 +83,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			Consumer<ResourceID> heartbeatResourceManagerConsumer,
 			Consumer<Exception> disconnectResourceManagerConsumer,
 			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
-			Supplier<Boolean> canBeReleasedSupplier) {
+			Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier) {
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
@@ -185,7 +185,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
-		return CompletableFuture.completedFuture(canBeReleasedSupplier.get());
+		return canBeReleasedSupplier.get();
 	}
 
 	@Override
