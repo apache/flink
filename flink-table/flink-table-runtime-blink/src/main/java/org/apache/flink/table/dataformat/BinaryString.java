@@ -329,8 +329,8 @@ public final class BinaryString extends LazyBinaryFormat<String> implements Comp
 	/**
 	 * Returns a binary string that is a substring of this binary string. The substring begins at
 	 * the specified {@code beginIndex} and extends to the character at index {@code endIndex - 1}.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <blockquote><pre>
 	 * fromString("hamburger").substring(4, 8) returns binary string "urge"
 	 * fromString("smiles").substring(1, 5) returns binary string "mile"
