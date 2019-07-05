@@ -222,7 +222,6 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Other Exec Options
 	// ------------------------------------------------------------------------
-	@Documentation.ExcludeFromDocumentation(value = "Only for tests.")
 	public static final ConfigOption<String> SQL_EXEC_DISABLED_OPERATORS =
 			key("sql.exec.disabled-operators")
 					.defaultValue("")

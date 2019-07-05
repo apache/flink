@@ -31,7 +31,7 @@ public class PlannerConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Optimizer Options
 	// ------------------------------------------------------------------------
-	@Documentation.ExcludeFromDocumentation(value = "Just for corner cases that sql is converted to hundreds of thousands of CNF nodes.")
+	@Documentation.ExcludeFromDocumentation(value = "Just for corner cases that a simple predicate is converted to too many CNF nodes.")
 	public static final ConfigOption<Integer> SQL_OPTIMIZER_CNF_NODES_LIMIT =
 			key("sql.optimizer.cnf.nodes.limit")
 					.defaultValue(-1)
@@ -71,7 +71,7 @@ public class PlannerConfigOptions {
 							"However that will increase optimization time. Default value is false.");
 
 	public static final ConfigOption<Long> SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD =
-			key("sql.optimizer.broadcast.join.threshold")
+			key("sql.optimizer.join.broadcast.threshold")
 					.defaultValue(1024 * 1024L)
 					.withDescription("Configures the maximum size in bytes for a table that will be broadcast to all worker " +
 							"nodes when performing a join.  By setting this value to -1 broadcasting can be disabled. ");
@@ -90,7 +90,7 @@ public class PlannerConfigOptions {
 	@Documentation.ExcludeFromDocumentation(value = "Just for corner cases, when the cbo is totally wrong, " +
 			"we can adjust this value to reduce useless filter.")
 	public static final ConfigOption<Long> SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD =
-			key("sql.optimizer.join.null.filter.threshold")
+			key("sql.optimizer.join.null-filter.threshold")
 					.defaultValue(2000000L)
 					.withDescription("To avoid the impact of null values on the single join node, " +
 							"We will add a null filter (possibly be pushed down) before the join to filter" +
