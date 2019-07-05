@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
@@ -129,7 +130,7 @@ public class HiveGenericUDAFTest {
 	private static HiveGenericUDAF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
 		HiveFunctionWrapper<GenericUDAFResolver2> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
 
-		HiveGenericUDAF udf = new HiveGenericUDAF(wrapper);
+		HiveGenericUDAF udf = new HiveGenericUDAF(wrapper, HiveShimLoader.getHiveVersion());
 
 		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
 		udf.getHiveResultType(constantArgs, argTypes);
