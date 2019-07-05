@@ -18,20 +18,25 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
+import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.typeutils.BinaryRowSerializer
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -124,7 +129,44 @@ class BatchExecNestedLoopJoin(
 
   override def translateToPlanInternal(
       tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-    throw new TableException("Implements this")
+    val lInput = getInputNodes.get(0).translateToPlan(tableEnv)
+        .asInstanceOf[Transformation[BaseRow]]
+    val rInput = getInputNodes.get(1).translateToPlan(tableEnv)
+        .asInstanceOf[Transformation[BaseRow]]
+
+    // get type
+    val lType = lInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+
+    val op = new NestedLoopJoinCodeGenerator(
+      CodeGeneratorContext(tableEnv.getConfig),
+      singleRowJoin,
+      leftIsBuild,
+      lType,
+      rType,
+      outputType,
+      flinkJoinType,
+      condition
+    ).gen()
+
+    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+      lInput,
+      rInput,
+      getOperatorName,
+      op,
+      BaseRowTypeInfo.of(outputType),
+      getResource.getParallelism)
+  }
+
+  private def getOperatorName: String = {
+    val joinExpressionStr = if (getCondition != null) {
+      val inFields = inputRowType.getFieldNames.toList
+      s"where: ${getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)}, "
+    } else {
+      ""
+    }
+    s"NestedLoopJoin($joinExpressionStr${if (leftIsBuild) "buildLeft" else "buildRight"})"
   }
 
 }

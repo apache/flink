@@ -22,23 +22,24 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
-import org.apache.flink.table.runtime.batch.sql.join.JoinType.{JoinType, NestedLoopJoin, SortMergeJoin}
+import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
 import java.math.{BigDecimal => JBigDecimal}
+import java.util
 
 import scala.collection.Seq
 import scala.util.Random
 
-// @RunWith(classOf[Parameterized]) TODO
-class InnerJoinITCase extends BatchTestBase {
-
-  val expectedJoinType: JoinType = JoinType.SortMergeJoin
+@RunWith(classOf[Parameterized])
+class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   private lazy val myUpperCaseData = Seq(
     row(1, "A"),
@@ -154,8 +155,7 @@ class InnerJoinITCase extends BatchTestBase {
   def testBigForSpill(): Unit = {
 
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    //TODO ensure hash join spilled
-//    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
 
     val bigData = Random.shuffle(
@@ -188,3 +188,12 @@ class InnerJoinITCase extends BatchTestBase {
     }
   }
 }
+
+object InnerJoinITCase {
+  @Parameterized.Parameters(name = "{0}")
+  def parameters(): util.Collection[Array[_]] = {
+    util.Arrays.asList(
+      Array(BroadcastHashJoin), Array(HashJoin), Array(SortMergeJoin), Array(NestedLoopJoin))
+  }
+}
+

@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
+import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.SortMergeJoin
 import org.apache.flink.table.runtime.utils.BatchTestBase
@@ -511,7 +511,8 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Ignore // TODO support lazy from source
+  @Test
   def testCompareFunctionWithSubquery(): Unit = {
     checkResult("SELECT " +
         "b IN (3, 4, 5)," +
