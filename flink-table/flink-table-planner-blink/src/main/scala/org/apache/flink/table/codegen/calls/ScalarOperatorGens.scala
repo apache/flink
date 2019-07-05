@@ -1967,35 +1967,31 @@ object ScalarOperatorGens {
         val stmt =
           s"""
              |boolean $resultTerm;
-             |if ($leftTerm instanceof $binaryMapCls && $rightTerm instanceof $binaryMapCls) {
-             |  $resultTerm = $leftTerm.equals($rightTerm);
-             |} else {
-             |  if ($leftTerm.numElements() == $rightTerm.numElements()) {
-             |    $resultTerm = true;
-             |    $mapCls $leftMapTerm = $leftTerm.toJavaMap($keyTypeTerm, $valueTypeTerm);
-             |    $mapCls $rightMapTerm = $rightTerm.toJavaMap($keyTypeTerm, $valueTypeTerm);
+             |if ($leftTerm.numElements() == $rightTerm.numElements()) {
+             |  $resultTerm = true;
+             |  $mapCls $leftMapTerm = $leftTerm.toJavaMap($keyTypeTerm, $valueTypeTerm);
+             |  $mapCls $rightMapTerm = $rightTerm.toJavaMap($keyTypeTerm, $valueTypeTerm);
              |
-             |    for ($entryCls $entryTerm : $leftMapTerm.entrySet()) {
-             |      $keyCls $leftKeyTerm = ($keyCls) $entryTerm.getKey();
-             |      if ($rightMapTerm.containsKey($leftKeyTerm)) {
-             |        $valueCls $leftValueTerm = ($valueCls) $entryTerm.getValue();
-             |        $valueCls $rightValueTerm = ($valueCls) $rightMapTerm.get($leftKeyTerm);
-             |        boolean $leftValueNullTerm = ($leftValueTerm == null);
-             |        boolean $rightValueNullTerm = ($rightValueTerm == null);
+             |  for ($entryCls $entryTerm : $leftMapTerm.entrySet()) {
+             |    $keyCls $leftKeyTerm = ($keyCls) $entryTerm.getKey();
+             |    if ($rightMapTerm.containsKey($leftKeyTerm)) {
+             |      $valueCls $leftValueTerm = ($valueCls) $entryTerm.getValue();
+             |      $valueCls $rightValueTerm = ($valueCls) $rightMapTerm.get($leftKeyTerm);
+             |      boolean $leftValueNullTerm = ($leftValueTerm == null);
+             |      boolean $rightValueNullTerm = ($rightValueTerm == null);
              |
-             |        ${valueEqualsExpr.code}
-             |        if (!${valueEqualsExpr.resultTerm}) {
-             |          $resultTerm = false;
-             |          break;
-             |        }
-             |      } else {
+             |      ${valueEqualsExpr.code}
+             |      if (!${valueEqualsExpr.resultTerm}) {
              |        $resultTerm = false;
              |        break;
              |      }
+             |    } else {
+             |      $resultTerm = false;
+             |      break;
              |    }
-             |  } else {
-             |    $resultTerm = false;
              |  }
+             |} else {
+             |  $resultTerm = false;
              |}
              """.stripMargin
         (stmt, resultTerm)

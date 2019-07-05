@@ -50,8 +50,8 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 						// These are actually the same maps, but their key / value order will be
 						// different when stored as binary maps, and the equalsTo method of binary
 						// map will return false.
-						newSer().toBinaryMap((BaseMap) o1).toJavaMap(INT, STRING)
-								.equals(newSer().toBinaryMap((BaseMap) o2).toJavaMap(INT, STRING))
+						((BaseMap) o1).toJavaMap(INT, STRING)
+								.equals(((BaseMap) o2).toJavaMap(INT, STRING))
 		));
 	}
 
