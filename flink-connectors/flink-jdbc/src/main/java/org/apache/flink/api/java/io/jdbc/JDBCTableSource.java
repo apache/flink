@@ -83,12 +83,16 @@ public class JDBCTableSource implements LookupableTableSource<Row> {
 		private JDBCLookupOptions lookupOptions;
 		private TableSchema schema;
 
+		/**
+		 * required, jdbc options.
+		 */
 		public Builder setOptions(JDBCOptions options) {
 			this.options = options;
 			return this;
 		}
 
 		/**
+		 * optional, lookup related options.
 		 * {@link JDBCLookupOptions} only be used for {@link LookupableTableSource}.
 		 */
 		public Builder setLookupOptions(JDBCLookupOptions lookupOptions) {
@@ -96,6 +100,9 @@ public class JDBCTableSource implements LookupableTableSource<Row> {
 			return this;
 		}
 
+		/**
+		 * required, table schema of this table source.
+		 */
 		public Builder setSchema(TableSchema schema) {
 			this.schema = schema;
 			return this;

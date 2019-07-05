@@ -36,6 +36,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * An upsert OutputFormat for JDBC.
  */
@@ -226,36 +228,58 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		private long flushIntervalMills = DEFAULT_FLUSH_INTERVAL_MILLS;
 		private int maxRetryTimes = DEFAULT_MAX_RETRY_TIMES;
 
+		/**
+		 * required, jdbc options.
+		 */
 		public Builder setOptions(JDBCOptions options) {
 			this.options = options;
 			return this;
 		}
 
+		/**
+		 * required, field names of this jdbc sink.
+		 */
 		public Builder setFieldNames(String[] fieldNames) {
 			this.fieldNames = fieldNames;
 			return this;
 		}
 
+		/**
+		 * required, upsert unique keys.
+		 */
 		public Builder setKeyFields(String[] keyFields) {
 			this.keyFields = keyFields;
 			return this;
 		}
 
+		/**
+		 * required, field types of this jdbc sink.
+		 */
 		public Builder setFieldTypes(int[] fieldTypes) {
 			this.fieldTypes = fieldTypes;
 			return this;
 		}
 
+		/**
+		 * optional, flush max size (includes all append, upsert and delete records),
+		 * over this number of records, will flush data.
+		 */
 		public Builder setFlushMaxSize(int flushMaxSize) {
 			this.flushMaxSize = flushMaxSize;
 			return this;
 		}
 
+		/**
+		 * optional, flush interval mills, over this time, asynchronous threads will flush data.
+		 */
 		public Builder setFlushIntervalMills(long flushIntervalMills) {
 			this.flushIntervalMills = flushIntervalMills;
 			return this;
 		}
 
+		/**
+		 * optional, max retry times for jdbc connector.
+		 */
 		public Builder setMaxRetryTimes(int maxRetryTimes) {
 			this.maxRetryTimes = maxRetryTimes;
 			return this;
@@ -267,13 +291,8 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		 * @return Configured JDBCUpsertOutputFormat
 		 */
 		public JDBCUpsertOutputFormat build() {
-			if (options == null) {
-				throw new IllegalArgumentException("No options supplied.");
-			}
-			if (fieldNames == null) {
-				throw new IllegalArgumentException("No fieldNames supplied.");
-			}
-
+			checkNotNull(options, "No options supplied.");
+			checkNotNull(fieldNames, "No fieldNames supplied.");
 			return new JDBCUpsertOutputFormat(
 				options, fieldNames, keyFields, fieldTypes, flushMaxSize, flushIntervalMills, maxRetryTimes);
 		}

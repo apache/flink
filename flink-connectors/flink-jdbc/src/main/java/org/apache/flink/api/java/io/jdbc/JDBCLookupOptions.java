@@ -61,16 +61,25 @@ public class JDBCLookupOptions implements Serializable {
 		private long cacheExpireMs = -1L;
 		private int maxRetryTimes = DEFAULT_MAX_RETRY_TIMES;
 
+		/**
+		 * optional, lookup cache max size, over this value, the old data will be eliminated.
+		 */
 		public Builder setCacheMaxSize(long cacheMaxSize) {
 			this.cacheMaxSize = cacheMaxSize;
 			return this;
 		}
 
+		/**
+		 * optional, lookup cache expire mills, over this time, the old data will expire.
+		 */
 		public Builder setCacheExpireMs(long cacheExpireMs) {
 			this.cacheExpireMs = cacheExpireMs;
 			return this;
 		}
 
+		/**
+		 * optional, max retry times for jdbc connector.
+		 */
 		public Builder setMaxRetryTimes(int maxRetryTimes) {
 			this.maxRetryTimes = maxRetryTimes;
 			return this;

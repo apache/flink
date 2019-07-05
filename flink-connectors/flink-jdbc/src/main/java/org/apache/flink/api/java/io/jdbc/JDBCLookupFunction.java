@@ -239,26 +239,41 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		private TypeInformation[] fieldTypes;
 		private String[] keyNames;
 
+		/**
+		 * required, jdbc options.
+		 */
 		public Builder setOptions(JDBCOptions options) {
 			this.options = options;
 			return this;
 		}
 
+		/**
+		 * optional, lookup related options.
+		 */
 		public Builder setLookupOptions(JDBCLookupOptions lookupOptions) {
 			this.lookupOptions = lookupOptions;
 			return this;
 		}
 
+		/**
+		 * required, field names of this jdbc table.
+		 */
 		public Builder setFieldNames(String[] fieldNames) {
 			this.fieldNames = fieldNames;
 			return this;
 		}
 
+		/**
+		 * required, field types of this jdbc table.
+		 */
 		public Builder setFieldTypes(TypeInformation[] fieldTypes) {
 			this.fieldTypes = fieldTypes;
 			return this;
 		}
 
+		/**
+		 * required, key names to query this jdbc table.
+		 */
 		public Builder setKeyNames(String[] keyNames) {
 			this.keyNames = keyNames;
 			return this;

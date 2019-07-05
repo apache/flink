@@ -195,9 +195,10 @@ public class JDBCUtils {
 			case java.sql.Types.LONGVARBINARY:
 				return set.getBytes(index + 1);
 			default:
+				Object value = set.getObject(index + 1);
 				LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to get its value: {}.",
-						type, index + 1);
-				return set.getObject(index + 1);
+						type, index + 1, value);
+				return value;
 
 			// case java.sql.Types.SQLXML
 			// case java.sql.Types.ARRAY:
