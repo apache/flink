@@ -125,4 +125,38 @@ due to version incompatibilities with the bundled Scala version in Scala IDE 4.4
 
 **We recommend to use IntelliJ instead (see [above](#intellij-idea))**
 
+## PyCharm
+
+A brief guide on how to set up PyCharm for development of the flink-python module.
+
+The following documentation describes the steps to setup PyCharm 2019.1.3
+([https://www.jetbrains.com/pycharm/download/](https://www.jetbrains.com/pycharm/download/))
+with the Flink Python sources.
+
+### Importing flink-python
+If you are in the PyCharm startup interface:
+
+1. Start PyCharm and choose "Open"
+2. Select the flink-python folder in the cloned Flink repository
+
+If you have used PyCharm to open a project:
+
+1. Select "File -> Open"
+2. Select the flink-python folder in the cloned Flink repository
+
+
+### Checkstyle For Python
+The Python code checkstyle of Apache Flink should create a flake8 external tool in the project. 
+
+1. Install the flake8 in the used Python interpreter(refer to ([https://pypi.org/project/flake8/](https://pypi.org/project/flake8/)).
+2. Select "PyCharm -> Preferences... -> Tools -> External Tools -> + (The bottom left corner of the page on the right)", next configure the external tool.
+3. Set the "Name" to "flake8".
+4. Set the "Description" to "code style check".
+5. Set the "Program"  to the Python interpreter path(e.g. /usr/bin/python).
+6. Set the "Arguments" to "-m flake8 \-\-config=tox.ini"
+7. Set the "Working directory" to "$ProjectFileDir$"
+
+Now, you can check your Python code style by the operation:
+    "Right click in any file or folder in the flink-python project -> External Tools -> flake8"
+    
 {% top %}
