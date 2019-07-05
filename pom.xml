@@ -141,6 +141,8 @@ under the License.
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
 		<hivemetastore.hadoop.version>2.7.2</hivemetastore.hadoop.version>
+		<jamicmp.referenceVersion>1.8.0</jamicmp.referenceVersion>
+		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 	</properties>
 
 	<dependencies>
@@ -1370,6 +1372,8 @@ under the License.
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
+						<!-- Tools: japicmp output -->
+						<exclude>tools/japicmp-output/**</exclude>
 						<!-- artifacts created during release process -->
 						<exclude>tools/releasing/release/**</exclude>
 						<!-- manually installed version on travis -->
@@ -1778,7 +1782,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.8.0</version>
+								<version>${jamicmp.referenceVersion}</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>
@@ -1819,6 +1823,7 @@ under the License.
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
 						</parameter>
+						<projectBuildDir>${rootDir}/${japicmp.outputDir}/${project.artifactId}</projectBuildDir>
 						<dependencies>
 							<dependency>
 								<groupId>org.apache.flink</groupId>
