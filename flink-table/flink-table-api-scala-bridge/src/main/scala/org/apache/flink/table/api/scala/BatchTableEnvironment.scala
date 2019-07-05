@@ -205,7 +205,7 @@ trait BatchTableEnvironment extends TableEnvironment {
     *
     * The program execution will be logged and displayed with the provided name
     *
-    * It calls the StreamExecutionEnvironment#execute on the underlying
+    * It calls the ExecutionEnvironment#execute on the underlying
     * [[ExecutionEnvironment]]. In contrast to the [[TableEnvironment]] this
     * environment translates queries eagerly.
     *
