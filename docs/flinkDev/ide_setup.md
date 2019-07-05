@@ -49,7 +49,7 @@ git clone https://github.com/apache/flink.git
 A brief guide on how to set up IntelliJ IDEA IDE for development of the Flink core.
 As Eclipse is known to have issues with mixed Scala and Java projects, more and more contributors are migrating to IntelliJ IDEA.
 
-The following documentation describes the steps to setup IntelliJ IDEA 2016.2.5
+The following documentation describes the steps to setup IntelliJ IDEA 2019.1.3
 ([https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/))
 with the Flink sources.
 
@@ -66,19 +66,20 @@ to enable support for Scala projects and files:
 
 ### Importing Flink
 
-1. Start IntelliJ IDEA and choose "Import Project"
-2. Select the root folder of the Flink repository
+1. Start IntelliJ IDEA and choose "New -> Project from Existing Sources"
+2. Select the root folder of the cloned Flink repository
 3. Choose "Import project from external model" and select "Maven"
-4. Leave the default options and click on "Next" until you hit the SDK section.
-5. If there is no SDK, create a one with the "+" sign top left,
-   then click "JDK", select your JDK home directory and click "OK".
-   Otherwise simply select your SDK.
-6. Continue by clicking "Next" again and finish the import.
+4. Leave the default options and successively click "Next" until you reach the SDK section.
+5. If there is no SDK listed, create one using the "+" sign on the top left.
+   Select "JDK", choose the JDK home directory and click "OK".
+   Select the most suiting JDK version. NOTE: A good rule of thumb is to select 
+   the JDK version matching the active Maven profile.
+6. Continue by clicking "Next" until finishing the import.
 7. Right-click on the imported Flink project -> Maven -> Generate Sources and Update Folders.
    Note that this will install Flink libraries in your local Maven repository,
-   i.e. "/home/*-your-user-*/.m2/repository/org/apache/flink/".
-   Alternatively, `mvn clean package -DskipTests` also creates the necessary
-   files for the IDE to work with but without installing libraries.
+   located by default at "/home/$USER/.m2/repository/org/apache/flink/".
+   Alternatively, `mvn clean package -DskipTests` also creates the files necessary
+   for the IDE to work but without installing the libraries.
 8. Build the Project (Build -> Make Project)
 
 ### Checkstyle For Java
@@ -87,7 +88,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
 3. Set the "Scan Scope" to "Only Java sources (including tests)".
-4. Select _8.12_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
+4. Select _8.14_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
    don't skip it!**
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Flink".

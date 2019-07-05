@@ -56,17 +56,24 @@ class MiniBatchIntervalTrait(miniBatchInterval: MiniBatchInterval) extends RelTr
 }
 
 /**
-  * @param interval interval of minibatch
-  * @param mode type of minibatch: rowtime/proctime
+  * @param interval interval of mini-batch
+  * @param mode type of mini-batch: rowtime/proctime
   */
 case class MiniBatchInterval(interval: Long, mode: MiniBatchMode)
 
 object MiniBatchInterval {
+  // default none value.
   val NONE = MiniBatchInterval(0L, MiniBatchMode.None)
+  // specific for cases when there exists nodes require watermark but mini-batch interval of
+  // watermark is disabled by force, e.g. existing window aggregate.
+  // The difference between NONE AND NO_MINIBATCH is when merging with other miniBatchInterval,
+  // NONE case yields other miniBatchInterval, while NO_MINIBATCH case yields NO_MINIBATCH.
+  val NO_MINIBATCH = MiniBatchInterval(-1L, MiniBatchMode.None)
 }
 
 object MiniBatchIntervalTrait {
   val NONE = new MiniBatchIntervalTrait(MiniBatchInterval.NONE)
+  val NO_MINIBATCH = new MiniBatchIntervalTrait(MiniBatchInterval.NO_MINIBATCH)
 }
 
 /**

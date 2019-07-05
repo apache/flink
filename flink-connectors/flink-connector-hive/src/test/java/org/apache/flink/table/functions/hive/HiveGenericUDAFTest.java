@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
@@ -80,6 +81,26 @@ public class HiveGenericUDAFTest {
 		udf.merge(acc, Arrays.asList());
 
 		assertEquals(6.1d, udf.getValue(acc));
+
+		constantArgs = new Object[] {
+			null
+		};
+
+		argTypes = new DataType[] {
+			DataTypes.DECIMAL(5, 3)
+		};
+
+		udf = init(GenericUDAFSum.class, constantArgs, argTypes);
+
+		acc = udf.createAccumulator();
+
+		udf.accumulate(acc, BigDecimal.valueOf(10.111));
+		udf.accumulate(acc, BigDecimal.valueOf(3.222));
+		udf.accumulate(acc, BigDecimal.valueOf(5.333));
+
+		udf.merge(acc, Arrays.asList());
+
+		assertEquals(BigDecimal.valueOf(18.666), udf.getValue(acc));
 	}
 
 	@Test

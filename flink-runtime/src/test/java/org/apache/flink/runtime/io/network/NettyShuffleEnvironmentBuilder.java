@@ -20,16 +20,17 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
 /**
  * Builder for the {@link NettyShuffleEnvironment}.
  */
 public class NettyShuffleEnvironmentBuilder {
+
+	private static final String[] DEFAULT_TEMP_DIRS = new String[] {EnvironmentInformation.getTemporaryFileDirectory()};
 
 	private int numNetworkBuffers = 1024;
 
@@ -55,7 +56,7 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-	private IOManager ioManager = new IOManagerAsync();
+	private String[] tempDirs = DEFAULT_TEMP_DIRS;
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
@@ -112,8 +113,8 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setIOManager(IOManager ioManager) {
-		this.ioManager = ioManager;
+	public NettyShuffleEnvironmentBuilder setTempDirs(String[] tempDirs) {
+		this.tempDirs = tempDirs;
 		return this;
 	}
 
@@ -128,10 +129,10 @@ public class NettyShuffleEnvironmentBuilder {
 				floatingNetworkBuffersPerGate,
 				isCreditBased,
 				isNetworkDetailedMetrics,
-				nettyConfig),
+				nettyConfig,
+				tempDirs),
 			taskManagerLocation,
 			taskEventDispatcher,
-			metricGroup,
-			ioManager);
+			metricGroup);
 	}
 }

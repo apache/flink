@@ -25,13 +25,15 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv, _}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.RichTableSourceQueryOperation
+import org.apache.flink.table.operations.{PlannerQueryOperation, RichTableSourceQueryOperation}
+import org.apache.flink.table.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -48,7 +50,6 @@ import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
-
 import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
@@ -176,7 +177,7 @@ abstract class TableTestUtil(test: TableTestBase) {
     //  instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
     val operation = new RichTableSourceQueryOperation(tableSource, tableEnv.isBatch, statistic)
-    val table = new TableImpl(tableEnv, operation)
+    val table = tableEnv.createTable(operation)
     tableEnv.registerTable(name, table)
     tableEnv.scan(name)
   }
@@ -531,6 +532,35 @@ case class StreamTableTestUtil(
     tableEnv.scan(name)
   }
 
+  /**
+    * Register a table with specific row time field and offset.
+    *
+    * @param tableName table name
+    * @param sourceTable table to register
+    * @param rowtimeField row time field
+    * @param offset offset to the row time field value
+    */
+  def addTableWithWatermark(
+      tableName: String,
+      sourceTable: Table,
+      rowtimeField: String,
+      offset: Long): Unit = {
+    val sourceRel = TableTestUtil.toRelNode(sourceTable)
+    val rowtimeFieldIdx = sourceRel.getRowType.getFieldNames.indexOf(rowtimeField)
+    if (rowtimeFieldIdx < 0) {
+      throw new TableException(s"$rowtimeField does not exist, please check it")
+    }
+    val watermarkAssigner = new LogicalWatermarkAssigner(
+      sourceRel.getCluster,
+      sourceRel.getTraitSet,
+      sourceRel,
+      Some(rowtimeFieldIdx),
+      Option(offset)
+    )
+    val queryOperation = new PlannerQueryOperation(watermarkAssigner)
+    tableEnv.registerTable(tableName, tableEnv.createTable(queryOperation))
+  }
+
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
@@ -719,7 +749,7 @@ object TableTestUtil {
     * Converts operation tree in the given table to a RelNode tree.
     */
   def toRelNode(table: Table): RelNode = {
-    table.asInstanceOf[TableImpl].tableEnv
+    table.asInstanceOf[TableImpl].getTableEnvironment
       .getRelBuilder.queryOperation(table.getQueryOperation).build()
   }
 }

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
- * for {@link StreamInputProcessor} and {@link StreamTwoInputProcessor}.
+ * for {@link StreamOneInputProcessor} and {@link StreamTwoInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {
@@ -46,8 +47,10 @@ public class InputProcessorUtil {
 			Configuration taskManagerConfig,
 			String taskName) throws IOException {
 
+		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
+
 		BufferStorage bufferStorage = createBufferStorage(
-			checkpointMode, ioManager, inputGate.getPageSize(), taskManagerConfig, taskName);
+			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
@@ -66,10 +69,12 @@ public class InputProcessorUtil {
 			Configuration taskManagerConfig,
 			String taskName) throws IOException {
 
+		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
+
 		BufferStorage mainBufferStorage1 = createBufferStorage(
-			checkpointMode, ioManager, inputGate1.getPageSize(), taskManagerConfig, taskName);
+			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
 		BufferStorage mainBufferStorage2 = createBufferStorage(
-			checkpointMode, ioManager, inputGate2.getPageSize(), taskManagerConfig, taskName);
+			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
 		checkState(mainBufferStorage1.getMaxBufferedBytes() == mainBufferStorage2.getMaxBufferedBytes());
 
 		BufferStorage linkedBufferStorage1 = new LinkedBufferStorage(

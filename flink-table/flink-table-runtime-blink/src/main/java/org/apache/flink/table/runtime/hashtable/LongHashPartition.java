@@ -622,7 +622,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			if (row.getSegments().length == 1) {
 				buildSideWriteBuffer.write(row.getSegments()[0], row.getOffset(), sizeInBytes);
 			} else {
-				buildSideSerializer.serializeToPagesWithoutLength(row, buildSideWriteBuffer);
+				buildSideSerializer.serializeWithoutLengthSlow(row, buildSideWriteBuffer);
 			}
 		} else {
 			serializeToPages(row);
@@ -642,7 +642,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		if (row.getSegments().length == 1) {
 			buildSideWriteBuffer.write(row.getSegments()[0], row.getOffset(), sizeInBytes);
 		} else {
-			buildSideSerializer.serializeToPagesWithoutLength(row, buildSideWriteBuffer);
+			buildSideSerializer.serializeWithoutLengthSlow(row, buildSideWriteBuffer);
 		}
 	}
 

@@ -34,8 +34,6 @@ import java.util.Collection;
 @Internal
 public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	private StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor;
-
 	public TwoInputSelectableStreamTask(Environment env) {
 		super(env);
 	}
@@ -61,24 +59,5 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 			input2WatermarkGauge,
 			getTaskNameWithSubtaskAndId(),
 			operatorChain);
-	}
-
-	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
-		if (!inputProcessor.processInput()) {
-			context.allActionsCompleted();
-		}
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
-	}
-
-	@Override
-	protected void cancelTask() {
-
 	}
 }

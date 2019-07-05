@@ -36,7 +36,6 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -46,21 +45,19 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
-import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.util.StringUtils;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -92,41 +89,26 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			TableConfig tableConfig,
 			Executor executor,
 			FunctionCatalog functionCatalog,
-			Planner planner) {
+			Planner planner,
+			boolean isStreaming) {
 		this.catalogManager = catalogManager;
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
 		this.tableConfig.addPlannerConfig(queryConfigProvider);
-		this.defaultCatalogName = tableConfig.getBuiltInCatalogName();
-		this.defaultDatabaseName = tableConfig.getBuiltInDatabaseName();
+		this.defaultCatalogName = catalogManager.getCurrentCatalog();
+		this.defaultDatabaseName = catalogManager.getCurrentDatabase();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
-		this.operationTreeBuilder = lookupTreeBuilder(
+		this.operationTreeBuilder = OperationTreeBuilder.create(
+			functionCatalog,
 			path -> {
 				Optional<CatalogQueryOperation> catalogTableOperation = scanInternal(path);
 				return catalogTableOperation.map(tableOperation -> new TableReferenceExpression(path, tableOperation));
 			},
-			functionCatalog
+			isStreaming
 		);
-	}
-
-	private static OperationTreeBuilder lookupTreeBuilder(
-		TableReferenceLookup tableReferenceLookup,
-		FunctionLookup functionDefinitionCatalog) {
-		try {
-			Class<?> clazz = Class.forName("org.apache.flink.table.operations.OperationTreeBuilderFactory");
-			Method createMethod = clazz.getMethod(
-				"create",
-				TableReferenceLookup.class,
-				FunctionLookup.class);
-
-			return (OperationTreeBuilder) createMethod.invoke(null, tableReferenceLookup, functionDefinitionCatalog);
-		} catch (Exception e) {
-			throw new TableException(
-				"Could not instantiate the operation builder. Make sure the planner module is on the classpath");
-		}
 	}
 
 	@VisibleForTesting

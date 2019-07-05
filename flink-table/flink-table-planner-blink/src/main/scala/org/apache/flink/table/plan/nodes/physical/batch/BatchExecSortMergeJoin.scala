@@ -71,20 +71,6 @@ class BatchExecSortMergeJoin(
       joinRelType == FlinkJoinType.FULL
   }
 
-  protected lazy val smjType: SortMergeJoinType.Value = {
-    (leftSorted, rightSorted) match {
-      case (true, true) if isMergeJoinSupportedType(flinkJoinType) =>
-        SortMergeJoinType.MergeJoin
-      case (false, true) //TODO support more
-        if flinkJoinType == FlinkJoinType.INNER || flinkJoinType == FlinkJoinType.RIGHT =>
-        SortMergeJoinType.SortLeftJoin
-      case (true, false) //TODO support more
-        if flinkJoinType == FlinkJoinType.INNER || flinkJoinType == FlinkJoinType.LEFT =>
-        SortMergeJoinType.SortRightJoin
-      case _ => SortMergeJoinType.SortMergeJoin
-    }
-  }
-
   override def copy(
       traitSet: RelTraitSet,
       conditionExpr: RexNode,
@@ -291,17 +277,4 @@ class BatchExecSortMergeJoin(
   } else {
     "SortMergeJoin"
   }
-}
-
-
-object SortMergeJoinType extends Enumeration {
-  type SortMergeJoinType = Value
-  // both LHS and RHS have been sorted
-  val MergeJoin,
-  // RHS has been sorted, only LHS needs sort
-  SortLeftJoin,
-  // LHS has been sorted, only RHS needs sort
-  SortRightJoin,
-  // both LHS and RHS need sort
-  SortMergeJoin = Value
 }

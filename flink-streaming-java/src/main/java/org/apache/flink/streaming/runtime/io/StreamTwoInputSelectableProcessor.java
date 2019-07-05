@@ -60,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN2> The type of the records that arrive on the second input
  */
 @Internal
-public class StreamTwoInputSelectableProcessor<IN1, IN2> {
+public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputSelectableProcessor.class);
 
@@ -159,6 +159,7 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 
 	}
 
+	@Override
 	public boolean processInput() throws Exception {
 		if (!isPrepared) {
 			// the preparations here are not placed in the constructor because all work in it
@@ -192,17 +193,18 @@ public class StreamTwoInputSelectableProcessor<IN1, IN2> {
 		return !checkFinished();
 	}
 
-	public void cleanup() throws Exception {
-		Exception ex = null;
+	@Override
+	public void close() throws IOException {
+		IOException ex = null;
 		try {
 			input1.close();
-		} catch (Exception e) {
+		} catch (IOException e) {
 			ex = ExceptionUtils.firstOrSuppressed(e, ex);
 		}
 
 		try {
 			input2.close();
-		} catch (Exception e) {
+		} catch (IOException e) {
 			ex = ExceptionUtils.firstOrSuppressed(e, ex);
 		}
 

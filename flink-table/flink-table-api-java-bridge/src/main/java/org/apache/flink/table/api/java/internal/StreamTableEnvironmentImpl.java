@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -27,24 +28,27 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.PlannerFactory;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
+import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -60,6 +64,7 @@ import org.apache.flink.table.typeutils.FieldInfoUtils;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -73,14 +78,16 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	private final StreamExecutionEnvironment executionEnvironment;
 
-	private StreamTableEnvironmentImpl(
+	@VisibleForTesting
+	public StreamTableEnvironmentImpl(
 			CatalogManager catalogManager,
 			FunctionCatalog functionCatalog,
 			TableConfig tableConfig,
 			StreamExecutionEnvironment executionEnvironment,
 			Planner planner,
-			Executor executor) {
-		super(catalogManager, tableConfig, executor, functionCatalog, planner);
+			Executor executor,
+			boolean isStreaming) {
+		super(catalogManager, tableConfig, executor, functionCatalog, planner, isStreaming);
 		this.executionEnvironment = executionEnvironment;
 	}
 
@@ -92,49 +99,44 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	 * @param tableConfig The configuration of the TableEnvironment.
 	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
 	 */
-	public static StreamTableEnvironmentImpl create(
-			TableConfig tableConfig,
-			StreamExecutionEnvironment executionEnvironment) {
-		CatalogManager catalogManager = new CatalogManager(
-			tableConfig.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(tableConfig.getBuiltInCatalogName(), tableConfig.getBuiltInDatabaseName()));
-		return create(catalogManager, tableConfig, executionEnvironment);
-	}
-
-	/**
-	 * Creates an instance of a {@link StreamTableEnvironment}. It uses the {@link StreamExecutionEnvironment} for
-	 * executing queries. This is also the {@link StreamExecutionEnvironment} that will be used when converting
-	 * from/to {@link DataStream}.
-	 *
-	 * @param catalogManager The {@link CatalogManager} to use for storing and looking up {@link Table}s.
-	 * @param tableConfig The configuration of the TableEnvironment.
-	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 */
-	public static StreamTableEnvironmentImpl create(
-			CatalogManager catalogManager,
-			TableConfig tableConfig,
-			StreamExecutionEnvironment executionEnvironment) {
+	public static StreamTableEnvironment create(
+			StreamExecutionEnvironment executionEnvironment,
+			EnvironmentSettings settings,
+			TableConfig tableConfig) {
 		FunctionCatalog functionCatalog = new FunctionCatalog(
-			catalogManager.getCurrentCatalog(),
-			catalogManager.getCurrentDatabase());
-		Executor executor = lookupExecutor(executionEnvironment);
-		Planner planner = PlannerFactory.lookupPlanner(executor, tableConfig, functionCatalog, catalogManager);
+			settings.getBuiltInCatalogName(),
+			settings.getBuiltInDatabaseName());
+		CatalogManager catalogManager = new CatalogManager(
+			settings.getBuiltInCatalogName(),
+			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
+		Map<String, String> plannerProperties = settings.toPlannerProperties();
+		Map<String, String> executorProperties = settings.toExecutorProperties();
+		Executor executor = lookupExecutor(executorProperties, executionEnvironment);
+		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
+			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
 		return new StreamTableEnvironmentImpl(
 			catalogManager,
 			functionCatalog,
 			tableConfig,
 			executionEnvironment,
 			planner,
-			executor
+			executor,
+			!settings.isBatchMode()
 		);
 	}
 
-	private static Executor lookupExecutor(StreamExecutionEnvironment executionEnvironment) {
+	private static Executor lookupExecutor(
+			Map<String, String> executorProperties,
+			StreamExecutionEnvironment executionEnvironment) {
 		try {
-			Class<?> clazz = Class.forName("org.apache.flink.table.executor.ExecutorFactory");
-			Method createMethod = clazz.getMethod("create", StreamExecutionEnvironment.class);
+			ExecutorFactory executorFactory = ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
+			Method createMethod = executorFactory.getClass()
+				.getMethod("create", Map.class, StreamExecutionEnvironment.class);
 
-			return (Executor) createMethod.invoke(null, executionEnvironment);
+			return (Executor) createMethod.invoke(
+				executorFactory,
+				executorProperties,
+				executionEnvironment);
 		} catch (Exception e) {
 			throw new TableException(
 				"Could not instantiate the executor. Make sure a planner module is on the classpath",

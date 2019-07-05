@@ -20,13 +20,13 @@ package org.apache.flink.table.codegen.agg
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveTypeTermForType
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.expressions.{ApiExpressionUtils, ResolvedDistinctKeyReference, _}
+import org.apache.flink.table.expressions.{ResolvedDistinctKeyReference, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfo
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils
 
 import scala.collection.JavaConverters._
 

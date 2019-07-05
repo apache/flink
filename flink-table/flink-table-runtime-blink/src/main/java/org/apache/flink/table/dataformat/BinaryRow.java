@@ -55,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public final class BinaryRow extends BinaryFormat implements BaseRow {
 
 	public static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
-	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
+	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? ~0xFFL : ~(0xFFL << 56L);
 	public static final int HEADER_SIZE_IN_BITS = 8;
 
 	public static int calculateBitSetWidthInBytes(int arity) {

@@ -23,9 +23,10 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
+import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment}
 import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -103,6 +104,10 @@ class BatchTestBase extends BatchAbstractTestBase {
     check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
   }
 
+  def checkTableResult(table: Table, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
+    checkTable(table, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
+  }
+
   def checkSize(sqlQuery: String, expectedSize: Int): Unit = {
     check(sqlQuery, (result: Seq[Row]) => {
       if (result.size != expectedSize) {
@@ -169,6 +174,21 @@ class BatchTestBase extends BatchAbstractTestBase {
         s"""
            |Results do not match for query:
            |  $sqlQuery
+           |$results
+           |Plan:
+           |  $plan
+       """.stripMargin)
+    }
+  }
+
+  def checkTable(table: Table, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+    val result = executeQuery(table)
+
+    checkFunc(result).foreach { results =>
+      val plan = explainLogical(table)
+      Assert.fail(
+        s"""
+           |Results do not match:
            |$results
            |Plan:
            |  $plan
@@ -449,6 +469,7 @@ object BatchTestBase {
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
     conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
     conf
   }
 

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
@@ -85,6 +86,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	private final ResultPartitionManager resultPartitionManager;
 
+	private final FileChannelManager fileChannelManager;
+
 	private final Map<InputGateID, SingleInputGate> inputGatesById;
 
 	private final ResultPartitionFactory resultPartitionFactory;
@@ -99,6 +102,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			NetworkBufferPool networkBufferPool,
 			ConnectionManager connectionManager,
 			ResultPartitionManager resultPartitionManager,
+			FileChannelManager fileChannelManager,
 			ResultPartitionFactory resultPartitionFactory,
 			SingleInputGateFactory singleInputGateFactory) {
 		this.taskExecutorResourceId = taskExecutorResourceId;
@@ -107,6 +111,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 		this.connectionManager = connectionManager;
 		this.resultPartitionManager = resultPartitionManager;
 		this.inputGatesById = new ConcurrentHashMap<>(10);
+		this.fileChannelManager = fileChannelManager;
 		this.resultPartitionFactory = resultPartitionFactory;
 		this.singleInputGateFactory = singleInputGateFactory;
 		this.isClosed = false;
@@ -221,7 +226,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 				inputGates[counter++] = inputGate;
 			}
 
-			registerInputMetrics(config.isNetworkDetailedMetrics(), networkInputGroup, inputGates);
+			registerInputMetrics(config.isNetworkDetailedMetrics(), config.isCreditBased(), networkInputGroup, inputGates);
 			return Arrays.asList(inputGates);
 		}
 	}
@@ -241,6 +246,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			InputGate[] inputGates) {
 		NettyShuffleMetricFactory.registerLegacyNetworkMetrics(
 			config.isNetworkDetailedMetrics(),
+			config.isCreditBased(),
 			metricGroup,
 			producedPartitions,
 			inputGates);
@@ -324,6 +330,14 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			}
 			catch (Throwable t) {
 				LOG.warn("Network buffer pool did not shut down properly.", t);
+			}
+
+			// delete all the temp directories
+			try {
+				fileChannelManager.close();
+			}
+			catch (Throwable t) {
+				LOG.warn("Cannot close the file channel manager properly.", t);
 			}
 
 			isClosed = true;

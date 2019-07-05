@@ -47,11 +47,9 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 	@Test
 	public void testWithTwoChannelsAndRandomBarriers() {
-		IOManager ioMan = null;
 		NetworkBufferPool networkBufferPool1 = null;
 		NetworkBufferPool networkBufferPool2 = null;
-		try {
-			ioMan = new IOManagerAsync();
+		try (IOManager ioMan = new IOManagerAsync()) {
 
 			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE, 1);
@@ -62,7 +60,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
 
-			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, myIG.getPageSize()), "Testing: No task associated", null);
+			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, PAGE_SIZE), "Testing: No task associated", null);
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
@@ -76,9 +74,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (ioMan != null) {
-				ioMan.shutdown();
-			}
 			if (networkBufferPool1 != null) {
 				networkBufferPool1.destroyAllBufferPools();
 				networkBufferPool1.destroy();
@@ -185,11 +180,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 		@Override
 		public void sendTaskEvent(TaskEvent event) {}
-
-		@Override
-		public int getPageSize() {
-			return PAGE_SIZE;
-		}
 
 		@Override
 		public void setup() {

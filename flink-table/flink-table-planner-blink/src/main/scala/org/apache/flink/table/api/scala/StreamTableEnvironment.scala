@@ -20,7 +20,7 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment, asScalaStream}
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableImpl}
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
@@ -62,7 +62,7 @@ class StreamTableEnvironment @deprecated(
     * @return The converted [[Table]].
     */
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    new TableImpl(this, asQueryOperation(dataStream.javaStream, None))
+    createTable(asQueryOperation(dataStream.javaStream, None))
   }
 
   /**
@@ -83,7 +83,7 @@ class StreamTableEnvironment @deprecated(
   // TODO: Change fields type to `Expression*` after introducing [Expression]
   def fromDataStream[T](dataStream: DataStream[T], fields: Symbol*): Table = {
     val exprs = fields.map(_.name).toArray
-    new TableImpl(this, asQueryOperation(dataStream.javaStream, Some(exprs)))
+    createTable(asQueryOperation(dataStream.javaStream, Some(exprs)))
   }
 
   /**

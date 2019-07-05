@@ -89,9 +89,6 @@ public class MockStreamTask extends StreamTask {
 	protected void cleanup() { }
 
 	@Override
-	protected void cancelTask() { }
-
-	@Override
 	public String getName() {
 		return name;
 	}

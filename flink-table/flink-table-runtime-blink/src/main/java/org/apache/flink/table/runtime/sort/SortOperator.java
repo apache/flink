@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.sort;
 
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -40,12 +41,11 @@ import org.slf4j.LoggerFactory;
  * Operator for batch sort.
  */
 public class SortOperator extends TableStreamOperator<BinaryRow>
-		implements OneInputStreamOperator<BaseRow, BinaryRow> {
+		implements OneInputStreamOperator<BaseRow, BinaryRow>, BoundedOneInput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SortOperator.class);
 
 	private final long reservedMemorySize;
-	private final long perRequestMemorySize;
 	private GeneratedNormalizedKeyComputer gComputer;
 	private GeneratedRecordComparator gComparator;
 
@@ -53,11 +53,9 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 	private transient StreamRecordCollector<BinaryRow> collector;
 	private transient BinaryRowSerializer binarySerializer;
 
-	public SortOperator(
-			long reservedMemorySize, long perRequestMemorySize,
+	public SortOperator(long reservedMemorySize,
 			GeneratedNormalizedKeyComputer gComputer, GeneratedRecordComparator gComparator) {
 		this.reservedMemorySize = reservedMemorySize;
-		this.perRequestMemorySize = perRequestMemorySize;
 		this.gComputer = gComputer;
 		this.gComparator = gComparator;
 	}
@@ -95,6 +93,7 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 		this.sorter.write(element.getValue());
 	}
 
+	@Override
 	public void endInput() throws Exception {
 		BinaryRow row = binarySerializer.createInstance();
 		MutableObjectIterator<BinaryRow> iterator = sorter.getIterator();
@@ -105,8 +104,6 @@ public class SortOperator extends TableStreamOperator<BinaryRow>
 
 	@Override
 	public void close() throws Exception {
-		endInput(); // TODO after introduce endInput
-
 		LOG.info("Closing SortOperator");
 		super.close();
 		if (sorter != null) {

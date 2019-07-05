@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.ExceptionUtils;
@@ -82,6 +83,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	private final ExecutionEdge[][] inputEdges;
 
 	private final int subTaskIndex;
+
+	private final ExecutionVertexID executionVertexId;
 
 	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
@@ -142,6 +145,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
+		this.executionVertexId = new ExecutionVertexID(jobVertex.getJobVertexId(), subTaskIndex);
 		this.taskNameWithSubtask = String.format("%s (%d/%d)",
 				jobVertex.getJobVertex().getName(), subTaskIndex + 1, jobVertex.getParallelism());
 
@@ -226,6 +230,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	@Override
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
+	}
+
+	public ExecutionVertexID getID() {
+		return executionVertexId;
 	}
 
 	public int getNumberOfInputs() {
@@ -593,6 +601,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			if (oldState.isTerminal()) {
 				if (oldState == FINISHED) {
 					oldExecution.stopTrackingAndReleasePartitions();
+					getExecutionGraph().getPartitionReleaseStrategy().vertexUnfinished(executionVertexId);
 				}
 
 				priorExecutions.add(oldExecution.archive());

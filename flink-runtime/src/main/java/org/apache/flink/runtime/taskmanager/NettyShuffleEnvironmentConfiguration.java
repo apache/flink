@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -28,6 +29,7 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 /**
  * Configuration object for the network stack.
@@ -62,6 +65,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final NettyConfig nettyConfig;
 
+	private final String[] tempDirs;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -71,7 +76,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			int floatingNetworkBuffersPerGate,
 			boolean isCreditBased,
 			boolean isNetworkDetailedMetrics,
-			@Nullable NettyConfig nettyConfig) {
+			@Nullable NettyConfig nettyConfig,
+			String[] tempDirs) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -82,6 +88,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.isCreditBased = isCreditBased;
 		this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
 		this.nettyConfig = nettyConfig;
+		this.tempDirs = Preconditions.checkNotNull(tempDirs);
 	}
 
 	// ------------------------------------------------------------------------
@@ -122,6 +129,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return isNetworkDetailedMetrics;
 	}
 
+	public String[] getTempDirs() {
+		return tempDirs;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -158,6 +169,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
+		String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
+
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -167,7 +180,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			extraBuffersPerGate,
 			isCreditBased,
 			isNetworkDetailedMetrics,
-			nettyConfig);
+			nettyConfig,
+			tempDirs);
 	}
 
 	/**
@@ -467,6 +481,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + floatingNetworkBuffersPerGate;
 		result = 31 * result + (isCreditBased ? 1 : 0);
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
+		result = 31 * result + Arrays.hashCode(tempDirs);
 		return result;
 	}
 
@@ -488,7 +503,8 @@ public class NettyShuffleEnvironmentConfiguration {
 					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
 					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
 					this.isCreditBased == that.isCreditBased &&
-					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null);
+					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
+					Arrays.equals(this.tempDirs, that.tempDirs);
 		}
 	}
 
@@ -503,6 +519,7 @@ public class NettyShuffleEnvironmentConfiguration {
 				", floatingNetworkBuffersPerGate=" + floatingNetworkBuffersPerGate +
 				", isCreditBased=" + isCreditBased +
 				", nettyConfig=" + nettyConfig +
+				", tempDirs=" + Arrays.toString(tempDirs) +
 				'}';
 	}
 }

@@ -90,39 +90,3 @@ class TableConfig(object):
             self._j_table_config.setMaxGeneratedCodeLength(max_generated_code_length)
         else:
             raise Exception("TableConfig.max_generated_code_length should be a int value!")
-
-    def get_built_in_catalog_name(self):
-        """
-        Gets the specified name of the initial catalog to be created when instantiating
-        :class:`TableEnvironment`.
-        """
-        return self._j_table_config.getBuiltInCatalogName()
-
-    def set_built_in_catalog_name(self, built_in_catalog_name):
-        """
-        Specifies the name of the initial catalog to be created when instantiating
-        :class:`TableEnvironment`. This method has no effect if called on the
-        :func:`~pyflink.table.TableEnvironment.get_config`.
-        """
-        if built_in_catalog_name is not None and isinstance(built_in_catalog_name, str):
-            self._j_table_config.setBuiltInCatalogName(built_in_catalog_name)
-        else:
-            raise Exception("TableConfig.built_in_catalog_name should be a string value!")
-
-    def get_built_in_database_name(self):
-        """
-        Gets the specified name of the default database in the initial catalog to be created when
-        instantiating :class:`TableEnvironment`.
-        """
-        return self._j_table_config.getBuiltInDatabaseName()
-
-    def set_built_in_database_name(self, built_in_database_name):
-        """
-        Specifies the name of the default database in the initial catalog to be created when
-        instantiating :class:`TableEnvironment`. This method has no effect if called on the
-        :func:`~pyflink.table.TableEnvironment.get_config`.
-        """
-        if built_in_database_name is not None and isinstance(built_in_database_name, str):
-            self._j_table_config.setBuiltInDatabaseName(built_in_database_name)
-        else:
-            raise Exception("TableConfig.built_in_database_name should be a string value!")

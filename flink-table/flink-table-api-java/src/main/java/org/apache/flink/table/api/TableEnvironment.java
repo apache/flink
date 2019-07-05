@@ -31,21 +31,23 @@ import org.apache.flink.table.sources.TableSource;
 import java.util.Optional;
 
 /**
- * The base class for batch and stream TableEnvironments.
+ * A table environment is the base class, entry point, and central context for creating Table & SQL
+ * API programs.
  *
- * <p>The TableEnvironment is a central concept of the Table API and SQL integration. It is
- * responsible for:
+ * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
+ * between Scala and Java API) and for bounded and unbounded data processing.
  *
+ * <p>A table environment is responsible for:
  * <ul>
- *     <li>Registering a Table in the internal catalog</li>
- *     <li>Registering an external catalog</li>
- *     <li>Executing SQL queries</li>
- *     <li>Registering a user-defined scalar function. For the user-defined table and aggregate
- *     function, use the StreamTableEnvironment or BatchTableEnvironment</li>
+ *     <li>Connecting to external systems.</li>
+ *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+ *     <li>Executing SQL statements.</li>
+ *     <li>Offering further configuration options.</li>
  * </ul>
  *
- * <p>This environment is unified both on a language level (for all JVM-based languages, i.e. no distinction between
- * Scala and Java API) and for bounded and unbounded data processing.
+ * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
+ * other Flink APIs, it might be necessary to use one of the available language-specific table environments
+ * in the corresponding bridging modules.
  */
 @PublicEvolving
 public interface TableEnvironment {

@@ -30,6 +30,7 @@ import org.apache.flink.table.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsA
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase.AggMode
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.runtime.utils.{StreamingWithAggTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo
@@ -554,6 +555,40 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("1,1", "2,2", "3,3", "4,4", "5,5", "6,6")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testWindowWithUnboundedAgg(): Unit = {
+    val t = failingDataSource(TestData.tupleData5.map {
+      case (a, b, c, d, e) => (b, a, c, d, e)
+    }).assignTimestampsAndWatermarks(
+      new TimestampAndWatermarkWithOffset[(Long, Int, Int, String, Long)](0L))
+        .toTable(tEnv, 'rowtime, 'a, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+    val sourceTable = tEnv.scan("MyTable")
+    addTableWithWatermark("MyTable1", sourceTable, "rowtime", 0)
+
+    val innerSql =
+      """
+        |SELECT a,
+        |   SUM(DISTINCT e) b,
+        |   MIN(DISTINCT e) c,
+        |   COUNT(DISTINCT e) d
+        |FROM MyTable1
+        |GROUP BY a, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+      """.stripMargin
+
+    val sqlQuery = "SELECT c, MAX(a), COUNT(DISTINCT d) FROM (" + innerSql + ") GROUP BY c"
+
+    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink
+    results.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,5,3",
+      "2,5,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

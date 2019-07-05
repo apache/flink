@@ -289,16 +289,13 @@ public class BinaryRowTest {
 			assertTrue(row.anyNull());
 		}
 
-		{
-			BinaryRow row = new BinaryRow(80);
+		int numFields = 80;
+		for (int i = 0; i < numFields; i++) {
+			BinaryRow row = new BinaryRow(numFields);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
+			row.setHeader((byte) 17);
 			assertFalse(row.anyNull());
-
-			writer.setNullAt(3);
-			assertTrue(row.anyNull());
-
-			writer = new BinaryRowWriter(row);
-			writer.setNullAt(65);
+			writer.setNullAt(i);
 			assertTrue(row.anyNull());
 		}
 	}

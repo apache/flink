@@ -31,7 +31,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
@@ -76,7 +75,6 @@ import static org.junit.Assert.fail;
 public class LocalExecutorITCase extends TestLogger {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
 
@@ -158,7 +156,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> actualCatalogs = executor.listCatalogs(session);
 
 		final List<String> expectedCatalogs = Arrays.asList(
-			TableConfig.getDefault().getBuiltInCatalogName(),
+			"default_catalog",
 			"catalog1");
 		assertEquals(expectedCatalogs, actualCatalogs);
 	}
@@ -170,8 +168,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final List<String> actualDatabases = executor.listDatabases(session);
 
-		final List<String> expectedDatabases = Arrays.asList(
-			TableConfig.getDefault().getBuiltInDatabaseName());
+		final List<String> expectedDatabases = Arrays.asList("default_database");
 		assertEquals(expectedDatabases, actualDatabases);
 	}
 

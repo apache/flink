@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableImpl}
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
@@ -58,7 +59,7 @@ object TableUtil {
       .map(field => FlinkTypeFactory.toLogicalType(field.getType)).toArray
     val configuredSink = sink.configure(
       fieldNames, fieldTypes.map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo))
-    BatchTableEnvUtil.collect(table.tableEnv.asInstanceOf[BatchTableEnvironment],
+    BatchTableEnvUtil.collect(table.getTableEnvironment.asInstanceOf[BatchTableEnvironment],
       table, configuredSink.asInstanceOf[CollectTableSink[T]], jobName)
   }
 

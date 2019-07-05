@@ -173,6 +173,15 @@ public class JobManagerOptions {
 					text("'legacy': legacy scheduler"),
 					text("'ng': new generation scheduler"))
 				.build());
+	/**
+	 * Config parameter controlling whether partitions should already be released during the job execution.
+	 */
+	@Documentation.ExcludeFromDocumentation("User normally should not be expected to deactivate this feature. " +
+		"We aim at removing this flag eventually.")
+	public static final ConfigOption<Boolean> PARTITION_RELEASE_DURING_JOB_EXECUTION =
+		key("jobmanager.partition.release-during-job-execution")
+			.defaultValue(true)
+			.withDescription("Controls whether partitions should already be released during the job execution.");
 
 	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
 	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =

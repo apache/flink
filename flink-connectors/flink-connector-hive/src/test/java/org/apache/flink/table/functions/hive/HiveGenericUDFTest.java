@@ -38,6 +38,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -201,18 +202,17 @@ public class HiveGenericUDFTest {
 
 		assertEquals(0L, udf.eval(-0.1d));
 
-		// TODO: reenable the test when we support decimal for Hive functions
-//		udf = init(
-//			GenericUDFCeil.class,
-//			new Object[] {
-//				null
-//			},
-//			new DataType[] {
-//				DataTypes.DECIMAL(1, 1)
-//			}
-//		);
-//
-//		assertEquals(0L, udf.eval(BigDecimal.valueOf(-0.1)));
+		udf = init(
+			GenericUDFCeil.class,
+			new Object[] {
+				null
+			},
+			new DataType[] {
+				DataTypes.DECIMAL(2, 1)
+			}
+		);
+
+		assertEquals(BigDecimal.valueOf(4), udf.eval(BigDecimal.valueOf(3.1d)));
 	}
 
 	@Test

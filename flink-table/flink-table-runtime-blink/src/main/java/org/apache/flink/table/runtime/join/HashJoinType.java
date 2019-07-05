@@ -59,4 +59,21 @@ public enum HashJoinType {
 			return INNER;
 		}
 	}
+
+	public static HashJoinType of(boolean leftIsBuild, boolean leftOuter, boolean rightOuter,
+			boolean isSemi, boolean isAnti) {
+		if (leftOuter && rightOuter) {
+			return FULL_OUTER;
+		} else if (leftOuter) {
+			return leftIsBuild ? BUILD_OUTER : PROBE_OUTER;
+		} else if (rightOuter) {
+			return leftIsBuild ? PROBE_OUTER : BUILD_OUTER;
+		} else if (isSemi) {
+			return leftIsBuild ? BUILD_LEFT_SEMI : SEMI;
+		} else if (isAnti) {
+			return leftIsBuild ? BUILD_LEFT_ANTI : ANTI;
+		} else {
+			return INNER;
+		}
+	}
 }

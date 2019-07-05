@@ -1045,6 +1045,16 @@ Thus, in order to infer the metric identifier:
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>inputFloatingBuffersUsage</td>
+      <td>An estimate of the floating input buffers usage, dediciated for credit-based mode.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>inputExclusiveBuffersUsage</td>
+      <td>An estimate of the exclusive input buffers usage, dediciated for credit-based mode.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>outPoolUsage</td>
       <td>An estimate of the output buffers usage.</td>
       <td>Gauge</td>

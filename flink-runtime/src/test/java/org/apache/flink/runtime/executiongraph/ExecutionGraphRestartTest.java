@@ -28,6 +28,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -68,6 +70,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -260,6 +263,30 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			completeCanceling(graph);
 
 			assertEquals(JobStatus.FAILED, graph.getState());
+		}
+
+	}
+
+	@Test
+	public void testTaskFailingWhileGlobalFailing() throws Exception {
+		try (SlotPool slotPool = new SlotPoolImpl(TEST_JOB_ID)) {
+			final ExecutionGraph graph = TestingExecutionGraphBuilder.newBuilder()
+				.setRestartStrategy(new InfiniteDelayRestartStrategy())
+				.setFailoverStrategyFactory(new TestFailoverStrategy.Factory())
+				.buildAndScheduleForExecution(slotPool);
+			final TestFailoverStrategy failoverStrategy = (TestFailoverStrategy) graph.getFailoverStrategy();
+
+			// switch all tasks to running
+			for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
+				vertex.getCurrentExecutionAttempt().switchToRunning();
+			}
+
+			graph.failGlobal(new Exception("test"));
+
+			graph.getAllExecutionVertices().iterator().next().fail(new Exception("Test task failure"));
+
+			// no local failover should happen when in global failover cancelling
+			assertEquals(0, failoverStrategy.getLocalFailoverCount());
 		}
 
 	}
@@ -659,12 +686,18 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private static class TestingExecutionGraphBuilder {
 		private RestartStrategy restartStrategy = new NoRestartStrategy();
+		private FailoverStrategy.Factory failoverStrategyFactory = new RestartAllStrategy.Factory();
 		private JobGraph jobGraph = createJobGraph();
 		private int tasksNum = NUM_TASKS;
 		private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
 		private TestingExecutionGraphBuilder setRestartStrategy(RestartStrategy restartStrategy) {
 			this.restartStrategy = restartStrategy;
+			return this;
+		}
+
+		private TestingExecutionGraphBuilder setFailoverStrategyFactory(FailoverStrategy.Factory failoverStrategyFactory) {
+			this.failoverStrategyFactory = failoverStrategyFactory;
 			return this;
 		}
 
@@ -689,7 +722,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		private ExecutionGraph buildAndScheduleForExecution(SlotPool slotPool) throws Exception {
 			final Scheduler scheduler = createSchedulerWithSlots(tasksNum, slotPool, taskManagerLocation);
-			final ExecutionGraph eg = createSimpleExecutionGraph(restartStrategy, scheduler, jobGraph);
+			final ExecutionGraph eg = createSimpleExecutionGraph(
+				restartStrategy,
+				failoverStrategyFactory,
+				scheduler,
+				jobGraph);
 
 			assertEquals(JobStatus.CREATED, eg.getState());
 
@@ -744,18 +781,32 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	private static ExecutionGraph createSimpleExecutionGraph(
-		RestartStrategy restartStrategy, SlotProvider slotProvider, JobGraph jobGraph)
-		throws IOException, JobException {
+		final RestartStrategy restartStrategy,
+		final SlotProvider slotProvider,
+		final JobGraph jobGraph) throws IOException, JobException {
 
-		ExecutionGraph executionGraph = new ExecutionGraph(
+		return createSimpleExecutionGraph(restartStrategy, new RestartAllStrategy.Factory(), slotProvider, jobGraph);
+	}
+
+	private static ExecutionGraph createSimpleExecutionGraph(
+		final RestartStrategy restartStrategy,
+		final FailoverStrategy.Factory failoverStrategyFactory,
+		final SlotProvider slotProvider,
+		final JobGraph jobGraph) throws IOException, JobException {
+
+		final ExecutionGraph executionGraph = new ExecutionGraph(
+			new JobInformation(
+				TEST_JOB_ID,
+				"Test job",
+				new SerializedValue<>(new ExecutionConfig()),
+				new Configuration(),
+				Collections.emptyList(),
+				Collections.emptyList()),
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			TEST_JOB_ID,
-			"Test job",
-			new Configuration(),
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			restartStrategy,
+			failoverStrategyFactory,
 			slotProvider);
 
 		executionGraph.start(mainThreadExecutor);
@@ -778,5 +829,46 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		finishAllVertices(eg);
 		assertEquals(JobStatus.FINISHED, eg.getState());
+	}
+
+	/**
+	 * Test failover strategy which records local failover count.
+	 */
+	static class TestFailoverStrategy extends FailoverStrategy {
+
+		private int localFailoverCount = 0;
+
+		@Override
+		public void onTaskFailure(Execution taskExecution, Throwable cause) {
+			localFailoverCount++;
+		}
+
+		@Override
+		public void notifyNewVertices(List<ExecutionJobVertex> newJobVerticesTopological) {
+		}
+
+		@Override
+		public String getStrategyName() {
+			return "Test Failover Strategy";
+		}
+
+		int getLocalFailoverCount() {
+			return localFailoverCount;
+		}
+
+		// ------------------------------------------------------------------------
+		//  factory
+		// ------------------------------------------------------------------------
+
+		/**
+		 * Factory that instantiates the TestFailoverStrategy.
+		 */
+		public static class Factory implements FailoverStrategy.Factory {
+
+			@Override
+			public FailoverStrategy create(ExecutionGraph executionGraph) {
+				return new TestFailoverStrategy();
+			}
+		}
 	}
 }

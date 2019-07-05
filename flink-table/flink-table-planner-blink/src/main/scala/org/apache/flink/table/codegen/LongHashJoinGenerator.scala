@@ -23,6 +23,8 @@ import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, baseRowFieldReadAccess, className, newName}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
+import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, baseRowFieldReadAccess, newName}
+import org.apache.flink.table.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.generated.{GeneratedJoinCondition, GeneratedProjection}
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
@@ -103,7 +105,7 @@ object LongHashJoinGenerator {
       buildKeyMapping: Array[Int],
       probeKeyMapping: Array[Int],
       managedMemorySize: Long,
-      preferredMemorySize: Long,
+      maxMemorySize: Long,
       perRequestSize: Long,
       buildRowSize: Int,
       buildRowCount: Long,
@@ -172,7 +174,7 @@ object LongHashJoinGenerator {
          |    super(getContainingTask().getJobConfiguration(), getContainingTask(),
          |      $buildSerTerm, $probeSerTerm,
          |      getContainingTask().getEnvironment().getMemoryManager(),
-         |      ${managedMemorySize}L, ${preferredMemorySize}L, ${perRequestSize}L,
+         |      ${managedMemorySize}L, ${maxMemorySize}L, ${perRequestSize}L,
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
          |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());
@@ -307,6 +309,9 @@ object LongHashJoinGenerator {
          |}
        """.stripMargin)
 
+    val buildEnd = newName("buildEnd")
+    ctx.addReusableMember(s"private transient boolean $buildEnd = false;")
+
     val genOp = OperatorCodeGenerator.generateTwoInputStreamOperator[BaseRow, BaseRow, BaseRow](
       ctx,
       "LongHashJoinOperator",
@@ -321,6 +326,7 @@ object LongHashJoinGenerator {
       s"""
          |LOG.info("Finish build phase.");
          |table.endBuild();
+         |$buildEnd = true;
        """.stripMargin,
       s"""
          |$BASE_ROW row = ($BASE_ROW) element.getValue();
@@ -338,6 +344,13 @@ object LongHashJoinGenerator {
          |  joinWithNextKey();
          |}
          |LOG.info("Finish rebuild phase.");
+       """.stripMargin,
+      s"""
+         |if ($buildEnd) {
+         |  return $INPUT_SELECTION.SECOND;
+         |} else {
+         |  return $INPUT_SELECTION.FIRST;
+         |}
        """.stripMargin,
       buildType,
       probeType)

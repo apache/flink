@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.sort;
 
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -36,7 +37,7 @@ import java.util.PriorityQueue;
  * Operator for batch sort limit.
  */
 public class SortLimitOperator extends TableStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow> {
+		implements OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
 
 	private final boolean isGlobal;
 	private final long limitStart;
@@ -85,6 +86,7 @@ public class SortLimitOperator extends TableStreamOperator<BaseRow>
 		}
 	}
 
+	@Override
 	public void endInput() throws Exception {
 		if (isGlobal) {
 			// Global sort, we need sort the results and pick records in limitStart to limitEnd.
@@ -100,11 +102,5 @@ public class SortLimitOperator extends TableStreamOperator<BaseRow>
 				collector.collect(row);
 			}
 		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		endInput(); // TODO remove it.
-		super.close();
 	}
 }

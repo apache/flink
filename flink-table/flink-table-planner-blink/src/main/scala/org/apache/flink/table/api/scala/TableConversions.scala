@@ -21,8 +21,9 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.api.{Table, TableException, TableImpl}
+import org.apache.flink.table.api.{Table, TableException}
 
 /**
   * Holds methods to convert a [[Table]] into a [[DataSet]] or a [[DataStream]].
@@ -68,7 +69,7 @@ class TableConversions(table: Table) {
     * @return The converted [[DataStream]].
     */
   def toAppendStream[T: TypeInformation]: DataStream[T] = {
-    table.asInstanceOf[TableImpl].tableEnv match {
+    table.asInstanceOf[TableImpl].getTableEnvironment match {
       case tEnv: ScalaStreamTableEnv =>
         tEnv.toAppendStream(table)
       case _ =>
@@ -86,7 +87,7 @@ class TableConversions(table: Table) {
     *
     */
   def toRetractStream[T: TypeInformation]: DataStream[(Boolean, T)] = {
-    table.asInstanceOf[TableImpl].tableEnv match {
+    table.asInstanceOf[TableImpl].getTableEnvironment match {
       case tEnv: ScalaStreamTableEnv =>
         tEnv.toRetractStream(table)
       case _ =>

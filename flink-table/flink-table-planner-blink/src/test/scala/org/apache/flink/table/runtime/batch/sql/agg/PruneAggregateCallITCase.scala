@@ -66,19 +66,15 @@ class PruneAggregateCallITCase extends BatchTestBase {
       Seq(row(1))
     )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
     checkResult(
       "SELECT 1 FROM (SELECT SUM(a), COUNT(*) FROM MyTable) t",
@@ -100,33 +96,25 @@ class PruneAggregateCallITCase extends BatchTestBase {
       Seq(row(1))
     )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
   }
 
 }

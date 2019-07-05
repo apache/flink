@@ -128,6 +128,14 @@ object UserDefinedFunctionUtils {
     getParamClassesConsiderVarArgs(method.isVarArgs, method.getParameterTypes, expectedTypes.length)
   }
 
+  def getEvalMethodSignatureOption(
+      func: ScalarFunction,
+      expectedTypes: Array[LogicalType]): Option[Array[Class[_]]] = {
+    getEvalUserDefinedMethod(func, expectedTypes).map( method =>
+      getParamClassesConsiderVarArgs(
+        method.isVarArgs, method.getParameterTypes, expectedTypes.length))
+  }
+
   def getEvalMethodSignature(
       func: TableFunction[_],
       expectedTypes: Array[LogicalType]): Array[Class[_]] = {
@@ -601,8 +609,6 @@ object UserDefinedFunctionUtils {
       function: ScalarFunction,
       arguments: Array[AnyRef],
       argTypes: Array[LogicalType]): DataType = {
-//    val userDefinedTypeInfo = function.getResultType(
-//      arguments, getEvalMethodSignature(function, argTypes))
     val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
     if (userDefinedTypeInfo != null) {
       fromLegacyInfoToDataType(userDefinedTypeInfo)

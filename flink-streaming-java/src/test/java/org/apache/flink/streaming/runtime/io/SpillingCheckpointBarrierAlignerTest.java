@@ -48,8 +48,8 @@ public class SpillingCheckpointBarrierAlignerTest extends CheckpointBarrierAlign
 	}
 
 	@AfterClass
-	public static void shutdownIOManager() {
-		ioManager.shutdown();
+	public static void shutdownIOManager() throws Exception {
+		ioManager.close();
 	}
 
 	@Override

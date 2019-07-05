@@ -289,7 +289,7 @@ object StringCallGen {
   private def safeToStringTerms(terms: Seq[String], operands: Seq[GeneratedExpression]) = {
     terms.zipWithIndex.map { case (term, index) =>
       if (isCharacterString(operands(index).resultType)) {
-        s"$BINARY_STRING.safeToString($term)"
+        s"$STRING_UTIL.safeToString($term)"
       } else {
         term
       }
@@ -300,7 +300,7 @@ object StringCallGen {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$BINARY_STRING.concat(${terms.mkString(", ")})"
+      terms => s"$STRING_UTIL.concat(${terms.mkString(", ")})"
     }
   }
 
@@ -308,7 +308,7 @@ object StringCallGen {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$BINARY_STRING.concatWs(${terms.mkString(", ")})"
+      terms => s"$STRING_UTIL.concatWs(${terms.mkString(", ")})"
     }
   }
 
@@ -340,7 +340,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"${terms.head}.substringSQL(${terms.drop(1).mkString(", ")})"
+      terms => s"$STRING_UTIL.substringSQL(${terms.head}, ${terms.drop(1).mkString(", ")})"
     }
   }
 
@@ -350,7 +350,9 @@ object StringCallGen {
     len: GeneratedExpression): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), Seq(str, len)) {
       val emptyString = s"$BINARY_STRING.EMPTY_UTF8"
-      terms => s"${terms(1)} <= 0 ? $emptyString : ${terms.head}.substringSQL(1, ${terms(1)})"
+      terms =>
+        s"${terms(1)} <= 0 ? $emptyString :" +
+            s" $STRING_UTIL.substringSQL(${terms.head}, 1, ${terms(1)})"
     }
   }
 
@@ -365,7 +367,7 @@ object StringCallGen {
            |  $BINARY_STRING.EMPTY_UTF8 :
            |  ${terms(1)} >= ${terms.head}.numChars() ?
            |  ${terms.head} :
-           |  ${terms.head}.substringSQL(-${terms(1)})
+           |  $STRING_UTIL.substringSQL(${terms.head}, -${terms(1)})
        """.stripMargin
     }
   }
@@ -427,7 +429,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     str: GeneratedExpression): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new IntType(), Seq(str)) {
-      terms => s"${terms.head}.getSizeInBytes() <= 0 ? 0 : (int) ${terms.head}.getByte(0)"
+      terms => s"${terms.head}.getSizeInBytes() <= 0 ? 0 : (int) ${terms.head}.byteAt(0)"
     }
   }
 
@@ -547,7 +549,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"${terms.head}.reverse()"
+      terms => s"$STRING_UTIL.reverse(${terms.head})"
     }
   }
 
@@ -574,8 +576,7 @@ object StringCallGen {
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms =>
-        s"$className.keyValue(${terms.mkString(",")})"
+      terms => s"$className.keyValue(${terms.mkString(",")})"
     }
   }
 
@@ -600,7 +601,7 @@ object StringCallGen {
     val digestTerm = ctx.addReusableMessageDigest(algorithm)
     if (operands.length == 1) {
       generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-        terms =>s"${terms.head}.hash($digestTerm)"
+        terms =>s"$STRING_UTIL.hash(${terms.head}, $digestTerm)"
       }
     } else {
       val className = classOf[SqlFunctionUtils].getCanonicalName
@@ -643,7 +644,7 @@ object StringCallGen {
       val digestTerm = ctx.addReusableSha2MessageDigest(operands.last)
       if (operands.length == 2) {
         generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-          terms =>s"${terms.head}.hash($digestTerm)"
+          terms =>s"$STRING_UTIL.hash(${terms.head}, $digestTerm)"
         }
       } else {
         generateStringResultCallIfArgsNotNull(ctx, operands) {
@@ -656,7 +657,7 @@ object StringCallGen {
       if (operands.length == 2) {
         generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
           terms =>
-            s"""${terms.head}.hash("SHA-" + ${terms.last})"""
+            s"""$STRING_UTIL.hash(${terms.head}, "SHA-" + ${terms.last})"""
         }
       } else {
         generateStringResultCallIfArgsNotNull(ctx, operands) {
@@ -740,7 +741,7 @@ object StringCallGen {
         val leading = compareEnum(terms.head, BOTH) || compareEnum(terms.head, LEADING)
         val trailing = compareEnum(terms.head, BOTH) || compareEnum(terms.head, TRAILING)
         val args = s"$leading, $trailing, ${terms(1)}"
-        s"${terms(2)}.trim($args)"
+        s"$STRING_UTIL.trim(${terms(2)}, $args)"
     }
   }
 
@@ -748,7 +749,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"${terms.head}.trimLeft(${terms.drop(1).mkString(", ")})"
+      terms => s"$STRING_UTIL.trimLeft(${terms.mkString(", ")})"
     }
   }
 
@@ -756,7 +757,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"${terms.head}.trimRight(${terms.drop(1).mkString(", ")})"
+      terms => s"$STRING_UTIL.trimRight(${terms.mkString(", ")})"
     }
   }
 

@@ -38,6 +38,14 @@ public class TableConfigOptions {
 					.withDescription("Whether support values source input. The reason for disabling this " +
 									"feature is that checkpoint will not work properly when source finished.");
 
+	public static final ConfigOption<Long> SQL_EXEC_SOURCE_IDLE_TIMEOUT =
+			key("sql.exec.source.idle.timeout.ms")
+					.defaultValue(-1L)
+					.withDescription("When a source do not receive any elements for the timeout time, " +
+							"it will be marked as temporarily idle. This allows downstream " +
+							"tasks to advance their watermarks without the need to wait for " +
+							"watermarks from this source while it is idle.");
+
 	// ------------------------------------------------------------------------
 	//  Sort Options
 	// ------------------------------------------------------------------------
@@ -150,6 +158,11 @@ public class TableConfigOptions {
 			key("sql.resource.hash-agg.table.memory.mb")
 					.defaultValue(32)
 					.withDescription("Sets the table reserved memory size of hashAgg operator. It defines the lower limit.");
+
+	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_JOIN_TABLE_MEM =
+			key("sql.resource.hash-join.table.memory.mb")
+					.defaultValue(32)
+					.withDescription("Sets the HashTable reserved memory for hashJoin operator. It defines the lower limit.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
 			key("sql.resource.sort.buffer.memory.mb")

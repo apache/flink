@@ -86,11 +86,6 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public int getPageSize() {
-		return inputGate.getPageSize();
-	}
-
-	@Override
 	public void close() throws Exception {
 		inputGate.close();
 	}

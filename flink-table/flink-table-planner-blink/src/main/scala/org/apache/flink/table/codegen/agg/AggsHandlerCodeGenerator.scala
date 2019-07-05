@@ -58,7 +58,7 @@ class AggsHandlerCodeGenerator(
 
   /** window properties like window_start and window_end, only used in window aggregates */
   private var namespaceClassName: String = _
-  private var windowProperties: Seq[WindowProperty] = Seq()
+  private var windowProperties: Seq[PlannerWindowProperty] = Seq()
   private var hasNamespace: Boolean = false
 
   /** Aggregates informations */
@@ -182,7 +182,7 @@ class AggsHandlerCodeGenerator(
     * Adds window properties such as window_start, window_end
     */
   private def initialWindowProperties(
-      windowProperties: Seq[WindowProperty],
+      windowProperties: Seq[PlannerWindowProperty],
       windowClass: Class[_]): Unit = {
     this.windowProperties = windowProperties
     this.namespaceClassName = windowClass.getCanonicalName
@@ -404,7 +404,7 @@ class AggsHandlerCodeGenerator(
   def generateNamespaceAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
-      windowProperties: Seq[WindowProperty],
+      windowProperties: Seq[PlannerWindowProperty],
       windowClass: Class[N]): GeneratedNamespaceAggsHandleFunction[N] = {
 
     initialWindowProperties(windowProperties, windowClass)
@@ -663,19 +663,19 @@ class AggsHandlerCodeGenerator(
     if (hasNamespace) {
       // append window property results
       val windowExprs = windowProperties.map {
-        case w: WindowStart =>
+        case w: PlannerWindowStart =>
           // return a Timestamp(Internal is long)
           GeneratedExpression(
             s"$NAMESPACE_TERM.getStart()", "false", "", w.resultType)
-        case w: WindowEnd =>
+        case w: PlannerWindowEnd =>
           // return a Timestamp(Internal is long)
           GeneratedExpression(
             s"$NAMESPACE_TERM.getEnd()", "false", "", w.resultType)
-        case r: RowtimeAttribute =>
+        case r: PlannerRowtimeAttribute =>
           // return a rowtime, use long as internal type
           GeneratedExpression(
             s"$NAMESPACE_TERM.getEnd() - 1", "false", "", r.resultType)
-        case p: ProctimeAttribute =>
+        case p: PlannerProctimeAttribute =>
           // ignore this property, it will be null at the position later
           GeneratedExpression("-1L", "true", "", p.resultType)
       }

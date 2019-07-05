@@ -93,12 +93,9 @@ public class BinaryHashTableTest {
 	}
 
 	@After
-	public void tearDown() {
+	public void tearDown() throws Exception {
 		// shut down I/O manager and Memory Manager and verify the correct shutdown
-		this.ioManager.shutdown();
-		if (!this.ioManager.isProperlyShutDown()) {
-			fail("I/O manager was not property shut down.");
-		}
+		this.ioManager.close();
 	}
 
 	@Test

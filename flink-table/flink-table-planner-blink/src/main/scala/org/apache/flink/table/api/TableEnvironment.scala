@@ -22,18 +22,23 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnvironment, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnvironment, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager, CatalogManagerCalciteSchema, ConnectorCatalogTable, FunctionCatalog, GenericInMemoryCatalog, ObjectPath, QueryOperationCatalogView}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.expressions.TableReferenceExpression
+import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, extractResultTypeFromTableFunction, getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation}
+import org.apache.flink.table.operations.utils.OperationTreeBuilder
+import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, QueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
@@ -50,15 +55,16 @@ import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType, TypeIn
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.types.Row
+
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql._
 import org.apache.calcite.tools._
-import _root_.java.lang.reflect.Modifier
-import _root_.java.util.concurrent.atomic.AtomicInteger
 
-import org.apache.flink.api.dag.Transformation
+import _root_.java.lang.reflect.Modifier
+import _root_.java.util
+import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
@@ -93,8 +99,20 @@ abstract class TableEnvironment(
       getTraitDefs.toList
     )
 
+  private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
+    functionCatalog, new TableReferenceLookup(){
+    override def lookupTable(path: String): util.Optional[TableReferenceExpression] = {
+      val catalogTableOperation = scanInternal(Array(path))
+      catalogTableOperation.map((tableOperation) =>
+        new TableReferenceExpression(path, tableOperation)) match {
+        case None => util.Optional.empty()
+        case Some(s) => util.Optional.of(s)
+      }
+    }
+  }, this.isInstanceOf[StreamTableEnvironment])
+
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
-  private[flink] def getRelBuilder: FlinkRelBuilder = {
+  private[flink] def getRelBuilder = {
     val currentCatalogName = catalogManager.getCurrentCatalog
     val currentDatabase = catalogManager.getCurrentDatabase
     plannerContext.createRelBuilder(currentCatalogName, currentDatabase)
@@ -280,7 +298,7 @@ abstract class TableEnvironment(
     */
   def registerTable(name: String, table: Table): Unit = {
     // check that table belongs to this table environment
-    if (table.asInstanceOf[TableImpl].tableEnv != this) {
+    if (table.asInstanceOf[TableImpl].getTableEnvironment != this) {
       throw new TableException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
@@ -377,7 +395,7 @@ abstract class TableEnvironment(
   @varargs
   def scan(tablePath: String*): Table = {
     scanInternal(tablePath.toArray) match {
-      case Some(table) => new TableImpl(this, table)
+      case Some(table) => createTable(table)
       case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
     }
   }
@@ -473,7 +491,7 @@ abstract class TableEnvironment(
       val validated = planner.validate(parsed)
       // transform to a relational tree
       val relational = planner.rel(validated)
-      new TableImpl(this, new PlannerQueryOperation(relational.project()))
+      createTable(new PlannerQueryOperation(relational.project()))
     } else {
       throw new TableException(
         "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
@@ -726,6 +744,9 @@ abstract class TableEnvironment(
     (fieldNames, fieldIndexes)
   }
 
+  private[flink] def createTable(tableOperation: QueryOperation): TableImpl = {
+    TableImpl.createTable(this, tableOperation, operationTreeBuilder, functionCatalog)
+  }
 }
 
 /**

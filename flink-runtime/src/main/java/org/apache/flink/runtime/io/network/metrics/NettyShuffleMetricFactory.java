@@ -66,6 +66,8 @@ public class NettyShuffleMetricFactory {
 
 	private static final String METRIC_INPUT_QUEUE_LENGTH = "inputQueueLength";
 	private static final String METRIC_INPUT_POOL_USAGE = "inPoolUsage";
+	private static final String METRIC_INPUT_FLOATING_BUFFERS_USAGE = "inputFloatingBuffersUsage";
+	private static final String METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE = "inputExclusiveBuffersUsage";
 
 	private NettyShuffleMetricFactory() {
 	}
@@ -107,6 +109,7 @@ public class NettyShuffleMetricFactory {
 	@Deprecated
 	public static void registerLegacyNetworkMetrics(
 			boolean isDetailedMetrics,
+			boolean isCreditBased,
 			MetricGroup metricGroup,
 			ResultPartitionWriter[] producedPartitions,
 			InputGate[] inputGates) {
@@ -126,7 +129,7 @@ public class NettyShuffleMetricFactory {
 		registerOutputMetrics(isDetailedMetrics, outputGroup, buffersGroup, resultPartitions);
 
 		SingleInputGate[] singleInputGates = Arrays.copyOf(inputGates, inputGates.length, SingleInputGate[].class);
-		registerInputMetrics(isDetailedMetrics, inputGroup, buffersGroup, singleInputGates);
+		registerInputMetrics(isDetailedMetrics, isCreditBased, inputGroup, buffersGroup, singleInputGates);
 	}
 
 	public static void registerOutputMetrics(
@@ -154,10 +157,12 @@ public class NettyShuffleMetricFactory {
 
 	public static void registerInputMetrics(
 			boolean isDetailedMetrics,
+			boolean isCreditBased,
 			MetricGroup inputGroup,
 			SingleInputGate[] inputGates) {
 		registerInputMetrics(
 			isDetailedMetrics,
+			isCreditBased,
 			inputGroup,
 			inputGroup.addGroup(METRIC_GROUP_BUFFERS),
 			inputGates);
@@ -165,13 +170,28 @@ public class NettyShuffleMetricFactory {
 
 	private static void registerInputMetrics(
 			boolean isDetailedMetrics,
+			boolean isCreditBased,
 			MetricGroup inputGroup,
 			MetricGroup buffersGroup,
 			SingleInputGate[] inputGates) {
 		if (isDetailedMetrics) {
 			InputGateMetrics.registerQueueLengthMetrics(inputGroup, inputGates);
 		}
+
 		buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
-		buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, new InputBufferPoolUsageGauge(inputGates));
+
+		if (isCreditBased) {
+			FloatingBuffersUsageGauge floatingBuffersUsageGauge = new FloatingBuffersUsageGauge(inputGates);
+			ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge = new ExclusiveBuffersUsageGauge(inputGates);
+			CreditBasedInputBuffersUsageGauge creditBasedInputBuffersUsageGauge = new CreditBasedInputBuffersUsageGauge(
+				floatingBuffersUsageGauge,
+				exclusiveBuffersUsageGauge,
+				inputGates);
+			buffersGroup.gauge(METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE, exclusiveBuffersUsageGauge);
+			buffersGroup.gauge(METRIC_INPUT_FLOATING_BUFFERS_USAGE, floatingBuffersUsageGauge);
+			buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, creditBasedInputBuffersUsageGauge);
+		} else {
+			buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, new InputBufferPoolUsageGauge(inputGates));
+		}
 	}
 }

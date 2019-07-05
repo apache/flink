@@ -29,11 +29,13 @@ import org.apache.hadoop.hive.ql.udf.UDFJson;
 import org.apache.hadoop.hive.ql.udf.UDFMinute;
 import org.apache.hadoop.hive.ql.udf.UDFRand;
 import org.apache.hadoop.hive.ql.udf.UDFRegExpExtract;
+import org.apache.hadoop.hive.ql.udf.UDFToInteger;
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
 import org.junit.Test;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 
@@ -179,6 +181,17 @@ public class HiveSimpleUDFTest {
 			});
 
 		assertEquals("MySQL", new String((byte[]) udf.eval("4D7953514C"), "UTF-8"));
+	}
+
+	@Test
+	public void testUDFToInteger() {
+		HiveSimpleUDF udf = init(
+			UDFToInteger.class,
+			new DataType[]{
+				DataTypes.DECIMAL(5, 3)
+			});
+
+		assertEquals(1, udf.eval(BigDecimal.valueOf(1.1d)));
 	}
 
 	@Test

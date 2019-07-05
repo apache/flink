@@ -116,7 +116,7 @@ abstract class StreamTableEnvironment(
     // TODO TableSourceUtil.validateTableSource(tableSource)
     tableSource match {
       // check for proper stream table source
-      case streamTableSource: StreamTableSource[_] if !streamTableSource.isBounded => // ok
+      case _: StreamTableSource[_] => // StreamEnv can handle both bounded and unbounded ok
       // TODO `TableSourceUtil.hasRowtimeAttribute` depends on [Expression]
       // check that event-time is enabled if table source includes rowtime attributes
       // if (TableSourceUtil.hasRowtimeAttribute(streamTableSource) &&

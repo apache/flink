@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -50,7 +51,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	private final FailoverTopology topology;
 
 	/** All failover regions. */
-	private final IdentityHashMap<FailoverRegion, Object> regions;
+	private final Set<FailoverRegion> regions;
 
 	/** Maps execution vertex id to failover region. */
 	private final Map<ExecutionVertexID, FailoverRegion> vertexToRegionMap;
@@ -80,7 +81,7 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
 		this.topology = checkNotNull(topology);
-		this.regions = new IdentityHashMap<>();
+		this.regions = Collections.newSetFromMap(new IdentityHashMap<>());
 		this.vertexToRegionMap = new HashMap<>();
 		this.resultPartitionAvailabilityChecker = new RegionFailoverResultPartitionAvailabilityChecker(
 			resultPartitionAvailabilityChecker);
@@ -94,69 +95,13 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	// ------------------------------------------------------------------------
 
 	private void buildFailoverRegions() {
-		// currently we let a job with co-location constraints fail as one region
-		// putting co-located vertices in the same region with each other can be a future improvement
-		if (topology.containsCoLocationConstraints()) {
-			buildOneRegionForAllVertices();
-			return;
-		}
-
-		// we use the map (list -> null) to imitate an IdentityHashSet (which does not exist)
-		// this helps to optimize the building performance as it uses reference equality
-		final IdentityHashMap<FailoverVertex, HashSet<FailoverVertex>> vertexToRegion = new IdentityHashMap<>();
-
-		// iterate all the vertices which are topologically sorted
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			HashSet<FailoverVertex> currentRegion = new HashSet<>(1);
-			currentRegion.add(vertex);
-			vertexToRegion.put(vertex, currentRegion);
-
-			for (FailoverEdge inputEdge : vertex.getInputEdges()) {
-				if (inputEdge.getResultPartitionType().isPipelined()) {
-					final FailoverVertex producerVertex = inputEdge.getSourceVertex();
-					final HashSet<FailoverVertex> producerRegion = vertexToRegion.get(producerVertex);
-
-					if (producerRegion == null) {
-						throw new IllegalStateException("Producer task " + producerVertex.getExecutionVertexName()
-							+ " failover region is null while calculating failover region for the consumer task "
-							+ vertex.getExecutionVertexName() + ". This should be a failover region building bug.");
-					}
-
-					// check if it is the same as the producer region, if so skip the merge
-					// this check can significantly reduce compute complexity in All-to-All PIPELINED edge case
-					if (currentRegion != producerRegion) {
-						// merge current region and producer region
-						// merge the smaller region into the larger one to reduce the cost
-						final HashSet<FailoverVertex> smallerSet;
-						final HashSet<FailoverVertex> largerSet;
-						if (currentRegion.size() < producerRegion.size()) {
-							smallerSet = currentRegion;
-							largerSet = producerRegion;
-						} else {
-							smallerSet = producerRegion;
-							largerSet = currentRegion;
-						}
-						for (FailoverVertex v : smallerSet) {
-							vertexToRegion.put(v, largerSet);
-						}
-						largerSet.addAll(smallerSet);
-						currentRegion = largerSet;
-					}
-				}
-			}
-		}
-
-		// find out all the distinct regions
-		final IdentityHashMap<HashSet<FailoverVertex>, Object> distinctRegions = new IdentityHashMap<>();
-		for (HashSet<FailoverVertex> regionVertices : vertexToRegion.values()) {
-			distinctRegions.put(regionVertices, null);
-		}
+		final Set<Set<FailoverVertex>> distinctRegions = PipelinedRegionComputeUtil.computePipelinedRegions(topology);
 
 		// creating all the failover regions and register them
-		for (HashSet<FailoverVertex> regionVertices : distinctRegions.keySet()) {
+		for (Set<FailoverVertex> regionVertices : distinctRegions) {
 			LOG.debug("Creating a failover region with {} vertices.", regionVertices.size());
 			final FailoverRegion failoverRegion = new FailoverRegion(regionVertices);
-			regions.put(failoverRegion, null);
+			regions.add(failoverRegion);
 			for (FailoverVertex vertex : regionVertices) {
 				vertexToRegionMap.put(vertex.getExecutionVertexID(), failoverRegion);
 			}
@@ -165,21 +110,6 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 		LOG.info("Created {} failover regions.", regions.size());
 	}
 
-	private void buildOneRegionForAllVertices() {
-		LOG.warn("Cannot decompose the topology into individual failover regions due to use of " +
-			"Co-Location constraints (iterations). Job will fail over as one holistic unit.");
-
-		final Set<FailoverVertex> allVertices = new HashSet<>();
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			allVertices.add(vertex);
-		}
-
-		final FailoverRegion region = new FailoverRegion(allVertices);
-		regions.put(region, null);
-		for (FailoverVertex vertex : topology.getFailoverVertices()) {
-			vertexToRegionMap.put(vertex.getExecutionVertexID(), region);
-		}
-	}
 
 	// ------------------------------------------------------------------------
 	//  task failure handling
@@ -242,26 +172,26 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 	 * 3. If a region is involved, all of its consumer regions are involved
 	 */
 	private Set<FailoverRegion> getRegionsToRestart(FailoverRegion failedRegion) {
-		IdentityHashMap<FailoverRegion, Object> regionsToRestart = new IdentityHashMap<>();
-		IdentityHashMap<FailoverRegion, Object> visitedRegions = new IdentityHashMap<>();
+		Set<FailoverRegion> regionsToRestart = Collections.newSetFromMap(new IdentityHashMap<>());
+		Set<FailoverRegion> visitedRegions = Collections.newSetFromMap(new IdentityHashMap<>());
 
 		// start from the failed region to visit all involved regions
 		Queue<FailoverRegion> regionsToVisit = new ArrayDeque<>();
-		visitedRegions.put(failedRegion, null);
+		visitedRegions.add(failedRegion);
 		regionsToVisit.add(failedRegion);
 		while (!regionsToVisit.isEmpty()) {
 			FailoverRegion regionToRestart = regionsToVisit.poll();
 
 			// an involved region should be restarted
-			regionsToRestart.put(regionToRestart, null);
+			regionsToRestart.add(regionToRestart);
 
 			// if a needed input result partition is not available, its producer region is involved
 			for (FailoverVertex vertex : regionToRestart.getAllExecutionVertices()) {
 				for (FailoverEdge inEdge : vertex.getInputEdges()) {
 					if (!resultPartitionAvailabilityChecker.isAvailable(inEdge.getResultPartitionID())) {
 						FailoverRegion producerRegion = vertexToRegionMap.get(inEdge.getSourceVertex().getExecutionVertexID());
-						if (!visitedRegions.containsKey(producerRegion)) {
-							visitedRegions.put(producerRegion, null);
+						if (!visitedRegions.contains(producerRegion)) {
+							visitedRegions.add(producerRegion);
 							regionsToVisit.add(producerRegion);
 						}
 					}
@@ -272,15 +202,15 @@ public class RestartPipelinedRegionStrategy implements FailoverStrategy {
 			for (FailoverVertex vertex : regionToRestart.getAllExecutionVertices()) {
 				for (FailoverEdge outEdge : vertex.getOutputEdges()) {
 					FailoverRegion consumerRegion = vertexToRegionMap.get(outEdge.getTargetVertex().getExecutionVertexID());
-					if (!visitedRegions.containsKey(consumerRegion)) {
-						visitedRegions.put(consumerRegion, null);
+					if (!visitedRegions.contains(consumerRegion)) {
+						visitedRegions.add(consumerRegion);
 						regionsToVisit.add(consumerRegion);
 					}
 				}
 			}
 		}
 
-		return regionsToRestart.keySet();
+		return regionsToRestart;
 	}
 
 	// ------------------------------------------------------------------------

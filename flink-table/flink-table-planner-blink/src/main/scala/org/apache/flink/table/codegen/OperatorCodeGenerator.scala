@@ -18,7 +18,7 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.streaming.api.graph.StreamConfig
-import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
+import org.apache.flink.streaming.api.operators.{BoundedMultiInput, BoundedOneInput, InputSelectable, InputSelection, OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.StreamTask
 import org.apache.flink.table.api.TableConfig
@@ -36,7 +36,8 @@ object OperatorCodeGenerator extends Logging {
   val ELEMENT = "element"
   val OUT_ELEMENT = "outElement"
 
-  val STREAM_RECORD: String = classOf[StreamRecord[_]].getCanonicalName
+  val STREAM_RECORD: String = className[StreamRecord[_]]
+  val INPUT_SELECTION: String = className[InputSelection]
 
   def addReuseOutElement(ctx: CodeGeneratorContext): Unit = {
     ctx.addReusableMember(s"private final $STREAM_RECORD $OUT_ELEMENT = new $STREAM_RECORD(null);")
@@ -60,16 +61,16 @@ object OperatorCodeGenerator extends Logging {
     val operatorCode =
       j"""
       public class $operatorName extends ${abstractBaseClass.getCanonicalName}
-          implements ${baseClass.getCanonicalName} {
+          implements ${baseClass.getCanonicalName}, ${className[BoundedOneInput]} {
 
         private final Object[] references;
         ${ctx.reuseMemberCode()}
 
         public $operatorName(
             Object[] references,
-            ${classOf[StreamTask[_, _]].getCanonicalName} task,
-            ${classOf[StreamConfig].getCanonicalName} config,
-            ${classOf[Output[_]].getCanonicalName} output) throws Exception {
+            ${className[StreamTask[_, _]]} task,
+            ${className[StreamConfig]} config,
+            ${className[Output[_]]} output) throws Exception {
           this.references = references;
           ${ctx.reuseInitCode()}
           this.setup(task, config, output);
@@ -90,7 +91,7 @@ object OperatorCodeGenerator extends Logging {
           $processCode
         }
 
-        // TODO @Override
+        @Override
         public void endInput() throws Exception {
           ${
             if (endInputCode.nonEmpty) {
@@ -107,8 +108,6 @@ object OperatorCodeGenerator extends Logging {
 
         @Override
         public void close() throws Exception {
-           // TODO remove it after introduce endInput in runtime.
-           endInput();
            super.close();
           ${ctx.reuseCloseCode()}
         }
@@ -128,6 +127,7 @@ object OperatorCodeGenerator extends Logging {
       endInputCode1: String,
       processCode2: String,
       endInputCode2: String,
+      nextSelection: String,
       input1Type: LogicalType,
       input2Type: LogicalType,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
@@ -144,7 +144,8 @@ object OperatorCodeGenerator extends Logging {
     val operatorCode =
       j"""
       public class $operatorName extends ${abstractBaseClass.getCanonicalName}
-          implements ${baseClass.getCanonicalName} {
+          implements ${baseClass.getCanonicalName},
+           ${className[BoundedMultiInput]}, ${className[InputSelectable]} {
 
         public static org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger("$operatorName");
 
@@ -153,9 +154,9 @@ object OperatorCodeGenerator extends Logging {
 
         public $operatorName(
             Object[] references,
-            ${classOf[StreamTask[_, _]].getCanonicalName} task,
-            ${classOf[StreamConfig].getCanonicalName} config,
-            ${classOf[Output[_]].getCanonicalName} output) throws Exception {
+            ${className[StreamTask[_, _]]} task,
+            ${className[StreamConfig]} config,
+            ${className[Output[_]]} output) throws Exception {
           this.references = references;
           ${ctx.reuseInitCode()}
           this.setup(task, config, output);
@@ -175,7 +176,7 @@ object OperatorCodeGenerator extends Logging {
           $processCode1
         }
 
-        public void endInput1() throws Exception {
+        private void endInput1() throws Exception {
           $endInputCode1
         }
 
@@ -187,8 +188,25 @@ object OperatorCodeGenerator extends Logging {
           $processCode2
         }
 
-        public void endInput2() throws Exception {
+        private void endInput2() throws Exception {
           $endInputCode2
+        }
+
+        @Override
+        public void endInput(int inputId) throws Exception {
+          switch (inputId) {
+            case 1:
+              endInput1();
+              break;
+            case 2:
+              endInput2();
+              break;
+          }
+        }
+
+        @Override
+        public $INPUT_SELECTION nextSelection() {
+          $nextSelection
         }
 
         @Override

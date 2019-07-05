@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
-import org.apache.flink.table.dataformat.{Decimal, _}
+import org.apache.flink.table.dataformat.{Decimal, BinaryStringUtil, _}
 import org.apache.flink.table.dataview.StateDataViewStore
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction}
@@ -87,6 +87,8 @@ object CodeGenUtils {
   val NAMESPACE_AGGS_HANDLER_FUNCTION: String = className[NamespaceAggsHandleFunction[_]]
 
   val STATE_DATA_VIEW_STORE: String = className[StateDataViewStore]
+
+  val STRING_UTIL: String = className[BinaryStringUtil]
 
   // ----------------------------------------------------------------------------------------
 
@@ -199,6 +201,7 @@ object CodeGenUtils {
 
   def hashCodeForType(
       ctx: CodeGeneratorContext, t: LogicalType, term: String): String = t.getTypeRoot match {
+    case BOOLEAN => s"${className[JBoolean]}.hashCode($term)"
     case TINYINT => s"${className[JByte]}.hashCode($term)"
     case SMALLINT => s"${className[JShort]}.hashCode($term)"
     case INTEGER => s"${className[JInt]}.hashCode($term)"

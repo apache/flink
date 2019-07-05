@@ -19,7 +19,9 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
+
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil.InputFinder
@@ -35,6 +37,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.mapping.Mappings
 import org.apache.calcite.util.{ImmutableBitSet, Pair, Util}
+import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
@@ -718,6 +721,73 @@ object FlinkRelOptUtil {
   class TimeIndicatorExprFinder extends RexVisitorImpl[Boolean](true) {
     override def visitInputRef(inputRef: RexInputRef): Boolean = {
       FlinkTypeFactory.isTimeIndicatorType(inputRef.getType)
+    }
+  }
+
+  /**
+    * Merge two MiniBatchInterval as a new one.
+    *
+    * The Merge Logic:  MiniBatchMode: (R: rowtime, P: proctime, N: None), I: Interval
+    * Possible values:
+    * - (R, I = 0): operators that require watermark (window excluded).
+    * - (R, I > 0): window / operators that require watermark with minibatch enabled.
+    * - (R, I = -1): existing window aggregate
+    * - (P, I > 0): unbounded agg with minibatch enabled.
+    * - (N, I = 0): no operator requires watermark, minibatch disabled
+    * ------------------------------------------------
+    * |    A        |    B        |   merged result
+    * ------------------------------------------------
+    * | R, I_1 == 0 | R, I_2      |  R, gcd(I_1, I_2)
+    * ------------------------------------------------
+    * | R, I_1 == 0 | P, I_2      |  R, I_2
+    * ------------------------------------------------
+    * | R, I_1 > 0  | R, I_2      |  R, gcd(I_1, I_2)
+    * ------------------------------------------------
+    * | R, I_1 > 0  | P, I_2      |  R, I_1
+    * ------------------------------------------------
+    * | R, I_1 = -1 | R, I_2      |  R, I_1
+    * ------------------------------------------------
+    * | R, I_1 = -1 | P, I_2      |  R, I_1
+    * ------------------------------------------------
+    * | P, I_1      | R, I_2 == 0 |  R, I_1
+    * ------------------------------------------------
+    * | P, I_1      | R, I_2 > 0  |  R, I_2
+    * ------------------------------------------------
+    * | P, I_1      | P, I_2 > 0  |  P, I_1
+    * ------------------------------------------------
+    */
+  def mergeMiniBatchInterval(
+      interval1: MiniBatchInterval,
+      interval2: MiniBatchInterval): MiniBatchInterval = {
+    if (interval1 == MiniBatchInterval.NO_MINIBATCH ||
+      interval2 == MiniBatchInterval.NO_MINIBATCH) {
+      return MiniBatchInterval.NO_MINIBATCH
+    }
+    interval1.mode match {
+      case MiniBatchMode.None => interval2
+      case MiniBatchMode.RowTime =>
+        interval2.mode match {
+          case MiniBatchMode.None => interval1
+          case MiniBatchMode.RowTime =>
+            val gcd = ArithmeticUtils.gcd(interval1.interval, interval2.interval)
+            MiniBatchInterval(gcd, MiniBatchMode.RowTime)
+          case MiniBatchMode.ProcTime =>
+            if (interval1.interval == 0) {
+              MiniBatchInterval(interval2.interval, MiniBatchMode.RowTime)
+            } else {
+              interval1
+            }
+        }
+      case MiniBatchMode.ProcTime =>
+        interval2.mode match {
+          case MiniBatchMode.None | MiniBatchMode.ProcTime => interval1
+          case MiniBatchMode.RowTime =>
+            if (interval2.interval > 0) {
+              interval2
+            } else {
+              MiniBatchInterval(interval1.interval, MiniBatchMode.RowTime)
+            }
+        }
     }
   }
 

@@ -627,7 +627,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		final Configuration jobManagerConfig = new Configuration();
 		jobManagerConfig.setString(
 				JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
-				FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
+				FailoverStrategyLoader.LEGACY_PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
 		final Time timeout = Time.seconds(10L);
 		return ExecutionGraphBuilder.buildGraph(

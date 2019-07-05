@@ -24,8 +24,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -81,7 +79,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	protected NettyShuffleEnvironment senderEnv;
 	protected NettyShuffleEnvironment receiverEnv;
-	protected IOManager ioManager;
 
 	protected int channels;
 	protected boolean broadcastMode = false;
@@ -142,8 +139,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			receiverBufferPoolSize = Math.max(2048, writers * channels * 4);
 		}
 
-		ioManager = new IOManagerAsync();
-
 		senderEnv = createShuffleEnvironment(senderBufferPoolSize, config);
 		this.dataPort = senderEnv.start();
 		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
@@ -168,7 +163,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	public void tearDown() {
 		suppressExceptions(senderEnv::close);
 		suppressExceptions(receiverEnv::close);
-		suppressExceptions(ioManager::shutdown);
 	}
 
 	public SerializingLongReceiver createReceiver() throws Exception {
@@ -223,7 +217,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			.setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
 			.setNumberOfSubpartitions(channels)
 			.setResultPartitionManager(environment.getResultPartitionManager())
-			.setIOManager(ioManager)
 			.setupBufferPoolFactoryFromNettyShuffleEnvironment(environment)
 			.build();
 
