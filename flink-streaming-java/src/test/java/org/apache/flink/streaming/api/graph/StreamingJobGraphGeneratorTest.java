@@ -534,4 +534,55 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 		assertEquals(ScheduleMode.LAZY_FROM_SOURCES, jobGraph.getScheduleMode());
 	}
+
+	/**
+	 * Test with disabling slot sharing after chaining.
+	 */
+	@Test
+	public void testWithSlotSharingAfterChainingDisabled() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Filter -> Print
+		env.fromElements(1, 2, 3)
+			.filter(value -> true).setParallelism(2)
+			.print().setParallelism(2);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.setSlotSharingAfterChainingDisabled(true);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(2, verticesSorted.size());
+
+		JobVertex sourceVertex = verticesSorted.get(0);
+		JobVertex filterAndPrintVertex = verticesSorted.get(1);
+
+		assertEquals(ResultPartitionType.BLOCKING, sourceVertex.getProducedDataSets().get(0).getResultType());
+		assertNull(sourceVertex.getSlotSharingGroup());
+		assertNull(filterAndPrintVertex.getSlotSharingGroup());
+	}
+
+	/**
+	 * Test without disabling slot sharing after chaining.
+	 */
+	@Test
+	public void testWithoutSlotSharingAfterChainingDisabled() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Filter -> Print
+		env.fromElements(1, 2, 3)
+			.filter(value -> true).setParallelism(2)
+			.print().setParallelism(2);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(2, verticesSorted.size());
+
+		JobVertex sourceVertex = verticesSorted.get(0);
+		JobVertex filterAndPrintVertex = verticesSorted.get(1);
+
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
+		assertNotNull(filterAndPrintVertex.getSlotSharingGroup());
+		assertEquals(sourceVertex.getSlotSharingGroup(), filterAndPrintVertex.getSlotSharingGroup());
+	}
 }

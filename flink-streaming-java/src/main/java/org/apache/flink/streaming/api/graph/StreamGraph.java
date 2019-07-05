@@ -97,6 +97,11 @@ public class StreamGraph extends StreamingPlan {
 
 	private TimeCharacteristic timeCharacteristic;
 
+	/**
+	 * Disable slot sharing between non-chained operators.
+	 */
+	private boolean slotSharingAfterChainingDisabled = false;
+
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
@@ -182,6 +187,14 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
 		this.timeCharacteristic = timeCharacteristic;
+	}
+
+	public boolean isSlotSharingAfterChainingDisabled() {
+		return slotSharingAfterChainingDisabled;
+	}
+
+	public void setSlotSharingAfterChainingDisabled(boolean slotSharingAfterChainingDisabled) {
+		this.slotSharingAfterChainingDisabled = slotSharingAfterChainingDisabled;
 	}
 
 	// Checkpointing

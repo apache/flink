@@ -158,7 +158,9 @@ public class StreamingJobGraphGenerator {
 
 		setPhysicalEdges();
 
-		setSlotSharingAndCoLocation();
+		if (!streamGraph.isSlotSharingAfterChainingDisabled()) {
+			setSlotSharingAndCoLocation();
+		}
 
 		configureCheckpointing();
 
@@ -517,6 +519,11 @@ public class StreamingJobGraphGenerator {
 			default:
 				throw new UnsupportedOperationException("Data exchange mode " +
 					edge.getShuffleMode() + " is not supported yet.");
+		}
+
+		// at the moment scheduler can not handle pipelined without slot sharing
+		if (streamGraph.isSlotSharingAfterChainingDisabled()) {
+			resultPartitionType = ResultPartitionType.BLOCKING;
 		}
 
 		JobEdge jobEdge;
