@@ -56,10 +56,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * {@link MapState} implementation that stores state in RocksDB.
  *
- * <p>{@link RocksDBStateBackend} must ensure that we set the
- * {@link org.rocksdb.StringAppendOperator} on the column family that we use for our state since
- * we use the {@code merge()} call.
- *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <UK> The type of the keys in the map state.
