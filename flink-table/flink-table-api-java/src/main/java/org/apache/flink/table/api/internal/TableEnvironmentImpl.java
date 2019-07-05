@@ -273,7 +273,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				fullPath,
 				table.getQueryOperation()));
 
-		if (shouldTranslateEagerly()) {
+		if (isEagerOperationTranslation()) {
 			translate(modifyOperations);
 		} else {
 			buffer(modifyOperations);
@@ -293,7 +293,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		if (operation instanceof ModifyOperation) {
 			List<ModifyOperation> modifyOperations = Collections.singletonList((ModifyOperation) operation);
-			if (shouldTranslateEagerly()) {
+			if (isEagerOperationTranslation()) {
 				translate(modifyOperations);
 			} else {
 				buffer(modifyOperations);
@@ -348,7 +348,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 *
 	 * @return true if the queries should be translated immediately.
 	 */
-	protected boolean shouldTranslateEagerly() {
+	protected boolean isEagerOperationTranslation() {
 		return false;
 	}
 

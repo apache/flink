@@ -187,7 +187,7 @@ class StreamTableEnvironmentImpl (
     }
   }
 
-  override protected def shouldTranslateEagerly(): Boolean = true
+  override protected def isEagerOperationTranslation(): Boolean = true
 
   private def toDataStream[T](
       table: Table,

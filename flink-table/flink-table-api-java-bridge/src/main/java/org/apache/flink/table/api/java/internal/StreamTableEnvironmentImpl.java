@@ -92,14 +92,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 		this.executionEnvironment = executionEnvironment;
 	}
 
-	/**
-	 * Creates an instance of a {@link StreamTableEnvironment}. It uses the {@link StreamExecutionEnvironment} for
-	 * executing queries. This is also the {@link StreamExecutionEnvironment} that will be used when converting
-	 * from/to {@link DataStream}.
-	 *
-	 * @param tableConfig The configuration of the TableEnvironment.
-	 * @param executionEnvironment The {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 */
 	public static StreamTableEnvironment create(
 			StreamExecutionEnvironment executionEnvironment,
 			EnvironmentSettings settings,
@@ -327,7 +319,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	}
 
 	@Override
-	protected boolean shouldTranslateEagerly() {
+	protected boolean isEagerOperationTranslation() {
 		return true;
 	}
 
