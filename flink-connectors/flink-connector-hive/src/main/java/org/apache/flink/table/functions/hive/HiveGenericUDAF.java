@@ -20,6 +20,8 @@ package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
@@ -35,7 +37,6 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
-import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import java.util.Arrays;
@@ -62,13 +63,16 @@ public class HiveGenericUDAF
 	private transient boolean allIdentityConverter;
 	private transient boolean initialized;
 
-	public HiveGenericUDAF(HiveFunctionWrapper funcWrapper) {
-		this(funcWrapper, false);
+	private final String hiveVersion;
+
+	public HiveGenericUDAF(HiveFunctionWrapper funcWrapper, String hiveVersion) {
+		this(funcWrapper, false, hiveVersion);
 	}
 
-	public HiveGenericUDAF(HiveFunctionWrapper funcWrapper, boolean isUDAFBridgeRequired) {
+	public HiveGenericUDAF(HiveFunctionWrapper funcWrapper, boolean isUDAFBridgeRequired, String hiveVersion) {
 		this.hiveFunctionWrapper = funcWrapper;
 		this.isUDAFBridgeRequired = isUDAFBridgeRequired;
+		this.hiveVersion = hiveVersion;
 	}
 
 	@Override
@@ -112,8 +116,9 @@ public class HiveGenericUDAF
 			resolver = (GenericUDAFResolver2) hiveFunctionWrapper.createFunction();
 		}
 
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return resolver.getEvaluator(
-			new SimpleGenericUDAFParameterInfo(
+			hiveShim.createUDAFParameterInfo(
 				inputInspectors,
 				// The flag to indicate if the UDAF invocation was from the windowing function call or not.
 				// TODO: investigate whether this has impact on Flink streaming job with windows
