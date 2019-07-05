@@ -4,7 +4,6 @@ nav-id: docker-playgrounds
 nav-title: '<i class="fa fa-ship title appetizer" aria-hidden="true"></i> Docker Playgrounds'
 nav-parent_id: getting-started
 nav-pos: 3
-nav-show_overview: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
