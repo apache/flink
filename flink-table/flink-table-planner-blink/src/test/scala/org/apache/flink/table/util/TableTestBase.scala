@@ -985,8 +985,6 @@ object TestingTableEnvironment {
   def create(
       settings: EnvironmentSettings,
       catalogManager: Option[CatalogManager] = None): TestingTableEnvironment = {
-    val functionCatalog = new FunctionCatalog(
-      settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName)
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
@@ -994,6 +992,7 @@ object TestingTableEnvironment {
           new GenericInMemoryCatalog(
             settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
     }
+    val functionCatalog = new FunctionCatalog(catalogMgr)
     val plannerProperties = settings.toPlannerProperties
     val executorProperties = settings.toExecutorProperties
     val executor = ComponentFactoryService.find(classOf[ExecutorFactory],

@@ -329,8 +329,7 @@ case class StreamTableTestUtil(
   private val tableConfig = new TableConfig
   private val manager: CatalogManager = catalogManager.getOrElse(createCatalogManager())
   private val executor: StreamExecutor = new StreamExecutor(javaEnv)
-  private val functionCatalog =
-    new FunctionCatalog(manager.getCurrentCatalog, manager.getCurrentDatabase)
+  private val functionCatalog = new FunctionCatalog(manager)
   private val streamPlanner = new StreamPlanner(executor, tableConfig, functionCatalog, manager)
 
   val javaTableEnv = new JavaStreamTableEnvironmentImpl(
