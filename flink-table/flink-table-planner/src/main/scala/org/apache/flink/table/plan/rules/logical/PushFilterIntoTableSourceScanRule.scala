@@ -68,7 +68,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         call.builder().getRexBuilder,
-        new FunctionCatalog("default_catalog", "default_database"))
+        new FunctionCatalog(null))
     if (predicates.isEmpty) {
       // no condition can be translated to expression
       return

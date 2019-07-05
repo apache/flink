@@ -64,9 +64,8 @@ abstract class TableEnvImpl(
   protected val builtinDatabaseName: String = catalogManager.getCurrentDatabase
 
   // Table API/SQL function catalog
-  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(
-    builtinCatalogName,
-    builtinDatabaseName)
+  private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(catalogManager)
+
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
