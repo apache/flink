@@ -62,7 +62,7 @@ class NestedLoopJoinCodeGenerator(
     val exprGenerator = new ExprCodeGenerator(ctx, joinType.isOuter)
         .bindInput(leftType).bindSecondInput(rightType)
 
-    // otherwise we use ResettableExternalBuffer to prevent OOM
+    // we use ResettableExternalBuffer to prevent OOM
     val buffer = newName("resettableExternalBuffer")
     val iter = newName("iter")
 
