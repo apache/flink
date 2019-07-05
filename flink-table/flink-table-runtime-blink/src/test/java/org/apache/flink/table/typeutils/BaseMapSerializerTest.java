@@ -26,6 +26,7 @@ import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.GenericMap;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import java.util.HashMap;
@@ -36,15 +37,26 @@ import java.util.Map;
  */
 public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 
+	private static final LogicalType INT = DataTypes.INT().getLogicalType();
+	private static final LogicalType STRING = DataTypes.STRING().getLogicalType();
+
 	public BaseMapSerializerTest() {
 		super(new DeeplyEqualsChecker().withCustomCheck(
 				(o1, o2) -> o1 instanceof BaseMap && o2 instanceof BaseMap,
-				(o1, o2, checker) -> newSer().toBinaryMap((BaseMap) o1).equals(newSer().toBinaryMap((BaseMap) o2))
+				(o1, o2, checker) ->
+						// Better is more proper to compare the maps after changing them to Java maps
+						// instead of binary maps. For example, consider the following two maps:
+						// {1: 'a', 2: 'b', 3: 'c'} and {3: 'c', 2: 'b', 1: 'a'}
+						// These are actually the same maps, but their key / value order will be
+						// different when stored as binary maps, and the equalsTo method of binary
+						// map will return false.
+						newSer().toBinaryMap((BaseMap) o1).toJavaMap(INT, STRING)
+								.equals(newSer().toBinaryMap((BaseMap) o2).toJavaMap(INT, STRING))
 		));
 	}
 
 	private static BaseMapSerializer newSer() {
-		return new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.STRING().getLogicalType());
+		return new BaseMapSerializer(INT, STRING);
 	}
 
 	@Override
@@ -77,7 +89,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 
 	private static BinaryArray createArray(int... vs) {
 		BinaryArray array = new BinaryArray();
-		BinaryArrayWriter writer = new BinaryArrayWriter(array, vs.length, 8);
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, vs.length, 4);
 		for (int i = 0; i < vs.length; i++) {
 			writer.writeInt(i, vs[i]);
 		}
