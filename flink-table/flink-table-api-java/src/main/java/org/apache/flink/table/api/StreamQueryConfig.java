@@ -24,7 +24,10 @@ import org.apache.flink.api.common.time.Time;
 
 /**
  * The {@link StreamQueryConfig} holds parameters to configure the behavior of streaming queries.
+ *
+ * @deprecated Set the configuration on {@link TableConfig}.
  */
+@Deprecated
 @PublicEvolving
 public class StreamQueryConfig implements QueryConfig {
 
