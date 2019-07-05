@@ -52,12 +52,17 @@ object OperatorCodeGenerator extends Logging {
       config: TableConfig,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       lazyInputUnboxingCode: Boolean = false,
-      converter: String => String = a => a): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
+      converter: String => String = null): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
     addReuseOutElement(ctx)
     val operatorName = newName(name)
     val abstractBaseClass = ctx.getOperatorBaseClass
     val baseClass = classOf[OneInputStreamOperator[IN, OUT]]
     val inputTypeTerm = boxedTypeTermForType(inputType)
+    val actualConverter: String => String = if (converter == null) {
+      a => s"($inputTypeTerm) " + a
+    } else {
+      converter
+    }
     val operatorCode =
       j"""
       public class $operatorName extends ${abstractBaseClass.getCanonicalName}
@@ -84,7 +89,7 @@ object OperatorCodeGenerator extends Logging {
 
         @Override
         public void processElement($STREAM_RECORD $ELEMENT) throws Exception {
-          $inputTypeTerm $inputTerm = ($inputTypeTerm) ${converter(s"$ELEMENT.getValue()")};
+          $inputTypeTerm $inputTerm = ${actualConverter(s"$ELEMENT.getValue()")};
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${if (lazyInputUnboxingCode) "" else ctx.reuseInputUnboxingCode()}
