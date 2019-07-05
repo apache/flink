@@ -22,17 +22,18 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment => ScalaExecEnv}
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment}
-import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
-import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository, TableTestUtil}
 import org.apache.flink.types.Row
 
@@ -430,6 +431,23 @@ class BatchTestBase extends BatchAbstractTestBase {
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
     tEnv.registerFunction(name, f)
+  }
+
+  def registerRange(name: String, end: Long): Unit = {
+    registerRange(name, 0, end)
+  }
+
+  def registerRange(name: String, start: Long, end: Long): Unit = {
+    BatchTableEnvUtil.registerBoundedStreamInternal(
+      tEnv, name, newRangeSource(start, end).javaStream,
+      Some[Array[String]](Array[String]("id")), None, None)
+  }
+
+  def newRangeSource(start: Long, end: Long): DataStream[BaseRow] = {
+    implicit val typeInfo: TypeInformation[BaseRow] = new BaseRowTypeInfo(new BigIntType)
+    val boundedStream = env.createInput(new RangeInputFormat(start, end))
+    boundedStream.setParallelism(1)
+    boundedStream
   }
 }
 

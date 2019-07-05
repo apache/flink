@@ -66,11 +66,15 @@ object CodeGenUtils {
 
   val BINARY_ARRAY: String = className[BinaryArray]
 
+  val BASE_ARRAY: String = className[BaseArray]
+
   val BINARY_GENERIC: String = className[BinaryGeneric[_]]
 
   val BINARY_STRING: String = className[BinaryString]
 
   val BINARY_MAP: String = className[BinaryMap]
+
+  val BASE_MAP: String = className[BaseMap]
 
   val BASE_ROW: String = className[BaseRow]
 
@@ -152,8 +156,8 @@ object CodeGenUtils {
     case VARBINARY | BINARY => "byte[]"
 
     case DECIMAL => className[Decimal]
-    case ARRAY => className[BinaryArray]
-    case MULTISET | MAP => className[BinaryMap]
+    case ARRAY => className[BaseArray]
+    case MULTISET | MAP => className[BaseMap]
     case ROW => className[BaseRow]
 
     case ANY => className[BinaryGeneric[_]]
@@ -631,11 +635,15 @@ object CodeGenUtils {
       case INTERVAL_DAY_TIME => s"$writerTerm.writeLong($indexTerm, $fieldValTerm)"
 
       // complex types
-      case ARRAY => s"$writerTerm.writeArray($indexTerm, $fieldValTerm)"
-      case MULTISET | MAP => s"$writerTerm.writeMap($indexTerm, $fieldValTerm)"
+      case ARRAY =>
+        val ser = ctx.addReusableTypeSerializer(t)
+        s"$writerTerm.writeArray($indexTerm, $fieldValTerm, $ser)"
+      case MULTISET | MAP =>
+        val ser = ctx.addReusableTypeSerializer(t)
+        s"$writerTerm.writeMap($indexTerm, $fieldValTerm, $ser)"
       case ROW =>
-        val typeTerm = ctx.addReusableObject(t, "rowType")
-        s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $typeTerm)"
+        val ser = ctx.addReusableTypeSerializer(t)
+        s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
 
       case ANY => s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm)"
     }

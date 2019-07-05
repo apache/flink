@@ -243,7 +243,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 	public void putBuildRow(BaseRow row) throws IOException {
 		final int hashCode = hash(this.buildSideProjection.apply(row).hashCode(), 0);
 		// TODO: combine key projection and build side conversion to code gen.
-		insertIntoTable(originBuildSideSerializer.baseRowToBinary(row), hashCode);
+		insertIntoTable(originBuildSideSerializer.toBinaryRow(row), hashCode);
 	}
 
 	/**
@@ -290,7 +290,7 @@ public class BinaryHashTable extends BaseHybridHashTable {
 			return true;
 		} else {
 			if (p.testHashBloomFilter(hash)) {
-				BinaryRow row = originProbeSideSerializer.baseRowToBinary(record);
+				BinaryRow row = originProbeSideSerializer.toBinaryRow(record);
 				p.insertIntoProbeBuffer(row);
 			}
 			return false;

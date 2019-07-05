@@ -124,7 +124,7 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow baseRowToBinary(BinaryRow baseRow) throws IOException {
+	public BinaryRow toBinaryRow(BinaryRow baseRow) throws IOException {
 		return baseRow;
 	}
 

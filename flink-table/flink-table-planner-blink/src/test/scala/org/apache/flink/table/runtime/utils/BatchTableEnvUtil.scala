@@ -145,7 +145,7 @@ object BatchTableEnvUtil {
     * @param boundedStream The [[DataStream]] to register as table in the catalog.
     * @tparam T the type of the [[DataStream]].
     */
-  protected def registerBoundedStreamInternal[T](
+  def registerBoundedStreamInternal[T](
       tEnv: BatchTableEnvironment,
       name: String,
       boundedStream: DataStream[T],

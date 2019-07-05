@@ -258,13 +258,13 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public BinaryArray getArray(int pos) {
+	public BaseArray getArray(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryArray.readBinaryArrayFieldFromSegments(segments, offset, getLong(pos));
 	}
 
 	@Override
-	public BinaryMap getMap(int pos) {
+	public BaseMap getMap(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryMap.readBinaryMapFieldFromSegments(segments, offset, getLong(pos));
 	}

@@ -101,14 +101,14 @@ public interface TypeGetterSetters {
 	byte[] getBinary(int ordinal);
 
 	/**
-	 * Get array value, internal format is BinaryArray.
+	 * Get array value, internal format is BaseArray.
 	 */
-	BinaryArray getArray(int ordinal);
+	BaseArray getArray(int ordinal);
 
 	/**
-	 * Get map value, internal format is BinaryMap.
+	 * Get map value, internal format is BaseMap.
 	 */
-	BinaryMap getMap(int ordinal);
+	BaseMap getMap(int ordinal);
 
 	/**
 	 * Get row value, internal format is BaseRow.

@@ -96,7 +96,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 	@Override
 	public void processElement(StreamRecord<BaseRow> element) throws Exception {
 		BaseRow originalInput = element.getValue();
-		BinaryRow input = baseRowSerializer.baseRowToBinary(originalInput).copy();
+		BinaryRow input = baseRowSerializer.toBinaryRow(originalInput).copy();
 		BaseRowUtil.setAccumulate(input);
 		long count = inputBuffer.getOrDefault(input, 0L);
 		if (BaseRowUtil.isAccumulateMsg(originalInput)) {
