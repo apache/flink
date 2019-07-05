@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
-import org.apache.flink.table.typeutils.TypeCoercion
+import org.apache.flink.table.typeutils.{DecimalTypeInfo, TypeCoercion}
 import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
 import org.apache.flink.table.validate._
 
@@ -117,6 +117,12 @@ case class Div(left: PlannerExpression, right: PlannerExpression) extends Binary
   override def toString = s"($left / $right)"
 
   private[flink] val sqlOperator = FlinkSqlOperatorTable.DIVIDE
+
+  override private[flink] def resultType: TypeInformation[_] =
+    super.resultType match {
+      case dt: DecimalTypeInfo => dt
+      case _ => BasicTypeInfo.DOUBLE_TYPE_INFO
+    }
 }
 
 case class Mul(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
