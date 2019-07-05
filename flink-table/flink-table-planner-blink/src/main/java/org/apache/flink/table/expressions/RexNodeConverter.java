@@ -123,7 +123,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.CAST, exprs -> convertCast(exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.REINTERPRET_CAST, exprs -> convertReinterpretCast(exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.IN, exprs -> convertIn(exprs));
-		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.GET, exprs -> ConvertGet(exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.GET, exprs -> convertGet(exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.TRIM, exprs -> convertTrim(exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.AS, exprs -> convertAs(exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.OVER, exprs -> convertOver(exprs));
@@ -579,7 +579,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				str);
 	}
 
-	private RexNode ConvertGet(List<Expression> children) {
+	private RexNode convertGet(List<Expression> children) {
 		RexNode child = children.get(0).accept(this);
 		ValueLiteralExpression keyLiteral = (ValueLiteralExpression) children.get(1);
 		Optional<Integer> indexOptional = ExpressionUtils.extractValue(keyLiteral, String.class).map(
@@ -952,9 +952,8 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				throw new IllegalArgumentException("Unexpected expression: " + bound);
 			}
 		} else if (bound instanceof ValueLiteralExpression) {
-			int DECIMAL_PRECISION_NEEDED_FOR_LONG = 19;
 			RelDataType returnType = typeFactory
-					.createFieldTypeFromLogicalType(new DecimalType(true, DECIMAL_PRECISION_NEEDED_FOR_LONG, 0));
+					.createFieldTypeFromLogicalType(new DecimalType(true, 19, 0));
 			SqlOperator sqlOperator = new SqlPostfixOperator(
 					sqlKind.name(),
 					sqlKind,

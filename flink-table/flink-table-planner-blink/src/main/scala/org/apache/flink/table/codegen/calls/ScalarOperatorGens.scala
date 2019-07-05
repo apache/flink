@@ -838,7 +838,7 @@ object ScalarOperatorGens {
         targetType,
         operand,
         resultNullable = true) {
-        operandTerm => s"$operandTerm.toBooleanSQL()"
+        operandTerm => s"$STRING_UTIL.toBooleanSQL($operandTerm)"
       }
 
     // String -> NUMERIC TYPE (not Character)
@@ -846,8 +846,8 @@ object ScalarOperatorGens {
       if TypeCheckUtils.isNumeric(targetType) =>
       targetType match {
         case dt: DecimalType =>
-          generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-            operandTerm => s"$operandTerm.toDecimal(${dt.getPrecision}, ${dt.getScale})"
+          generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+            s"$STRING_UTIL.toDecimal($operandTerm, ${dt.getPrecision}, ${dt.getScale})"
           }
         case _ =>
           val methodName = targetType.getTypeRoot match {
@@ -865,7 +865,7 @@ object ScalarOperatorGens {
             targetType,
             operand,
             resultNullable = true) {
-            operandTerm => s"($operandTerm.trim().$methodName())"
+            operandTerm => s"($STRING_UTIL.$methodName($operandTerm.trim()))"
           }
       }
 

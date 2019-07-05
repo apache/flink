@@ -24,7 +24,8 @@ import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.FunctionCodeGenerator.generateFunction
-import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
+import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
+import org.apache.flink.table.dataformat.{BinaryString, BinaryStringUtil, Decimal, GenericRow}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.types.logical.RowType
 
@@ -123,8 +124,7 @@ class ExpressionReducer(
           reducedValues.add(unreduced)
         case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
           val escapeVarchar = StringEscapeUtils
-            .escapeJava(
-              BinaryString.safeToString(reduced.getField(reducedIdx).asInstanceOf[BinaryString]))
+            .escapeJava(safeToString(reduced.getField(reducedIdx).asInstanceOf[BinaryString]))
           reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
           reducedIdx += 1
         case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
