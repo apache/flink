@@ -303,7 +303,9 @@ object FlinkBatchRuleSets {
 
     // set operators
     ReplaceIntersectWithSemiJoinRule.INSTANCE,
-    ReplaceMinusWithAntiJoinRule.INSTANCE
+    RewriteIntersectAllRule.INSTANCE,
+    ReplaceMinusWithAntiJoinRule.INSTANCE,
+    RewriteMinusAllRule.INSTANCE
   )
 
   /**

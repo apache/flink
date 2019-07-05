@@ -55,11 +55,6 @@ class ReplaceMinusWithAntiJoinRuleTest extends TableTestBase {
   }
 
   @Test
-  def testExceptAll(): Unit = {
-    util.verifyPlanNotExpected("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2", "joinType=[anti]")
-  }
-
-  @Test
   def testExcept(): Unit = {
     util.verifyPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2")
   }

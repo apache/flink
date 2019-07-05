@@ -42,6 +42,35 @@ HashAggregate(isMerge=[false], groupBy=[c], select=[c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testIntersectAll">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c0 AS c])
++- Correlate(invocation=[org$apache$flink$table$functions$tablefunctions$ReplicateRows$8a783e32f854e18fdaeaa274e3162b0b($0, $1)], correlate=[table(ReplicateRows($f0,c))], select=[$f0,c,c0], rowType=[RecordType(BIGINT $f0, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
+   +- Calc(select=[IF(>(vcol_left_cnt, vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, c], where=[AND(>=(vcol_left_cnt, 1), >=(vcol_right_cnt, 1))])
+      +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count$0) AS vcol_left_cnt, Final_COUNT(count$1) AS vcol_right_cnt])
+         +- Exchange(distribution=[hash[c]])
+            +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(vcol_left_marker) AS count$0, Partial_COUNT(vcol_right_marker) AS count$1])
+               +- Union(all=[true], union=[c, vcol_left_marker, vcol_right_marker])
+                  :- Calc(select=[c, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
+                  :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- Calc(select=[f, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntersectLeftIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
@@ -105,6 +134,35 @@ HashAggregate(isMerge=[false], groupBy=[c], select=[c])
    +- Exchange(distribution=[hash[f]])
       +- Calc(select=[f])
          +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusAll">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalMinus(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c0 AS c])
++- Correlate(invocation=[org$apache$flink$table$functions$tablefunctions$ReplicateRows$8a783e32f854e18fdaeaa274e3162b0b($0, $1)], correlate=[table(ReplicateRows(sum_vcol_marker,c))], select=[sum_vcol_marker,c,c0], rowType=[RecordType(BIGINT sum_vcol_marker, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, c], where=[>(sum_vcol_marker, 0)])
+      +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[c]])
+            +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(vcol_marker) AS sum$0])
+               +- Union(all=[true], union=[c, vcol_marker])
+                  :- Calc(select=[c, 1:BIGINT AS vcol_marker])
+                  :  +- TableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- Calc(select=[f, -1:BIGINT AS vcol_marker])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

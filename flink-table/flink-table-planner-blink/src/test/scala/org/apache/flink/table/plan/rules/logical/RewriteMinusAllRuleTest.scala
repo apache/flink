@@ -20,8 +20,7 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.calcite.CalciteConfig
-import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram,
-  FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.util.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -29,9 +28,9 @@ import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[ReplaceIntersectWithSemiJoinRule]].
+  * Test for [[RewriteMinusAllRule]].
   */
-class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
+class RewriteMinusAllRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -43,7 +42,7 @@ class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(ReplaceIntersectWithSemiJoinRule.INSTANCE))
+        .add(RuleSets.ofList(RewriteMinusAllRule.INSTANCE))
         .build()
     )
     val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
@@ -56,23 +55,22 @@ class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
   }
 
   @Test
-  def testIntersect(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
+  def testExceptAll(): Unit = {
+    util.verifyPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
   }
 
   @Test
-  def testIntersectWithFilter(): Unit = {
-    util.verifyPlan("SELECT c FROM ((SELECT * FROM T1) INTERSECT (SELECT * FROM T2)) WHERE a > 1")
+  def testExceptAllWithFilter(): Unit = {
+    util.verifyPlan("SELECT c FROM (SELECT * FROM T1 EXCEPT ALL (SELECT * FROM T2)) WHERE b < 2")
   }
 
   @Test
-  def testIntersectLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
+  def testExceptAllLeftIsEmpty(): Unit = {
+    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT ALL SELECT f FROM T2")
   }
 
   @Test
-  def testIntersectRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
+  def testExceptAllRightIsEmpty(): Unit = {
+    util.verifyPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2 WHERE 1=0")
   }
-
 }
