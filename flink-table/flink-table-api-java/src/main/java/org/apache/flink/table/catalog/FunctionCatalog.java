@@ -21,7 +21,10 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -36,21 +39,26 @@ import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Simple function catalog to store {@link FunctionDefinition}s in memory.
+ * Simple function catalog to store {@link FunctionDefinition}s in catalogs.
  */
 @Internal
 public class FunctionCatalog implements FunctionLookup {
 
-	private final String defaultCatalogName;
+	private final CatalogManager catalogManager;
 
-	private final String defaultDatabaseName;
-
+	// For simplicity, currently hold registered Flink functions in memory here
+	// TODO: should move to catalog
 	private final Map<String, FunctionDefinition> userFunctions = new LinkedHashMap<>();
 
 	/**
@@ -58,11 +66,8 @@ public class FunctionCatalog implements FunctionLookup {
 	 */
 	private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
 
-	public FunctionCatalog(
-			String defaultCatalogName,
-			String defaultDatabaseName) {
-		this.defaultCatalogName = defaultCatalogName;
-		this.defaultDatabaseName = defaultDatabaseName;
+	public FunctionCatalog(CatalogManager catalogManager) {
+		this.catalogManager = checkNotNull(catalogManager);
 	}
 
 	public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
@@ -129,35 +134,81 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public String[] getUserDefinedFunctions() {
-		return userFunctions.values().stream()
-			.map(FunctionDefinition::toString)
-			.toArray(String[]::new);
+		List<String> result = new ArrayList<>();
+
+		// Get functions in catalog
+		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+		try {
+			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
+		} catch (DatabaseNotExistException e) {
+			// Ignore since there will always be a current database of the current catalog
+		}
+
+		// Get functions registered in memory
+		result.addAll(
+			userFunctions.values().stream()
+				.map(FunctionDefinition::toString)
+				.collect(Collectors.toList()));
+
+		return result.stream()
+			.collect(Collectors.toList())
+			.toArray(new String[0]);
 	}
 
 	@Override
 	public Optional<FunctionLookup.Result> lookupFunction(String name) {
-		final FunctionDefinition userCandidate = userFunctions.get(normalizeName(name));
-		final Optional<FunctionDefinition> foundDefinition;
-		if (userCandidate != null) {
-			foundDefinition = Optional.of(userCandidate);
+		String functionName = normalizeName(name);
+
+		FunctionDefinition userCandidate = null;
+
+		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+
+		if (catalog.getTableFactory().isPresent() &&
+				catalog.getTableFactory().get() instanceof FunctionDefinitionFactory) {
+			try {
+				CatalogFunction catalogFunction = catalog.getFunction(
+					new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
+
+				FunctionDefinitionFactory factory = (FunctionDefinitionFactory) catalog.getTableFactory().get();
+
+				userCandidate = factory.createFunctionDefinition(functionName, catalogFunction);
+			} catch (FunctionNotExistException e) {
+				// Ignore
+			}
+
+			return Optional.of(
+					new FunctionLookup.Result(
+						ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
+						userCandidate)
+				);
 		} else {
+			// Else, check in-memory functions
+			userCandidate = userFunctions.get(functionName);
 
-			// TODO once we connect this class with the Catalog APIs we need to make sure that
-			//  built-in functions are present in "root" built-in catalog. This allows to
-			//  overwrite built-in functions but also fallback to the "root" catalog. It should be
-			//  possible to disable the "root" catalog if that is desired.
+			final Optional<FunctionDefinition> foundDefinition;
+			if (userCandidate != null) {
+				foundDefinition = Optional.of(userCandidate);
+			} else {
 
-			foundDefinition = BuiltInFunctionDefinitions.getDefinitions()
-				.stream()
-				.filter(f -> normalizeName(name).equals(normalizeName(f.getName())))
-				.findFirst()
-				.map(Function.identity());
+				// TODO once we connect this class with the Catalog APIs we need to make sure that
+				//  built-in functions are present in "root" built-in catalog. This allows to
+				//  overwrite built-in functions but also fallback to the "root" catalog. It should be
+				//  possible to disable the "root" catalog if that is desired.
+
+				foundDefinition = BuiltInFunctionDefinitions.getDefinitions()
+					.stream()
+					.filter(f -> functionName.equals(normalizeName(f.getName())))
+					.findFirst()
+					.map(Function.identity());
+			}
+
+			String defaultCatalogName = catalogManager.getDefaultCatalogName();
+
+			return foundDefinition.map(definition -> new FunctionLookup.Result(
+				ObjectIdentifier.of(defaultCatalogName, catalogManager.getCatalog(defaultCatalogName).get().getDefaultDatabase(), name),
+				definition)
+			);
 		}
-
-		return foundDefinition.map(definition -> new FunctionLookup.Result(
-			ObjectIdentifier.of(defaultCatalogName, defaultDatabaseName, name),
-			definition)
-		);
 	}
 
 	@Override
@@ -169,6 +220,7 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	private void registerFunction(String name, FunctionDefinition functionDefinition) {
+		// TODO: should register to catalog
 		userFunctions.put(normalizeName(name), functionDefinition);
 	}
 

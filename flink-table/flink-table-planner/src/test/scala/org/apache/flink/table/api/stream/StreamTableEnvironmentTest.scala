@@ -207,7 +207,7 @@ class StreamTableEnvironmentTest extends TableTestBase {
       "default_catalog",
       new GenericInMemoryCatalog("default_catalog", "default_database"))
     val executor: StreamExecutor = new StreamExecutor(jStreamExecEnv)
-    val functionCatalog = new FunctionCatalog(manager.getCurrentCatalog, manager.getCurrentDatabase)
+    val functionCatalog = new FunctionCatalog(manager)
     val streamPlanner = new StreamPlanner(executor, config, functionCatalog, manager)
     val jTEnv = new JStreamTableEnvironmentImpl(
       manager,

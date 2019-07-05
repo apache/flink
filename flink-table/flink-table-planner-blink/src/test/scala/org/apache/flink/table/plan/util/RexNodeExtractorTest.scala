@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.{DataTypes, Types}
-import org.apache.flink.table.catalog.FunctionCatalog
-import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.functions.AggregateFunctionDefinition
@@ -29,7 +26,6 @@ import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.util.InputTypeBuilder.inputOf
 import org.apache.flink.table.util.{DateTimeTestUtil, IntSumAggFunction}
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlPostfixOperator
@@ -40,12 +36,14 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
 import org.junit.Test
-
 import java.math.BigDecimal
 import java.sql.Timestamp
-import java.util.{List => JList}
-import java.sql.{Date, Time, Timestamp}
 import java.util.{TimeZone, List => JList}
+
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.expressions.{EqualTo, Expression, ExpressionBridge, ExpressionParser, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
 
 import scala.collection.JavaConverters._
 
@@ -53,8 +51,11 @@ import scala.collection.JavaConverters._
   * Test for [[RexNodeExtractor]].
   */
 class RexNodeExtractorTest extends RexNodeTestBase {
+  val defaultCatalog = "default_catalog"
+  val catalogManager = new CatalogManager(
+    defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
 
-  private val functionCatalog = new FunctionCatalog("default_catalog", "default_database")
+  private val functionCatalog = new FunctionCatalog(catalogManager)
 
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
     new ExpressionBridge[PlannerExpression](
