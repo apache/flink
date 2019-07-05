@@ -180,17 +180,18 @@ class NestedLoopJoinCodeGenerator(
         ctx.addReusableMember(s"$bitSetTerm $buildMatched = null;")
       }
     }
+    val collectorRow = if (leftIsBuild) {
+      joinedRow(buildNullRow, probeRow)
+    } else {
+      joinedRow(probeRow, buildNullRow)
+    }
 
     val probeOuterCode =
       s"""
          |if (!$probeMatched) {
-         |  ${generateCollect(
-              if (leftIsBuild)
-                joinedRow(buildNullRow, probeRow)
-              else
-                joinedRow(probeRow, buildNullRow))}
+         |  ${generateCollect(collectorRow)}
          |}
-            """.stripMargin
+       """.stripMargin
 
     val iterCnt = newName("iteratorCount")
     val joinBuildAndProbe = {
