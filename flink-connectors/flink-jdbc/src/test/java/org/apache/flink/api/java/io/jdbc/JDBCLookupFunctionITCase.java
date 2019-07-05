@@ -18,14 +18,15 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.StreamITCase;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -94,7 +95,7 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 						.append(data[i][0]).append(",")
 						.append(data[i][1]).append(",'")
 						.append(data[i][2]).append("','")
-						.append(data[i][3]).append("')") ;
+						.append(data[i][3]).append("')");
 				if (i < data.length - 1) {
 					sqlQueryBuilder.append(",");
 				}
@@ -130,15 +131,18 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 
 		tEnv.registerTable("T", t);
 
-		JDBCLookupTableSource.Builder builder = JDBCLookupTableSource.builder()
-				.setDrivername(DRIVER_CLASS).
-						setDBUrl(DB_URL)
-				.setTableName(LOOKUP_TABLE)
-				.setFieldNames(new String[]{"id1", "id2", "comment1", "comment2"})
-				.setFieldTypes(new TypeInformation[]{Types.INT, Types.INT, Types.STRING, Types.STRING});
+		JDBCTableSource.Builder builder = JDBCTableSource.builder()
+				.setOptions(JDBCOptions.builder()
+						.setDBUrl(DB_URL)
+						.setTableName(LOOKUP_TABLE)
+						.build())
+				.setSchema(TableSchema.builder().fields(
+						new String[]{"id1", "id2", "comment1", "comment2"},
+						new DataType[]{DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()})
+						.build());
 		if (useCache) {
-			builder.setCacheMaxSize(1000);
-			builder.setCacheExpireMs(1000 * 1000);
+			builder.setLookupOptions(JDBCLookupOptions.builder()
+					.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
 		}
 		tEnv.registerFunction("jdbcLookup",
 				builder.build().getLookupFunction(t.getSchema().getFieldNames()));

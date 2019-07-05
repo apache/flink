@@ -24,9 +24,9 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.getFieldFromResultSet;
-import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.setFieldToStatement;
+import static org.apache.flink.api.java.io.jdbc.JDBCUtils.getFieldFromResultSet;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -50,18 +49,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link TableFunction} to query fields from JDBC by keys.
  * The query template like:
  * <PRE>
- *   SELECT c, d, e, f from T where a = ? and b = ?
+ * SELECT c, d, e, f from T where a = ? and b = ?
  * </PRE>
  *
- * Support cache the result to avoid frequent accessing to remote databases.
+ * <p>Support cache the result to avoid frequent accessing to remote databases.
  * 1.The cacheMaxSize is -1 means not use cache.
  * 2.For real-time data, you need to set the TTL of cache.
  */
 public class JDBCLookupFunction extends TableFunction<Row> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCLookupFunction.class);
-
-	static final int DEFAULT_MAX_RETRY_TIMES = 3;
+	private static final long serialVersionUID = 1L;
 
 	private final String query;
 	private final String drivername;
@@ -82,13 +80,12 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	private transient Cache<Row, List<Row>> cache;
 
 	public JDBCLookupFunction(
-			String tableName, String username, String password, String drivername, String dbURL,
-			String[] fieldNames, TypeInformation[] fieldTypes, String[] keyNames,
-			String leftQuote, String rightQuote, long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
-		this.drivername = drivername;
-		this.dbURL = dbURL;
-		this.username = username;
-		this.password = password;
+			JDBCOptions options, JDBCLookupOptions lookupOptions,
+			String[] fieldNames, TypeInformation[] fieldTypes, String[] keyNames) {
+		this.drivername = options.getDriverName();
+		this.dbURL = options.getDbURL();
+		this.username = options.getUsername();
+		this.password = options.getPassword();
 		this.fieldNames = fieldNames;
 		this.fieldTypes = fieldTypes;
 		List<String> nameList = Arrays.asList(fieldNames);
@@ -99,20 +96,17 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 					return fieldTypes[nameList.indexOf(s)];
 				})
 				.toArray(TypeInformation[]::new);
-		this.cacheMaxSize = cacheMaxSize;
-		this.cacheExpireMs = cacheExpireMs;
-		this.maxRetryTimes = maxRetryTimes;
+		this.cacheMaxSize = lookupOptions.getCacheMaxSize();
+		this.cacheExpireMs = lookupOptions.getCacheExpireMs();
+		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
 		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
 		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
+		this.query = options.getDialect().getSelectFromStatement(
+				options.getTableName(), fieldNames, keyNames);
+	}
 
-		String quoteTableName = leftQuote + tableName + rightQuote;
-		String selectFields = StringUtils.join(Arrays.stream(fieldNames)
-				.map(name -> leftQuote + name + rightQuote)
-				.toArray(String[]::new), ",");
-		String conditions = StringUtils.join(Arrays.stream(keyNames)
-				.map(name -> leftQuote + name + rightQuote + " = ?")
-				.toArray(String[]::new), " AND ");
-		this.query = "SELECT " + selectFields + " FROM " + quoteTableName + " WHERE " + conditions;
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	@Override
@@ -147,7 +141,7 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			try {
 				statement.clearParameters();
 				for (int i = 0; i < keys.length; i++) {
-					setFieldToStatement(i, keySqlTypes[i], keys[i], statement);
+					JDBCUtils.setField(statement, keySqlTypes[i], keys[i], i);
 				}
 				try (ResultSet resultSet = statement.executeQuery()) {
 					if (cache == null) {
@@ -200,6 +194,10 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 
 	@Override
 	public void close() throws IOException {
+		if (cache != null) {
+			cache.cleanUp();
+			cache = null;
+		}
 		if (statement != null) {
 			try {
 				statement.close();
@@ -231,50 +229,23 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		return keyTypes;
 	}
 
-	public static Builder builder() {
-		return new Builder();
-	}
-
 	/**
 	 * Builder for a {@link JDBCLookupFunction}.
 	 */
 	public static class Builder {
-		private String tableName;
-		private String username;
-		private String password;
-		private String drivername;
-		private String dbURL;
+		private JDBCOptions options;
+		private JDBCLookupOptions lookupOptions;
 		private String[] fieldNames;
 		private TypeInformation[] fieldTypes;
 		private String[] keyNames;
-		private String leftQuote = "";
-		private String rightQuote = "";
-		private long cacheMaxSize = -1;
-		private long cacheExpireMs = -1;
-		private int maxRetryTimes = DEFAULT_MAX_RETRY_TIMES;
 
-		public Builder setTableName(String tableName) {
-			this.tableName = tableName;
+		public Builder setOptions(JDBCOptions options) {
+			this.options = options;
 			return this;
 		}
 
-		public Builder setUsername(String username) {
-			this.username = username;
-			return this;
-		}
-
-		public Builder setPassword(String password) {
-			this.password = password;
-			return this;
-		}
-
-		public Builder setDrivername(String drivername) {
-			this.drivername = drivername;
-			return this;
-		}
-
-		public Builder setDBUrl(String dbURL) {
-			this.dbURL = dbURL;
+		public Builder setLookupOptions(JDBCLookupOptions lookupOptions) {
+			this.lookupOptions = lookupOptions;
 			return this;
 		}
 
@@ -293,48 +264,21 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			return this;
 		}
 
-		public Builder setLeftQuote(String leftQuote) {
-			this.leftQuote = leftQuote;
-			return this;
-		}
-
-		public Builder setRightQuote(String rightQuote) {
-			this.rightQuote = rightQuote;
-			return this;
-		}
-
-		public Builder setCacheMaxSize(long cacheMaxSize) {
-			this.cacheMaxSize = cacheMaxSize;
-			return this;
-		}
-
-		public Builder setCacheExpireMs(long cacheExpireMs) {
-			this.cacheExpireMs = cacheExpireMs;
-			return this;
-		}
-
-		public Builder setMaxRetryTimes(int maxRetryTimes) {
-			this.maxRetryTimes = maxRetryTimes;
-			return this;
-		}
-
 		/**
 		 * Finalizes the configuration and checks validity.
 		 *
 		 * @return Configured JDBCLookupFunction
 		 */
 		public JDBCLookupFunction build() {
-			checkNotNull(tableName, "No tableName supplied.");
-			checkNotNull(drivername, "No driver supplied.");
-			checkNotNull(dbURL, "No database URL supplied.");
+			checkNotNull(options, "No JDBCOptions supplied.");
+			if (lookupOptions == null) {
+				lookupOptions = JDBCLookupOptions.builder().build();
+			}
 			checkNotNull(fieldNames, "No fieldNames supplied.");
 			checkNotNull(fieldTypes, "No fieldTypes supplied.");
 			checkNotNull(keyNames, "No keyNames supplied.");
 
-			return new JDBCLookupFunction(
-					tableName, username, password, drivername, dbURL,
-					fieldNames, fieldTypes, keyNames,
-					leftQuote, rightQuote, cacheMaxSize, cacheExpireMs, maxRetryTimes);
+			return new JDBCLookupFunction(options, lookupOptions, fieldNames, fieldTypes, keyNames);
 		}
 	}
 }

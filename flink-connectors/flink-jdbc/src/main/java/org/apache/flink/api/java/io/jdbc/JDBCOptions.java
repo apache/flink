@@ -35,7 +35,7 @@ public class JDBCOptions {
 	private String password;
 	private JDBCDialect dialect;
 
-	public JDBCOptions(String dbURL, String tableName, String driverName, String username,
+	private JDBCOptions(String dbURL, String tableName, String driverName, String username,
 			String password, JDBCDialect dialect) {
 		this.dbURL = dbURL;
 		this.tableName = tableName;

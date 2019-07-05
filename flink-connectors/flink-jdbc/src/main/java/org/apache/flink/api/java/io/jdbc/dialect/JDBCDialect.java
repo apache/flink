@@ -115,4 +115,17 @@ public interface JDBCDialect extends Serializable {
 		return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
 	}
 
+	/**
+	 * Get select fields statement by condition fields. Default use SELECT.
+	 */
+	default String getSelectFromStatement(String tableName, String[] selectFields, String[] conditionFields) {
+		String selectExpressions = Arrays.stream(selectFields)
+				.map(this::quoteIdentifier)
+				.collect(Collectors.joining(", "));
+		String fieldExpressions = Arrays.stream(conditionFields)
+				.map(f -> quoteIdentifier(f) + "=?")
+				.collect(Collectors.joining(" AND "));
+		return "SELECT " + selectExpressions + " FROM " +
+				quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
+	}
 }
