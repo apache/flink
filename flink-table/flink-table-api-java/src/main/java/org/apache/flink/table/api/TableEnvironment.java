@@ -58,15 +58,20 @@ public interface TableEnvironment {
 	 * Creates a table environment that is the entry point and central context for creating Table & SQL
 	 * API programs.
 	 *
-	 * <p>It is unified for bounded and unbounded data processing.
+	 * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
+	 * between Scala and Java API) and for bounded and unbounded data processing.
 	 *
-	 * <p>A stream table environment is responsible for:
+	 * <p>A table environment is responsible for:
 	 * <ul>
 	 *     <li>Connecting to external systems.</li>
 	 *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
 	 *     <li>Executing SQL statements.</li>
 	 *     <li>Offering further configuration options.</li>
 	 * </ul>
+	 *
+	 * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
+	 * other Flink APIs, it might be necessary to use one of the available language-specific table environments
+	 * in the corresponding bridging modules.
 	 *
 	 * @param settings The environment settings used to instantiate the {@link TableEnvironment}.
 	 */

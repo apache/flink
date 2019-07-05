@@ -115,23 +115,24 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		);
 	}
 
-	/**
-	 * Creates an instance of a unified {@link TableEnvironment}..
-	 */
 	public static TableEnvironmentImpl create(EnvironmentSettings settings) {
+
 		FunctionCatalog functionCatalog = new FunctionCatalog(
 			settings.getBuiltInCatalogName(),
 			settings.getBuiltInDatabaseName());
 		CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
 			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
-		Map<String, String> plannerProperties = settings.toPlannerProperties();
+
 		Map<String, String> executorProperties = settings.toExecutorProperties();
 		Executor executor = ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
 			.create(executorProperties);
+
 		TableConfig tableConfig = new TableConfig();
+		Map<String, String> plannerProperties = settings.toPlannerProperties();
 		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
 			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
+
 		return new TableEnvironmentImpl(
 			catalogManager,
 			tableConfig,
