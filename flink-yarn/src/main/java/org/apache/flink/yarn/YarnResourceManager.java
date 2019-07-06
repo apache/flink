@@ -310,11 +310,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		Preconditions.checkArgument(
-			ResourceProfile.UNKNOWN.equals(resourceProfile),
-			"The YarnResourceManager does not support custom ResourceProfiles yet. It assumes that all containers have the same resources.");
+		if (!slotsPerWorker.iterator().next().isMatching(resourceProfile)) {
+			return Collections.emptyList();
+		}
 		requestYarnContainer();
-
 		return slotsPerWorker;
 	}
 
