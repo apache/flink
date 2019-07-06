@@ -44,13 +44,13 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.util.StringUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
@@ -745,10 +745,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ship list that enables reuse of resources for task manager containers
 		StringBuilder envShipFileList = new StringBuilder();
 
-		int fileReplication = yarnConfiguration.getInt("dfs.replication", 3);
-		final String replication = flinkConfiguration.getString(YarnConfigOptions.FILE_REPLICATION);
-		if (!StringUtils.isNullOrWhitespaceOnly(replication)) {
+		int fileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+		if (flinkConfiguration.contains(YarnConfigOptions.FILE_REPLICATION)) {
 			try {
+				final String replication = flinkConfiguration.getString(YarnConfigOptions.FILE_REPLICATION);
 				fileReplication = Integer.parseInt(replication);
 			} catch (NumberFormatException e) {
 				throw new RuntimeException(

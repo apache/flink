@@ -207,7 +207,7 @@ public class YarnConfigOptions {
 	/**
 	 * Yarn session client uploads flink jar and user libs to file system (hdfs/s3) as local resource for yarn
 	 * application context. The replication number changes the how many replica of each of these files in hdfs/s3.
-	 * It is useful to accelerate this container bootstrap time, when a Flink application needs more one hundred
+	 * It is useful to accelerate this container bootstrap, when a Flink application needs more than one hundred
 	 * of containers.
 	 */
 	public static final ConfigOption<String> FILE_REPLICATION =
