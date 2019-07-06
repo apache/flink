@@ -59,6 +59,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1571,6 +1572,64 @@ public class SlotManagerTest extends TestLogger {
 			assertThat(slotManager.getNumberRegisteredSlots(), is(1));
 			assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(numberSlots));
 			assertThat(slotManager.getNumberAssignedPendingTaskManagerSlots(), is(1));
+		}
+	}
+
+	/**
+	 * Tests that SlotManager fails unfulfillable slot requests properly
+	 */
+	@Test
+	public void testFailUnfulfillableSlotRequests() throws Exception {
+		final JobID jobId = new JobID();
+		final ResourceProfile registeredSlotFulfillableProfile = new ResourceProfile(2.0, 100);
+		final ResourceProfile pendingSlotFulfillableProfile = new ResourceProfile(1.0, 200);
+		final ResourceProfile unfulfillableProfile = new ResourceProfile(2.0, 200);
+
+		final List<AllocationID> notifiedAllocationFailures = new ArrayList<>();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setAllocateResourceFunction((resourceProfile) ->
+				pendingSlotFulfillableProfile.isMatching(resourceProfile) ?
+					Collections.singleton(pendingSlotFulfillableProfile) : Collections.emptyList())
+			.setNotifyAllocationFailureConsumer(tuple3 -> notifiedAllocationFailures.add(tuple3.f1)).build();
+
+		final ResourceID resourceID = ResourceID.generate();
+		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
+		final SlotReport slotReport =
+			new SlotReport(Collections.singleton(new SlotStatus(new SlotID(resourceID, 0), registeredSlotFulfillableProfile)));
+
+		try (final SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
+			slotManager.registerTaskManager(taskExecutorConnection, slotReport);
+
+			// initially, no request should fail
+			SlotRequest slotRequest1 = new SlotRequest(jobId, new AllocationID(), registeredSlotFulfillableProfile, "foobar");
+			SlotRequest slotRequest2 = new SlotRequest(jobId, new AllocationID(), pendingSlotFulfillableProfile, "foobar");
+			SlotRequest slotRequest3 = new SlotRequest(jobId, new AllocationID(), unfulfillableProfile, "foobar");
+			assertTrue(slotManager.registerSlotRequest(slotRequest1));
+			assertTrue(slotManager.registerSlotRequest(slotRequest2));
+			assertTrue(slotManager.registerSlotRequest(slotRequest3));
+			assertEquals(0, notifiedAllocationFailures.size());
+
+			// set fail unfulfillable request, pending request 3 should fail
+			slotManager.setFailUnfulfillableRequest(true);
+			assertEquals(1, notifiedAllocationFailures.size());
+			assertEquals(slotRequest3.getAllocationId(), notifiedAllocationFailures.get(0));
+
+			// request again, request 3 should fail
+			slotRequest1 = new SlotRequest(jobId, new AllocationID(), registeredSlotFulfillableProfile, "foobar");
+			slotRequest2 = new SlotRequest(jobId, new AllocationID(), pendingSlotFulfillableProfile, "foobar");
+			slotRequest3 = new SlotRequest(jobId, new AllocationID(), unfulfillableProfile, "foobar");
+			assertTrue(slotManager.registerSlotRequest(slotRequest1));
+			assertTrue(slotManager.registerSlotRequest(slotRequest2));
+			Exception exception = null;
+			try {
+				slotManager.registerSlotRequest(slotRequest3);
+			} catch (Exception e) {
+				exception = e;
+			}
+			assertNotNull(exception);
+			assertEquals(1, notifiedAllocationFailures.size());
 		}
 	}
 
