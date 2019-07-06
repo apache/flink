@@ -113,6 +113,17 @@ public class ConfigurationUtils {
 		return splitPaths(configValue);
 	}
 
+	public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
+		final Time timeout;
+		long standaloneClusterStartupPeriodTime = configuration.getLong(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
+		if (standaloneClusterStartupPeriodTime > 0) {
+			timeout = Time.milliseconds(standaloneClusterStartupPeriodTime);
+		} else {
+			timeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+		}
+		return timeout;
+	}
+
 	/**
 	 * Creates a new {@link Configuration} from the given {@link Properties}.
 	 *
