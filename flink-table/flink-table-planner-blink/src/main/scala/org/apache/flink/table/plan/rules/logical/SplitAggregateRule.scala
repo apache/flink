@@ -117,7 +117,7 @@ class SplitAggregateRule extends RelOptRule(
     val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
     val splitSkewDistinctAggEnabled = tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED)
+      PlannerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
@@ -145,7 +145,7 @@ class SplitAggregateRule extends RelOptRule(
 
     val hashFieldsMap: util.Map[Int, Int] = new util.HashMap()
     val buckets = tableConfig.getConf.getInteger(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET)
+      PlannerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
 
     if (hashFieldIndexes.nonEmpty) {
       val projects = new util.ArrayList[RexNode](relBuilder.fields)

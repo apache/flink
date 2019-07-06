@@ -30,7 +30,7 @@ public class PlannerConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Optimizer Options
 	// ------------------------------------------------------------------------
-	public static final ConfigOption<String> SQL_OPTIMIZER_AGG_PHASE_ENFORCER =
+	public static final ConfigOption<String> SQL_OPTIMIZER_AGG_PHASE_STRATEGY =
 			key("sql.optimizer.agg-phase.strategy")
 					.defaultValue("AUTO")
 					.withDescription("Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.\n" +
@@ -46,7 +46,7 @@ public class PlannerConfigOptions {
 					.withDescription("Configures the maximum size in bytes for a table that will be broadcast to all worker " +
 							"nodes when performing a join.  By setting this value to -1 broadcasting can be disabled. ");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED =
+	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED =
 			key("sql.optimizer.distinct-agg.split.enabled")
 					.defaultValue(false)
 					.withDescription("Tells the optimizer whether to split distinct aggregation " +
@@ -56,7 +56,7 @@ public class PlannerConfigOptions {
 							"when there is data skew in distinct aggregation and gives the ability to scale-up the job. " +
 							"Default is false.");
 
-	public static final ConfigOption<Integer> SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET =
+	public static final ConfigOption<Integer> SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM =
 			key("sql.optimizer.distinct-agg.split.bucket-num")
 					.defaultValue(1024)
 					.withDescription("Configure the number of buckets when splitting distinct aggregation. " +

@@ -87,7 +87,7 @@ abstract class BatchExecGroupAggregateBase(
   protected def isEnforceTwoStageAgg: Boolean = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     val aggConfig = tableConfig.getConf.getString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY)
     AggPhaseEnforcer.TWO_PHASE.toString.equalsIgnoreCase(aggConfig)
   }
 

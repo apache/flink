@@ -45,9 +45,9 @@ class DistinctAggregateTest(
     util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     util.enableMiniBatch()
     util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggPhaseEnforcer.toString)
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED, splitDistinctAggEnabled)
+      PlannerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinctAggEnabled)
     // disable incremental agg
     util.tableEnv.getConfig.getConf.setBoolean(
       IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)

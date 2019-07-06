@@ -123,7 +123,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
   def testSingleAggOnTable_HashAgg_WithLocalAgg(): Unit = {
     tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, "TWO_PHASE")
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
     // set smaller parallelism to avoid MemoryAllocationException
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 2)
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 2M
@@ -134,7 +134,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
   def testSingleAggOnTable_HashAgg_WithoutLocalAgg(): Unit = {
     tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, "ONE_PHASE")
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 2M
     testSingleAggOnTable()
   }

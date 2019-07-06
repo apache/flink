@@ -76,7 +76,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
     val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
       TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
     val isTwoPhaseEnabled = !tableConfig.getConf
-      .getString(PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
+      .getString(PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY)
       .equalsIgnoreCase(AggPhaseEnforcer.ONE_PHASE.toString)
 
     isMiniBatchEnabled && isTwoPhaseEnabled &&

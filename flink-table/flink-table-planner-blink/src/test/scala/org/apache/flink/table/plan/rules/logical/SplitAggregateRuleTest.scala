@@ -34,7 +34,7 @@ class SplitAggregateRuleTest extends TableTestBase {
   util.buildStreamProgram(FlinkStreamProgram.PHYSICAL)
   util.enableMiniBatch()
   util.tableEnv.getConfig.getConf.setBoolean(
-    PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED, true)
+    PlannerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
 
   @Test
   def testSingleDistinctAgg(): Unit = {
@@ -178,7 +178,7 @@ class SplitAggregateRuleTest extends TableTestBase {
   @Test
   def testBucketsConfiguration(): Unit = {
     util.tableEnv.getConfig.getConf.setInteger(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET, 100)
+      PlannerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
     val sqlQuery = "SELECT COUNT(DISTINCT c) FROM MyTable"
     util.verifyPlan(sqlQuery)
   }

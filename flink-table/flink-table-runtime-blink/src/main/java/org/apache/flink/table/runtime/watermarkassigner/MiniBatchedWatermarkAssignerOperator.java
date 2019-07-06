@@ -68,11 +68,6 @@ public class MiniBatchedWatermarkAssignerOperator
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 		this.watermarkInterval = watermarkInterval;
 
-		if (idleTimeout != -1) {
-			Preconditions.checkArgument(
-				idleTimeout >= 1,
-				"The idle timeout cannot be smaller than 1 ms.");
-		}
 		this.idleTimeout = idleTimeout;
 	}
 
@@ -88,7 +83,7 @@ public class MiniBatchedWatermarkAssignerOperator
 		expectedWatermark = getMiniBatchStart(currentWatermark, tzOffset, watermarkInterval)
 			+ watermarkInterval - 1;
 
-		if (idleTimeout >= 1) {
+		if (idleTimeout > 0) {
 			this.lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
 			this.streamStatusMaintainer = getContainingTask().getStreamStatusMaintainer();
 			getProcessingTimeService().registerTimer(lastRecordTime + idleTimeout, this);
@@ -97,7 +92,7 @@ public class MiniBatchedWatermarkAssignerOperator
 
 	@Override
 	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		if (idleTimeout != -1) {
+		if (idleTimeout > 0) {
 			// mark the channel active
 			streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 			lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
@@ -122,7 +117,7 @@ public class MiniBatchedWatermarkAssignerOperator
 
 	@Override
 	public void onProcessingTime(long timestamp) throws Exception {
-		if (idleTimeout != -1) {
+		if (idleTimeout > 0) {
 			final long currentTime = getProcessingTimeService().getCurrentProcessingTime();
 			if (currentTime - lastRecordTime > idleTimeout) {
 				// mark the channel as idle to ignore watermarks from this channel
@@ -145,7 +140,7 @@ public class MiniBatchedWatermarkAssignerOperator
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
 		// to signal the end of input and to not block watermark progress downstream
 		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
-			if (idleTimeout != -1) {
+			if (idleTimeout > 0) {
 				// mark the channel active
 				streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 			}

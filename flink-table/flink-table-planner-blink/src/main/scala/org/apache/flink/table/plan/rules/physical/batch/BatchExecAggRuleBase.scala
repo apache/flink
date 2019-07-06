@@ -147,7 +147,7 @@ trait BatchExecAggRuleBase {
 
   protected def getAggEnforceStrategy(tableConfig: TableConfig): AggPhaseEnforcer.Value = {
     val aggPrefConfig = tableConfig.getConf.getString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY)
     AggPhaseEnforcer.values.find(_.toString.equalsIgnoreCase(aggPrefConfig))
       .getOrElse(throw new IllegalArgumentException(
         "Agg phase enforcer can only set to be: NONE, ONE_PHASE, TWO_PHASE!"))

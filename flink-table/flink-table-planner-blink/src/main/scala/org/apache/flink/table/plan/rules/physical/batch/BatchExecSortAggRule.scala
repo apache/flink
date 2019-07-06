@@ -43,7 +43,7 @@ import scala.collection.JavaConversions._
   *              +- input of agg
   * }}}
   * when all aggregate functions are mergeable
-  * and [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is TWO_PHASE, or
+  * and [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
   *   BatchExecSortAggregate
   *   +- Sort (exists if group keys are not empty)
@@ -51,9 +51,9 @@ import scala.collection.JavaConversions._
   *         +- input of agg
   * }}}
   * when some aggregate functions are not mergeable
-  * or [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is ONE_PHASE.
+  * or [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
   *
-  * Notes: if [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is NONE,
+  * Notes: if [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
   * this rule will try to create two possibilities above, and chooses the best one based on cost.
   */
 class BatchExecSortAggRule

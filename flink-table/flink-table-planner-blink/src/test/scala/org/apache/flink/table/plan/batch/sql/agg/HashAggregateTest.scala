@@ -37,7 +37,7 @@ class HashAggregateTest(aggStrategy: AggPhaseEnforcer) extends AggregateTestBase
     util.tableEnv.getConfig.getConf.setString(
       TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
     util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggStrategy.toString)
+      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 
   override def testMinWithVariableLengthType(): Unit = {
