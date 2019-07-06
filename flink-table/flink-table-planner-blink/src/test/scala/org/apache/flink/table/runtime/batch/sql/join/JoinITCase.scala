@@ -44,7 +44,7 @@ import scala.collection.Seq
 class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)

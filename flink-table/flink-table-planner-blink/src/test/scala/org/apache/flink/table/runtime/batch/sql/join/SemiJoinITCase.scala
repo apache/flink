@@ -37,7 +37,7 @@ import scala.collection.Seq
 class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("leftT", leftT, INT_DOUBLE, "a, b")
     registerCollection("rightT", SemiJoinITCase.rightT, INT_DOUBLE, "c, d")

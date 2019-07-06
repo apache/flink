@@ -40,7 +40,7 @@ import scala.util.Random
 class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("AllNullTable3", allNullData3, type3, "a, b, c")
     registerCollection("SmallTable3", smallData3, type3, "a, b, c")

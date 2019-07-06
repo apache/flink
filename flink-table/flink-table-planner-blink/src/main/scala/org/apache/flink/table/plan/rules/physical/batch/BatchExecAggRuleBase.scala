@@ -115,7 +115,7 @@ trait BatchExecAggRuleBase {
     getAggEnforceStrategy(tableConfig) match {
       case AggPhaseEnforcer.ONE_PHASE => true
       case AggPhaseEnforcer.TWO_PHASE => !doAllSupportMerge(aggFunctions)
-      case AggPhaseEnforcer.NONE =>
+      case AggPhaseEnforcer.AUTO =>
         if (!doAllSupportMerge(aggFunctions)) {
           true
         } else {

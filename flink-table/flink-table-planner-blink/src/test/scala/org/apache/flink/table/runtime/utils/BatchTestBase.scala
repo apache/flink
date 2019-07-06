@@ -31,6 +31,7 @@ import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
@@ -44,7 +45,7 @@ import org.apache.calcite.sql.parser.SqlParseException
 import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert._
 import org.junit.rules.TestName
-import org.junit.{Assert, Rule}
+import org.junit.{Assert, Before, Rule}
 
 import java.lang.{Iterable => JIterable}
 import java.util.TimeZone
@@ -71,6 +72,13 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   private lazy val diffRepository = DiffRepository.lookup(this.getClass)
   val testName: TestName = new TestName
+
+  @Before
+  def before(): Unit = {
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 10)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 10)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 10)
+  }
 
   @Rule
   def name: TestName = testName

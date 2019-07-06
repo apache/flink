@@ -30,7 +30,7 @@ import scala.collection.Seq
 class JoinWithoutKeyITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)

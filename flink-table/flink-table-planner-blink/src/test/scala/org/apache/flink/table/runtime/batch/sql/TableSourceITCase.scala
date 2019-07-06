@@ -34,7 +34,7 @@ import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 class TableSourceITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     env.setParallelism(1) // set sink parallelism to 1
     val tableSchema = TableSchema.builder().fields(

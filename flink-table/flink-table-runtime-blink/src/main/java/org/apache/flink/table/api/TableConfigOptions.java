@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.runtime.window.grouping.HeapWindowsGrouping;
 
@@ -32,7 +31,6 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Source Options
 	// ------------------------------------------------------------------------
-
 	public static final ConfigOption<String> SQL_EXEC_SOURCE_IDLE_TIMEOUT =
 			key("sql.exec.source.idle.timeout")
 					.defaultValue("-1 ms")
@@ -44,36 +42,22 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Sort Options
 	// ------------------------------------------------------------------------
-	public static final ConfigOption<Boolean> SQL_EXEC_SORT_RANGE_ENABLED =
-			key("sql.exec.sort.range.enabled")
-					.defaultValue(false)
-					.withDescription("Sets whether to enable range sort, use range sort to sort all data in several partitions." +
-							"When it is false, sorting in only one partition");
-
 	public static final ConfigOption<Integer> SQL_EXEC_SORT_DEFAULT_LIMIT =
 			key("sql.exec.sort.default.limit")
 					.defaultValue(200)
-					.withDescription("Default limit when user don't set a limit after order by. " +
-							"This default value will be invalidated if " + SQL_EXEC_SORT_RANGE_ENABLED + " is set to be true.");
+					.withDescription("Default limit when user don't set a limit after order by. ");
 
 	public static final ConfigOption<Integer> SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM =
 			key("sql.exec.sort.file-handles.num.max")
 					.defaultValue(128)
-					.withDescription("Sort merge's maximum number of roads, too many roads " +
-							"may cause too many files to be read at the same time, resulting in " +
-							"excessive use of memory.");
+					.withDescription("The maximal fan-in for external merge sort. It limits the number of file handles per operator. " +
+							"If it is too small, may cause intermediate merging. But if it is too large, " +
+							"it will cause too many files opened at the same time, consume memory and lead to random reading.");
 
 	public static final ConfigOption<Boolean> SQL_EXEC_SORT_ASYNC_MERGE_ENABLED =
 			key("sql.exec.sort.async-merge.enabled")
 					.defaultValue(true)
 					.withDescription("Whether to asynchronously merge sorted spill files.");
-
-	@Documentation.ExcludeFromDocumentation(value = "Only for tests.")
-	public static final ConfigOption<Boolean> SQL_EXEC_SORT_NON_TEMPORAL_ENABLED =
-			key("sql.exec.sort.non-temporal.enabled")
-					.defaultValue(false)
-					.withDescription("Set whether to enable universal sort for stream. When it is false, " +
-							"universal sort can't use for stream, default false. Just for testing.");
 
 	// ------------------------------------------------------------------------
 	//  Spill Options
@@ -99,40 +83,22 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Resource Options
 	// ------------------------------------------------------------------------
-	public static final ConfigOption<String> SQL_RESOURCE_INFER_MODE =
-			key("sql.resource.infer.mode")
-					.defaultValue("NONE")
-					.withDescription("Sets infer resource mode. Only NONE, or ONLY_SOURCE can be set.\n" +
-							"If set NONE, parallelism of all node are set by config.\n" +
-							"If set ONLY_SOURCE, only source parallelism is inferred according to statics.");
-
-	public static final ConfigOption<Long> SQL_RESOURCE_INFER_ROWS_PER_PARTITION =
-			key("sql.resource.infer.rows-per-partition")
-					.defaultValue(1000000L)
-					.withDescription("Sets how many rows one task processes. We will infer parallelism according " +
-							"to input row count.");
-
-	public static final ConfigOption<Integer> SQL_RESOURCE_INFER_SOURCE_PARALLELISM_MAX =
-			key("sql.resource.infer.source.parallelism.max")
-					.defaultValue(1000)
-					.withDescription("Sets max infer parallelism for source operators.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_DEFAULT_PARALLELISM =
 			key("sql.resource.default.parallelism")
 					.defaultValue(-1)
-					.withDescription("Default parallelism of the job. If any node do not have special parallelism, use it." +
-							"Default value is the num of cpu cores in the client host.");
+					.withDescription("Default parallelism of job operators. If it is <= 0, use parallelism of StreamExecutionEnvironment(" +
+							"its default value is the num of cpu cores in the client host).");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_SOURCE_PARALLELISM =
 			key("sql.resource.source.parallelism")
 					.defaultValue(-1)
-					.withDescription("Sets source parallelism if " + SQL_RESOURCE_INFER_MODE.key() + " is NONE, " +
-							"use " + SQL_RESOURCE_DEFAULT_PARALLELISM.key() + " to set source parallelism.");
+					.withDescription("Sets source parallelism, if it is <= 0, use " + SQL_RESOURCE_DEFAULT_PARALLELISM.key() + " to set source parallelism.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_SINK_PARALLELISM =
 			key("sql.resource.sink.parallelism")
 					.defaultValue(-1)
-					.withDescription("Sets sink parallelism if it is > 0.");
+					.withDescription("Sets sink parallelism, if it is <= 0, use " + SQL_RESOURCE_DEFAULT_PARALLELISM.key() + " to set sink parallelism.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_EXTERNAL_BUFFER_MEM =
 			key("sql.resource.external-buffer.memory.mb")
@@ -141,17 +107,17 @@ public class TableConfigOptions {
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MEM =
 			key("sql.resource.hash-agg.table.memory.mb")
-					.defaultValue(32)
+					.defaultValue(256)
 					.withDescription("Sets the table memory size of hashAgg operator.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_JOIN_TABLE_MEM =
 			key("sql.resource.hash-join.table.memory.mb")
-					.defaultValue(32)
+					.defaultValue(512)
 					.withDescription("Sets the HashTable reserved memory for hashJoin operator. It defines the lower limit.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
 			key("sql.resource.sort.buffer.memory.mb")
-					.defaultValue(32)
+					.defaultValue(128)
 					.withDescription("Sets the buffer memory size for sort.");
 
 	// ------------------------------------------------------------------------
@@ -165,17 +131,6 @@ public class TableConfigOptions {
 			key("sql.exec.window-agg.buffer-size.limit")
 					.defaultValue(100 * 1000)
 					.withDescription("Sets the window elements buffer size limit used in group window agg operator.");
-
-	// ------------------------------------------------------------------------
-	//  topN Options
-	// ------------------------------------------------------------------------
-	@Documentation.ExcludeFromDocumentation(value = "The default cache size is enough in most cases. " +
-			"And this is a temporary solution for caching. We may want to expose cache memory size as the configuration in the future.")
-	public static final ConfigOption<Long> SQL_EXEC_TOPN_CACHE_SIZE =
-			key("sql.exec.topn.cache.size")
-					.defaultValue(10000L)
-					.withDescription("TopN operator has a cache which caches partial state contents to reduce state access. " +
-							"Cache size is the number of records in each TopN task.");
 
 	// ------------------------------------------------------------------------
 	//  Async Lookup Options
@@ -193,14 +148,21 @@ public class TableConfigOptions {
 	// ------------------------------------------------------------------------
 	//  MiniBatch Options
 	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Boolean> SQL_EXEC_MINIBATCH_ENABLED =
+			key("sql.exec.mini-batch.enabled")
+					.defaultValue(false)
+					.withDescription("Specifies whether to enable MiniBatch optimization. " +
+							"MiniBatch is an optimization to buffer input records to reduce state access. " +
+							"This is disabled by default. To enable this, users should set this config to true.");
+
 	public static final ConfigOption<String> SQL_EXEC_MINIBATCH_ALLOW_LATENCY =
 			key("sql.exec.mini-batch.allow-latency")
 					.defaultValue("-1 ms")
 					.withDescription("The maximum latency can be used for MiniBatch to buffer input records. " +
 							"MiniBatch is an optimization to buffer input records to reduce state access. " +
 							"MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. " +
-							"If the allow-latency is greater than zero, MiniBatch will be enabled, otherwise, MiniBatch is disabled. " +
-							"NOTE: MiniBatch only works for non-windowed aggregations currently.");
+							"NOTE: If " + SQL_EXEC_MINIBATCH_ENABLED.key() + " is set true, its value must be greater than zero.");
 
 	public static final ConfigOption<Long> SQL_EXEC_MINIBATCH_SIZE =
 			key("sql.exec.mini-batch.size")
@@ -208,7 +170,8 @@ public class TableConfigOptions {
 					.withDescription("The maximum number of input records can be buffered for MiniBatch. " +
 							"MiniBatch is an optimization to buffer input records to reduce state access. " +
 							"MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. " +
-							"NOTE: MiniBatch only works for non-windowed aggregations currently. Its value must be positive.");
+							"NOTE: MiniBatch only works for non-windowed aggregations currently. If " + SQL_EXEC_MINIBATCH_ENABLED.key() +
+							" is set true, its value must be positive.");
 
 	// ------------------------------------------------------------------------
 	//  State Options
@@ -216,8 +179,11 @@ public class TableConfigOptions {
 	public static final ConfigOption<String> SQL_EXEC_STATE_TTL =
 			key("sql.exec.state.ttl")
 					.defaultValue("-1 ms")
-					.withDescription("The minimum time until state that was not updated will be retained. State" +
-							" might be cleared and removed if it was not updated for the defined period of time.");
+					.withDescription("Specifies a minimum time interval for how long idle state " +
+							"(i.e. state which was not updated), will be retained. State will never be " +
+							"cleared until it was idle for less than the minimum time, and will be cleared " +
+							"at some time after it was idle. Default is never clean-up the state.\n" +
+							"NOTE: Cleaning up state requires additional overhead for bookkeeping.");
 
 	// ------------------------------------------------------------------------
 	//  Other Exec Options

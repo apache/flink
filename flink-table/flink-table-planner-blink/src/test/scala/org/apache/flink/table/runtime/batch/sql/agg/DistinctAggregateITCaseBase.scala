@@ -37,7 +37,7 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
   def prepareAggOp(): Unit
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("SmallTable5", smallData5, type5, "a, b, c, d, e", nullablesOfSmallData5)
     registerCollection("EmptyTable3", Seq(), type3, "a, b, c")

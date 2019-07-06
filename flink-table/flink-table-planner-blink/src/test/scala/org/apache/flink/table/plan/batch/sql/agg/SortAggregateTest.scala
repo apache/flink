@@ -46,7 +46,7 @@ object SortAggregateTest {
   @Parameterized.Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggPhaseEnforcer] = {
     Seq[AggPhaseEnforcer](
-      AggPhaseEnforcer.NONE,
+      AggPhaseEnforcer.AUTO,
       AggPhaseEnforcer.ONE_PHASE,
       AggPhaseEnforcer.TWO_PHASE
     )

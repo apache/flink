@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{PlannerConfigOptions, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
 import org.apache.flink.table.util.TableTestBase
@@ -51,7 +51,7 @@ class JoinDeriveNullFilterRuleTest extends TableTestBase {
     )
 
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 2000000)
+      JoinDeriveNullFilterRule.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 2000000)
     util.addTableSource("MyTable1",
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING, Types.INT, Types.LONG),
       Array("a1", "b1", "c1", "d1", "e1"),

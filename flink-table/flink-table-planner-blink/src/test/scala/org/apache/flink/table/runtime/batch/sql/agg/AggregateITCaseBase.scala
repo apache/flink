@@ -40,7 +40,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   def prepareAggOp(): Unit
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
 
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)

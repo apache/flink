@@ -43,7 +43,7 @@ class MiscITCase extends BatchTestBase {
   private var newTableId = 0
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
   }
 

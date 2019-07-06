@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.nodes.logical
 import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.plan.util.SortUtil
 
 import org.apache.calcite.plan._
@@ -104,7 +105,7 @@ class FlinkLogicalSortBatchConverter extends ConverterRule(
     val sort = rel.asInstanceOf[LogicalSort]
     val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
     val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    val enableRangeSort = config.getConf.getBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED)
+    val enableRangeSort = config.getConf.getBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED)
     val limitValue = config.getConf.getInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT)
     val (offset, fetch) = if (sort.fetch == null && sort.offset == null
       && !enableRangeSort && limitValue > 0) {

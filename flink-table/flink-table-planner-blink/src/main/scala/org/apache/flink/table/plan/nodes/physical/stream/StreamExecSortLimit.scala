@@ -149,7 +149,7 @@ class StreamExecSortLimit(
       sortDirections,
       nullsIsLast)
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
-    val cacheSize = tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_TOPN_CACHE_SIZE)
+    val cacheSize = tableConfig.getConf.getLong(StreamExecRank.SQL_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
 

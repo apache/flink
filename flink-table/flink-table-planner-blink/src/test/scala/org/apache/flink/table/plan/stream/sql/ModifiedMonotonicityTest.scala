@@ -63,6 +63,8 @@ class ModifiedMonotonicityTest extends TableTestBase {
 
   @Test
   def testMaxWithRetractOptimizeWithLocalGlobal(): Unit = {
+    util.tableEnv.getConfig.getConf.setBoolean(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf
       .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
@@ -72,6 +74,8 @@ class ModifiedMonotonicityTest extends TableTestBase {
 
   @Test
   def testMinWithRetractOptimizeWithLocalGlobal(): Unit = {
+    util.tableEnv.getConfig.getConf.setBoolean(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf
       .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)"
@@ -80,6 +84,8 @@ class ModifiedMonotonicityTest extends TableTestBase {
 
   @Test
   def testMinCanNotOptimizeWithLocalGlobal(): Unit = {
+    util.tableEnv.getConfig.getConf.setBoolean(
+      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf
       .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query =

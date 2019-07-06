@@ -99,7 +99,7 @@ class GroupingSetsITCase extends BatchTestBase {
   )
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection(TABLE_NAME, data3, type3, "f0, f1, f2", nullablesOfData3)
     val nullableData3 = data3.map { r =>

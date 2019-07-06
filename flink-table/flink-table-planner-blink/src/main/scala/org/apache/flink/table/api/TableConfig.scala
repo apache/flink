@@ -328,5 +328,5 @@ object OperatorType extends Enumeration {
 
 object AggPhaseEnforcer extends Enumeration {
   type AggPhaseEnforcer = Value
-  val NONE, ONE_PHASE, TWO_PHASE = Value
+  val AUTO, ONE_PHASE, TWO_PHASE = Value
 }

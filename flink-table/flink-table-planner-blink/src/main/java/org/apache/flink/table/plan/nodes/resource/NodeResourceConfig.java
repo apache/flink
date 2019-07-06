@@ -55,26 +55,6 @@ public class NodeResourceConfig {
 	}
 
 	/**
-	 * Gets the config max num of source parallelism.
-	 * @param tableConf Configuration.
-	 * @return the config max num of source parallelism.
-	 */
-	public static int getSourceMaxParallelism(Configuration tableConf) {
-		return tableConf.getInteger(
-				TableConfigOptions.SQL_RESOURCE_INFER_SOURCE_PARALLELISM_MAX);
-	}
-
-	/**
-	 * Gets the config row count that one partition processes.
-	 * @param tableConf Configuration.
-	 * @return the config row count that one partition processes.
-	 */
-	public static long getInferRowCountPerPartition(Configuration tableConf) {
-		return tableConf.getLong(
-				TableConfigOptions.SQL_RESOURCE_INFER_ROWS_PER_PARTITION);
-	}
-
-	/**
 	 * Gets default parallelism of operator.
 	 * @param tableConf Configuration.
 	 * @return default parallelism of operator.
@@ -87,22 +67,4 @@ public class NodeResourceConfig {
 		}
 		return parallelism;
 	}
-
-	/**
-	 * Infer resource mode.
-	 */
-	public enum InferMode {
-		NONE, ONLY_SOURCE
-	}
-
-	public static InferMode getInferMode(Configuration tableConf) {
-		String config = tableConf.getString(
-				TableConfigOptions.SQL_RESOURCE_INFER_MODE);
-		try {
-			return InferMode.valueOf(config);
-		} catch (IllegalArgumentException ex) {
-			throw new IllegalArgumentException("Infer mode can only be set: NONE or ONLY_SOURCE.");
-		}
-	}
-
 }

@@ -37,20 +37,6 @@ import org.junit.runners.Parameterized
 @RunWith(classOf[Parameterized])
 class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test(expected = classOf[TableException])
-  def testAllRejectingFilterWhenDisableValuesSourceInput(): Unit = {
-    /*
-     * Test all-rejecting filter
-     */
-    val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-
-    val filterDs = ds.filter(false)
-    // default disable values source input
-    val sink = new TestingAppendSink
-    filterDs.toAppendStream[Row].addSink(sink)
-    env.execute()
-  }
-
   @Ignore("CodeGen split")
   @Test
   def testFunctionSplitWhenCodegenOverLengthLimit(): Unit = {
@@ -178,7 +164,6 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @Test
   def testAllRejectingFilter(): Unit = {
-    tEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SOURCE_VALUES_INPUT_ENABLED, true)
     /*
      * Test all-rejecting filter
      */

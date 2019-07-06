@@ -28,7 +28,7 @@ import org.junit._
 class SortLimitITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     env.setParallelism(1) // set sink parallelism to 1
     registerCollection("Table3", data3, type3, "a, b, c")

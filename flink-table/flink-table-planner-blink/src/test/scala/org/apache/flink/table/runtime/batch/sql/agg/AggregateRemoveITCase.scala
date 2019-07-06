@@ -32,7 +32,7 @@ import scala.collection.Seq
 class AggregateRemoveITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     registerCollection("T1",
       Seq(row(2, 1, "A", null),
         row(3, 2, "A", "Hi"),

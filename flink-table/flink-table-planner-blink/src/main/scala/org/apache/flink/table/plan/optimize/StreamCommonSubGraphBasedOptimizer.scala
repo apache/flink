@@ -61,12 +61,12 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
           o.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE).sendsUpdatesAsRetractions
       }
       sinkBlock.setUpdateAsRetraction(retractionFromRoot)
-      val miniBatchInterval: MiniBatchInterval = if (tEnv.getConfig.getConf.contains(
-        TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)) {
-        val miniBatchLatency = tEnv.getConfig.getConf.getLong(
+      val miniBatchInterval: MiniBatchInterval = if (tEnv.getConfig.getConf.getBoolean(
+        TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
+        val miniBatchLatency = tEnv.getConfig.getMillisecondFromConfigDuration(
           TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
         Preconditions.checkArgument(miniBatchLatency > 0,
-          "MiniBatch Latency must be greater than 0.", null)
+          "MiniBatch Latency must be greater than 0 ms.", null)
         MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
       }  else {
         MiniBatchIntervalTrait.NONE.getMiniBatchInterval

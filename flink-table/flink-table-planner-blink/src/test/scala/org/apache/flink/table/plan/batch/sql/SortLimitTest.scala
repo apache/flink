@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -33,65 +34,65 @@ class SortLimitTest extends TableTestBase {
   @Test
   def testNonRangeSortWithoutOffset(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
+      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC LIMIT 5")
   }
 
   @Test
   def testNonRangeSortWithLimit0(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
+      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC LIMIT 0")
   }
 
   @Test
   def testNonRangeSortOnlyWithOffset(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
+      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS")
   }
 
   @Test
   def testNoneRangeSortWithOffsetLimit(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
+      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 10 OFFSET 1")
   }
 
   @Test
   def testNoneRangeSortWithOffsetLimit0(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
+      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 0 OFFSET 1")
   }
 
   @Test
   def testRangeSortOnWithoutOffset(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC LIMIT 5")
   }
 
   @Test
   def testRangeSortOnWithLimit0(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC LIMIT 0")
   }
 
   @Test
   def testRangeSortOnlyWithOffset(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS")
   }
 
   @Test
   def testRangeSortWithOffsetLimit(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 10 OFFSET 1")
   }
 
   @Test
   def testRangeSortWithOffsetLimit0(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 0 OFFSET 1")
   }
 }

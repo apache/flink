@@ -45,7 +45,7 @@ import scala.collection.JavaConversions._
 class CorrelateITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")
     registerCollection("inputTWithNull", TableFunctionITCase.testDataWithNull, type3, "a, b, c")

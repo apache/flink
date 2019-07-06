@@ -32,6 +32,7 @@ import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType}
 import org.apache.flink.table.runtime.sort.RankOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
@@ -39,9 +40,9 @@ import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList, Util}
-import java.util
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 
 import scala.collection.JavaConversions._
 
@@ -80,7 +81,7 @@ class BatchExecRank(
     case o => throw new TableException(s"$o is not supported now")
   }
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchExecRank(
       cluster,
       traitSet,
@@ -141,7 +142,7 @@ class BatchExecRank(
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
           val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
           val partialKeyEnabled = tableConfig.getConf.getBoolean(
-            PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+            BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && partitionKeyList.containsAll(shuffleKeys)
         }
       case _ => false
@@ -236,7 +237,7 @@ class BatchExecRank(
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
+  override def getInputNodes: java.util.List[ExecNode[BatchTableEnvironment, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
 
   override def replaceInputNode(

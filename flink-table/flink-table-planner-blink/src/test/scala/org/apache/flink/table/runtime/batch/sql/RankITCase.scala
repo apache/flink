@@ -30,7 +30,7 @@ import scala.collection.Seq
 class RankITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("Table5", data5, type5, "a, b, c, d, e", nullablesOfData5)

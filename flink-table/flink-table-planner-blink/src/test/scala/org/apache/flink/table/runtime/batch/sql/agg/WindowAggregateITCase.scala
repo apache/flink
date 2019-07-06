@@ -41,7 +41,7 @@ import org.junit.{Before, Ignore, Test}
 class WindowAggregateITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     // common case
     registerCollection("Table3WithTimestamp", data3WithTimestamp, type3WithTimestamp,

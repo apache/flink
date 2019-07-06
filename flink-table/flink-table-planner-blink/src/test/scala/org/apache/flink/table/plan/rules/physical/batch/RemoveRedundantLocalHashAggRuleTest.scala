@@ -56,7 +56,7 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
     util.tableEnv.getConfig.getConf.setString(
       TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
+      BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
       """
         |SELECT a, SUM(b) FROM (

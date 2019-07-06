@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
 import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
+import org.apache.flink.table.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.runner.RunWith
@@ -49,7 +50,7 @@ class DistinctAggregateTest(
       PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED, splitDistinctAggEnabled)
     // disable incremental agg
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
+      IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
   }
 
   @Test

@@ -84,7 +84,7 @@ class StreamExecWatermarkAssigner(
       val miniBatchLatency = tableConfig.getMillisecondFromConfigDuration(
         TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
       Preconditions.checkArgument(miniBatchLatency > 0,
-        "MiniBatch latency must be greater that 0.", null)
+        "MiniBatch latency must be greater that 0 ms.", null)
       s"Proctime, ${miniBatchLatency}ms"
     } else if (miniBatchInterval.mode == MiniBatchMode.RowTime) {
       s"Rowtime, ${miniBatchInterval.interval}ms"

@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.CalcitePair
-import org.apache.flink.table.api.{BatchTableEnvironment, PlannerConfigOptions, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -35,6 +36,7 @@ import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
 import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
@@ -43,6 +45,7 @@ import org.apache.flink.table.runtime.over.frame.{InsensitiveOverFrame, OffsetOv
 import org.apache.flink.table.runtime.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{BIGINT, INTEGER, SMALLINT}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type._
 import org.apache.calcite.rel._
@@ -55,9 +58,8 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -272,7 +274,7 @@ class BatchExecOverAggregate(
           if (isAllFieldsFromInput) {
             val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
             if (tableConfig.getConf.getBoolean(
-              PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)) {
+              BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)) {
               ImmutableIntList.of(grouping: _*).containsAll(requiredDistribution.getKeys)
             } else {
               requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)

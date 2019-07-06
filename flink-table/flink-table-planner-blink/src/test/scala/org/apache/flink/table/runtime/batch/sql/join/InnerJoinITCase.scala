@@ -77,7 +77,7 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   )
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("myUpperCaseData", myUpperCaseData, INT_STRING, "N, L", Array(true, false))
     registerCollection("myLowerCaseData", myLowerCaseData, INT_STRING, "n, l", Array(true, false))

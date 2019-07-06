@@ -39,7 +39,7 @@ import scala.collection.Seq
 class AggregateJoinTransposeITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
     val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConf)
     // remove FlinkAggregateJoinTransposeRule from logical program (volcano planner)
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)

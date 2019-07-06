@@ -28,7 +28,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.util.Preconditions;
 
 /**
  * A stream operator that extracts timestamps from stream elements and
@@ -60,17 +59,11 @@ public class WatermarkAssignerOperator
 	 * Create a watermark assigner operator.
 	 * @param rowtimeFieldIndex  the field index to extract event timestamp
 	 * @param watermarkDelay    the delay by which watermarks are behind the maximum observed timestamp.
-	 * @param idleTimeout   (-1 if idleness checking is disabled)
+	 * @param idleTimeout   (idleness checking timeout)
 	 */
 	public WatermarkAssignerOperator(int rowtimeFieldIndex, long watermarkDelay, long idleTimeout) {
 		this.rowtimeFieldIndex = rowtimeFieldIndex;
 		this.watermarkDelay = watermarkDelay;
-
-		if (idleTimeout != -1) {
-			Preconditions.checkArgument(
-				idleTimeout >= 1,
-				"The idle timeout cannot be smaller than 1 ms.");
-		}
 
 		this.idleTimeout = idleTimeout;
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -95,7 +88,7 @@ public class WatermarkAssignerOperator
 
 	@Override
 	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		if (idleTimeout != -1) {
+		if (idleTimeout > 0) {
 			// mark the channel active
 			streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 			lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
@@ -130,7 +123,7 @@ public class WatermarkAssignerOperator
 	public void onProcessingTime(long timestamp) throws Exception {
 		advanceWatermark();
 
-		if (idleTimeout != -1) {
+		if (idleTimeout > 0) {
 			final long currentTime = getProcessingTimeService().getCurrentProcessingTime();
 			if (currentTime - lastRecordTime > idleTimeout) {
 				// mark the channel as idle to ignore watermarks from this channel
@@ -153,7 +146,7 @@ public class WatermarkAssignerOperator
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
 		// to signal the end of input and to not block watermark progress downstream
 		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
-			if (idleTimeout != -1) {
+			if (idleTimeout > 0) {
 				// mark the channel active
 				streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 			}
