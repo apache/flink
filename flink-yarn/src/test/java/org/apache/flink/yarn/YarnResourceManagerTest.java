@@ -45,7 +45,6 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -564,10 +563,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		new Context(config) {{
 			runTest(() -> {
 
-				ResourceProfile rmCalculatedResourceProfile =
-					ResourceManager.updateTaskManagerConfigAndCreateWorkerSlotProfiles(
-						config, resource.getMemory(), config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS))
-								.iterator().next();
+				ResourceProfile rmCalculatedResourceProfile = resourceManager.getSlotsPerWorker().iterator().next();
 
 				ResourceProfile tmCalculatedResourceProfile =
 					TaskManagerServices.computeSlotResourceProfile(
