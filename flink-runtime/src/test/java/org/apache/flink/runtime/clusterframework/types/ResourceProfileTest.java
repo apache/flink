@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.resources.GPUResource;
+
 import org.junit.Test;
 
 import java.util.Collections;
@@ -26,6 +28,7 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ResourceProfileTest {
 
@@ -161,5 +164,85 @@ public class ResourceProfileTest {
 		assertEquals(150, rp.getMemoryInMB());
 		assertEquals(100, rp.getOperatorsMemoryInMB());
 		assertEquals(1.6, rp.getExtendedResources().get(ResourceSpec.GPU_NAME).getValue(), 0.000001);
+	}
+
+	@Test
+	public void testMerge() throws Exception {
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200,
+				Collections.singletonMap("gpu", new GPUResource(2.0)));
+
+		ResourceProfile rp1MergeRp1 = new ResourceProfile(2.0, 200, 200, 200, 200, 200,
+				Collections.emptyMap());
+		ResourceProfile rp1MergeRp2 = new ResourceProfile(3.0, 300, 300, 300, 300, 300,
+				Collections.singletonMap("gpu", new GPUResource(2.0)));
+		ResourceProfile rp2MergeRp2 = new ResourceProfile(4.0, 400, 400, 400, 400, 400,
+				Collections.singletonMap("gpu", new GPUResource(4.0)));
+
+		assertEquals(rp1MergeRp1, rp1.merge(rp1));
+		assertEquals(rp1MergeRp2, rp1.merge(rp2));
+		assertEquals(rp1MergeRp2, rp2.merge(rp1));
+		assertEquals(rp2MergeRp2, rp2.merge(rp2));
+
+		assertEquals(ResourceProfile.UNKNOWN, rp1.merge(ResourceProfile.UNKNOWN));
+		assertEquals(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN.merge(rp1));
+		assertEquals(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN.merge(ResourceProfile.UNKNOWN));
+		assertEquals(ResourceProfile.ANY, rp1.merge(ResourceProfile.ANY));
+		assertEquals(ResourceProfile.ANY, ResourceProfile.ANY.merge(rp1));
+		assertEquals(ResourceProfile.ANY, ResourceProfile.ANY.merge(ResourceProfile.ANY));
+	}
+
+	@Test
+	public void testMergeWithOverflow() throws Exception {
+		final double LARGE_DOUBLE = Double.MAX_VALUE - 1.0;
+		final int LARGE_INTEGER = Integer.MAX_VALUE - 100;
+
+		ResourceProfile rp1 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(LARGE_DOUBLE, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, Collections.emptyMap());
+
+		assertEquals(ResourceProfile.ANY, rp2.merge(rp2));
+		assertEquals(ResourceProfile.ANY, rp2.merge(rp1));
+		assertEquals(ResourceProfile.ANY, rp1.merge(rp2));
+	}
+
+	@Test
+	public void testSubtract() throws Exception {
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200, Collections.emptyMap());
+		ResourceProfile rp3 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.emptyMap());
+
+		assertEquals(rp1, rp3.subtract(rp2));
+		assertEquals(rp1, rp2.subtract(rp1));
+
+		ResourceProfile rp4 = new ResourceProfile(Double.MAX_VALUE, 100, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+		ResourceProfile rp5 = new ResourceProfile(Double.MAX_VALUE, 0, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+
+		assertEquals(rp5, rp4.subtract(rp1));
+
+		try {
+			ResourceProfile ignored = rp1.subtract(rp2);
+			fail("The subtract should failed due to trying to subtract a larger resource");
+		} catch (IllegalArgumentException ex) {
+			// Ignore ex.
+		}
+
+		assertEquals(ResourceProfile.ANY, ResourceProfile.ANY.subtract(rp3));
+		assertEquals(ResourceProfile.ANY, ResourceProfile.ANY.subtract(ResourceProfile.ANY));
+		assertEquals(ResourceProfile.ANY, rp3.subtract(ResourceProfile.ANY));
+
+		assertEquals(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN.subtract(rp3));
+		assertEquals(ResourceProfile.UNKNOWN, rp3.subtract(ResourceProfile.UNKNOWN));
+		assertEquals(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN.subtract(ResourceProfile.UNKNOWN));
+	}
+
+	@Test
+	public void testSubtractWithInfValues() {
+		// Does not equals to ANY since it has extended resources.
+		ResourceProfile rp1 = new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
+				Integer.MAX_VALUE, Collections.singletonMap("gpu", new GPUResource(4.0)));
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200,
+				Collections.emptyMap());
+
+		assertEquals(rp1, rp1.subtract(rp2));
 	}
 }
