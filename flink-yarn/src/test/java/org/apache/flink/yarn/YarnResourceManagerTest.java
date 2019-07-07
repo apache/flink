@@ -110,9 +110,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -251,13 +251,13 @@ public class YarnResourceManagerTest extends TestLogger {
 		// domain objects for test purposes
 		final ResourceProfile resourceProfile1 = ResourceProfile.UNKNOWN;
 
-		public ContainerId task = ContainerId.newInstance(
-				ApplicationAttemptId.newInstance(ApplicationId.newInstance(1L, 0), 0), 1);
 		public String taskHost = "host1";
 
 		public NMClient mockNMClient = mock(NMClient.class);
-		public AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient =
-				mock(AMRMClientAsync.class);
+
+		@SuppressWarnings("unchecked")
+		public AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient = mock(AMRMClientAsync.class);
+
 		public JobManagerMetricGroup mockJMMetricGroup =
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup();
 
@@ -306,8 +306,6 @@ public class YarnResourceManagerTest extends TestLogger {
 			private final JobLeaderIdService jobLeaderIdService;
 			private final SlotManager slotManager;
 
-			private UUID rmLeaderSessionId;
-
 			MockResourceManagerRuntimeServices() throws Exception {
 				highAvailabilityServices = new TestingHighAvailabilityServices();
 				rmLeaderElectionService = new TestingLeaderElectionService();
@@ -327,7 +325,7 @@ public class YarnResourceManagerTest extends TestLogger {
 			}
 
 			void grantLeadership() throws Exception {
-				rmLeaderSessionId = UUID.randomUUID();
+				UUID rmLeaderSessionId = UUID.randomUUID();
 				rmLeaderElectionService.isLeader(rmLeaderSessionId).get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 		}
@@ -533,7 +531,6 @@ public class YarnResourceManagerTest extends TestLogger {
 
 	/**
 	 * Tests that RM and TM calculate same slot resource profile.
-	 * @throws Exception
 	 */
 	@Test
 	public void testCreateSlotsPerWorker() throws Exception {
@@ -570,7 +567,7 @@ public class YarnResourceManagerTest extends TestLogger {
 						config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
 						MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes());
 
-				assertTrue(rmCalculatedResourceProfile.equals(tmCalculatedResourceProfile));
+				assertEquals(rmCalculatedResourceProfile, tmCalculatedResourceProfile);
 			});
 		}};
 	}
