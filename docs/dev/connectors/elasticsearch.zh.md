@@ -110,7 +110,7 @@ input.addSink(new ElasticsearchSink<>(config, transportAddresses, new Elasticsea
                 .type("my-type")
                 .source(json);
     }
-
+    
     @Override
     public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
         indexer.add(createIndexRequest(element));
@@ -153,7 +153,7 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
                     .type("my-type")
                     .source(json);
         }
-
+    
         @Override
         public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
             indexer.add(createIndexRequest(element));
@@ -283,15 +283,15 @@ input.addSink(esSinkBuilder.build)
 
 另外请注意，该示例仅展示了执行单个索引请求的每个传入元素。通常，`ElasticsearchSinkFunction` 可用于执行不同类型的多个请求（例如，`DeleteRequest` ，`UpdateRequest` 等）。
 
-在内部，Flink Elasticsearch Sink 的每个并行实例都使用一个 `BulkProcessor` ，用于向集群发送动作请求。这将在批量发送到集群之前缓冲元素。 `BulkProcessor` 一次执行一个批量请求，即不会有两个并发刷新正在进行的缓冲操作。
+在内部，Flink Elasticsearch Sink 的每个并行实例都使用一个 `BulkProcessor` ，用于向集群发送操作请求。这将在批量发送到集群之前缓冲元素。 `BulkProcessor` 一次执行一个批量请求，即不会有两个并发刷新正在进行的缓冲操作。
 
-### Elasticsearch Sinks and 容错处理
+### Elasticsearch Sink 与容错处理
 
 在启用 Flink 的 Checkpoint 后，Flink Elasticsearch Sink 可以保证至少一次向 Elasticsearch 集群传递操作请求。确实如此所以通过等待 `BulkProcessor` 中的所有待处理操作请求 checkpoints 的时间。这有效地保证了之前的所有请求在触发 checkpoint 之前已被 Elasticsearch 成功接收确认继续处理发送到接收器的更多记录。
 
 更多有关 checkpoint 和容错的详细信息，请参见[容错相关文档]({{site.baseurl}}/zh/learn-flink/fault_tolerance.html)。
 
-要使用容错机制的 Elasticsearch Sink，需要在执行环境中启用 topology 的 Checkpoint ：
+要使用容错机制的 Elasticsearch Sink，需要在执行环境中开启拓扑的 checkpoint 机制：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -309,11 +309,11 @@ env.enableCheckpointing(5000) // checkpoint every 5000 msecs
 </div>
 
 <p style =“border-radius：5px; padding：5px”class =“bg-danger”>
-<b>注意</b>：如果用户希望在创建的 <b>ElasticsearchSink</b> 上禁用刷新，可以通过调用 <b>disableFlushOnCheckpoint()</b> 。意识到这基本上意味着接收器不会提供任何强大的功能即使启用了 topology 的 checkpoint ，也可以保证交付。</p>
+<b>注意</b>：如果用户希望在创建的 <b>ElasticsearchSink</b> 上禁用 flush，可以通过调用 <b>disableFlushOnCheckpoint()</b> 。注意这基本上意味着即使拓扑的 checkpoint 开启了，sink 也无法提供任何强语义的消息投递保证。</p>
 
 ### 处理失败的 Elasticsearch 请求
 
-由于各种原因，Elasticsearch 操作请求可能会失败，包括暂时饱和的节点队列容量或要编入索引的格式错误的文档。Flink Elasticsearch Sink 允许用户指定请求的方式通过简单地实现 `ActionRequestFailureHandler` 来处理失败并将它提供给构造函数。
+由于各种原因，发给 Elasticsearch 的操作请求可能会失败，如暂时饱和的节点队列容量或索引异常文档。Flink Elasticsearch Sink 允许用户指定如何处理请求失败，通过简单地实现`ActionRequestFailureHandler`接口并传给 ElasticsearchSink 的构造函数即可。
 
 下面是一个例子：
 
@@ -382,15 +382,8 @@ input.addSink(new ElasticsearchSink(
 
 默认情况下，如果未提供失败处理程序，则接收器使用a `NoOpFailureHandler` 只是因各种异常而失败。该连接器还提供了 `RetryRejectedExecutionFailureHandler` 实现总是重新添加由于队列容量饱和而失败的请求。
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>IMPORTANT</b>: Re-adding requests back to the internal <b>BulkProcessor</b>
-on failures will lead to longer checkpoints, as the sink will also
-need to wait for the re-added requests to be flushed when checkpointing.
-For example, when using <b>RetryRejectedExecutionFailureHandler</b>, checkpoints
-will need to wait until Elasticsearch node queues have enough capacity for
-all the pending requests. This also means that if re-added requests never
-succeed, the checkpoint will never finish.
-</p>
+<b>重要</b>：将请求重新添加回内部 <b>BulkProcessor</b> 在失败时会导致 checkpoints 变长，sink 也一样需要等待重新添加的请求在 checkpoint 时被刷新。例如，当使用 <b>RetryRejectedExecutionFailureHandler</b> 时，checkpoints 需要等待直到 Elasticsearch 节点队列有足够的容量处理所有等待的请求。这也意味着如果从不重新添加请求成功，checkpoint 将永远不会结束。</p>
+
 
 ### Bulk Processor 内部配置
 
@@ -399,9 +392,9 @@ succeed, the checkpoint will never finish.
  * **bulk.flush.max.actions**: Maximum amount of actions to buffer before flushing.
  * **bulk.flush.max.size.mb**: Maximum size of data (in megabytes) to buffer before flushing.
  * **bulk.flush.interval.ms**: Interval at which to flush regardless of the amount or size of buffered actions.
- 
+
 对于 2.x 及更高版本，还支持配置临时请求错误的方式：
- 
+
  * **bulk.flush.backoff.enable**: Whether or not to perform retries with backoff delay for a flush
  if one or more of its actions failed due to a temporary `EsRejectedExecutionException`.
  * **bulk.flush.backoff.type**: The type of backoff delay, either `CONSTANT` or `EXPONENTIAL`
