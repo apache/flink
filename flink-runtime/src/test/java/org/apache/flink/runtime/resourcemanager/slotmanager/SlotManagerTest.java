@@ -58,6 +58,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1490,6 +1492,97 @@ public class SlotManagerTest extends TestLogger {
 			assertThat(slotManager.getNumberRegisteredSlots(), is(1));
 			assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(numberSlots));
 			assertThat(slotManager.getNumberAssignedPendingTaskManagerSlots(), is(1));
+		}
+	}
+
+	@Test
+	public void testBookkeepingTaskExecutorResources() throws Exception {
+		final int NUM_OF_SLOTS = 3;
+		final ResourceProfile DEFAULT_SLOT_RESOURCE_PROFILE = new ResourceProfile(1.0, 100);
+		final ResourceProfile TM_TOTAL_RESOURCE_PROFILE = new ResourceProfile(
+			DEFAULT_SLOT_RESOURCE_PROFILE.getCpuCores() * NUM_OF_SLOTS,
+			DEFAULT_SLOT_RESOURCE_PROFILE.getHeapMemoryInMB() * NUM_OF_SLOTS);
+		final ResourceProfile SMALL_RESOURCE_PROFILE = new ResourceProfile(0.5, 50);
+		final ResourceProfile LARGE_RESOURCE_PROFILE = new ResourceProfile(1.5, 150);
+		final ResourceProfile UNFULFILLABLE_RESOURCE_PROFILE = new ResourceProfile(
+			TM_TOTAL_RESOURCE_PROFILE.getCpuCores() * 2,
+			TM_TOTAL_RESOURCE_PROFILE.getHeapMemoryInMB() * 2);
+
+		final List<ResourceProfile> allocateResourceRequests = new ArrayList<>();
+		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setAllocateResourceFunction(resourceProfile -> {
+				allocateResourceRequests.add(resourceProfile);
+				if (TM_TOTAL_RESOURCE_PROFILE.isMatching(resourceProfile)) {
+					return Collections.nCopies(NUM_OF_SLOTS, DEFAULT_SLOT_RESOURCE_PROFILE);
+				} else {
+					return Collections.emptyList();
+				}
+			}).build();
+
+		final Map<AllocationID, ResourceProfile> requestSlotAllocationResourceProfiles = new HashMap<>();
+		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setRequestSlotFunction(tuple6 -> {
+				requestSlotAllocationResourceProfiles.put(tuple6.f2, tuple6.f3);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			}).createTestingTaskExecutorGateway();
+		final ResourceID resourceId = ResourceID.generate();
+		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceId, taskExecutorGateway);
+
+		final JobID jobID = JobID.generate();
+		final SlotReport slotReport = new SlotReport(Arrays.asList(
+			new SlotStatus(new SlotID(resourceId, 0), DEFAULT_SLOT_RESOURCE_PROFILE),
+			new SlotStatus(new SlotID(resourceId, 1), DEFAULT_SLOT_RESOURCE_PROFILE),
+			new SlotStatus(new SlotID(resourceId, 2), DEFAULT_SLOT_RESOURCE_PROFILE)));
+
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+
+		try (final SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
+			slotManager.setFailUnfulfillableRequest(true);
+
+			// request slots before register task executor
+			// request1 should trigger allocate resource, request3 should fail
+
+			SlotRequest slotRequest1 = new SlotRequest(jobID, new AllocationID(), SMALL_RESOURCE_PROFILE, "foobar");
+			SlotRequest slotRequest2 = new SlotRequest(jobID, new AllocationID(), LARGE_RESOURCE_PROFILE, "foobar");
+			SlotRequest slotRequest3 = new SlotRequest(jobID, new AllocationID(), UNFULFILLABLE_RESOURCE_PROFILE, "foobar");
+
+			assertTrue(slotManager.registerSlotRequest(slotRequest1));
+			assertTrue(slotManager.registerSlotRequest(slotRequest2));
+
+			assertEquals(1, allocateResourceRequests.size());
+			assertEquals(SMALL_RESOURCE_PROFILE, allocateResourceRequests.get(0));
+
+			Exception exception = null;
+			try {
+				slotManager.registerSlotRequest(slotRequest3);
+			} catch (Exception e) {
+				exception = e;
+			}
+			assertNotNull(exception);
+
+			// register task executor
+			// should request slots from tm for request1 and request2
+
+			slotManager.registerTaskManager(taskManagerConnection, slotReport);
+
+			assertEquals(2, requestSlotAllocationResourceProfiles.size());
+			assertEquals(slotRequest1.getResourceProfile(), requestSlotAllocationResourceProfiles.get(slotRequest1.getAllocationId()));
+			assertEquals(slotRequest2.getResourceProfile(), requestSlotAllocationResourceProfiles.get(slotRequest2.getAllocationId()));
+
+			// request slot that can not fit into the available resource of current TM, should allocate new resource
+			allocateResourceRequests.clear();
+			SlotRequest slotRequest4 = new SlotRequest(jobID, new AllocationID(), LARGE_RESOURCE_PROFILE, "foobar");
+			assertTrue(slotManager.registerSlotRequest(slotRequest4));
+
+			assertEquals(1, allocateResourceRequests.size());
+			assertEquals(LARGE_RESOURCE_PROFILE, allocateResourceRequests.get(0));
+
+			// request slot that can fit into the available resource of current TM, should request slot from tm
+			SlotRequest slotRequest5 = new SlotRequest(jobID, new AllocationID(), DEFAULT_SLOT_RESOURCE_PROFILE, "foobar");
+			assertTrue(slotManager.registerSlotRequest(slotRequest5));
+
+			assertEquals(3, requestSlotAllocationResourceProfiles.size());
+			assertEquals(slotRequest5.getResourceProfile(), requestSlotAllocationResourceProfiles.get(slotRequest5.getAllocationId()));
 		}
 	}
 
