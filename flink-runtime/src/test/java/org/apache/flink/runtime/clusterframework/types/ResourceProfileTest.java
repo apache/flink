@@ -162,4 +162,43 @@ public class ResourceProfileTest {
 		assertEquals(100, rp.getOperatorsMemoryInMB());
 		assertEquals(1.6, rp.getExtendedResources().get(ResourceSpec.GPU_NAME).getValue(), 0.000001);
 	}
+
+	@Test
+	public void testMerge() throws Exception {
+		final double LARGE_DOUBLE = Double.MAX_VALUE - 1.0;
+		final int LARGE_INTEGER = Integer.MAX_VALUE - 100;
+
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200, Collections.emptyMap());
+		ResourceProfile rp3 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.emptyMap());
+		ResourceProfile rp4 = new ResourceProfile(LARGE_DOUBLE, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, Collections.emptyMap());
+
+		assertEquals(rp2, rp1.merge(rp1));
+		assertEquals(rp3, rp1.merge(rp2));
+
+		assertEquals(ResourceProfile.ANY, rp4.merge(rp1));
+		assertEquals(ResourceProfile.ANY, rp4.merge(rp2));
+
+		assertEquals(ResourceProfile.UNKNOWN, rp4.merge(ResourceProfile.UNKNOWN));
+		assertEquals(ResourceProfile.ANY, rp4.merge(ResourceProfile.ANY));
+	}
+
+	@Test
+	public void testSubtract() throws Exception {
+
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(2.0, 200, 200, 200, 200, 200, Collections.emptyMap());
+		ResourceProfile rp3 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.emptyMap());
+
+		assertEquals(rp1, rp3.subtract(rp2));
+		assertEquals(rp1, rp2.subtract(rp1));
+
+		ResourceProfile rp4 = new ResourceProfile(Double.MAX_VALUE, 100, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+		ResourceProfile rp5 = new ResourceProfile(Double.MAX_VALUE, 0, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+
+		assertEquals(rp5, rp4.subtract(rp1));
+
+		assertEquals(ResourceProfile.ANY, ResourceProfile.ANY.subtract(rp3));
+		assertEquals(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN.subtract(rp3));
+	}
 }
