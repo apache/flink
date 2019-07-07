@@ -28,7 +28,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.HivePartitionConfig;
+import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
 
@@ -132,7 +132,7 @@ public class HiveTableOutputFormatTest {
 		CatalogPartition catalogPartition = hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(
 				partSpec.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()))));
 
-		String partitionLocation = catalogPartition.getProperties().get(HivePartitionConfig.PARTITION_LOCATION);
+		String partitionLocation = catalogPartition.getProperties().get(HiveCatalogConfig.PARTITION_LOCATION);
 		verifyWrittenData(new Path(partitionLocation, "0"), toWrite, 1);
 
 		hiveCatalog.dropTable(tablePath, false);

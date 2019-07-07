@@ -29,7 +29,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.HivePartitionConfig;
+import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -123,7 +123,7 @@ public class HiveTableSinkTest {
 		assertEquals(toWrite.size(), partitionSpecs.size());
 		for (int i = 0; i < toWrite.size(); i++) {
 			CatalogPartition partition = hiveCatalog.getPartition(tablePath, partitionSpecs.get(i));
-			String partitionLocation = partition.getProperties().get(HivePartitionConfig.PARTITION_LOCATION);
+			String partitionLocation = partition.getProperties().get(HiveCatalogConfig.PARTITION_LOCATION);
 			verifyWrittenData(new Path(partitionLocation, "0"), Collections.singletonList(toWrite.get(i)), 1);
 		}
 

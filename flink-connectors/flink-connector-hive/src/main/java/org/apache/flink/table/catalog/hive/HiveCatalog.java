@@ -193,7 +193,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = hiveDatabase.getParameters();
 
-		properties.put(HiveDatabaseConfig.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+		properties.put(HiveCatalogConfig.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
 
 		return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
 	}
@@ -221,7 +221,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = database.getProperties();
 
-		String dbLocationUri = properties.remove(HiveDatabaseConfig.DATABASE_LOCATION_URI);
+		String dbLocationUri = properties.remove(HiveCatalogConfig.DATABASE_LOCATION_URI);
 
 		return new Database(
 			databaseName,
@@ -728,7 +728,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 			Map<String, String> properties = hivePartition.getParameters();
 
-			properties.put(HivePartitionConfig.PARTITION_LOCATION, hivePartition.getSd().getLocation());
+			properties.put(HiveCatalogConfig.PARTITION_LOCATION, hivePartition.getSd().getLocation());
 
 			String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
@@ -813,7 +813,7 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 		// TODO: handle GenericCatalogPartition
 		StorageDescriptor sd = hiveTable.getSd().deepCopy();
-		sd.setLocation(catalogPartition.getProperties().remove(HivePartitionConfig.PARTITION_LOCATION));
+		sd.setLocation(catalogPartition.getProperties().remove(HiveCatalogConfig.PARTITION_LOCATION));
 
 		Map<String, String> properties = new HashMap<>(catalogPartition.getProperties());
 		properties.put(HiveCatalogConfig.COMMENT, catalogPartition.getComment());
