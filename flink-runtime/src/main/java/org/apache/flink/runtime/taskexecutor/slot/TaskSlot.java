@@ -311,6 +311,9 @@ public class TaskSlot {
 			"The task slot is not in state active or allocated.");
 		Preconditions.checkState(allocationId != null, "The task slot are not allocated");
 
+		if (!allocationResourceProfile.equals(ResourceProfile.UNKNOWN)) {
+			return new SlotOffer(allocationId, index, allocationResourceProfile);
+		}
 		return new SlotOffer(allocationId, index, resourceProfile);
 	}
 
