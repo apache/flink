@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor.exceptions;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -33,10 +34,13 @@ public class SlotOccupiedException extends SlotAllocationException {
 
 	private final JobID jobId;
 
-	public SlotOccupiedException(String message, AllocationID allocationId, JobID jobId) {
+	private final ResourceProfile allocationResourceProfile;
+
+	public SlotOccupiedException(String message, AllocationID allocationId, JobID jobId, ResourceProfile allocationResourceProfile) {
 		super(message);
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.jobId = Preconditions.checkNotNull(jobId);
+		this.allocationResourceProfile = Preconditions.checkNotNull(allocationResourceProfile);
 	}
 
 	public AllocationID getAllocationId() {
@@ -45,5 +49,9 @@ public class SlotOccupiedException extends SlotAllocationException {
 
 	public JobID getJobId() {
 		return jobId;
+	}
+
+	public ResourceProfile getAllocationResourceProfile() {
+		return allocationResourceProfile;
 	}
 }

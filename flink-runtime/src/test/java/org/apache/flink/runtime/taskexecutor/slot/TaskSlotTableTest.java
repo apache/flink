@@ -60,12 +60,12 @@ public class TaskSlotTableTest extends TestLogger {
 
 			final JobID jobId1 = new JobID();
 			final AllocationID allocationId1 = new AllocationID();
-			taskSlotTable.allocateSlot(0, jobId1, allocationId1, SLOT_TIMEOUT);
+			taskSlotTable.allocateSlot(0, jobId1, allocationId1, ResourceProfile.UNKNOWN, SLOT_TIMEOUT);
 			final AllocationID allocationId2 = new AllocationID();
-			taskSlotTable.allocateSlot(1, jobId1, allocationId2, SLOT_TIMEOUT);
+			taskSlotTable.allocateSlot(1, jobId1, allocationId2, ResourceProfile.UNKNOWN, SLOT_TIMEOUT);
 			final AllocationID allocationId3 = new AllocationID();
 			final JobID jobId2 = new JobID();
-			taskSlotTable.allocateSlot(2, jobId2, allocationId3, SLOT_TIMEOUT);
+			taskSlotTable.allocateSlot(2, jobId2, allocationId3, ResourceProfile.UNKNOWN, SLOT_TIMEOUT);
 
 			taskSlotTable.markSlotActive(allocationId1);
 

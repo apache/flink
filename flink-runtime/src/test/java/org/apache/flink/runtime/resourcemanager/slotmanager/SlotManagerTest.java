@@ -1200,7 +1200,7 @@ public class SlotManagerTest extends TestLogger {
 			final Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId> secondRequest = requestSlotQueue.take();
 
 			// fail second request
-			secondManualSlotRequestResponse.completeExceptionally(new SlotOccupiedException("Test exception", slotRequest1.getAllocationId(), jobID));
+			secondManualSlotRequestResponse.completeExceptionally(new SlotOccupiedException("Test exception", slotRequest1.getAllocationId(), jobID, ResourceProfile.UNKNOWN));
 
 			assertThat(firstRequest.f2, equalTo(slotRequest1.getAllocationId()));
 			assertThat(secondRequest.f2, equalTo(slotRequest2.getAllocationId()));

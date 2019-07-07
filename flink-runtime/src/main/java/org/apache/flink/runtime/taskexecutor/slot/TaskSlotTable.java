@@ -187,15 +187,20 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @param index of the task slot to allocate
 	 * @param jobId to allocate the task slot for
 	 * @param allocationId identifying the allocation
+	 * @param allocationResourceProfile to describe the resource of the allocation
 	 * @param slotTimeout until the slot times out
 	 * @return True if the task slot could be allocated; otherwise false
 	 */
-	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
+	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, ResourceProfile allocationResourceProfile, Time slotTimeout) {
 		checkInit();
 
 		TaskSlot taskSlot = taskSlots.get(index);
 
-		boolean result = taskSlot.allocate(jobId, allocationId);
+		if (!hasEnoughResourceFor(allocationResourceProfile)) {
+			return false;
+		}
+
+		boolean result = taskSlot.allocate(jobId, allocationId, allocationResourceProfile);
 
 		if (result) {
 			// update the allocation id to task slot map
@@ -555,6 +560,16 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		return taskSlots.get(index).getAllocationId();
 	}
 
+	/**
+	 * Get the current allocation resource profile for the task slot with the given index.
+	 *
+	 * @param index identifying the slot for which the allocation id shall be retrieved
+	 * @return Allocation resource profile of the specified slot if allocated; otherwise null
+	 */
+	public ResourceProfile getCurrentAllocationResourceProfile(int index) {
+		return taskSlots.get(index).getAllocationResourceProfile();
+	}
+
 	// ---------------------------------------------------------------------
 	// TimeoutListener methods
 	// ---------------------------------------------------------------------
@@ -581,6 +596,24 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 
 	private void checkInit() {
 		Preconditions.checkState(started, "The %s has to be started.", TaskSlotTable.class.getSimpleName());
+	}
+
+	private boolean hasEnoughResourceFor(ResourceProfile requestedResourceProfile) {
+		ResourceProfile capacity = new ResourceProfile(0.0, 0);
+		ResourceProfile allocated = new ResourceProfile(0.0, 0);
+		for (TaskSlot slot : taskSlots) {
+			capacity = capacity.merge(slot.getResourceProfile());
+			if (!slot.isFree()) {
+				ResourceProfile allocationResourceProfile = slot.getAllocationResourceProfile();
+				if (allocationResourceProfile.equals(ResourceProfile.UNKNOWN)) {
+					allocationResourceProfile = slot.getResourceProfile();
+				}
+				allocated = allocated.merge(allocationResourceProfile);
+			}
+		}
+		allocated = allocated.merge(requestedResourceProfile);
+
+		return capacity.isMatching(allocated);
 	}
 
 	// ---------------------------------------------------------------------

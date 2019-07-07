@@ -68,6 +68,9 @@ public class TaskSlot {
 	/** Allocation id of this slot; null if not allocated. */
 	private AllocationID allocationId;
 
+	/** Allocated resource in this slot; null if not allocated. */
+	private ResourceProfile allocationResourceProfile;
+
 	TaskSlot(final int index, final ResourceProfile resourceProfile) {
 		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.index = index;
@@ -78,6 +81,7 @@ public class TaskSlot {
 
 		this.jobId = null;
 		this.allocationId = null;
+		this.allocationResourceProfile = null;
 	}
 
 	// ----------------------------------------------------------------------------------
@@ -98,6 +102,10 @@ public class TaskSlot {
 
 	public AllocationID getAllocationId() {
 		return allocationId;
+	}
+
+	public ResourceProfile getAllocationResourceProfile() {
+		return allocationResourceProfile;
 	}
 
 	TaskSlotState getState() {
@@ -203,9 +211,10 @@ public class TaskSlot {
 	 *
 	 * @param newJobId to allocate the slot for
 	 * @param newAllocationId to identify the slot allocation
+	 * @param newAllocationResourceProfile to describe the resource of the allocation
 	 * @return True if the slot was allocated for the given job and allocation id; otherwise false
 	 */
-	public boolean allocate(JobID newJobId, AllocationID newAllocationId) {
+	public boolean allocate(JobID newJobId, AllocationID newAllocationId, ResourceProfile newAllocationResourceProfile) {
 		if (TaskSlotState.FREE == state) {
 			// sanity checks
 			Preconditions.checkState(allocationId == null);
@@ -213,6 +222,7 @@ public class TaskSlot {
 
 			this.jobId = Preconditions.checkNotNull(newJobId);
 			this.allocationId = Preconditions.checkNotNull(newAllocationId);
+			this.allocationResourceProfile = Preconditions.checkNotNull(newAllocationResourceProfile);
 
 			state = TaskSlotState.ALLOCATED;
 
@@ -220,8 +230,11 @@ public class TaskSlot {
 		} else if (TaskSlotState.ALLOCATED == state || TaskSlotState.ACTIVE == state) {
 			Preconditions.checkNotNull(newJobId);
 			Preconditions.checkNotNull(newAllocationId);
+			Preconditions.checkNotNull(newAllocationResourceProfile);
 
-			return newJobId.equals(jobId) && newAllocationId.equals(allocationId);
+			return newJobId.equals(jobId) &&
+				newAllocationId.equals(allocationId) &&
+				newAllocationResourceProfile.equals(allocationResourceProfile);
 		} else {
 			return false;
 		}
@@ -270,6 +283,7 @@ public class TaskSlot {
 			state = TaskSlotState.FREE;
 			this.jobId = null;
 			this.allocationId = null;
+			this.allocationResourceProfile = null;
 
 			return true;
 		} else {
@@ -303,6 +317,8 @@ public class TaskSlot {
 	@Override
 	public String toString() {
 		return "TaskSlot(index:" + index + ", state:" + state + ", resource profile: " + resourceProfile +
-			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") + ", jobId: " + (jobId != null ? jobId.toString() : "none") + ')';
+			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") +
+			", allocationResourceProfile: " +  (allocationResourceProfile != null ? allocationResourceProfile.toString() : "none") +
+			", jobId: " + (jobId != null ? jobId.toString() : "none") + ')';
 	}
 }

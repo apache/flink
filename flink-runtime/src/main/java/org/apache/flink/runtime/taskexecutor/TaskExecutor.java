@@ -816,7 +816,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 
 			if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
-				if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, taskManagerConfiguration.getTimeout())) {
+				if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, allocationResourceProfile, taskManagerConfiguration.getTimeout())) {
 					log.info("Allocated slot for {}.", allocationId);
 				} else {
 					log.info("Could not allocate slot for {}.", allocationId);
@@ -828,7 +828,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				log.info(message);
 
 				final AllocationID allocationID = taskSlotTable.getCurrentAllocation(slotId.getSlotNumber());
-				throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID));
+				final ResourceProfile currentAllocationResourceProfile = taskSlotTable.getCurrentAllocationResourceProfile(slotId.getSlotNumber());
+				throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID), currentAllocationResourceProfile);
 			}
 
 			if (jobManagerTable.contains(jobId)) {

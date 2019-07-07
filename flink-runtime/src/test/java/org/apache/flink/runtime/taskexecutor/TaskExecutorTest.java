@@ -844,7 +844,7 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotAcceptance() throws Exception {
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(mock(ResourceProfile.class), mock(ResourceProfile.class)), timerService);
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(ResourceProfile.ANY, ResourceProfile.ANY), timerService);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
@@ -911,8 +911,8 @@ public class TaskExecutorTest extends TestLogger {
 
 			assertThat(registrationFuture.get(), equalTo(taskManagerLocation.getResourceID()));
 
-			taskSlotTable.allocateSlot(0, jobId, allocationId1, Time.milliseconds(10000L));
-			taskSlotTable.allocateSlot(1, jobId, allocationId2, Time.milliseconds(10000L));
+			taskSlotTable.allocateSlot(0, jobId, allocationId1, ResourceProfile.UNKNOWN, Time.milliseconds(10000L));
+			taskSlotTable.allocateSlot(1, jobId, allocationId2, ResourceProfile.UNKNOWN, Time.milliseconds(10000L));
 
 			// we have to add the job after the TaskExecutor, because otherwise the service has not
 			// been properly started.
@@ -937,7 +937,7 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Test
 	public void testSubmitTaskBeforeAcceptSlot() throws Exception {
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(mock(ResourceProfile.class), mock(ResourceProfile.class)), timerService);
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(ResourceProfile.ANY, ResourceProfile.ANY), timerService);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
@@ -992,8 +992,8 @@ public class TaskExecutorTest extends TestLogger {
 
 			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
-			taskSlotTable.allocateSlot(0, jobId, allocationId1, Time.milliseconds(10000L));
-			taskSlotTable.allocateSlot(1, jobId, allocationId2, Time.milliseconds(10000L));
+			taskSlotTable.allocateSlot(0, jobId, allocationId1, ResourceProfile.UNKNOWN, Time.milliseconds(10000L));
+			taskSlotTable.allocateSlot(1, jobId, allocationId2, ResourceProfile.UNKNOWN, Time.milliseconds(10000L));
 
 			final JobVertexID jobVertexId = new JobVertexID();
 
@@ -2018,8 +2018,8 @@ public class TaskExecutorTest extends TestLogger {
 		}
 
 		@Override
-		public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
-			final boolean result = super.allocateSlot(index, jobId, allocationId, slotTimeout);
+		public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, ResourceProfile allocationResourceProfile, Time slotTimeout) {
+			final boolean result = super.allocateSlot(index, jobId, allocationId, allocationResourceProfile, slotTimeout);
 			allocateSlotLatch.trigger();
 
 			return result;
