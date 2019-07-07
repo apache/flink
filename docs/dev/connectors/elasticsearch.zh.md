@@ -389,18 +389,16 @@ input.addSink(new ElasticsearchSink(
 
 `BulkProcessor` 内部 可以进一步配置其行为，通过在提供的 `Map <String，String>` 中设置以下值来控制刷新缓冲操作请求的行为：
 
- * **bulk.flush.max.actions**: Maximum amount of actions to buffer before flushing.
- * **bulk.flush.max.size.mb**: Maximum size of data (in megabytes) to buffer before flushing.
- * **bulk.flush.interval.ms**: Interval at which to flush regardless of the amount or size of buffered actions.
+ * **bulk.flush.max.actions**: 在刷新之前要缓冲的最大操作量。
+ * **bulk.flush.max.size.mb**: 在刷新之前要缓冲的最大数据大小(以兆字节为单位)。
+ * **bulk.flush.interval.ms**: 不论缓冲操作的数量或大小，都要刷新的时间间隔。
 
 对于 2.x 及更高版本，还支持配置临时请求错误的方式：
 
- * **bulk.flush.backoff.enable**: Whether or not to perform retries with backoff delay for a flush
- if one or more of its actions failed due to a temporary `EsRejectedExecutionException`.
- * **bulk.flush.backoff.type**: The type of backoff delay, either `CONSTANT` or `EXPONENTIAL`
- * **bulk.flush.backoff.delay**: The amount of delay for backoff. For constant backoff, this
- is simply the delay between each retry. For exponential backoff, this is the initial base delay.
- * **bulk.flush.backoff.retries**: The amount of backoff retries to attempt.
+ * **bulk.flush.backoff.enable**: 是否启用带回退延迟的刷新重试。如果一个或多个操作由于临时的 `EsRejectedExecutionException` 而失败。
+ * **bulk.flush.backoff.type**: 回退延迟的类型，`CONSTANT` 或 `EXPONENTIAL`。
+ * **bulk.flush.backoff.delay**: 回退的延迟量。对于常数回退，这个只是每次重试之间的延迟。对于指数回退，这是初始延迟。
+ * **bulk.flush.backoff.retries**: 重试回退的次数。
 
 更多有关 Elasticsearch 的信息可以在[这里](https://elastic.co)找到。
 
