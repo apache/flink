@@ -51,6 +51,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -60,6 +61,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 /**
  * The slot manager is responsible for maintaining a view on all registered task manager slots,
@@ -102,7 +104,7 @@ public class SlotManager implements AutoCloseable {
 	/** Map of pending/unfulfilled slot allocation requests. */
 	private final HashMap<AllocationID, PendingSlotRequest> pendingSlotRequests;
 
-	private final HashMap<TaskManagerSlotId, PendingTaskManagerSlot> pendingSlots;
+	private final HashMap<PendingTaskManagerId, List<PendingTaskManagerSlot>> pendingTaskManagerSlots;
 
 	/** ResourceManager's id. */
 	private ResourceManagerId resourceManagerId;
@@ -149,7 +151,7 @@ public class SlotManager implements AutoCloseable {
 		taskManagerRegistrations = new HashMap<>(4);
 		fulfilledSlotRequests = new HashMap<>(16);
 		pendingSlotRequests = new HashMap<>(16);
-		pendingSlots = new HashMap<>(16);
+		pendingTaskManagerSlots = new HashMap<>(4);
 
 		resourceManagerId = null;
 		resourceActions = null;
@@ -189,7 +191,7 @@ public class SlotManager implements AutoCloseable {
 	}
 
 	public int getNumberPendingTaskManagerSlots() {
-		return pendingSlots.size();
+		return (int) pendingTaskManagerSlots.values().stream().flatMap(Collection::stream).count();
 	}
 
 	public int getNumberPendingSlotRequests() {
@@ -202,7 +204,8 @@ public class SlotManager implements AutoCloseable {
 
 	@VisibleForTesting
 	int getNumberAssignedPendingTaskManagerSlots() {
-		return (int) pendingSlots.values().stream().filter(slot -> slot.getAssignedPendingSlotRequest() != null).count();
+		return (int) pendingTaskManagerSlots.values().stream().flatMap(Collection::stream)
+			.filter(slot -> slot.getAssignedPendingSlotRequest() != null).count();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -376,6 +379,11 @@ public class SlotManager implements AutoCloseable {
 
 			taskManagerRegistrations.put(taskExecutorConnection.getInstanceID(), taskManagerRegistration);
 
+			// find exactly matching pending task manager slots
+			PendingTaskManagerId pendingTaskManagerId = findExactlyMatchingPendingTaskManager(initialSlotReport);
+			Iterator<PendingTaskManagerSlot> iterator = pendingTaskManagerId == null ?
+				null : pendingTaskManagerSlots.get(pendingTaskManagerId).iterator();
+
 			// next register the new slots
 			for (SlotStatus slotStatus : initialSlotReport) {
 				registerSlot(
@@ -383,7 +391,13 @@ public class SlotManager implements AutoCloseable {
 					slotStatus.getAllocationID(),
 					slotStatus.getJobID(),
 					slotStatus.getResourceProfile(),
-					taskExecutorConnection);
+					taskExecutorConnection,
+					iterator == null ? null : iterator.next());
+			}
+
+			// remove pending task manager slots
+			if (pendingTaskManagerId != null) {
+				pendingTaskManagerSlots.remove(pendingTaskManagerId);
 			}
 		}
 
@@ -579,7 +593,8 @@ public class SlotManager implements AutoCloseable {
 			AllocationID allocationId,
 			JobID jobId,
 			ResourceProfile resourceProfile,
-			TaskExecutorConnection taskManagerConnection) {
+			TaskExecutorConnection taskManagerConnection,
+			PendingTaskManagerSlot pendingTaskManagerSlot) {
 
 		if (slots.containsKey(slotId)) {
 			// remove the old slot first
@@ -588,18 +603,9 @@ public class SlotManager implements AutoCloseable {
 
 		final TaskManagerSlot slot = createAndRegisterTaskManagerSlot(slotId, resourceProfile, taskManagerConnection);
 
-		final PendingTaskManagerSlot pendingTaskManagerSlot;
-
-		if (allocationId == null) {
-			pendingTaskManagerSlot = findExactlyMatchingPendingTaskManagerSlot(resourceProfile);
-		} else {
-			pendingTaskManagerSlot = null;
-		}
-
 		if (pendingTaskManagerSlot == null) {
 			updateSlot(slotId, allocationId, jobId);
 		} else {
-			pendingSlots.remove(pendingTaskManagerSlot.getTaskManagerSlotId());
 			final PendingSlotRequest assignedPendingSlotRequest = pendingTaskManagerSlot.getAssignedPendingSlotRequest();
 
 			if (assignedPendingSlotRequest == null) {
@@ -622,13 +628,19 @@ public class SlotManager implements AutoCloseable {
 	}
 
 	@Nullable
-	private PendingTaskManagerSlot findExactlyMatchingPendingTaskManagerSlot(ResourceProfile resourceProfile) {
-		for (PendingTaskManagerSlot pendingTaskManagerSlot : pendingSlots.values()) {
-			if (pendingTaskManagerSlot.getResourceProfile().equals(resourceProfile)) {
-				return pendingTaskManagerSlot;
+	private PendingTaskManagerId findExactlyMatchingPendingTaskManager(SlotReport slotReport) {
+		for (SlotStatus slotStatus : slotReport) {
+			if (slotStatus.getAllocationID() != null) {
+				return null;
 			}
 		}
-
+		for (Map.Entry<PendingTaskManagerId, List<PendingTaskManagerSlot>> entry : pendingTaskManagerSlots.entrySet()) {
+			List<PendingTaskManagerSlot> pendingSlots = entry.getValue();
+			if (pendingSlots.size() == slotReport.getSlotNumber() &&
+				pendingSlots.get(0).getResourceProfile().equals(slotReport.iterator().next().getResourceProfile())) {
+				return entry.getKey();
+			}
+		}
 		return null;
 	}
 
@@ -773,7 +785,9 @@ public class SlotManager implements AutoCloseable {
 	}
 
 	private Optional<PendingTaskManagerSlot> findFreeMatchingPendingTaskManagerSlot(ResourceProfile requiredResourceProfile) {
-		for (PendingTaskManagerSlot pendingTaskManagerSlot : pendingSlots.values()) {
+		List<PendingTaskManagerSlot> pendingSlots =
+			pendingTaskManagerSlots.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+		for (PendingTaskManagerSlot pendingTaskManagerSlot : pendingSlots) {
 			if (pendingTaskManagerSlot.getAssignedPendingSlotRequest() == null && pendingTaskManagerSlot.getResourceProfile().isMatching(requiredResourceProfile)) {
 				return Optional.of(pendingTaskManagerSlot);
 			}
@@ -797,15 +811,19 @@ public class SlotManager implements AutoCloseable {
 		if (requestedSlots.isEmpty()) {
 			return Optional.empty();
 		} else {
+			final PendingTaskManagerId pendingTaskManagerId = PendingTaskManagerId.generate();
+			final List<PendingTaskManagerSlot> pendingSlots = new ArrayList<>();
+
 			final Iterator<ResourceProfile> slotIterator = requestedSlots.iterator();
-			final PendingTaskManagerSlot pendingTaskManagerSlot = new PendingTaskManagerSlot(slotIterator.next());
-			pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
+			final PendingTaskManagerSlot pendingTaskManagerSlot = new PendingTaskManagerSlot(pendingTaskManagerId, slotIterator.next());
+			pendingSlots.add(pendingTaskManagerSlot);
 
 			while (slotIterator.hasNext()) {
-				final PendingTaskManagerSlot additionalPendingTaskManagerSlot = new PendingTaskManagerSlot(slotIterator.next());
-				pendingSlots.put(additionalPendingTaskManagerSlot.getTaskManagerSlotId(), additionalPendingTaskManagerSlot);
+				final PendingTaskManagerSlot additionalPendingTaskManagerSlot = new PendingTaskManagerSlot(pendingTaskManagerId, slotIterator.next());
+				pendingSlots.add(additionalPendingTaskManagerSlot);
 			}
 
+			pendingTaskManagerSlots.put(pendingTaskManagerId, pendingSlots);
 			return Optional.of(pendingTaskManagerSlot);
 		}
 	}

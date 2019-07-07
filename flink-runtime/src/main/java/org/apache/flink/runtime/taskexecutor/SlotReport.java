@@ -54,6 +54,10 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
 		return slotsStatus.iterator();
 	}
 
+	public int getSlotNumber() {
+		return slotsStatus.size();
+	}
+
 	@Override
 	public String toString() {
 		return "SlotReport{" +

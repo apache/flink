@@ -18,34 +18,16 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.util.AbstractID;
 
 /**
- * Id of {@link TaskManagerSlot} and {@link PendingTaskManagerSlot}.
+ * Id of pending task managers.
  */
-public class TaskManagerSlotId extends AbstractID {
+public class PendingTaskManagerId extends AbstractID {
 
-	private static final long serialVersionUID = -4024240625523472071L;
+	private PendingTaskManagerId() {}
 
-	/**
-	 * Id of pending task manager for {@link PendingTaskManagerSlot}, or null for {@link TaskManagerSlot}.
-	 */
-	private final PendingTaskManagerId pendingTaskManagerId;
-
-	private TaskManagerSlotId(PendingTaskManagerId pendingTaskManagerId) {
-		this.pendingTaskManagerId = pendingTaskManagerId;
-	}
-
-	public static TaskManagerSlotId generate(PendingTaskManagerId pendingTaskManagerId) {
-		return new TaskManagerSlotId(pendingTaskManagerId);
-	}
-
-	public static TaskManagerSlotId generate() {
-		return new TaskManagerSlotId(null);
-	}
-
-	public PendingTaskManagerId getPendingTaskManagerId() {
-		return pendingTaskManagerId;
+	public static PendingTaskManagerId generate() {
+		return new PendingTaskManagerId();
 	}
 }

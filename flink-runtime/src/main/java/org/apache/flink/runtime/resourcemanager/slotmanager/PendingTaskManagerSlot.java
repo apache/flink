@@ -29,14 +29,15 @@ import javax.annotation.Nullable;
  */
 public class PendingTaskManagerSlot {
 
-	private final TaskManagerSlotId taskManagerSlotId = TaskManagerSlotId.generate();
+	private final TaskManagerSlotId taskManagerSlotId;
 
 	private final ResourceProfile resourceProfile;
 
 	@Nullable
 	private PendingSlotRequest pendingSlotRequest;
 
-	public PendingTaskManagerSlot(ResourceProfile resourceProfile) {
+	public PendingTaskManagerSlot(PendingTaskManagerId pendingTaskManagerId, ResourceProfile resourceProfile) {
+		taskManagerSlotId = TaskManagerSlotId.generate(pendingTaskManagerId);
 		this.resourceProfile = resourceProfile;
 	}
 
@@ -46,6 +47,10 @@ public class PendingTaskManagerSlot {
 
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
+	}
+
+	public PendingTaskManagerId getPendingTaskManagerId() {
+		return taskManagerSlotId.getPendingTaskManagerId();
 	}
 
 	public void assignPendingSlotRequest(@Nonnull PendingSlotRequest pendingSlotRequestToAssign) {
