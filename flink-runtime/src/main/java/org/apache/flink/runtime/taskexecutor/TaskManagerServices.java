@@ -527,14 +527,14 @@ public class TaskManagerServices {
 
 	@VisibleForTesting
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
-		int managedMemoryPerSlot = (int) (managedMemorySize / numOfSlots);
+		int managedMemoryPerSlotMB = (int) bytesToMegabytes(managedMemorySize / numOfSlots);
 		return new ResourceProfile(
 			Double.MAX_VALUE,
 			Integer.MAX_VALUE,
 			Integer.MAX_VALUE,
 			Integer.MAX_VALUE,
 			Integer.MAX_VALUE,
-			managedMemoryPerSlot,
+			managedMemoryPerSlotMB,
 			Collections.emptyMap());
 	}
 
