@@ -247,7 +247,7 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "10m"); // 10MB
 		assertEquals(890, TaskManagerServices.calculateHeapSizeMB(1000, config));
 
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0"); // use fraction of given memory
+		config.removeConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE); // use fraction of given memory
 		config.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.1f); // 10%
 		assertEquals(810, TaskManagerServices.calculateHeapSizeMB(1000, config));
 	}

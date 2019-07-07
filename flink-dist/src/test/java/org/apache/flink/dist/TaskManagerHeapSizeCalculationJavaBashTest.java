@@ -164,7 +164,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(netBufMemMax));
 
 		if (managedMemSizeMB == 0) {
-			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+			config.removeConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 		} else {
 			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, managedMemSizeMB + "m");
 		}
