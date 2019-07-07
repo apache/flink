@@ -525,7 +525,6 @@ public class TaskManagerServices {
 		}
 	}
 
-	@VisibleForTesting
 	public static ResourceProfile computeSlotResourceProfile(int numOfSlots, long managedMemorySize) {
 		int managedMemoryPerSlotMB = (int) bytesToMegabytes(managedMemorySize / numOfSlots);
 		return new ResourceProfile(
