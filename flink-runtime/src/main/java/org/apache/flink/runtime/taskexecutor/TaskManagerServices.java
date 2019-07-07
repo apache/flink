@@ -423,50 +423,68 @@ public class TaskManagerServices {
 	public static long calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config) {
 		Preconditions.checkArgument(totalJavaMemorySizeMB > 0);
 
-		// subtract the Java memory used for network buffers (always off-heap)
-		final long networkBufMB = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
-			totalJavaMemorySizeMB << 20, // megabytes to bytes
-			config) >> 20; // bytes to megabytes
-		final long remainingJavaMemorySizeMB = totalJavaMemorySizeMB - networkBufMB;
+		// all values below here are in bytes
 
-		// split the available Java memory between heap and off-heap
+		final long totalProcessMemory = megabytesToBytes(totalJavaMemorySizeMB);
+		final long networkReservedMemory = getReservedNetworkMemory(config, totalProcessMemory);
+		final long heapAndManagedMemory = totalProcessMemory - networkReservedMemory;
 
-		final boolean useOffHeap = config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP);
+		if (config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
+			final long managedMemorySize = getManagedMemoryFromHeapAndManaged(config, heapAndManagedMemory);
 
-		final long heapSizeMB;
-		if (useOffHeap) {
-
-			long offHeapSize;
-			String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-			if (!config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
-				try {
-					offHeapSize = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-				} catch (IllegalArgumentException e) {
-					throw new IllegalConfigurationException(
-						"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
-				}
-			} else {
-				offHeapSize = Long.valueOf(managedMemorySizeDefaultVal);
-			}
-
-			if (offHeapSize <= 0) {
-				// calculate off-heap section via fraction
-				double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-				offHeapSize = (long) (fraction * remainingJavaMemorySizeMB);
-			}
-
-			ConfigurationParserUtils.checkConfigParameter(offHeapSize < remainingJavaMemorySizeMB, offHeapSize,
+			ConfigurationParserUtils.checkConfigParameter(managedMemorySize < heapAndManagedMemory, managedMemorySize,
 				TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
-					"Managed memory size too large for " + networkBufMB +
+					"Managed memory size too large for " + (networkReservedMemory >> 20) +
 						" MB network buffer memory and a total of " + totalJavaMemorySizeMB +
 						" MB JVM memory");
 
-			heapSizeMB = remainingJavaMemorySizeMB - offHeapSize;
-		} else {
-			heapSizeMB = remainingJavaMemorySizeMB;
+			return bytesToMegabytes(heapAndManagedMemory - managedMemorySize);
 		}
+		else {
+			return bytesToMegabytes(heapAndManagedMemory);
+		}
+	}
 
-		return heapSizeMB;
+	/**
+	 * Gets the size of managed memory from the JVM process size, which at that point includes
+	 * network buffer memory, managed memory, and non-flink-managed heap memory.
+	 * All values are in bytes.
+	 */
+	public static long getManagedMemoryFromProcessMemory(Configuration config, long totalProcessMemory) {
+		final long heapAndManagedMemory = totalProcessMemory - getReservedNetworkMemory(config, totalProcessMemory);
+		return getManagedMemoryFromHeapAndManaged(config, heapAndManagedMemory);
+	}
+
+	/**
+	 * Gets the size of managed memory from the heap size after subtracting network buffer memory.
+	 * All values are in bytes.
+	 */
+	public static long getManagedMemoryFromHeapAndManaged(Configuration config, long heapAndManagedMemory) {
+		if (config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			// take the configured absolute value
+			final String sizeValue = config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+			try {
+				return MemorySize.parse(sizeValue, MEGA_BYTES).getBytes();
+			}
+			catch (IllegalArgumentException e) {
+				throw new IllegalConfigurationException(
+					"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+			}
+		}
+		else {
+			// calculate managed memory size via fraction
+			final float fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+			return (long) (fraction * heapAndManagedMemory);
+		}
+	}
+
+	/**
+	 * Gets the amount of memory reserved for networking, given the total JVM memory.
+	 * All values are in bytes.
+	 */
+	public static long getReservedNetworkMemory(Configuration config, long totalProcessMemory) {
+		// subtract the Java memory used for network buffers (always off-heap)
+		return NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(totalProcessMemory, config);
 	}
 
 	/**
@@ -518,5 +536,13 @@ public class TaskManagerServices {
 			Integer.MAX_VALUE,
 			managedMemoryPerSlot,
 			Collections.emptyMap());
+	}
+
+	private static long bytesToMegabytes(long bytes) {
+		return bytes >> 20;
+	}
+
+	private static long megabytesToBytes(long megabytes) {
+		return megabytes << 20;
 	}
 }
