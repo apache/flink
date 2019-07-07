@@ -28,11 +28,13 @@ import java.util.List;
  * by the system as part of the distributed snapshots.
  *
  * <p>The state can be a keyed list state or an operator list state.
- * When it is a keyed list state, it is accessed by functions applied on a {@code KeyedStream}.
+ *
+ * <p>When it is a keyed list state, it is accessed by functions applied on a {@code KeyedStream}.
  * The key is automatically supplied by the system, so the function always sees the value mapped
  * to the key of the current element. That way, the system can handle stream and state
  * partitioning consistently together.
- * When it is an operator list state, the list is a collection of state items that are
+ *
+ * <p>When it is an operator list state, the list is a collection of state items that are
  * independent from each other and eligible for redistribution across operator instances in case
  * of changed operator parallelism.
  *
