@@ -1419,12 +1419,12 @@ public class SlotManagerTest extends TestLogger {
 			assertThat(slotManager.getNumberRegisteredSlots(), is(0));
 
 			final TaskExecutorConnection taskExecutorConnection = createTaskExecutorConnection();
-			final SlotReport slotReport = createSlotReport(taskExecutorConnection.getResourceID(), numberSlots - 1);
+			final SlotReport slotReport = createSlotReport(taskExecutorConnection.getResourceID(), numberSlots);
 
 			slotManager.registerTaskManager(taskExecutorConnection, slotReport);
 
-			assertThat(slotManager.getNumberRegisteredSlots(), is(numberSlots - 1));
-			assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(1));
+			assertThat(slotManager.getNumberRegisteredSlots(), is(3));
+			assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(0));
 		}
 	}
 
