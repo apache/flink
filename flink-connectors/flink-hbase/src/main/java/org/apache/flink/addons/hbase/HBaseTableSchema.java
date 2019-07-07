@@ -197,12 +197,11 @@ public class HBaseTableSchema implements Serializable {
 	public List<Tuple3<byte[], byte[], TypeInformation<?>>> getFlatByteQualifiers() {
 		List<Tuple3<byte[], byte[], TypeInformation<?>>> qualifierList = new ArrayList<>();
 
-		for (String family : getFamilyNames()) {
-			byte[] columnBytes = Bytes.toBytes(family);
-			String[] qualifierNames = getQualifierNames(family);
-			TypeInformation<?>[] qualifierTypes = getQualifierTypes(family);
-			for (int idx = 0; idx < qualifierNames.length; idx++) {
-				qualifierList.add(new Tuple3<>(columnBytes, Bytes.toBytes(qualifierNames[idx]), qualifierTypes[idx]));
+		for (Map.Entry<String, Map<String, TypeInformation<?>>> entry : familyMap.entrySet()) {
+			byte[] columnBytes = Bytes.toBytes(entry.getKey());
+			Map<String, TypeInformation<?>> qualifiers = entry.getValue();
+			for (Map.Entry<String, TypeInformation<?>> qEntry : qualifiers.entrySet()) {
+				qualifierList.add(new Tuple3<>(columnBytes, Bytes.toBytes(qEntry.getKey()), qEntry.getValue()));
 			}
 		}
 		return qualifierList;
