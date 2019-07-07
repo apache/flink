@@ -79,6 +79,26 @@ public abstract class Resource implements Serializable {
 		return create(aggregatedValue, resourceAggregateType);
 	}
 
+	public Resource minus(Resource other) {
+		Preconditions.checkArgument(getClass() == other.getClass(), "Minus with different resource resourceAggregateType");
+		Preconditions.checkArgument(this.name.equals(other.name), "Minus with different resource name");
+		Preconditions.checkArgument(this.resourceAggregateType == other.resourceAggregateType, "Minus with different aggregate resourceAggregateType");
+
+		final double aggregatedValue;
+		switch (resourceAggregateType) {
+			case AGGREGATE_TYPE_MAX :
+				// TODO: For max, should check if the latest max item is removed and change accordingly.
+				aggregatedValue = this.value;
+				break;
+
+			case AGGREGATE_TYPE_SUM:
+			default:
+				aggregatedValue = this.value - other.value;
+		}
+
+		return create(aggregatedValue, resourceAggregateType);
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
