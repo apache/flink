@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hbase.util;
+package org.apache.flink.addons.hbase.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -117,7 +117,7 @@ public class HBaseTypeUtils {
 		}
 	}
 
-	public static int getTypeIndex(Class<?> clazz) {
+	private static int getTypeIndex(Class<?> clazz) {
 		if (byte[].class.equals(clazz)) {
 			return 0;
 		} else if (String.class.equals(clazz)) {

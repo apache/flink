@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hbase.table;
+package org.apache.flink.addons.hbase;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;

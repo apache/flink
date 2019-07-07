@@ -16,33 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hbase.table;
+package org.apache.flink.addons.hbase;
 
-import org.apache.flink.addons.hbase.HBaseTableSource;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
-import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HConstants;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.COLUMNFAMILY_QUALIFIER_DELIMITER_PATTERN;
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.CONNECTOR_HBASE_CLIENT_PARAM_PREFIX;
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.CONNECTOR_HBASE_TABLE_NAME;
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.CONNECTOR_QUALIFIER_DELIMITER;
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.CONNECTOR_ROW_KEY;
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
-import static org.apache.flink.connectors.hbase.table.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_HBASE_CLIENT_PARAM_PREFIX;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_HBASE_TABLE_NAME;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_QUALIFIER_DELIMITER;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_ROW_KEY;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -53,50 +51,22 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 /**
  * Factory for creating configured instances of {@link HBaseTableSource} or sink.
  */
-public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamTableSinkFactory<Row> {
-	@Override
-	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-		//TODO NEED to wait FLINK-10206
-		throw new UnsupportedOperationException("not support createStreamTableSink now.");
-	}
+public class HBaseTableFactory implements StreamTableSourceFactory<Row> {
 
 	@Override
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 		Configuration hbaseClientConf = createClientConfiguration(properties);
-		//TODO , now only for the first version, it's to hack to get the rowkey from TableSchema.
-		hackRowkey(descriptorProperties);
-		HBaseTableContext hBaseTableContext = HBaseTableContext.create(descriptorProperties, hbaseClientConf);
-		return new HBaseStreamTableSource(hBaseTableContext);
-	}
-
-	/**
-	 * now it's a hack. in the future, we will remove it.
-	 */
-	private void hackRowkey(DescriptorProperties descriptorProperties) {
+		validateZookeeperQuorum(descriptorProperties, hbaseClientConf);
+		String hTableName = descriptorProperties.getString(CONNECTOR_HBASE_TABLE_NAME);
 		TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
-		String[] columnNames = tableSchema.getFieldNames();
-		String delimiter = descriptorProperties.getOptionalString(CONNECTOR_QUALIFIER_DELIMITER).orElse(
-			COLUMNFAMILY_QUALIFIER_DELIMITER_PATTERN);
-		String rowkey = null;
-		int rowkeyCount = 0;
-		for (String column : columnNames) {
-			if (!column.contains(delimiter)) {
-				rowkey = column;
-				rowkeyCount++;
-			}
-		}
-		Preconditions.checkArgument(rowkeyCount == 1,
-			"a column which doesn't contain delimiter(" + delimiter + ") is regarded as rowkey, now only support 1 rowkey, but now has " + rowkeyCount);
-		descriptorProperties.putString(CONNECTOR_ROW_KEY, rowkey);
+		return new HBaseTableSource(hbaseClientConf, hTableName, tableSchema, descriptorProperties);
 	}
 
 	private DescriptorProperties getValidatedProperties(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
 		descriptorProperties.putProperties(properties);
-
 		new HBaseValidator().validate(descriptorProperties);
-
 		return descriptorProperties;
 	}
 
@@ -140,7 +110,17 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamT
 		return clientConfiguration;
 	}
 
-	String hbaseVersion() {
+	private void validateZookeeperQuorum(DescriptorProperties properties, Configuration hbaseClientConf) {
+		Optional<String> hbaseZk = properties.getOptionalString(HConstants.ZOOKEEPER_QUORUM);
+		if (!hbaseZk.isPresent() || StringUtils.isNullOrWhitespaceOnly(hbaseZk.get())) {
+			String zkQuorum = hbaseClientConf.get(HConstants.ZOOKEEPER_QUORUM);
+			if (StringUtils.isNullOrWhitespaceOnly(zkQuorum)) {
+				throw new RuntimeException(HConstants.ZOOKEEPER_QUORUM + " should not be empty! " + "Pls specify it or ensure a default hbase-site.xml is valid in current class path.");
+			}
+		}
+	}
+
+	private String hbaseVersion() {
 		return CONNECTOR_VERSION_VALUE_143;
 	}
 }

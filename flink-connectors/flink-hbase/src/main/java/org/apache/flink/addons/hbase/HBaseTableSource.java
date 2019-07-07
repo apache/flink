@@ -18,20 +18,38 @@
 
 package org.apache.flink.addons.hbase;
 
+import org.apache.flink.addons.hbase.parser.FlatRowParser;
+import org.apache.flink.addons.hbase.parser.NestedRowParser;
+import org.apache.flink.addons.hbase.parser.RowParser;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.sources.BatchTableSource;
+import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Result;
 
+import java.io.IOException;
 import java.util.Map;
+
+import static org.apache.flink.addons.hbase.HBaseValidator.COLUMNFAMILY_QUALIFIER_DELIMITER_PATTERN;
+import static org.apache.flink.addons.hbase.HBaseValidator.CONNECTOR_QUALIFIER_DELIMITER;
 
 /**
  * Creates a TableSource to scan an HBase table.
@@ -54,14 +72,14 @@ import java.util.Map;
  * Table res = tableEnv.sqlQuery("SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t GROUP BY t.fam2.col1");
  * }
  * </pre>
- *
  */
-public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
+public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row>, StreamTableSource<Row>, LookupableTableSource<Row> {
 
-	private Configuration conf;
-	private String tableName;
-	private HBaseTableSchema hBaseSchema;
+	private final Configuration conf;
+	private final String tableName;
+	private final HBaseTableSchema hBaseSchema;
 	private TableSchema tableSchema;
+	private DescriptorProperties descriptorProperties;
 
 	/**
 	 * The HBase configuration and the name of the table to read.
@@ -80,6 +98,12 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
 		this.hBaseSchema = new HBaseTableSchema();
 		this.tableSchema = tableSchema;
+	}
+
+	public HBaseTableSource(
+		Configuration conf, String tableName, TableSchema tableSchema, DescriptorProperties descriptorProperties) {
+		this(conf, tableName, tableSchema);
+		this.descriptorProperties = descriptorProperties;
 	}
 
 	/**
@@ -156,5 +180,98 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	@Override
 	public String explainSource() {
 		return TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames());
+	}
+
+	@Override
+	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+		Preconditions.checkArgument(null != lookupKeys && lookupKeys.length == 1,
+			"HBase table can only be retrieved by rowKey for now.");
+		try {
+			boolean isTableSchemaNested = checkTableSchemaNested();
+			initHBaseTableSchema(isTableSchemaNested);
+			return new HBaseLookupFunction(this.conf, this.tableName, createRowParser(isTableSchemaNested));
+		} catch (IOException e) {
+			throw new RuntimeException("encounter an IOException when initialize the HBase143LookupFunction.", e);
+		}
+	}
+
+	@Override
+	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
+		throw new UnsupportedOperationException("HBase table can not convert to DataStream currently.");
+	}
+
+	@Override
+	public boolean isAsyncEnabled() {
+		return false;
+	}
+
+	@Override
+	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+		throw new UnsupportedOperationException("HBase table can not convert to DataStream currently.");
+	}
+
+	private void initHBaseTableSchema(boolean isTableSchemaNested) {
+
+		String[] columnNames = this.tableSchema.getFieldNames();
+		TypeInformation[] columnTypes = this.tableSchema.getFieldTypes();
+		if (isTableSchemaNested) {
+			initNestedHBaseTableSchema(columnNames, columnTypes);
+		} else {
+			initFlatHBaseTableSchema(columnNames, columnTypes);
+		}
+	}
+
+	private void initNestedHBaseTableSchema(String[] columnNames, TypeInformation[] columnTypes) {
+		for (int idx = 0; idx < columnNames.length; idx++) {
+			if (columnTypes[idx] instanceof RowTypeInfo) {
+				RowTypeInfo rowTypeInfo = (RowTypeInfo) columnTypes[idx];
+				TypeInformation<?>[] qualifierTypes = rowTypeInfo.getFieldTypes();
+				String[] qualifierNames = rowTypeInfo.getFieldNames();
+				for (int qix = 0; qix < qualifierNames.length; qix++) {
+					this.hBaseSchema.addColumn(columnNames[idx], qualifierNames[qix], qualifierTypes[qix]);
+				}
+			}
+		}
+	}
+
+	private void initFlatHBaseTableSchema(String[] columnNames, TypeInformation[] columnTypes) {
+		String delimiter = descriptorProperties.getOptionalString(CONNECTOR_QUALIFIER_DELIMITER).orElse(
+			COLUMNFAMILY_QUALIFIER_DELIMITER_PATTERN);
+		for (int idx = 0; idx < columnNames.length; idx++) {
+			if (columnNames[idx].contains(delimiter)) {
+				String[] cfQ = columnNames[idx].split(delimiter);
+				Preconditions.checkArgument(2 == cfQ.length,
+					"invalid column name'" + columnNames[idx] + "' for HBase qualifier name pattern: `columnFamily.qualifier`!");
+				TypeInformation columnType = columnTypes[idx];
+				//NOTICE: hBaseTableSchema should keep the order of columns.
+				this.hBaseSchema.addColumn(cfQ[0], cfQ[1], columnType);
+			}
+		}
+	}
+
+	private boolean checkTableSchemaNested() {
+		String[] columnNames = this.tableSchema.getFieldNames();
+		DataType[] columnTypes = this.tableSchema.getFieldDataTypes();
+
+		boolean hasRowTypeInfo = false;
+
+		for (int idx = 0; idx < columnNames.length; idx++) {
+			if (TypeConversions.fromDataTypeToLegacyInfo(columnTypes[idx]) instanceof RowTypeInfo) {
+				hasRowTypeInfo = true;
+				break;
+			}
+		}
+		return hasRowTypeInfo;
+	}
+
+	private RowParser<Result> createRowParser(boolean isTableSchemaNested) {
+		return isTableSchemaNested
+			? new NestedRowParser(tableSchema, hBaseSchema)
+			: new FlatRowParser(tableSchema, hBaseSchema, descriptorProperties);
+	}
+
+	@VisibleForTesting
+	HBaseTableSchema getHBaseTableSchema() {
+		return this.hBaseSchema;
 	}
 }

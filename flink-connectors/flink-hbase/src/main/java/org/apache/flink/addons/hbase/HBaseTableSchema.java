@@ -18,10 +18,10 @@
 
 package org.apache.flink.addons.hbase;
 
+import org.apache.flink.addons.hbase.util.HBaseTypeUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.connectors.hbase.util.HBaseTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hbase.util.Bytes;
@@ -84,7 +84,7 @@ public class HBaseTableSchema implements Serializable {
 	 *
 	 * @return The names of all registered column families.
 	 */
-	String[] getFamilyNames() {
+	public String[] getFamilyNames() {
 		return this.familyMap.keySet().toArray(new String[this.familyMap.size()]);
 	}
 
@@ -93,7 +93,7 @@ public class HBaseTableSchema implements Serializable {
 	 *
 	 * @return The HBase identifiers of all registered column families.
 	 */
-	byte[][] getFamilyKeys() {
+	public byte[][] getFamilyKeys() {
 		Charset c = Charset.forName(charset);
 
 		byte[][] familyKeys = new byte[this.familyMap.size()][];
@@ -132,7 +132,7 @@ public class HBaseTableSchema implements Serializable {
 	 * @param family The name of the column family for which the column qualifier identifiers are returned.
 	 * @return The HBase identifiers of all registered column qualifiers for a specific column family.
 	 */
-	byte[][] getQualifierKeys(String family) {
+	public byte[][] getQualifierKeys(String family) {
 		Map<String, TypeInformation<?>> qualifierMap = familyMap.get(family);
 
 		if (qualifierMap == null) {
@@ -154,7 +154,7 @@ public class HBaseTableSchema implements Serializable {
 	 * @param family The name of the column family for which the column qualifier types are returned.
 	 * @return The types of all registered column qualifiers of a specific column family.
 	 */
-	TypeInformation<?>[] getQualifierTypes(String family) {
+	public TypeInformation<?>[] getQualifierTypes(String family) {
 		Map<String, TypeInformation<?>> qualifierMap = familyMap.get(family);
 
 		if (qualifierMap == null) {

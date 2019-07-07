@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hbase.util;
+package org.apache.flink.addons.hbase.util;
 
 import org.apache.flink.util.Preconditions;
 

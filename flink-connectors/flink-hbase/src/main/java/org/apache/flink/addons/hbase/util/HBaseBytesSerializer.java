@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hbase.util;
+package org.apache.flink.addons.hbase.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -29,8 +29,8 @@ import java.io.UnsupportedEncodingException;
  * byte[], String, Byte, Short, Integer, Long, Float, Double, Boolean, Timestamp, Date, Time, BigDecimal
  */
 public class HBaseBytesSerializer implements Serializable {
-	String stringCharset;
-	int typeIdx;
+	private final String stringCharset;
+	private final int typeIdx;
 
 	public HBaseBytesSerializer(TypeInformation typeInfo) {
 		this(typeInfo, HBaseTypeUtils.DEFAULT_CHARSET);

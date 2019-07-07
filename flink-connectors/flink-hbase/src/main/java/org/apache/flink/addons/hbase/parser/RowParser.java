@@ -16,29 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hbase.util;
+package org.apache.flink.addons.hbase.parser;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.types.Row;
+
+import org.apache.hadoop.hbase.client.Get;
 
 import java.io.IOException;
 
 /**
- * This class helps to do serialization for hadoop Configuration.
+ * RowParser.
  */
-@Internal
-public class HBaseConfigurationUtil {
+public interface RowParser<T> {
+	/**
+	 * init a RowParser.
+	 */
+	default void init() {}
 
-	public static byte[] serializeConfiguration(org.apache.hadoop.conf.Configuration conf) throws IOException {
-		return WritableSerializer.serializeWritable(conf);
-	}
+	/**
+	 * create Get from input parameter.
+	 * NOTICE: now only support key.
+	 */
+	Get createGet(Object in) throws IOException;
 
-	public static org.apache.hadoop.conf.Configuration deserializeConfiguration(
-			byte[] serializedConfig,
-			org.apache.hadoop.conf.Configuration targetConfig) throws IOException {
-		if (null == targetConfig) {
-			targetConfig = new org.apache.hadoop.conf.Configuration();
-		}
-		WritableSerializer.deserializeWritable(targetConfig, serializedConfig);
-		return targetConfig;
-	}
+	/**
+	 * parse HBase result to a Row.
+	 */
+	Row parseToRow(T result, Object rowKey) throws IOException;
 }
