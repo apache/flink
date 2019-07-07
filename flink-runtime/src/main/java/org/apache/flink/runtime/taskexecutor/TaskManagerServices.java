@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -263,11 +262,8 @@ public class TaskManagerServices {
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
 		final int numOfSlots = taskManagerServicesConfiguration.getNumberOfSlots();
-		final List<ResourceProfile> resourceProfiles = new ArrayList<>(numOfSlots);
-
-		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(computeSlotResourceProfile(numOfSlots, managedMemorySize));
-		}
+		final List<ResourceProfile> resourceProfiles =
+			Collections.nCopies(numOfSlots, computeSlotResourceProfile(numOfSlots, managedMemorySize));
 
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
