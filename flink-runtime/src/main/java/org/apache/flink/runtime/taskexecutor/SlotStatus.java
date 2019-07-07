@@ -43,21 +43,26 @@ public class SlotStatus implements Serializable {
 	/** If the slot is allocated, allocationId identify its allocation; else, allocationId is null. */
 	private final AllocationID allocationID;
 
+	/** Allocated resource in this slot; null if not allocated. */
+	private final ResourceProfile allocationResourceProfile;
+
 	/** If the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null. */
 	private final JobID jobID;
 
 	public SlotStatus(SlotID slotID, ResourceProfile resourceProfile) {
-		this(slotID, resourceProfile, null, null);
+		this(slotID, resourceProfile, null, null, null);
 	}
 
 	public SlotStatus(
 		SlotID slotID,
 		ResourceProfile resourceProfile,
 		JobID jobID,
-		AllocationID allocationID) {
+		AllocationID allocationID,
+		ResourceProfile allocationResourceProfile) {
 		this.slotID = checkNotNull(slotID, "slotID cannot be null");
 		this.resourceProfile = checkNotNull(resourceProfile, "profile cannot be null");
 		this.allocationID = allocationID;
+		this.allocationResourceProfile = allocationResourceProfile;
 		this.jobID = jobID;
 	}
 
@@ -89,6 +94,15 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
+	 * Gets allocated resource in this slot.
+	 *
+	 * @return Allocated resource in this slot; null if not allocated.
+	 */
+	public ResourceProfile getAllocationResourceProfile() {
+		return allocationResourceProfile;
+	}
+
+	/**
 	 * Get the job id of the slot allocated for.
 	 *
 	 * @return The job id if this slot is allocated, otherwise null
@@ -117,6 +131,9 @@ public class SlotStatus implements Serializable {
 		if (allocationID != null ? !allocationID.equals(that.allocationID) : that.allocationID != null) {
 			return false;
 		}
+		if (allocationResourceProfile != null ? !allocationResourceProfile.equals(that.allocationResourceProfile) : that.allocationResourceProfile != null) {
+			return false;
+		}
 		return jobID != null ? jobID.equals(that.jobID) : that.jobID == null;
 
 	}
@@ -126,6 +143,7 @@ public class SlotStatus implements Serializable {
 		int result = slotID.hashCode();
 		result = 31 * result + resourceProfile.hashCode();
 		result = 31 * result + (allocationID != null ? allocationID.hashCode() : 0);
+		result = 31 * result + (allocationResourceProfile != null ? allocationResourceProfile.hashCode() : 0);
 		result = 31 * result + (jobID != null ? jobID.hashCode() : 0);
 		return result;
 	}
@@ -136,6 +154,7 @@ public class SlotStatus implements Serializable {
 			"slotID=" + slotID +
 			", resourceProfile=" + resourceProfile +
 			", allocationID=" + allocationID +
+			", allocationResourceProfile=" + allocationResourceProfile +
 			", jobID=" + jobID +
 			'}';
 	}

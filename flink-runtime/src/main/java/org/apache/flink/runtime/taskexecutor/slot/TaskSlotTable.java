@@ -166,7 +166,8 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 				slotId,
 				taskSlot.getResourceProfile(),
 				taskSlot.getJobId(),
-				taskSlot.getAllocationId());
+				taskSlot.getAllocationId(),
+				taskSlot.getAllocationResourceProfile());
 
 			slotStatuses.set(i, slotStatus);
 		}

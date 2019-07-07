@@ -498,7 +498,8 @@ public class TaskExecutorTest extends TestLogger {
 				slotId,
 				resourceProfile,
 				new JobID(),
-				new AllocationID()));
+				new AllocationID(),
+				ResourceProfile.UNKNOWN));
 
 		final TestingTaskSlotTable taskSlotTable = new TestingTaskSlotTable(new ArrayDeque<>(Arrays.asList(slotReport1, slotReport2)));
 
