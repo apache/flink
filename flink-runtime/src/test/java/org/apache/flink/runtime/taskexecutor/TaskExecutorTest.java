@@ -820,6 +820,7 @@ public class TaskExecutorTest extends TestLogger {
 				slotId,
 				jobId,
 				allocationId,
+				ResourceProfile.UNKNOWN,
 				jobMasterGateway.getAddress(),
 				resourceManagerGateway.getFencingToken(),
 				timeout);
@@ -1224,6 +1225,7 @@ public class TaskExecutorTest extends TestLogger {
 				slotId,
 				jobId,
 				allocationId,
+				ResourceProfile.UNKNOWN,
 				"foobar",
 				resourceManagerId,
 				timeout).get();
@@ -1340,7 +1342,8 @@ public class TaskExecutorTest extends TestLogger {
 			final ResourceID resourceId = taskExecutorResourceIdFuture.get();
 
 			final SlotID slotId = new SlotID(resourceId, 0);
-			final CompletableFuture<Acknowledge> slotRequestResponse = taskExecutorGateway.requestSlot(slotId, jobId, new AllocationID(), "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
+			final CompletableFuture<Acknowledge> slotRequestResponse = taskExecutorGateway.requestSlot(slotId, jobId,
+				new AllocationID(), ResourceProfile.UNKNOWN, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
 
 			try {
 				slotRequestResponse.get();
@@ -1551,6 +1554,7 @@ public class TaskExecutorTest extends TestLogger {
 				new SlotID(taskExecutor.getResourceID(), 0),
 				jobId,
 				allocationId,
+				ResourceProfile.UNKNOWN,
 				jobManagerAddress,
 				testingResourceManagerGateway.getFencingToken(),
 				timeout).get();
@@ -1615,6 +1619,7 @@ public class TaskExecutorTest extends TestLogger {
 				new SlotID(resourceID, 0),
 				jobId,
 				new AllocationID(),
+				ResourceProfile.UNKNOWN,
 				"foobar",
 				resourceManagerGateway.getFencingToken(),
 				timeout).get();
@@ -1728,8 +1733,10 @@ public class TaskExecutorTest extends TestLogger {
 			final AllocationID allocationIdOnlyInJM = new AllocationID();
 			final AllocationID allocationIdOnlyInTM = new AllocationID();
 
-			taskExecutorGateway.requestSlot(slotId1, jobId, allocationIdInBoth, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
-			taskExecutorGateway.requestSlot(slotId2, jobId, allocationIdOnlyInTM, "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
+			taskExecutorGateway.requestSlot(slotId1, jobId, allocationIdInBoth, ResourceProfile.UNKNOWN, "foobar",
+				testingResourceManagerGateway.getFencingToken(), timeout);
+			taskExecutorGateway.requestSlot(slotId2, jobId, allocationIdOnlyInTM, ResourceProfile.UNKNOWN, "foobar",
+				testingResourceManagerGateway.getFencingToken(), timeout);
 
 			activeSlots.await();
 
@@ -1829,6 +1836,7 @@ public class TaskExecutorTest extends TestLogger {
 				slotId,
 				jobId,
 				new AllocationID(),
+				ResourceProfile.UNKNOWN,
 				"foobar",
 				testingResourceManagerGateway.getFencingToken(),
 				timeout);

@@ -852,6 +852,7 @@ public class SlotManager implements AutoCloseable {
 			slotId,
 			pendingSlotRequest.getJobId(),
 			allocationId,
+			pendingSlotRequest.getResourceProfile(),
 			pendingSlotRequest.getTargetAddress(),
 			resourceManagerId,
 			taskManagerRequestTimeout);

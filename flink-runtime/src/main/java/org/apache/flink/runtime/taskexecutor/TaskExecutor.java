@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -798,6 +799,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final SlotID slotId,
 		final JobID jobId,
 		final AllocationID allocationId,
+		final ResourceProfile allocationResourceProfile,
 		final String targetAddress,
 		final ResourceManagerId resourceManagerId,
 		final Time timeout) {
