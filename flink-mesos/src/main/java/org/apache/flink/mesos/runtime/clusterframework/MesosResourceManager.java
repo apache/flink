@@ -438,9 +438,15 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 	@Override
 	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		if (!slotsPerWorker.iterator().next().isMatching(resourceProfile)) {
+		ResourceProfile totalResourceProfile = new ResourceProfile(0.0, 0);
+		for (ResourceProfile slotResourceProfile : slotsPerWorker) {
+			totalResourceProfile = totalResourceProfile.merge(slotResourceProfile);
+		}
+
+		if (!totalResourceProfile.isMatching(resourceProfile)) {
 			return Collections.emptyList();
 		}
+
 		LOG.info("Starting a new worker.");
 		try {
 			// generate new workers into persistent state and launch associated actors

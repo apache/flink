@@ -311,7 +311,12 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		if (!slotsPerWorker.iterator().next().isMatching(resourceProfile)) {
+		ResourceProfile totalResourceProfile = new ResourceProfile(0.0, 0);
+		for (ResourceProfile slotResourceProfile : slotsPerWorker) {
+			totalResourceProfile = totalResourceProfile.merge(slotResourceProfile);
+		}
+
+		if (!totalResourceProfile.isMatching(resourceProfile)) {
 			return Collections.emptyList();
 		}
 		requestYarnContainer();
