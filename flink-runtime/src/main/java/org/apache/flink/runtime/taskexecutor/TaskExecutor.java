@@ -1624,6 +1624,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return resourceManagerHeartbeatManager;
 	}
 
+	@VisibleForTesting
+	SlotReport getSlotReport() {
+		return taskSlotTable.createSlotReport(getResourceID());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utility classes
 	// ------------------------------------------------------------------------

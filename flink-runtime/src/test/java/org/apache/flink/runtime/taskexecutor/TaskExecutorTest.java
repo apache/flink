@@ -131,8 +131,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -1850,6 +1855,163 @@ public class TaskExecutorTest extends TestLogger {
 		} finally {
 			ExecutorUtils.gracefulShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, heartbeatExecutor);
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Test
+	public void testAllocationResourceProfile() throws Throwable {
+		final ResourceProfile TM_SLOT_RESOURCE_PROFILE = new ResourceProfile(1.0, 100);
+		final ResourceProfile REQUESTED_RESOURCE_PROFILE_FULFILLABLE = new ResourceProfile(0.5, 50);
+		final ResourceProfile REQUESTED_RESOURCE_PROFILE_UNFULFILLABLE = new ResourceProfile(10.0, 1000);
+		final int NUM_OF_SLOT = 3;
+
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+			Collections.nCopies(NUM_OF_SLOT, TM_SLOT_RESOURCE_PROFILE), timerService);
+		final JobManagerTable jobManagerTable = new JobManagerTable();
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
+
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		CompletableFuture<ResourceProfile> initialSlotReportFuture = new CompletableFuture<>();
+		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+			SlotStatus slotStatus = resourceIDInstanceIDSlotReportTuple3.f2.iterator().next();
+			initialSlotReportFuture.complete(slotStatus.getResourceProfile());
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		});
+
+		final CompletableFuture<Collection<SlotOffer>> offeredSlotsFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				offeredSlotsFuture.complete(new ArrayList<>(slotOffers));
+				return CompletableFuture.completedFuture(slotOffers);
+			})
+			.build();
+
+		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+		final AllocationID allocationId1 = new AllocationID();
+		final AllocationID allocationId2 = new AllocationID();
+		final AllocationID allocationId3 = new AllocationID();
+		final SlotID slotId1 = new SlotID(taskManagerLocation.getResourceID(), 0);
+		final SlotID slotId2 = new SlotID(taskManagerLocation.getResourceID(), 1);
+		final SlotID slotId3 = new SlotID(taskManagerLocation.getResourceID(), 2);
+		final Map<AllocationID, ResourceProfile> requestedResources = new HashMap<>();
+		requestedResources.put(allocationId1, ResourceProfile.UNKNOWN);
+		requestedResources.put(allocationId2, REQUESTED_RESOURCE_PROFILE_FULFILLABLE);
+		requestedResources.put(allocationId3, REQUESTED_RESOURCE_PROFILE_UNFULFILLABLE);
+
+		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
+
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobManagerTable(jobManagerTable)
+			.setJobLeaderService(jobLeaderService)
+			.setTaskStateManager(localStateStoresManager)
+			.build();
+
+		TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
+
+		try {
+			taskManager.start();
+
+			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
+
+			// tell the task manager about the rm leader
+			resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+
+			// wait for the initial slot report
+			ResourceProfile defaultSlotResourceProfile = initialSlotReportFuture.get();
+
+			// initially, allocation resource profiles in slot report should be null
+			Iterator<SlotStatus> iterator = taskManager.getSlotReport().iterator();
+			while (iterator.hasNext()) {
+				assertNull(iterator.next().getAllocationResourceProfile());
+			}
+
+			// request slots from the task manager under the given allocation ids
+			CompletableFuture<Acknowledge> slotRequestAck = tmGateway.requestSlot(
+				slotId1,
+				jobId,
+				allocationId1,
+				requestedResources.get(allocationId1),
+				jobMasterGateway.getAddress(),
+				resourceManagerGateway.getFencingToken(),
+				timeout);
+			slotRequestAck.get();
+			slotRequestAck = tmGateway.requestSlot(
+				slotId2,
+				jobId,
+				allocationId2,
+				requestedResources.get(allocationId2),
+				jobMasterGateway.getAddress(),
+				resourceManagerGateway.getFencingToken(),
+				timeout);
+			slotRequestAck.get();
+			// request 3 should be rejected
+			slotRequestAck = tmGateway.requestSlot(
+				slotId3,
+				jobId,
+				allocationId3,
+				requestedResources.get(allocationId3),
+				jobMasterGateway.getAddress(),
+				resourceManagerGateway.getFencingToken(),
+				timeout);
+			Exception exception = null;
+			try {
+				slotRequestAck.get();
+			} catch (Exception e) {
+				exception = e;
+			}
+			assertNotNull(exception);
+
+			// allocation resource profiles in slot report should be requested resource profiles
+			Set<AllocationID> allocatedRequests = new HashSet<>();
+			iterator = taskManager.getSlotReport().iterator();
+			while (iterator.hasNext()) {
+				SlotStatus slotStatus = iterator.next();
+				AllocationID allocationID = slotStatus.getAllocationID();
+				if (allocationID == null) {
+					continue;
+				}
+				assertTrue(requestedResources.containsKey(allocationID));
+				assertEquals(requestedResources.get(allocationID), slotStatus.getAllocationResourceProfile());
+				allocatedRequests.add(allocationID);
+			}
+			assertEquals(2, allocatedRequests.size());
+
+			// now inform the task manager about the new job leader
+			jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+			// if allocation resource profile is UNKNOWN, resource profile of slot offer should be default slot resource.
+			// otherwise, resource profile of slot offer should be the allocation resource profile.
+			Set<AllocationID> offeredRequests = new HashSet<>();
+			final Collection<SlotOffer> offeredSlots = offeredSlotsFuture.get();
+			for (SlotOffer slotOffer : offeredSlots) {
+				AllocationID allocationID = slotOffer.getAllocationId();
+				assertTrue(requestedResources.containsKey(allocationID));
+				if (requestedResources.get(allocationID).equals(ResourceProfile.UNKNOWN)) {
+					assertEquals(defaultSlotResourceProfile, slotOffer.getResourceProfile());
+				} else {
+					assertEquals(requestedResources.get(allocationID), slotOffer.getResourceProfile());
+				}
+				offeredRequests.add(allocationID);
+			}
+			assertEquals(2, offeredRequests.size());
+
+			// free slots
+			CompletableFuture<Acknowledge> freeSlotAck = tmGateway.freeSlot(allocationId1, new Exception(""), timeout);
+			freeSlotAck.get();
+			freeSlotAck = tmGateway.freeSlot(allocationId2, new Exception(""), timeout);
+			freeSlotAck.get();
+
+			// allocation resource profiles in slot report should be null
+			iterator = taskManager.getSlotReport().iterator();
+			while (iterator.hasNext()) {
+				assertNull(iterator.next().getAllocationResourceProfile());
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
