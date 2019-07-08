@@ -439,7 +439,7 @@ under the License.
 			<id>hive-1.2.1</id>
 			<properties>
 				<hive.version>1.2.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.0</hivemetastore.hadoop.version>
+				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 			</properties>
 		</profile>
 	</profiles>
