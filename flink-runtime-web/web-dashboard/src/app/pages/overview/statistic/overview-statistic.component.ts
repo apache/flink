@@ -75,7 +75,6 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
           this.cdr.markForCheck();
         },
         () => {
-          this.cdr.markForCheck();
         }
       );
     this.jobManagerService.loadConfig().subscribe(data => {
