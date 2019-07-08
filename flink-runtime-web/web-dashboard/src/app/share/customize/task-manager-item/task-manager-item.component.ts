@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ShareModule } from 'share/share.module';
-import { OverviewRoutingModule } from './overview-routing.module';
-import { OverviewComponent } from './overview.component';
-import { OverviewStatisticComponent } from './statistic/overview-statistic.component';
-import { TaskManagerItemComponent } from 'share/customize/task-manager-item/task-manager-item.component';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { TaskmanagersItemCalInterface } from 'interfaces';
 
-@NgModule({
-  imports: [CommonModule, ShareModule, OverviewRoutingModule],
-  declarations: [OverviewComponent, OverviewStatisticComponent, TaskManagerItemComponent]
+@Component({
+  selector: 'flink-task-manager-item',
+  templateUrl: './task-manager-item.component.html',
+  styleUrls: ['./task-manager-item.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OverviewModule {}
+export class TaskManagerItemComponent {
+  @Input() state: TaskmanagersItemCalInterface;
+  @Input() totalCount: number;
+  @Input() timeoutThresholdSeconds: number;
+}

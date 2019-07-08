@@ -33,7 +33,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
   listOfTaskManager: TaskmanagersItemCalInterface[] = [];
   taskSlotPercentage: number;
   taskManagerCPUs: number;
-  milliSecondsSinceLastHeartBeat: number;
+  totalCount: number;
   destroy$ = new Subject();
   listOfConfig: Array<{ key: string; value: string }> = [];
   timeoutThresholdSeconds: number;
@@ -76,6 +76,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
         },
         () => {}
       );
+    this.totalCount = this.listOfTaskManager.length;
     this.jobManagerService.loadConfig().subscribe(data => {
       this.listOfConfig = data;
       this.cdr.markForCheck();

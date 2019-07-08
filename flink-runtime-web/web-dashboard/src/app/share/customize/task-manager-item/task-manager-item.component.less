@@ -15,68 +15,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 @import "theme";
 
-nz-card {
-  ::ng-deep {
-    .ant-card-head {
-      border-bottom: 0;
-    }
-
-    .ant-card-body {
-      padding: 0 24px 8px;
-    }
-  }
-}
-
-.taskslots {
-  display: flex;
-}
-
-.total {
-  color: @success-color;
-  font-size: 36px;
-  line-height: 38px;
-  flex: 1
-}
-
 .task-manager-avatar {
-  overflow: hidden;
   display: inline-block;
 }
 
-.task-slot-percentage-bar {
-  float: right;
-  flex: 4;
-  margin-top: 16px;
+.task-manager-percentage-bar {
+  transform: rotate(270deg);
+  display: inline-block;
+  position: relative;
+  top: -2px;
 }
 
-.footer {
-  padding-top: 9px;
-  margin-top: 16px;
-  border-top: 1px solid @border-color-split;
-
-  .field {
-    display: inline-block;
-    font-size: 14px;
-    line-height: 22px;
-
-    span {
-      line-height: 22px;
-
-      &:last-child {
-        margin-left: 8px;
-        font-weight: 600;
-        color: @heading-color;
-      }
-    }
-  }
+.task-manager-percentage-bar-small {
+  margin-left: -12px;
+  margin-top: -20px;
+  width: 30px;
 }
 
-.col {
-  margin-bottom: 24px;
+.task-manager-percentage-bar-big {
+  margin-left: -45px;
+  margin-top: -20px;
+  width: 60px;
 }
 
-nz-divider {
-  margin: 0 12px;
+.task-manager-avatar-green {
+  color: @success-color;
+}
+
+.task-manager-avatar-yellow {
+  color: @warning-color;
+}
+
+.task-manager-avatar-red {
+  color: @error-color;
+}
+
+.task-manager-avatar-small {
+  font-size: 30px;
+}
+
+.task-manager-avatar-big {
+  font-size: 60px;
 }

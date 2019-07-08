@@ -69,38 +69,10 @@
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24" class="col">
     <nz-card [nzBordered]="false" nzTitle="Task Manager Overview" [nzLoading]="!listOfTaskManager">
       <ng-container *ngFor="let manager of listOfTaskManager;trackBy:trackByTaskManager">
-        <div [ngClass]="{
-            'task-manager-avatar': true,
-            'task-manager-avatar-big' : listOfTaskManager.length < 20,
-            'task-manager-avatar-small' : listOfTaskManager.length >= 20
-            }">
-          <i [ngClass]="{
-            'task-manager-avatar-big' : listOfTaskManager.length < 20,
-            'task-manager-avatar-small' : listOfTaskManager.length >= 20,
-            'task-manager-avatar-green' : manager.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds / 2,
-            'task-manager-avatar-yellow' : manager.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds / 2 && manager.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds,
-            'task-manager-avatar-red' : manager.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds
-            }"
-             nz-icon nz-tooltip nzTheme="fill" nzType="database" [nzTitle]="managerTooltip"></i>
-          <nz-progress [ngClass]="{
-                      'task-manager-percentage-bar': true,
-                      'task-manager-percentage-bar-big' : listOfTaskManager.length < 20,
-                      'task-manager-percentage-bar-small' : listOfTaskManager.length >= 20
-                      }"
-                       [nzStrokeWidth]="listOfTaskManager.length < 20 ? 5 : 3"
-                       [nzPercent]="manager.freeSlots / manager.slotsNumber * 100" nzSize="small" [nzShowInfo]="false" nzStatus="normal"></nz-progress>
-        </div>
-        <ng-template #managerTooltip>
-          <span>ID: {{manager.id}}</span><br />
-          <span>Free Slots: {{manager.freeSlots}}</span><br />
-          <span>Total Slots: {{manager.slotsNumber}}</span><br />
-          <span>Slots free: {{manager.freeSlots / manager.slotsNumber * 100 | number}} %</span><br />
-          <span>CPU's :{{manager.hardware.cpuCores}}</span><br />
-          <span>Physical Mem: {{manager.hardware.physicalMemory | humanizeBytes}}</span><br />
-          <span>Free Mem: {{manager.hardware.freeMemory | humanizeBytes}}</span><br />
-          <span>Managed Mem: {{manager.hardware.managedMemory | humanizeBytes}}</span><br />
-          <span>Last Heartbeat: {{manager.milliSecondsSinceLastHeartBeat / 1000}} seconds ago</span>
-        </ng-template>
+        <flink-task-manager-item
+                [state]="manager"
+                [totalCount]="totalCount"
+                [timeoutThresholdSeconds]="timeoutThresholdSeconds"></flink-task-manager-item>
       </ng-container>
     </nz-card>
   </div>

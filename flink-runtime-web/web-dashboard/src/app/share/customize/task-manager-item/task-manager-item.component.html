@@ -1,0 +1,50 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div [ngClass]="{
+            'task-manager-avatar': true,
+            'task-manager-avatar-big' : totalCount < 20,
+            'task-manager-avatar-small' : totalCount >= 20
+            }">
+  <i [ngClass]="{
+            'task-manager-avatar-big' : totalCount < 20,
+            'task-manager-avatar-small' : totalCount >= 20,
+            'task-manager-avatar-green' : state.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds / 2,
+            'task-manager-avatar-yellow' : state.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds / 2 && state.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds,
+            'task-manager-avatar-red' : state.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds
+            }"
+     nz-icon nz-tooltip nzTheme="fill" nzType="database" [nzTitle]="managerTooltip"></i>
+  <nz-progress [ngClass]="{
+                      'task-manager-percentage-bar': true,
+                      'task-manager-percentage-bar-big' : totalCount < 20,
+                      'task-manager-percentage-bar-small' : totalCount >= 20
+                      }"
+               [nzStrokeWidth]="totalCount < 20 ? 5 : 3"
+               [nzPercent]="state.freeSlots / state.slotsNumber * 100" nzSize="small" [nzShowInfo]="false" nzStatus="normal"></nz-progress>
+  <ng-template #managerTooltip>
+    <span>ID: {{state.id}}</span><br />
+    <span>Free Slots: {{state.freeSlots}}</span><br />
+    <span>Total Slots: {{state.slotsNumber}}</span><br />
+    <span>Slots free: {{state.freeSlots / state.slotsNumber * 100 | number}} %</span><br />
+    <span>CPU's :{{state.hardware.cpuCores}}</span><br />
+    <span>Physical Mem: {{state.hardware.physicalMemory | humanizeBytes}}</span><br />
+    <span>Free Mem: {{state.hardware.freeMemory | humanizeBytes}}</span><br />
+    <span>Managed Mem: {{state.hardware.managedMemory | humanizeBytes}}</span><br />
+    <span>Last Heartbeat: {{state.milliSecondsSinceLastHeartBeat / 1000}} seconds ago</span>
+  </ng-template>
+</div>
