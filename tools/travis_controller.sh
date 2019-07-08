@@ -39,6 +39,7 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
+source "${HERE}/travis/differential_build.sh"
 source "${HERE}/travis/fold.sh"
 source "${HERE}/travis/stage.sh"
 source "${HERE}/travis/shade.sh"
@@ -124,6 +125,10 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         echo "=============================================================================="
         echo "Previous build failure detected, skipping shaded dependency check."
         echo "=============================================================================="
+    fi
+
+    if [ $EXIT_CODE == 0 ]; then
+        prepare_dependencies_tree_if_pr_build
     fi
 
     if [ $EXIT_CODE == 0 ]; then
