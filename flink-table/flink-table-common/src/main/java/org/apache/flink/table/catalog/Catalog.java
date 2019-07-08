@@ -488,9 +488,10 @@ public interface Catalog {
 	 *
 	 * @throws TableNotExistException if the table does not exist in the catalog
 	 * @throws CatalogException	in case of any runtime exception
+	 * @throws TablePartitionedException if the table is partitioned
 	 */
 	void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists)
-		throws TableNotExistException, CatalogException;
+		throws TableNotExistException, CatalogException, TablePartitionedException;
 
 	/**
 	 * Update the column statistics of a table.

@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.util.StringUtils;
@@ -640,11 +641,14 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
 	@Override
 	public void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists)
-			throws TableNotExistException {
+		throws TableNotExistException, TablePartitionedException {
 		checkNotNull(tablePath);
 		checkNotNull(tableStatistics);
 
 		if (tableExists(tablePath)) {
+			if (isPartitionedTable(tablePath)) {
+				throw new TablePartitionedException(getName(), tablePath);
+			}
 			tableStats.put(tablePath, tableStatistics.copy());
 		} else if (!ignoreIfNotExists) {
 			throw new TableNotExistException(getName(), tablePath);
