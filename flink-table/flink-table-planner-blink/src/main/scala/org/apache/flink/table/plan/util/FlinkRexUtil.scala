@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.plan.util
 
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
+
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
@@ -37,6 +41,18 @@ import scala.collection.mutable
   * Utility methods concerning [[RexNode]].
   */
 object FlinkRexUtil {
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  private[flink] val SQL_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
+    key("sql.optimizer.cnf.nodes.limit")
+      .defaultValue(Integer.valueOf(-1))
+      .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
+        " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +
+        "this threshold; (e.g. predicate in TPC-DS q41.sql will be converted to hundreds of " +
+        "thousands of CNF nodes.) the threshold is expressed in terms of number of nodes " +
+        "(only count RexCall node, including leaves and interior nodes). " +
+        "Negative number to use the default threshold: double of number of nodes.")
 
   /**
     * Similar to [[RexUtil#toCnf(RexBuilder, Int, RexNode)]]; it lets you

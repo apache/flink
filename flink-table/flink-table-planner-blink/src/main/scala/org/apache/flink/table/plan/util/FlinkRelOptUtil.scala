@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.plan.metadata.SelectivityEstimator
 import org.apache.flink.table.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
 
 import com.google.common.collect.Lists
@@ -149,7 +148,7 @@ object FlinkRelOptUtil {
   /** Get max cnf node limit by context of rel */
   def getMaxCnfNodeCount(rel: RelNode): Int = {
     val tableConfig = getTableConfigFromContext(rel)
-    tableConfig.getConfiguration.getInteger(SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+    tableConfig.getConfiguration.getInteger(FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT)
   }
 
   /**
