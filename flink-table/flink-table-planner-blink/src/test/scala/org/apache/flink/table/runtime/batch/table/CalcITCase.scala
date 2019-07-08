@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.utils.{Func13, RichFunc1, RichFunc2, R
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.util.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
@@ -34,6 +35,7 @@ import org.junit.Assert.assertEquals
 import org.junit.{Before, Ignore, Test}
 
 import java.sql.{Date, Time, Timestamp}
+import java.time.LocalDateTime
 import java.util
 
 import scala.collection.JavaConverters._
@@ -566,8 +568,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testValueConstructor(): Unit = {
-    val data = new mutable.MutableList[(String, Int, Timestamp)]
-    data.+=(("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24")))
+    val data = new mutable.MutableList[(String, Int, LocalDateTime)]
+    data.+=(("foo", 12, localDateTime("1984-07-12 14:34:24")))
     val t = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c").select(
       row('a, 'b, 'c),
       array(12, 'b),
