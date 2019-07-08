@@ -34,6 +34,8 @@ import org.apache.flink.yarn.util.YarnTestUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -124,6 +126,22 @@ public class YARNITCase extends YarnTestBase {
 					Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
 					FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 					Assert.assertEquals(5, fsStatus.getReplication());
+					
+					Path appPath = uberJarHDFSPath.getParent();
+					FileStatus[] fileStatuses = fs.listStatus(appPath, new PathFilter() {
+						@Override
+						public boolean accept(Path path) {
+							return path.getName().endsWith("taskmanager-conf.yaml");
+						}
+					});
+
+					final int replication = getYarnConfiguration().getInt(DFSConfigKeys.DFS_REPLICATION_KEY,
+						DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+
+					// All of the task manager confs are used by single TM, the replica number should be DFS_REPLICATION_DEFAULT.
+					for (FileStatus fileStatus : fileStatuses) {
+						Assert.assertEquals(replication, fileStatus.getReplication());
+					}
 
 					waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
 				}

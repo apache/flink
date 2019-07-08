@@ -501,7 +501,8 @@ public final class Utils {
 			log.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
 			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
 
-			final int replication = yarnConfig.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+			final int replication = yarnConfig.getInt(DFSConfigKeys.DFS_REPLICATION_KEY,
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			try {
 				Path homeDirPath = new Path(clientHomeDir);

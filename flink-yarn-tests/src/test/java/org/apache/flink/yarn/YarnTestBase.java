@@ -77,7 +77,6 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
-import java.net.Socket;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -110,7 +109,6 @@ import static org.junit.Assert.assertEquals;
  */
 public abstract class YarnTestBase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTestBase.class);
-	private static final int NAME_NODE_START_PORT = 19000;
 
 	protected static final PrintStream ORIGINAL_STDOUT = System.out;
 	protected static final PrintStream ORIGINAL_STDERR = System.err;
@@ -132,6 +130,7 @@ public abstract class YarnTestBase extends TestLogger {
 		// workaround for annoying InterruptedException logging:
 		// https://issues.apache.org/jira/browse/YARN-1022
 		"java.lang.InterruptedException",
+		// This happens when AM finish very quick, but TM still try to reconnect with it.
 		"java.net.ConnectException: Connection refused",
 		// very specific on purpose
 		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
@@ -177,7 +176,7 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static File flinkShadedHadoopDir;
 
 	protected static File yarnSiteXML = null;
-	protected static File coreSiteXML = null;
+	protected static File hdfsSiteXML = null;
 
 	private YarnClient yarnClient = null;
 
@@ -417,8 +416,8 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	public static void writeHDFSCoreSiteConfigXML(Configuration coreSite, File targetFolder) throws IOException {
-		coreSiteXML = new File(targetFolder, "/core-site.xml");
-		try (FileWriter writer = new FileWriter(coreSiteXML)) {
+		hdfsSiteXML = new File(targetFolder, "/hdfs-site.xml");
+		try (FileWriter writer = new FileWriter(hdfsSiteXML)) {
 			coreSite.writeXml(writer);
 			writer.flush();
 		}
@@ -720,16 +719,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 				Configuration hdfsConfiguration = new Configuration();
 				hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
-				populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
-				MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdfsConfiguration);
-
-				int port = NAME_NODE_START_PORT;
-				while (!isPortAvailable(port)) {
-					port = port + 1;
+				if (principal != null && keytab != null) {
+					populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
 				}
-
-				builder.nameNodePort(port);
-				miniDFSCluster = builder.build();
+				miniDFSCluster = new MiniDFSCluster.Builder(hdfsConfiguration).numDataNodes(3).build();
 				miniDFSCluster.waitClusterUp();
 
 				hdfsConfiguration = miniDFSCluster.getConfiguration(0);
@@ -1052,8 +1045,8 @@ public abstract class YarnTestBase extends TestLogger {
 			yarnSiteXML.delete();
 		}
 
-		if (coreSiteXML != null) {
-			coreSiteXML.delete();
+		if (hdfsSiteXML != null) {
+			hdfsSiteXML.delete();
 		}
 
 		// When we are on travis, we copy the temp files of JUnit (containing the MiniYARNCluster log files)
@@ -1078,24 +1071,6 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static boolean isOnTravis() {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
-	}
-
-	private static boolean isPortAvailable(int port) {
-		Socket socket = null;
-		try {
-			socket = new Socket("localhost", port);
-			return false;
-		} catch (IOException e) {
-			return true;
-		} finally {
-			if (socket != null) {
-				try {
-					socket.close();
-				} catch (IOException e) {
-					throw new RuntimeException("Fail to close test socket");
-				}
-			}
-		}
 	}
 
 	/**
