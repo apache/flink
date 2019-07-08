@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizationConfigOptions, TableException}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizerConfigOptions, TableException}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
@@ -87,7 +87,7 @@ abstract class BatchExecGroupAggregateBase(
   protected def isEnforceTwoStageAgg: Boolean = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     val aggConfig = tableConfig.getConf.getString(
-      OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY)
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY)
     AggPhaseEnforcer.TWO_PHASE.toString.equalsIgnoreCase(aggConfig)
   }
 

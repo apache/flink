@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.OptimizationConfigOptions
+import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.util.TableTestBase
 
@@ -34,7 +34,7 @@ class SplitAggregateRuleTest extends TableTestBase {
   util.buildStreamProgram(FlinkStreamProgram.PHYSICAL)
   util.enableMiniBatch()
   util.tableEnv.getConfig.getConf.setBoolean(
-    OptimizationConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
 
   @Test
   def testSingleDistinctAgg(): Unit = {
@@ -178,7 +178,7 @@ class SplitAggregateRuleTest extends TableTestBase {
   @Test
   def testBucketsConfiguration(): Unit = {
     util.tableEnv.getConfig.getConf.setInteger(
-      OptimizationConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
+      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
     val sqlQuery = "SELECT COUNT(DISTINCT c) FROM MyTable"
     util.verifyPlan(sqlQuery)
   }

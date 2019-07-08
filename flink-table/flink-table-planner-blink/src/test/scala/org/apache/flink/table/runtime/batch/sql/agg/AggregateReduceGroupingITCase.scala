@@ -18,7 +18,7 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{OptimizationConfigOptions, ExecutionConfigOptions, Types}
+import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, Types}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -123,7 +123,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
   def testSingleAggOnTable_HashAgg_WithLocalAgg(): Unit = {
     tEnv.getConfig.getConf.setString(ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConf.setString(
-      OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
     // set smaller parallelism to avoid MemoryAllocationException
     tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 2)
     tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 2M
@@ -134,7 +134,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
   def testSingleAggOnTable_HashAgg_WithoutLocalAgg(): Unit = {
     tEnv.getConfig.getConf.setString(ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     tEnv.getConfig.getConf.setString(
-      OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
     tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 2M
     testSingleAggOnTable()
   }

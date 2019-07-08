@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{OperatorType, OptimizationConfigOptions, ExecutionConfigOptions, TableException}
+import org.apache.flink.table.api.{OperatorType, OptimizerConfigOptions, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction
 import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction
 import org.apache.flink.table.plan.rules.physical.batch.{BatchExecSortMergeJoinRule, BatchExecSortRule}
@@ -36,9 +36,9 @@ class SubplanReuseTest extends TableTestBase {
   @Before
   def before(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
     util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)
   }
@@ -46,7 +46,7 @@ class SubplanReuseTest extends TableTestBase {
   @Test
   def testDisableSubplanReuse(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
     val sqlQuery =
       """
         |WITH r AS (
@@ -61,7 +61,7 @@ class SubplanReuseTest extends TableTestBase {
   // TODO after CALCITE-3020 fixed, remove expected exception
   def testSubplanReuseWithDifferentRowType(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
     // can not reuse because of different row-type
     val sqlQuery =
       """
@@ -75,7 +75,7 @@ class SubplanReuseTest extends TableTestBase {
   @Test
   def testEnableReuseTableSource(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
     val sqlQuery =
       """
         |WITH t AS (SELECT x.a AS a, x.b AS b, y.d AS d, y.e AS e FROM x, y WHERE x.a = y.d)
@@ -87,7 +87,7 @@ class SubplanReuseTest extends TableTestBase {
   @Test
   def testDisableReuseTableSource(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
     val sqlQuery =
       """
         |WITH t AS (SELECT * FROM x, y WHERE x.a = y.d)
@@ -100,7 +100,7 @@ class SubplanReuseTest extends TableTestBase {
   def testSubplanReuseOnSourceWithLimit(): Unit = {
     // TODO re-check this plan after PushLimitIntoTableSourceScanRule is introduced
     util.tableEnv.getConfig.getConf.setBoolean(
-      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
     util.tableEnv.getConfig.getConf.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sqlQuery =

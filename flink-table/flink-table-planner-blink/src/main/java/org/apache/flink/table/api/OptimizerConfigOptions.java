@@ -25,7 +25,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * This class holds configuration constants used by Flink's table planner module.
  */
-public class OptimizationConfigOptions {
+public class OptimizerConfigOptions {
 
 	// ------------------------------------------------------------------------
 	//  Optimizer Options

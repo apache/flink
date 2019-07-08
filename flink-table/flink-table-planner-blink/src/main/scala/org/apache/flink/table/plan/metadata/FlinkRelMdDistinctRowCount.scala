@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.api.{OptimizationConfigOptions, TableException}
+import org.apache.flink.table.api.{OptimizerConfigOptions, TableException}
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable

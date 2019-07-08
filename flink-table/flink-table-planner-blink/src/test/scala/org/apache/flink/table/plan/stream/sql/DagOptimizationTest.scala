@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.OptimizationConfigOptions
+import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}

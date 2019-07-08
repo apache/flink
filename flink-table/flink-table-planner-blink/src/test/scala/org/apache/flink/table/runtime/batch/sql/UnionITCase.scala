@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.table.api.{OptimizationConfigOptions, ExecutionConfigOptions}
+import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions}
 import org.apache.flink.table.dataformat.BinaryString.fromString
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.{binaryRow, row}
@@ -114,7 +114,7 @@ class UnionITCase extends BatchTestBase {
   @Test
   def testJoinAfterDifferentTypeUnionAll(): Unit = {
     tEnv.getConfig.getConf.setLong(
-      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     tEnv.getConfig.getConf.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkResult(

@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.table.api.{OptimizationConfigOptions, TableConfig}
+import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, ExpressionReducer, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
