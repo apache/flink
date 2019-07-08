@@ -161,7 +161,6 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		}
 	}
 
-
 	/**
 	 * Runs a {@link Statement} that represents a leaf (aka atomic) test.
 	 */
