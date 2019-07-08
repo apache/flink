@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
@@ -36,7 +36,7 @@ import java.util.Map;
  * The {@link DataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the
  * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
-@VisibleForTesting
+@Internal
 public class DataStreamQueryOperation<E> implements QueryOperation {
 
 	// DataStreamQueryOperation represent a registered DataStream from `registerDataStream` method
