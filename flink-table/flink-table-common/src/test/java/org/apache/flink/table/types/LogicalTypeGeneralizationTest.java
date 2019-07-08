@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
@@ -125,6 +126,14 @@ public class LogicalTypeGeneralizationTest {
 				{
 					Arrays.asList(new MultisetType(new BigIntType()), new MultisetType(new IntType())),
 					new MultisetType(new BigIntType())
+				},
+
+				// MAP types with different element type
+				{
+					Arrays.asList(
+						new MapType(new BigIntType(), new DoubleType()),
+						new MapType(new IntType(), new DoubleType())),
+					new MapType(new BigIntType(), new DoubleType())
 				},
 
 				// ROW type with different element types
@@ -231,7 +240,13 @@ public class LogicalTypeGeneralizationTest {
 					new LocalZonedTimestampType(3)
 				},
 
-				// INTERVAL + DATETIME
+				// day-time interval + DATETIME
+				{
+					Arrays.asList(new DayTimeIntervalType(DayTimeResolution.DAY), new DateType()),
+					new DateType()
+				},
+
+				// year-month interval + DATETIME
 				{
 					Arrays.asList(new YearMonthIntervalType(YearMonthResolution.MONTH), new DateType()),
 					new DateType()

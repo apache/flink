@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
@@ -80,6 +81,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DOUBLE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MULTISET;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
@@ -247,6 +249,8 @@ public final class LogicalTypeGeneralization {
 				return findCommonArrayType(normalizedTypes);
 			} else if (typeRoot == MULTISET) {
 				return findCommonMultisetType(normalizedTypes);
+			} else if (typeRoot == MAP) {
+				return findCommonMapType(normalizedTypes);
 			} else if (typeRoot == ROW) {
 				return findCommonRowType(normalizedTypes);
 			}
@@ -381,6 +385,8 @@ public final class LogicalTypeGeneralization {
 		} else if (hasFamily(resultType, EXACT_NUMERIC) && (hasFamily(type, TIMESTAMP) || hasRoot(type, DATE))) {
 			return type;
 		}
+		// for "DATETIME + EXACT_NUMERIC", EXACT_NUMERIC is always treated as an interval of days
+		// therefore, TIME + EXACT_NUMERIC is not supported
 		return null;
 	}
 
@@ -398,6 +404,14 @@ public final class LogicalTypeGeneralization {
 			return null;
 		}
 		return new MultisetType(children.get(0));
+	}
+
+	private static @Nullable LogicalType findCommonMapType(List<LogicalType> normalizedTypes) {
+		final List<LogicalType> children = findCommonChildrenTypes(normalizedTypes);
+		if (children == null) {
+			return null;
+		}
+		return new MapType(children.get(0), children.get(1));
 	}
 
 	private static @Nullable LogicalType findCommonRowType(List<LogicalType> normalizedTypes) {
@@ -444,18 +458,7 @@ public final class LogicalTypeGeneralization {
 		// recursively compute column-wise least restrictive
 		final List<LogicalType> resultChildren = new ArrayList<>(numberOfChildren);
 		for (int i = 0; i < numberOfChildren; i++) {
-			final int childPos = i;
-			final Optional<LogicalType> childType = findCommonType(new AbstractList<LogicalType>() {
-				@Override
-				public LogicalType get(int index) {
-					return normalizedTypes.get(index).getChildren().get(childPos);
-				}
-
-				@Override
-				public int size() {
-					return normalizedTypes.size();
-				}
-			});
+			final Optional<LogicalType> childType = findCommonType(new ChildTypeView(normalizedTypes, i));
 			if (!childType.isPresent()) {
 				return null;
 			}
@@ -623,6 +626,30 @@ public final class LogicalTypeGeneralization {
 
 	private static int combineLength(LogicalType resultType, LogicalType right) {
 		return Math.max(getLength(resultType), getLength(right));
+	}
+
+	/**
+	 * A list that creates a view of all children at the given position.
+	 */
+	private static class ChildTypeView extends AbstractList<LogicalType> {
+
+		private final List<LogicalType> types;
+		private final int childPos;
+
+		ChildTypeView(List<LogicalType> types, int childPos) {
+			this.types = types;
+			this.childPos = childPos;
+		}
+
+		@Override
+		public LogicalType get(int index) {
+			return types.get(index).getChildren().get(childPos);
+		}
+
+		@Override
+		public int size() {
+			return types.size();
+		}
 	}
 
 	private LogicalTypeGeneralization() {

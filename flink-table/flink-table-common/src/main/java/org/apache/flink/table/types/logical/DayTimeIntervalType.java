@@ -101,6 +101,8 @@ public final class DayTimeIntervalType extends LogicalType {
 
 	/**
 	 * Supported resolutions of this type.
+	 *
+	 * <p>Note: The order of this enum reflects the granularity from coarse to fine.
 	 */
 	public enum DayTimeResolution {
 		DAY,
