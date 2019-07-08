@@ -304,16 +304,15 @@ class StreamExecGroupWindowAggregate(
     val builder = WindowOperatorBuilder
       .builder()
       .withInputFields(inputFields.toArray)
-    val timeZoneOffset = 0
 
     val newBuilder = window match {
       case TumblingGroupWindow(_, timeField, size)
           if isProctimeAttribute(timeField) && hasTimeIntervalType(size) =>
-        builder.tumble(toDuration(size), timeZoneOffset).withProcessingTime()
+        builder.tumble(toDuration(size)).withProcessingTime()
 
       case TumblingGroupWindow(_, timeField, size)
           if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
-        builder.tumble(toDuration(size), timeZoneOffset).withEventTime(timeIdx)
+        builder.tumble(toDuration(size)).withEventTime(timeIdx)
 
       case TumblingGroupWindow(_, timeField, size)
           if isProctimeAttribute(timeField) && hasRowIntervalType(size) =>
@@ -328,12 +327,12 @@ class StreamExecGroupWindowAggregate(
 
       case SlidingGroupWindow(_, timeField, size, slide)
           if isProctimeAttribute(timeField) && hasTimeIntervalType(size) =>
-        builder.sliding(toDuration(size), toDuration(slide), timeZoneOffset)
+        builder.sliding(toDuration(size), toDuration(slide))
           .withProcessingTime()
 
       case SlidingGroupWindow(_, timeField, size, slide)
           if isRowtimeAttribute(timeField) && hasTimeIntervalType(size) =>
-        builder.sliding(toDuration(size), toDuration(slide), timeZoneOffset)
+        builder.sliding(toDuration(size), toDuration(slide))
           .withEventTime(timeIdx)
 
       case SlidingGroupWindow(_, timeField, size, slide)

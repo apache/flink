@@ -129,68 +129,52 @@ public class SqlDateTimeUtils {
 	// Date/Time/Timestamp --> internal int/int/long conversion
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Converts the internal representation of a SQL DATE (int) to the Java
-	 * type used for UDF parameters ({@link java.sql.Date}) with the given TimeZone.
-	 *
-	 * <p>The internal int represents the days since January 1, 1970. When we convert it
-	 * to {@link java.sql.Date} (time milliseconds since January 1, 1970, 00:00:00 GMT),
-	 * we need a TimeZone.
-	 */
-	public static java.sql.Date internalToDate(int v, TimeZone tz) {
+	/** Converts the internal representation of a SQL DATE (int) to the Java
+	 * type used for UDF parameters ({@link java.sql.Date}). */
+	public static java.sql.Date internalToDate(int v) {
 		// note that, in this case, can't handle Daylight Saving Time
 		final long t = v * MILLIS_PER_DAY;
-		return new java.sql.Date(t - tz.getOffset(t));
+		return new java.sql.Date(t - LOCAL_TZ.getOffset(t));
 	}
 
-	/**
-	 * Converts the internal representation of a SQL TIME (int) to the Java
-	 * type used for UDF parameters ({@link java.sql.Time}).
-	 *
-	 * <p>The internal int represents the seconds since "00:00:00". When we convert it to
-	 * {@link java.sql.Time} (time milliseconds since January 1, 1970, 00:00:00 GMT),
-	 * we need a TimeZone.
-	 */
-	public static java.sql.Time internalToTime(int v, TimeZone tz) {
+	/** Converts the internal representation of a SQL TIME (int) to the Java
+	 * type used for UDF parameters ({@link java.sql.Time}). */
+	public static java.sql.Time internalToTime(int v) {
 		// note that, in this case, can't handle Daylight Saving Time
-		return new java.sql.Time(v - tz.getOffset(v));
+		return new java.sql.Time(v - LOCAL_TZ.getOffset(v));
 	}
 
 	/** Converts the internal representation of a SQL TIMESTAMP (long) to the Java
-	 * type used for UDF parameters ({@link java.sql.Timestamp}).
-	 *
-	 * <p>The internal long represents the time milliseconds since January 1, 1970, 00:00:00 GMT.
-	 * we need a TimeZone.
-	 */
-	public static java.sql.Timestamp internalToTimestamp(long v, TimeZone tz) {
-		return new java.sql.Timestamp(v - tz.getOffset(v));
+	 * type used for UDF parameters ({@link java.sql.Timestamp}). */
+	public static java.sql.Timestamp internalToTimestamp(long v) {
+		return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));
 	}
 
 	/** Converts the Java type used for UDF parameters of SQL DATE type
 	 * ({@link java.sql.Date}) to internal representation (int).
 	 *
-	 * <p>Converse of {@link #internalToDate(int, TimeZone)}. */
-	public static int dateToInternal(java.sql.Date date, TimeZone tz) {
-		long ts = date.getTime() + tz.getOffset(date.getTime());
+	 * <p>Converse of {@link #internalToDate(int)}. */
+	public static int dateToInternal(java.sql.Date date) {
+		long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
 		return (int) (ts / MILLIS_PER_DAY);
 	}
 
 	/** Converts the Java type used for UDF parameters of SQL TIME type
 	 * ({@link java.sql.Time}) to internal representation (int).
 	 *
-	 * <p>Converse of {@link #internalToTime(int, TimeZone)}. */
-	public static int timeToInternal(java.sql.Time time, TimeZone tz) {
-		long ts = time.getTime() + tz.getOffset(time.getTime());
+	 * <p>Converse of {@link #internalToTime(int)}. */
+	public static int timeToInternal(java.sql.Time time) {
+		long ts = time.getTime() + LOCAL_TZ.getOffset(time.getTime());
 		return (int) (ts % MILLIS_PER_DAY);
 	}
 
 	/** Converts the Java type used for UDF parameters of SQL TIMESTAMP type
 	 * ({@link java.sql.Timestamp}) to internal representation (long).
 	 *
-	 * <p>Converse of {@link #internalToTimestamp(long, TimeZone)}. */
-	public static long timestampToInternal(java.sql.Timestamp ts, TimeZone tz) {
+	 * <p>Converse of {@link #internalToTimestamp(long)}. */
+	public static long timestampToInternal(java.sql.Timestamp ts) {
 		long time = ts.getTime();
-		return time + tz.getOffset(time);
+		return time + LOCAL_TZ.getOffset(time);
 	}
 
 

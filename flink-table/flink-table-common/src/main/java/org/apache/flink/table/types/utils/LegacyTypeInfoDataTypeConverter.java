@@ -20,7 +20,6 @@ package org.apache.flink.table.types.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -102,9 +101,9 @@ public final class LegacyTypeInfoDataTypeConverter {
 		addMapping(Types.FLOAT, DataTypes.FLOAT().bridgedTo(Float.class));
 		addMapping(Types.DOUBLE, DataTypes.DOUBLE().bridgedTo(Double.class));
 		addMapping(Types.BIG_DEC, createLegacyType(LogicalTypeRoot.DECIMAL, Types.BIG_DEC));
-		addMapping(LocalTimeTypeInfo.LOCAL_DATE, DataTypes.DATE().bridgedTo(LocalDate.class));
-		addMapping(LocalTimeTypeInfo.LOCAL_TIME, DataTypes.TIME(0).bridgedTo(LocalTime.class));
-		addMapping(LocalTimeTypeInfo.LOCAL_DATE_TIME, DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class));
+		addMapping(Types.LOCAL_DATE, DataTypes.DATE().bridgedTo(LocalDate.class));
+		addMapping(Types.LOCAL_TIME, DataTypes.TIME(0).bridgedTo(LocalTime.class));
+		addMapping(Types.LOCAL_DATE_TIME, DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class));
 		addMapping(Types.SQL_DATE, DataTypes.DATE().bridgedTo(java.sql.Date.class));
 		addMapping(Types.SQL_TIME, DataTypes.TIME(0).bridgedTo(java.sql.Time.class));
 		addMapping(Types.SQL_TIMESTAMP, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class));

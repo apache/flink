@@ -462,7 +462,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def addReusableLocalDateTime(): String = {
     val fieldTerm = s"localtimestamp"
 
-    val timeZone = addReusableTimeZone()
     val timestamp = addReusableTimestamp()
 
     // declaration
@@ -471,7 +470,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // assignment
     val field =
       s"""
-         |$fieldTerm = $timestamp + $timeZone.getOffset($timestamp);
+         |$fieldTerm = $timestamp + java.util.TimeZone.getDefault().getOffset($timestamp);
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -527,7 +526,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * Adds a reusable TimeZone to the member area of the generated class.
     */
   def addReusableTimeZone(): String = {
-    val zoneID = DataFormatConverters.DEFAULT_TIME_ZONE.getID
+    val zoneID = tableConfig.getTimeZone.getID
     val stmt =
       s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
          |                 java.util.TimeZone.getTimeZone("$zoneID");""".stripMargin

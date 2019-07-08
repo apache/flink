@@ -80,17 +80,15 @@ public class WindowOperatorBuilder {
 		return this;
 	}
 
-	public WindowOperatorBuilder tumble(Duration size, long offset) {
+	public WindowOperatorBuilder tumble(Duration size) {
 		checkArgument(windowAssigner == null);
-		this.windowAssigner = TumblingWindowAssigner.of(size)
-				.withOffset(Duration.ofMillis(-offset));
+		this.windowAssigner = TumblingWindowAssigner.of(size);
 		return this;
 	}
 
-	public WindowOperatorBuilder sliding(Duration size, Duration slide, long offset) {
+	public WindowOperatorBuilder sliding(Duration size, Duration slide) {
 		checkArgument(windowAssigner == null);
-		this.windowAssigner = SlidingWindowAssigner.of(size, slide)
-				.withOffset(Duration.ofMillis(-offset));
+		this.windowAssigner = SlidingWindowAssigner.of(size, slide);
 		return this;
 	}
 
