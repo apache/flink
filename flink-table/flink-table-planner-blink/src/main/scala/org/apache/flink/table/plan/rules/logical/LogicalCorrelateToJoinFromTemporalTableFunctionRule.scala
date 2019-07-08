@@ -24,11 +24,12 @@ import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.plan.util.{ExpandTableScanShuttle, RexDefaultVisitor}
 import org.apache.flink.table.plan.util.TemporalJoinUtil.{makeProcTimeTemporalJoinConditionCall, makeRowTimeTemporalJoinConditionCall}
+import org.apache.flink.table.plan.util.{ExpandTableScanShuttle, RexDefaultVisitor}
 import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
+
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -45,8 +46,7 @@ import org.apache.calcite.rex._
 class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   extends RelOptRule(
     operand(classOf[LogicalCorrelate],
-      some(
-        operand(classOf[RelNode], any()),
+      some(operand(classOf[RelNode], any()),
         operand(classOf[TableFunctionScan], none()))),
     "LogicalCorrelateToJoinFromTemporalTableFunctionRule") {
 

@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalCorrelate, LogicalFilter, LogicalSnapshot}
 import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexInputRef, RexNode, RexShuttle}
@@ -29,26 +29,24 @@ import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexInputRef, R
   * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecLookupJoin]] in physical and
   * might be translated into
   * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecTemporalJoin]] in the future.
-  *
-  * TODO supports `true` join condition
   */
-class LogicalCorrelateToJoinFromTemporalTableRule
-  extends RelOptRule(
-    operand(classOf[LogicalCorrelate],
-      operand(classOf[RelNode], any()),
-      operand(classOf[LogicalFilter],
-        operand(classOf[LogicalSnapshot], any()))),
-    "LogicalCorrelateToJoinFromTemporalTableRule") {
+abstract class LogicalCorrelateToJoinFromTemporalTableRule(
+    operand: RelOptRuleOperand,
+    description: String)
+  extends RelOptRule(operand, description) {
+
+  def getFilterCondition(call: RelOptRuleCall): RexNode
+
+  def getLogicalSnapshot(call: RelOptRuleCall): LogicalSnapshot
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val correlate: LogicalCorrelate = call.rel(0)
     val leftInput: RelNode = call.rel(1)
-    val filter: LogicalFilter = call.rel(2)
-    val snapshot: LogicalSnapshot = call.rel[LogicalSnapshot](3)
+    val filterCondition = getFilterCondition(call)
+    val snapshot = getLogicalSnapshot(call)
 
     val leftRowType = leftInput.getRowType
-    val condition = filter.getCondition
-    val joinCondition = condition.accept(new RexShuttle() {
+    val joinCondition = filterCondition.accept(new RexShuttle() {
       // change correlate variable expression to normal RexInputRef (which is from left side)
       override def visitFieldAccess(fieldAccess: RexFieldAccess): RexNode = {
         fieldAccess.getReferenceExpr match {
@@ -78,6 +76,54 @@ class LogicalCorrelateToJoinFromTemporalTableRule
 
 }
 
+/**
+  * Planner rule that matches temporal table join which join condition is not true,
+  * that means the right input of the Correlate is a Filter.
+  * e.g. SELECT * FROM MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+  * ON T.a = D.id
+  */
+class LogicalCorrelateToJoinFromTemporalTableRuleWithFilter
+  extends LogicalCorrelateToJoinFromTemporalTableRule(
+    operand(classOf[LogicalCorrelate],
+      operand(classOf[RelNode], any()),
+      operand(classOf[LogicalFilter],
+        operand(classOf[LogicalSnapshot], any()))),
+    "LogicalCorrelateToJoinFromTemporalTableRuleWithFilter"
+  ) {
+
+  override def getFilterCondition(call: RelOptRuleCall): RexNode = {
+    val filter: LogicalFilter = call.rel(2)
+    filter.getCondition
+  }
+
+  override def getLogicalSnapshot(call: RelOptRuleCall): LogicalSnapshot = {
+    call.rels(3).asInstanceOf[LogicalSnapshot]
+  }
+}
+
+/**
+  * Planner rule that matches temporal table join which join condition is true,
+  * that means the right input of the Correlate is a Snapshot.
+  * e.g. SELECT * FROM MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON true
+  */
+class LogicalCorrelateToJoinFromTemporalTableRuleWithoutFilter
+  extends LogicalCorrelateToJoinFromTemporalTableRule(
+    operand(classOf[LogicalCorrelate],
+      operand(classOf[RelNode], any()),
+      operand(classOf[LogicalSnapshot], any())),
+    "LogicalCorrelateToJoinFromTemporalTableRuleWithoutFilter"
+  ) {
+
+  override def getFilterCondition(call: RelOptRuleCall): RexNode = {
+    call.builder().literal(true)
+  }
+
+  override def getLogicalSnapshot(call: RelOptRuleCall): LogicalSnapshot = {
+    call.rels(2).asInstanceOf[LogicalSnapshot]
+  }
+}
+
 object LogicalCorrelateToJoinFromTemporalTableRule {
-  val INSTANCE = new LogicalCorrelateToJoinFromTemporalTableRule
+  val WITH_FILTER = new LogicalCorrelateToJoinFromTemporalTableRuleWithFilter
+  val WITHOUT_FILTER = new LogicalCorrelateToJoinFromTemporalTableRuleWithoutFilter
 }

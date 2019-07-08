@@ -215,6 +215,18 @@ class LookupJoinTest extends TableTestBase {
   }
 
   @Test
+  def testJoinTemporalTableWithTrueCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON true
+        |WHERE T.c > 1000
+      """.stripMargin
+    testUtil.verifyPlan(sql)
+  }
+
+  @Test
   def testReusing(): Unit = {
     testUtil.tableEnv.getConfig.getConf.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)

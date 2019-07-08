@@ -317,6 +317,19 @@ class LookupJoinTest extends TableTestBase with Serializable {
     streamUtil.verifyPlan(sql)
   }
 
+  @Test
+  def testJoinTemporalTableWithTrueCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON true
+        |WHERE T.c > 1000
+      """.stripMargin
+
+    streamUtil.verifyPlan(sql)
+  }
+
   // ==========================================================================================
 
   private def expectExceptionThrown(
