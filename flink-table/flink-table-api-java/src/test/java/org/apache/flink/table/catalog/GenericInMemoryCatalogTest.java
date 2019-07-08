@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -35,6 +36,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -88,6 +90,24 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	}
 
 	// ------ statistics ------
+
+	@Test
+	public void testAlterTableStats_partitionedTable() throws Exception {
+		// alterTableStats() should do nothing for partitioned tables
+		// getTableStats() should return unknown column stats for partitioned tables
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogTable catalogTable = createPartitionedTable();
+		catalog.createTable(path1, catalogTable, false);
+
+		CatalogTableStatistics stats = new CatalogTableStatistics(100, 1, 1000, 10000);
+
+		assertTrue(catalogTable.isPartitioned());
+
+		exception.expect(TablePartitionedException.class);
+		catalog.alterTableStatistics(path1, stats, false);
+
+		assertEquals(CatalogTableStatistics.UNKNOWN, catalog.getTableStatistics(path1));
+	}
 
 	@Test
 	public void testStatistics() throws Exception {
