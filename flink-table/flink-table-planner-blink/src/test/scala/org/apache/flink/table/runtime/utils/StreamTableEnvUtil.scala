@@ -19,8 +19,11 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.util.TableTestUtil
 
 object StreamTableEnvUtil {
 
@@ -40,8 +43,11 @@ object StreamTableEnvUtil {
       fieldNames: Option[Array[String]],
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
-    val queryOperation = tEnv.asQueryOperation(dataStream, fieldNames, fieldNullables, statistic)
-    tEnv.registerTable(name, tEnv.createTable(queryOperation))
+    val fields: Option[Array[Expression]] = fieldNames match {
+      case Some(names) => Some(names.map(ExpressionParser.parseExpression))
+      case _ => None
+    }
+    TableTestUtil.registerDataStream(tEnv, name, dataStream, fields, fieldNullables, statistic)
   }
 
 }

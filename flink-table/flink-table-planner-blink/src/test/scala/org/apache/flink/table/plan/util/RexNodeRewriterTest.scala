@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.plan.util.RexNodeRewriter
 import org.junit.Assert.assertTrue
 import org.junit.Test
 

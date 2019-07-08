@@ -45,6 +45,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
+    super.before()
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
@@ -72,11 +73,11 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.writeToSink(
+      tEnv.registerTableSink("collect", sink)
+      tEnv.insertInto(
         tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"),
-        sink,
-        "collect")
-
+        "collect"
+      )
       var haveTwoOp = false
       env.getStreamGraph.getAllOperatorFactory.foreach(o =>
         o.f1 match {
@@ -802,7 +803,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Test
   def testJoinWithUDFFilter(): Unit = {
-    tEnv.registerFunction("funcWithOpen", new FuncWithOpen)
+    registerFunction("funcWithOpen", new FuncWithOpen)
     checkResult(
       "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
       Seq(

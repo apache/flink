@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{Table, TableException}
 import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.{EnvironmentSettings, Table, TableException}
 import org.apache.flink.table.operations.PlannerQueryOperation
 import org.apache.flink.table.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.util.TableTestUtil
@@ -37,7 +37,7 @@ class StreamingTestBase extends AbstractTestBase {
   val _tempFolder = new TemporaryFolder
   var enableObjectReuse = true
   // used for accurate exception information checking.
-  val expectedException = ExpectedException.none()
+  val expectedException: ExpectedException = ExpectedException.none()
 
   @Rule
   def thrown: ExpectedException = expectedException
@@ -54,7 +54,8 @@ class StreamingTestBase extends AbstractTestBase {
     if (enableObjectReuse) {
       this.env.getConfig.enableObjectReuse()
     }
-    this.tEnv = StreamTableEnvironment.create(env)
+    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    this.tEnv = StreamTableEnvironment.create(env, setting)
   }
 
   def addTableWithWatermark(
@@ -75,6 +76,6 @@ class StreamingTestBase extends AbstractTestBase {
       Option(offset)
     )
     val queryOperation = new PlannerQueryOperation(watermarkAssigner)
-    tEnv.registerTable(tableName, tEnv.createTable(queryOperation))
+    tEnv.registerTable(tableName, TableTestUtil.createTable(tEnv, queryOperation))
   }
 }

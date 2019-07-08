@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.stream.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.plan.util.NonPojo
 import org.apache.flink.table.util.TableTestBase

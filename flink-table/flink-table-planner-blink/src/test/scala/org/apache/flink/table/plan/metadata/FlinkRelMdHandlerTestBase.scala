@@ -79,7 +79,7 @@ class FlinkRelMdHandlerTestBase {
   val plannerContext: PlannerContext =
     new PlannerContext(
       tableConfig,
-      new FunctionCatalog(tableConfig.getBuiltInCatalogName, tableConfig.getBuiltInDatabaseName),
+      new FunctionCatalog("default_catalog", "default_database"),
       CalciteSchema.from(rootSchema),
       util.Arrays.asList(
         ConventionTraitDef.INSTANCE,
@@ -101,8 +101,7 @@ class FlinkRelMdHandlerTestBase {
 
   @Before
   def setUp(): Unit = {
-    relBuilder = plannerContext.createRelBuilder(
-      tableConfig.getBuiltInCatalogName, tableConfig.getBuiltInDatabaseName)
+    relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
 
     rexBuilder = relBuilder.getRexBuilder
     cluster = relBuilder.getCluster

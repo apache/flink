@@ -37,8 +37,9 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -53,8 +54,9 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -69,8 +71,9 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -82,15 +85,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.registerTable("MyTable1", table1)
 
     val ds2 = env.fromCollection(Seq(1, 2, 3))
-    val table2 = ds1.toTable(tEnv, 'a)
+    val table2 = ds2.toTable(tEnv, 'a)
     tEnv.registerTable("MyTable2", table2)
 
     val sql = "SELECT * FROM MyTable1 WHERE a IN (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -102,15 +106,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.registerTable("MyTable1", table1)
 
     val ds2 = env.fromCollection(Seq(1, 2, 3))
-    val table2 = ds1.toTable(tEnv, 'a)
+    val table2 = ds2.toTable(tEnv, 'a)
     tEnv.registerTable("MyTable2", table2)
 
     val sql = "SELECT * FROM MyTable1 WHERE a NOT IN (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
     assertEquals(expected, sink.getAppendResults.sorted)
@@ -123,15 +128,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.registerTable("MyTable1", table1)
 
     val ds2 = env.fromCollection(Seq(1, 2, 3))
-    val table2 = ds1.toTable(tEnv, 'a)
+    val table2 = ds2.toTable(tEnv, 'a)
     tEnv.registerTable("MyTable2", table2)
 
     val sql = "SELECT * FROM MyTable1 WHERE EXISTS (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingUpsertTableSink(Array(0)))
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     assertEquals(0, sink.getRawResults.size)
   }
@@ -143,15 +149,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.registerTable("MyTable1", table1)
 
     val ds2 = env.fromCollection(Seq(1, 2, 3))
-    val table2 = ds1.toTable(tEnv, 'a)
+    val table2 = ds2.toTable(tEnv, 'a)
     tEnv.registerTable("MyTable2", table2)
 
     val sql = "SELECT * FROM MyTable1 WHERE NOT EXISTS (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingUpsertTableSink(Array(0)))
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
     assertEquals(expected, sink.getUpsertResults.sorted)
@@ -164,15 +171,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.registerTable("MyTable1", table1)
 
     val ds2 = env.fromCollection(Seq(1, 2, 3))
-    val table2 = ds1.toTable(tEnv, 'a2)
+    val table2 = ds2.toTable(tEnv, 'a2)
     tEnv.registerTable("MyTable2", table2)
 
     val sql = "SELECT a1 FROM MyTable1 INNER JOIN (SELECT a2 FROM MyTable2 LIMIT 0) ON true"
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     assertEquals(0, sink.getAppendResults.size)
   }

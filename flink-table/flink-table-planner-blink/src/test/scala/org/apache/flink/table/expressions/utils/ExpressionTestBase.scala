@@ -24,10 +24,12 @@ import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMap
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.java.StreamTableEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
+import org.apache.flink.table.planner.PlannerBase
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
@@ -55,9 +57,14 @@ abstract class ExpressionTestBase {
   // (originalExpr, optimizedExpr, expectedResult)
   private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
-  private val tEnv = StreamTableEnvironment.create(env, config)
-  private val relBuilder = tEnv.getRelBuilder
-  private val planner = tEnv.getFlinkPlanner
+  private val setting = EnvironmentSettings.newInstance()
+    .useBlinkPlanner().inStreamingMode().build()
+  // use impl class instead of interface class to avoid
+  // "Static methods in interface require -target:jvm-1.8"
+  private val tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+  private val relBuilder = planner.getRelBuilder
+  private val calcitePlanner = planner.getFlinkPlanner
 
   // setup test utils
   private val tableName = "testTable"
@@ -164,9 +171,9 @@ abstract class ExpressionTestBase {
 
   private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
     // create RelNode from SQL expression
-    val parsed = planner.parse(s"SELECT $sqlExpr FROM $tableName")
-    val validated = planner.validate(parsed)
-    val converted = planner.rel(validated).rel
+    val parsed = calcitePlanner.parse(s"SELECT $sqlExpr FROM $tableName")
+    val validated = calcitePlanner.validate(parsed)
+    val converted = calcitePlanner.rel(validated).rel
 
     val builder = new HepProgramBuilder()
     builder.addRuleInstance(ProjectToCalcRule.INSTANCE)

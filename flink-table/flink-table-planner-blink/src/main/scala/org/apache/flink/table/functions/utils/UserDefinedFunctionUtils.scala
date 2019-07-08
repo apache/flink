@@ -35,6 +35,7 @@ import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToL
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TypeCheckUtils.isAny
+import org.apache.flink.table.util.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
 
@@ -656,9 +657,9 @@ object UserDefinedFunctionUtils {
   def getFieldInfo(inputType: DataType)
     : (Array[String], Array[Int], Array[LogicalType]) = {
     (
-        TableEnvironment.getFieldNames(inputType),
-        TableEnvironment.getFieldIndices(inputType),
-        TableEnvironment.getFieldTypes(inputType))
+      FieldInfoUtils.getFieldNames(inputType),
+      FieldInfoUtils.getFieldIndices(inputType),
+      FieldInfoUtils.getFieldTypes(inputType))
   }
 
   /**

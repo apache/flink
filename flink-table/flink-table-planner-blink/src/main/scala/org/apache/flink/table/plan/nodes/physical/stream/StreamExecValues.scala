@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.codegen.ValuesCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.StreamPlanner
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 /**
   * Stream physical RelNode for [[Values]].
@@ -62,24 +63,24 @@ class StreamExecValues(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    new util.ArrayList[ExecNode[StreamTableEnvironment, _]]()
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    new util.ArrayList[ExecNode[StreamPlanner, _]]()
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[BaseRow] = {
     val inputFormat = ValuesCodeGenerator.generatorInputFormat(
-      tableEnv,
+      planner.getTableConfig,
       getRowType,
       tuples,
       getRelTypeName)
-    val transformation = tableEnv.execEnv.createInput(inputFormat,
+    val transformation = planner.getExecEnv.createInput(inputFormat,
       inputFormat.getProducedType).getTransformation
     transformation.setParallelism(getResource.getParallelism)
     if (getResource.getMaxParallelism > 0) {

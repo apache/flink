@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{ExecutionConfigOptions, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -38,6 +38,7 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
+    super.before()
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("SmallTable5", smallData5, type5, "a, b, c, d, e", nullablesOfSmallData5)
     registerCollection("EmptyTable3", Seq(), type3, "a, b, c")

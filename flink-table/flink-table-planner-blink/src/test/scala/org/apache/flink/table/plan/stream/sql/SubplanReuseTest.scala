@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, TableException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction
 import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
@@ -158,8 +159,8 @@ class SubplanReuseTest extends TableTestBase {
   @Test
   def testSubplanReuseOnAggregateWithNonDeterministicAggCall(): Unit = {
     // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
-    util.tableEnv.registerFunction("MyFirst", new IntFirstValueAggFunction)
-    util.tableEnv.registerFunction("MyLast", new LongLastValueAggFunction)
+    util.addFunction("MyFirst", new IntFirstValueAggFunction)
+    util.addFunction("MyLast", new LongLastValueAggFunction)
 
     val sqlQuery =
       """
@@ -249,7 +250,7 @@ class SubplanReuseTest extends TableTestBase {
   @Test
   def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
     // IntFirstValueAggFunction is deterministic
-    util.tableEnv.registerFunction("MyFirst", new IntFirstValueAggFunction)
+    util.addFunction("MyFirst", new IntFirstValueAggFunction)
 
     val sqlQuery =
       """
@@ -274,7 +275,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCorrelateWithNonDeterministicUDTF(): Unit = {
-    util.tableEnv.registerFunction("TableFun", new NonDeterministicTableFunc)
+    util.addFunction("TableFun", new NonDeterministicTableFunc)
 
     val sqlQuery =
       """

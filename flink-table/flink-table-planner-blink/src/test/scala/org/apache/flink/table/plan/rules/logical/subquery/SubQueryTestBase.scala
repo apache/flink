@@ -39,5 +39,5 @@ class SubQueryTestBase extends TableTestBase {
       .withInSubQueryThreshold(3)
       .build())
 
-  util.tableEnv.config.setCalciteConfig(builder.build())
+  util.tableEnv.getConfig.setCalciteConfig(builder.build())
 }

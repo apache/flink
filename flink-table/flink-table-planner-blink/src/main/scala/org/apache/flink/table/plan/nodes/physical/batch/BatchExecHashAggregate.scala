@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
@@ -31,7 +32,6 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.{ImmutableIntList, Util}
 
 import java.util
-import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 
 import scala.collection.JavaConversions._
 

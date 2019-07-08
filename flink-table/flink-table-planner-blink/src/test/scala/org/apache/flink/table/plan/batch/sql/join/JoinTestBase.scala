@@ -18,6 +18,7 @@
 package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 

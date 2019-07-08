@@ -18,21 +18,22 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.util.ScanUtil
+import org.apache.flink.table.planner.BatchPlanner
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -74,17 +75,17 @@ class BatchExecBoundedStreamScan(
 
   override def getDamBehavior = DamBehavior.PIPELINED
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = List()
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-    val config = tableEnv.getConfig
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
     val batchTransform = boundedStreamTable.dataStream.getTransformation
     batchTransform.setParallelism(getResource.getParallelism)
     if (needInternalConversion) {

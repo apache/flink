@@ -28,8 +28,8 @@ import org.junit.Test
 
 class OverWindowValidationTest extends TableTestBase {
 
-  private val streamUtil = streamTestUtil()
-  streamUtil.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime)
+  private val streamUtil = scalaStreamTestUtil()
+  streamUtil.addDataStream[(Int, String, Long)]("T1", 'a, 'b, 'c, 'proctime.proctime)
 
   /**
     * All aggregates must be computed on the same window.

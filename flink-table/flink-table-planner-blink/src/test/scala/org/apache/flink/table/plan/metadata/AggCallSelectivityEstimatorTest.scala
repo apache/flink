@@ -77,14 +77,12 @@ class AggCallSelectivityEstimatorTest {
   }
 
   private def mockScan(
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN,
-      tableConfig: TableConfig = TableConfig.DEFAULT): TableScan = {
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): TableScan = {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
-    val functionCatalog = new FunctionCatalog(
-      tableConfig.getBuiltInCatalogName, tableConfig.getBuiltInDatabaseName)
-    val context = new FlinkContextImpl(tableConfig, functionCatalog)
+    val functionCatalog = new FunctionCatalog("default_catalog", "default_database")
+    val context = new FlinkContextImpl(new TableConfig, functionCatalog)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)
     when(cluster, "getTypeFactory").thenReturn(typeFactory)

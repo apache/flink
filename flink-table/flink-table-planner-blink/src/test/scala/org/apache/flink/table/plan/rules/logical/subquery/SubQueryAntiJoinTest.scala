@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 
 import org.junit.Test

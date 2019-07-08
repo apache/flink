@@ -17,24 +17,26 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
+import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.sort.SortLimitOperator
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -112,29 +114,29 @@ class BatchExecSortLimit(
 
   override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
     if (limitEnd == Long.MaxValue) {
       throw new TableException("Not support limitEnd is max value now!")
     }
 
-    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+    val input = getInputNodes.get(0).translateToPlan(planner)
         .asInstanceOf[Transformation[BaseRow]]
     val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val types = inputType.getLogicalTypes
 
     // generate comparator
     val genComparator = ComparatorCodeGenerator.gen(
-      tableEnv.getConfig, "SortLimitComparator", keys, keys.map(types(_)), orders, nullsIsLast)
+      planner.getTableConfig, "SortLimitComparator", keys, keys.map(types(_)), orders, nullsIsLast)
 
     // TODO If input is ordered, there is no need to use the heap.
     val operator = new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator)

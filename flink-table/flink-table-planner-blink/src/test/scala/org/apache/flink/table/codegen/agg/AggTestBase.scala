@@ -20,13 +20,16 @@ package org.apache.flink.table.codegen.agg
 
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.table.api.java.StreamTableEnvironment
-import org.apache.flink.table.api.{DataTypes, TableConfig}
+import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
+import org.apache.flink.table.planner.PlannerBase
 import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -38,19 +41,27 @@ import org.powermock.api.mockito.PowerMockito.{mock, when}
 /**
   * Agg test base to mock agg information and etc.
   */
-abstract class AggTestBase {
+abstract class AggTestBase(isBatch: Boolean) {
 
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
-  val env = new LocalStreamEnvironment
-  val conf = new TableConfig
-  val tEnv = StreamTableEnvironment.create(env, conf)
+  val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
+  private val tEnv = if (isBatch) {
+    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    // use impl class instead of interface class to avoid
+    // "Static methods in interface require -target:jvm-1.8"
+    TableEnvironmentImpl.create(settings)
+  } else {
+    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    StreamTableEnvironment.create(env, settings)
+  }
+  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val inputNames = Array("f0", "f1", "f2", "f3", "f4")
   val inputTypes: Array[LogicalType] = Array(
     new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new DoubleType(), new BigIntType(),
     new VarCharType(VarCharType.MAX_LENGTH))
   val inputType: RowType = RowType.of(inputTypes, inputNames)
 
-  val relBuilder: RelBuilder = tEnv.getRelBuilder.values(
+  val relBuilder: RelBuilder = planner.getRelBuilder.values(
     typeFactory.buildRelNodeRowType(inputNames, inputTypes))
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
@@ -94,7 +105,7 @@ abstract class AggTestBase {
 
   val aggInfoList = AggregateInfoList(
     Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
-  val ctx = new CodeGeneratorContext(conf)
+  val ctx = new CodeGeneratorContext(tEnv.getConfig)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
   when(context, "getRuntimeContext").thenReturn(mock(classOf[RuntimeContext]))

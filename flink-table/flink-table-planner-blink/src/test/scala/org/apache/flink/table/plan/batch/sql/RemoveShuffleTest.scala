@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, OptimizerConfigOptions, Types}
 import org.apache.flink.table.plan.rules.physical.batch.{BatchExecJoinRuleBase, BatchExecSortMergeJoinRule}
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.util.{TableFunc1, TableTestBase}
@@ -501,7 +501,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
-    util.tableEnv.registerFunction("split", new TableFunc1)
+    util.addFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -518,7 +518,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
-    util.tableEnv.registerFunction("split", new TableFunc1)
+    util.addFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -536,7 +536,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
-    util.tableEnv.registerFunction("split", new TableFunc1)
+    util.addFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),

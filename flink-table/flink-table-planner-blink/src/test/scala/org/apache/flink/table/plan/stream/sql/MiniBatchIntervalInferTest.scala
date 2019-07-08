@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.stream.sql
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
@@ -35,8 +36,10 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
-    util.addDataStream[(Int, String, Long)]("MyTable1", 'a, 'b, 'c, 'proctime, 'rowtime)
-    util.addDataStream[(Int, String, Long)]("MyTable2", 'a, 'b, 'c, 'proctime, 'rowtime)
+    util.addDataStream[(Int, String, Long)](
+      "MyTable1", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+    util.addDataStream[(Int, String, Long)](
+      "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
     util.tableEnv.getConfig.getConf.setBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
   }
@@ -306,7 +309,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
       """.stripMargin)
     val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv.writeToSink(table3, appendSink1)
+    util.writeToSink(table3, appendSink1, "appendSink1")
 
     val table4 = util.tableEnv.sqlQuery(
       """
@@ -316,7 +319,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
       """.stripMargin)
     val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv.writeToSink(table4, appendSink2)
+    util.writeToSink(table4, appendSink2, "appendSink2")
 
     val table5 = util.tableEnv.sqlQuery(
       """
@@ -326,7 +329,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY id1
       """.stripMargin)
     val appendSink3 = util.createRetractTableSink(Array("a", "b"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table5, appendSink3)
+    util.writeToSink(table5, appendSink3, "appendSink3")
 
     util.verifyExplain()
   }

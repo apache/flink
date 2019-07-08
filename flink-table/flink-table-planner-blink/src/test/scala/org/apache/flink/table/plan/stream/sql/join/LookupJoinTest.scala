@@ -22,12 +22,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertTrue, fail}
@@ -41,8 +42,9 @@ import _root_.java.util.{Collection => JCollection}
 import _root_.scala.annotation.varargs
 
 class LookupJoinTest extends TableTestBase with Serializable {
-  private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
+  private val streamUtil = scalaStreamTestUtil()
+  streamUtil.addDataStream[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   streamUtil.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
   streamUtil.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
   streamUtil.tableEnv.registerTableSource("temporalTest", new TestTemporalTable)
@@ -99,7 +101,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
   @Test
   def testInvalidLookupTableFunction(): Unit = {
-    streamUtil.addDataStream[(Int, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'ts, 'proctime)
+    streamUtil.addDataStream[(Int, String, Long, Timestamp)](
+      "T", 'a, 'b, 'c, 'ts, 'proctime.proctime)
 
     val temporalTable = new TestInvalidTemporalTable(new InvalidTableFunctionResultType)
     streamUtil.tableEnv.registerTableSource("temporalTable", temporalTable)

@@ -40,7 +40,7 @@ class TableSourceTest extends TableTestBase {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.VARCHAR(32))).build()
+      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
     util.tableEnv.registerTableSource("ProjectableTable", new TestProjectableTableSource(
       true,
       tableSchema,

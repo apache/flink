@@ -19,6 +19,7 @@ package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizerConfigOptions, TableException, ValidationException}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.util.{CountAggFunction, TableTestBase}
@@ -71,7 +72,7 @@ class WindowAggregateTest(aggStrategy: AggPhaseEnforcer) extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testTumbleWindowWithInvalidUdAggArgs(): Unit = {
     val weightedAvg = new WeightedAvgWithMerge
-    util.tableEnv.registerFunction("weightedAvg", weightedAvg)
+    util.addFunction("weightedAvg", weightedAvg)
 
     val sql = "SELECT weightedAvg(c, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"

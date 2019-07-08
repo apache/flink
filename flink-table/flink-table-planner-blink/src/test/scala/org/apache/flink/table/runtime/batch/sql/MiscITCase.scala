@@ -44,6 +44,7 @@ class MiscITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
+    super.before()
     registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
   }
 

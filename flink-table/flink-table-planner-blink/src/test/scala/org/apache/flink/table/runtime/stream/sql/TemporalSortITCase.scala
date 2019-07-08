@@ -51,7 +51,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val t = failingDataSource(data)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
-      .toTable(tEnv, 'rowtime, 'key, 'str, 'int)
+      .toTable(tEnv, 'rowtime.rowtime, 'key, 'str, 'int)
     tEnv.registerTable("T", t)
 
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime"
@@ -95,7 +95,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val t = failingDataSource(data)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
-      .toTable(tEnv, 'rowtime, 'key, 'str, 'int)
+      .toTable(tEnv, 'rowtime.rowtime, 'key, 'str, 'int)
     tEnv.registerTable("T", t)
 
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
@@ -124,7 +124,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   @Test
   def testProcTimeOrderBy(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
-      .toTable(tEnv, 'a, 'b, 'c, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.registerTable("T", t)
 
     val sql = "SELECT a, b, c FROM T ORDER BY proctime"

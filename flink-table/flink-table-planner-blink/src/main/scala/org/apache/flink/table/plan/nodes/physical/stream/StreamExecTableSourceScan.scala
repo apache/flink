@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.dataformat.BaseRow
@@ -31,17 +32,18 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.AbstractProcessStreamOperator
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource, TableSourceUtil}
 import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -81,13 +83,13 @@ class StreamExecTableSourceScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
@@ -101,9 +103,9 @@ class StreamExecTableSourceScan(
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-    val config = tableEnv.getConfig
-    val inputTransform = getSourceTransformation(tableEnv.execEnv)
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
+    val inputTransform = getSourceTransformation(planner.getExecEnv)
     inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
@@ -113,7 +115,6 @@ class StreamExecTableSourceScan(
 
     val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
     val producedDataType = tableSource.getProducedDataType
-    val producedTypeInfo = fromDataTypeToLegacyInfo(producedDataType)
 
     // check that declared and actual type of table source DataStream are identical
     if (inputDataType != producedDataType) {
@@ -128,7 +129,7 @@ class StreamExecTableSourceScan(
       tableSource,
       None,
       cluster,
-      tableEnv.getRelBuilder
+      planner.getRelBuilder
     )
 
     val streamTransformation = if (needInternalConversion) {
@@ -158,7 +159,7 @@ class StreamExecTableSourceScan(
       inputTransform.asInstanceOf[Transformation[BaseRow]]
     }
 
-    val ingestedTable = new DataStream(tableEnv.execEnv, streamTransformation)
+    val ingestedTable = new DataStream(planner.getExecEnv, streamTransformation)
 
     // generate watermarks for rowtime indicator
     val rowtimeDesc: Option[RowtimeAttributeDescriptor] =

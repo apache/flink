@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException, ValidationException}
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
@@ -32,6 +32,7 @@ import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.TemporalJoinUtil.TEMPORAL_JOIN_CONDITION
 import org.apache.flink.table.plan.util.{InputRefVisitor, KeySelectorUtil, RelExplainUtil, TemporalJoinUtil}
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector
 import org.apache.flink.table.types.logical.RowType
@@ -101,18 +102,18 @@ class StreamExecTemporalJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
     ordinalInParent: Int,
-    newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-    tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
+    planner: StreamPlanner): Transformation[BaseRow] = {
 
     validateKeyTypes()
 
@@ -120,7 +121,7 @@ class StreamExecTemporalJoin(
 
     val joinTranslator = StreamExecTemporalJoinToCoProcessTranslator.create(
       this.toString,
-      tableEnv.getConfig,
+      planner.getTableConfig,
       returnType,
       leftRel,
       rightRel,
@@ -131,9 +132,9 @@ class StreamExecTemporalJoin(
     val leftKeySelector = joinTranslator.getLeftKeySelector
     val rightKeySelector = joinTranslator.getRightKeySelector
 
-    val leftTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+    val leftTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val rightTransform = getInputNodes.get(1).translateToPlan(tableEnv)
+    val rightTransform = getInputNodes.get(1).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](

@@ -1266,7 +1266,7 @@ class AggregateITCase(
     val t1 = tEnv.sqlQuery(sql)
     val sink = new TestingRetractSink
     t1.toRetractStream[Row].addSink(sink)
-    env.execute()
+    env.execute("test")
 
     val expected = List("1,1,50", "1,ALL,50")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

@@ -35,6 +35,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
+    super.before()
     registerCollection("T1",
       Seq(row(2, 1, "A", null),
         row(3, 2, "A", "Hi"),

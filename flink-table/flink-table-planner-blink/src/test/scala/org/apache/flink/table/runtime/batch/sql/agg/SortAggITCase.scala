@@ -176,7 +176,7 @@ class SortAggITCase
       new RowTypeInfo(Types.INT, TypeExtractor.createTypeInfo(classOf[MyPojo])),
       "a, b")
 
-    tEnv.registerFunction("pojoFunc", new MyPojoAggFunction)
+    registerFunction("pojoFunc", new MyPojoAggFunction)
     checkResult(
       "SELECT pojoFunc(b) FROM MyTable group by a",
       Seq(
@@ -195,7 +195,7 @@ class SortAggITCase
       new RowTypeInfo(Types.INT, Types.LONG, Types.STRING, Types.STRING),
       "id, s, s1, s2")
     val func = new VarArgsAggFunction
-    tEnv.registerFunction("func", func)
+    registerFunction("func", func)
 
     // no group
     checkResult(

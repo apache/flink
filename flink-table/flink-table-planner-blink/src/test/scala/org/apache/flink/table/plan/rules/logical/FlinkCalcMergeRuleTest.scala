@@ -18,6 +18,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}

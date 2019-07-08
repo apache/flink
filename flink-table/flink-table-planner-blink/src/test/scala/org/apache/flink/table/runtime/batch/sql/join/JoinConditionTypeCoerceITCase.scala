@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql.join
 
-import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -28,9 +27,10 @@ import org.junit.{Before, Ignore, Test}
 // @RunWith(classOf[Parameterized]) TODO
 @Ignore // TODO support JoinConditionTypeCoerce
 class JoinConditionTypeCoerceITCase extends BatchTestBase {
+
   @Before
   override def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+    super.before()
     registerCollection(
       "t1",
       numericData,

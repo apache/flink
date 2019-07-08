@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.CalcitePair
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, ExecutionConfigOptions}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -40,6 +40,7 @@ import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.over.frame.OffsetOverFrame.CalcOffsetFunc
 import org.apache.flink.table.runtime.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
 import org.apache.flink.table.runtime.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
@@ -349,18 +350,19 @@ class BatchExecOverAggregate(
 
   override def getDamBehavior = DamBehavior.PIPELINED
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
+    val input = getInputNodes.get(0).translateToPlan(planner)
         .asInstanceOf[Transformation[BaseRow]]
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
@@ -369,7 +371,7 @@ class BatchExecOverAggregate(
     //TODO just replace comparator to equaliser
     val collation = grouping.map(_ => (true, false))
     val genComparator =  ComparatorCodeGenerator.gen(
-      tableEnv.getConfig,
+      config,
       "SortComparator",
       grouping,
       grouping.map(inputType.getTypeAt),
@@ -384,7 +386,7 @@ class BatchExecOverAggregate(
           // use aggInputType which considers constants as input instead of inputType
           inputTypeWithConstants,
           orderKeyIndices)
-        val codeGenCtx = CodeGeneratorContext(tableEnv.getConfig)
+        val codeGenCtx = CodeGeneratorContext(config)
         val generator = new AggsHandlerCodeGenerator(
           codeGenCtx,
           relBuilder,
@@ -405,9 +407,9 @@ class BatchExecOverAggregate(
         }.toArray
       new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
     } else {
-      val windowFrames = createOverWindowFrames(tableEnv)
+      val windowFrames = createOverWindowFrames(config)
       new BufferDataOverWindowOperator(
-        tableEnv.getConfig.getConf.getInteger(
+        config.getConf.getInteger(
           ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB,
         windowFrames,
         genComparator,
@@ -417,8 +419,7 @@ class BatchExecOverAggregate(
       input, "OverAggregate", operator, BaseRowTypeInfo.of(outputType), getResource.getParallelism)
   }
 
-  def createOverWindowFrames(tableEnv: BatchTableEnvironment): Array[OverWindowFrame] = {
-    val config = tableEnv.getConfig
+  def createOverWindowFrames(config: TableConfig): Array[OverWindowFrame] = {
 
     def isUnboundedWindow(group: Window.Group) =
       group.lowerBound.isUnbounded && group.upperBound.isUnbounded

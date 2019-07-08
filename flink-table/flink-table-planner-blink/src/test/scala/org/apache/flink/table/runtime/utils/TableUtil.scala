@@ -19,11 +19,12 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink}
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row
 
@@ -53,13 +54,23 @@ object TableUtil {
   def collectSink[T](
       table: TableImpl, sink: CollectTableSink[T], jobName: Option[String] = None): Seq[T] = {
     // get schema information of table
-    val rowType = TableTestUtil.toRelNode(table).getRowType
+    val relNode = TableTestUtil.toRelNode(table)
+    val rowType = relNode.getRowType
     val fieldNames = rowType.getFieldNames.asScala.toArray
-    val fieldTypes = rowType.getFieldList
-      .map(field => FlinkTypeFactory.toLogicalType(field.getType)).toArray
+    val fieldTypes = rowType.getFieldList.map { field =>
+      val `type` = field.getType match {
+        // converts `TIME ATTRIBUTE(ROWTIME)`/`TIME ATTRIBUTE(PROCTIME)` to `TIMESTAMP(3)` for sink
+        case _: TimeIndicatorRelDataType =>
+          relNode.getCluster
+            .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+            .createFieldTypeFromLogicalType(new TimestampType(false, 3))
+        case t => t
+      }
+      FlinkTypeFactory.toLogicalType(`type`)
+    }.toArray
     val configuredSink = sink.configure(
       fieldNames, fieldTypes.map(TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo))
-    BatchTableEnvUtil.collect(table.getTableEnvironment.asInstanceOf[BatchTableEnvironment],
+    BatchTableEnvUtil.collect(table.getTableEnvironment,
       table, configuredSink.asInstanceOf[CollectTableSink[T]], jobName)
   }
 

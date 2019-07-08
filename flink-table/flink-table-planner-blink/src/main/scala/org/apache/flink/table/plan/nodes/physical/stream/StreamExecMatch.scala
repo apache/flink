@@ -18,18 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelFieldCollation.Direction
-import org.apache.calcite.rel._
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
-import org.apache.calcite.sql.`type`.SqlTypeFamily
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.cep.EventComparator
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy
@@ -41,7 +30,7 @@ import org.apache.flink.cep.pattern.conditions.BooleanConditions
 import org.apache.flink.streaming.api.operators.ProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException, ValidationException}
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, MatchCodeGenerator}
@@ -51,10 +40,22 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.RelExplainUtil._
 import org.apache.flink.table.plan.util.{KeySelectorUtil, RexDefaultVisitor, SortUtil}
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.MathUtils
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelFieldCollation.Direction
+import org.apache.calcite.rel._
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
+import org.apache.calcite.sql.`type`.SqlTypeFamily
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.tools.RelBuilder
 
 import _root_.java.lang.{Boolean => JBoolean, Long => JLong}
 import _root_.java.util
@@ -148,18 +149,18 @@ class StreamExecMatch(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
     ordinalInParent: Int,
-    newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+    newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[BaseRow] = {
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(getInput)
 
@@ -169,12 +170,12 @@ class StreamExecMatch(
           "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
     }
 
-    val config = tableEnv.getConfig
-    val relBuilder = tableEnv.getRelBuilder
+    val config = planner.getTableConfig
+    val relBuilder = planner.getRelBuilder
     val returnType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
-    val inputTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+    val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val (timestampedInput, comparator) = translateOrder(
@@ -206,7 +207,7 @@ class StreamExecMatch(
       val timeOrderField = SortUtil.getFirstSortField(logicalMatch.orderKeys, getInput.getRowType)
       val isProctime = FlinkTypeFactory.isProctimeIndicatorType(timeOrderField.getType)
       val inputTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
-      val inputSerializer = inputTypeInfo.createSerializer(tableEnv.execEnv.getConfig)
+      val inputSerializer = inputTypeInfo.createSerializer(planner.getExecEnv.getConfig)
       val nfaFactory = NFACompiler.compileFactory(cepPattern, false)
       val generator = new MatchCodeGenerator(
         CodeGeneratorContext(config),

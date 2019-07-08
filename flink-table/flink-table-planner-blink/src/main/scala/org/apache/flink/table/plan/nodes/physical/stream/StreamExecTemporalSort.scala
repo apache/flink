@@ -18,24 +18,26 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{RelExplainUtil, SortUtil}
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
 import org.apache.flink.table.runtime.sort.{ProcTimeSortOperator, RowTimeSortOperator}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -86,23 +88,19 @@ class StreamExecTemporalSort(
     *
     * @return Array of this node's inputs
     */
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  /**
-    * Internal method, translates this node into a Flink operator.
-    *
-    * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    */
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
     // time ordering needs to be ascending
     if (SortUtil.getFirstSortDirection(sortCollation) != Direction.ASCENDING) {
       throw new TableException(
@@ -110,15 +108,15 @@ class StreamExecTemporalSort(
           "please re-check sort statement according to the description above")
     }
 
-    val input = getInputNodes.get(0).translateToPlan(tableEnv)
+    val input = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val timeType = SortUtil.getFirstSortField(sortCollation, getRowType).getType
     timeType match {
       case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
-        createSortProcTime(input, tableEnv.getConfig)
+        createSortProcTime(input, config)
       case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
-        createSortRowTime(input, tableEnv.getConfig)
+        createSortRowTime(input, config)
       case _ =>
         throw new TableException(
           "Sort: Internal Error\n" +

@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
@@ -35,7 +36,8 @@ class ModifiedMonotonicityTest extends TableTestBase {
   val util: StreamTableTestUtil = streamTestUtil()
   util.addDataStream[(Int, Long, Long)]("A", 'a1, 'a2, 'a3)
   util.addDataStream[(Int, Long, Long)]("B", 'b1, 'b2, 'b3)
-  util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
+  util.addDataStream[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addFunction("weightedAvg", new WeightedAvgWithMerge)
   util.addTableSource[(Int, Long, String)]("AA", 'a1, 'a2, 'a3)
   util.addTableSource[(Int, Long, Int, String, Long)]("BB", 'b1, 'b2, 'b3, 'b4, 'b5)
@@ -254,7 +256,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
   def verifyMonotonicity(sql: String, expect: RelModifiedMonotonicity): Unit = {
     val table = util.tableEnv.sqlQuery(sql)
     val relNode = TableTestUtil.toRelNode(table)
-    val optimized = util.tableEnv.optimize(relNode)
+    val optimized = util.getPlanner.optimize(relNode)
 
     val actualMono = FlinkRelMetadataQuery.reuseOrCreate(optimized.getCluster.getMetadataQuery)
       .getRelModifiedMonotonicity(optimized)

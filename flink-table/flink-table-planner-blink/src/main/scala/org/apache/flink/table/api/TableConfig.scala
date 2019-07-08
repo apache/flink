@@ -55,6 +55,18 @@ class TableConfig {
     */
   private var maxGeneratedCodeLength: Int = 64000 // just an estimate
 
+  /**
+    * The minimum time until state which was not updated will be retained.
+    * State might be cleared and removed if it was not updated for the defined period of time.
+    */
+  private var minIdleStateRetentionTime = 0L
+
+  /**
+    * The maximum time until state which was not updated will be retained.
+    * State will be cleared and removed if it was not updated for the defined period of time.
+    */
+  private var maxIdleStateRetentionTime = 0L
+
   private val DEFAULT_FIRE_INTERVAL = Long.MinValue
 
   /**
@@ -88,19 +100,6 @@ class TableConfig {
     * Defines user-defined configuration
     */
   private var conf = GlobalConfiguration.loadConfiguration()
-
-  /**
-    * Specifies the name of the initial catalog to be created when instantiating
-    * TableEnvironment.
-    */
-  private var builtInCatalogName = "default_catalog"
-
-  /**
-    * Specifies the name of the default database in the initial catalog to be created when
-    * instantiating
-    * TableEnvironment.
-    */
-  private var builtInDatabaseName = "default_database"
 
   /**
    * Sets the timezone for date/time/timestamp conversions.
@@ -286,35 +285,35 @@ class TableConfig {
   def getLateFireInterval: Long = lateFireInterval
 
   /**
-    * Gets the specified name of the initial catalog to be created when instantiating
-    * a [[TableEnvironment]].
+    * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
+    * was not updated, will be retained.
+    * State will never be cleared until it was idle for less than the minimum time and will never
+    * be kept if it was idle for more than the maximum time.
+    *
+    * <p>When new data arrives for previously cleaned-up state, the new data will be handled as
+    * if it was the first data. This can result in previous results being overwritten.
+    *
+    * <p>Set to 0 (zero) to never clean-up the state.
+    *
+    * <p>NOTE: Cleaning up state requires additional bookkeeping which becomes less expensive for
+    * larger differences of minTime and maxTime. The difference between minTime and maxTime must be
+    * at least 5 minutes.
+    *
+    * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
+    * never clean-up the state.
+    * @param maxTime The maximum time interval for which idle state is retained. Must be at least
+    * 5 minutes greater than minTime. Set to 0 (zero) to never clean-up the state.
     */
-  def getBuiltInCatalogName: String = builtInCatalogName
-
-  /**
-    * Specifies the name of the initial catalog to be created when instantiating
-    * a [[TableEnvironment]]. This method has no effect if called on the
-    * [[TableEnvironment#getConfig()]].
-    */
-  def setBuiltInCatalogName(builtInCatalogName: String): Unit = {
-    this.builtInCatalogName = builtInCatalogName
+  def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
+    if (maxTime.toMilliseconds - minTime.toMilliseconds < 300000 &&
+      !(maxTime.toMilliseconds == 0) && minTime.toMilliseconds == 0) {
+      throw new IllegalArgumentException(
+        "Difference between minTime: " + minTime.toString + " and maxTime: " + maxTime.toString +
+          "should be at least 5 minutes.")
+    }
+    minIdleStateRetentionTime = minTime.toMilliseconds
+    maxIdleStateRetentionTime = maxTime.toMilliseconds
   }
-
-  /**
-    * Gets the specified name of the default database in the initial catalog to be created when
-    * instantiating a [[TableEnvironment]].
-    */
-  def getBuiltInDatabaseName: String = builtInDatabaseName
-
-  /**
-    * Specifies the name of the default database in the initial catalog to be created when
-    * instantiating a [[TableEnvironment]]. This method has no effect if called on the
-    * [[TableEnvironment#getConfig()]].
-    */
-  def setBuiltInDatabaseName(builtInDatabaseName: String): Unit = {
-    this.builtInDatabaseName = builtInDatabaseName
-  }
-
 }
 
 object TableConfig {

@@ -31,6 +31,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.{ImmutableIntList, Util}
 
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -65,7 +66,7 @@ class BatchExecSortAggregate(
     isMerge = isMerge,
     isFinal = true) {
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecSortAggregate(
       cluster,
       relBuilder,
