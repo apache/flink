@@ -36,10 +36,13 @@ export interface TaskmanagersItemInterface {
   path: string;
   dataPort: number;
   timeSinceLastHeartbeat: number;
-  milliSecondsSinceLastHeartBeat: number;
   slotsNumber: number;
   freeSlots: number;
   hardware: Hardware;
+}
+
+export interface TaskmanagersItemCalInterface extends TaskmanagersItemInterface {
+  milliSecondsSinceLastHeartBeat?: number;
 }
 
 interface Hardware {

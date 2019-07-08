@@ -17,7 +17,7 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { OverviewInterface, TaskmanagersItemInterface } from 'interfaces';
+import { OverviewInterface, TaskmanagersItemCalInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 import { JobManagerService, OverviewService, StatusService, TaskManagerService } from 'services';
@@ -30,7 +30,7 @@ import { JobManagerService, OverviewService, StatusService, TaskManagerService }
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
   statistic: OverviewInterface | null;
-  listOfTaskManager: TaskmanagersItemInterface[] = [];
+  listOfTaskManager: TaskmanagersItemCalInterface[] = [];
   taskSlotPercentage: number;
   taskManagerCPUs: number;
   milliSecondsSinceLastHeartBeat: number;
@@ -74,8 +74,7 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
           });
           this.cdr.markForCheck();
         },
-        () => {
-        }
+        () => {}
       );
     this.jobManagerService.loadConfig().subscribe(data => {
       this.listOfConfig = data;
