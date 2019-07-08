@@ -37,6 +37,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import org.apache.commons.logging.Log;
@@ -65,8 +66,8 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 /**
  * IT case Test HBaseLookupFunction.
  */
-public class HBaseLookupFunctionFlatITCase extends HBaseTestingClusterAutostarter {
-	private static final Log LOG = LogFactory.getLog(HBaseLookupFunctionFlatITCase.class);
+public class HBaseLookupFunctionITCase extends HBaseTestingClusterAutostarter {
+	private static final Log LOG = LogFactory.getLog(HBaseLookupFunctionITCase.class);
 	private static final String FAMILY1 = "family1";
 	private static final String F1COL1 = "col1";
 
@@ -94,7 +95,7 @@ public class HBaseLookupFunctionFlatITCase extends HBaseTestingClusterAutostarte
 	private static final RowTypeInfo testTypeInfo1 = new RowTypeInfo(testTypes1, testColumns1);
 
 	@BeforeClass
-	public static void activateHBaseCluster() throws IOException {
+	public static void activateHBaseCluster() {
 		registerHBaseMiniClusterInClasspath();
 	}
 
@@ -181,7 +182,7 @@ public class HBaseLookupFunctionFlatITCase extends HBaseTestingClusterAutostarte
 	}
 
 	@Test
-	public void testHBaseStreamSourceLookup() throws IOException {
+	public void testHBaseStreamSourceLookupWithNestedSchema() throws IOException {
 		// prepare a HBase table with data for lookup via rowKey.
 		String hTableName = "testSrcHBaseTable1";
 		prepareHBaseTableWithData(hTableName);
@@ -196,8 +197,18 @@ public class HBaseLookupFunctionFlatITCase extends HBaseTestingClusterAutostarte
 		Table in = streamTableEnv.fromDataStream(ds, String.join(",", testColumns1));
 		streamTableEnv.registerTable(srcTableName, in);
 
-		String[] columnNames = {"rowkey", FAMILY1 + "." + F1COL1, FAMILY2 + "." + F2COL1, FAMILY2 + "." + F2COL2, FAMILY3 + "." + F3COL1, FAMILY3 + "." + F3COL2, FAMILY3 + "." + F3COL3};
-		DataType[] columnTypes = {DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.BOOLEAN(), DataTypes.STRING()};
+		String[] columnNames = {"rowkey", FAMILY1, FAMILY2, FAMILY3};
+
+		RowTypeInfo f1 = new RowTypeInfo(new TypeInformation[]{TypeConversions.fromDataTypeToLegacyInfo(DataTypes.INT())},
+			new String[]{F1COL1});
+		RowTypeInfo f2 = new RowTypeInfo(new TypeInformation[]{TypeConversions.fromDataTypeToLegacyInfo(DataTypes.STRING()), TypeConversions.fromDataTypeToLegacyInfo(
+			DataTypes.BIGINT())}, new String[]{F2COL1, F2COL2});
+		RowTypeInfo f3 = new RowTypeInfo(new TypeInformation[]{TypeConversions.fromDataTypeToLegacyInfo(DataTypes.DOUBLE()), TypeConversions.fromDataTypeToLegacyInfo(
+			DataTypes.BOOLEAN()), TypeConversions.fromDataTypeToLegacyInfo(DataTypes.STRING())},
+			new String[]{F3COL1, F3COL2, F3COL3});
+		DataType[] columnTypes = {DataTypes.INT(), TypeConversions.fromLegacyInfoToDataType(f1), TypeConversions.fromLegacyInfoToDataType(
+			f2), TypeConversions.fromLegacyInfoToDataType(f3)};
+
 		TableSchema.Builder builder = new TableSchema.Builder();
 		TableSchema tableSchema = builder.fields(columnNames, columnTypes).build();
 
@@ -213,7 +224,7 @@ public class HBaseLookupFunctionFlatITCase extends HBaseTestingClusterAutostarte
 		streamTableEnv.registerFunction("hbaseLookup", ((HBaseTableSource) source).getLookupFunction(new String[]{""}));
 
 		// perform a temporal table join query
-		String sqlQuery = "SELECT a,family1.col1, family3.col3 FROM T, " + "LATERAL TABLE(hbaseLookup(a)) AS S(l_a, family1.col1, family3.col3)";
+		String sqlQuery = "SELECT a,family1.col1, family3.col3 FROM testStreamSrcTable1, " + "LATERAL TABLE(hbaseLookup(a))";
 		Table result = streamTableEnv.sqlQuery(sqlQuery);
 
 		DataStream<Row> resultSet = streamTableEnv.toAppendStream(result, Row.class);

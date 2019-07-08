@@ -51,7 +51,12 @@ public class NestedRowParser implements RowParser<Result> {
 	private final int rowKeyInternalTypeIndex;
 
 	private final int fieldLength;
-	private final transient String charset;
+	private final String charset;
+
+	// row which is returned
+	private Row resultRow;
+	// nested family rows
+	private Row[] familyRows;
 
 	public NestedRowParser(TableSchema tableSchema, HBaseTableSchema hBaseSchema) {
 		String rowkey = hackRowkey(tableSchema);
@@ -59,6 +64,7 @@ public class NestedRowParser implements RowParser<Result> {
 		this.families = hBaseSchema.getFamilyKeys();
 		this.qualifiers = new byte[this.families.length][][];
 		this.qualifierTypes = new int[this.families.length][];
+		this.familyRows = new Row[this.families.length];
 		for (int f = 0; f < families.length; f++) {
 			this.qualifiers[f] = hBaseSchema.getQualifierKeys(familyNames[f]);
 			TypeInformation[] typeInfos = hBaseSchema.getQualifierTypes(familyNames[f]);
@@ -66,6 +72,7 @@ public class NestedRowParser implements RowParser<Result> {
 			for (int i = 0; i < typeInfos.length; i++) {
 				qualifierTypes[f][i] = HBaseTypeUtils.getTypeIndex(typeInfos[i]);
 			}
+			this.familyRows[f] = new Row(typeInfos.length);
 		}
 		DataType[] typeInformations = tableSchema.getFieldDataTypes();
 		this.rowKeySourceIndex = ParserHelper.initRowkeyIndex(tableSchema, rowkey);
@@ -73,6 +80,9 @@ public class NestedRowParser implements RowParser<Result> {
 		this.rowKeyInternalTypeIndex = HBaseTypeUtils.getTypeIndex(rowKeyType);
 		this.fieldLength = families.length + 1;
 		this.charset = hBaseSchema.getStringCharset();
+
+		// prepare output rows
+		this.resultRow = new Row(fieldLength);
 	}
 
 	private String hackRowkey(TableSchema tableSchema) {
@@ -112,12 +122,12 @@ public class NestedRowParser implements RowParser<Result> {
 
 		for (int i = 0; i < fieldLength; i++) {
 			if (rowKeySourceIndex == i) {
-				row.setField(rowKeySourceIndex, rowKey);
+				resultRow.setField(rowKeySourceIndex, rowKey);
 			} else {
 				int f = i > rowKeySourceIndex ? i - 1 : i;
 				// get family key
 				byte[] familyKey = families[f];
-				Row familyRow = new Row(f);
+				Row familyRow = familyRows[f];
 				for (int q = 0; q < this.qualifiers[f].length; q++) {
 					// get quantifier key
 					byte[] qualifier = qualifiers[f][q];
@@ -131,10 +141,10 @@ public class NestedRowParser implements RowParser<Result> {
 						familyRow.setField(q, null);
 					}
 				}
-				row.setField(i, familyRow);
+				resultRow.setField(i, familyRow);
 			}
 		}
-		return row;
+		return resultRow;
 	}
 
 	@VisibleForTesting

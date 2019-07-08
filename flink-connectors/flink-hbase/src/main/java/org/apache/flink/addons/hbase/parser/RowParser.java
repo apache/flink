@@ -23,11 +23,12 @@ import org.apache.flink.types.Row;
 import org.apache.hadoop.hbase.client.Get;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * RowParser.
  */
-public interface RowParser<T> {
+public interface RowParser<T> extends Serializable {
 	/**
 	 * init a RowParser.
 	 */

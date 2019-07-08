@@ -24,7 +24,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * ParserHelper.
  */
-public class ParserHelper {
+class ParserHelper {
 	static int initRowkeyIndex(TableSchema tableSchema, String rowkey) {
 		String[] columnNames = tableSchema.getFieldNames();
 

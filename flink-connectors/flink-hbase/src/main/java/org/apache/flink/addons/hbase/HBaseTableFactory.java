@@ -60,7 +60,7 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row> {
 		validateZookeeperQuorum(descriptorProperties, hbaseClientConf);
 		String hTableName = descriptorProperties.getString(CONNECTOR_HBASE_TABLE_NAME);
 		TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
-		return new HBaseTableSource(hbaseClientConf, hTableName, tableSchema, descriptorProperties);
+		return new HBaseTableSource(hbaseClientConf, hTableName, tableSchema);
 	}
 
 	private DescriptorProperties getValidatedProperties(Map<String, String> properties) {

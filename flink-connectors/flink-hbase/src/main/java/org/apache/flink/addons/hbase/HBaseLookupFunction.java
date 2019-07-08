@@ -21,6 +21,8 @@ package org.apache.flink.addons.hbase;
 import org.apache.flink.addons.hbase.parser.RowParser;
 import org.apache.flink.addons.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
@@ -53,10 +55,14 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 	private transient Connection hConnection;
 	private transient HTable table;
 	private final RowParser<Result> rowParser;
+	private final TypeInformation<Row> resultType;
 
 	public HBaseLookupFunction(
-		Configuration configuration, String hTableName, RowParser<Result> rowParser) throws IOException {
-
+		Configuration configuration,
+		String hTableName,
+		TableSchema tableSchema,
+		RowParser<Result> rowParser) throws IOException {
+		this.resultType = tableSchema.toRowType();
 		this.rowParser = rowParser;
 		this.hTableName = hTableName;
 		// Configuration is not serializable
@@ -70,6 +76,11 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 			// parse and collect
 			collect(rowParser.parseToRow(result, rowKey));
 		}
+	}
+
+	@Override
+	public TypeInformation<Row> getResultType() {
+		return this.resultType;
 	}
 
 	private org.apache.hadoop.conf.Configuration prepareRuntimeConfiguration() throws IOException {
@@ -131,7 +142,7 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 	}
 
 	@VisibleForTesting
-	String gethTableName() {
+	String getHTableName() {
 		return hTableName;
 	}
 

@@ -20,7 +20,6 @@
 
 package org.apache.flink.addons.hbase;
 
-import org.apache.flink.addons.hbase.parser.FlatRowParser;
 import org.apache.flink.addons.hbase.parser.NestedRowParser;
 import org.apache.flink.addons.hbase.parser.RowParser;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -82,72 +81,6 @@ public class HBaseTableFactoryTest {
 	}
 
 	@Test
-	public void testConstructorForFlatSchema() {
-		String[] columnNames = {FAMILY1 + ":" + COL1, FAMILY2 + ":" + COL1, "ROWKEY", FAMILY2 + ":" + COL2, FAMILY3 + ":" + COL1, FAMILY3 + ":" + COL2, FAMILY3 + ":" + COL3};
-		DataType[] columnTypes = {DataTypes.INT(), DataTypes.INT(), DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.BOOLEAN(), DataTypes.STRING()};
-
-		DescriptorProperties descriptorProperties = createDescriptor(columnNames, columnTypes);
-		TableSource source = TableFactoryService.find(HBaseTableFactory.class,
-			descriptorProperties.asMap()).createTableSource(descriptorProperties.asMap());
-		Assert.assertTrue(source instanceof HBaseTableSource);
-		TableFunction<Row> tableFunction = ((HBaseTableSource) source).getLookupFunction(new String[]{""});
-		Assert.assertTrue(tableFunction instanceof HBaseLookupFunction);
-		Assert.assertEquals("testHBastTable", ((HBaseLookupFunction) tableFunction).gethTableName());
-
-		RowParser<Result> rowParser = ((HBaseLookupFunction) tableFunction).getRowParser();
-		Assert.assertTrue(rowParser instanceof FlatRowParser);
-		FlatRowParser flatRowParser = (FlatRowParser) rowParser;
-
-		Assert.assertEquals(2, flatRowParser.getRowKeyIndex());
-		Assert.assertEquals(DataTypes.BIGINT(),
-			TypeConversions.fromLegacyInfoToDataType(flatRowParser.getRowKeyType()));
-		Assert.assertArrayEquals(new Integer[]{0, 1, 3, 4, 5, 6},
-			flatRowParser.getQualifierIndexes().toArray(new Integer[0]));
-
-		HBaseTableSchema hbaseTableSchema = ((HBaseTableSource) source).getHBaseTableSchema();
-		List<Tuple3<byte[], byte[], TypeInformation<?>>> qulifiers = hbaseTableSchema.getFlatByteQualifiers();
-
-		List<String> resultColumn = new ArrayList<>();
-		List<DataType> resultDataType = new ArrayList<>();
-		for (int i = 0; i < 6; i++) {
-			resultColumn.add(Bytes.toString(qulifiers.get(i).f0) + ":" + Bytes.toString(qulifiers.get(i).f1));
-			resultDataType.add(TypeConversions.fromLegacyInfoToDataType(qulifiers.get(i).f2));
-		}
-
-		Assert.assertArrayEquals(new String[]{"f1:c1", "f2:c1", "f2:c2", "f3:c1", "f3:c2", "f3:c3"},
-			resultColumn.toArray(new String[0]));
-		Assert.assertArrayEquals(new DataType[]{DataTypes.INT(), DataTypes.INT(), DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.BOOLEAN(), DataTypes.STRING()},
-			resultDataType.toArray(new DataType[0]));
-
-		String expectExceptionString = "WANT_EXCEPTION";
-		try {
-			((HBaseTableSource) source).getLookupFunction(new String[]{"1", "2"});
-		} catch (Exception e) {
-			expectExceptionString = e.getMessage();
-		}
-		Assert.assertEquals("HBase table can only be retrieved by rowKey for now.", expectExceptionString);
-	}
-
-	@Test
-	public void testErrorKeyForFlatSchema() {
-		String expectExceptionString = "WANT_EXCEPTION";
-		try {
-			String[] columnNames = {FAMILY1 + ":" + COL1, "ERROR2", "ROWKEY", FAMILY2 + ":" + COL2, FAMILY3 + ":" + COL1, FAMILY3 + ":" + COL2, FAMILY3 + ":" + COL3};
-			DataType[] columnTypes = {DataTypes.INT(), DataTypes.INT(), DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.BOOLEAN(), DataTypes.STRING()};
-
-			DescriptorProperties descriptorProperties = createDescriptor(columnNames, columnTypes);
-			TableSource tableSource = TableFactoryService.find(HBaseTableFactory.class,
-				descriptorProperties.asMap()).createTableSource(descriptorProperties.asMap());
-			((HBaseTableSource) tableSource).getLookupFunction(new String[]{""});
-		} catch (Exception e) {
-			expectExceptionString = e.getMessage();
-		}
-		Assert.assertEquals(
-			"a column which doesn't contain delimiter(:) is regarded as rowkey, now only support 1 rowkey, but now has 2",
-			expectExceptionString);
-	}
-
-	@Test
 	public void testConstructorForNestedSchema() throws UnsupportedEncodingException {
 		String[] columnNames = {FAMILY1, FAMILY2, "ROWKEY", FAMILY3};
 		RowTypeInfo f1 = new RowTypeInfo(new TypeInformation[]{TypeConversions.fromDataTypeToLegacyInfo(DataTypes.INT())},
@@ -166,7 +99,7 @@ public class HBaseTableFactoryTest {
 		Assert.assertTrue(source instanceof HBaseTableSource);
 		TableFunction<Row> tableFunction = ((HBaseTableSource) source).getLookupFunction(new String[]{""});
 		Assert.assertTrue(tableFunction instanceof HBaseLookupFunction);
-		Assert.assertEquals("testHBastTable", ((HBaseLookupFunction) tableFunction).gethTableName());
+		Assert.assertEquals("testHBastTable", ((HBaseLookupFunction) tableFunction).getHTableName());
 
 		RowParser<Result> rowParser = ((HBaseLookupFunction) tableFunction).getRowParser();
 		Assert.assertTrue(rowParser instanceof NestedRowParser);
