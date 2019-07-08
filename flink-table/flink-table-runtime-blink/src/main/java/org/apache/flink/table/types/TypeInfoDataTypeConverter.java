@@ -21,6 +21,7 @@ package org.apache.flink.table.types;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
@@ -40,6 +41,10 @@ import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.typeutils.MapViewTypeInfo;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 import static org.apache.flink.table.types.PlannerTypeUtils.isPrimitive;
@@ -61,10 +66,32 @@ import static org.apache.flink.table.types.PlannerTypeUtils.isPrimitive;
  */
 @Deprecated
 public class TypeInfoDataTypeConverter {
+	private static final Map<String, TypeInformation<?>> primitiveDataTypeTypeInfoMap = new HashMap<>();
+
+	static {
+		addDefaultTypeInfo(boolean.class, Types.BOOLEAN);
+		addDefaultTypeInfo(byte.class, Types.BYTE);
+		addDefaultTypeInfo(short.class, Types.SHORT);
+		addDefaultTypeInfo(int.class, Types.INT);
+		addDefaultTypeInfo(long.class, Types.LONG);
+		addDefaultTypeInfo(float.class, Types.FLOAT);
+		addDefaultTypeInfo(double.class, Types.DOUBLE);
+	}
+
+	private static void addDefaultTypeInfo(Class<?> clazz, TypeInformation<?> typeInformation) {
+		Preconditions.checkArgument(clazz.isPrimitive());
+		primitiveDataTypeTypeInfoMap.put(clazz.getName(), typeInformation);
+	}
 
 	public static TypeInformation<?> fromDataTypeToTypeInfo(DataType dataType) {
-		LogicalType logicalType = fromDataTypeToLogicalType(dataType);
 		Class<?> clazz = dataType.getConversionClass();
+		if (clazz.isPrimitive()) {
+			final TypeInformation<?> foundTypeInfo = primitiveDataTypeTypeInfoMap.get(clazz.getName());
+			if (foundTypeInfo != null) {
+				return foundTypeInfo;
+			}
+		}
+		LogicalType logicalType = fromDataTypeToLogicalType(dataType);
 		switch (logicalType.getTypeRoot()) {
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) logicalType;

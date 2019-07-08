@@ -305,8 +305,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   @Test
   def testUserDefinedScalarFunction() {
     registerFunction("hashCode", HashCode)

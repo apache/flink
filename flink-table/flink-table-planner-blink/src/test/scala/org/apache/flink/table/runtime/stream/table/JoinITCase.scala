@@ -241,8 +241,6 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     // Proctime window output uncertain results, so assert has been ignored here.
   }
 
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   @Test
   def testInnerJoin(): Unit = {
     val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
