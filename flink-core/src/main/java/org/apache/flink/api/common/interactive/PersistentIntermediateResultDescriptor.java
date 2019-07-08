@@ -31,7 +31,7 @@ import java.util.Set;
 public interface PersistentIntermediateResultDescriptor extends Serializable {
 
 	/**
-	 * Mapping of IntermediateDataSetID -> (ResultPartitionID, ShuffleDescriptor)
+	 * Mapping of IntermediateDataSetID -> (ResultPartitionID, ShuffleDescriptor).
 	 */
 	Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getPersistentShuffleDescriptors();
 
