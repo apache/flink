@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
@@ -45,10 +44,12 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
 import com.google.common.collect.ImmutableList;
@@ -529,7 +530,9 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				.collect(Collectors.toList());
 		// assemble bounds
 		Expression preceding = args.get(2);
-		boolean isPhysical = ((ResolvedExpression) preceding).getOutputDataType().equals(DataTypes.BIGINT());
+		boolean isPhysical = LogicalTypeChecks.hasRoot(
+				fromDataTypeToLogicalType(((ResolvedExpression) preceding).getOutputDataType()),
+				LogicalTypeRoot.BIGINT);
 		Expression following = args.get(3);
 		RexWindowBound lowerBound = createBound(preceding, SqlKind.PRECEDING);
 		RexWindowBound upperBound = createBound(following, SqlKind.FOLLOWING);

@@ -18,17 +18,6 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-
-import org.apache.calcite.rex.RexWindowBound._
-import org.apache.calcite.rex.{RexNode, RexWindowBound}
-import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`.OrdinalReturnTypeInference
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.tools.RelBuilder
-
-import java.util
-import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
@@ -77,45 +66,6 @@ case class OverCall(
     s"ORDER BY $orderBy " +
     s"PRECEDING $preceding " +
     s"FOLLOWING $following)"
-
-  private def createBound(
-    relBuilder: RelBuilder,
-    bound: PlannerExpression,
-    sqlKind: SqlKind): RexWindowBound = {
-
-    bound match {
-      case _: UnboundedRow | _: UnboundedRange =>
-        val unbounded = SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
-        create(unbounded, null)
-      case _: CurrentRow | _: CurrentRange =>
-        val currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO)
-        create(currentRow, null)
-      case b: Literal =>
-        val returnType = relBuilder
-          .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-          .createFieldTypeFromLogicalType(fromTypeInfoToLogicalType(Types.DECIMAL))
-
-        val sqlOperator = new SqlPostfixOperator(
-          sqlKind.name,
-          sqlKind,
-          2,
-          new OrdinalReturnTypeInference(0),
-          null,
-          null)
-
-        val operands: Array[SqlNode] = new Array[SqlNode](1)
-        operands(0) = SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO)
-
-        val node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO)
-
-        val expressions: util.ArrayList[RexNode] = new util.ArrayList[RexNode]()
-        expressions.add(relBuilder.literal(b.value))
-
-        val rexNode = relBuilder.getRexBuilder.makeCall(returnType, sqlOperator, expressions)
-
-        create(node, rexNode)
-    }
-  }
 
   override private[flink] def children: Seq[PlannerExpression] =
     Seq(agg) ++ Seq(orderBy) ++ partitionBy ++ Seq(preceding) ++ Seq(following)
