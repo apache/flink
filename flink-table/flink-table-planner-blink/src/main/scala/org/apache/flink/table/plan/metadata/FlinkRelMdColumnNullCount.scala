@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, FlinkRexUtil}
@@ -160,7 +160,7 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
         val rexBuilder = rel.getCluster.getRexBuilder
         val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
         val maxCnfNodeCount = tableConfig.getConf.getInteger(
-          PlannerConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+          SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
         val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
         val conjunctions = RelOptUtil.conjunctions(cnf)
         val notNullPredicatesAtIndexField = conjunctions.exists {

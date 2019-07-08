@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkLogicalRelFactories, FlinkRelBuilder}
 import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.plan.PartialFinalType
@@ -114,10 +114,10 @@ class SplitAggregateRule extends RelOptRule(
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
 
-    val isMiniBatchEnabled = tableConfig.getConf.getLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
+    val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
     val splitSkewDistinctAggEnabled = tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED)
+      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
@@ -145,7 +145,7 @@ class SplitAggregateRule extends RelOptRule(
 
     val hashFieldsMap: util.Map[Int, Int] = new util.HashMap()
     val buckets = tableConfig.getConf.getInteger(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_BUCKET)
+      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
 
     if (hashFieldIndexes.nonEmpty) {
       val projects = new util.ArrayList[RexNode](relBuilder.fields)

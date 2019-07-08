@@ -19,21 +19,26 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
+
 import org.junit.{Ignore, Test}
+
+import java.sql.Timestamp
 
 class MatchRecognizeValidationTest extends TableTestBase {
 
-  private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'rowtime, 'proctime)
+  private val streamUtil = scalaStreamTestUtil()
+  streamUtil.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+  streamUtil.addDataStream[(Int, String, Timestamp)](
+    "MyTable", 'a, 'b, 'rowtime.rowtime, 'proctime.proctime)
   streamUtil.addDataStream[(String, Long, Int, Int)](
-    "Ticker", 'symbol, 'tstamp, 'price, 'tax, 'proctime)
+    "Ticker", 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
   streamUtil.addFunction("ToMillis", new ToMillis)
 
   /** Function 'MATCH_ROWTIME()' can only be used in MATCH_RECOGNIZE **/
@@ -167,7 +172,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Aggregation must be applied to a single pattern variable")
 
-    streamUtil.tableEnv.registerFunction("weightedAvg", new WeightedAvg)
+    streamUtil.addFunction("weightedAvg", new WeightedAvg)
 
     val sqlQuery =
       s"""

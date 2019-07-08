@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test

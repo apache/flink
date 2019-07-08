@@ -23,7 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.runtime.batch.sql.join.JoinType
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.JoinType
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit._
@@ -37,7 +37,8 @@ class SetOperatorsITCase extends BatchTestBase {
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
@@ -97,7 +98,7 @@ class SetOperatorsITCase extends BatchTestBase {
   @Test
   def testMinusAll(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv)
-    val ds2 = BatchScalaTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
+    val ds2 = BatchTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
 
     val minusDs = ds1.unionAll(ds1).unionAll(ds1)
       .minusAll(ds2.unionAll(ds2)).select('_3)
@@ -113,7 +114,7 @@ class SetOperatorsITCase extends BatchTestBase {
   @Test
   def testMinus(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    val ds2 = BatchScalaTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
+    val ds2 = BatchTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
 
     val minusDs = ds1.unionAll(ds1).unionAll(ds1)
       .minus(ds2.unionAll(ds2)).select('c)
@@ -126,7 +127,7 @@ class SetOperatorsITCase extends BatchTestBase {
   @Test
   def testMinusDifferentFieldNames(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    val ds2 = BatchScalaTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
+    val ds2 = BatchTableEnvUtil.fromElements(tEnv, (1, 1L, "Hi"))
 
     val minusDs = ds1.unionAll(ds1).unionAll(ds1)
       .minus(ds2.unionAll(ds2)).select('c)
@@ -144,7 +145,7 @@ class SetOperatorsITCase extends BatchTestBase {
     data.+=((2, 2L, "Hello"))
     data.+=((2, 2L, "Hello"))
     data.+=((3, 2L, "Hello world!"))
-    val ds2 = BatchScalaTableEnvUtil.fromCollection(tEnv, Random.shuffle(data), "a, b, c")
+    val ds2 = BatchTableEnvUtil.fromCollection(tEnv, Random.shuffle(data), "a, b, c")
 
     val intersectDS = ds1.intersect(ds2).select('c)
 
@@ -161,8 +162,8 @@ class SetOperatorsITCase extends BatchTestBase {
     data1 += (1, 1, 1, 2, 2)
     val data2 = new mutable.MutableList[Int]
     data2 += (1, 2, 2, 2, 3)
-    val ds1 = BatchScalaTableEnvUtil.fromCollection(tEnv, data1, "c")
-    val ds2 = BatchScalaTableEnvUtil.fromCollection(tEnv, data2, "c")
+    val ds1 = BatchTableEnvUtil.fromCollection(tEnv, data1, "c")
+    val ds2 = BatchTableEnvUtil.fromCollection(tEnv, data2, "c")
 
     val intersectDS = ds1.intersectAll(ds2).select('c)
 

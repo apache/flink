@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, TimestampType, VarCharType}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -37,15 +38,15 @@ class SinkTest extends TableTestBase {
   def testAppendSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val appendSink = util.createAppendTableSink(Array("a"), Array(LONG))
-    util.tableEnv.writeToSink(table, appendSink)
+    util.writeToSink(table, appendSink, "appendSink")
     util.verifyPlanWithTrait()
   }
 
   @Test
   def testRetractSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
-    val retractSink = util.createRetractTableSink(Array("a", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table, retractSink)
+    val retractSink = util.createRetractTableSink(Array("a", "cnt"), Array(INT, LONG))
+    util.writeToSink(table, retractSink, "retractSink")
     util.verifyPlanWithTrait()
   }
 
@@ -59,7 +60,7 @@ class SinkTest extends TableTestBase {
       """.stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val retractSink = util.createRetractTableSink(Array("cnt", "a"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table, retractSink)
+    util.writeToSink(table, retractSink, "retractSink")
     util.verifyPlanWithTrait()
   }
 
@@ -67,7 +68,7 @@ class SinkTest extends TableTestBase {
   def testUpsertSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val upsertSink = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table, upsertSink)
+    util.writeToSink(table, upsertSink, "upsertSink")
     util.verifyPlanWithTrait()
   }
 
@@ -85,7 +86,7 @@ class SinkTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val upsertSink = util.createUpsertTableSink(Array(), Array("a1", "b", "c1"),
       Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table, upsertSink)
+    util.writeToSink(table, upsertSink, "upsertSink")
     util.verifyPlanWithTrait()
   }
 
@@ -96,11 +97,11 @@ class SinkTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b < 4")
     val retractSink = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table1, retractSink)
+    util.writeToSink(table1, retractSink, "retractSink")
 
     val table2 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b >= 4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table2, upsertSink)
+    util.writeToSink(table2, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }
@@ -113,11 +114,11 @@ class SinkTest extends TableTestBase {
     val table1 = util.tableEnv.sqlQuery(
       "SELECT cnt, COUNT(b) AS frequency FROM TempTable WHERE b < 4 GROUP BY cnt")
     val upsertSink1 = util.createUpsertTableSink(Array(0), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table1, upsertSink1)
+    util.writeToSink(table1, upsertSink1, "upsertSink1")
 
     val table2 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b >= 4 AND b < 6")
     val upsertSink2 = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table2, upsertSink2)
+    util.writeToSink(table2, upsertSink2,  "upsertSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -132,7 +133,7 @@ class SinkTest extends TableTestBase {
     util.tableEnv.registerTable("TempTable", table)
 
     val appendSink = util.createAppendTableSink(Array("a", "b"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table, appendSink)
+    util.writeToSink(table, appendSink, "appendSink")
 
     val table1 = util.tableEnv.sqlQuery(
       "SELECT a, b FROM TempTable UNION ALL SELECT i, j FROM MyTable3")
@@ -140,11 +141,11 @@ class SinkTest extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable1")
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table2, retractSink)
+    util.writeToSink(table2, retractSink, "retractSink")
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable1")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, upsertSink)
+    util.writeToSink(table3, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }

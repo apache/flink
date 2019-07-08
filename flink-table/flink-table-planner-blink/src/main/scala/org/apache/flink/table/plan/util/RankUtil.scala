@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.ExpressionReducer
+import org.apache.flink.table.plan.metadata.SelectivityEstimator
 import org.apache.flink.table.plan.nodes.calcite.Rank
 import org.apache.flink.table.runtime.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
 
@@ -70,7 +71,7 @@ object RankUtil {
       config: TableConfig): (Option[RankRange], Option[RexNode]) = {
 
     // Converts the condition to conjunctive normal form (CNF)
-    val cnfNodeCount = config.getConf.getInteger(PlannerConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+    val cnfNodeCount = config.getConf.getInteger(SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
 
     // split the condition into sort limit condition and other condition

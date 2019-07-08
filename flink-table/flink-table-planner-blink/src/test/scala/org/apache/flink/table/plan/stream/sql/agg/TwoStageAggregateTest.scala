@@ -20,7 +20,8 @@ package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizerConfigOptions}
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}
@@ -33,9 +34,9 @@ class TwoStageAggregateTest extends TableTestBase {
   @Before
   def before(): Unit = {
     util.enableMiniBatch()
-    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, AggPhaseEnforcer.TWO_PHASE.toString)
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, AggPhaseEnforcer.TWO_PHASE.toString)
   }
 
   @Test

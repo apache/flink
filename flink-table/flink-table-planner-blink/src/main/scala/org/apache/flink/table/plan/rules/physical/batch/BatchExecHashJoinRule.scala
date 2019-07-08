@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.table.JDouble
-import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.api.{OperatorType, OptimizerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -142,7 +142,7 @@ class BatchExecHashJoinRule
 
       // add more possibility to only shuffle by partial joinKeys, now only single one
       val isShuffleByPartialKeyEnabled = tableConfig.getConf.getBoolean(
-        PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+        BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
       if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
         joinInfo.pairs().foreach { pair =>
           transformToEquiv(
@@ -174,7 +174,7 @@ class BatchExecHashJoinRule
       return (false, false)
     }
     val threshold = tableConfig.getConf.getLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD)
+      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
     joinType match {
       case JoinRelType.LEFT => (rightSize <= threshold, false)
       case JoinRelType.RIGHT => (leftSize <= threshold, true)

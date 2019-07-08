@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.TestData._
 
@@ -27,8 +26,8 @@ import org.junit._
 class LimitITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
     // TODO support LimitableTableSource

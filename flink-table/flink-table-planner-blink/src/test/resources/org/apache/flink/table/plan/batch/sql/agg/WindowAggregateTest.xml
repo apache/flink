@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testDecomposableAggFunctions[aggStrategy=NONE]">
+  <TestCase name="testDecomposableAggFunctions[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT VAR_POP(b),
@@ -111,7 +111,7 @@ Calc(select=[/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2) AS EXPR$0, /(-($f0,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testExpressionOnWindowHavingFunction[aggStrategy=NONE]">
+  <TestCase name="testExpressionOnWindowHavingFunction[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT COUNT(*),
@@ -206,7 +206,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QU
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlidingWindowSortAggWithPaneOptimization[aggStrategy=NONE]">
+  <TestCase name="testSlidingWindowSortAggWithPaneOptimization[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
@@ -229,7 +229,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNoGroupingSlidingWindow[aggStrategy=NONE]">
+  <TestCase name="testNoGroupingSlidingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT SUM(a),
@@ -315,7 +315,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNoGroupingTumblingWindow[aggStrategy=NONE]">
+  <TestCase name="testNoGroupingTumblingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
@@ -424,7 +424,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNonPartitionedTumblingWindow[aggStrategy=NONE]">
+  <TestCase name="testNonPartitionedTumblingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)]]>
     </Resource>
@@ -489,7 +489,7 @@ HashWindowAggregate(window=[TumblingGroupWindow], select=[Final_SUM(sum$0) AS su
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPartitionedSlidingWindow[aggStrategy=NONE]">
+  <TestCase name="testPartitionedSlidingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT   c,   HOP_END(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_START(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_ROWTIME(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   SUM(a) AS sumA,   AVG(b) AS avgB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c]]>
     </Resource>
@@ -511,7 +511,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNonPartitionedSlidingWindow[aggStrategy=NONE]">
+  <TestCase name="testNonPartitionedSlidingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
     </Resource>
@@ -577,7 +577,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPartitionedTumblingWindow[aggStrategy=NONE]">
+  <TestCase name="testPartitionedTumblingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT TUMBLE_START(ts, INTERVAL '4' MINUTE),
@@ -672,7 +672,7 @@ Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, m
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlidingWindowHashAgg[aggStrategy=NONE]">
+  <TestCase name="testSlidingWindowHashAgg[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT count(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
@@ -741,7 +741,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlidingWindowSortAgg1[aggStrategy=NONE]">
+  <TestCase name="testSlidingWindowSortAgg1[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
@@ -814,7 +814,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlidingWindowSortAgg2[aggStrategy=NONE]">
+  <TestCase name="testSlidingWindowSortAgg2[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '0.111' SECOND(1,3), INTERVAL '1' SECOND)]]>
     </Resource>
@@ -883,7 +883,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlidingWindowSortAgg3[aggStrategy=NONE]">
+  <TestCase name="testSlidingWindowSortAgg3[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT countFun(c) FROM MyTable  GROUP BY a, d, HOP(b, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
@@ -997,7 +997,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumblingWindowHashAgg1[aggStrategy=NONE]">
+  <TestCase name="testTumblingWindowHashAgg1[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
@@ -1065,7 +1065,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumblingWindowHashAgg2[aggStrategy=NONE]">
+  <TestCase name="testTumblingWindowHashAgg2[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), COUNT(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
@@ -1130,7 +1130,7 @@ Calc(select=[EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=NONE]">
+  <TestCase name="testTumblingWindowWithUdAgg[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
     </Resource>
@@ -1154,7 +1154,7 @@ SortWindowAggregate(window=[TumblingGroupWindow], select=[Final_weightedAvg(wAvg
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumblingWindowSortAgg1[aggStrategy=NONE]">
+  <TestCase name="testTumblingWindowSortAgg1[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
@@ -1227,7 +1227,7 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumblingWindowSortAgg2[aggStrategy=NONE]">
+  <TestCase name="testTumblingWindowSortAgg2[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), countFun(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
@@ -1295,7 +1295,7 @@ Calc(select=[EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWindowEndOnly[aggStrategy=NONE]">
+  <TestCase name="testWindowEndOnly[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
     </Resource>

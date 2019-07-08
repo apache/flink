@@ -17,20 +17,21 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.BatchPlanner
+import org.apache.flink.table.sources.TableSource
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
-import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.sources.TableSource
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -74,26 +75,25 @@ class BatchExecLookupJoin(
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = {
-    List(getInput.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
+    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-    tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-
-    val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
+    planner: BatchPlanner): Transformation[BaseRow] = {
+    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
     val transformation = translateToPlanInternal(
       inputTransformation,
-      tableEnv.streamEnv,
-      tableEnv.config,
-      tableEnv.getRelBuilder)
+      planner.getExecEnv,
+      planner.getTableConfig,
+      planner.getRelBuilder)
     transformation.setParallelism(getResource.getParallelism)
     transformation
   }

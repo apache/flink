@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, Types}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -40,8 +40,8 @@ import scala.util.Random
 class OverWindowITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
     registerCollection("ShuflledTable5",
       Random.shuffle(data5), type5, "sd, se, sf, sg, sh", nullablesOfData5)

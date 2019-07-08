@@ -18,7 +18,8 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}
@@ -39,10 +40,10 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
   @Test
   def testRemoveRedundantLocalHashAgg_ShuffleKeyFromJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, -1)
+      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -54,9 +55,9 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
   @Test
   def testRemoveRedundantLocalHashAgg_ShuffleKeyFromRank(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
+      BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
       """
         |SELECT a, SUM(b) FROM (

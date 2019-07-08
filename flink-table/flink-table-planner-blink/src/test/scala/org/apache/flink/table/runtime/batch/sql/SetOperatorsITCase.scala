@@ -21,12 +21,11 @@ package org.apache.flink.table.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{JoinType, _}
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTableEnvUtil, BatchTestBase}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -40,8 +39,8 @@ import scala.util.Random
 class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("AllNullTable3", allNullData3, type3, "a, b, c")
     registerCollection("SmallTable3", smallData3, type3, "a, b, c")
     registerCollection("Table3", data3, type3, "a, b, c")
@@ -116,8 +115,8 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
 
   @Test
   def testIntersectAll(): Unit = {
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "T1", Seq(1, 1, 1, 2, 2), "c")
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "T2", Seq(1, 2, 2, 2, 3), "c")
+    BatchTableEnvUtil.registerCollection(tEnv, "T1", Seq(1, 1, 1, 2, 2), "c")
+    BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq(1, 2, 2, 2, 3), "c")
     checkResult(
       "SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2",
       Seq(row(1), row(2), row(2)))
@@ -125,7 +124,7 @@ class SetOperatorsITCase(joinType: JoinType) extends BatchTestBase {
 
   @Test
   def testMinusAll(): Unit = {
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "T2", Seq((1, 1L, "Hi")), "a, b, c")
+    BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq((1, 1L, "Hi")), "a, b, c")
     val t1 = "SELECT * FROM SmallTable3"
     val t2 = "SELECT * FROM T2"
     checkResult(

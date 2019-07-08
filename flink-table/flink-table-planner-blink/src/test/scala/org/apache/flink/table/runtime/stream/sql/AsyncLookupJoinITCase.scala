@@ -75,7 +75,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTableOnMultiKeyFields(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     // pk is (id: Long, name: String)
@@ -104,7 +104,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTable(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -127,7 +127,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTableWithPushDown(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -149,7 +149,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTableWithNonEqualFilter(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -171,7 +171,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncLeftJoinTemporalTableWithLocalPredicate(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -197,7 +197,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTableOnMultiFields(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -219,7 +219,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTableOnMultiFieldsWithUdf(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -244,7 +244,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncJoinTemporalTableWithUdfFilter(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -269,7 +269,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAggAndAsyncLeftJoinTemporalTable(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -297,7 +297,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   @Test
   def testAsyncLeftJoinTemporalTable(): Unit = {
     val streamTable = failingDataSource(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -323,7 +323,7 @@ class AsyncLookupJoinITCase(backend: StateBackendMode)
   def testExceptionThrownFromAsyncJoinTemporalTable(): Unit = {
     env.setRestartStrategy(RestartStrategies.noRestart())
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)

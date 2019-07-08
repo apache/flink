@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.util.WindowJoinUtil
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
@@ -30,8 +31,10 @@ import org.junit.Test
 class WindowJoinTest extends TableTestBase {
 
   private val util: StreamTableTestUtil = streamTestUtil()
-  util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
-  util.addDataStream[(Int, String, Long)]("MyTable2", 'a, 'b, 'c, 'proctime, 'rowtime)
+  util.addDataStream[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  util.addDataStream[(Int, String, Long)](
+    "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   /** There should exist exactly two time conditions **/
   @Test(expected = classOf[TableException])
@@ -358,8 +361,8 @@ class WindowJoinTest extends TableTestBase {
 
   @Test
   def testJoinRemainConditionConvert(): Unit = {
-    util.addDataStream[(Int, Long, Int)]("MyTable3", 'a, 'rowtime, 'c, 'proctime)
-    util.addDataStream[(Int, Long, Int)]("MyTable4", 'a, 'rowtime, 'c, 'proctime)
+    util.addDataStream[(Int, Long, Int)]("MyTable3", 'a, 'rowtime.rowtime, 'c, 'proctime.proctime)
+    util.addDataStream[(Int, Long, Int)]("MyTable4", 'a, 'rowtime.rowtime, 'c, 'proctime.proctime)
     val query =
       """
         |SELECT t1.a, t2.c FROM MyTable3 AS t1 JOIN MyTable4 AS t2 ON
@@ -383,8 +386,8 @@ class WindowJoinTest extends TableTestBase {
       query1,
       "")
 
-    util.addDataStream[(Int, Long, Int)]("MyTable5", 'a, 'b, 'c, 'proctime)
-    util.addDataStream[(Int, Long, Int)]("MyTable6", 'a, 'b, 'c, 'proctime)
+    util.addDataStream[(Int, Long, Int)]("MyTable5", 'a, 'b, 'c, 'proctime.proctime)
+    util.addDataStream[(Int, Long, Int)]("MyTable6", 'a, 'b, 'c, 'proctime.proctime)
     val query2 =
       """
         |SELECT t1.a, t2.c FROM MyTable5 AS t1 JOIN MyTable6 AS t2 ON

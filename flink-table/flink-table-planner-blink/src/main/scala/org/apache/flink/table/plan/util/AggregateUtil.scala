@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.JLong
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{DataTypes, TableConfig, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.dataformat.BaseRow
@@ -671,8 +671,12 @@ object AggregateUtil extends Enumeration {
     * Creates a MiniBatch trigger depends on the config.
     */
   def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
-    new CountBundleTrigger[BaseRow](
-      tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+    val size = tableConfig.getConf.getLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE)
+    if (size <= 0 ) {
+      throw new IllegalArgumentException(
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE + " must be > 0.")
+    }
+    new CountBundleTrigger[BaseRow](size)
   }
 
   /**

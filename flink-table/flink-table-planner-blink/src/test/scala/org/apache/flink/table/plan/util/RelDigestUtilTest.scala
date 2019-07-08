@@ -19,8 +19,8 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableConfig, TableEnvironment}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.util.TableTestUtil
@@ -37,9 +37,8 @@ class RelDigestUtilTest {
 
   @Before
   def before(): Unit = {
-    val conf = new TableConfig()
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
+    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+    val tEnv = TableEnvironmentImpl.create(settings)
     BatchTableEnvUtil.registerCollection(
       tEnv,
       "MyTable",

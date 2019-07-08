@@ -170,7 +170,9 @@ public class EnvironmentSettings {
 		 * enabled.
 		 */
 		public Builder useBlinkPlanner() {
-			throw new UnsupportedOperationException("The Blink planner is not supported yet.");
+			this.plannerClass = "org.apache.flink.table.planner.BlinkPlannerFactory";
+			this.executorClass = "org.apache.flink.table.executor.BlinkExecutorFactory";
+			return this;
 		}
 
 		/**

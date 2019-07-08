@@ -16,6 +16,80 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testDataStreamReuse_AddExchangeAsBatch_HashJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t INTERSECT SELECT * FROM t]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[AND(OR(=(a, a0), AND(IS NULL(a), IS NULL(a0))), OR(=(b, b0), AND(IS NULL(b), IS NULL(b0))), OR(=(c, c0), AND(IS NULL(c), IS NULL(c0))))], select=[a, b, c], build=[left])
+   :- Exchange(distribution=[hash[a, b, c]])
+   :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[a, b, c]], exchange_mode=[BATCH])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDataStreamReuse_AddExchangeAsBatch_NestedLoopJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t t1, t t2 WHERE t1.a = t2.b]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[=(CAST($0):BIGINT, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, a1, b0, c0])
++- HashJoin(joinType=[InnerJoin], where=[=(a0, b0)], select=[a, b, c, a0, a1, b0, c0], build=[right])
+   :- Exchange(distribution=[hash[a0]], exchange_mode=[BATCH])
+   :  +- Calc(select=[a, b, c, CAST(a) AS a0])
+   :     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDataStreamReuse_SetExchangeAsBatch">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t t1, t t2 WHERE t1.a = t2.a AND t1.b > 10 AND t2.c LIKE 'Test%']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >($1, 10), LIKE($5, _UTF-16LE'Test%'))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, c, a0, b0, c0], build=[right])
+:- Exchange(distribution=[hash[a]], exchange_mode=[BATCH])
+:  +- Calc(select=[a, b, c], where=[>(b, 10)])
+:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'Test%')])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testReusedNodeIsBarrierNode">
     <Resource name="sql">
       <![CDATA[

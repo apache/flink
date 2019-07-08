@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
@@ -33,8 +32,8 @@ import scala.collection.Seq
 class CorrelateITCase2 extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("inputT", TableFunctionITCase.testData, type3, "a, b, c")
     registerCollection("inputTWithNull", TableFunctionITCase.testDataWithNull, type3, "a, b, c")
     registerCollection("SmallTable3", smallData3, type3, "a, b, c")
@@ -42,15 +41,15 @@ class CorrelateITCase2 extends BatchTestBase {
 
   @Test
   def testJavaGenericTableFunc(): Unit = {
-    tEnv.registerFunction("func0", new GenericTableFunc[Integer](Types.INT))
-    tEnv.registerFunction("func1", new GenericTableFunc[String](Types.STRING))
+    registerFunction("func0", new GenericTableFunc[Integer](Types.INT))
+    registerFunction("func1", new GenericTableFunc[String](Types.STRING))
     testGenericTableFunc()
   }
 
   @Test
   def testScalaGenericTableFunc(): Unit = {
-    tEnv.registerFunction("func0", new GenericTableFunc[Integer](Types.INT))
-    tEnv.registerFunction("func1", new GenericTableFunc[String](Types.STRING))
+    registerFunction("func0", new GenericTableFunc[Integer](Types.INT))
+    registerFunction("func1", new GenericTableFunc[String](Types.STRING))
     testGenericTableFunc()
   }
 
@@ -76,7 +75,7 @@ class CorrelateITCase2 extends BatchTestBase {
 
   @Test
   def testConstantTableFunc(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
     checkResult(
       "SELECT * FROM LATERAL TABLE(str_split()) as T0(d)",
       Seq(row("a"), row("b"), row("c"))
@@ -91,7 +90,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Ignore
   @Test
   def testConstantTableFunc2(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
 
     checkResult(
       "SELECT c, d FROM inputT, LATERAL TABLE(str_split()) AS T0(d)",
@@ -125,7 +124,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Ignore // TODO substring
   @Test
   def testConstantTableFunc3(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
 
     checkResult(
       "SELECT c, d FROM inputT, LATERAL TABLE(str_split('Jack,John', ',', 1)) AS T0(d) " +
@@ -137,7 +136,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Ignore
   @Test
   def testConstantTableFuncWithSubString(): Unit = {
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
     checkResult(
       "SELECT * FROM " +
           "LATERAL TABLE(str_split(SUBSTRING('a,b,c', 2, 4), ',')) as T1(s), " +
@@ -150,9 +149,9 @@ class CorrelateITCase2 extends BatchTestBase {
 // TODO support dyn
 //  @Test
 //  def testConstantTableFuncWithDyn(): Unit = {
-//    tEnv.registerFunction("str_split", new StringSplit())
-//    tEnv.registerFunction("funcDyn1", new UDTFWithDynamicType0)
-//    tEnv.registerFunction("funcDyn2", new UDTFWithDynamicType0)
+//    registerFunction("str_split", new StringSplit())
+//    registerFunction("funcDyn1", new UDTFWithDynamicType0)
+//    registerFunction("funcDyn2", new UDTFWithDynamicType0)
 //    checkResult(
 //      "SELECT * FROM " +
 //          "LATERAL TABLE(funcDyn1('test#Hello world#Hi', 'string,int,int')) AS" +
@@ -181,8 +180,8 @@ class CorrelateITCase2 extends BatchTestBase {
   @Test
   def testUdfAfterUdtf(): Unit = {
 
-    tEnv.registerFunction("str_split", new StringSplit())
-    tEnv.registerFunction("func", StringUdFunc)
+    registerFunction("str_split", new StringSplit())
+    registerFunction("func", StringUdFunc)
 
     checkResult(
       "select func(s) from inputT, LATERAL TABLE(str_split(c, '#')) as T(s)",
@@ -193,7 +192,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Test
   def testLeftInputAllProjectWithEmptyOutput(): Unit = {
 
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
 
     checkResult(
       "select s from inputTWithNull, LATERAL TABLE(str_split(c, '#')) as T(s)",
@@ -203,7 +202,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Test
   def testLeftJoinLeftInputAllProjectWithEmptyOutput(): Unit = {
 
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
 
     checkResult(
       "select s from inputTWithNull left join LATERAL TABLE(str_split(c, '#')) as T(s) ON TRUE",
@@ -213,7 +212,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Test
   def testLeftInputPartialProjectWithEmptyOutput(): Unit = {
 
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
 
     checkResult(
       "select a, s from inputTWithNull, LATERAL TABLE(str_split(c, '#')) as T(s)",
@@ -223,7 +222,7 @@ class CorrelateITCase2 extends BatchTestBase {
   @Test
   def testLeftJoinLeftInputPartialProjectWithEmptyOutput(): Unit = {
 
-    tEnv.registerFunction("str_split", new StringSplit())
+    registerFunction("str_split", new StringSplit())
 
     checkResult(
       "select b, s from inputTWithNull left join LATERAL TABLE(str_split(c, '#')) as T(s) ON TRUE",
@@ -233,8 +232,8 @@ class CorrelateITCase2 extends BatchTestBase {
   @Test
   def testLeftInputPartialProjectWithEmptyOutput2(): Unit = {
 
-    tEnv.registerFunction("toPojo", new MyToPojoTableFunc())
-    tEnv.registerFunction("func", StringUdFunc)
+    registerFunction("toPojo", new MyToPojoTableFunc())
+    registerFunction("func", StringUdFunc)
 
     checkResult(
       "select a, s2 from inputTWithNull, LATERAL TABLE(toPojo(a)) as T(s1,s2)" +
@@ -244,8 +243,8 @@ class CorrelateITCase2 extends BatchTestBase {
 
   @Test
   def testLeftJoinLeftInputPartialProjectWithEmptyOutput2(): Unit = {
-    tEnv.registerFunction("toPojo", new MyToPojoTableFunc())
-    tEnv.registerFunction("func", StringUdFunc)
+    registerFunction("toPojo", new MyToPojoTableFunc())
+    registerFunction("func", StringUdFunc)
 
     checkResult(
       "select b, s1 from inputTWithNull left join LATERAL TABLE(toPojo(a)) as T(s1,s2) ON TRUE" +
@@ -255,7 +254,7 @@ class CorrelateITCase2 extends BatchTestBase {
 
   @Test
   def testTableFunctionWithBinaryString(): Unit = {
-    tEnv.registerFunction("func", new BinaryStringTableFunc)
+    registerFunction("func", new BinaryStringTableFunc)
     checkResult(
       "select c, s1, s2 from inputT, LATERAL TABLE(func(c, 'haha')) as T(s1, s2)",
       Seq(

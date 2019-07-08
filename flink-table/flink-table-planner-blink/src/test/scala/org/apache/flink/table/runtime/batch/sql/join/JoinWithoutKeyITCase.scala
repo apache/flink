@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql.join
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -30,8 +29,8 @@ import scala.collection.Seq
 class JoinWithoutKeyITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)

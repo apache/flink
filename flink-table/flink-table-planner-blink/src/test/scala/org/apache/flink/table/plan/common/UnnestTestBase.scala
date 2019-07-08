@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.common
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
 
 import org.junit.Test
@@ -78,7 +79,7 @@ abstract class UnnestTestBase extends TableTestBase {
 
   @Test
   def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
-    util.addDataStream[(Int, Long, String, Timestamp)]("MyTable", 'a, 'b, 'c, 'rowtime)
+    util.addDataStream[(Int, Long, String, Timestamp)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val sqlQuery =
       """
         |WITH T AS (SELECT b, COLLECT(b) as `set`

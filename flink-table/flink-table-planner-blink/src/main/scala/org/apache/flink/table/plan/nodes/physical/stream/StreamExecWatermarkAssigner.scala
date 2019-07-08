@@ -20,12 +20,13 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
 import org.apache.flink.table.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.watermarkassigner.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Preconditions
@@ -37,7 +38,6 @@ import java.util
 import java.util.Calendar
 
 import scala.collection.JavaConversions._
-
 
 /**
   * Stream physical RelNode for [[WatermarkAssigner]].
@@ -82,10 +82,10 @@ class StreamExecWatermarkAssigner(
       "None"
     } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
       val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-      val miniBatchLatency = tableConfig.getConf.getLong(
-        TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+      val miniBatchLatency = tableConfig.getMillisecondFromConfigDuration(
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
       Preconditions.checkArgument(miniBatchLatency > 0,
-        "MiniBatch latency must be greater that 0.", null)
+        "MiniBatch latency must be greater that 0 ms.", null)
       s"Proctime, ${miniBatchLatency}ms"
     } else if (miniBatchInterval.mode == MiniBatchMode.RowTime) {
       s"Rowtime, ${miniBatchInterval.interval}ms"
@@ -97,25 +97,26 @@ class StreamExecWatermarkAssigner(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-    val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
+    val config = planner.getTableConfig
     val inferredInterval = getTraitSet.getTrait(
       MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
-    val idleTimeout = tableEnv.getConfig.getConf.getLong(
-      TableConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
+    val idleTimeout = config.getMillisecondFromConfigDuration(
+      ExecutionConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
 
     val (operator, opName) = if (inferredInterval.mode == MiniBatchMode.None ||
       inferredInterval.interval == 0) {
@@ -136,7 +137,7 @@ class StreamExecWatermarkAssigner(
       require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
       require(watermarkDelay.isDefined, "watermarkDelay should not be None")
       // get the timezone offset.
-      val tzOffset = tableEnv.getConfig.getTimeZone.getOffset(Calendar.ZONE_OFFSET)
+      val tzOffset = config.getTimeZone.getOffset(Calendar.ZONE_OFFSET)
       val op = new MiniBatchedWatermarkAssignerOperator(
         rowtimeFieldIndex.get,
         watermarkDelay.get,

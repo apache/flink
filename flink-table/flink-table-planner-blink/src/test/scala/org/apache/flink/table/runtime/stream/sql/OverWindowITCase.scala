@@ -51,7 +51,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
@@ -87,7 +87,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBultinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
@@ -123,7 +123,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
@@ -159,7 +159,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   @Test
   def testProcTimeBoundedNonPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
@@ -198,7 +198,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeUnboundedPartitionedRangeOver(): Unit = {
-    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime)
+    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.registerTable("T1", t1)
 
@@ -223,7 +223,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeUnboundedPartitionedRowsOver(): Unit = {
-    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime)
+    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.registerTable("T1", t1)
 
@@ -256,9 +256,9 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(2), Time.hours(3))
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(2))
 
-    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime)
+    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.registerTable("T1", t1)
 
@@ -280,7 +280,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeUnboundedNonPartitionedRowsOver(): Unit = {
-    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime)
+    val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.registerTable("T1", t1)
 
@@ -333,7 +333,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
@@ -399,7 +399,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
@@ -465,7 +465,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
 
@@ -521,7 +521,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
 
@@ -584,7 +584,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
@@ -649,7 +649,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
     tEnv.registerFunction("LTCNT", new LargerThanCount)
@@ -706,7 +706,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
 
@@ -761,7 +761,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
 
@@ -828,7 +828,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("T1", t1)
 
@@ -858,7 +858,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   @Test
   def testProcTimeDistinctUnboundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
@@ -913,7 +913,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
     val table = failingDataSource(data)
       .assignAscendingTimestamps(_._1)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.registerTable("MyTable", table)
     tEnv.registerFunction("CntNullNonNull", new CountNullNonNull)
@@ -943,7 +943,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
   @Test
   def testProcTimeDistinctBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a, " +
@@ -996,7 +996,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
     env.setParallelism(1)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime)
+    val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
     tEnv.registerTable("MyTable", table)
     tEnv.registerFunction("PairCount", new CountPairs)
 

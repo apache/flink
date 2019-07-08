@@ -19,6 +19,7 @@ package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.plan.stream.sql.join.TestTemporalTable
@@ -216,7 +217,7 @@ class LookupJoinTest extends TableTestBase {
   @Test
   def testReusing(): Unit = {
     testUtil.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     val sql1 =
       """
         |SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime

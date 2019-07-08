@@ -18,25 +18,25 @@
 
 package org.apache.flink.table.plan.nodes.process;
 
-import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.planner.PlannerBase;
 
 /**
  * Context for processors to process dag.
  */
 public class DAGProcessContext {
 
-	private final TableEnvironment tableEnvironment;
+	private final PlannerBase planner;
 
-	public DAGProcessContext(TableEnvironment tableEnvironment) {
-		this.tableEnvironment = tableEnvironment;
+	public DAGProcessContext(PlannerBase planner) {
+		this.planner = planner;
 	}
 
 	/**
-	 * Gets {@link TableEnvironment}, {@link org.apache.flink.table.api.BatchTableEnvironment} for batch job.
-	 * and {@link org.apache.flink.table.api.StreamTableEnvironment} for stream job.
+	 * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.BatchPlanner} for batch job.
+	 * and {@link org.apache.flink.table.planner.StreamPlanner} for stream job.
 	 */
-	public TableEnvironment getTableEnvironment() {
-		return tableEnvironment;
+	public PlannerBase getPlanner() {
+		return planner;
 	}
 
 }

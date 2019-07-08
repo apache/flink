@@ -39,11 +39,11 @@ class TableEnvironmentTest {
   def thrown: ExpectedException = expectedException
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
-  val tableEnv: scala.StreamTableEnvironment = StreamTableEnvironment.create(env)
+  val tableEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
 
   @Test
   def testScanNonExistTable(): Unit = {
-    thrown.expect(classOf[TableException])
+    thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Table 'MyTable' was not found")
     tableEnv.scan("MyTable")
   }
@@ -59,9 +59,8 @@ class TableEnvironmentTest {
     assertEquals(expected, actual)
 
     // register on a conflict name
-    thrown.expect(classOf[org.apache.flink.table.catalog.exceptions.TableAlreadyExistException])
-    thrown.expectMessage(
-      "Table (or view) default_database.MyTable already exists in Catalog default_catalog.")
+    thrown.expect(classOf[org.apache.flink.table.api.TableException])
+    thrown.expectMessage("Could not register table")
     tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
   }
 

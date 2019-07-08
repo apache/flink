@@ -19,18 +19,15 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableConfigOptions}
-import org.apache.flink.table.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.api.{DataTypes, ExecutionConfigOptions}
 import org.apache.flink.table.runtime.utils.BatchTestBase
+import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils, TypeInfoLogicalTypeConverter}
 import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
-import org.apache.flink.table.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
 import org.junit.{Assert, Ignore, Test}
 
 import java.math.{BigDecimal => JBigDecimal}
@@ -777,7 +774,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin1(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -790,7 +787,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin2(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -803,7 +800,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin3(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -817,7 +814,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin4(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -830,7 +827,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin5(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -843,7 +840,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin6(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
@@ -856,7 +853,7 @@ class DecimalITCase extends BatchTestBase {
   @Test
   def testJoin7(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),

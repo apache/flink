@@ -18,21 +18,26 @@
 
 package org.apache.flink.table.`match`
 
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecMatch}
+import org.apache.flink.table.planner.PlannerBase
 import org.apache.flink.table.types.logical.{IntType, RowType}
+import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
+
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.tools.RelBuilder
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
@@ -50,10 +55,10 @@ abstract class PatternTranslatorTestBase extends TestLogger {
   private val testTableRowType = RowType.of(new IntType)
   private val tableName = "testTable"
   private val context = prepareContext(testTableTypeInfo)
-  private val planner: FlinkPlannerImpl = context._2.getFlinkPlanner
+  private val calcitePlanner: FlinkPlannerImpl = context._2.getFlinkPlanner
 
   private def prepareContext(typeInfo: TypeInformation[Row])
-  : (RelBuilder, StreamTableEnvironment, StreamExecutionEnvironment) = {
+  : (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
     // create DataStreamTable
     val dataStreamMock = mock(classOf[DataStream[Row]])
     val jDataStreamMock = mock(classOf[JDataStream[Row]])
@@ -63,28 +68,30 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
-    tEnv.registerDataStream(tableName, dataStreamMock, 'f0, 'proctime)
+    TableTestUtil.registerDataStream(
+      tEnv, tableName, dataStreamMock.javaStream, Some(Array[Expression]('f0, 'proctime.proctime)))
 
     // prepare RelBuilder
-    val relBuilder: RelBuilder = tEnv.getRelBuilder
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    val relBuilder: RelBuilder = planner.getRelBuilder
     relBuilder.scan(tableName)
 
-    (relBuilder, tEnv, env)
+    (relBuilder, planner, env)
   }
 
   def verifyPattern(matchRecognize: String, expected: Pattern[BaseRow, _ <: BaseRow]): Unit = {
     // create RelNode from SQL expression
-    val parsed = planner.parse(
+    val parsed = calcitePlanner.parse(
       s"""
          |SELECT *
          |FROM $tableName
          |$matchRecognize
          |""".stripMargin)
-    val validated = planner.validate(parsed)
-    val converted = planner.rel(validated).rel
+    val validated = calcitePlanner.validate(parsed)
+    val converted = calcitePlanner.rel(validated).rel
 
-    val env = context._2
-    val optimized: RelNode = env.optimize(converted)
+    val plannerBase = context._2
+    val optimized: RelNode = plannerBase.optimize(Seq(converted)).head
 
     // throw exception if plan contains more than a match
     if (!optimized.getInput(0).isInstanceOf[StreamExecDataStreamScan]) {

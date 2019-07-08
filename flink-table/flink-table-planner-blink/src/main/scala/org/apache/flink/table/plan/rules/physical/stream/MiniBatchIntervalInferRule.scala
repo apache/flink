@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.physical.stream
 
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode}
 import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecTableSourceScan, StreamExecWatermarkAssigner, StreamPhysicalRel}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
   * 1. supports operators which supports mini-batch and does not require watermark, e.g.
   * group aggregate. In this case, [[StreamExecWatermarkAssigner]] with Protime mode will be
   * created if not exist, and the interval value will be set as
-  * [[TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY]].
+  * [[ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY]].
   * 2. supports operators which requires watermark, e.g. window join, window aggregate.
   * In this case, [[StreamExecWatermarkAssigner]] already exists, and its MiniBatchIntervalTrait
   * will be updated as the merged intervals from its outputs.
@@ -64,8 +64,8 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     val miniBatchIntervalTrait = rel.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
     val inputs = getInputs(rel)
     val config = FlinkRelOptUtil.getTableConfigFromContext(rel)
-    val miniBatchEnabled = config.getConf.contains(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+    val miniBatchEnabled = config.getConf.getBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
 
     val updatedTrait = rel match {
       case _: StreamExecGroupWindowAggregate =>

@@ -18,12 +18,8 @@
 
 package org.apache.flink.table.runtime.batch.sql.join
 
-import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.runtime.utils.TestData._
-
-import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -49,8 +45,6 @@ class ScalarQueryITCase extends BatchTestBase {
     row(null, 5.0),
     row(6, null)
   )
-
-
 
 }
 

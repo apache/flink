@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
@@ -180,7 +181,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     }
     val stream = failingDataSource(data)
         .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
-    val t = stream.toTable(tEnv, 'b, 'a, 'c, 'rowtime)
+    val t = stream.toTable(tEnv, 'b, 'a, 'c, 'rowtime.rowtime)
     tEnv.registerTable("T", t)
 
     val sqlQuery =
@@ -251,10 +252,8 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     )
 
     implicit val typeInfo = Types.ROW(
-      fieldNames = Array("a", "b", "c"),
-      types = Array(Types.INT,
-        Types.LONG,
-        Types.MAP(Types.STRING, Types.STRING))
+      Array("a", "b", "c"),
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING))
     )
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T", t)
@@ -265,8 +264,9 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val sink = new TestingRetractTableSink().configure(
       Array("a", "b", "v"),
       Array(Types.INT, Types.LONG, Types.STRING))
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

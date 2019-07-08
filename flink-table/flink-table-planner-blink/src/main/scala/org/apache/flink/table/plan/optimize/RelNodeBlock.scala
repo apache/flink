@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.plan.`trait`.MiniBatchInterval
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
@@ -31,6 +34,7 @@ import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Aggregate, Project, Snapshot, TableFunctionScan, Union}
 import org.apache.calcite.rex.RexNode
 
+import java.lang.{Boolean => JBoolean}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -49,7 +53,7 @@ import scala.collection.mutable
   * RelNode, the RelNode is the output node of a new block (or named break-point).
   * There are several special cases that a RelNode can not be a break-point.
   * (1). UnionAll is not a break-point
-  * when [[PlannerConfigOptions.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
+  * when [[RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
   * (2). [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]]
   * with window attribute) are not a break-point because their physical RelNodes are a composite
   * RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan and
@@ -254,8 +258,7 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
   private val isUnionAllAsBreakPointDisabled = config.getConf.getBoolean(
-    PlannerConfigOptions.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
-
+    RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
 
   /**
     * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s,
@@ -376,6 +379,22 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
 
 object RelNodeBlockPlanBuilder {
 
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
+    key("sql.optimizer.unionall-as-breakpoint.disabled")
+        .defaultValue(JBoolean.valueOf(false))
+        .withDescription("Disable union-all node as breakpoint when constructing common sub-graph.")
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
+    key("sql.optimizer.reuse.optimize-block.with-digest.enabled")
+        .defaultValue(JBoolean.valueOf(false))
+        .withDescription("When true, the optimizer will try to find out duplicated sub-plan by " +
+            "digest to build optimize block(a.k.a. common sub-graph). " +
+            "Each optimize block will be optimized independently.")
+
   /**
     * Decompose the [[RelNode]] trees into [[RelNodeBlock]] trees. First, convert LogicalNode
     * trees to RelNode trees. Second, reuse same sub-plan in different trees. Third, decompose the
@@ -411,7 +430,7 @@ object RelNodeBlockPlanBuilder {
     */
   private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
     val findOpBlockWithDigest = tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
+      RelNodeBlockPlanBuilder.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes
     }

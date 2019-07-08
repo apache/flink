@@ -23,16 +23,18 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIV
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, ValidationException}
 import org.apache.flink.table.dataformat.DataFormatConverters.{DateConverter, TimestampConverter}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -44,7 +46,8 @@ import scala.collection.Seq
 class CalcITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfData3)
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfData3)
@@ -71,7 +74,7 @@ class CalcITCase extends BatchTestBase {
       (true, 1, 2, 3, 4, 5, 6, 7),
       (false, 1, 2, 3, 4, 5, 6, 7)
     )
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "MyT", data, "a, b, c, d, e, f, g, h")
+    BatchTableEnvUtil.registerCollection(tEnv, "MyT", data, "a, b, c, d, e, f, g, h")
     checkResult(
       """
         |SELECT
@@ -285,7 +288,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunction(): Unit = {
-    tEnv.registerFunction("hashCode", MyHashCode)
+    registerFunction("hashCode", MyHashCode)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -297,7 +300,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUDFWithInternalClass(): Unit = {
-    tEnv.registerFunction("func", BinaryStringFunction)
+    registerFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -309,7 +312,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testTimeUDF(): Unit = {
-    tEnv.registerFunction("func", DateFunction)
+    registerFunction("func", DateFunction)
     val data = Seq(row(UTCDate("1984-07-12")))
     registerCollection("MyTable", data, new RowTypeInfo(DATE), "a")
     checkResult("SELECT func(a) FROM MyTable", Seq(row(UTCDate("1984-07-12"))))
@@ -331,7 +334,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    registerFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     checkResult(
@@ -345,7 +348,7 @@ class CalcITCase extends BatchTestBase {
     val words = "Hello\nWord"
     val filePath = UserDefinedFunctionTestUtils.writeCacheFile("test_words", words)
     env.registerCachedFile(filePath, "words")
-    tEnv.registerFunction("RichFunc3", new RichFunc3)
+    registerFunction("RichFunc3", new RichFunc3)
 
     checkResult(
       "SELECT c FROM SmallTable3 where RichFunc3(c)=true",
@@ -355,8 +358,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMultipleUserDefinedScalarFunctions(): Unit = {
-    tEnv.registerFunction("RichFunc1", new RichFunc1)
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    registerFunction("RichFunc1", new RichFunc1)
+    registerFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     checkResult(
@@ -367,10 +370,10 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testExternalTypeFunc1(): Unit = {
-    tEnv.registerFunction("func1", RowFunc)
-    tEnv.registerFunction("rowToStr", RowToStrFunc)
-    tEnv.registerFunction("func2", ListFunc)
-    tEnv.registerFunction("func3", StringFunc)
+    registerFunction("func1", RowFunc)
+    registerFunction("rowToStr", RowToStrFunc)
+    registerFunction("func2", ListFunc)
+    registerFunction("func3", StringFunc)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -386,10 +389,10 @@ class CalcITCase extends BatchTestBase {
   @Ignore // TODO support agg
   @Test
   def testExternalTypeFunc2(): Unit = {
-    tEnv.registerFunction("func1", RowFunc)
-    tEnv.registerFunction("rowToStr", RowToStrFunc)
-    tEnv.registerFunction("func2", ListFunc)
-    tEnv.registerFunction("func3", StringFunc)
+    registerFunction("func1", RowFunc)
+    registerFunction("rowToStr", RowToStrFunc)
+    registerFunction("func2", ListFunc)
+    registerFunction("func3", StringFunc)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -438,8 +441,8 @@ class CalcITCase extends BatchTestBase {
       "a")
 
     //1. external type for udf parameter
-    tEnv.registerFunction("pojoFunc", MyPojoFunc)
-    tEnv.registerFunction("toPojoFunc", MyToPojoFunc)
+    registerFunction("pojoFunc", MyPojoFunc)
+    registerFunction("toPojoFunc", MyToPojoFunc)
     checkResult(
       "SELECT pojoFunc(a) FROM MyTable",
       Seq(row(105), row(11), row(12)))
@@ -456,8 +459,8 @@ class CalcITCase extends BatchTestBase {
   // TODO
 //  @Test
 //  def testUDFWithGetResultTypeFromLiteral(): Unit = {
-//    tEnv.registerFunction("hashCode0", LiteralHashCode)
-//    tEnv.registerFunction("hashCode1", LiteralHashCode)
+//    registerFunction("hashCode0", LiteralHashCode)
+//    registerFunction("hashCode1", LiteralHashCode)
 //    val data = Seq(row("a"), row("b"), row("c"))
 //    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 //    checkResult(
@@ -682,7 +685,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStarFromNestedTable(): Unit = {
 
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, Seq(
+    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       ((0, 0), "0"),
       ((1, 1), "1"),
       ((2, 2), "2")
@@ -701,7 +704,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSelectStarFromNestedValues(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, Seq(
+    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       (0L, "0"),
       (1L, "1"),
       (2L, "2")
@@ -730,7 +733,7 @@ class CalcITCase extends BatchTestBase {
   @Ignore //TODO support cast string to bigint.
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, Seq(
+    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       (0L, "0"),
       (1L, "1"),
       (2L, "2")
@@ -757,10 +760,10 @@ class CalcITCase extends BatchTestBase {
     val splitUDF0 = new SplitUDF(deterministic = true)
     val splitUDF1 = new SplitUDF(deterministic = false)
 
-    tEnv.registerFunction("splitUDF0", splitUDF0)
-    tEnv.registerFunction("splitUDF1", splitUDF1)
+    registerFunction("splitUDF0", splitUDF0)
+    registerFunction("splitUDF1", splitUDF1)
 
-    val t1 = BatchScalaTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
+    val t1 = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
     tEnv.registerTable("T1", t1)
     // uses SQL escaping (be aware that even Scala multi-line strings parse backslash!)
     checkResult(
@@ -825,7 +828,7 @@ class CalcITCase extends BatchTestBase {
       (5, "a%_ha")
     )
 
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "MyT", rows, "a, b")
+    BatchTableEnvUtil.registerCollection(tEnv, "MyT", rows, "a, b")
 
     checkResult(
       "SELECT a FROM MyT WHERE b LIKE '%ha?_ha%' ESCAPE '?'",
@@ -916,7 +919,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testStringUdf(): Unit = {
-    tEnv.registerFunction("myFunc", MyStringFunc)
+    registerFunction("myFunc", MyStringFunc)
     checkResult(
       "SELECT myFunc(c) FROM Table3 WHERE a = 1",
       Seq(row("Hihaha")))
@@ -924,7 +927,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testNestUdf(): Unit = {
-    tEnv.registerFunction("func", MyStringFunc)
+    registerFunction("func", MyStringFunc)
     checkResult(
       "SELECT func(func(func(c))) FROM SmallTable3",
       Seq(row("Hello worldhahahahahaha"), row("Hellohahahahahaha"), row("Hihahahahahaha")))
@@ -1189,8 +1192,8 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
-    conf.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    conf.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     checkResult(
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>

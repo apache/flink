@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.api.TableConfigOptions;
+import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
 import org.apache.flink.table.dataformat.BinaryString;
@@ -70,9 +70,9 @@ public class BufferedKVExternalSorterTest {
 			int spillNumber, int recordNumberPerFile, boolean spillCompress) {
 		ioManager = new IOManagerAsync();
 		conf = new Configuration();
-		conf.setInteger(TableConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 5);
+		conf.setInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 5);
 		if (!spillCompress) {
-			conf.setBoolean(TableConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, false);
+			conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, false);
 		}
 		this.spillNumber = spillNumber;
 		this.recordNumberPerFile = recordNumberPerFile;

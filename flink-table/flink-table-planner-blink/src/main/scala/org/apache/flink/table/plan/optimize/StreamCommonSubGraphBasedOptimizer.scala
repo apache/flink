@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig}
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef, MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
@@ -28,6 +28,7 @@ import org.apache.flink.table.plan.optimize.program.{FlinkStreamProgram, StreamO
 import org.apache.flink.table.plan.schema.IntermediateRelTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink}
 import org.apache.flink.util.Preconditions
 
@@ -42,12 +43,13 @@ import scala.collection.JavaConversions._
 /**
   * A [[CommonSubGraphBasedOptimizer]] for Stream.
   */
-class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
+class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
+    val config = planner.getTableConfig
     // build RelNodeBlock plan
-    val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv.getConfig)
+    val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, config)
     // infer updateAsRetraction property for sink block
     sinkBlocks.foreach { sinkBlock =>
       val retractionFromRoot = sinkBlock.outputNode match {
@@ -61,12 +63,12 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
           o.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE).sendsUpdatesAsRetractions
       }
       sinkBlock.setUpdateAsRetraction(retractionFromRoot)
-      val miniBatchInterval: MiniBatchInterval = if (tEnv.getConfig.getConf.contains(
-        TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)) {
-        val miniBatchLatency = tEnv.getConfig.getConf.getLong(
-          TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+      val miniBatchInterval: MiniBatchInterval = if (config.getConf.getBoolean(
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
+        val miniBatchLatency = config.getMillisecondFromConfigDuration(
+          ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
         Preconditions.checkArgument(miniBatchLatency > 0,
-          "MiniBatch Latency must be greater than 0.", null)
+          "MiniBatch Latency must be greater than 0 ms.", null)
         MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
       }  else {
         MiniBatchIntervalTrait.NONE.getMiniBatchInterval
@@ -151,7 +153,7 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
       miniBatchInterval: MiniBatchInterval,
       isSinkBlock: Boolean): RelNode = {
 
-    val config = tEnv.getConfig
+    val config = planner.getTableConfig
     val programs = config.getCalciteConfig.getStreamProgram
       .getOrElse(FlinkStreamProgram.buildProgram(config.getConf))
     Preconditions.checkNotNull(programs)
@@ -160,9 +162,9 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
 
       override def getTableConfig: TableConfig = config
 
-      override def getFunctionCatalog: FunctionCatalog = tEnv.functionCatalog
+      override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
-      override def getRexBuilder: RexBuilder = tEnv.getRelBuilder.getRexBuilder
+      override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
 
       override def updateAsRetraction: Boolean = updatesAsRetraction
 
@@ -292,7 +294,7 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
       isAccRetract: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
     val monotonicity = FlinkRelMetadataQuery
-      .reuseOrCreate(tEnv.getRelBuilder.getCluster.getMetadataQuery)
+      .reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
       .getRelModifiedMonotonicity(relNode)
     val statistic = FlinkStatistic.builder()
       .uniqueKeys(uniqueKeys)
@@ -304,7 +306,7 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
 
   private def getUniqueKeys(relNode: RelNode): util.Set[_ <: util.Set[String]] = {
     val rowType = relNode.getRowType
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(tEnv.getRelBuilder.getCluster.getMetadataQuery)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null) {
       uniqueKeys.filter(_.nonEmpty).map { uniqueKey =>

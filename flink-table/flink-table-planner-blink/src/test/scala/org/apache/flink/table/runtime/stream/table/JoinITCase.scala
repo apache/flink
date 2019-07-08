@@ -81,7 +81,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @Before
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
   }
 
   @Test
@@ -134,8 +134,9 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       Array[String]("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG))
 
-    tEnv.writeToSink(t, sink, "upsertSink")
-    tEnv.execute()
+    tEnv.registerTableSink("upsertSink", sink)
+    tEnv.insertInto(t, "upsertSink")
+    tEnv.execute("test")
 
     val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -184,9 +185,9 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val t = leftTableWithPk
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
-    tEnv.writeToSink(t, sink, "retractSink")
-
-    tEnv.execute()
+    tEnv.registerTableSink("retractSink", sink)
+    tEnv.insertInto(t, "retractSink")
+    tEnv.execute("test")
 
     val expected = Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3",
                        "5,5,5,5", "5,5,5,5")
@@ -215,7 +216,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val stream2 = env
       .fromCollection(data2)
 
-    val table1 = stream1.toTable(tEnv, 'long_l, 'int_l, 'string_l, 'proctime)
+    val table1 = stream1.toTable(tEnv, 'long_l, 'int_l, 'string_l, 'proctime.proctime)
     val table2 = stream2.toTable(tEnv, 'long_r, 'int_r, 'string_r)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
@@ -793,8 +794,9 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 2))
       .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.writeToSink(t, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(t, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq("1,5,1,2")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -873,8 +875,9 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1, 2)).configure(
       schema.getFieldNames, schema.getFieldTypes)
-    tEnv.writeToSink(t, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(t, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq("1,4,1,2", "1,5,1,2")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -1052,7 +1055,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .groupBy('bb)
       .select('bb, 'c.count as 'c)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
 
     val t = leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)
@@ -1060,8 +1063,9 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1))
       .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.writeToSink(t, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(t, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -1136,7 +1140,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val stream1 = failingDataSource(data1)
     val stream2 = failingDataSource(data2)
 
-    val table1 = stream1.toTable(tEnv, 'long_l, 'int_l, 'string_l, 'proctime)
+    val table1 = stream1.toTable(tEnv, 'long_l, 'int_l, 'string_l, 'proctime.proctime)
     val table2 = stream2.toTable(tEnv, 'long_r, 'int_r, 'string_r)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
@@ -1342,9 +1346,9 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val schema = t.getSchema
     val sink = new TestingUpsertTableSink(Array(0, 1, 2))
       .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.writeToSink(t, sink, "sinkTests")
-
-    tEnv.execute()
+    tEnv.registerTableSink("sinkTests", sink)
+    tEnv.insertInto(t, "sinkTests")
+    tEnv.execute("test")
 
     val expected = Seq("4,1,1,1")
     assertEquals(expected, sink.getUpsertResults)

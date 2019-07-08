@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.util.TableTestBase
 
@@ -34,7 +35,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
   def setup(): Unit = {
     util.buildStreamProgram(FlinkStreamProgram.PHYSICAL)
 
-    util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'rowtime)
+    util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     util.addTableSource[(String, Int, String)]("T", 'category, 'shopId, 'price)
   }
 

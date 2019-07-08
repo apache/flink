@@ -67,6 +67,11 @@ class StreamTableEnvironmentImpl (
     isStreaming)
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
 
+  if (!isStreaming) {
+    throw new TableException(
+      "StreamTableEnvironment is not supported on batch mode now, please use TableEnvironment.")
+  }
+
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
     val queryOperation = asQueryOperation(dataStream, None)
     createTable(queryOperation)

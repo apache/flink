@@ -23,6 +23,8 @@ import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialects;
 
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Options for the JDBC connector.
  */
@@ -35,7 +37,7 @@ public class JDBCOptions {
 	private String password;
 	private JDBCDialect dialect;
 
-	public JDBCOptions(String dbURL, String tableName, String driverName, String username,
+	private JDBCOptions(String dbURL, String tableName, String driverName, String username,
 			String password, JDBCDialect dialect) {
 		this.dbURL = dbURL;
 		this.tableName = tableName;
@@ -84,53 +86,69 @@ public class JDBCOptions {
 		private String password;
 		private JDBCDialect dialect;
 
+		/**
+		 * required, table name.
+		 */
 		public Builder setTableName(String tableName) {
 			this.tableName = tableName;
 			return this;
 		}
 
+		/**
+		 * optional, user name.
+		 */
 		public Builder setUsername(String username) {
 			this.username = username;
 			return this;
 		}
 
+		/**
+		 * optional, password.
+		 */
 		public Builder setPassword(String password) {
 			this.password = password;
 			return this;
 		}
 
+		/**
+		 * optional, driver name, dialect has a default driver name,
+		 * See {@link JDBCDialect#defaultDriverName}.
+		 */
 		public Builder setDriverName(String driverName) {
 			this.driverName = driverName;
 			return this;
 		}
 
+		/**
+		 * required, JDBC DB url.
+		 */
 		public Builder setDBUrl(String dbURL) {
 			this.dbURL = dbURL;
 			return this;
 		}
 
+		/**
+		 * optional, Handle the SQL dialect of jdbc driver. If not set, it will be infer by
+		 * {@link JDBCDialects#get} from DB url.
+		 */
 		public Builder setDialect(JDBCDialect dialect) {
 			this.dialect = dialect;
 			return this;
 		}
 
 		public JDBCOptions build() {
-			if (this.dbURL == null) {
-				throw new IllegalArgumentException("No database URL supplied.");
-			}
-			if (this.tableName == null) {
-				throw new IllegalArgumentException("No tableName supplied.");
-			}
+			checkNotNull(dbURL, "No dbURL supplied.");
+			checkNotNull(tableName, "No tableName supplied.");
 			if (this.dialect == null) {
 				Optional<JDBCDialect> optional = JDBCDialects.get(dbURL);
 				this.dialect = optional.orElseGet(() -> {
-					throw new IllegalArgumentException("No dialect supplied.");
+					throw new NullPointerException("No dialect supplied.");
 				});
 			}
 			if (this.driverName == null) {
 				Optional<String> optional = dialect.defaultDriverName();
 				this.driverName = optional.orElseGet(() -> {
-					throw new IllegalArgumentException("No driverName supplied.");
+					throw new NullPointerException("No driverName supplied.");
 				});
 			}
 

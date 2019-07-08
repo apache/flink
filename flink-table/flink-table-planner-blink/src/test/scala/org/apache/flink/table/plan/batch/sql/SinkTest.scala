@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
 import org.apache.flink.table.util.TableTestBase
 
@@ -37,24 +38,24 @@ class SinkTest extends TableTestBase {
   def testSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val sink = util.createCollectTableSink(Array("a"), Array(LONG))
-    util.tableEnv.writeToSink(table, sink)
+    util.writeToSink(table, sink, "sink")
     util.verifyPlan()
   }
 
   @Test
   def testMultiSinks(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+      RelNodeBlockPlanBuilder.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS sum_a, c FROM MyTable GROUP BY c")
     util.tableEnv.registerTable("table1", table1)
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(sum_a) AS total_sum FROM table1")
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val sink1 = util.createCollectTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table2, sink1)
+    util.writeToSink(table2, sink1, "sink1")
 
     val sink2 = util.createCollectTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, sink2)
+    util.writeToSink(table3, sink2, "sink2")
 
     util.verifyPlan()
   }

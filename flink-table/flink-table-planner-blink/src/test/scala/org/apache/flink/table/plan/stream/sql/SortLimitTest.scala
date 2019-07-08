@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -26,7 +27,8 @@ import org.junit.Test
 class SortLimitTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
+  util.addDataStream[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
   def testSortProcessingTimeAscWithOffSet0AndLimit1(): Unit = {

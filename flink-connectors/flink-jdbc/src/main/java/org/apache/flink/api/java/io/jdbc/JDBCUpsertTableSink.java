@@ -37,6 +37,7 @@ import java.util.Arrays;
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
 import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An upsert {@link UpsertStreamTableSink} for JDBC.
@@ -154,39 +155,50 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		private long flushIntervalMills = DEFAULT_FLUSH_INTERVAL_MILLS;
 		private int maxRetryTimes = DEFAULT_MAX_RETRY_TIMES;
 
+		/**
+		 * required, table schema of this table source.
+		 */
 		public Builder setTableSchema(TableSchema schema) {
 			this.schema = schema;
 			return this;
 		}
 
+		/**
+		 * required, jdbc options.
+		 */
 		public Builder setOptions(JDBCOptions options) {
 			this.options = options;
 			return this;
 		}
 
+		/**
+		 * optional, flush max size (includes all append, upsert and delete records),
+		 * over this number of records, will flush data.
+		 */
 		public Builder setFlushMaxSize(int flushMaxSize) {
 			this.flushMaxSize = flushMaxSize;
 			return this;
 		}
 
+		/**
+		 * optional, flush interval mills, over this time, asynchronous threads will flush data.
+		 */
 		public Builder setFlushIntervalMills(long flushIntervalMills) {
 			this.flushIntervalMills = flushIntervalMills;
 			return this;
 		}
 
+		/**
+		 * optional, max retry times for jdbc connector.
+		 */
 		public Builder setMaxRetryTimes(int maxRetryTimes) {
 			this.maxRetryTimes = maxRetryTimes;
 			return this;
 		}
 
 		public JDBCUpsertTableSink build() {
-			if (schema == null) {
-				throw new IllegalArgumentException("No schema supplied.");
-			}
-			if (options == null) {
-				throw new IllegalArgumentException("No options supplied.");
-			}
-
+			checkNotNull(schema, "No schema supplied.");
+			checkNotNull(options, "No options supplied.");
 			return new JDBCUpsertTableSink(schema, options, flushMaxSize, flushIntervalMills, maxRetryTimes);
 		}
 	}

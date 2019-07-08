@@ -36,13 +36,14 @@ import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.table.util.DateTimeTestUtil.UTCTimestamp
 import org.apache.flink.table.util.{CountAggFunction, IntAvgAggFunction, IntSumAggFunction}
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Ignore, Test}
 
 class WindowAggregateITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     // common case
     registerCollection("Table3WithTimestamp", data3WithTimestamp, type3WithTimestamp,
       "a, b, c, ts", nullablesOfData3WithTimestamp)

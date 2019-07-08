@@ -51,7 +51,7 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
 
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.VARCHAR(32))).build()
+      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
     util.tableEnv.registerTableSource("MyTable", new TestProjectableTableSource(
       true,
       tableSchema,

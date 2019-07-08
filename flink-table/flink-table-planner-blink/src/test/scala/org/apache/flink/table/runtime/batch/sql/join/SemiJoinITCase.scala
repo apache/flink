@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql.join
 
-import org.apache.flink.table.api.TableConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.batch.sql.join.SemiJoinITCase.leftT
 import org.apache.flink.table.runtime.utils.BatchTestBase
@@ -37,8 +36,8 @@ import scala.collection.Seq
 class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("leftT", leftT, INT_DOUBLE, "a, b")
     registerCollection("rightT", SemiJoinITCase.rightT, INT_DOUBLE, "c, d")
     registerCollection("rightUniqueKeyT", SemiJoinITCase.rightUniqueKeyT, INT_DOUBLE, "c, d")

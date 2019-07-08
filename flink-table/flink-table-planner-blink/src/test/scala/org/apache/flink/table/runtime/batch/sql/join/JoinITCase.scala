@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.{TableConfigOptions, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, Types}
 import org.apache.flink.table.expressions.utils.FuncWithOpen
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -44,7 +44,8 @@ import scala.collection.Seq
 class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
@@ -72,11 +73,11 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.writeToSink(
+      tEnv.registerTableSink("collect", sink)
+      tEnv.insertInto(
         tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"),
-        sink,
-        "collect")
-
+        "collect"
+      )
       var haveTwoOp = false
       env.getStreamGraph.getAllOperatorFactory.foreach(o =>
         o.f1 match {
@@ -754,7 +755,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Ignore
   @Test
   def testJoinCollation(): Unit = {
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
     checkResult(
       """
         |WITH v1 AS (
@@ -802,7 +803,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Test
   def testJoinWithUDFFilter(): Unit = {
-    tEnv.registerFunction("funcWithOpen", new FuncWithOpen)
+    registerFunction("funcWithOpen", new FuncWithOpen)
     checkResult(
       "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
       Seq(

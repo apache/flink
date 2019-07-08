@@ -23,7 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, Table, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func1, Func18, FuncWithOpen, RichFunc2}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.table.util._
 import org.apache.flink.test.util.TestBaseUtils
@@ -235,7 +235,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
     val richTableFunc1 = new RichTableFunc1
-    tEnv.registerFunction("RichTableFunc1", richTableFunc1)
+    registerFunction("RichTableFunc1", richTableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> "#"))
 
     val result = testData
@@ -250,9 +250,9 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionWithParameters(): Unit = {
     val richTableFunc1 = new RichTableFunc1
-    tEnv.registerFunction("RichTableFunc1", richTableFunc1)
+    registerFunction("RichTableFunc1", richTableFunc1)
     val richFunc2 = new RichFunc2
-    tEnv.registerFunction("RichFunc2", richFunc2)
+    registerFunction("RichFunc2", richFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(
       env,
       Map("word_separator" -> "#", "string.value" -> "test"))
@@ -293,7 +293,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
     val varArgsFunc0 = new VarArgsFunc0
-    tEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+    registerFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData
       .select('c)
@@ -397,6 +397,6 @@ class CorrelateITCase extends BatchTestBase {
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
-    BatchScalaTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
+    BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
   }
 }

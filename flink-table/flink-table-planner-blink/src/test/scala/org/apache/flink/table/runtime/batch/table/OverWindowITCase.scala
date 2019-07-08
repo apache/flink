@@ -32,7 +32,8 @@ import org.junit.{Before, Ignore, Test}
 class OverWindowITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection(
       "Table1", data1, type1, "month, area, product", nullablesOfData1)
     registerCollection(
