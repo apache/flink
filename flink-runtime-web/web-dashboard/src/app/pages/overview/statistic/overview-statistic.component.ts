@@ -106,4 +106,8 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  trackByTaskManager(_: number, item: TaskmanagersItemCalInterface) {
+    return item.id;
+  }
 }

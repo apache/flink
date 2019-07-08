@@ -68,7 +68,7 @@
   </div>
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="24" [nzLg]="24" [nzXl]="24" class="col">
     <nz-card [nzBordered]="false" nzTitle="Task Manager Overview" [nzLoading]="!listOfTaskManager">
-      <ng-container *ngFor="let manager of listOfTaskManager;">
+      <ng-container *ngFor="let manager of listOfTaskManager;trackBy:trackByTaskManager">
         <div [ngClass]="{
             'task-manager-avatar': true,
             'task-manager-avatar-big' : listOfTaskManager.length < 20,
