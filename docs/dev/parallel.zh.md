@@ -168,7 +168,7 @@ try {
 
 最大 parallelism 可以在所有设置 parallelism 的地方进行设定（客户端和系统层次除外）。与调用 `setParallelism()` 方法修改并发度相似，你可以通过调用 `setMaxParallelism()` 方法来设定最大 parallelism。
 
-默认的最大 parallelism 等于将 `operatorParallelism + (operatorParallelism / 2）` 值四舍五入到大于等于该值的一个整型值，并且这个整型值是 `2` 的幂次方，注意默认最大 parallelism 下限为 `128`，上限为 `32768`。
+默认的最大 parallelism 等于将 `operatorParallelism + (operatorParallelism / 2)` 值四舍五入到大于等于该值的一个整型值，并且这个整型值是 `2` 的幂次方，注意默认最大 parallelism 下限为 `128`，上限为 `32768`。
 
 <span class="label label-danger">注意</span> 为最大 parallelism 设置一个非常大的值将会降低性能，因为一些 state backends 需要维持内部的数据结构，而这些数据结构将会随着 key-groups 的数目而扩张（key-group 是状态重新分配的最小单元）。
 
