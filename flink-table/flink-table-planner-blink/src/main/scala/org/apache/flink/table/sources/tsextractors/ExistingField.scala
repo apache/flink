@@ -19,7 +19,7 @@
 package org.apache.flink.table.sources.tsextractors
 
 import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, TypeInformation, Types}
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.descriptors.Rowtime
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall, valueLiteral}
