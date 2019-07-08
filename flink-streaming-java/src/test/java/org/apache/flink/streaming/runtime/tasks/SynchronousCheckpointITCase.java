@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -68,12 +67,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -88,8 +85,6 @@ import static org.mockito.Mockito.when;
  */
 public class SynchronousCheckpointITCase {
 
-	private static OneShotLatch checkpointTriggered = new OneShotLatch();
-
 	// A thread-safe queue to "log" and monitor events happening in the task's methods. Also, used by the test thread
 	// to synchronize actions with the task's threads.
 	private static LinkedBlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
@@ -98,7 +93,7 @@ public class SynchronousCheckpointITCase {
 	public final Timeout timeoutPerTest = Timeout.seconds(10);
 
 	@Test
-	public void taskCachedThreadPoolAllowsForSynchronousCheckpoints() throws Exception {
+	public void taskDispatcherThreadPoolAllowsForSynchronousCheckpoints() throws Exception {
 		final Task task = createTask(SynchronousCheckpointTestingTask.class);
 
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -109,12 +104,6 @@ public class SynchronousCheckpointITCase {
 
 			assertEquals(ExecutionState.RUNNING, task.getExecutionState());
 
-			// Hack: we are triggering a checkpoint with advanceToEndOfEventTime = true, to be sure that
-			// triggerCheckpointBarrier has reached the sync checkpoint latch (by verifying in
-			// SynchronousCheckpointTestingTask.advanceToEndOfEventTime) and only then proceeding to
-			// notifyCheckpointComplete.
-			// Without such synchronization, the notifyCheckpointComplete execution may be executed first and leave this
-			// test in a deadlock.
 			task.triggerCheckpointBarrier(
 					42,
 					156865867234L,
@@ -122,16 +111,13 @@ public class SynchronousCheckpointITCase {
 					true);
 
 			assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));
+			assertThat(eventQueue.take(), is(Event.POST_TRIGGER_CHECKPOINT));
 			assertTrue(eventQueue.isEmpty());
-
-			checkpointTriggered.await();
 
 			task.notifyCheckpointComplete(42);
 
 			assertThat(eventQueue.take(), is(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE));
-			assertThat(
-				Arrays.asList(eventQueue.take(), eventQueue.take()),
-				containsInAnyOrder(Event.POST_NOTIFY_CHECKPOINT_COMPLETE, Event.POST_TRIGGER_CHECKPOINT));
+			assertThat(eventQueue.take(), is(Event.POST_NOTIFY_CHECKPOINT_COMPLETE));
 			assertTrue(eventQueue.isEmpty());
 
 			assertEquals(ExecutionState.RUNNING, task.getExecutionState());
@@ -195,13 +181,6 @@ public class SynchronousCheckpointITCase {
 		@Override
 		protected void cleanup() {
 
-		}
-
-		@Override
-		protected void advanceToEndOfEventTime() throws Exception {
-			// Wake up the test thread that we have actually entered the checkpoint invocation and the sync checkpoint
-			// latch is set.
-			checkpointTriggered.trigger();
 		}
 	}
 
