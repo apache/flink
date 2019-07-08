@@ -42,7 +42,7 @@ class WindowAggregateITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     // common case
     registerCollection("Table3WithTimestamp", data3WithTimestamp, type3WithTimestamp,
       "a, b, c, ts", nullablesOfData3WithTimestamp)

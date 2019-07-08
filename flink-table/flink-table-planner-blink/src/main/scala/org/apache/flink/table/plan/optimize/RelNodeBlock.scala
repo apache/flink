@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.optimize
 
+import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.TableConfig
@@ -378,11 +379,15 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
 
 object RelNodeBlockPlanBuilder {
 
+  // It is a experimental config, will may be removed later.
+  @Experimental
   val SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
     key("sql.optimizer.unionall-as-breakpoint.disabled")
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("Disable union-all node as breakpoint when constructing common sub-graph.")
 
+  // It is a experimental config, will may be removed later.
+  @Experimental
   val SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
     key("sql.optimizer.reuse.optimize-block.with-digest.enabled")
         .defaultValue(JBoolean.valueOf(false))

@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
@@ -107,9 +107,9 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
     util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
     val table = util.tableEnv.sqlQuery(
       """
         |SELECT id1, T3.rowtime AS ts, text

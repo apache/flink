@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory
 import org.apache.flink.streaming.api.transformations.{SinkTransformation, SourceTransformation}
-import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableSchema, Types}
+import org.apache.flink.table.api.{TableConfig, ExecutionConfigOptions, TableSchema, Types}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
@@ -79,7 +79,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
   @Test
   def testConfigSourceParallelism(): Unit = {
     testUtil.getTableEnv.getConfig.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 100)
+      ExecutionConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 100)
     val sqlQuery = "SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2"
     testUtil.verifyResource(sqlQuery)
   }
@@ -114,7 +114,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
   @Test
   def testSinkConfigParallelism(): Unit = {
     testUtil.getTableEnv.getConfig.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
@@ -130,7 +130,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
   @Test
   def testSinkConfigParallelismWhenMax1(): Unit = {
     testUtil.getTableEnv.getConfig.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
@@ -146,7 +146,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
   @Test
   def testSinkConfigParallelismWhenMax2(): Unit = {
     testUtil.getTableEnv.getConfig.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
@@ -172,7 +172,7 @@ object ExecNodeResourceTest {
 
   def setResourceConfig(tableConfig: TableConfig): Unit = {
     tableConfig.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM,
+      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM,
       18)
   }
 }

@@ -23,7 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, ExecutionConfigOptions}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}

@@ -190,7 +190,7 @@ class TableConfig {
     * Returns true if given [[OperatorType]] is enabled, else false.
     */
   def isOperatorEnabled(operator: OperatorType): Boolean = {
-    val disableOperators = conf.getString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS)
+    val disableOperators = conf.getString(ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS)
       .split(",")
       .map(_.trim)
     if (disableOperators.contains("HashJoin") &&
@@ -228,7 +228,7 @@ class TableConfig {
     *                never clean-up the state.
     */
   def withIdleStateRetentionTime(minTime: Time): TableConfig = {
-    this.conf.setString(TableConfigOptions.SQL_EXEC_STATE_TTL,
+    this.conf.setString(ExecutionConfigOptions.SQL_EXEC_STATE_TTL,
       String.valueOf(minTime.toMilliseconds) + " ms")
     this
   }
@@ -237,7 +237,7 @@ class TableConfig {
     * Returns the minimum time until state which was not updated will be retained.
     */
   def getMinIdleStateRetentionTime: Long =
-    getMillisecondFromConfigDuration(TableConfigOptions.SQL_EXEC_STATE_TTL)
+    getMillisecondFromConfigDuration(ExecutionConfigOptions.SQL_EXEC_STATE_TTL)
 
   /**
     * Returns the maximum time until state which was not updated will be retained.

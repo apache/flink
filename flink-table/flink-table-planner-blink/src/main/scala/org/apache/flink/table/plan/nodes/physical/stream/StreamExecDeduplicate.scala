@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{StreamTableEnvironment, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
@@ -115,7 +115,7 @@ class StreamExecDeduplicate(
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val tableConfig = tableEnv.getConfig
     val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = tableEnv.execEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)

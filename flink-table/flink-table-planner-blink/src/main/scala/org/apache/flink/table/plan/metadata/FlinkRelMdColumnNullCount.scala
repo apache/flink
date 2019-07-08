@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.api.OptimizationConfigOptions
 import org.apache.flink.table.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, FlinkRexUtil}

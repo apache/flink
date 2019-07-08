@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.util.TableTestBase
 
@@ -63,7 +63,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   def testExplainWithJoin(): Unit = {
     // TODO support other join operators when them are supported
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extended)
   }
 

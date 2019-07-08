@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
+import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.plan.metadata.SelectivityEstimator._
@@ -985,6 +986,8 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 
 object SelectivityEstimator {
 
+  // It is a experimental config, will may be removed later.
+  @Experimental
   val SQL_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[JInteger] =
     key("sql.optimizer.cnf.nodes.limit")
         .defaultValue(JInteger.valueOf(-1))

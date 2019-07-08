@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.SortMergeJoin
 import org.apache.flink.table.runtime.utils.BatchTestBase
@@ -416,7 +416,7 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testOrderByAgg(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
     env.setParallelism(1)
     checkQuery(
       Seq((1, 10), (1, 20), (10, 1), (10, 2)),

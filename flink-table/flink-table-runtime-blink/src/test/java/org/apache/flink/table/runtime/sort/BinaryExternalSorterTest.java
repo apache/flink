@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.api.TableConfigOptions;
+import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
@@ -67,10 +67,10 @@ public class BinaryExternalSorterTest {
 		ioManager = new IOManagerAsync();
 		conf = new Configuration();
 		if (!spillCompress) {
-			conf.setBoolean(TableConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, false);
+			conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, false);
 		}
 		if (asyncMerge) {
-			conf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
+			conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
 		}
 	}
 
@@ -96,7 +96,7 @@ public class BinaryExternalSorterTest {
 	public void beforeTest() {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.serializer = new BinaryRowSerializer(2);
-		this.conf.setInteger(TableConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 128);
+		this.conf.setInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 128);
 	}
 
 	@After
@@ -310,7 +310,7 @@ public class BinaryExternalSorterTest {
 		LOG.debug("initializing sortmerger");
 
 		long minMemorySize = memoryManager.computeNumberOfPages(0.01) * MemoryManager.DEFAULT_PAGE_SIZE;
-		conf.setInteger(TableConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 8);
+		conf.setInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM, 8);
 
 		BinaryExternalSorter sorter = new BinaryExternalSorter(
 				new Object(),

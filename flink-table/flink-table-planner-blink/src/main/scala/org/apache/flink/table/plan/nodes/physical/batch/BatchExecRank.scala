@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, PlannerConfigOptions, TableException}
+import org.apache.flink.table.api.{BatchTableEnvironment, OptimizationConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow

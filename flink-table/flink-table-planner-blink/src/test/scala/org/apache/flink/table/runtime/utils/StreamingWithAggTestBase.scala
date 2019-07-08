@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.utils
 
 import java.util
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizationConfigOptions}
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
@@ -40,10 +40,10 @@ class StreamingWithAggTestBase(
     tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     if (aggMode.isLocalAggEnabled) {
       tEnv.getConfig.getConf.setString(
-        PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, AggPhaseEnforcer.TWO_PHASE.toString)
+        OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, AggPhaseEnforcer.TWO_PHASE.toString)
     } else {
       tEnv.getConfig.getConf.setString(
-        PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, AggPhaseEnforcer.ONE_PHASE.toString)
+        OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, AggPhaseEnforcer.ONE_PHASE.toString)
     }
   }
 }

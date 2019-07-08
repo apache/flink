@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, ExecutionConfigOptions}
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef, MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
@@ -62,9 +62,9 @@ class StreamCommonSubGraphBasedOptimizer(tEnv: StreamTableEnvironment)
       }
       sinkBlock.setUpdateAsRetraction(retractionFromRoot)
       val miniBatchInterval: MiniBatchInterval = if (tEnv.getConfig.getConf.getBoolean(
-        TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
         val miniBatchLatency = tEnv.getConfig.getMillisecondFromConfigDuration(
-          TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+          ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
         MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)

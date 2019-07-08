@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.CalcitePair
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, ExecutionConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -408,7 +408,7 @@ class BatchExecOverAggregate(
       val windowFrames = createOverWindowFrames(tableEnv)
       new BufferDataOverWindowOperator(
         tableEnv.getConfig.getConf.getInteger(
-          TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB,
+          ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB,
         windowFrames,
         genComparator,
         inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))

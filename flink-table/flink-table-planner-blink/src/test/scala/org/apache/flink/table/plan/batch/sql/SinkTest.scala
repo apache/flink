@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.api.OptimizationConfigOptions
 import org.apache.flink.table.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
 import org.apache.flink.table.util.TableTestBase

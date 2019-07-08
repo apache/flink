@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{TableConfigOptions, TableException, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException, Types}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.plan.rules.logical.{AggregateReduceGroupingRule, FlinkAggregateJoinTransposeRule}
@@ -74,9 +74,9 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
       .replaceBatchProgram(programs).build()
     tEnv.getConfig.setCalciteConfig(calciteConfig)
 
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.getConf.setString(ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
     registerCollection("T3", data3, type3, "a, b, c", nullablesOfData3)
 
     registerCollection("MyTable",

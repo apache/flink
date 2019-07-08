@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.batch.sql.join
 
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException}
 
 import org.junit.{Before, Test}
 
@@ -27,7 +27,7 @@ class ShuffledHashJoinTest extends JoinTestBase {
   @Before
   def before(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS,
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS,
       "SortMergeJoin, NestedLoopJoin, BroadcastHashJoin")
   }
 

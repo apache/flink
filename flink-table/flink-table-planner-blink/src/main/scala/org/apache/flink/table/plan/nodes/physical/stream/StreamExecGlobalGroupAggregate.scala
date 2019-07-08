@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
@@ -161,7 +161,7 @@ class StreamExecGlobalGroupAggregate(
       .generateRecordEqualiser("GroupAggValueEqualiser")
 
     val operator = if (tableConfig.getConf.getBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
       val aggFunction = new MiniBatchGlobalGroupAggFunction(
         localAggsHandler,
         globalAggsHandler,

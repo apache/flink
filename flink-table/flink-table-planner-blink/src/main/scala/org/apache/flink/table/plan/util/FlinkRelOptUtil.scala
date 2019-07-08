@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.api.{OptimizationConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.plan.metadata.SelectivityEstimator

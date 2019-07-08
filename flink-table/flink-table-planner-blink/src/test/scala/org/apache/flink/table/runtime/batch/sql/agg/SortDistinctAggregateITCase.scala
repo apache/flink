@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{OperatorType, TableConfigOptions}
+import org.apache.flink.table.api.{OperatorType, ExecutionConfigOptions}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.util.{CountAggFunction, IntSumAggFunction}
@@ -35,7 +35,7 @@ class SortDistinctAggregateITCase extends DistinctAggregateITCaseBase {
 
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS,  OperatorType.HashAgg.toString)
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS,  OperatorType.HashAgg.toString)
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())

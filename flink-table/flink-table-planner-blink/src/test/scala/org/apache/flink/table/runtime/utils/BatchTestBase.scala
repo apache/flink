@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment}
+import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, ExecutionConfigOptions, TableEnvironment}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -75,10 +75,10 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @Before
   def before(): Unit = {
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 1)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
   }
 
   @Rule
@@ -492,11 +492,11 @@ object BatchTestBase {
   def initConfigForTest(conf: TableConfig): TableConfig = {
     // TODO prepare for some resource config
     conf.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
+      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
     conf
   }
 

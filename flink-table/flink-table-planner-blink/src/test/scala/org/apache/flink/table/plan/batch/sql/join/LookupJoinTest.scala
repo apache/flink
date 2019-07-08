@@ -216,7 +216,7 @@ class LookupJoinTest extends TableTestBase {
   @Test
   def testReusing(): Unit = {
     testUtil.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     val sql1 =
       """
         |SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime

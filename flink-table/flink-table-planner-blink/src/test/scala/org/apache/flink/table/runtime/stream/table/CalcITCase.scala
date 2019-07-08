@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, TableException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func1, Func13, Func23, Func24, Func25, RichFunc1, RichFunc2}
 import org.apache.flink.table.functions.ScalarFunction

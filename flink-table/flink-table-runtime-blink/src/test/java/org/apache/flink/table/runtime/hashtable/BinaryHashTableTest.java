@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
-import org.apache.flink.table.api.TableConfigOptions;
+import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
@@ -89,7 +89,7 @@ public class BinaryHashTableTest {
 		this.ioManager = new IOManagerAsync();
 
 		conf = new Configuration();
-		conf.setBoolean(TableConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
+		conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
 	}
 
 	@After

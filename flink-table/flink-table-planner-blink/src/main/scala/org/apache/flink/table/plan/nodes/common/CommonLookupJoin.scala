@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.operators.ProcessOperator
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableException, TableSchema}
+import org.apache.flink.table.api.{TableConfig, ExecutionConfigOptions, TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.LookupJoinCodeGenerator._
 import org.apache.flink.table.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
@@ -187,9 +187,9 @@ abstract class CommonLookupJoin(
 
     val operator = if (lookupableTableSource.isAsyncEnabled) {
       val asyncBufferCapacity= config.getConf
-        .getInteger(TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
+        .getInteger(ExecutionConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
       val asyncTimeout = config.getMillisecondFromConfigDuration(
-        TableConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT)
+        ExecutionConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT)
 
       val asyncLookupFunction = lookupableTableSource
         .getAsyncLookupFunction(lookupFieldNamesInOrder)

@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.stream.sql.agg
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
+import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizationConfigOptions}
 import org.apache.flink.table.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
@@ -45,9 +45,9 @@ class DistinctAggregateTest(
     util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
     util.enableMiniBatch()
     util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
+      OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinctAggEnabled)
+      OptimizationConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinctAggEnabled)
     // disable incremental agg
     util.tableEnv.getConfig.getConf.setBoolean(
       IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)

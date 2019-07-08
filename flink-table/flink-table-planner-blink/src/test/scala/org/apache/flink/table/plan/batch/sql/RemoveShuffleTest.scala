@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, Types}
+import org.apache.flink.table.api.{OptimizationConfigOptions, ExecutionConfigOptions, Types}
 import org.apache.flink.table.plan.rules.physical.batch.{BatchExecJoinRuleBase, BatchExecSortMergeJoinRule}
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.util.{TableFunc1, TableTestBase}
@@ -44,13 +44,13 @@ class RemoveShuffleTest extends TableTestBase {
       FlinkStatistic.builder().tableStats(new TableStats(100L)).build()
     )
     util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
+      OptimizationConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
   }
 
   @Test
   def testRemoveHashShuffle_OverWindowAgg(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     val sqlQuery =
       """
         | SELECT
@@ -67,7 +67,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_MultiOverWindowAgg(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     val sqlQuery =
       """
         | SELECT
@@ -84,7 +84,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_OverWindowAgg_PartialKey(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     // push down HashExchange[c] into HashAgg
@@ -104,7 +104,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Agg_PartialKey(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     // push down HashExchange[c] into HashAgg
@@ -119,10 +119,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashAggregate(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -134,10 +134,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashAggregate_1(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -149,10 +149,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashAggregate_2(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -164,10 +164,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortAggregate(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -179,10 +179,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortAggregate_1(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -194,10 +194,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortAggregate_2(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -209,7 +209,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortMergeJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecSortMergeJoinRule.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED, true)
     val sqlQuery =
@@ -223,7 +223,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortMergeJoin_LOJ(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecSortMergeJoinRule.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED, true)
     val sqlQuery =
@@ -237,7 +237,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortMergeJoin_ROJ(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecSortMergeJoinRule.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED, true)
     val sqlQuery =
@@ -251,7 +251,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_SortMergeJoin_FOJ(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x full join (SELECT * FROM y WHERE e = 2) r on a = d)
@@ -263,10 +263,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -278,7 +278,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_BroadcastHashJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -290,10 +290,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashJoin_LOJ(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x left join (SELECT * FROM y WHERE e = 2) r on a = d)
@@ -305,10 +305,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashJoin_ROJ(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x right join (SELECT * FROM y WHERE e = 2) r on a = d)
@@ -320,10 +320,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashJoin_FOJ(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x full join (SELECT * FROM y WHERE e = 2) r on a = d)
@@ -335,10 +335,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_HashJoin_1(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
         |WITH r1 AS (SELECT a, c, sum(b) FROM x group by a, c),
@@ -351,7 +351,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_NestedLoopJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
@@ -363,10 +363,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Join_PartialKey(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
@@ -386,7 +386,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Union(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     val sqlQuery =
       """
         |WITH r AS (
@@ -401,7 +401,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Rank(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     val sqlQuery =
       """
         |SELECT * FROM (
@@ -416,7 +416,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Rank_PartialKey1(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
@@ -433,7 +433,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Rank_PartialKey2(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, false)
     val sqlQuery =
@@ -450,7 +450,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Rank_PartialKey3(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     util.tableEnv.getConfig.getConf.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
@@ -467,7 +467,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Rank_Singleton1(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     val sqlQuery =
       """
         |SELECT * FROM (
@@ -482,7 +482,7 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Rank_Singleton2(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
     val sqlQuery =
       """
         |SELECT * FROM (
@@ -497,10 +497,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Correlate1(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     util.tableEnv.registerFunction("split", new TableFunc1)
     val sqlQuery =
       """
@@ -514,10 +514,10 @@ class RemoveShuffleTest extends TableTestBase {
   @Test
   def testRemoveHashShuffle_Correlate2(): Unit = {
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     util.tableEnv.registerFunction("split", new TableFunc1)
     val sqlQuery =
       """
@@ -532,10 +532,10 @@ class RemoveShuffleTest extends TableTestBase {
   def testRemoveHashShuffle_Correlate3(): Unit = {
     // do not remove shuffle
     util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
     util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+      OptimizationConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     util.tableEnv.registerFunction("split", new TableFunc1)
     val sqlQuery =
       """

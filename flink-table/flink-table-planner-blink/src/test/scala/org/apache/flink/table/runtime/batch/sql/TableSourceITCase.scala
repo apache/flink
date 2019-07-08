@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableConfigOptions, TableSchema, Types}
+import org.apache.flink.table.api.{DataTypes, ExecutionConfigOptions, TableSchema, Types}
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
@@ -35,7 +35,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     env.setParallelism(1) // set sink parallelism to 1
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),

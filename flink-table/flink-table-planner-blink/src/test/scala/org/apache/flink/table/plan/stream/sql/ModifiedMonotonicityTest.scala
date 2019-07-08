@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
@@ -64,9 +64,9 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMaxWithRetractOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf
-      .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
+      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
       "group by a1"
     util.verifyPlanWithTrait(query)
@@ -75,9 +75,9 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMinWithRetractOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf
-      .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
+      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)"
     util.verifyPlanWithTrait(query)
   }
@@ -85,9 +85,9 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMinCanNotOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConf
-      .setString(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
+      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
     util.verifyPlanWithTrait(query)

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIV
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, ValidationException}
 import org.apache.flink.table.dataformat.DataFormatConverters.{DateConverter, TimestampConverter}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
@@ -1191,7 +1191,7 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
     conf.getConf.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     checkResult(
       "select * from BinaryT order by c",

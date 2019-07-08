@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.api.{StreamTableEnvironment, ExecutionConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
@@ -166,7 +166,7 @@ class StreamExecGroupAggregate(
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
     val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
 
     val operator = if (isMiniBatchEnabled) {
       val aggFunction = new MiniBatchGroupAggFunction(

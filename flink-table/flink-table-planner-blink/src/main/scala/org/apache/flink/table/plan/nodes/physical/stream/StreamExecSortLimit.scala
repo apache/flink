@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{StreamTableEnvironment, ExecutionConfigOptions, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator

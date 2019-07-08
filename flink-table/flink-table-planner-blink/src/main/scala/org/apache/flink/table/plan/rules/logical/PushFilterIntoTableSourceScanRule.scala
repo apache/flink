@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.api.OptimizationConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.expressions.{Expression, RexNodeConverter}
 import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
@@ -46,7 +46,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val config = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    if (!config.getConf.getBoolean(PlannerConfigOptions.SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED)) {
+    if (!config.getConf.getBoolean(OptimizationConfigOptions.SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
     }
 

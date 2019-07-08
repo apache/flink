@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions}
+import org.apache.flink.table.api.{OperatorType, OptimizationConfigOptions}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -43,7 +43,7 @@ import scala.collection.JavaConversions._
   *              +- input of agg
   * }}}
   * when all aggregate functions are mergeable
-  * and [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
+  * and [[OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
   *   BatchExecSortAggregate
   *   +- Sort (exists if group keys are not empty)
@@ -51,9 +51,9 @@ import scala.collection.JavaConversions._
   *         +- input of agg
   * }}}
   * when some aggregate functions are not mergeable
-  * or [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
+  * or [[OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
   *
-  * Notes: if [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
+  * Notes: if [[OptimizationConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
   * this rule will try to create two possibilities above, and chooses the best one based on cost.
   */
 class BatchExecSortAggRule

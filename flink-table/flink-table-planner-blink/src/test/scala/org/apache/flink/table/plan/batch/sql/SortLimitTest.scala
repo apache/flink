@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.util.TableTestBase
 
@@ -29,7 +29,7 @@ class SortLimitTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-  util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
+  util.tableEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
 
   @Test
   def testNonRangeSortWithoutOffset(): Unit = {

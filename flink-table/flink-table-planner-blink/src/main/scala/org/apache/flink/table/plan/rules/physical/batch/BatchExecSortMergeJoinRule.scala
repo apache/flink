@@ -146,7 +146,7 @@ class BatchExecSortMergeJoinRule
 object BatchExecSortMergeJoinRule {
   val INSTANCE: RelOptRule = new BatchExecSortMergeJoinRule
 
-  //It may be removed later.
+  // It is a experimental config, will may be removed later.
   @Experimental
   val SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED: ConfigOption[JBoolean] =
     key("sql.optimizer.sort-merge-join.remove-sort.enabled")

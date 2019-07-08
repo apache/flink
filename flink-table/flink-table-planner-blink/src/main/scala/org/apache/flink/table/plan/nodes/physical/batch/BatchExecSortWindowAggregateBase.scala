@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, ExecutionConfigOptions}
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
@@ -117,7 +117,7 @@ abstract class BatchExecSortWindowAggregateBase(
       aggCallToAggFunction.map(_._1), aggInputRowType)
 
     val groupBufferLimitSize = tableEnv.getConfig.getConf.getInteger(
-      TableConfigOptions.SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
+      ExecutionConfigOptions.SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
 
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
 

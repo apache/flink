@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.api.{BatchTableEnvironment, ExecutionConfigOptions}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
@@ -115,7 +115,7 @@ class BatchExecSort(
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
     val reservedMemorySize = conf.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
+      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
 
     val operator = new SortOperator(
       reservedMemorySize,

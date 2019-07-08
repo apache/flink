@@ -26,7 +26,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * This class holds configuration constants used by Flink's table module.
  */
-public class TableConfigOptions {
+public class ExecutionConfigOptions {
 
 	// ------------------------------------------------------------------------
 	//  Source Options
