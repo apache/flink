@@ -177,8 +177,6 @@ class CorrelateITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionInCondition(): Unit = {
     val in = testData.as('a, 'b, 'c)
@@ -353,8 +351,6 @@ class CorrelateITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   @Test
   def testTableFunctionCollectorOpenClose(): Unit = {
     val t = testData.as('a, 'b, 'c)

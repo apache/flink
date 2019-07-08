@@ -248,8 +248,6 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   @Test
   def testMultipleUserDefinedFunctions(): Unit = {
     tEnv.registerFunction("RichFunc1", new RichFunc1)
