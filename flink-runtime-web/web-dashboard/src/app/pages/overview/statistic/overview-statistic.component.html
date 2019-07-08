@@ -88,7 +88,7 @@
                       'task-manager-percentage-bar-small' : listOfTaskManager.length >= 20
                       }"
                        [nzStrokeWidth]="listOfTaskManager.length < 20 ? 5 : 3"
-                       [nzPercent]="manager.freeSlots / manager.slotsNumber * 100" nzSize="small" [nzShowInfo]="false" [nzStrokeColor]="'#1890ff'"></nz-progress>
+                       [nzPercent]="manager.freeSlots / manager.slotsNumber * 100" nzSize="small" [nzShowInfo]="false" nzStatus="normal"></nz-progress>
         </div>
         <ng-template #managerTooltip>
           <span>ID: {{manager.id}}</span><br />
