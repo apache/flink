@@ -30,7 +30,7 @@ Get a Flink example program up and running in a few simple steps.
 
 ## Setup: Download and Start Flink
 
-Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 8.x__ installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/tutorials/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
+Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 8.x__ installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/getting-started/tutorials/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
 
 You can check the correct installation of Java by issuing the following command:
 
@@ -292,6 +292,6 @@ $ ./bin/stop-cluster.sh
 
 ## Next Steps
 
-Check out some more [examples]({{ site.baseurl }}/examples) to get a better feel for Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/dev/datastream_api.html).
+Check out some more [examples]({{ site.baseurl }}/getting-started/examples) to get a better feel for Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/dev/datastream_api.html).
 
 {% top %}
