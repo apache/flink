@@ -641,7 +641,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
 	@Override
 	public void alterTableStatistics(ObjectPath tablePath, CatalogTableStatistics tableStatistics, boolean ignoreIfNotExists)
-		throws TableNotExistException, TablePartitionedException {
+			throws TableNotExistException, TablePartitionedException {
 		checkNotNull(tablePath);
 		checkNotNull(tableStatistics);
 
