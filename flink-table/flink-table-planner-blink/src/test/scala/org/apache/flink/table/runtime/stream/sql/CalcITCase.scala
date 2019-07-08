@@ -223,7 +223,6 @@ class CalcITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  @Ignore // TODO In not support
   @Test
   def testIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b in (1,3,4,5,6)"
@@ -245,7 +244,6 @@ class CalcITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  @Ignore // TODO In not support
   @Test
   def testNotIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b not in (1,3,4,5,6)"

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, TableException, Tumble, ValidationException}
+import org.apache.flink.table.api.{Session, Slide, TableException, Tumble}
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.util.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils
@@ -55,9 +55,7 @@ class GroupWindowITCase extends BatchTestBase {
     executeQuery(result)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
+  @Test(expected = classOf[TableException])
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val table = BatchTableEnvUtil.fromCollection(tEnv, data,
       "long, int, double, float, bigdec, string")

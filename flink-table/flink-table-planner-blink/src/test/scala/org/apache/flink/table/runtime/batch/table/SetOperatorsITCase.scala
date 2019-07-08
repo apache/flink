@@ -94,7 +94,6 @@ class SetOperatorsITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Ignore("Enable after https://github.com/apache/flink/pull/8898 is merged")
   @Test
   def testMinusAll(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv)
@@ -155,7 +154,6 @@ class SetOperatorsITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Ignore("Enable after https://github.com/apache/flink/pull/8898 is merged")
   @Test
   def testIntersectAll(): Unit = {
     val data1 = new mutable.MutableList[Int]
