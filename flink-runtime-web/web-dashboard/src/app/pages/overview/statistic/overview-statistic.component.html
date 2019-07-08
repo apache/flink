@@ -22,7 +22,7 @@
       <ng-container *ngIf="statistic">
         <div class="taskslots">
           <div class="total">{{ statistic['slots-available'] | number:'1.0-0' }}</div>
-          <div class="task-slot-percentage-bar"><nz-progress [nzPercent]=taskSlotPercentage [nzStrokeColor]="'#1890ff'"></nz-progress></div>
+          <div class="task-slot-percentage-bar"><nz-progress [nzPercent]=taskSlotPercentage nzStatus="normal"></nz-progress></div>
         </div>
         <div class="footer">
           <div class="field">
